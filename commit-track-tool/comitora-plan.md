@@ -179,7 +179,7 @@ review = client.messages.create(
 
 ## 開発ステップ
 
-### Step 1: GitHub リポのデータを取得する Python スクリプトを作る（**次のチャットで着手**）
+### Step 1: GitHub リポのデータを取得する Python スクリプトを作る
 
 - 現行の `get-all-branch-commits.js` を Python に書き直す
 - 呼び出しイメージ：
@@ -230,7 +230,7 @@ templates/
 SKILL.md              ← 「テンプレートに従ってデータを埋めよ」という指示
 ```
 
-### Step 2.5: 生成HTMLのバリデーションを追加する
+### Step 3: 生成HTMLのバリデーションを追加する
 
 - Claudeが返したHTMLをPythonでチェックする
 - チェック項目：
@@ -239,7 +239,7 @@ SKILL.md              ← 「テンプレートに従ってデータを埋めよ
   - HTMLとして構文的に壊れていないか
 - バリデーション失敗時はエラーログを出力してパイプラインを中断する
 
-### Step 2.6: サブエージェントによるレポート品質評価を追加する
+### Step 4: サブエージェントによるレポート品質評価を追加する
 
 - 生成・バリデーション済みのHTMLを別のClaude呼び出しに渡す
 - 評価観点：
@@ -248,14 +248,14 @@ SKILL.md              ← 「テンプレートに従ってデータを埋めよ
   - Tipsはプロジェクト文脈と関連しているか
 - 評価結果（スコア・コメント）をログに記録する（低品質でも現時点では再生成は行わない）
 
-### Step 3: スキルを実行する Python スクリプトを作る
+### Step 5: スキルを実行する Python スクリプトを作る
 
 - `main.py` として実装
 - SKILL.md + テンプレートHTMLをシステムプロンプトに埋め込み（Prompt Caching対象）
 - コミットデータをユーザーメッセージに入れて Anthropic SDK 経由で Claude を呼び出す
 - Step 2.5 のバリデーション、Step 2.6 のサブエージェント評価もここで実行する
 
-### Step 4: GitHub Actions で動かす
+### Step 6: GitHub Actions で動かす
 
 - `report-job.yml` を Python 実行に書き換える
 - 必要な Secrets：`ANTHROPIC_API_KEY`, `GH_TOKEN`, `SLACK_BOT_TOKEN`（または SMTP設定）

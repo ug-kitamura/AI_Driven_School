@@ -1,0 +1,346 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>XXX Project Report – Week of Apr 14, 2026</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            brand: { 50:'#f0f9ff', 100:'#e0f2fe', 500:'#0ea5e9', 600:'#0284c7', 700:'#0369a1', 900:'#0c4a6e' },
+            accent: { 400:'#a78bfa', 500:'#8b5cf6', 600:'#7c3aed' },
+          },
+          fontFamily: { sans: ['"Segoe UI"','Noto Sans JP','sans-serif'] },
+        }
+      }
+    }
+  </script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700&display=swap');
+    body { background: #0f172a; }
+    .glass { background: rgba(255,255,255,0.05); backdrop-filter: blur(12px); border: 1px solid rgba(255,255,255,0.08); }
+    .progress-bar { transition: width 1s ease; }
+    .badge { display: inline-flex; align-items: center; gap: 4px; padding: 2px 10px; border-radius: 9999px; font-size: 0.7rem; font-weight: 600; letter-spacing: 0.04em; }
+    .card-hover { transition: transform 0.2s, box-shadow 0.2s; }
+    .card-hover:hover { transform: translateY(-2px); box-shadow: 0 8px 32px rgba(14,165,233,0.15); }
+    .flame { animation: flicker 1.4s infinite alternate; }
+    @keyframes flicker { from { opacity:1; } to { opacity:.7; filter: brightness(1.3); } }
+    .shine { background: linear-gradient(90deg, #0ea5e9 0%, #8b5cf6 50%, #ec4899 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+    .glow-border { box-shadow: 0 0 0 1px rgba(14,165,233,0.3), 0 4px 24px rgba(14,165,233,0.12); }
+  </style>
+</head>
+<body class="min-h-screen text-slate-100 font-sans p-4 md:p-8">
+
+  <!-- ===== HEADER ===== -->
+  <div class="max-w-5xl mx-auto">
+    <div class="glass rounded-2xl p-6 mb-6 glow-border card-hover">
+      <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+        <div class="flex items-center gap-4">
+          <div class="w-14 h-14 rounded-xl bg-gradient-to-br from-brand-500 to-accent-500 flex items-center justify-center text-3xl shadow-lg">
+            ⚡
+          </div>
+          <div>
+            <h1 class="text-2xl font-bold shine">XXX Project Report</h1>
+            <p class="text-slate-400 text-sm mt-0.5">Week of Apr 14–20, 2026 &nbsp;·&nbsp; repo: <span class="text-brand-400 font-mono">abcd-corp/main-app</span></p>
+          </div>
+        </div>
+        <div class="flex flex-wrap gap-2">
+          <span class="badge bg-green-500/20 text-green-300 border border-green-500/30">✅ 自動生成 / Auto-generated</span>
+          <span class="badge bg-blue-500/20 text-blue-300 border border-blue-500/30">📅 毎週月曜 08:00 JST</span>
+          <span class="badge bg-purple-500/20 text-purple-300 border border-purple-500/30">🌐 日本語 / English</span>
+        </div>
+      </div>
+
+      <!-- Overall health meter -->
+      <div class="mt-5 flex items-center gap-3">
+        <span class="text-slate-400 text-sm w-36 shrink-0">プロジェクト健全度<br/><span class="text-xs">Project Health</span></span>
+        <div class="flex-1 bg-slate-700/60 rounded-full h-3 overflow-hidden">
+          <div class="progress-bar h-3 rounded-full bg-gradient-to-r from-brand-500 to-accent-400" style="width:72%"></div>
+        </div>
+        <span class="text-brand-400 font-bold text-lg w-12 text-right">72%</span>
+        <span class="text-2xl">🟡</span>
+      </div>
+    </div>
+
+    <!-- ===== ROW 1: Sprint Progress + Stat Cards ===== -->
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+
+      <!-- Sprint progress -->
+      <div class="md:col-span-2 glass rounded-2xl p-5 card-hover">
+        <h2 class="text-sm font-semibold text-slate-400 uppercase tracking-widest mb-4">📊 スプリント進捗 / Sprint Progress</h2>
+        <div class="space-y-4">
+          <!-- Feature A -->
+          <div>
+            <div class="flex justify-between text-sm mb-1">
+              <span class="font-medium">🛒 Feature: Cart Redesign</span>
+              <span class="text-green-400 font-bold">88%</span>
+            </div>
+            <div class="bg-slate-700/60 rounded-full h-2.5">
+              <div class="progress-bar h-2.5 rounded-full bg-green-400" style="width:88%"></div>
+            </div>
+            <div class="flex gap-2 mt-1.5">
+              <span class="badge bg-green-500/10 text-green-300 border border-green-500/20">7/8 PR merged</span>
+              <span class="badge bg-yellow-500/10 text-yellow-300 border border-yellow-500/20">1 in review</span>
+            </div>
+          </div>
+          <!-- Feature B -->
+          <div>
+            <div class="flex justify-between text-sm mb-1">
+              <span class="font-medium">🔐 Feature: Auth Overhaul</span>
+              <span class="text-blue-400 font-bold">55%</span>
+            </div>
+            <div class="bg-slate-700/60 rounded-full h-2.5">
+              <div class="progress-bar h-2.5 rounded-full bg-blue-400" style="width:55%"></div>
+            </div>
+            <div class="flex gap-2 mt-1.5">
+              <span class="badge bg-blue-500/10 text-blue-300 border border-blue-500/20">5/9 PR merged</span>
+              <span class="badge bg-red-500/10 text-red-300 border border-red-500/20">2 blocked</span>
+            </div>
+          </div>
+          <!-- Feature C -->
+          <div>
+            <div class="flex justify-between text-sm mb-1">
+              <span class="font-medium">📊 Feature: Analytics Dashboard</span>
+              <span class="text-slate-400 font-bold">20%</span>
+            </div>
+            <div class="bg-slate-700/60 rounded-full h-2.5">
+              <div class="progress-bar h-2.5 rounded-full bg-slate-500" style="width:20%"></div>
+            </div>
+            <div class="flex gap-2 mt-1.5">
+              <span class="badge bg-slate-500/10 text-slate-300 border border-slate-500/20">2/10 PR merged</span>
+              <span class="badge bg-orange-500/10 text-orange-300 border border-orange-500/20">⏰ 遅延気味 Behind</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Stat cards -->
+      <div class="grid grid-cols-2 md:grid-cols-1 gap-4">
+        <div class="glass rounded-2xl p-4 card-hover text-center">
+          <div class="text-4xl font-black text-green-400">14</div>
+          <div class="text-xs text-slate-400 mt-1">今週マージ<br/>PRs Merged</div>
+        </div>
+        <div class="glass rounded-2xl p-4 card-hover text-center">
+          <div class="text-4xl font-black text-yellow-400">6</div>
+          <div class="text-xs text-slate-400 mt-1">レビュー待ち<br/>Awaiting Review</div>
+        </div>
+        <div class="glass rounded-2xl p-4 card-hover text-center">
+          <div class="text-4xl font-black text-red-400">2</div>
+          <div class="text-xs text-slate-400 mt-1">ブロッカー<br/>Blockers</div>
+        </div>
+        <div class="glass rounded-2xl p-4 card-hover text-center">
+          <div class="text-4xl font-black text-purple-400">23</div>
+          <div class="text-xs text-slate-400 mt-1">アクティブブランチ<br/>Active Branches</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== ROW 2: Branch Map ===== -->
+    <div class="glass rounded-2xl p-5 mb-6 card-hover">
+      <h2 class="text-sm font-semibold text-slate-400 uppercase tracking-widest mb-4">🌿 ブランチ状況マップ / Branch Status Map</h2>
+      <div class="overflow-x-auto">
+        <table class="w-full text-sm">
+          <thead>
+            <tr class="text-slate-500 text-xs border-b border-slate-700">
+              <th class="text-left pb-2 font-medium">Branch</th>
+              <th class="text-left pb-2 font-medium">担当 / Author</th>
+              <th class="text-left pb-2 font-medium">ステータス / Status</th>
+              <th class="text-left pb-2 font-medium">最終更新 / Last Updated</th>
+              <th class="text-left pb-2 font-medium">アクション / Action</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-slate-700/50">
+            <tr class="hover:bg-white/5 transition">
+              <td class="py-2.5 font-mono text-brand-300 text-xs">feature/cart-ui-v2</td>
+              <td class="py-2.5 flex items-center gap-2"><span class="w-6 h-6 rounded-full bg-blue-500 flex items-center justify-center text-xs font-bold">R</span> Ravi</td>
+              <td class="py-2.5"><span class="badge bg-green-500/20 text-green-300 border border-green-500/30">✅ Merged</span></td>
+              <td class="py-2.5 text-slate-400">2 days ago</td>
+              <td class="py-2.5 text-slate-500">—</td>
+            </tr>
+            <tr class="hover:bg-white/5 transition">
+              <td class="py-2.5 font-mono text-brand-300 text-xs">feature/auth-jwt</td>
+              <td class="py-2.5 flex items-center gap-2"><span class="w-6 h-6 rounded-full bg-orange-500 flex items-center justify-center text-xs font-bold">N</span> Nguyen</td>
+              <td class="py-2.5"><span class="badge bg-yellow-500/20 text-yellow-300 border border-yellow-500/30">👀 Review待ち</span></td>
+              <td class="py-2.5 text-slate-400">1 day ago</td>
+              <td class="py-2.5 text-yellow-300 text-xs">→ レビュー依頼中 / Reviewer needed</td>
+            </tr>
+            <tr class="hover:bg-white/5 transition">
+              <td class="py-2.5 font-mono text-brand-300 text-xs">feature/auth-refresh-token</td>
+              <td class="py-2.5 flex items-center gap-2"><span class="w-6 h-6 rounded-full bg-green-600 flex items-center justify-center text-xs font-bold">T</span> Tanaka</td>
+              <td class="py-2.5"><span class="badge bg-red-500/20 text-red-300 border border-red-500/30">🚧 Blocked</span></td>
+              <td class="py-2.5 text-slate-400">4 days ago</td>
+              <td class="py-2.5 text-red-300 text-xs">⚠️ 依存関係 conflict あり</td>
+            </tr>
+            <tr class="hover:bg-white/5 transition">
+              <td class="py-2.5 font-mono text-brand-300 text-xs">feature/analytics-charts</td>
+              <td class="py-2.5 flex items-center gap-2"><span class="w-6 h-6 rounded-full bg-purple-500 flex items-center justify-center text-xs font-bold">M</span> Müller</td>
+              <td class="py-2.5"><span class="badge bg-blue-500/20 text-blue-300 border border-blue-500/30">🔨 In Progress</span></td>
+              <td class="py-2.5 text-slate-400">3 hours ago</td>
+              <td class="py-2.5 text-slate-500">—</td>
+            </tr>
+            <tr class="hover:bg-white/5 transition">
+              <td class="py-2.5 font-mono text-brand-300 text-xs">feature/payment-refactor</td>
+              <td class="py-2.5 flex items-center gap-2"><span class="w-6 h-6 rounded-full bg-red-500 flex items-center justify-center text-xs font-bold">S</span> Sato</td>
+              <td class="py-2.5"><span class="badge bg-orange-500/20 text-orange-300 border border-orange-500/30">😴 Stale (7d)</span></td>
+              <td class="py-2.5 text-orange-400">7 days ago</td>
+              <td class="py-2.5 text-orange-300 text-xs">💬 更新 or クローズを検討</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- ===== ROW 3: Action Plan + MVP ===== -->
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+
+      <!-- Action Plan -->
+      <div class="glass rounded-2xl p-5 card-hover">
+        <h2 class="text-sm font-semibold text-slate-400 uppercase tracking-widest mb-4">🎯 今週のアクションプラン / Action Plan</h2>
+        <div class="space-y-3">
+          <div class="flex gap-3 items-start p-3 rounded-xl bg-red-500/10 border border-red-500/20">
+            <span class="text-lg mt-0.5">🔴</span>
+            <div>
+              <div class="font-semibold text-sm">auth-refresh-token のコンフリクト解消</div>
+              <div class="text-xs text-slate-400 mt-0.5">Tanaka → 今日中 / by EOD today</div>
+            </div>
+          </div>
+          <div class="flex gap-3 items-start p-3 rounded-xl bg-orange-500/10 border border-yellow-500/20">
+            <span class="text-lg mt-0.5">🟠</span>
+            <div>
+              <div class="font-semibold text-sm">auth-jwt PR のレビュー担当を決める</div>
+              <div class="text-xs text-slate-400 mt-0.5">チームリーダー → 明日まで / by tomorrow</div>
+            </div>
+          </div>
+          <div class="flex gap-3 items-start p-3 rounded-xl bg-yellow-500/10 border border-yellow-500/20">
+            <span class="text-lg mt-0.5">🟡</span>
+            <div>
+              <div class="font-semibold text-sm">payment-refactor ブランチの方針確認</div>
+              <div class="text-xs text-slate-400 mt-0.5">Sato → 週内に継続 or クローズを判断</div>
+            </div>
+          </div>
+          <div class="flex gap-3 items-start p-3 rounded-xl bg-blue-500/10 border border-blue-500/20">
+            <span class="text-lg mt-0.5">🔵</span>
+            <div>
+              <div class="font-semibold text-sm">Analytics Dashboard の遅延対策を議論</div>
+              <div class="text-xs text-slate-400 mt-0.5">週次ミーティングでアジェンダに追加</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- MVP of the Week -->
+      <div class="glass rounded-2xl p-5 card-hover">
+        <h2 class="text-sm font-semibold text-slate-400 uppercase tracking-widest mb-4">🏆 今週のヒーロー / Hero of the Week</h2>
+        <div class="flex flex-col items-center text-center py-3">
+          <div class="relative mb-3">
+            <div class="w-20 h-20 rounded-full bg-gradient-to-br from-yellow-400 to-orange-500 flex items-center justify-center text-4xl font-black text-white shadow-lg shadow-yellow-500/30">
+              R
+            </div>
+            <div class="absolute -top-1 -right-1 text-2xl flame">🔥</div>
+          </div>
+          <div class="text-xl font-bold">Ravi Kumar</div>
+          <div class="text-slate-400 text-sm">@ravi-kumar · India 🇮🇳</div>
+          <div class="flex flex-wrap justify-center gap-2 mt-3">
+            <span class="badge bg-yellow-500/20 text-yellow-300 border border-yellow-500/30">🥇 5 PRs merged</span>
+            <span class="badge bg-green-500/20 text-green-300 border border-green-500/30">💬 12 reviews</span>
+            <span class="badge bg-purple-500/20 text-purple-300 border border-purple-500/30">⚡ 最速マージ</span>
+          </div>
+          <div class="mt-4 text-sm text-slate-300 italic bg-white/5 rounded-xl p-3 border border-white/10">
+            "Cart Redesign を引っ張ってくれました。<br/>チームの頼れる柱です！"
+            <p class="text-slate-500 text-xs mt-2 italic">
+              "Thank you for leading the Cart Redesign.<br>You’re a dependable pillar of the team! 🙌"
+            </p>
+          </div>
+        </div>
+
+        <!-- Contributor mini ranking -->
+        <div class="mt-4 space-y-2">
+          <div class="text-xs text-slate-500 uppercase tracking-wider mb-2">今週のコントリビューター</div>
+          <div class="flex items-center gap-3 text-sm">
+            <span class="text-slate-500 text-xs w-4">2</span>
+            <span class="w-7 h-7 rounded-full bg-green-600 flex items-center justify-center text-xs font-bold">T</span>
+            <span class="flex-1">Tanaka</span>
+            <span class="text-slate-400 text-xs">3 PRs · 🇯🇵</span>
+          </div>
+          <div class="flex items-center gap-3 text-sm">
+            <span class="text-slate-500 text-xs w-4">3</span>
+            <span class="w-7 h-7 rounded-full bg-purple-500 flex items-center justify-center text-xs font-bold">M</span>
+            <span class="flex-1">Müller</span>
+            <span class="text-slate-400 text-xs">3 PRs · 🇩🇪</span>
+          </div>
+          <div class="flex items-center gap-3 text-sm">
+            <span class="text-slate-500 text-xs w-4">4</span>
+            <span class="w-7 h-7 rounded-full bg-orange-500 flex items-center justify-center text-xs font-bold">N</span>
+            <span class="flex-1">Nguyen</span>
+            <span class="text-slate-400 text-xs">2 PRs · 🇻🇳</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== ROW 4: Motivation + Git Tip ===== -->
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+
+      <!-- Motivational message -->
+      <div class="glass rounded-2xl p-5 card-hover bg-gradient-to-br from-brand-900/40 to-accent-600/10">
+        <h2 class="text-sm font-semibold text-slate-400 uppercase tracking-widest mb-3">💬 今週のメッセージ / Team Message</h2>
+        <div class="text-2xl mb-3">🚀</div>
+        <p class="text-slate-200 font-medium leading-relaxed mb-2">
+          スプリントの折り返し地点！<br/>Cart Redesign はほぼ完成、素晴らしい！
+        </p>
+        <p class="text-slate-400 text-sm leading-relaxed mb-4">
+          Auth Overhaul は少し山場ですが、一つひとつのブロッカーを丁寧に解消すれば必ず越えられます。今週もチーム全員で進めていきましょう。
+        </p>
+        <div class="border-t border-white/10 pt-3">
+          <p class="text-slate-500 text-xs italic">
+            "Halfway through the sprint! Cart Redesign is almost done — great work! Auth Overhaul hits a tough stretch, but we'll clear each blocker together. Let's push through! 💪"
+          </p>
+        </div>
+      </div>
+
+      <!-- Git tip of the week -->
+      <div class="glass rounded-2xl p-5 card-hover">
+        <h2 class="text-sm font-semibold text-slate-400 uppercase tracking-widest mb-3">💡 今週の Git コツ / Git Tip of the Week</h2>
+        <div class="flex items-start gap-3 mb-3">
+          <div class="w-10 h-10 rounded-xl bg-accent-500/20 border border-accent-500/30 flex items-center justify-center text-xl shrink-0">🌿</div>
+          <div>
+            <div class="font-bold text-accent-300">`git branch --merged`</div>
+            <div class="text-xs text-slate-400 mt-0.5">マージ済みブランチを一覧表示 / List merged branches</div>
+          </div>
+        </div>
+        <div class="bg-slate-900/60 rounded-xl p-3 font-mono text-sm text-green-300 mb-3 border border-slate-700">
+          <div class="text-slate-500 text-xs mb-1"># マージ済みブランチを確認して整理しよう</div>
+          <div>$ git branch --merged</div>
+          <div class="text-slate-500 mt-1">  feature/cart-ui-v2</div>
+          <div class="text-slate-500">  feature/login-fix</div>
+          <div class="text-slate-500 text-xs mt-2"># 不要になったブランチは削除できます</div>
+          <div>$ git branch -d feature/cart-ui-v2</div>
+        </div>
+        <p class="text-slate-400 text-sm">
+          ブランチが増えすぎると全体が見えにくくなります。マージ済みのブランチは定期的に削除してリポジトリを整理しましょう！
+        </p>
+        <p class="text-slate-500 text-xs mt-2 italic">
+          Too many branches make it hard to see the big picture. Clean up merged branches regularly to keep the repo tidy!
+        </p>
+      </div>
+    </div>
+
+    <!-- ===== FOOTER ===== -->
+    <div class="glass rounded-2xl p-4 text-center">
+      <div class="flex flex-col md:flex-row items-center justify-between gap-2 text-xs text-slate-500">
+        <div>⚡ GitPulse Report · 自動生成 / Auto-generated by GitHub Actions</div>
+        <div class="flex gap-4">
+          <a href="#" class="hover:text-brand-400 transition">📄 フルレポート / Full Report</a>
+          <a href="#" class="hover:text-brand-400 transition">🔗 GitHub Repository</a>
+          <a href="#" class="hover:text-brand-400 transition">📊 過去のレポート / Past Reports</a>
+        </div>
+        <div>Generated: Mon Apr 14, 2026 08:00 JST</div>
+      </div>
+    </div>
+  </div>
+
+</body>
+</html>

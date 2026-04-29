@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <!-- FILL: title → 会議名と年月 -->
+  <title>{{MEETING_TITLE}} 議事録 - {{YEAR}}年{{MONTH}}月</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700&display=swap" rel="stylesheet">
+  <!-- スタイルのSOT: references/style.css -->
+  <!-- ローカルプレビュー用。HTML生成時はstyle.cssの内容を<style>タグとしてインライン化すること -->
+  <link rel="stylesheet" href="style.css">
+</head>
+<body class="min-h-screen">
+
+  <!-- 目次（フローティング） -->
+  <nav class="toc">
+    <img src="data:image/png;base64,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" alt="ロゴ" style="display:block;width:50%;margin:0 auto 1.25rem;">
+    <div class="text-xs font-bold mb-2 uppercase tracking-wide" style="color:var(--gray-60)">目次</div>
+    <ul class="space-y-1 text-sm">
+      <li><a href="#summary" style="color:var(--gray-45)" class="hover:underline">サマリー</a></li>
+      <li><a href="#agenda" style="color:var(--gray-45)" class="hover:underline">議題リスト</a></li>
+      <li><a href="#details" style="color:var(--gray-45)" class="hover:underline">議題の詳細</a></li>
+      <li><a href="#actions" style="color:var(--gray-45)" class="hover:underline">アクションプラン</a></li>
+      <li><a href="#purpose" style="color:var(--gray-45)" class="hover:underline">パーパスへの貢献</a></li>
+    </ul>
+  </nav>
+
+  <!-- ヘッダー -->
+  <!-- FILL: {{MEETING_TITLE}}, {{DATE}}, {{ATTENDEES}}（参加N名／欠席N名（名前）), {{MINUTES_WRITER}} -->
+  <header class="header-gradient text-white py-8 px-4">
+    <div class="max-w-4xl mx-auto">
+      <div class="flex items-center gap-3 mb-2">
+        <i data-lucide="clipboard-list" class="w-8 h-8 flex-shrink-0"></i>
+        <h1 class="text-2xl md:text-3xl font-bold">{{MEETING_TITLE}} 議事録</h1>
+      </div>
+      <div class="flex flex-wrap gap-x-6 gap-y-2 text-sm opacity-80 mt-3">
+        <span class="flex items-center gap-1"><i data-lucide="calendar" class="w-4 h-4"></i>{{DATE}}</span>
+        <span class="flex items-center gap-1"><i data-lucide="users" class="w-4 h-4"></i>{{ATTENDEES}}</span>
+        <span class="flex items-center gap-1"><i data-lucide="user" class="w-4 h-4"></i>議事録担当：{{MINUTES_WRITER}}</span>
+      </div>
+    </div>
+  </header>
+
+  <main class="max-w-4xl mx-auto px-4 py-8">
+
+    <!-- ①─────────────────────────────────────────── -->
+    <!-- サマリーカード                                     -->
+    <!--  - 決定事項の合計数・アクション合計数・要確認合計数を記入  -->
+    <!--  - 要確認が0件の場合は注意書きブロックを削除            -->
+    <!-- ───────────────────────────────────────────── -->
+    <div id="summary" class="grid grid-cols-3 gap-4 mb-8">
+      <!-- FILL: 決定事項の件数 -->
+      <div class="rounded-xl p-4 text-center shadow-sm" style="color:var(--teal-30);background-color:var(--teal-95);border:2px solid var(--teal-50)">
+        <div class="text-4xl font-bold">{{DECISIONS_COUNT}}</div>
+        <div class="text-sm mt-1 opacity-80">決定事項</div>
+      </div>
+      <!-- FILL: アクションの件数 -->
+      <div class="rounded-xl p-4 text-center shadow-sm" style="color:var(--blue-30);background-color:var(--blue-95);border:2px solid var(--blue-50)">
+        <div class="text-4xl font-bold">{{ACTIONS_COUNT}}</div>
+        <div class="text-sm mt-1 opacity-80">アクション</div>
+      </div>
+      <!-- FILL: 要確認の件数 -->
+      <div class="rounded-xl p-4 text-center shadow-sm" style="color:var(--red-30);background-color:var(--red-95);border:2px solid var(--red-40)">
+        <div class="text-4xl font-bold">{{PENDING_COUNT}}</div>
+        <div class="text-sm mt-1 opacity-80">要確認</div>
+      </div>
+    </div>
+
+    <!-- FILL: 要確認が1件以上の場合のみ表示。件数・説明を記入 -->
+    <div class="flex items-start gap-3 rounded-xl p-4 mb-8" style="background:var(--red-95);border:1px solid var(--red-85)">
+      <i data-lucide="triangle-alert" class="w-5 h-5 flex-shrink-0 mt-0.5" style="color:var(--red-50)"></i>
+      <p class="text-sm" style="color:var(--red-30)">
+        <strong>「要確認」が{{PENDING_COUNT}}件あります。</strong>担当者または期限が会議中に確定しなかった項目です。今週中に関係者間で確認・決定してください。
+      </p>
+    </div>
+
+    <!-- ②───────────────────────────────────────── -->
+    <!-- 議題リスト                                    -->
+    <!--  - 議題タイトルを年表スタイルで一覧                 -->
+    <!--  - 各タイトルは #topic-N へのリンク（詳細にジャンプ）  -->
+    <!--  - 報告者情報をサブテキストで表示                  -->
+    <!-- ────────────────────────────────────────── -->
+    <div class="section-card" id="agenda">
+      <div class="flex items-center gap-3 mb-5">
+        <div class="w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0" style="background:var(--gray-90)">
+          <i data-lucide="list" class="w-6 h-6" style="color:var(--gray-40)"></i>
+        </div>
+        <div>
+          <h2 class="text-xl font-bold" style="color:var(--gray-15)">議題リスト</h2>
+          <p class="text-sm" style="color:var(--gray-50)">タイトルをクリックすると詳細にジャンプします</p>
+        </div>
+      </div>
+      <!-- FILL: <li> を議題数だけ繰り返す。href="#topic-N" で対応する議題の詳細ブロックへリンク -->
+      <ol class="relative ml-3 border-l-2" style="border-color:var(--blue-85)">
+
+        <li class="mb-5 ml-7">
+          <span class="absolute flex items-center justify-center w-7 h-7 rounded-full -left-3.5 text-sm font-bold text-white" style="background:var(--blue-35)">1</span>
+          <a href="#topic-1" class="font-semibold hover:underline" style="color:var(--blue-30)">{{TOPIC_TITLE_1}}</a>
+          <span class="text-xs ml-2" style="color:var(--gray-60)">{{REPORTER_1}}</span>
+        </li>
+
+        <!-- FILL: 最後の <li> は mb-5 を外す（末尾余白なし） -->
+        <li class="ml-7">
+          <span class="absolute flex items-center justify-center w-7 h-7 rounded-full -left-3.5 text-sm font-bold text-white" style="background:var(--blue-35)">N</span>
+          <a href="#topic-N" class="font-semibold hover:underline" style="color:var(--blue-30)">{{TOPIC_TITLE_N}}</a>
+          <span class="text-xs ml-2" style="color:var(--gray-60)">{{REPORTER_N}}</span>
+        </li>
+
+      </ol>
+    </div>
+
+    <!-- ③─────────────────────────────────────────────────── -->
+    <!-- 議題の詳細（決定事項を各議題末尾に含む）                     -->
+    <!--  - 議題ごとに <div class="mb-8" id="topic-N">...</div>  -->
+    <!--  - detail-box         → 概要・背景・意見（青）            -->
+    <!--  - detail-box caution → 注意点・懸念（黄）※必要時のみ     -->
+    <!--  - detail-box decided → 決定事項（緑）※決定がある議題のみ  -->
+    <!-- ──────────────────────────────────────────────────── -->
+    <div class="section-card" id="details">
+      <div class="flex items-center gap-3 mb-6">
+        <div class="w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0" style="background:var(--gray-90)">
+          <i data-lucide="file-text" class="w-6 h-6" style="color:var(--gray-40)"></i>
+        </div>
+        <div>
+          <h2 class="text-xl font-bold" style="color:var(--gray-15)">議題の詳細</h2>
+          <p class="text-sm" style="color:var(--gray-50)">背景・議論の内容・決定事項</p>
+        </div>
+      </div>
+
+      <!-- FILL: 議題1ブロック（id="topic-N" を付けて議題リストからのジャンプ先にする）-->
+      <div class="mb-8" id="topic-1">
+        <h3 class="text-lg font-bold flex items-center gap-2 mb-3" style="color:var(--gray-20)">
+          <!-- FILL: 番号・議題名・報告者/担当者 -->
+          <span class="w-7 h-7 text-white rounded-full flex items-center justify-center text-sm font-bold flex-shrink-0" style="background:var(--blue-35)">1</span>
+          {{TOPIC_TITLE}}
+          <span class="text-sm font-normal" style="color:var(--gray-60)">{{REPORTER_AND_OWNERS}}</span>
+        </h3>
+
+        <!-- FILL: 概要・背景（常に含める） -->
+        <div class="detail-box">
+          <div class="font-semibold mb-2 flex items-center gap-2" style="color:var(--gray-30)">
+            <i data-lucide="info" class="w-4 h-4" style="color:var(--blue-50)"></i>{{BOX_TITLE}}
+          </div>
+          <p class="text-sm" style="color:var(--gray-40)">{{BOX_CONTENT}}</p>
+        </div>
+
+        <!-- FILL: 注意点・懸念（ある場合のみ）-->
+        <div class="detail-box caution">
+          <div class="font-semibold mb-2 flex items-center gap-2" style="color:var(--gray-30)">
+            <i data-lucide="triangle-alert" class="w-4 h-4" style="color:var(--yellow-70)"></i>注意点・懸念
+          </div>
+          <ul class="text-sm space-y-1" style="color:var(--gray-40)">
+            <li>・{{CAUTION_ITEM}}</li>
+          </ul>
+        </div>
+
+        <!-- FILL: 決定事項（ある場合のみ）→ <li> を決定数だけ繰り返す -->
+        <div class="detail-box decided">
+          <div class="font-semibold mb-2 flex items-center gap-2" style="color:var(--gray-30)">
+            <i data-lucide="circle-check" class="w-4 h-4" style="color:var(--teal-50)"></i>決定事項
+          </div>
+          <ul class="text-sm space-y-1" style="color:var(--gray-40)">
+            <li class="flex items-start gap-2">
+              <i data-lucide="check" class="w-4 h-4 flex-shrink-0 mt-0.5" style="color:var(--teal-50)"></i>
+              <strong>{{OWNER}}</strong>が<strong>{{DEADLINE}}</strong>までに{{DECISION_CONTENT}}
+            </li>
+          </ul>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- ④────────────────────────────────────────────── -->
+    <!-- アクションプラン（TODOリスト）                            -->
+    <!--  - action-row            → 担当者・期限が確定したもの   -->
+    <!--  - action-row needs-check → 担当者または期限が未確定  -->
+    <!--  - 議題番号タグ（tag アイコン）を必ず付ける               -->
+    <!-- ─────────────────────────────────────────────── -->
+    <div class="section-card" id="actions">
+      <div class="flex items-center gap-3 mb-6">
+        <div class="w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0" style="background:var(--gray-90)">
+          <i data-lucide="list-checks" class="w-6 h-6" style="color:var(--gray-40)"></i>
+        </div>
+        <div>
+          <h2 class="text-xl font-bold" style="color:var(--gray-15)">アクションプラン</h2>
+          <p class="text-sm" style="color:var(--gray-50)">誰が・いつまでに・何をするか（TODOリスト）</p>
+        </div>
+      </div>
+
+      <!-- FILL: 確定アクション（action-row） -->
+      <div class="action-row">
+        <div class="flex flex-wrap items-start justify-between gap-2">
+          <div class="flex items-start gap-2">
+            <i data-lucide="check-square" class="w-5 h-5 flex-shrink-0 mt-0.5" style="color:var(--blue-45)"></i>
+            <span class="font-semibold" style="color:var(--gray-30)">{{ACTION_CONTENT}}</span>
+          </div>
+          <span class="badge-decided">確定</span>
+        </div>
+        <div class="flex flex-wrap gap-4 mt-2 text-sm" style="color:var(--gray-40)">
+          <span class="flex items-center gap-1"><i data-lucide="user" class="w-4 h-4"></i>担当：{{OWNER}}</span>
+          <span class="flex items-center gap-1"><i data-lucide="calendar-check" class="w-4 h-4"></i>期限：{{DEADLINE}}</span>
+          <span class="flex items-center gap-1" style="color:var(--gray-60)"><i data-lucide="tag" class="w-4 h-4"></i><a href="#topic-{{TOPIC_NO}}" class="hover:underline" style="color:var(--gray-60)">議題{{TOPIC_NO}}</a></span>
+        </div>
+      </div>
+
+      <!-- FILL: 要確認アクション（action-row needs-check） -->
+      <!-- badge-pending のラベルは「要確認：期限」「要確認：担当者」など具体的に -->
+      <div class="action-row needs-check">
+        <div class="flex flex-wrap items-start justify-between gap-2">
+          <div class="flex items-start gap-2">
+            <i data-lucide="alert-circle" class="w-5 h-5 flex-shrink-0 mt-0.5" style="color:var(--red-50)"></i>
+            <span class="font-semibold" style="color:var(--gray-30)">{{ACTION_CONTENT}}</span>
+          </div>
+          <span class="badge-pending">要確認：{{PENDING_REASON}}</span>
+        </div>
+        <div class="flex flex-wrap gap-4 mt-2 text-sm">
+          <span class="flex items-center gap-1" style="color:var(--gray-40)"><i data-lucide="user" class="w-4 h-4"></i>担当：{{OWNER}}</span>
+          <span class="flex items-center gap-1" style="color:var(--gray-40)"><i data-lucide="calendar-x" class="w-4 h-4"></i>期限：{{DEADLINE_STATUS}}</span>
+          <span class="flex items-center gap-1" style="color:var(--gray-60)"><i data-lucide="tag" class="w-4 h-4"></i><a href="#topic-{{TOPIC_NO}}" class="hover:underline" style="color:var(--gray-60)">議題{{TOPIC_NO}}</a></span>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- ⑤───────────────────────────────────────────── -->
+    <!-- パーパスへの貢献                                    -->
+    <!--  - purpose-item ごとに議題名・戦略ラベル・つながりを書く    -->
+    <!--  - アイコンは references/icon-list.md の早見表を参照  -->
+    <!-- ────────────────────────────────────────────── -->
+    <div class="section-card" id="purpose">
+      <div class="flex items-center gap-3 mb-6">
+        <div class="w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0" style="background:var(--gray-90)">
+          <i data-lucide="compass" class="w-6 h-6" style="color:var(--gray-40)"></i>
+        </div>
+        <div>
+          <h2 class="text-xl font-bold" style="color:var(--gray-15)">パーパスへの貢献</h2>
+          <p class="text-sm" style="color:var(--gray-50)">今回の会議内容が「Empower every associate to be efficient」にどうつながるか</p>
+        </div>
+      </div>
+
+      <!-- FILL: purpose-item を議題順に繰り返す（複数の label-item を並べてよい） -->
+      <div class="purpose-item">
+        <div class="flex flex-wrap items-center gap-2 mb-2">
+          <!-- FILL: 戦略項目に合うアイコン（icon-list.md の早見表を参照） -->
+          <i data-lucide="{{ICON}}" class="w-4 h-4" style="color:var(--blue-35)"></i>
+          <!-- FILL: href="#topic-N" で対応する議題の詳細へリンク -->
+          <a href="#topic-{{TOPIC_NO}}" class="font-semibold hover:underline" style="color:var(--blue-20)">{{TOPIC_TITLE}}</a>
+          <span class="label-item">({{NO}}) {{STRATEGY_NAME}}</span>
+          <!-- FILL: 追加ラベルがあれば <span class="label-item"> を並べる -->
+        </div>
+        <!-- FILL: 戦略名キーワード（例: Sunshine Management、Pouring Water 等）は <span class="purpose-highlight"> でハイライトする -->
+        <p class="text-sm" style="color:var(--gray-30)">{{PURPOSE_CONNECTION}}</p>
+      </div>
+
+      <!-- FILL: 締めの言葉（パーパス貢献セクションの末尾に必ず入れる） -->
+      <div class="italic font-bold text-center leading-relaxed m-10" style="color:var(--gray-30)">
+        {{CLOSING_MESSAGE}}<br>
+        ありがとうございました！
+      </div>
+
+    </div>
+
+  </main>
+
+  <!-- FILL: フッターに会議名・日付・担当者 -->
+  <footer class="text-center text-sm py-6" style="color:var(--gray-60)">
+    {{MEETING_TITLE}} 議事録 ／ {{DATE}} ／ 担当：{{MINUTES_WRITER}}
+  </footer>
+
+  <script>lucide.createIcons();</script>
+</body>
+</html>

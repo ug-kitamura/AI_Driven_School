@@ -6,9 +6,9 @@ main.py - Comitora 週次レポート生成のオーケストレータ
 	[Step 1] GitHubClient.fetch_commits()     → output/commits.json
 	[Step 2] GitHubClient.fetch_report_data() → output/report_data.json
 	[Step 3] データ集計                          → output/aggregated_data.json
-	[Step 4] Claude レポート生成                 → output/weekly_report.html
-	[Step 5] HTML バリデーション                  → output/validation_result.json
-	[Step 6] サブエージェント評価                  → output/evaluation_result.json
+	[Step 4] Claude レポート生成                  → output/weekly_report.html
+	[Step 5] HTML バリデーション                   → output/validation_result.json
+	[Step 6] サブエージェント評価                    → output/evaluation_result.json
 
 使い方:
 	python main.py --owner your-org --repo your-repo
@@ -35,6 +35,7 @@ import re
 import sys
 from html.parser import HTMLParser
 from pathlib import Path
+from datetime import datetime
 
 try:
 	from dotenv import load_dotenv
@@ -45,7 +46,7 @@ except ImportError:
 from github_client import GitHubClient, JST
 
 OUTPUT_DIR = Path("output")
-SKILL_PATH = Path("skills/report-generator/SKILL.md")
+SKILL_PATH = Path(".claude/skills/commit-track/SKILL.md")
 TEMPLATE_PATH = Path("templates/weekly-report.html")
 
 
@@ -122,7 +123,7 @@ def fetch_github_data(args: argparse.Namespace, client: GitHubClient) -> tuple[d
 	save_json(OUTPUT_DIR / "commits.json", commits_data)
 
 	print_step(2, "PR・Issue・Milestone データを取得中")
-	report_data = client.fetch_report_data(days=args.days)
+	report_data = client.fetch_report_data(days=args.days, active_days=args.active_days)
 	save_json(OUTPUT_DIR / "report_data.json", report_data)
 
 	return commits_data, report_data
@@ -515,3 +516,4 @@ def main() -> None:
 
 if __name__ == "__main__":
 	main()
+

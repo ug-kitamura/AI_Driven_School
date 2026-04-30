@@ -7,7 +7,7 @@ comitora_report_generator.py - Claude によるレポート生成・評価クラ
 	- 別の Claude 呼び出しでレポート品質を評価
 
 入力ファイル:
-	../output/aggregated_data.json  DataCollector が生成した集計データ
+	../output/report_data.json  DataCollector が生成した集計データ
 
 出力ファイル:
 	../output/weekly_report.html    生成されたレポートHTML
@@ -49,7 +49,7 @@ class ReportGenerator(ComitoraBase):
 		)
 
 	def run(self) -> None:
-		aggregated = self.load_json("aggregated_data.json")
+		aggregated = self.load_json("report_data.json")
 
 		if self.args.skip_claude:
 			print("\n⏭️  --skip-claude が指定されたため Claude の呼び出しをスキップします", file=sys.stderr)
@@ -222,11 +222,11 @@ class ReportGenerator(ComitoraBase):
 
 ## 出力形式（JSON のみ、説明文不要）
 {{
-  "score": 1〜5の整数,
-  "action_plan_quality": "コメント",
-  "message_quality": "コメント",
-  "tips_quality": "コメント",
-  "improvements": ["改善点1", "改善点2"]
+	"score": 1〜5の整数,
+	"action_plan_quality": "コメント",
+	"message_quality": "コメント",
+	"tips_quality": "コメント",
+	"improvements": ["改善点1", "改善点2"]
 }}"""
 
 		client   = anthropic.Anthropic(api_key=api_key)
@@ -277,7 +277,7 @@ class ReportGenerator(ComitoraBase):
 
 if __name__ == "__main__":
 	parser = ReportGenerator.build_parser(
-		"../output/aggregated_data.json を読み込み Claude でレポートを生成・評価する"
+		"../output/report_data.json を読み込み Claude でレポートを生成・評価する"
 	)
 	ReportGenerator(parser.parse_args()).run()
 

@@ -28,16 +28,17 @@ main.py - Comitora 週次レポート生成オーケストレータ
 
 import sys
 import argparse
+from pathlib import Path
+from dotenv import load_dotenv
 from comitora_base import OUTPUT_DIR
 from comitora_data_collector import DataCollector
 from comitora_report_notifier import ReportNotifier
 from comitora_report_generator import ReportGenerator
 
 try:
-	from dotenv import load_dotenv
 	load_dotenv()
 except ImportError:
-	pass
+	load_dotenv(Path(__file__).parent.parent / ".env")
 
 
 def build_parser() -> argparse.ArgumentParser:

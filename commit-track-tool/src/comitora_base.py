@@ -9,14 +9,14 @@ import sys
 import json
 import argparse
 from pathlib import Path
+from dotenv import load_dotenv
 from abc import ABC, abstractmethod
 from datetime import datetime, timedelta, timezone
 
 try:
-	from dotenv import load_dotenv
 	load_dotenv()
 except ImportError:
-	pass
+	load_dotenv(Path(__file__).parent.parent / ".env")
 
 OUTPUT_DIR = Path("../output")
 JST = timezone(timedelta(hours=9))
@@ -67,7 +67,7 @@ class ComitoraBase(ABC):
 		path.parent.mkdir(parents=True, exist_ok=True)
 		with open(path, "w", encoding="utf-8") as f:
 			json.dump(data, f, ensure_ascii=False, indent=2)
-		print(f"  💾 {path}", file=sys.stderr)
+		print(f"💾 {path}", file=sys.stderr)
 		return path
 
 	def load_json(self, filename: str) -> dict:
@@ -94,7 +94,7 @@ class ComitoraBase(ABC):
 	def print_section(self, label: str) -> None:
 		"""セクションヘッダーを出力する。"""
 		print(f"\n{'─' * 50}", file=sys.stderr)
-		print(f"  {label}", file=sys.stderr)
+		print(f"{label}", file=sys.stderr)
 		print(f"{'─' * 50}", file=sys.stderr)
 
 	# ------------------------------------------------------------------

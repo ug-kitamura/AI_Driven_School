@@ -1,2 +1,15 @@
-commit-report-tool
-output/*
+# 中間生成物
+output/
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+venv/
+
+# 環境変数
+.env
+
+# その他
+commit-report-tool/

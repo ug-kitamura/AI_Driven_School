@@ -3,12 +3,12 @@
 main.py - Comitora 週次レポート生成のオーケストレータ
 
 処理フロー:
-	[Step 1] get_commits.py     → output/commits.json
-	[Step 2] get_report_data.py → output/report_data.json
-	[Step 3] データ集計            → output/aggregated_data.json
-	[Step 4] Claude レポート生成    → output/weekly_report.html
-	[Step 5] HTML バリデーション     → output/validation_result.json
-	[Step 6] サブエージェント評価      → output/evaluation_result.json
+	[Step 1] GitHubClient.fetch_commits()     → output/commits.json
+	[Step 2] GitHubClient.fetch_report_data() → output/report_data.json
+	[Step 3] データ集計                          → output/aggregated_data.json
+	[Step 4] Claude レポート生成                 → output/weekly_report.html
+	[Step 5] HTML バリデーション                  → output/validation_result.json
+	[Step 6] サブエージェント評価                  → output/evaluation_result.json
 
 使い方:
 	python main.py --owner your-org --repo your-repo
@@ -32,9 +32,7 @@ import argparse
 import json
 import os
 import re
-import subprocess
 import sys
-from datetime import datetime, timedelta, timezone
 from html.parser import HTMLParser
 from pathlib import Path
 
@@ -42,13 +40,13 @@ try:
 	from dotenv import load_dotenv
 	load_dotenv()
 except ImportError:
-	pass  # python-dotenv 未インストール時は環境変数または引数を使用
+	pass
+
+from github_client import GitHubClient, JST
 
 OUTPUT_DIR = Path("output")
 SKILL_PATH = Path("skills/report-generator/SKILL.md")
 TEMPLATE_PATH = Path("templates/weekly-report.html")
-
-JST = timezone(timedelta(hours=9))
 
 
 # ---------------------------------------------------------------------------
@@ -62,8 +60,9 @@ def parse_args() -> argparse.Namespace:
 	)
 	parser.add_argument("--owner", required=True, help="GitHubオーナー名")
 	parser.add_argument("--repo", required=True, help="リポジトリ名")
-	parser.add_argument("--days", type=int, default=7, help="直近何日分を対象とするか（デフォルト: 7）")
-	parser.add_argument("--concurrency", type=int, default=5, help="ファイル取得並列数（デフォルト: 5）")
+	parser.add_argument("--days",        type=int, default=7,  help="直近何日分を対象とするか（デフォルト: 7）")
+	parser.add_argument("--active-days", type=int, default=30, help="アクティブブランチ判定日数（デフォルト: 30）")
+	parser.add_argument("--concurrency", type=int, default=5,  help="ファイル取得並列数（デフォルト: 5）")
 	parser.add_argument("--no-gitignore", action="store_true", help=".gitignoreフィルタを無効化")
 	parser.add_argument(
 		"--token",
@@ -108,50 +107,25 @@ def print_step(n: int, label: str) -> None:
 
 
 # ---------------------------------------------------------------------------
-# Step 1: コミットデータ取得
+# Step 1 & 2: GitHub データ取得（GitHubClient を直接使用）
 # ---------------------------------------------------------------------------
 
-def run_get_commits(args: argparse.Namespace) -> Path:
-	cmd = [
-		sys.executable, "get_commits.py",
-		"--owner", args.owner,
-		"--repo", args.repo,
-		"--days", str(args.days),
-		"--concurrency", str(args.concurrency),
-		"--output",
-	]
-	if args.token:
-		cmd += ["--token", args.token]
-	if args.no_gitignore:
-		cmd.append("--no-gitignore")
+def fetch_github_data(args: argparse.Namespace, client: GitHubClient) -> tuple[dict, dict]:
+	"""コミットデータと PR/Issue/Milestone データを取得して output/ に保存する。"""
+	print_step(1, "コミットデータを取得中")
+	commits_data = client.fetch_commits(
+		days=args.days,
+		active_days=args.active_days,
+		concurrency=args.concurrency,
+		use_gitignore=not args.no_gitignore,
+	)
+	save_json(OUTPUT_DIR / "commits.json", commits_data)
 
-	result = subprocess.run(cmd, env=os.environ.copy())
-	if result.returncode != 0:
-		print("❌ get_commits.py が失敗しました", file=sys.stderr)
-		sys.exit(1)
-	return OUTPUT_DIR / "commits.json"
+	print_step(2, "PR・Issue・Milestone データを取得中")
+	report_data = client.fetch_report_data(days=args.days)
+	save_json(OUTPUT_DIR / "report_data.json", report_data)
 
-
-# ---------------------------------------------------------------------------
-# Step 2: PR・Issue・Milestone・貢献度データ取得
-# ---------------------------------------------------------------------------
-
-def run_get_report_data(args: argparse.Namespace) -> Path:
-	cmd = [
-		sys.executable, "get_report_data.py",
-		"--owner", args.owner,
-		"--repo", args.repo,
-		"--days", str(args.days),
-		"--output",
-	]
-	if args.token:
-		cmd += ["--token", args.token]
-
-	result = subprocess.run(cmd, env=os.environ.copy())
-	if result.returncode != 0:
-		print("❌ get_report_data.py が失敗しました", file=sys.stderr)
-		sys.exit(1)
-	return OUTPUT_DIR / "report_data.json"
+	return commits_data, report_data
 
 
 # ---------------------------------------------------------------------------
@@ -339,17 +313,6 @@ def generate_report_with_claude(aggregated: dict, anthropic_key: str | None = No
 # Step 5: HTML バリデーション
 # ---------------------------------------------------------------------------
 
-class _HTMLValidator(HTMLParser):
-	"""HTMLの構文チェック用パーサー。"""
-
-	def __init__(self):
-		super().__init__()
-		self.errors: list[str] = []
-
-	def handle_error(self, message: str) -> None:
-		self.errors.append(message)
-
-
 def validate_html(html: str) -> dict:
 	"""
 	生成された HTML を検証する。
@@ -378,12 +341,9 @@ def validate_html(html: str) -> dict:
 	if "</body>" not in html.lower():
 		issues.append("</body>タグがありません")
 
-	# 構文チェック
-	validator = _HTMLValidator()
+	# 構文チェック（HTMLParser は構文エラーを例外で通知しないため try/except で捕捉）
 	try:
-		validator.feed(html)
-		if validator.errors:
-			issues.extend([f"HTML構文エラー: {e}" for e in validator.errors])
+		HTMLParser().feed(html)
 	except Exception as e:
 		issues.append(f"HTMLパースエラー: {e}")
 
@@ -479,19 +439,19 @@ def evaluate_report_quality(html: str, aggregated: dict, anthropic_key: str | No
 def main() -> None:
 	args = parse_args()
 
+	token = args.token or os.environ.get("GH_TOKEN")
+	if not token:
+		print("エラー: --token または環境変数 GH_TOKEN でトークンを指定してください", file=sys.stderr)
+		sys.exit(1)
+
 	OUTPUT_DIR.mkdir(exist_ok=True)
 	print(f"📁 出力先: {OUTPUT_DIR.resolve()}", file=sys.stderr)
 
-	# Step 1: コミット取得
-	print_step(1, "コミットデータを取得中 (get_commits.py)")
-	run_get_commits(args)
-	commits_data = load_json(OUTPUT_DIR / "commits.json")
-	print(f"  コミット数: {commits_data['metadata']['total_commits']}", file=sys.stderr)
+	client = GitHubClient(token, args.owner, args.repo)
 
-	# Step 2: PR・Issue・Milestone 取得
-	print_step(2, "PR・Issue・Milestone データを取得中 (get_report_data.py)")
-	run_get_report_data(args)
-	report_data = load_json(OUTPUT_DIR / "report_data.json")
+	# Step 1 & 2: GitHub データ取得
+	commits_data, report_data = fetch_github_data(args, client)
+	print(f"  コミット数  : {commits_data['metadata']['total_commits']}", file=sys.stderr)
 	print(f"  マージ済みPR: {report_data['prs']['summary']['merged_count']}", file=sys.stderr)
 	print(f"  オープンPR  : {report_data['prs']['summary']['open_count']}", file=sys.stderr)
 

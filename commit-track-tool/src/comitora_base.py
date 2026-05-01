@@ -13,10 +13,10 @@ from dotenv import load_dotenv
 from abc import ABC, abstractmethod
 from datetime import datetime, timedelta, timezone
 
-try:
-	load_dotenv()
-except ImportError:
+if Path.cwd() == Path(__file__).parent:
 	load_dotenv(Path(__file__).parent.parent / ".env")
+else:
+	load_dotenv()
 
 OUTPUT_DIR  = Path("../output")
 
@@ -24,14 +24,14 @@ OUTPUT_DIR  = Path("../output")
 class ComitoraBase(ABC):
 	"""Comitora 処理クラスの基底クラス。"""
 
-	DEBUG       = False
-	REPORT_DATA = {}
-	TIMEZONE    = timezone(timedelta(hours=9)) #Japan
-	NOW_LOCAL   = datetime.now(TIMEZONE)
+	DEBUG     = True
+	TIMEZONE  = timezone(timedelta(hours=9)) #Japan
+	NOW_LOCAL = datetime.now(TIMEZONE)
 
 	def __init__(self, args: argparse.Namespace) -> None:
-		self.args = args
-		self.OUTPUT_DIR = OUTPUT_DIR
+		self.args        = args
+		self.REPORT_DATA = {}
+		self.OUTPUT_DIR  = OUTPUT_DIR
 		self.OUTPUT_DIR.mkdir(exist_ok=True)
 
 	# ------------------------------------------------------------------
@@ -102,7 +102,7 @@ class ComitoraBase(ABC):
 		start_utc = end_utc - timedelta(days=days)
 		label = (
 			f"直近{days}日間"
-			f" ({start_utc.strftime('%Y-%m-%d')} ～ {end_utc.strftime('%Y-%m-%d')} UTC)"
+			f" ({start_utc.strftime('%Y-%m-%d')} ～ {end_utc.strftime('%Y-%m-%d')})"
 		)
 		return start_utc, end_utc, label
 

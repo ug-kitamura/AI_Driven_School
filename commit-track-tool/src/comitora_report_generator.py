@@ -114,8 +114,8 @@ class ReportGenerator(ComitoraBase):
 			f"```html\n{template_content}\n```"
 		)
 
-		commits_for_claude = aggregated["commits"][:200]
-		data_for_claude    = {**aggregated, "commits": commits_for_claude}
+		commits_for_claude = aggregated["commit"][:200]
+		data_for_claude    = {**aggregated, "commit": commits_for_claude}
 		user_content = (
 			"以下のデータを使用して週次レポートHTMLを生成してください。\n\n"
 			f"```json\n{json.dumps(data_for_claude, ensure_ascii=False, indent=2)}\n```"
@@ -198,8 +198,9 @@ class ReportGenerator(ComitoraBase):
 		except SystemExit:
 			return {"skipped": True, "reason": "APIキー未設定"}
 
-		stats     = aggregated.get("stats", {})
-		hero_name = aggregated.get("hero", {}).get("login", "不明") if aggregated.get("hero") else "なし"
+		agg       = aggregated.get("aggregate", {})
+		stats     = aggregated.get("pr", {}).get("summary", {})
+		hero_name = agg.get("hero", {}).get("login", "不明") if agg.get("hero") else "なし"
 		html_excerpt = html[:10000]
 
 		prompt = f"""あなたは開発チームの週次レポートの品質レビュアーです。
@@ -212,9 +213,9 @@ class ReportGenerator(ComitoraBase):
 4. 全体的な読みやすさと有用性
 
 ## 参考データ
-- コミット数: {stats.get('commits', 0)}
-- マージ済みPR: {stats.get('merged_prs', 0)}
-- クローズしたIssue: {stats.get('closed_issues', 0)}
+- コミット数: {len(aggregated.get('commit', []))}
+- マージ済みPR: {stats.get('merged_count', 0)}
+- クローズしたIssue: {aggregated.get('issue', {}).get('closed_count', 0)}
 - 今週のヒーロー: {hero_name}
 
 ## レポートHTML（抜粋）

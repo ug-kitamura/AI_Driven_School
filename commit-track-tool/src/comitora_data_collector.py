@@ -8,10 +8,10 @@ comitora_data_collector.py - GitHub データ取得・集計クラス
 	Step 4: 集計（貢献スコア・進捗度・ヒーロー算出）
 
 出力ファイル:
-	../output/report_data.json  ReportGenerator に渡す集計済みデータ
+	output/report_data.json  ReportGenerator に渡す集計済みデータ
 
-単体実行:
-	python comitora_data_collector.py --owner your-org --repo your-repo
+単体実行（commit-track-tool/ から実行）:
+	python src/comitora_data_collector.py --owner your-org --repo your-repo
 """
 
 import os

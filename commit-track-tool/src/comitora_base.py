@@ -13,12 +13,9 @@ from dotenv import load_dotenv
 from abc import ABC, abstractmethod
 from datetime import datetime, timedelta, timezone
 
-if Path.cwd() == Path(__file__).parent:
-	load_dotenv(Path(__file__).parent.parent / ".env")
-else:
-	load_dotenv()
+load_dotenv()
 
-OUTPUT_DIR  = Path("../output")
+OUTPUT_DIR = Path("output")
 
 
 class ComitoraBase(ABC):
@@ -66,7 +63,7 @@ class ComitoraBase(ABC):
 	# ------------------------------------------------------------------
 
 	def save_json(self, filename: str, data: dict | list) -> Path:
-		"""../output/ 以下に JSON を保存してパスを返す。"""
+		"""output/ 以下に JSON を保存してパスを返す。"""
 		path = self.OUTPUT_DIR / filename
 		path.parent.mkdir(parents=True, exist_ok=True)
 		with open(path, "w", encoding="utf-8") as f:
@@ -75,7 +72,7 @@ class ComitoraBase(ABC):
 		return path
 
 	def load_json(self, filename: str) -> dict:
-		"""../output/ 以下の JSON を読み込む。"""
+		"""output/ 以下の JSON を読み込む。"""
 		path = self.OUTPUT_DIR / filename
 		if not path.exists():
 			print(f"❌ ファイルが見つかりません: {path}", file=sys.stderr)

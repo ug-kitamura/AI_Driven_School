@@ -2,12 +2,12 @@
 main.py - Comitora 週次レポート生成オーケストレータ
 
 処理フロー:
-	DataCollector   → GitHub データ取得・集計   (output/aggregated_data.json)
+	DataCollector   → GitHub データ取得・集計   (output/report_data.json)
 	ReportGenerator → Claude でレポート生成・評価 (output/weekly_report.html)
-	Notifier        → レポート通知              (Slack / メール など)
+	ReportNotifier  → レポート通知              (Slack / メール など)
 
-使い方:
-	python main.py --owner your-org --repo your-repo
+使い方（commit-track-tool/ から実行）:
+	python src/main.py --owner your-org --repo your-repo
 
 オプション:
 	--owner          GitHubオーナー名（必須）

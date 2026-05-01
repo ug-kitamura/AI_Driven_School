@@ -128,20 +128,38 @@ class GitHubClient:
 				time.sleep(wait)
 		raise RuntimeError("unreachable")
 
-	def _graphql(self, query: str, variables: dict | None = None) -> dict:
-		"""GitHub GraphQL API を呼び出して data フィールドを返す。エラー時は終了。"""
-		resp = requests.post(
-			"https://api.github.com/graphql",
-			headers={**self._headers, "Content-Type": "application/json"},
-			json={"query": query, "variables": variables or {}},
-			timeout=30,
-		)
-		resp.raise_for_status()
-		body = resp.json()
-		if "errors" in body:
-			print(f"[GraphQLエラー] {body['errors']}", file=sys.stderr)
-			sys.exit(1)
-		return body["data"]
+	def _graphql(
+		self,
+		query      : str,
+		variables  : dict | None = None,
+		max_retries: int = 3,
+		timeout    : int = 30,
+	) -> dict:
+		"""リトライ付き GraphQL リクエスト。ネットワーク／HTTP エラーをリトライし、GraphQL 論理エラーは即終了。"""
+		for attempt in range(1, max_retries + 1):
+			try:
+				resp = requests.post(
+					"https://api.github.com/graphql",
+					headers={**self._headers, "Content-Type": "application/json"},
+					json={"query": query, "variables": variables or {}},
+					timeout=timeout,
+				)
+				resp.raise_for_status()
+			except requests.RequestException as e:
+				if attempt == max_retries:
+					raise
+				wait = 2 ** (attempt - 1)
+				print(f"  [GraphQL] リトライ {attempt}/{max_retries} ({wait}s後): {e}", file=sys.stderr)
+				time.sleep(wait)
+				continue
+
+			body = resp.json()
+			if "errors" in body:
+				print(f"[GraphQLエラー] {body['errors']}", file=sys.stderr)
+				sys.exit(1)
+			return body["data"]
+
+		raise RuntimeError("unreachable")
 
 	def _paginate(self, url: str, params: dict | None = None) -> list[dict]:
 		"""REST API のページネーションを処理して全件返す（リトライ付き）。"""

@@ -2,20 +2,20 @@
 comitora_report_generator.py - Claude によるレポート生成・評価クラス
 
 処理内容:
-	- aggregated_data.json を読み込み Claude でHTMLレポートを生成
+	- report_data.json を読み込み Claude でHTMLレポートを生成
 	- 生成HTMLをバリデーション
 	- 別の Claude 呼び出しでレポート品質を評価
 
 入力ファイル:
-	../output/report_data.json  DataCollector が生成した集計データ
+	output/report_data.json  DataCollector が生成した集計データ
 
 出力ファイル:
-	../output/weekly_report.html    生成されたレポートHTML
-	../output/validation_result.json バリデーション結果
-	../output/evaluation_result.json 品質評価結果
+	output/weekly_report.html    生成されたレポートHTML
+	output/validation_result.json バリデーション結果
+	output/evaluation_result.json 品質評価結果
 
-単体実行（DataCollector の後に実行すること）:
-	python comitora_report_generator.py --owner your-org --repo your-repo
+単体実行（commit-track-tool/ から実行、DataCollector の後に実行すること）:
+	python src/comitora_report_generator.py --owner your-org --repo your-repo
 """
 
 import os
@@ -27,8 +27,8 @@ from pathlib import Path
 from html.parser import HTMLParser
 from comitora_base import ComitoraBase
 
-SKILL_PATH    = Path("../.claude/skills/commit-track/SKILL.md")
-TEMPLATE_PATH = Path("../template/weekly-report.html")
+SKILL_PATH    = Path(".claude/skills/commit-track/SKILL.md")
+TEMPLATE_PATH = Path("template/weekly-report.html")
 
 
 class ReportGenerator(ComitoraBase):
@@ -58,7 +58,7 @@ class ReportGenerator(ComitoraBase):
 		# Step 4: レポート生成
 		self.print_section("Claude でレポートを生成中")
 		html = self._generate(aggregated)
-		html_path = self.output_dir / "weekly_report.html"
+		html_path = self.OUTPUT_DIR / "weekly_report.html"
 		html_path.write_text(html, encoding="utf-8")
 		print(f"  💾 {html_path} ({len(html):,} 文字)", file=sys.stderr)
 
@@ -140,7 +140,11 @@ class ReportGenerator(ComitoraBase):
 		if hasattr(usage, "cache_read_input_tokens"):
 			print(f"  キャッシュヒット: {usage.cache_read_input_tokens} tokens", file=sys.stderr)
 
-		return response.content[0].text
+		text = self._extract_text(response)
+		if not text:
+			print("❌ Claude からテキストレスポンスが得られませんでした", file=sys.stderr)
+			sys.exit(1)
+		return text
 
 	# ------------------------------------------------------------------
 	# Step 5: HTML バリデーション
@@ -237,7 +241,7 @@ class ReportGenerator(ComitoraBase):
 			messages=[{"role": "user", "content": prompt}],
 		)
 
-		raw_text    = response.content[0].text
+		raw_text     = self._extract_text(response) or ""
 		evaluated_at = self.NOW_LOCAL.isoformat()
 
 		try:
@@ -256,6 +260,14 @@ class ReportGenerator(ComitoraBase):
 	# 内部ヘルパー
 	# ------------------------------------------------------------------
 
+	@staticmethod
+	def _extract_text(response) -> str:
+		"""レスポンスの content ブロックから最初の text を安全に取り出す。"""
+		for block in response.content:
+			if getattr(block, "type", None) == "text":
+				return block.text
+		return ""
+
 	def _import_anthropic(self):
 		try:
 			import anthropic
@@ -273,7 +285,7 @@ class ReportGenerator(ComitoraBase):
 
 
 # ------------------------------------------------------------------
-# 単体実行（DataCollector 実行後に ../output/aggregated_data.json が必要）
+# 単体実行（DataCollector 実行後に output/report_data.json が必要）
 # ------------------------------------------------------------------
 
 if __name__ == "__main__":

@@ -18,17 +18,21 @@ try:
 except ImportError:
 	load_dotenv(Path(__file__).parent.parent / ".env")
 
-OUTPUT_DIR = Path("../output")
-JST = timezone(timedelta(hours=9))
+OUTPUT_DIR  = Path("../output")
 
 
 class ComitoraBase(ABC):
 	"""Comitora 処理クラスの基底クラス。"""
 
+	DEBUG       = False
+	REPORT_DATA = {}
+	TIMEZONE    = timezone(timedelta(hours=9)) #Japan
+	NOW_LOCAL   = datetime.now(TIMEZONE)
+
 	def __init__(self, args: argparse.Namespace) -> None:
 		self.args = args
-		self.output_dir = OUTPUT_DIR
-		self.output_dir.mkdir(exist_ok=True)
+		self.OUTPUT_DIR = OUTPUT_DIR
+		self.OUTPUT_DIR.mkdir(exist_ok=True)
 
 	# ------------------------------------------------------------------
 	# 共通 CLI 引数
@@ -63,7 +67,7 @@ class ComitoraBase(ABC):
 
 	def save_json(self, filename: str, data: dict | list) -> Path:
 		"""../output/ 以下に JSON を保存してパスを返す。"""
-		path = self.output_dir / filename
+		path = self.OUTPUT_DIR / filename
 		path.parent.mkdir(parents=True, exist_ok=True)
 		with open(path, "w", encoding="utf-8") as f:
 			json.dump(data, f, ensure_ascii=False, indent=2)
@@ -72,7 +76,7 @@ class ComitoraBase(ABC):
 
 	def load_json(self, filename: str) -> dict:
 		"""../output/ 以下の JSON を読み込む。"""
-		path = self.output_dir / filename
+		path = self.OUTPUT_DIR / filename
 		if not path.exists():
 			print(f"❌ ファイルが見つかりません: {path}", file=sys.stderr)
 			print(f"   前のステップが完了していない可能性があります。", file=sys.stderr)
@@ -86,16 +90,22 @@ class ComitoraBase(ABC):
 		with open(path, encoding="utf-8") as f:
 			return f.read()
 
-	@staticmethod
-	def now_jst() -> datetime:
-		"""現在時刻（JST）を返す。"""
-		return datetime.now(JST)
-
 	def print_section(self, label: str) -> None:
 		"""セクションヘッダーを出力する。"""
 		print(f"\n{'─' * 50}", file=sys.stderr)
 		print(f"{label}", file=sys.stderr)
 		print(f"{'─' * 50}", file=sys.stderr)
+
+	def parse_date_range(self, days: int) -> tuple[datetime, datetime, str]:
+		"""現在時刻から days 日前〜現在時刻の UTC datetime と表示ラベルを返す。"""
+		end_utc   = self.NOW_LOCAL.astimezone(timezone.utc)
+		start_utc = end_utc - timedelta(days=days)
+		label = (
+			f"直近{days}日間"
+			f" ({start_utc.strftime('%Y-%m-%d')} ～ {end_utc.strftime('%Y-%m-%d')} UTC)"
+		)
+		return start_utc, end_utc, label
+
 
 	# ------------------------------------------------------------------
 	# 実行（サブクラスで実装）

@@ -179,7 +179,7 @@ class ReportGenerator(ComitoraBase):
 			"issues":      issues,
 			"warnings":    warnings,
 			"html_length": len(html),
-			"validated_at": self.now_jst().isoformat(),
+			"validated_at": self.NOW_LOCAL.isoformat(),
 		}
 
 	# ------------------------------------------------------------------
@@ -237,7 +237,7 @@ class ReportGenerator(ComitoraBase):
 		)
 
 		raw_text    = response.content[0].text
-		evaluated_at = self.now_jst().isoformat()
+		evaluated_at = self.NOW_LOCAL.isoformat()
 
 		try:
 			json_match = re.search(r"\{.*\}", raw_text, re.DOTALL)

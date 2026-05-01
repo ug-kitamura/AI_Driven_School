@@ -16,13 +16,15 @@ comitora_data_collector.py - GitHub データ取得・集計クラス
 
 import os
 import sys
+import json
 import argparse
+from pprint import pprint
 from pathlib import Path
 from dotenv import load_dotenv
 from datetime import timedelta
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from comitora_base import ComitoraBase
-from github_client import GitHubClient, parse_date_range
+from github_client import GitHubClient
 
 try:
 	load_dotenv()
@@ -32,6 +34,8 @@ except ImportError:
 
 class DataCollector(ComitoraBase):
 	"""GitHub からデータを取得し、レポート用に集計する。"""
+
+	active_branches = []
 
 	@classmethod
 	def add_args(cls, parser: argparse.ArgumentParser) -> None:
@@ -48,34 +52,31 @@ class DataCollector(ComitoraBase):
 			print("❌ --token または環境変数 GH_TOKEN でトークンを指定してください", file=sys.stderr)
 			sys.exit(1)
 
+		# Step 0: 初期設定
 		client = GitHubClient(token, self.args.owner, self.args.repo)
-		start_utc, end_utc, period_label = parse_date_range(self.args.days)
+		start_utc, end_utc, period_label = self.parse_date_range(self.args.days)
 		active_since = end_utc - timedelta(days=self.args.active_days)
 
-		# Step 1: コミット取得
-		self.print_section("Step 1: コミットデータを取得中")
-		commits_data = self._fetch_commits(client, start_utc, end_utc)
+		# Step 1: ブランチ取得
+		self.print_section("Step 1: ブランチデータを取得中")
+		self._fetch_branches(client, end_utc)
 
-		# Step 2: PR 取得
-		self.print_section("Step 2: PR データを取得中")
-		prs_data, contributor_activity = self._fetch_prs(client, start_utc, end_utc, active_since)
-		s = prs_data["summary"]
-		print(f"マージ済みPR: {s['merged_count']}", file=sys.stderr)
-		print(f"オープンPR: {s['open_count']}")
-		print(f" |- レビュー待ち: {s['awaiting_review_count']}")
-		print(f" |- フィードバック対応中: {s['feedback_in_progress_count']}")
-		print(f" |- 承認済み: {s['approved_count']}")
-		print(f" |- ドラフト: {s['draft_count']}")
+		# Step 2: コミット取得
+		self.print_section("Step 2: コミットデータを取得中")
+		self._fetch_commits(client, start_utc, end_utc)
 
-		# Step 3: Issue・Milestone 取得
-		self.print_section("Step 3: Issue・Milestone データを取得中")
-		issues_data, milestones = self._fetch_issues_milestones(client, start_utc, end_utc)
-		print(f"クローズしたIssue: {issues_data['closed_count']}", file=sys.stderr)
-		print(f"オープンなIssue : {issues_data['open_count']}", file=sys.stderr)
-		print(f"アクティブマイルストーン: {len(milestones)}", file=sys.stderr)
+		# Step 3: PR 取得
+		self.print_section("Step 3: PR データを取得中")
+		self._fetch_prs(client, start_utc, end_utc, active_since)
 
-		# Step 4: 集計
-		self.print_section("Step 4: データを集計中")
+		# Step 4: Issue・Milestone 取得
+		self.print_section("Step 4: Issue・Milestone データを取得中")
+		self._fetch_issues_milestones(client, start_utc, end_utc)
+
+		print(json.dumps(self.REPORT_DATA, indent=4, ensure_ascii=False))
+
+		# Step 5: 集計
+		self.print_section("Step 5: データを集計中")
 		report_data = self._aggregate(
 			commits_data, prs_data, contributor_activity,
 			issues_data, milestones,
@@ -88,26 +89,44 @@ class DataCollector(ComitoraBase):
 		if hero:
 			print(f"今週のヒーロー: {hero['login']} (スコア: {hero['score']})", file=sys.stderr)
 
-		self.save_json("report_data.json", report_data)
+		self.save_json("report_data.json", self.REPORT_DATA)
 
 	# ------------------------------------------------------------------
-	# Step 1: コミット取得
+	# Step 1: ブランチ取得
+	# ------------------------------------------------------------------
+
+	def _fetch_branches(
+		self, client: GitHubClient, end_utc
+	) -> dict:
+		"""ブランチ一覧 → アクティブブランチの順で取得する。"""
+
+		branches, default_branch = client.get_branches()
+		self.active_branches = client.filter_active_branches(branches, self.args.active_days, end_utc)
+		branch_data = {
+			"default_branch" : default_branch,
+			"active_branches": self.active_branches,
+		}
+		self.REPORT_DATA["branch"] = branch_data
+
+		print(f"総ブランチ数: {len(branches)}, アクティブ: {len(self.active_branches)}", file=sys.stderr)
+		for i, branch in enumerate(self.active_branches, 1):
+			print(f" |- [{i}/{len(self.active_branches)}] {branch['name']} ...", file=sys.stderr)
+
+		if self.DEBUG:
+			print(json.dumps(branch_data, indent=4, ensure_ascii=False))
+
+	# ------------------------------------------------------------------
+	# Step 2: コミット取得
 	# ------------------------------------------------------------------
 
 	def _fetch_commits(
 		self, client: GitHubClient, start_utc, end_utc
 	) -> dict:
-		"""ブランチ一覧 → アクティブブランチ → コミット → 変更ファイルの順で取得する。"""
-		spec = client.get_gitignore_spec() if not self.args.no_gitignore else None
-
-		branches, default_branch = client.get_branches()
-		active_branches = client.filter_active_branches(branches, self.args.active_days, end_utc)
-		print(f"総ブランチ数: {len(branches)}, アクティブ: {len(active_branches)}", file=sys.stderr)
+		"""コミット → 変更ファイルの順で取得する。"""
 
 		all_commits: list[dict] = []
 		seen: set[str] = set()
-		for i, branch in enumerate(active_branches, 1):
-			print(f" |- [{i}/{len(active_branches)}] {branch['name']} ...", file=sys.stderr)
+		for i, branch in enumerate(self.active_branches, 1):
 			for c in client.get_branch_commits(branch["name"], start_utc, end_utc):
 				if c["sha"] not in seen:
 					seen.add(c["sha"])
@@ -116,6 +135,7 @@ class DataCollector(ComitoraBase):
 		print(f"総コミット数（重複排除）: {len(all_commits)}", file=sys.stderr)
 
 		if all_commits:
+			spec = client.get_gitignore_spec() if not self.args.no_gitignore else None
 			concurrency = self.args.concurrency
 			print(f"変更ファイルを取得中（並列数: {concurrency}）...", file=sys.stderr)
 
@@ -134,15 +154,13 @@ class DataCollector(ComitoraBase):
 					if done % 10 == 0 or done == len(all_commits):
 						print(f" |- ファイル取得進捗: {done}/{len(all_commits)}", file=sys.stderr)
 
-		return {
-			"default_branch" : default_branch,
-			"total_branches" : len(branches),
-			"active_branches": len(active_branches),
-			"commits"        : all_commits,
-		}
+		self.REPORT_DATA["commit"] = all_commits
+
+		if self.DEBUG:
+			print(json.dumps(all_commits, indent=4, ensure_ascii=False))
 
 	# ------------------------------------------------------------------
-	# Step 2: PR 取得
+	# Step 3: PR 取得
 	# ------------------------------------------------------------------
 
 	def _fetch_prs(
@@ -178,10 +196,20 @@ class DataCollector(ComitoraBase):
 				"draft_count"               : draft,
 			},
 		}
-		return prs_data, contributor_activity
+		self.REPORT_DATA["pr"] = prs_data
+
+		print(f"マージ済みPR: {len(merged_prs)}", file=sys.stderr)
+		print(f"オープンPR: {len(open_prs)}")
+		print(f" |- レビュー待ち: {awaiting}")
+		print(f" |- フィードバック対応中: {feedback}")
+		print(f" |- 承認済み: {approved}")
+		print(f" |- ドラフト: {draft}")
+
+		if self.DEBUG:
+			print(json.dumps(prs_data, indent=4, ensure_ascii=False))
 
 	# ------------------------------------------------------------------
-	# Step 3: Issue・Milestone 取得
+	# Step 4: Issue・Milestone 取得
 	# ------------------------------------------------------------------
 
 	def _fetch_issues_milestones(
@@ -191,15 +219,25 @@ class DataCollector(ComitoraBase):
 		closed_count, closed_issues = client.get_closed_issues(since, until)
 		open_count,   open_issues   = client.get_open_issues()
 		milestones = client.get_milestones()
-		return {
+
+		issue_data = {
 			"closed_count": closed_count,
 			"closed"      : closed_issues,
 			"open_count"  : open_count,
 			"open"        : open_issues,
-		}, milestones
+			"milestone"   : milestones,
+		}
+		self.REPORT_DATA["issue"] = issue_data
+
+		print(f"クローズしたIssue: {closed_count}", file=sys.stderr)
+		print(f"オープンなIssue : {open_count}", file=sys.stderr)
+		print(f"アクティブマイルストーン: {len(milestones)}", file=sys.stderr)
+
+		if self.DEBUG:
+			print(json.dumps(issue_data, indent=4, ensure_ascii=False))
 
 	# ------------------------------------------------------------------
-	# Step 4: 集計
+	# Step 5: 集計
 	# ------------------------------------------------------------------
 
 	def _aggregate(
@@ -217,7 +255,7 @@ class DataCollector(ComitoraBase):
 		各データを統合して Claude に渡す集計済みレポートデータを生成する。
 
 		- コミット数・ユニークファイル数を人ごとに集計
-		- 貢献スコア = コミット数×1 + マージPR数×3 + レビュー数×2
+		- 貢献スコア = コミット数×1 + マージPR数×3 + レビュー数×2 + クローズIssue数x1
 		- スコア順にランク付けし、1位をヒーローとして設定
 		- 進捗度 = マージ済みPR / (マージ済みPR + オープンPR) × 100
 		"""
@@ -245,6 +283,7 @@ class DataCollector(ComitoraBase):
 						"prs_created"      : 0,
 						"prs_merged"       : 0,
 						"reviews_submitted": 0,
+						"issues_closed"    : 0,
 					}
 
 		# コミットのみのメンバーを contributor_activity に追加
@@ -256,6 +295,7 @@ class DataCollector(ComitoraBase):
 					"prs_created"      : 0,
 					"prs_merged"       : 0,
 					"reviews_submitted": 0,
+					"issues_closed"    : 0,
 				}
 
 		for login, data in contributor_activity.items():
@@ -291,7 +331,7 @@ class DataCollector(ComitoraBase):
 				"end_utc"       : end_utc.isoformat(),
 				"repository"    : f"{self.args.owner}/{self.args.repo}",
 				"default_branch": commits_data["default_branch"],
-				"generated_at"  : self.now_jst().isoformat(),
+				"generated_at"  : self.NOW_LOCAL.isoformat(),
 			},
 			"progress": {
 				"progress_pct": progress_pct,
@@ -310,12 +350,12 @@ class DataCollector(ComitoraBase):
 				"commits"              : len(commits_data["commits"]),
 				"unique_files_changed" : len(unique_files),
 			},
-			"prs"               : prs_data,
-			"issues"            : issues_data,
-			"milestones"        : milestones,
+			"prs"                : prs_data,
+			"issues"             : issues_data,
+			"milestones"         : milestones,
 			"contributors_ranked": contributors_ranked,
-			"hero"              : hero,
-			"commits"           : commits_data["commits"],
+			"hero"               : hero,
+			"commits"            : commits_data["commits"],
 		}
 
 	@staticmethod
@@ -342,3 +382,4 @@ if __name__ == "__main__":
 		"GitHub データを取得・集計して ../output/report_data.json に保存する"
 	)
 	DataCollector(parser.parse_args()).run()
+

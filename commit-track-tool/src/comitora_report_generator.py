@@ -27,9 +27,9 @@ from pathlib import Path
 from html.parser import HTMLParser
 from comitora_base import ComitoraBase
 
-SKILL_PATH        = Path(".claude/skills/commit-track/SKILL.md")
-BASE_PATH         = Path("template/base.html")
-MODEL_ANSWER_PATH = Path("template/model-answer.html")
+SKILL_PATH = Path(".claude/skills/commit-track/SKILL.md")
+# スキル同梱のテンプレート（API 呼び出し時にユーザメッセージへ埋め込む。CLI からパスは受け取らない）
+SKILL_BASE_HTML = Path(".claude/skills/commit-track/references/base.html")
 
 REQUIRED_SECTION_IDS = ["action-plan", "hero", "team-message", "footer"]
 
@@ -100,26 +100,11 @@ class ReportGenerator(ComitoraBase):
 	# ------------------------------------------------------------------
 
 	def _build_system_content(self) -> str:
-		"""SKILL.md + 完成例HTMLをシステムプロンプトとして構築する。"""
-		for path, label in [
-			(SKILL_PATH,        "SKILL.md"),
-			(BASE_PATH,         "base.html"),
-			(MODEL_ANSWER_PATH, "model-answer.html"),
-		]:
-			if not path.exists():
-				print(f"❌ {label} が見つかりません: {path}", file=sys.stderr)
-				sys.exit(1)
-
-		skill_content        = self.load_text(SKILL_PATH)
-		model_answer_content = self.load_text(MODEL_ANSWER_PATH)
-
-		return (
-			f"{skill_content}\n\n"
-			f"---\n\n"
-			f"## 完成例（template/model-answer.html）\n\n"
-			f"以下が完成品の実例です。デザイン・文体・情報量の基準として参照してください。\n\n"
-			f"```html\n{model_answer_content}\n```"
-		)
+		"""commit-track スキル全文をシステムプロンプトとする（Prompt Caching 再利用）。"""
+		if not SKILL_PATH.exists():
+			print(f"❌ SKILL.md が見つかりません: {SKILL_PATH}", file=sys.stderr)
+			sys.exit(1)
+		return self.load_text(SKILL_PATH)
 
 	# ------------------------------------------------------------------
 	# Step 4: Claude レポート生成
@@ -128,21 +113,23 @@ class ReportGenerator(ComitoraBase):
 	def _generate(self, aggregated: dict, system_content: str) -> str:
 		"""
 		Anthropic SDK で Claude を呼び出し、レポートHTMLを生成する。
-		システムプロンプト（SKILL.md + 完成例）を Prompt Caching でキャッシュする。
+		システムプロンプト（commit-track SKILL.md のみ）を Prompt Caching でキャッシュする。
 		"""
 		anthropic = self._import_anthropic()
 		api_key   = self._resolve_anthropic_key()
 
-		base_content = self.load_text(BASE_PATH)
+		if not SKILL_BASE_HTML.exists():
+			print(f"❌ スキル同梱の base.html が見つかりません: {SKILL_BASE_HTML}", file=sys.stderr)
+			sys.exit(1)
+		base_content = self.load_text(SKILL_BASE_HTML)
 
 		commits_for_claude = aggregated["commit"][:200]
 		data_for_claude    = {**aggregated, "commit": commits_for_claude}
 
 		user_content = (
-			"以下のテンプレートと集計データをもとに、レポートHTMLを生成してください。\n"
-			"テンプレートのすべての `{{ }}` プレースホルダーを埋め、完全なHTMLファイルを出力してください。\n"
-			"出力はHTMLのみ。説明文やコードブロック記法（```html）は不要です。\n\n"
-			f"## テンプレート（template/base.html）\n\n"
+			"システムプロンプトの commit-track スキルに従い、次のテンプレートと集計データからレポート HTML を生成してください。\n"
+			"プレースホルダーをすべて置換した完全な HTML のみを出力してください（説明文や ``` フェンスは不要）。\n\n"
+			f"## テンプレート（スキル同梱 references/base.html）\n\n"
 			f"```html\n{base_content}\n```\n\n"
 			f"## 集計データ（report_data.json）\n\n"
 			f"```json\n{json.dumps(data_for_claude, ensure_ascii=False, indent=2)}\n```"
@@ -181,18 +168,12 @@ class ReportGenerator(ComitoraBase):
 	def _validate(self, html: str, aggregated: dict) -> dict:
 		"""
 		生成された HTML を検証する。
-		- 未置換プレースホルダー（{{ }} 形式）の残存チェック
 		- 必須セクションIDの存在チェック
 		- HTML 構文の基本チェック
 		- 主要数値の転記チェック（数値ミス検出）
 		"""
 		issues:   list[str] = []
 		warnings: list[str] = []
-
-		# 未置換プレースホルダー
-		remaining = re.findall(r"\{\{[^}]+\}\}", html)
-		if remaining:
-			issues.append(f"未置換プレースホルダーが残っています: {list(set(remaining))}")
 
 		# 必須セクションID
 		for section_id in REQUIRED_SECTION_IDS:

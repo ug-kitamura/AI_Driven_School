@@ -1,0 +1,11 @@
+[project]
+name = "comitora"
+version = "0.1.0"
+description = "GitHub コミット履歴を AI で分析し、週次レポートを生成・配信するツール"
+requires-python = ">=3.11"
+dependencies = [
+    "anthropic>=0.49.0",
+    "pathspec>=0.12.1",
+    "python-dotenv>=1.1.0",
+    "requests>=2.32.3",
+]

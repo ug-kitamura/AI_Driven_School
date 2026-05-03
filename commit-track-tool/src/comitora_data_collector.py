@@ -324,7 +324,7 @@ class DataCollector(ComitoraBase):
 
 		print(f"進捗度: {progress_pct}%", file=sys.stderr)
 		if hero:
-			print(f"今週のヒーロー: {hero['login']} (スコア: {hero['score']})", file=sys.stderr)
+			print(f"ヒーロー: {hero['login']} (スコア: {hero['score']})", file=sys.stderr)
 
 
 	@staticmethod

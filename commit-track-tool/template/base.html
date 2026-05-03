@@ -1,0 +1,623 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>{{ project_name }} Report – {{ week_label }}</title>
+  <style>
+    :root {
+      /* Gray */
+      --gray-05: #101112;
+      --gray-10: #1A1C1D;
+      --gray-15: #232628;
+      --gray-20: #2E3033;
+      --gray-25: #383B3E;
+      --gray-30: #43464A;
+      --gray-35: #4E5256;
+      --gray-40: #595E62;
+      --gray-45: #656A6F;
+      --gray-50: #71767C;
+      --gray-55: #7D8389;
+      --gray-60: #8A9097;
+      --gray-65: #979EA4;
+      --gray-70: #A4ABB3;
+      --gray-75: #B2B9C0;
+      --gray-80: #C1C7CC;
+      --gray-85: #D0D4D8;
+      --gray-90: #E0E2E5;
+      --gray-95: #EFF1F2;
+      --gray-100: #F5F7F8;
+      /* Purple */
+      --purple-05: #230421;
+      --purple-10: #340731;
+      --purple-15: #440C41;
+      --purple-20: #551151;
+      --purple-25: #671761;
+      --purple-30: #791D73;
+      --purple-35: #8B2284;
+      --purple-40: #9E2896;
+      --purple-45: #B12EA9;
+      --purple-50: #C535BC;
+      --purple-55: #D543CB;
+      --purple-60: #E552DA;
+      --purple-65: #E472DB;
+      --purple-70: #E48CDD;
+      --purple-75: #E5A2DF;
+      --purple-80: #E8B6E3;
+      --purple-85: #EBCAE8;
+      --purple-90: #F0DCEE;
+      --purple-95: #F7EEF6;
+      /* Blue */
+      --blue-05: #001222;
+      --blue-10: #001D33;
+      --blue-15: #002742;
+      --blue-20: #003253;
+      --blue-25: #003E64;
+      --blue-30: #004975;
+      --blue-35: #005587;
+      --blue-40: #00629A;
+      --blue-45: #006EAD;
+      --blue-50: #007BC0;
+      --blue-55: #0088D4;
+      --blue-60: #0096E8;
+      --blue-65: #00A4FD;
+      --blue-70: #56B0FF;
+      --blue-75: #7EBDFF;
+      --blue-80: #9DC9FF;
+      --blue-85: #B8D6FF;
+      --blue-90: #D1E4FF;
+      --blue-95: #E8F1FF;
+      /* Turquoise */
+      --teal-05: #011413;
+      --teal-10: #02201E;
+      --teal-15: #032B28;
+      --teal-20: #053634;
+      --teal-25: #07423F;
+      --teal-30: #0A4F4B;
+      --teal-35: #0E5B57;
+      --teal-40: #116864;
+      --teal-45: #147671;
+      --teal-50: #18837E;
+      --teal-55: #2E908B;
+      --teal-60: #419E98;
+      --teal-65: #54ABA5;
+      --teal-70: #66B8B2;
+      --teal-75: #79C5C0;
+      --teal-80: #8DD2CD;
+      --teal-85: #A1DFDB;
+      --teal-90: #B6EDE8;
+      --teal-95: #DEF5F3;
+      /* Green */
+      --green-05: #001507;
+      --green-10: #00210E;
+      --green-15: #002C14;
+      --green-20: #00381B;
+      --green-25: #004523;
+      --green-30: #00512A;
+      --green-35: #005F32;
+      --green-40: #006C3A;
+      --green-45: #007A42;
+      --green-50: #00884A;
+      --green-55: #219557;
+      --green-60: #37A264;
+      --green-65: #4AB073;
+      --green-70: #5EBD82;
+      --green-75: #72CA92;
+      --green-80: #86D7A2;
+      --green-85: #9BE4B3;
+      --green-90: #B8EFC9;
+      --green-95: #E2F5E7;
+      /* Yellow */
+      --yellow-05: #171000;
+      --yellow-10: #231A00;
+      --yellow-15: #2F2400;
+      --yellow-20: #3C2E00;
+      --yellow-25: #493900;
+      --yellow-30: #564400;
+      --yellow-35: #644F00;
+      --yellow-40: #725B00;
+      --yellow-45: #806700;
+      --yellow-50: #8F7300;
+      --yellow-55: #9E7F00;
+      --yellow-60: #AD8C00;
+      --yellow-65: #BD9900;
+      --yellow-70: #CDA600;
+      --yellow-75: #DEB300;
+      --yellow-80: #EEC100;
+      --yellow-85: #FFCF00;
+      --yellow-90: #FFDF95;
+      --yellow-95: #FFEFD1;
+      /* Red */
+      --red-05: #2D0000;
+      --red-10: #410000;
+      --red-15: #540001;
+      --red-20: #680001;
+      --red-25: #7D0002;
+      --red-30: #920002;
+      --red-35: #A80003;
+      --red-40: #BE0004;
+      --red-45: #D50005;
+      --red-50: #ED0007;
+      --red-55: #FF2124;
+      --red-60: #FF5152;
+      --red-65: #FF6E6F;
+      --red-70: #FF8787;
+      --red-75: #FF9D9D;
+      --red-80: #FFB2B2;
+      --red-85: #FFC6C6;
+      --red-90: #FFD9D9;
+      --red-95: #FFECEC;
+    }
+
+    /* ============================================================
+       RESET & BASE
+    ============================================================ */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: var(--gray-95);
+      color: var(--gray-15);
+      font-family: "Segoe UI", "Noto Sans JP", "Hiragino Kaku Gothic ProN", "Yu Gothic UI", sans-serif;
+      font-size: 14px;
+      line-height: 1.6;
+      padding: 20px 16px;
+    }
+
+    a { color: var(--blue-50); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+
+    /* ============================================================
+       LAYOUT
+    ============================================================ */
+    .container {
+      max-width: 960px;
+      margin: 0 auto;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+
+    .card {
+      background: #fff;
+      border: 1px solid var(--gray-90);
+      border-radius: 12px;
+      padding: 20px;
+    }
+
+    .card-accent-blue  { border-left: 4px solid var(--blue-55); }
+    .card-accent-green { border-left: 4px solid var(--green-50); }
+
+    .grid-2 {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 14px;
+    }
+
+    .grid-stats {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+
+    .grid-sprint {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 14px;
+    }
+
+    @media (min-width: 768px) {
+      body { padding: 28px 32px; }
+      .grid-2      { grid-template-columns: 1fr 1fr; }
+      .grid-sprint { grid-template-columns: 2fr 1fr; }
+    }
+
+    /* ============================================================
+       TYPOGRAPHY UTILITIES
+    ============================================================ */
+    .section-label {
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--gray-40);
+      margin-bottom: 14px;
+    }
+
+    .text-xs     { font-size: 11px; }
+    .text-sm     { font-size: 12px; }
+    .text-muted  { color: var(--gray-50); }
+    .text-secondary { color: var(--gray-40); }
+    .font-bold   { font-weight: 700; }
+    .font-semibold { font-weight: 600; }
+    .italic      { font-style: italic; }
+    .font-mono   { font-family: "Consolas", "Courier New", monospace; }
+    .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; }
+
+    /* ============================================================
+       BADGE
+    ============================================================ */
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 2px 10px;
+      border-radius: 9999px;
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.03em;
+      white-space: nowrap;
+    }
+
+    .badge-success { background: var(--green-95); color: var(--green-40); border: 1px solid var(--green-85); }
+    .badge-info    { background: var(--blue-95);  color: var(--blue-35);  border: 1px solid var(--blue-90); }
+    .badge-warning { background: var(--yellow-95); color: var(--yellow-40); border: 1px solid var(--yellow-90); }
+    .badge-amber   { background: var(--yellow-90); color: var(--yellow-40); border: 1px solid var(--yellow-80); }
+    .badge-danger  { background: var(--red-95); color: var(--red-35); border: 1px solid var(--red-85); }
+    .badge-neutral { background: var(--gray-95);  color: var(--gray-40);  border: 1px solid var(--gray-85); }
+
+    /* ============================================================
+       PROGRESS BAR
+    ============================================================ */
+    .progress-track {
+      background: var(--gray-90);
+      border-radius: 9999px;
+      height: 10px;
+      overflow: hidden;
+    }
+
+    .progress-bar {
+      height: 100%;
+      border-radius: 9999px;
+      transition: width 0.9s ease;
+    }
+
+    .progress-green  { background: var(--green-50); }
+    .progress-blue   { background: var(--blue-50); }
+    .progress-yellow { background: var(--yellow-70); }
+    .progress-gray   { background: var(--gray-85); }
+
+    /* ============================================================
+       TABLE
+    ============================================================ */
+    .data-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13px;
+    }
+
+    .data-table caption {
+      caption-side: top;
+      text-align: left;
+      padding-bottom: 10px;
+      position: absolute;
+      width: 1px; height: 1px;
+      overflow: hidden;
+      clip: rect(0,0,0,0);
+    }
+
+    .data-table th {
+      text-align: left;
+      padding: 0 8px 8px 0;
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: var(--gray-40);
+      border-bottom: 1px solid var(--gray-90);
+    }
+
+    .data-table td {
+      padding: 9px 8px 9px 0;
+      border-bottom: 1px solid var(--gray-95);
+      vertical-align: middle;
+    }
+
+    .data-table tbody tr:last-child td { border-bottom: none; }
+
+    .data-table tbody tr:hover td {
+      background: var(--blue-95);
+      transition: background 0.15s;
+    }
+
+    /* ============================================================
+       AVATAR
+    ============================================================ */
+    .avatar {
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 11px;
+      font-weight: 700;
+      color: #fff;
+      flex-shrink: 0;
+    }
+
+    .avatar-blue   { background: var(--blue-50); }
+    .avatar-green  { background: var(--green-50); }
+    .avatar-yellow { background: var(--yellow-70); }
+    .avatar-purple { background: var(--purple-40); }
+    .avatar-gray   { background: var(--gray-40); }
+
+    /* ============================================================
+       ACTION ITEMS
+    ============================================================ */
+    .action-item {
+      display: flex;
+      gap: 12px;
+      align-items: flex-start;
+      padding: 10px 12px;
+      border-radius: 8px;
+    }
+
+    .action-p1 { background: var(--gray-100); border: 1px solid var(--gray-90); }
+    .action-p2 { background: var(--gray-100); border: 1px solid var(--gray-90); }
+    .action-p3 { background: var(--gray-100); border: 1px solid var(--gray-90); }
+    .action-p4 { background: var(--gray-100);  border: 1px solid var(--gray-90); }
+
+    .action-p1 .action-meta { color: var(--blue-40); }
+    .action-p2 .action-meta { color: var(--blue-40); }
+    .action-p3 .action-meta { color: var(--blue-40); }
+    .action-p4 .action-meta { color: var(--blue-40); }
+
+    /* ============================================================
+       HERO
+    ============================================================ */
+    .hero-avatar-wrap { position: relative; display: inline-block; }
+
+    .hero-avatar {
+      width: 64px;
+      height: 64px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, var(--blue-50), var(--green-80));
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 28px;
+      font-weight: 900;
+      color: #fff;
+    }
+
+    .flame {
+      position: absolute;
+      top: -4px;
+      right: -4px;
+      font-size: 18px;
+    }
+
+    @media (prefers-reduced-motion: no-preference) {
+      .flame { animation: flicker 1.4s infinite alternate; }
+    }
+
+    @keyframes flicker {
+      from { opacity: 1; }
+      to   { opacity: 0.7; filter: brightness(1.3); }
+    }
+
+    /* ============================================================
+       CODE BLOCK
+    ============================================================ */
+    .code-block {
+      background: var(--gray-25);
+      border: 1px solid var(--gray-90);
+      border-radius: 8px;
+      padding: 12px;
+      font-family: "Consolas", "Courier New", monospace;
+      font-size: 13px;
+      margin-bottom: 12px;
+      overflow-x: auto;
+    }
+
+    .code-comment { color: var(--gray-75); font-size: 11px; }
+    .code-cmd     { color: var(--teal-85); }
+    .code-output  { color: var(--gray-75); }
+
+    /* ============================================================
+       FLEX & SPACING UTILITIES
+    ============================================================ */
+    .flex           { display: flex; }
+    .flex-col       { flex-direction: column; }
+    .flex-wrap      { flex-wrap: wrap; }
+    .items-center   { align-items: center; }
+    .items-start    { align-items: flex-start; }
+    .justify-between{ justify-content: space-between; }
+    .justify-center { justify-content: center; }
+    .flex-1         { flex: 1; }
+    .shrink-0       { flex-shrink: 0; }
+    .gap-1 { gap: 4px; }
+    .gap-2 { gap: 8px; }
+    .gap-3 { gap: 12px; }
+    .gap-4 { gap: 16px; }
+    .mt-1  { margin-top: 4px; }
+    .mt-2  { margin-top: 8px; }
+    .mt-3  { margin-top: 12px; }
+    .mb-2  { margin-bottom: 8px; }
+    .mb-3  { margin-bottom: 12px; }
+    .space-y-3 > * + * { margin-top: 10px; }
+    .text-center { text-align: center; }
+    .overflow-x-auto { overflow-x: auto; }
+    .relative { position: relative; }
+    .w-full { width: 100%; }
+    .divider { border: none; border-top: 1px solid var(--gray-90); margin: 14px 0; }
+
+    /* Footer */
+    .footer-text {
+      font-size: 12px;
+      color: var(--gray-40);
+    }
+  </style>
+</head>
+<body>
+<div class="container">
+
+  <!-- ===== HEADER ===== -->
+  <div class="card">
+    <div class="flex flex-wrap items-center justify-between gap-3">
+      <div class="flex items-center gap-3">
+        <div class="shrink-0" style="width:52px;height:52px;border-radius:10px;background:var(--blue-95);display:flex;align-items:center;justify-content:center;font-size:26px;">⚡</div>
+        <div>
+          <div style="font-size:24px;font-weight:800;color:var(--gray-10);">{{ project_name }} Report</div>
+          <div class="text-sm text-muted mt-1">{{ week_label }} &nbsp;·&nbsp; <span class="font-mono" style="color:var(--blue-50);">{{ repo_name }}</span></div>
+        </div>
+      </div>
+      <div class="flex flex-wrap gap-2">
+        <span class="badge badge-neutral">✅ 自動生成 / Auto-generated</span>
+        <span class="badge badge-neutral">📅 毎週月曜 08:00 JST</span>
+        <span class="badge badge-neutral">🌐 日本語 / English</span>
+      </div>
+    </div>
+
+    <!-- Health bar -->
+    <div class="flex items-center gap-3 mt-3">
+      <div class="shrink-0 text-sm text-secondary" style="width:140px;">
+        プロジェクト健全度<br/>
+        <span class="text-xs text-muted">Project Health</span>
+      </div>
+      <div
+        class="progress-track flex-1"
+        role="progressbar"
+        aria-valuenow="{{ health_pct }}"
+        aria-valuemin="0"
+        aria-valuemax="100"
+        aria-label="プロジェクト健全度 {{ health_pct }}%">
+        <div class="progress-bar {{ health_color_class }}" style="width:{{ health_pct }}%;"></div>
+      </div>
+      <div class="font-bold" style="color:{{ health_color_value }};width:36px;text-align:right;">{{ health_pct }}%</div>
+      <span role="img" aria-label="健全度">{{ health_emoji }}</span>
+    </div>
+  </div>
+
+  <!-- ===== ROW 1: Sprint Progress + Stat Cards ===== -->
+  <div class="grid-sprint">
+
+    <!-- Sprint progress -->
+    <div class="card">
+      <div class="section-label">📊 スプリント進捗 / Sprint Progress</div>
+      <div class="space-y-3">
+        {{ sprint_items }}
+      </div>
+    </div>
+
+    <!-- Stat cards -->
+    <div class="grid-stats">
+      <div class="card text-center">
+        <div style="font-size:2.2rem;font-weight:800;color:var(--gray-45);">{{ prs_merged }}</div>
+        <div class="text-xs text-muted mt-1">マージ済み<br/>PRs Merged</div>
+      </div>
+      <div class="card text-center">
+        <div style="font-size:2.2rem;font-weight:800;color:var(--gray-45);">{{ awaiting_review }}</div>
+        <div class="text-xs text-muted mt-1">レビュー待ち<br/>Awaiting Review</div>
+      </div>
+      <div class="card text-center">
+        <div style="font-size:2.2rem;font-weight:800;color:var(--gray-45);">{{ blockers }}</div>
+        <div class="text-xs text-muted mt-1">ブロッカー<br/>Blockers</div>
+      </div>
+      <div class="card text-center">
+        <div style="font-size:2.2rem;font-weight:800;color:var(--gray-45);">{{ active_branches }}</div>
+        <div class="text-xs text-muted mt-1">アクティブブランチ<br/>Active Branches</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== ACTION PLAN ===== -->
+  <!-- Claude が {{ action_plan_items }} を埋める -->
+  <div class="card" id="action-plan">
+    <div class="section-label">🎯 アクションプラン / Action Plan</div>
+    <div class="space-y-3">
+      {{ action_plan_items }}
+    </div>
+  </div>
+
+  <!-- ===== BRANCH MAP ===== -->
+  <div class="card">
+    <div class="section-label">🌿 ブランチ状況マップ / Branch Status Map</div>
+    <div class="overflow-x-auto">
+      <table class="data-table">
+        <caption>ブランチ状況マップ / Branch Status Map</caption>
+        <thead>
+          <tr>
+            <th scope="col">Branch</th>
+            <th scope="col">担当 / Author</th>
+            <th scope="col">ステータス / Status</th>
+            <th scope="col">最終更新 / Last Updated</th>
+            <th scope="col">アクション / Action</th>
+          </tr>
+        </thead>
+        <tbody>
+          {{ branch_rows }}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- ===== ROW 3: Hero + Message & Tips ===== -->
+  <div class="grid-2">
+
+    <!-- Hero of the Week -->
+    <div class="card" id="hero">
+      <div class="section-label">🏆 ヒーロー / Hero of the Period</div>
+      <div class="flex flex-col items-center text-center mb-3">
+        <div class="hero-avatar-wrap mb-3">
+          <div class="hero-avatar">{{ hero_initial }}</div>
+          <span class="flame" role="img" aria-label="注目">🔥</span>
+        </div>
+        <div class="font-bold" style="font-size:17px;">{{ hero_name }}</div>
+        <div class="text-xs text-muted mt-1">{{ hero_handle }}</div>
+        <div class="flex flex-wrap justify-center gap-2 mt-3">
+          <span class="badge badge-warning">🥇 {{ hero_prs_merged }} PRs merged</span>
+          <span class="badge badge-success">💬 {{ hero_reviews }} reviews</span>
+          <span class="badge badge-info">{{ hero_achievement }}</span>
+        </div>
+        <!-- Claude が {{ hero_comment }} を埋める -->
+        <div class="mt-3 italic text-secondary text-sm" style="background:var(--gray-95);border:1px solid var(--gray-90);border-radius:8px;padding:10px 12px;">
+          {{ hero_comment }}
+        </div>
+      </div>
+
+      <div class="divider"></div>
+      <div class="text-xs font-bold text-secondary mb-2" style="letter-spacing:0.06em;text-transform:uppercase;">コントリビューター</div>
+      <div class="space-y-3">
+        {{ contributor_rows }}
+      </div>
+    </div>
+
+    <!-- Message & Tips (stacked) -->
+    <div class="flex flex-col gap-3">
+
+      <!-- Team message -->
+      <!-- Claude が {{ team_message }} を埋める -->
+      <div class="card" id="team-message">
+        <div class="section-label">💬 メッセージ / Team Message</div>
+        {{ team_message }}
+      </div>
+
+      <!-- Tips of the week -->
+      <!-- Claude が {{ tips_content }} を埋める -->
+      <div class="card">
+        <div class="section-label">💡 Tips / Tips of the Period</div>
+        {{ tips_content }}
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ===== FOOTER ===== -->
+  <div class="card" id="footer">
+    <div class="flex flex-col gap-2" style="align-items:center;">
+      <div class="flex flex-wrap items-center justify-between gap-3 w-full footer-text">
+        <span>⚡ {{ project_name }} Report &nbsp;·&nbsp; 自動生成 / Auto-generated by GitHub Actions</span>
+        <div class="flex flex-wrap gap-4">
+          <a href="{{ report_url }}">📄 フルレポート / Full Report</a>
+          <a href="{{ repo_url }}">🔗 GitHub Repository</a>
+          <a href="{{ past_reports_url }}">📊 過去のレポート / Past Reports</a>
+        </div>
+        <span>Generated: {{ generated_at }}</span>
+      </div>
+    </div>
+  </div>
+
+</div>
+</body>
+</html>

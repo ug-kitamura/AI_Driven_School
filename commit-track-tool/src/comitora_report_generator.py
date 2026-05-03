@@ -4,13 +4,13 @@ comitora_report_generator.py - Claude によるレポート生成・評価クラ
 処理内容:
 	- report_data.json を読み込み Claude でHTMLレポートを生成
 	- 生成HTMLをバリデーション
-	- 別の Claude 呼び出しでレポート品質を評価
+	- 同じシステムプロンプト（Prompt Caching 再利用）でレポート品質を評価
 
 入力ファイル:
 	output/report_data.json  DataCollector が生成した集計データ
 
 出力ファイル:
-	output/weekly_report.html    生成されたレポートHTML
+	output/comitora-report.html   生成されたレポートHTML
 	output/validation_result.json バリデーション結果
 	output/evaluation_result.json 品質評価結果
 
@@ -27,8 +27,11 @@ from pathlib import Path
 from html.parser import HTMLParser
 from comitora_base import ComitoraBase
 
-SKILL_PATH    = Path(".claude/skills/commit-track/SKILL.md")
-TEMPLATE_PATH = Path("template/weekly-report.html")
+SKILL_PATH        = Path(".claude/skills/commit-track/SKILL.md")
+BASE_PATH         = Path("template/base.html")
+MODEL_ANSWER_PATH = Path("template/model-answer.html")
+
+REQUIRED_SECTION_IDS = ["action-plan", "hero", "team-message", "footer"]
 
 
 class ReportGenerator(ComitoraBase):
@@ -55,16 +58,18 @@ class ReportGenerator(ComitoraBase):
 			print("\n⏭️  --skip-claude が指定されたため Claude の呼び出しをスキップします", file=sys.stderr)
 			return
 
+		system_content = self._build_system_content()
+
 		# Step 4: レポート生成
 		self.print_section("Claude でレポートを生成中")
-		html = self._generate(aggregated)
-		html_path = self.OUTPUT_DIR / "weekly_report.html"
+		html = self._generate(aggregated, system_content)
+		html_path = self.OUTPUT_DIR / "comitora-report.html"
 		html_path.write_text(html, encoding="utf-8")
 		print(f"  💾 {html_path} ({len(html):,} 文字)", file=sys.stderr)
 
 		# Step 5: バリデーション
 		self.print_section("HTML をバリデーション中")
-		validation = self._validate(html)
+		validation = self._validate(html, aggregated)
 		self.save_json("validation_result.json", validation)
 
 		if validation["issues"]:
@@ -79,95 +84,122 @@ class ReportGenerator(ComitoraBase):
 
 		# Step 6: 品質評価
 		self.print_section("サブエージェントで品質を評価中")
-		evaluation = self._evaluate(html, aggregated)
+		evaluation = self._evaluate(html, aggregated, system_content)
 		self.save_json("evaluation_result.json", evaluation)
 
-		if evaluation.get("parsed", {}).get("score"):
-			print(f"  品質スコア: {evaluation['parsed']['score']}/5", file=sys.stderr)
-			for imp in evaluation.get("parsed", {}).get("improvements", []):
+		parsed = evaluation.get("parsed", {})
+		if parsed.get("score"):
+			print(f"  品質スコア: {parsed['score']}/5", file=sys.stderr)
+			if parsed.get("data_accuracy"):
+				print(f"  データ精度: {parsed['data_accuracy']}", file=sys.stderr)
+			for imp in parsed.get("improvements", []):
 				print(f"  💡 {imp}", file=sys.stderr)
+
+	# ------------------------------------------------------------------
+	# システムプロンプト構築（生成・評価で共有 → Prompt Caching 再利用）
+	# ------------------------------------------------------------------
+
+	def _build_system_content(self) -> str:
+		"""SKILL.md + 完成例HTMLをシステムプロンプトとして構築する。"""
+		for path, label in [
+			(SKILL_PATH,        "SKILL.md"),
+			(BASE_PATH,         "base.html"),
+			(MODEL_ANSWER_PATH, "model-answer.html"),
+		]:
+			if not path.exists():
+				print(f"❌ {label} が見つかりません: {path}", file=sys.stderr)
+				sys.exit(1)
+
+		skill_content        = self.load_text(SKILL_PATH)
+		model_answer_content = self.load_text(MODEL_ANSWER_PATH)
+
+		return (
+			f"{skill_content}\n\n"
+			f"---\n\n"
+			f"## 完成例（template/model-answer.html）\n\n"
+			f"以下が完成品の実例です。デザイン・文体・情報量の基準として参照してください。\n\n"
+			f"```html\n{model_answer_content}\n```"
+		)
 
 	# ------------------------------------------------------------------
 	# Step 4: Claude レポート生成
 	# ------------------------------------------------------------------
 
-	def _generate(self, aggregated: dict) -> str:
+	def _generate(self, aggregated: dict, system_content: str) -> str:
 		"""
-		Anthropic SDK で Claude を呼び出し、週次レポートHTMLを生成する。
-		SKILL.md とテンプレートHTMLをシステムプロンプトに置いて Prompt Caching を利用する。
+		Anthropic SDK で Claude を呼び出し、レポートHTMLを生成する。
+		システムプロンプト（SKILL.md + 完成例）を Prompt Caching でキャッシュする。
 		"""
 		anthropic = self._import_anthropic()
 		api_key   = self._resolve_anthropic_key()
 
-		for path, label in [(SKILL_PATH, "SKILL.md"), (TEMPLATE_PATH, "テンプレートHTML")]:
-			if not path.exists():
-				print(f"❌ {label} が見つかりません: {path}", file=sys.stderr)
-				sys.exit(1)
-
-		skill_content    = self.load_text(SKILL_PATH)
-		template_content = self.load_text(TEMPLATE_PATH)
-
-		system_content = (
-			f"{skill_content}\n\n"
-			f"## テンプレートHTML\n\n"
-			f"以下のHTMLテンプレートのプレースホルダーをデータで埋めてください。\n\n"
-			f"```html\n{template_content}\n```"
-		)
+		base_content = self.load_text(BASE_PATH)
 
 		commits_for_claude = aggregated["commit"][:200]
 		data_for_claude    = {**aggregated, "commit": commits_for_claude}
+
 		user_content = (
-			"以下のデータを使用して週次レポートHTMLを生成してください。\n\n"
+			"以下のテンプレートと集計データをもとに、レポートHTMLを生成してください。\n"
+			"テンプレートのすべての `{{ }}` プレースホルダーを埋め、完全なHTMLファイルを出力してください。\n"
+			"出力はHTMLのみ。説明文やコードブロック記法（```html）は不要です。\n\n"
+			f"## テンプレート（template/base.html）\n\n"
+			f"```html\n{base_content}\n```\n\n"
+			f"## 集計データ（report_data.json）\n\n"
 			f"```json\n{json.dumps(data_for_claude, ensure_ascii=False, indent=2)}\n```"
 		)
 
 		client   = anthropic.Anthropic(api_key=api_key)
 		response = client.messages.create(
-			model="claude-sonnet-4-5",
-			max_tokens=16000,
-			system=[
+			model      = "claude-sonnet-4-5",
+			max_tokens = 16000,
+			system     = [
 				{
-					"type": "text",
-					"text": system_content,
+					"type"         : "text",
+					"text"         : system_content,
 					"cache_control": {"type": "ephemeral"},
 				}
 			],
 			messages=[{"role": "user", "content": user_content}],
 		)
 
-		usage = response.usage
-		print(f"  トークン: input={usage.input_tokens}, output={usage.output_tokens}", file=sys.stderr)
-		if hasattr(usage, "cache_read_input_tokens"):
-			print(f"  キャッシュヒット: {usage.cache_read_input_tokens} tokens", file=sys.stderr)
+		self._print_usage(response.usage, "生成")
 
 		text = self._extract_text(response)
 		if not text:
 			print("❌ Claude からテキストレスポンスが得られませんでした", file=sys.stderr)
 			sys.exit(1)
+
+		# Claude が ```html ... ``` で囲んで返すケースを除去
+		text = re.sub(r"^```html\s*\n", "", text.strip())
+		text = re.sub(r"\n```\s*$", "", text)
 		return text
 
 	# ------------------------------------------------------------------
 	# Step 5: HTML バリデーション
 	# ------------------------------------------------------------------
 
-	def _validate(self, html: str) -> dict:
+	def _validate(self, html: str, aggregated: dict) -> dict:
 		"""
 		生成された HTML を検証する。
 		- 未置換プレースホルダー（{{ }} 形式）の残存チェック
 		- 必須セクションIDの存在チェック
 		- HTML 構文の基本チェック
+		- 主要数値の転記チェック（数値ミス検出）
 		"""
 		issues:   list[str] = []
 		warnings: list[str] = []
 
+		# 未置換プレースホルダー
 		remaining = re.findall(r"\{\{[^}]+\}\}", html)
 		if remaining:
 			issues.append(f"未置換プレースホルダーが残っています: {list(set(remaining))}")
 
-		for section_id in ["header", "stats", "action-plan", "hero", "team-message"]:
+		# 必須セクションID
+		for section_id in REQUIRED_SECTION_IDS:
 			if f'id="{section_id}"' not in html and f"id='{section_id}'" not in html:
-				warnings.append(f"セクション id='{section_id}' が見つかりません（テンプレート次第で正常）")
+				warnings.append(f"セクション id='{section_id}' が見つかりません")
 
+		# HTML 構文チェック
 		if "<html" not in html.lower():
 			issues.append("HTMLタグがありません")
 		if "</body>" not in html.lower():
@@ -178,11 +210,21 @@ class ReportGenerator(ComitoraBase):
 		except Exception as e:
 			issues.append(f"HTMLパースエラー: {e}")
 
+		# 主要数値の転記チェック
+		pr_summary   = aggregated.get("pr", {}).get("summary", {})
+		merged_count = pr_summary.get("merged_count")
+		if merged_count is not None and str(merged_count) not in html:
+			warnings.append(f"マージPR数 ({merged_count}) が HTML に見つかりません（転記ミスの可能性）")
+
+		hero = aggregated.get("aggregate", {}).get("hero")
+		if hero and hero.get("login") and hero["login"] not in html:
+			warnings.append(f"ヒーローのログイン名 ({hero['login']}) が HTML に見つかりません")
+
 		return {
-			"passed":      len(issues) == 0,
-			"issues":      issues,
-			"warnings":    warnings,
-			"html_length": len(html),
+			"passed"      : len(issues) == 0,
+			"issues"      : issues,
+			"warnings"    : warnings,
+			"html_length" : len(html),
 			"validated_at": self.NOW_LOCAL.isoformat(),
 		}
 
@@ -190,56 +232,49 @@ class ReportGenerator(ComitoraBase):
 	# Step 6: 品質評価
 	# ------------------------------------------------------------------
 
-	def _evaluate(self, html: str, aggregated: dict) -> dict:
-		"""別の Claude 呼び出しでレポートの品質を評価する。"""
+	def _evaluate(self, html: str, aggregated: dict, system_content: str) -> dict:
+		"""
+		同じシステムプロンプト（Prompt Caching 再利用）で品質を評価する。
+		SKILL.md のレビュー指示をそのまま利用する。
+		"""
 		try:
 			anthropic = self._import_anthropic()
+			api_key   = self._resolve_anthropic_key()
 		except SystemExit:
-			return {"skipped": True, "reason": "anthropic ライブラリ未インストール"}
+			return {"skipped": True, "reason": "anthropic 未設定"}
 
-		try:
-			api_key = self._resolve_anthropic_key()
-		except SystemExit:
-			return {"skipped": True, "reason": "APIキー未設定"}
-
-		agg       = aggregated.get("aggregate", {})
 		stats     = aggregated.get("pr", {}).get("summary", {})
-		hero_name = agg.get("hero", {}).get("login", "不明") if agg.get("hero") else "なし"
-		html_excerpt = html[:10000]
+		hero      = aggregated.get("aggregate", {}).get("hero")
+		hero_name = hero.get("login", "不明") if hero else "なし"
 
-		prompt = f"""あなたは開発チームの週次レポートの品質レビュアーです。
-以下のレポートHTMLを評価し、結果をJSONで返してください。
-
-## 評価観点
-1. アクションプランはコミット・PRデータに基づいた具体的な内容か
-2. チームメッセージ・ヒーローコメントは自然な日本語か
-3. Tipsはプロジェクト文脈と関連しているか
-4. 全体的な読みやすさと有用性
-
-## 参考データ
-- コミット数: {len(aggregated.get('commit', []))}
-- マージ済みPR: {stats.get('merged_count', 0)}
-- クローズしたIssue: {aggregated.get('issue', {}).get('closed_count', 0)}
-- 今週のヒーロー: {hero_name}
-
-## レポートHTML（抜粋）
-{html_excerpt}
-
-## 出力形式（JSON のみ、説明文不要）
-{{
-	"score": 1〜5の整数,
-	"action_plan_quality": "コメント",
-	"message_quality": "コメント",
-	"tips_quality": "コメント",
-	"improvements": ["改善点1", "改善点2"]
-}}"""
+		user_content = (
+			"SKILL.md のレビュー指示に従い、以下のレポートHTMLを評価してください。\n"
+			"JSONのみを返してください。説明文は不要です。\n\n"
+			f"## 参考データ\n"
+			f"- コミット数: {len(aggregated.get('commit', []))}\n"
+			f"- マージ済みPR: {stats.get('merged_count', 0)}\n"
+			f"- ブロッカー: {stats.get('feedback_in_progress_count', 0)}\n"
+			f"- クローズしたIssue: {aggregated.get('issue', {}).get('closed_count', 0)}\n"
+			f"- 対象期間のヒーロー: {hero_name}\n\n"
+			f"## レポートHTML（先頭 10,000 文字）\n\n"
+			f"{html[:10000]}"
+		)
 
 		client   = anthropic.Anthropic(api_key=api_key)
 		response = client.messages.create(
-			model="claude-sonnet-4-5",
-			max_tokens=1024,
-			messages=[{"role": "user", "content": prompt}],
+			model      = "claude-sonnet-4-5",
+			max_tokens = 1024,
+			system     = [
+				{
+					"type"         : "text",
+					"text"         : system_content,
+					"cache_control": {"type": "ephemeral"},
+				}
+			],
+			messages=[{"role": "user", "content": user_content}],
 		)
+
+		self._print_usage(response.usage, "評価")
 
 		raw_text     = self._extract_text(response) or ""
 		evaluated_at = self.NOW_LOCAL.isoformat()
@@ -252,7 +287,7 @@ class ReportGenerator(ComitoraBase):
 
 		return {
 			"evaluated_at": evaluated_at,
-			"parsed":       parsed,
+			"parsed"      : parsed,
 			"raw_response": raw_text,
 		}
 
@@ -268,12 +303,23 @@ class ReportGenerator(ComitoraBase):
 				return block.text
 		return ""
 
+	@staticmethod
+	def _print_usage(usage, label: str) -> None:
+		"""トークン使用量をログ出力する。"""
+		print(f"  [{label}] トークン: input={usage.input_tokens}, output={usage.output_tokens}", file=sys.stderr)
+		cache_read    = getattr(usage, "cache_read_input_tokens",    0) or 0
+		cache_created = getattr(usage, "cache_creation_input_tokens", 0) or 0
+		if cache_read:
+			print(f"  [{label}] キャッシュヒット: {cache_read:,} tokens", file=sys.stderr)
+		if cache_created:
+			print(f"  [{label}] キャッシュ作成: {cache_created:,} tokens", file=sys.stderr)
+
 	def _import_anthropic(self):
 		try:
 			import anthropic
 			return anthropic
 		except ImportError:
-			print("❌ anthropic ライブラリが未インストールです。`pip install anthropic` を実行してください。", file=sys.stderr)
+			print("❌ anthropic ライブラリが未インストールです。`uv add anthropic` を実行してください。", file=sys.stderr)
 			sys.exit(1)
 
 	def _resolve_anthropic_key(self) -> str:
@@ -293,4 +339,3 @@ if __name__ == "__main__":
 		"../output/report_data.json を読み込み Claude でレポートを生成・評価する"
 	)
 	ReportGenerator(parser.parse_args()).run()
-

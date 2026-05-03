@@ -3,625 +3,284 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>XXX Project Report – Week of Apr 14, 2026</title>
+  <title>Commit and Track Report</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700;900&display=swap" rel="stylesheet">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            custom: {
+              blue:       '#007BC0',
+              'blue-lt':  '#E8F1FF',
+              green:      '#00884A',
+              'green-lt': '#E2F5E7',
+              yellow:     '#CDA600',
+              'yellow-lt':'#FFEFD1',
+            }
+          },
+          fontFamily: {
+            sans: ['"Noto Sans JP"', '"Hiragino Kaku Gothic ProN"', '"Yu Gothic UI"', 'sans-serif'],
+            mono: ['"Consolas"', '"Courier New"', 'monospace'],
+          }
+        }
+      }
+    }
+  </script>
   <style>
-    :root {
-      /* Gray */
-      --gray-05: #101112;
-      --gray-10: #1A1C1D;
-      --gray-15: #232628;
-      --gray-20: #2E3033;
-      --gray-25: #383B3E;
-      --gray-30: #43464A;
-      --gray-35: #4E5256;
-      --gray-40: #595E62;
-      --gray-45: #656A6F;
-      --gray-50: #71767C;
-      --gray-55: #7D8389;
-      --gray-60: #8A9097;
-      --gray-65: #979EA4;
-      --gray-70: #A4ABB3;
-      --gray-75: #B2B9C0;
-      --gray-80: #C1C7CC;
-      --gray-85: #D0D4D8;
-      --gray-90: #E0E2E5;
-      --gray-95: #EFF1F2;
-      --gray-100: #F5F7F8;
-      /* Purple */
-      --purple-05: #230421;
-      --purple-10: #340731;
-      --purple-15: #440C41;
-      --purple-20: #551151;
-      --purple-25: #671761;
-      --purple-30: #791D73;
-      --purple-35: #8B2284;
-      --purple-40: #9E2896;
-      --purple-45: #B12EA9;
-      --purple-50: #C535BC;
-      --purple-55: #D543CB;
-      --purple-60: #E552DA;
-      --purple-65: #E472DB;
-      --purple-70: #E48CDD;
-      --purple-75: #E5A2DF;
-      --purple-80: #E8B6E3;
-      --purple-85: #EBCAE8;
-      --purple-90: #F0DCEE;
-      --purple-95: #F7EEF6;
-      /* Blue */
-      --blue-05: #001222;
-      --blue-10: #001D33;
-      --blue-15: #002742;
-      --blue-20: #003253;
-      --blue-25: #003E64;
-      --blue-30: #004975;
-      --blue-35: #005587;
-      --blue-40: #00629A;
-      --blue-45: #006EAD;
-      --blue-50: #007BC0;
-      --blue-55: #0088D4;
-      --blue-60: #0096E8;
-      --blue-65: #00A4FD;
-      --blue-70: #56B0FF;
-      --blue-75: #7EBDFF;
-      --blue-80: #9DC9FF;
-      --blue-85: #B8D6FF;
-      --blue-90: #D1E4FF;
-      --blue-95: #E8F1FF;
-      /* Turquoise */
-      --teal-05: #011413;
-      --teal-10: #02201E;
-      --teal-15: #032B28;
-      --teal-20: #053634;
-      --teal-25: #07423F;
-      --teal-30: #0A4F4B;
-      --teal-35: #0E5B57;
-      --teal-40: #116864;
-      --teal-45: #147671;
-      --teal-50: #18837E;
-      --teal-55: #2E908B;
-      --teal-60: #419E98;
-      --teal-65: #54ABA5;
-      --teal-70: #66B8B2;
-      --teal-75: #79C5C0;
-      --teal-80: #8DD2CD;
-      --teal-85: #A1DFDB;
-      --teal-90: #B6EDE8;
-      --teal-95: #DEF5F3;
-      /* Green */
-      --green-05: #001507;
-      --green-10: #00210E;
-      --green-15: #002C14;
-      --green-20: #00381B;
-      --green-25: #004523;
-      --green-30: #00512A;
-      --green-35: #005F32;
-      --green-40: #006C3A;
-      --green-45: #007A42;
-      --green-50: #00884A;
-      --green-55: #219557;
-      --green-60: #37A264;
-      --green-65: #4AB073;
-      --green-70: #5EBD82;
-      --green-75: #72CA92;
-      --green-80: #86D7A2;
-      --green-85: #9BE4B3;
-      --green-90: #B8EFC9;
-      --green-95: #E2F5E7;
-      /* Yellow */
-      --yellow-05: #171000;
-      --yellow-10: #231A00;
-      --yellow-15: #2F2400;
-      --yellow-20: #3C2E00;
-      --yellow-25: #493900;
-      --yellow-30: #564400;
-      --yellow-35: #644F00;
-      --yellow-40: #725B00;
-      --yellow-45: #806700;
-      --yellow-50: #8F7300;
-      --yellow-55: #9E7F00;
-      --yellow-60: #AD8C00;
-      --yellow-65: #BD9900;
-      --yellow-70: #CDA600;
-      --yellow-75: #DEB300;
-      --yellow-80: #EEC100;
-      --yellow-85: #FFCF00;
-      --yellow-90: #FFDF95;
-      --yellow-95: #FFEFD1;
-      /* Red */
-      --red-05: #2D0000;
-      --red-10: #410000;
-      --red-15: #540001;
-      --red-20: #680001;
-      --red-25: #7D0002;
-      --red-30: #920002;
-      --red-35: #A80003;
-      --red-40: #BE0004;
-      --red-45: #D50005;
-      --red-50: #ED0007;
-      --red-55: #FF2124;
-      --red-60: #FF5152;
-      --red-65: #FF6E6F;
-      --red-70: #FF8787;
-      --red-75: #FF9D9D;
-      --red-80: #FFB2B2;
-      --red-85: #FFC6C6;
-      --red-90: #FFD9D9;
-      --red-95: #FFECEC;
-    }
-
-    /* ============================================================
-       RESET & BASE
-    ============================================================ */
-    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-
-    body {
-      background: var(--gray-95);
-      color: var(--gray-15);
-      font-family: "Segoe UI", "Noto Sans JP", "Hiragino Kaku Gothic ProN", "Yu Gothic UI", sans-serif;
-      font-size: 14px;
-      line-height: 1.6;
-      padding: 20px 16px;
-    }
-
-    a { color: var(--blue-50); text-decoration: none; }
-    a:hover { text-decoration: underline; }
-
-    /* ============================================================
-       LAYOUT
-    ============================================================ */
-    .container {
-      max-width: 960px;
-      margin: 0 auto;
-      display: flex;
-      flex-direction: column;
-      gap: 14px;
-    }
-
-    .card {
-      background: #fff;
-      border: 1px solid var(--gray-90);
-      border-radius: 12px;
-      padding: 20px;
-    }
-
-    .card-accent-blue  { border-left: 4px solid var(--blue-55); }
-    .card-accent-green { border-left: 4px solid var(--green-50); }
-
-    .grid-2 {
-      display: grid;
-      grid-template-columns: 1fr;
-      gap: 14px;
-    }
-
-    .grid-stats {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 10px;
-    }
-
-    .grid-sprint {
-      display: grid;
-      grid-template-columns: 1fr;
-      gap: 14px;
-    }
-
-    @media (min-width: 768px) {
-      body { padding: 28px 32px; }
-      .grid-2      { grid-template-columns: 1fr 1fr; }
-      .grid-sprint { grid-template-columns: 2fr 1fr; }
-    }
-
-    /* ============================================================
-       TYPOGRAPHY UTILITIES
-    ============================================================ */
-    .section-label {
-      /* WCAG AA 適合: --gray-40 (#595E62) コントラスト比 約7:1 */
-      font-size: 11px;
-      font-weight: 700;
-      letter-spacing: 0.1em;
-      text-transform: uppercase;
-      color: var(--gray-40);
-      margin-bottom: 14px;
-    }
-
-    .text-xs     { font-size: 11px; }
-    .text-sm     { font-size: 12px; }
-    .text-muted  { color: var(--gray-50); }   /* 4.6:1 — AA適合 */
-    .text-secondary { color: var(--gray-40); }
-    .font-bold   { font-weight: 700; }
-    .font-semibold { font-weight: 600; }
-    .italic      { font-style: italic; }
-    .font-mono   { font-family: "Consolas", "Courier New", monospace; }
-    .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; }
-
-    /* ============================================================
-       BADGE
-    ============================================================ */
-    .badge {
-      display: inline-flex;
-      align-items: center;
-      gap: 4px;
-      padding: 2px 10px;
-      border-radius: 9999px;
-      font-size: 11px;
-      font-weight: 600;
-      letter-spacing: 0.03em;
-      white-space: nowrap;
-    }
-
-    .badge-success { background: var(--green-95); color: var(--green-40); border: 1px solid var(--green-85); }
-    .badge-info    { background: var(--blue-95);  color: var(--blue-35);  border: 1px solid var(--blue-90); }
-    .badge-warning { background: var(--yellow-95); color: var(--yellow-40); border: 1px solid var(--yellow-90); }
-    .badge-amber   { background: var(--yellow-90); color: var(--yellow-40); border: 1px solid var(--yellow-80); }
-    .badge-danger  { background: var(--red-95); color: var(--red-35); border: 1px solid var(--red-85); }
-    .badge-neutral { background: var(--gray-95);  color: var(--gray-40);  border: 1px solid var(--gray-85); }
-
-    /* ============================================================
-       PROGRESS BAR
-    ============================================================ */
-    .progress-track {
-      background: var(--gray-90);
-      border-radius: 9999px;
-      height: 10px;
-      overflow: hidden;
-    }
-
-    .progress-bar {
-      height: 100%;
-      border-radius: 9999px;
-      transition: width 0.9s ease;
-    }
-
-    .progress-green  { background: var(--green-50); }
-    .progress-blue   { background: var(--blue-50); }
-    .progress-yellow { background: var(--yellow-70); }
-    .progress-gray   { background: var(--gray-85); }
-
-    /* ============================================================
-       TABLE
-    ============================================================ */
-    .data-table {
-      width: 100%;
-      border-collapse: collapse;
-      font-size: 13px;
-    }
-
-    .data-table caption {
-      caption-side: top;
-      text-align: left;
-      padding-bottom: 10px;
-      /* visually hidden — for screen readers only */
-      position: absolute;
-      width: 1px; height: 1px;
-      overflow: hidden;
-      clip: rect(0,0,0,0);
-    }
-
-    .data-table th {
-      text-align: left;
-      padding: 0 8px 8px 0;
-      font-size: 11px;
-      font-weight: 600;
-      letter-spacing: 0.06em;
-      text-transform: uppercase;
-      color: var(--gray-40); /* WCAG AA 適合 */
-      border-bottom: 1px solid var(--gray-90);
-    }
-
-    .data-table td {
-      padding: 9px 8px 9px 0;
-      border-bottom: 1px solid var(--gray-95);
-      vertical-align: middle;
-    }
-
-    .data-table tbody tr:last-child td { border-bottom: none; }
-
-    .data-table tbody tr:hover td {
-      background: var(--blue-95);
-      transition: background 0.15s;
-    }
-
-    /* ============================================================
-       AVATAR
-    ============================================================ */
-    .avatar {
-      width: 28px;
-      height: 28px;
-      border-radius: 50%;
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 11px;
-      font-weight: 700;
-      color: #fff;
-      flex-shrink: 0;
-    }
-
-    .avatar-blue   { background: var(--blue-50); }
-    .avatar-green  { background: var(--green-50); }
-    .avatar-yellow { background: var(--yellow-70); }
-    .avatar-purple { background: var(--purple-40); }
-    .avatar-gray   { background: var(--gray-40); }
-
-    /* ============================================================
-       ACTION ITEMS — 優先度カラー（赤 > 橙 > 黄 > 青）
-       ※ パレットに橙なし → 濃い黄(cyl-90/cyl-80)を橙代替に使用
-    ============================================================ */
-    .action-item {
-      display: flex;
-      gap: 12px;
-      align-items: flex-start;
-      padding: 10px 12px;
-      border-radius: 8px;
-    }
-
-    .action-p1 { background: var(--gray-100); border: 1px solid var(--gray-90); }
-    .action-p2 { background: var(--gray-100); border: 1px solid var(--gray-90); }
-    .action-p3 { background: var(--gray-100); border: 1px solid var(--gray-90); }
-    .action-p4 { background: var(--gray-100);  border: 1px solid var(--gray-90); }
-
-    .action-p1 .action-meta { color: var(--blue-40); }
-    .action-p2 .action-meta { color: var(--blue-40); }
-    .action-p3 .action-meta { color: var(--blue-40); }
-    .action-p4 .action-meta { color: var(--blue-40); }
-
-    /* ============================================================
-       HERO
-    ============================================================ */
-    .hero-avatar-wrap { position: relative; display: inline-block; }
-
-    .hero-avatar {
-      width: 64px;
-      height: 64px;
-      border-radius: 50%;
-      background: linear-gradient(135deg, var(--blue-50), var(--green-80));
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 28px;
-      font-weight: 900;
-      color: #fff;
-    }
-
-    .flame {
-      position: absolute;
-      top: -4px;
-      right: -4px;
-      font-size: 18px;
-    }
-
-    @media (prefers-reduced-motion: no-preference) {
-      .flame { animation: flicker 1.4s infinite alternate; }
-    }
-
     @keyframes flicker {
       from { opacity: 1; }
       to   { opacity: 0.7; filter: brightness(1.3); }
     }
-
-    /* ============================================================
-       CODE BLOCK
-    ============================================================ */
-    .code-block {
-      background: var(--gray-25);
-      border: 1px solid var(--gray-90);
-      border-radius: 8px;
-      padding: 12px;
-      font-family: "Consolas", "Courier New", monospace;
-      font-size: 13px;
-      margin-bottom: 12px;
-      overflow-x: auto;
-    }
-
-    .code-comment { color: var(--gray-75); font-size: 11px; }
-    .code-cmd     { color: var(--teal-85); }
-    .code-output  { color: var(--gray-75); }
-
-    /* ============================================================
-       FLEX & SPACING UTILITIES
-    ============================================================ */
-    .flex           { display: flex; }
-    .flex-col       { flex-direction: column; }
-    .flex-wrap      { flex-wrap: wrap; }
-    .items-center   { align-items: center; }
-    .items-start    { align-items: flex-start; }
-    .justify-between{ justify-content: space-between; }
-    .justify-center { justify-content: center; }
-    .flex-1         { flex: 1; }
-    .shrink-0       { flex-shrink: 0; }
-    .gap-1 { gap: 4px; }
-    .gap-2 { gap: 8px; }
-    .gap-3 { gap: 12px; }
-    .gap-4 { gap: 16px; }
-    .mt-1  { margin-top: 4px; }
-    .mt-2  { margin-top: 8px; }
-    .mt-3  { margin-top: 12px; }
-    .mb-2  { margin-bottom: 8px; }
-    .mb-3  { margin-bottom: 12px; }
-    .space-y-3 > * + * { margin-top: 10px; }
-    .text-center { text-align: center; }
-    .overflow-x-auto { overflow-x: auto; }
-    .relative { position: relative; }
-    .w-full { width: 100%; }
-    .divider { border: none; border-top: 1px solid var(--gray-90); margin: 14px 0; }
-
-    /* Footer */
-    .footer-text {
-      font-size: 12px;
-      color: var(--gray-40); /* WCAG AA 適合 */
+    @media (prefers-reduced-motion: no-preference) {
+      .animate-flicker { animation: flicker 1.4s infinite alternate; }
     }
   </style>
 </head>
-<body>
-<div class="container">
+<body class="bg-slate-100 text-slate-900 antialiased leading-relaxed font-sans">
+<div class="max-w-[960px] mx-auto px-4 py-6 flex flex-col gap-4">
 
   <!-- ===== HEADER ===== -->
-  <div class="card">
+  <div class="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm">
     <div class="flex flex-wrap items-center justify-between gap-3">
       <div class="flex items-center gap-3">
-        <div class="shrink-0" style="width:52px;height:52px;border-radius:10px;background:var(--blue-95);display:flex;align-items:center;justify-content:center;font-size:26px;">⚡</div>
+        <div class="w-12 h-12 rounded-xl bg-custom-blue-lt flex items-center justify-center flex-shrink-0">
+          <i data-lucide="zap" class="w-6 h-6 text-custom-blue"></i>
+        </div>
         <div>
-          <div style="font-size:24px;font-weight:800;color:var(--gray-10);">XXX Project Report</div>
-          <div class="text-sm text-muted mt-1">Week of Apr 14–20, 2026 &nbsp;·&nbsp; <span class="font-mono" style="color:var(--blue-50);">abcd-corp/main-app</span></div>
+          <div class="text-3xl font-black text-slate-900">Commit and Track Report</div>
+          <div class="text-sm text-slate-500 mt-0.5">
+            直近4日間 (2026-04-29 ～ 2026-05-03) &nbsp;·&nbsp;
+            <a href="https://github.com/ug-kitamura/AI_Driven_School" class="font-mono text-custom-blue hover:underline">ug-kitamura/AI_Driven_School</a>
+          </div>
         </div>
       </div>
-      <div class="flex flex-wrap gap-2">
-        <span class="badge badge-neutral">📅 Mon Apr 14, 2026 08:00 JST</span>
-      </div>
+      <span class="inline-flex items-center gap-1.5 bg-slate-100 text-slate-500 border border-slate-200 rounded-full px-3 py-1 text-xs font-medium">
+        <i data-lucide="calendar" class="w-3.5 h-3.5"></i>
+        2026/05/03 12:43 JST
+      </span>
     </div>
 
     <!-- Health bar -->
-    <div class="flex items-center gap-3 mt-3">
-      <div class="shrink-0 text-sm text-secondary" style="width:140px;">
-        プロジェクト健全度
+    <div class="flex items-center gap-3 mt-4">
+      <div class="text-sm text-slate-600 flex-shrink-0 w-36">プロジェクト健全度</div>
+      <div class="flex-1 h-2.5 bg-slate-200 rounded-full overflow-hidden"
+           role="progressbar" aria-valuenow="100" aria-valuemin="0" aria-valuemax="100"
+           aria-label="プロジェクト健全度 100%">
+        <div class="h-full bg-custom-blue rounded-full transition-all duration-700" style="width:100%"></div>
       </div>
-      <div
-        class="progress-track flex-1"
-        role="progressbar"
-        aria-valuenow="72"
-        aria-valuemin="0"
-        aria-valuemax="100"
-        aria-label="プロジェクト健全度 72%">
-        <div class="progress-bar progress-yellow" style="width:72%;"></div>
-      </div>
-      <div class="font-bold" style="color:var(--yellow-70);width:36px;text-align:right;">72%</div>
-      <span role="img" aria-label="警告 Warning">🟡</span>
+      <div class="font-bold text-custom-blue text-sm w-10 text-right">100%</div>
+      <i data-lucide="circle-check" class="w-5 h-5 text-custom-blue flex-shrink-0"></i>
     </div>
   </div>
 
-  <!-- ===== ROW 1: Sprint Progress + Stat Cards ===== -->
-  <div class="grid-sprint">
+  <!-- ===== MILESTONE + STAT CARDS ===== -->
+  <div class="grid grid-cols-1 lg:grid-cols-[2fr_1fr] gap-4">
 
-    <!-- Sprint progress -->
-    <div class="card">
-      <div class="section-label">📊 マイルストーン進捗</div>
-      <div class="space-y-3">
+    <!-- Milestone progress -->
+    <div class="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm">
+      <div class="flex items-center gap-2 text-lg font-bold text-slate-700 mb-5">
+        <i data-lucide="bar-chart-3" class="w-4 h-4"></i>
+        マイルストーン進捗
+      </div>
+      <div class="flex flex-col gap-5">
 
-        <!-- Feature A -->
+        <!-- Apple (100%) -->
         <div>
           <div class="flex items-center justify-between mb-2">
-            <span class="font-semibold">📌 <a href="https://github.com/abcd-corp/main-app/milestone/1">Feature: Cart Redesign</a></span>
-            <span class="font-bold" style="color:var(--blue-50);">88%</span>
+            <a href="https://github.com/ug-kitamura/AI_Driven_School/milestone/1"
+               class="flex items-center gap-2 font-semibold text-slate-800 hover:text-custom-blue text-sm transition-colors">
+              <i data-lucide="apple" class="w-4 h-4 text-red-400"></i>Apple
+            </a>
+            <span class="font-bold text-custom-blue text-sm">100%</span>
           </div>
-          <div
-            class="progress-track"
-            role="progressbar"
-            aria-valuenow="88"
-            aria-valuemin="0"
-            aria-valuemax="100"
-            aria-label="Cart Redesign 進捗 88%">
-            <div class="progress-bar progress-blue" style="width:88%;"></div>
+          <div class="h-2 bg-slate-200 rounded-full overflow-hidden">
+            <div class="h-full bg-custom-blue rounded-full" style="width:100%"></div>
           </div>
-          <div class="flex flex-wrap gap-2 mt-2">
-            <span class="badge badge-success">7/8 PR merged</span>
-            <span class="badge badge-info">1 in review</span>
+          <div class="flex flex-wrap gap-1.5 mt-2">
+            <span class="inline-flex items-center gap-1 bg-custom-green-lt text-custom-green border border-green-100 rounded-full px-2.5 py-0.5 text-xs font-semibold">
+              <i data-lucide="check" class="w-3 h-3"></i>2/2 issues closed
+            </span>
+            <span class="inline-flex items-center gap-1 bg-slate-100 text-slate-500 border border-slate-200 rounded-full px-2.5 py-0.5 text-xs font-medium">
+              <i data-lucide="calendar" class="w-3 h-3"></i>期限: 2026-05-01
+            </span>
           </div>
         </div>
 
-        <!-- Feature B -->
+        <!-- Banana (0%) -->
         <div>
           <div class="flex items-center justify-between mb-2">
-            <span class="font-semibold">📌 <a href="https://github.com/abcd-corp/main-app/milestone/2">Feature: Auth Overhaul</a></span>
-            <span class="font-bold" style="color:var(--blue-50);">55%</span>
+            <a href="https://github.com/ug-kitamura/AI_Driven_School/milestone/2"
+               class="flex items-center gap-2 font-semibold text-slate-800 hover:text-custom-blue text-sm transition-colors">
+              <i data-lucide="banana" class="w-4 h-4 text-yellow-600"></i>Banana
+            </a>
+            <span class="font-bold text-slate-400 text-sm">0%</span>
           </div>
-          <div
-            class="progress-track"
-            role="progressbar"
-            aria-valuenow="55"
-            aria-valuemin="0"
-            aria-valuemax="100"
-            aria-label="Auth Overhaul 進捗 55%">
-            <div class="progress-bar progress-blue" style="width:55%;"></div>
+          <div class="h-2 bg-slate-200 rounded-full overflow-hidden">
+            <div class="h-full bg-slate-300 rounded-full" style="width:0%"></div>
           </div>
-          <div class="flex flex-wrap gap-2 mt-2">
-            <span class="badge badge-info">5/9 PR merged</span>
-            <span class="badge badge-danger">2 blocked</span>
+          <div class="flex flex-wrap gap-1.5 mt-2">
+            <span class="inline-flex items-center gap-1 bg-slate-100 text-slate-500 border border-slate-200 rounded-full px-2.5 py-0.5 text-xs font-medium">0/2 issues closed</span>
+            <span class="inline-flex items-center gap-1 bg-slate-100 text-slate-500 border border-slate-200 rounded-full px-2.5 py-0.5 text-xs font-medium">
+              <i data-lucide="calendar" class="w-3 h-3"></i>期限: 2026-05-03
+            </span>
           </div>
         </div>
 
-        <!-- Feature C -->
+        <!-- Cherry (0%) -->
         <div>
           <div class="flex items-center justify-between mb-2">
-            <span class="font-semibold">📌 <a href="https://github.com/abcd-corp/main-app/milestone/3">Feature: Analytics Dashboard</a></span>
-            <span class="font-bold" style="color:var(--blue-50);">20%</span>
+            <a href="https://github.com/ug-kitamura/AI_Driven_School/milestone/3"
+               class="flex items-center gap-2 font-semibold text-slate-800 hover:text-custom-blue text-sm transition-colors">
+              <i data-lucide="cherry" class="w-4 h-4 text-red-400"></i>Cherry
+            </a>
+            <span class="font-bold text-slate-400 text-sm">0%</span>
           </div>
-          <div
-            class="progress-track"
-            role="progressbar"
-            aria-valuenow="20"
-            aria-valuemin="0"
-            aria-valuemax="100"
-            aria-label="Analytics Dashboard 進捗 20%">
-            <div class="progress-bar progress-blue" style="width:20%;"></div>
+          <div class="h-2 bg-slate-200 rounded-full overflow-hidden">
+            <div class="h-full bg-slate-300 rounded-full" style="width:0%"></div>
           </div>
-          <div class="flex flex-wrap gap-2 mt-2">
-            <span class="badge badge-neutral">2/10 PR merged</span>
-            <span class="badge badge-warning">⏰ 遅延気味 Behind</span>
+          <div class="flex flex-wrap gap-1.5 mt-2">
+            <span class="inline-flex items-center gap-1 bg-slate-100 text-slate-500 border border-slate-200 rounded-full px-2.5 py-0.5 text-xs font-medium">0/1 issues closed</span>
+            <span class="inline-flex items-center gap-1 bg-slate-100 text-slate-500 border border-slate-200 rounded-full px-2.5 py-0.5 text-xs font-medium">
+              <i data-lucide="calendar" class="w-3 h-3"></i>期限: 2026-05-05
+            </span>
+          </div>
+        </div>
+
+        <!-- Durian (0%) -->
+        <div>
+          <div class="flex items-center justify-between mb-2">
+            <a href="https://github.com/ug-kitamura/AI_Driven_School/milestone/4"
+               class="flex items-center gap-2 font-semibold text-slate-800 hover:text-custom-blue text-sm transition-colors">
+              <i data-lucide="gem" class="w-4 h-4 text-purple-400"></i>Durian
+            </a>
+            <span class="font-bold text-slate-400 text-sm">0%</span>
+          </div>
+          <div class="h-2 bg-slate-200 rounded-full overflow-hidden">
+            <div class="h-full bg-slate-300 rounded-full" style="width:0%"></div>
+          </div>
+          <div class="flex flex-wrap gap-1.5 mt-2">
+            <span class="inline-flex items-center gap-1 bg-slate-100 text-slate-500 border border-slate-200 rounded-full px-2.5 py-0.5 text-xs font-medium">
+              <i data-lucide="calendar" class="w-3 h-3"></i>期限: 2026-05-07
+            </span>
           </div>
         </div>
 
       </div>
     </div>
 
-    <!-- Stat cards -->
-    <div class="grid-stats">
-      <div class="card text-center">
-        <div style="font-size:2.2rem;font-weight:800;color:var(--gray-45);">14</div>
-        <div class="text-xs text-muted mt-1">マージ済みPR</div>
+    <!-- Stat cards (全幅 × 5) -->
+    <div class="flex flex-col gap-3">
+      <div class="bg-white rounded-2xl border border-slate-200 p-4 shadow-sm flex items-center justify-between gap-4">
+        <div class="flex items-center gap-2 text-slate-600">
+          <i data-lucide="git-merge" class="w-5 h-5 text-custom-blue flex-shrink-0"></i>
+          <span class="text-sm font-medium">マージ済みPR</span>
+        </div>
+        <div class="text-[2.2rem] font-black text-slate-600 leading-tight">6</div>
       </div>
-      <div class="card text-center">
-        <div style="font-size:2.2rem;font-weight:800;color:var(--gray-45);">6</div>
-        <div class="text-xs text-muted mt-1">レビュー待ちPR</div>
+      <div class="bg-white rounded-2xl border border-slate-200 p-4 shadow-sm flex items-center justify-between gap-4">
+        <div class="flex items-center gap-2 text-slate-600">
+          <i data-lucide="eye" class="w-5 h-5 text-purple-400 flex-shrink-0"></i>
+          <span class="text-sm font-medium">レビュー待ちPR</span>
+        </div>
+        <div class="text-[2.2rem] font-black text-slate-600 leading-tight">0</div>
       </div>
-      <div class="card text-center">
-        <div style="font-size:2.2rem;font-weight:800;color:var(--gray-45);">2</div>
-        <div class="text-xs text-muted mt-1">フィードバック対応中PR</div>
+      <div class="bg-white rounded-2xl border border-slate-200 p-4 shadow-sm flex items-center justify-between gap-4">
+        <div class="flex items-center gap-2 text-slate-600">
+          <i data-lucide="message-square" class="w-5 h-5 text-orange-400 flex-shrink-0"></i>
+          <span class="text-sm font-medium">フィードバック対応中PR</span>
+        </div>
+        <div class="text-[2.2rem] font-black text-slate-600 leading-tight">0</div>
       </div>
-      <div class="card text-center">
-        <div style="font-size:2.2rem;font-weight:800;color:var(--gray-45);">23</div>
-        <div class="text-xs text-muted mt-1">アクティブブランチ</div>
+      <div class="bg-white rounded-2xl border border-slate-200 p-4 shadow-sm flex items-center justify-between gap-4">
+        <div class="flex items-center gap-2 text-slate-600">
+          <i data-lucide="git-branch" class="w-5 h-5 text-custom-green flex-shrink-0"></i>
+          <span class="text-sm font-medium">アクティブブランチ</span>
+        </div>
+        <div class="text-[2.2rem] font-black text-slate-600 leading-tight">1</div>
+      </div>
+      <div class="bg-white rounded-2xl border border-slate-200 p-4 shadow-sm flex items-center justify-between gap-4">
+        <div class="flex items-center gap-2 text-slate-600">
+          <i data-lucide="circle-dot" class="w-5 h-5 text-orange-400 flex-shrink-0"></i>
+          <span class="text-sm font-medium">オープンissue</span>
+        </div>
+        <div class="text-[2.2rem] font-black text-slate-600 leading-tight">8</div>
       </div>
     </div>
   </div>
 
   <!-- ===== ACTION PLAN ===== -->
-  <div class="card">
-    <div class="section-label">🎯 アクションプラン</div>
-    <div class="space-y-3">
+  <div class="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm" id="action-plan">
+    <div class="flex items-center gap-2 text-lg font-bold text-slate-700 mb-4">
+      <i data-lucide="target" class="w-4 h-4"></i>
+      アクションプラン
+    </div>
+    <div class="flex flex-col gap-3">
 
-      <!-- P1: 赤 / Critical -->
-      <div class="action-item action-p1">
-        <span role="img" aria-label="最高優先度 Critical" style="font-size:16px;margin-top:2px;">🔴</span>
-        <div>
-          <div class="font-semibold">auth-refresh-token のコンフリクト解消</div>
-          <div class="text-xs action-meta mt-1">Tanaka さん → 今日中 / by EOD today</div>
+      <div class="flex items-start gap-3 bg-slate-50 border border-slate-200 rounded-xl p-3">
+        <i data-lucide="circle-arrow-right" class="w-4 h-4 text-slate-500 mt-0.5 flex-shrink-0"></i>
+        <div class="flex-1 min-w-0">
+          <div class="font-semibold text-slate-800 text-sm">Banana マイルストーンの Issue に今すぐ着手する</div>
+          <div class="text-xs text-slate-600 mt-1">Issue #4「HTMLレポートスキル」・Issue #12「uv 移行」を進める</div>
+          <div class="flex flex-wrap gap-1.5 mt-2">
+            <span class="inline-flex items-center gap-1 bg-slate-100 text-slate-600 border border-slate-200 rounded-full px-2 py-0.5 text-xs font-medium">
+              <i data-lucide="user" class="w-3 h-3"></i>ug-kitamura
+            </span>
+            <span class="inline-flex items-center gap-1 bg-slate-100 text-slate-600 border border-slate-200 rounded-full px-2 py-0.5 text-xs font-medium">
+              <i data-lucide="calendar" class="w-3 h-3"></i>2026-05-03（本日）
+            </span>
+          </div>
         </div>
       </div>
 
-      <!-- P2: 橙（パレットに橙なし → 濃い黄 cyl-90 で代替）/ High -->
-      <div class="action-item action-p2">
-        <span role="img" aria-label="高優先度 High" style="font-size:16px;margin-top:2px;">🟠</span>
-        <div>
-          <div class="font-semibold">auth-jwt PR のレビュー担当を決める</div>
-          <div class="text-xs action-meta mt-1">チームリーダー → 明日まで / by tomorrow</div>
+      <div class="flex items-start gap-3 bg-slate-50 border border-slate-200 rounded-xl p-3">
+        <i data-lucide="circle-arrow-right" class="w-4 h-4 text-slate-500 mt-0.5 flex-shrink-0"></i>
+        <div class="flex-1 min-w-0">
+          <div class="font-semibold text-slate-800 text-sm">Cherry マイルストーン — Issue #7「Python スクリプト作成」に着手する</div>
+          <div class="text-xs text-slate-600 mt-1">期限まで残り2日。優先して取り組む。</div>
+          <div class="flex flex-wrap gap-1.5 mt-2">
+            <span class="inline-flex items-center gap-1 bg-slate-100 text-slate-600 border border-slate-200 rounded-full px-2 py-0.5 text-xs font-medium">
+              <i data-lucide="user" class="w-3 h-3"></i>ug-kitamura
+            </span>
+            <span class="inline-flex items-center gap-1 bg-slate-100 text-slate-600 border border-slate-200 rounded-full px-2 py-0.5 text-xs font-medium">
+              <i data-lucide="calendar" class="w-3 h-3"></i>2026-05-05
+            </span>
+          </div>
         </div>
       </div>
 
-      <!-- P3: 黄 / Medium -->
-      <div class="action-item action-p3">
-        <span role="img" aria-label="中優先度 Medium" style="font-size:16px;margin-top:2px;">🟡</span>
-        <div>
-          <div class="font-semibold">payment-refactor ブランチの方針確認</div>
-          <div class="text-xs action-meta mt-1">Sato さん → 週内に継続 or クローズを判断</div>
+      <div class="flex items-start gap-3 bg-slate-50 border border-slate-200 rounded-xl p-3">
+        <i data-lucide="circle-arrow-right" class="w-4 h-4 text-slate-500 mt-0.5 flex-shrink-0"></i>
+        <div class="flex-1 min-w-0">
+          <div class="font-semibold text-slate-800 text-sm">Issue #15「メール送信」・Issue #16「Slack 投稿」をマイルストーンに割り当てる</div>
+          <div class="text-xs text-slate-600 mt-1">優先度を確認し、適切なマイルストーンに追加する</div>
+          <div class="flex flex-wrap gap-1.5 mt-2">
+            <span class="inline-flex items-center gap-1 bg-amber-50 text-amber-700 border border-amber-300 rounded-full px-2 py-0.5 text-xs font-medium">
+              <i data-lucide="alert-circle" class="w-3 h-3"></i>担当: 要確認
+            </span>
+            <span class="inline-flex items-center gap-1 bg-slate-100 text-slate-600 border border-slate-200 rounded-full px-2 py-0.5 text-xs font-medium">
+              <i data-lucide="calendar" class="w-3 h-3"></i>今週中
+            </span>
+          </div>
         </div>
       </div>
 
-      <!-- P4: 青 / Info -->
-      <div class="action-item action-p4">
-        <span role="img" aria-label="情報 Info" style="font-size:16px;margin-top:2px;">🔵</span>
-        <div>
-          <div class="font-semibold">Analytics Dashboard の遅延対策を議論</div>
-          <div class="text-xs action-meta mt-1">週次ミーティングでアジェンダに追加</div>
+      <div class="flex items-start gap-3 bg-slate-50 border border-slate-200 rounded-xl p-3">
+        <i data-lucide="circle-arrow-right" class="w-4 h-4 text-slate-500 mt-0.5 flex-shrink-0"></i>
+        <div class="flex-1 min-w-0">
+          <div class="font-semibold text-slate-800 text-sm">Durian マイルストーンのスコープ・Issue を定義する</div>
+          <div class="text-xs text-slate-600 mt-1">Issue を登録してロードマップを整理する</div>
+          <div class="flex flex-wrap gap-1.5 mt-2">
+            <span class="inline-flex items-center gap-1 bg-slate-100 text-slate-600 border border-slate-200 rounded-full px-2 py-0.5 text-xs font-medium">
+              <i data-lucide="user" class="w-3 h-3"></i>ug-kitamura
+            </span>
+            <span class="inline-flex items-center gap-1 bg-amber-50 text-amber-700 border border-amber-300 rounded-full px-2 py-0.5 text-xs font-medium">
+              <i data-lucide="alert-circle" class="w-3 h-3"></i>期限: 要確認
+            </span>
+          </div>
         </div>
       </div>
 
@@ -629,193 +288,236 @@
   </div>
 
   <!-- ===== BRANCH MAP ===== -->
-  <div class="card">
-    <div class="section-label">🌿 ブランチ状況マップ</div>
+  <div class="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm">
+    <div class="flex items-center gap-2 text-lg font-bold text-slate-700 mb-1">
+      <i data-lucide="git-branch" class="w-4 h-4"></i>
+      ブランチ状況マップ
+    </div>
+    <div class="text-xs text-slate-500 mb-4">オープン PR なし — 直近マージ済みブランチを表示</div>
     <div class="overflow-x-auto">
-      <table class="data-table">
-        <caption>ブランチ状況マップ</caption>
+      <table class="w-full text-sm border-collapse">
         <thead>
-          <tr>
-            <th scope="col">ブランチ</th>
-            <th scope="col">担当</th>
-            <th scope="col">ステータス</th>
-            <th scope="col">最終更新</th>
-            <th scope="col">アクション</th>
+          <tr class="border-b border-slate-100">
+            <th class="text-left py-2 pr-4 text-xs font-semibold uppercase tracking-wide text-slate-500">ブランチ</th>
+            <th class="text-left py-2 pr-4 text-xs font-semibold uppercase tracking-wide text-slate-500">担当</th>
+            <th class="text-left py-2 pr-4 text-xs font-semibold uppercase tracking-wide text-slate-500">ステータス</th>
+            <th class="text-left py-2 pr-4 text-xs font-semibold uppercase tracking-wide text-slate-500">マージ日時</th>
+            <th class="text-left py-2 text-xs font-semibold uppercase tracking-wide text-slate-500">PR</th>
           </tr>
         </thead>
         <tbody>
-          <tr>
-            <td class="font-mono text-xs" style="color:var(--blue-40);"><a href="https://github.com/abcd-corp/main-app/tree/feature/cart-ui-v2">feature/cart-ui-v2</a></td>
-            <td>
+          <tr class="border-b border-slate-50 hover:bg-custom-blue-lt transition-colors">
+            <td class="py-3 pr-4"><a href="https://github.com/ug-kitamura/AI_Driven_School/tree/comitora-dev2" class="font-mono text-xs text-custom-blue hover:underline">comitora-dev2</a></td>
+            <td class="py-3 pr-4">
               <div class="flex items-center gap-2">
-                <span class="avatar avatar-blue">R</span>
-                <span>Ravi さん</span>
+                <div class="w-7 h-7 rounded-full bg-custom-blue flex items-center justify-center text-white text-xs font-bold flex-shrink-0">U</div>
+                <span class="text-slate-700 text-sm">ug-kitamura さん</span>
               </div>
             </td>
-            <td><span class="badge badge-success">✅ Merged</span></td>
-            <td class="text-xs text-muted">2 days ago</td>
-            <td class="text-xs text-muted">—</td>
+            <td class="py-3 pr-4">
+              <span class="inline-flex items-center gap-1 bg-custom-green-lt text-custom-green border border-green-100 rounded-full px-2.5 py-0.5 text-xs font-semibold">
+                <i data-lucide="check-circle" class="w-3 h-3"></i>Merged
+              </span>
+            </td>
+            <td class="py-3 pr-4 text-xs text-slate-500">2026/05/01</td>
+            <td class="py-3 text-xs"><a href="https://github.com/ug-kitamura/AI_Driven_School/pull/11" class="text-custom-blue hover:underline">#11</a></td>
           </tr>
-          <tr>
-            <td class="font-mono text-xs" style="color:var(--blue-40);"><a href="https://github.com/abcd-corp/main-app/tree/feature/auth-jwt">feature/auth-jwt</a></td>
-            <td>
+          <tr class="border-b border-slate-50 hover:bg-custom-blue-lt transition-colors">
+            <td class="py-3 pr-4"><a href="https://github.com/ug-kitamura/AI_Driven_School/tree/comitora_image" class="font-mono text-xs text-custom-blue hover:underline">comitora_image</a></td>
+            <td class="py-3 pr-4">
               <div class="flex items-center gap-2">
-                <span class="avatar avatar-yellow">N</span>
-                <span>Nguyen さん</span>
+                <div class="w-7 h-7 rounded-full bg-custom-green flex items-center justify-center text-white text-xs font-bold flex-shrink-0">U</div>
+                <span class="text-slate-700 text-sm">ug-kitamura さん</span>
               </div>
             </td>
-            <td><span class="badge badge-warning">👀 Review待ち</span></td>
-            <td class="text-xs text-muted">1 day ago</td>
-            <td class="text-xs" style="color:var(--yellow-40);">→ レビュー担当を割り当て</td>
+            <td class="py-3 pr-4">
+              <span class="inline-flex items-center gap-1 bg-custom-green-lt text-custom-green border border-green-100 rounded-full px-2.5 py-0.5 text-xs font-semibold">
+                <i data-lucide="check-circle" class="w-3 h-3"></i>Merged
+              </span>
+            </td>
+            <td class="py-3 pr-4 text-xs text-slate-500">2026/05/01</td>
+            <td class="py-3 text-xs"><a href="https://github.com/ug-kitamura/AI_Driven_School/pull/14" class="text-custom-blue hover:underline">#14</a></td>
           </tr>
-          <tr>
-            <td class="font-mono text-xs" style="color:var(--blue-40);"><a href="https://github.com/abcd-corp/main-app/tree/feature/auth-refresh-token">feature/auth-refresh-token</a></td>
-            <td>
+          <tr class="border-b border-slate-50 hover:bg-custom-blue-lt transition-colors">
+            <td class="py-3 pr-4"><a href="https://github.com/ug-kitamura/AI_Driven_School/tree/comitora-dev" class="font-mono text-xs text-custom-blue hover:underline">comitora-dev</a></td>
+            <td class="py-3 pr-4">
               <div class="flex items-center gap-2">
-                <span class="avatar avatar-green">T</span>
-                <span>Tanaka さん</span>
+                <div class="w-7 h-7 rounded-full bg-amber-500 flex items-center justify-center text-white text-xs font-bold flex-shrink-0">U</div>
+                <span class="text-slate-700 text-sm">ug-kitamura さん</span>
               </div>
             </td>
-            <td><span class="badge badge-danger">🚧 Blocked</span></td>
-            <td class="text-xs text-muted">4 days ago</td>
-            <td class="text-xs" style="color:var(--red-35);">⚠️ 依存関係 conflict あり</td>
+            <td class="py-3 pr-4">
+              <span class="inline-flex items-center gap-1 bg-custom-green-lt text-custom-green border border-green-100 rounded-full px-2.5 py-0.5 text-xs font-semibold">
+                <i data-lucide="check-circle" class="w-3 h-3"></i>Merged
+              </span>
+            </td>
+            <td class="py-3 pr-4 text-xs text-slate-500">2026/04/30</td>
+            <td class="py-3 text-xs"><a href="https://github.com/ug-kitamura/AI_Driven_School/pull/10" class="text-custom-blue hover:underline">#10</a></td>
           </tr>
-          <tr>
-            <td class="font-mono text-xs" style="color:var(--blue-40);"><a href="https://github.com/abcd-corp/main-app/tree/feature/analytics-charts">feature/analytics-charts</a></td>
-            <td>
+          <tr class="border-b border-slate-50 hover:bg-custom-blue-lt transition-colors">
+            <td class="py-3 pr-4"><a href="https://github.com/ug-kitamura/AI_Driven_School/tree/setup2" class="font-mono text-xs text-custom-blue hover:underline">setup2</a></td>
+            <td class="py-3 pr-4">
               <div class="flex items-center gap-2">
-                <span class="avatar avatar-gray">M</span>
-                <span>Müller さん</span>
+                <div class="w-7 h-7 rounded-full bg-purple-500 flex items-center justify-center text-white text-xs font-bold flex-shrink-0">U</div>
+                <span class="text-slate-700 text-sm">ug-kitamura さん</span>
               </div>
             </td>
-            <td><span class="badge badge-info">🔨 In Progress</span></td>
-            <td class="text-xs text-muted">3 hours ago</td>
-            <td class="text-xs text-muted">—</td>
+            <td class="py-3 pr-4">
+              <span class="inline-flex items-center gap-1 bg-custom-green-lt text-custom-green border border-green-100 rounded-full px-2.5 py-0.5 text-xs font-semibold">
+                <i data-lucide="check-circle" class="w-3 h-3"></i>Merged
+              </span>
+            </td>
+            <td class="py-3 pr-4 text-xs text-slate-500">2026/04/29</td>
+            <td class="py-3 text-xs"><a href="https://github.com/ug-kitamura/AI_Driven_School/pull/9" class="text-custom-blue hover:underline">#9</a></td>
           </tr>
-          <tr>
-            <td class="font-mono text-xs" style="color:var(--blue-40);"><a href="https://github.com/abcd-corp/main-app/tree/feature/payment-refactor">feature/payment-refactor</a></td>
-            <td>
+          <tr class="hover:bg-custom-blue-lt transition-colors">
+            <td class="py-3 pr-4"><a href="https://github.com/ug-kitamura/AI_Driven_School/tree/setup" class="font-mono text-xs text-custom-blue hover:underline">setup</a></td>
+            <td class="py-3 pr-4">
               <div class="flex items-center gap-2">
-                <span class="avatar avatar-purple">S</span>
-                <span>Sato さん</span>
+                <div class="w-7 h-7 rounded-full bg-slate-400 flex items-center justify-center text-white text-xs font-bold flex-shrink-0">U</div>
+                <span class="text-slate-700 text-sm">ug-kitamura さん</span>
               </div>
             </td>
-            <td><span class="badge badge-neutral">😴 Stale (7d)</span></td>
-            <td class="text-xs" style="color:var(--red-35);">7 days ago</td>
-            <td class="text-xs text-muted">💬 継続 or クローズを判断</td>
+            <td class="py-3 pr-4">
+              <span class="inline-flex items-center gap-1 bg-custom-green-lt text-custom-green border border-green-100 rounded-full px-2.5 py-0.5 text-xs font-semibold">
+                <i data-lucide="check-circle" class="w-3 h-3"></i>Merged
+              </span>
+            </td>
+            <td class="py-3 pr-4 text-xs text-slate-500">2026/04/29</td>
+            <td class="py-3 text-xs"><a href="https://github.com/ug-kitamura/AI_Driven_School/pull/2" class="text-custom-blue hover:underline">#2</a></td>
           </tr>
         </tbody>
       </table>
     </div>
   </div>
 
-  <!-- ===== ROW 3: MVP + Contributor ===== -->
-  <div class="grid-2">
+  <!-- ===== HERO / CONTRIBUTORS / MESSAGE / TIPS (2×2) ===== -->
+  <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
 
-    <!-- Hero of the Week -->
-    <div class="card">
-      <div class="section-label">🏆 今回のヒーロー</div>
-      <div class="flex flex-col items-center text-center mb-3">
-        <div class="hero-avatar-wrap mb-3">
-          <div class="hero-avatar">R</div>
-          <span class="flame" role="img" aria-label="注目">🔥</span>
-        </div>
-        <div class="font-bold" style="font-size:17px;">Ravi Kumar さん</div>
-        <div class="flex flex-wrap justify-center gap-2 mt-3">
-          <span class="badge badge-warning">🥇 5 PRs merged</span>
-          <span class="badge badge-success">💬 12 reviews</span>
-          <span class="badge badge-info">✅ 3 issues closed</span>
-          <span class="badge badge-info">⚡ 最速マージ</span>
-        </div>
-        <div class="mt-3 italic text-secondary text-sm" style="background:var(--gray-95);border:1px solid var(--gray-90);border-radius:8px;padding:10px 12px;">
-          "Cart Redesign を引っ張ってくれました。<br>チームの頼れる柱です！"
-          <p class="mt-2 italic text-xs text-muted" style="line-height:1.6;">
-            "Thank you for leading the Cart Redesign.<br>You’re a dependable pillar of the team! 🙌"
-          </p>
-        </div>
+    <!-- 今回のヒーロー -->
+    <div class="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm" id="hero">
+      <div class="flex items-center gap-2 text-lg font-bold text-slate-700 mb-5">
+        <i data-lucide="trophy" class="w-4 h-4"></i>
+        今回のヒーロー
       </div>
-
-      <div class="divider"></div>
-      <div class="text-xs font-bold text-secondary mb-2" style="letter-spacing:0.06em;text-transform:uppercase;">貢献者の皆さん</div>
-      <div class="space-y-3">
-        <div class="flex items-center gap-3">
-          <span class="text-xs text-muted font-bold" style="width:16px;">2</span>
-          <span class="avatar avatar-green">T</span>
-          <span class="flex-1">Tanaka さん</span>
-          <span class="text-xs text-muted">3 PRs · 🇯🇵</span>
+      <div class="flex flex-col items-center text-center">
+        <div class="relative mb-3">
+          <div class="w-16 h-16 rounded-full bg-gradient-to-br from-custom-blue to-green-300 flex items-center justify-center text-white text-3xl font-black">U</div>
+          <i data-lucide="flame" class="w-5 h-5 text-orange-500 absolute -top-1 -right-1 animate-flicker"></i>
         </div>
-        <div class="flex items-center gap-3">
-          <span class="text-xs text-muted font-bold" style="width:16px;">3</span>
-          <span class="avatar avatar-gray">M</span>
-          <span class="flex-1">Müller さん</span>
-          <span class="text-xs text-muted">3 PRs · 🇩🇪</span>
+        <div class="font-bold text-lg text-slate-900">ug-kitamura さん</div>
+        <div class="flex flex-wrap justify-center gap-1.5 mt-3">
+          <span class="inline-flex items-center gap-1 bg-amber-100 text-amber-700 border border-amber-300 rounded-full px-2.5 py-0.5 text-xs font-semibold">
+            <i data-lucide="git-merge" class="w-3 h-3"></i>6 PRs merged
+          </span>
+          <span class="inline-flex items-center gap-1 bg-green-100 text-green-700 border border-green-300 rounded-full px-2.5 py-0.5 text-xs font-semibold">
+            <i data-lucide="check-circle" class="w-3 h-3"></i>2 issues closed
+          </span>
+          <span class="inline-flex items-center gap-1 bg-purple-100 text-purple-700 border border-purple-300 rounded-full px-2.5 py-0.5 text-xs font-semibold">
+            <i data-lucide="zap" class="w-3 h-3"></i>コミット最多
+          </span>
         </div>
-        <div class="flex items-center gap-3">
-          <span class="text-xs text-muted font-bold" style="width:16px;">4</span>
-          <span class="avatar avatar-yellow">N</span>
-          <span class="flex-1">Nguyen さん</span>
-          <span class="text-xs text-muted">2 PRs · 🇻🇳</span>
-        </div>
-      </div>
-    </div>
-
-    <!-- Motivational Message + Git Tip (stacked) -->
-    <div class="flex flex-col gap-3">
-
-      <!-- Motivational message -->
-      <div class="card">
-        <div class="section-label">💬 チームメッセージ</div>
-        <p class="font-semibold" style="color:var(--gray-15);">🚀 スプリントの折り返し地点！</p>
-        <p class="text-secondary text-sm mt-2" style="line-height:1.7;">
-          Cart Redesign はほぼ完成、素晴らしい！Auth Overhaul は少し山場ですが、一つひとつのブロッカーを丁寧に解消すれば必ず越えられます。今週もチーム全員で進めていきましょう。
-        </p>
-        <div class="divider"></div>
-        <p class="italic text-xs text-muted" style="line-height:1.6;">
-          "Halfway through the sprint! Cart Redesign is almost done — great work! Let's clear each blocker together. 💪"
-        </p>
-      </div>
-
-      <!-- Git tip of the week -->
-      <div class="card">
-        <div class="section-label">💡 お役立ち情報</div>
-        <div class="flex items-start gap-3 mb-3">
-          <div style="width:36px;height:36px;border-radius:8px;background:var(--green-95);border:1px solid var(--green-85);display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0;">🌿</div>
-          <div>
-            <div class="font-bold" style="font-size:18px;color:var(--blue-40);">`git branch --merged`</div>
-            <div class="text-xs text-muted mt-1">マージ済みブランチを一覧表示</div>
+        <div class="mt-3 bg-slate-50 border border-slate-200 rounded-xl p-3 text-sm text-slate-600 italic text-left w-full">
+          "わずか4日間で33コミット・6PR マージという驚異的な集中力で Comitora の骨格を完成させました。AI レビューを受けてコードを即座に改善する姿勢も含め、プロジェクトの推進力そのものです！"
+          <div class="border-t border-slate-200 mt-3 pt-3 text-xs text-slate-500 italic">
+            "33 commits and 6 merged PRs in just 4 days — ug-kitamura built Comitora's entire foundation with remarkable focus, even iterating on code quality after AI review. You are the engine of this project!"
           </div>
         </div>
-        <div class="code-block">
-          <div class="code-comment"># マージ済みブランチを確認して整理しよう</div>
-          <div class="code-cmd mt-1">$ git branch --merged</div>
-          <div class="code-output">  feature/cart-ui-v2</div>
-          <div class="code-output">  feature/login-fix</div>
-          <div class="code-comment mt-2"># 不要になったブランチは削除できます</div>
-          <div class="code-cmd">$ git branch -d feature/cart-ui-v2</div>
+      </div>
+    </div>
+
+    <!-- 貢献者の皆さん -->
+    <div class="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm" id="contributors">
+      <div class="flex items-center gap-2 text-lg font-bold text-slate-700 mb-5">
+        <i data-lucide="users" class="w-4 h-4"></i>
+        貢献者の皆さん
+      </div>
+      <div class="flex items-center gap-3 p-3 bg-slate-50 border border-slate-200 rounded-xl">
+        <div class="w-10 h-10 rounded-full bg-gradient-to-br from-custom-blue to-green-300 flex items-center justify-center text-white text-lg font-black flex-shrink-0">U</div>
+        <div class="flex-1 min-w-0">
+          <div class="font-semibold text-slate-800 text-sm">ug-kitamura</div>
+          <div class="flex flex-wrap gap-1 mt-1">
+            <span class="inline-flex items-center gap-0.5 bg-slate-100 text-slate-600 rounded px-1.5 py-0.5 text-xs">
+              <i data-lucide="git-commit-horizontal" class="w-3 h-3"></i>33 commits
+            </span>
+            <span class="inline-flex items-center gap-0.5 bg-slate-100 text-slate-600 rounded px-1.5 py-0.5 text-xs">
+              <i data-lucide="git-merge" class="w-3 h-3"></i>6 PRs merged
+            </span>
+            <span class="inline-flex items-center gap-0.5 bg-slate-100 text-slate-600 rounded px-1.5 py-0.5 text-xs">
+              <i data-lucide="check-circle" class="w-3 h-3"></i>2 issues closed
+            </span>
+          </div>
         </div>
-        <p class="text-xs text-muted" style="line-height:1.6;">
-          ブランチが増えすぎると全体が見えにくくなります。マージ済みブランチは定期的に削除してリポジトリを整理しましょう！<br/>
-          <span class="italic">Clean up merged branches regularly to keep the repo tidy!</span>
+      </div>
+      <p class="text-xs text-slate-500 mt-4 leading-relaxed">現在のコントリビューターは1名です。チームメンバーの追加をお待ちしています！</p>
+    </div>
+
+    <!-- チームメッセージ -->
+    <div class="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm" id="team-message">
+      <div class="flex items-center gap-2 text-lg font-bold text-slate-700 mb-4">
+        <i data-lucide="message-circle" class="w-4 h-4"></i>
+        チームメッセージ
+      </div>
+      <p class="font-semibold text-slate-900">Comitora、始動！</p>
+      <p class="text-slate-600 text-sm mt-2 leading-relaxed">
+        4日間で6つの PR をマージし、Comitora の基盤をゼロから作り上げました。スクリプトの整理・モジュール分割・AI レビュー後の品質改善まで丁寧に進めた成果です。Apple マイルストーンも完走！次は Banana・Cherry の仕上げに向けて、この勢いをそのまま持続させましょう。ブロッカーなし・レビュー待ちなし — 走れる状態は完璧です。
+      </p>
+      <div class="border-t border-slate-100 mt-4 pt-4">
+        <p class="text-xs text-slate-500 leading-relaxed">
+          Comitora is live! 6 PRs merged and the full foundation built in 4 days. Apple milestone complete — now let's keep the momentum going through Banana and Cherry. No blockers, no waiting: full steam ahead!
         </p>
       </div>
-
     </div>
+
+    <!-- お役立ち情報 -->
+    <div class="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm">
+      <div class="flex items-center gap-2 text-lg font-bold text-slate-700 mb-4">
+        <i data-lucide="lightbulb" class="w-4 h-4"></i>
+        お役立ち情報
+      </div>
+      <div class="flex items-start gap-3 mb-4">
+        <div>
+          <code class="bg-slate-100 px-1 rounded text-slate-700 font-bold font-mono">git log --follow</code>
+          <div class="text-xs text-slate-500 mt-0.5">ファイル名変更をまたいでコミット履歴を追跡</div>
+        </div>
+      </div>
+      <div class="bg-slate-800 rounded-xl p-4 font-mono text-xs leading-loose overflow-x-auto mb-3">
+        <div class="text-slate-400"># 今期は多くのファイルがリネーム・移動された</div>
+        <div class="text-teal-300 mt-1">$ git log --follow --oneline commit-track-tool/src/comitora_data_collector.py</div>
+        <div class="text-slate-400">36725122 improve after AI review</div>
+        <div class="text-slate-400">5670891d update comitora script</div>
+        <div class="text-slate-400">db5715f3 update python scripts</div>
+        <div class="text-slate-500 mt-2"># --follow なしでは rename 前の履歴が途切れる</div>
+        <div class="text-teal-300">$ git log --follow -p -- commit-track-tool/src/comitora_report_generator.py</div>
+      </div>
+      <p class="text-xs text-slate-500 leading-relaxed">
+        ファイルのリネームや移動が多いリポジトリでは <code class="bg-slate-100 px-1 rounded text-slate-700 font-mono">--follow</code> オプションが必須です。これにより rename 前のコミットまで遡って差分を確認できます。今期のような大規模リファクタリング後に特に役立ちます！
+      </p>
+    </div>
+
   </div>
 
   <!-- ===== FOOTER ===== -->
-  <div class="card">
-    <div class="flex flex-col gap-2" style="align-items:center;">
-      <div class="flex flex-wrap items-center justify-between gap-3 w-full footer-text">
-        <span>⚡ XXX Project Report &nbsp;·&nbsp; AIによる自動生成</span>
-        <div class="flex flex-wrap gap-4">
-          <a href="#">🔗 GitHub Repository</a>
-          <a href="#">📊 過去のレポート</a>
-        </div>
-        <span>Generated: Mon Apr 14, 2026 08:00 JST</span>
+  <div class="bg-white rounded-2xl border border-slate-200 p-4 shadow-sm" id="footer">
+    <div class="flex flex-wrap items-center justify-between gap-3 text-xs text-slate-500">
+      <span class="flex items-center gap-1.5">
+        <i data-lucide="zap" class="w-3.5 h-3.5"></i>
+        Commit and Track Report &nbsp;·&nbsp; AIによる自動生成
+      </span>
+      <div class="flex flex-wrap gap-4">
+        <a href="https://github.com/ug-kitamura/AI_Driven_School" class="flex items-center gap-1.5 hover:text-custom-blue transition-colors">
+          <i data-lucide="github" class="w-3.5 h-3.5"></i>GitHub Repository
+        </a>
+        <a href="#" class="flex items-center gap-1.5 hover:text-custom-blue transition-colors">
+          <i data-lucide="history" class="w-3.5 h-3.5"></i>過去のレポート
+        </a>
       </div>
+      <span>Generated: 2026/05/03 12:43 JST</span>
     </div>
   </div>
 
 </div>
+<script src="https://unpkg.com/lucide@latest"></script>
+<script>lucide.createIcons();</script>
 </body>
 </html>

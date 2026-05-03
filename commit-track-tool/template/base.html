@@ -4,547 +4,186 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>{{ project_name }} Report – {{ week_label }}</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700;900&display=swap" rel="stylesheet">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            custom: {
+              blue:       '#007BC0',
+              'blue-lt':  '#E8F1FF',
+              green:      '#00884A',
+              'green-lt': '#E2F5E7',
+              yellow:     '#CDA600',
+              'yellow-lt':'#FFEFD1',
+            }
+          },
+          fontFamily: {
+            sans: ['"Noto Sans JP"', '"Hiragino Kaku Gothic ProN"', '"Yu Gothic UI"', 'sans-serif'],
+            mono: ['"Consolas"', '"Courier New"', 'monospace'],
+          }
+        }
+      }
+    }
+  </script>
   <style>
-    :root {
-      /* Gray */
-      --gray-05: #101112;
-      --gray-10: #1A1C1D;
-      --gray-15: #232628;
-      --gray-20: #2E3033;
-      --gray-25: #383B3E;
-      --gray-30: #43464A;
-      --gray-35: #4E5256;
-      --gray-40: #595E62;
-      --gray-45: #656A6F;
-      --gray-50: #71767C;
-      --gray-55: #7D8389;
-      --gray-60: #8A9097;
-      --gray-65: #979EA4;
-      --gray-70: #A4ABB3;
-      --gray-75: #B2B9C0;
-      --gray-80: #C1C7CC;
-      --gray-85: #D0D4D8;
-      --gray-90: #E0E2E5;
-      --gray-95: #EFF1F2;
-      --gray-100: #F5F7F8;
-      /* Purple */
-      --purple-05: #230421;
-      --purple-10: #340731;
-      --purple-15: #440C41;
-      --purple-20: #551151;
-      --purple-25: #671761;
-      --purple-30: #791D73;
-      --purple-35: #8B2284;
-      --purple-40: #9E2896;
-      --purple-45: #B12EA9;
-      --purple-50: #C535BC;
-      --purple-55: #D543CB;
-      --purple-60: #E552DA;
-      --purple-65: #E472DB;
-      --purple-70: #E48CDD;
-      --purple-75: #E5A2DF;
-      --purple-80: #E8B6E3;
-      --purple-85: #EBCAE8;
-      --purple-90: #F0DCEE;
-      --purple-95: #F7EEF6;
-      /* Blue */
-      --blue-05: #001222;
-      --blue-10: #001D33;
-      --blue-15: #002742;
-      --blue-20: #003253;
-      --blue-25: #003E64;
-      --blue-30: #004975;
-      --blue-35: #005587;
-      --blue-40: #00629A;
-      --blue-45: #006EAD;
-      --blue-50: #007BC0;
-      --blue-55: #0088D4;
-      --blue-60: #0096E8;
-      --blue-65: #00A4FD;
-      --blue-70: #56B0FF;
-      --blue-75: #7EBDFF;
-      --blue-80: #9DC9FF;
-      --blue-85: #B8D6FF;
-      --blue-90: #D1E4FF;
-      --blue-95: #E8F1FF;
-      /* Turquoise */
-      --teal-05: #011413;
-      --teal-10: #02201E;
-      --teal-15: #032B28;
-      --teal-20: #053634;
-      --teal-25: #07423F;
-      --teal-30: #0A4F4B;
-      --teal-35: #0E5B57;
-      --teal-40: #116864;
-      --teal-45: #147671;
-      --teal-50: #18837E;
-      --teal-55: #2E908B;
-      --teal-60: #419E98;
-      --teal-65: #54ABA5;
-      --teal-70: #66B8B2;
-      --teal-75: #79C5C0;
-      --teal-80: #8DD2CD;
-      --teal-85: #A1DFDB;
-      --teal-90: #B6EDE8;
-      --teal-95: #DEF5F3;
-      /* Green */
-      --green-05: #001507;
-      --green-10: #00210E;
-      --green-15: #002C14;
-      --green-20: #00381B;
-      --green-25: #004523;
-      --green-30: #00512A;
-      --green-35: #005F32;
-      --green-40: #006C3A;
-      --green-45: #007A42;
-      --green-50: #00884A;
-      --green-55: #219557;
-      --green-60: #37A264;
-      --green-65: #4AB073;
-      --green-70: #5EBD82;
-      --green-75: #72CA92;
-      --green-80: #86D7A2;
-      --green-85: #9BE4B3;
-      --green-90: #B8EFC9;
-      --green-95: #E2F5E7;
-      /* Yellow */
-      --yellow-05: #171000;
-      --yellow-10: #231A00;
-      --yellow-15: #2F2400;
-      --yellow-20: #3C2E00;
-      --yellow-25: #493900;
-      --yellow-30: #564400;
-      --yellow-35: #644F00;
-      --yellow-40: #725B00;
-      --yellow-45: #806700;
-      --yellow-50: #8F7300;
-      --yellow-55: #9E7F00;
-      --yellow-60: #AD8C00;
-      --yellow-65: #BD9900;
-      --yellow-70: #CDA600;
-      --yellow-75: #DEB300;
-      --yellow-80: #EEC100;
-      --yellow-85: #FFCF00;
-      --yellow-90: #FFDF95;
-      --yellow-95: #FFEFD1;
-      /* Red */
-      --red-05: #2D0000;
-      --red-10: #410000;
-      --red-15: #540001;
-      --red-20: #680001;
-      --red-25: #7D0002;
-      --red-30: #920002;
-      --red-35: #A80003;
-      --red-40: #BE0004;
-      --red-45: #D50005;
-      --red-50: #ED0007;
-      --red-55: #FF2124;
-      --red-60: #FF5152;
-      --red-65: #FF6E6F;
-      --red-70: #FF8787;
-      --red-75: #FF9D9D;
-      --red-80: #FFB2B2;
-      --red-85: #FFC6C6;
-      --red-90: #FFD9D9;
-      --red-95: #FFECEC;
-    }
-
-    /* ============================================================
-       RESET & BASE
-    ============================================================ */
-    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-
-    body {
-      background: var(--gray-95);
-      color: var(--gray-15);
-      font-family: "Segoe UI", "Noto Sans JP", "Hiragino Kaku Gothic ProN", "Yu Gothic UI", sans-serif;
-      font-size: 14px;
-      line-height: 1.6;
-      padding: 20px 16px;
-    }
-
-    a { color: var(--blue-50); text-decoration: none; }
-    a:hover { text-decoration: underline; }
-
-    /* ============================================================
-       LAYOUT
-    ============================================================ */
-    .container {
-      max-width: 960px;
-      margin: 0 auto;
-      display: flex;
-      flex-direction: column;
-      gap: 14px;
-    }
-
-    .card {
-      background: #fff;
-      border: 1px solid var(--gray-90);
-      border-radius: 12px;
-      padding: 20px;
-    }
-
-    .card-accent-blue  { border-left: 4px solid var(--blue-55); }
-    .card-accent-green { border-left: 4px solid var(--green-50); }
-
-    .grid-2 {
-      display: grid;
-      grid-template-columns: 1fr;
-      gap: 14px;
-    }
-
-    .grid-stats {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 10px;
-    }
-
-    .grid-sprint {
-      display: grid;
-      grid-template-columns: 1fr;
-      gap: 14px;
-    }
-
-    @media (min-width: 768px) {
-      body { padding: 28px 32px; }
-      .grid-2      { grid-template-columns: 1fr 1fr; }
-      .grid-sprint { grid-template-columns: 2fr 1fr; }
-    }
-
-    /* ============================================================
-       TYPOGRAPHY UTILITIES
-    ============================================================ */
-    .section-label {
-      font-size: 14px;
-      font-weight: 700;
-      color: var(--gray-20);
-      margin-bottom: 14px;
-      display: flex;
-      align-items: center;
-      gap: 6px;
-    }
-
-    .text-xs     { font-size: 11px; }
-    .text-sm     { font-size: 12px; }
-    .text-muted  { color: var(--gray-40); }
-    .text-secondary { color: var(--gray-35); }
-    .font-bold   { font-weight: 700; }
-    .font-semibold { font-weight: 600; }
-    .italic      { font-style: italic; }
-    .font-mono   { font-family: "Consolas", "Courier New", monospace; }
-    .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; }
-
-    /* ============================================================
-       BADGE
-    ============================================================ */
-    .badge {
-      display: inline-flex;
-      align-items: center;
-      gap: 4px;
-      padding: 2px 10px;
-      border-radius: 9999px;
-      font-size: 11px;
-      font-weight: 600;
-      letter-spacing: 0.03em;
-      white-space: nowrap;
-    }
-
-    .badge-success { background: var(--green-95); color: var(--green-40); border: 1px solid var(--green-85); }
-    .badge-info    { background: var(--blue-95);  color: var(--blue-35);  border: 1px solid var(--blue-90); }
-    .badge-warning { background: var(--yellow-95); color: var(--yellow-40); border: 1px solid var(--yellow-90); }
-    .badge-amber   { background: var(--yellow-90); color: var(--yellow-40); border: 1px solid var(--yellow-80); }
-    .badge-danger  { background: var(--red-95); color: var(--red-35); border: 1px solid var(--red-85); }
-    .badge-neutral { background: var(--gray-95);  color: var(--gray-40);  border: 1px solid var(--gray-85); }
-
-    /* ============================================================
-       PROGRESS BAR
-    ============================================================ */
-    .progress-track {
-      background: var(--gray-90);
-      border-radius: 9999px;
-      height: 10px;
-      overflow: hidden;
-    }
-
-    .progress-bar {
-      height: 100%;
-      border-radius: 9999px;
-      transition: width 0.9s ease;
-    }
-
-    .progress-green  { background: var(--green-50); }
-    .progress-blue   { background: var(--blue-50); }
-    .progress-yellow { background: var(--yellow-70); }
-    .progress-gray   { background: var(--gray-85); }
-
-    /* ============================================================
-       TABLE
-    ============================================================ */
-    .data-table {
-      width: 100%;
-      border-collapse: collapse;
-      font-size: 13px;
-    }
-
-    .data-table caption {
-      caption-side: top;
-      text-align: left;
-      padding-bottom: 10px;
-      position: absolute;
-      width: 1px; height: 1px;
-      overflow: hidden;
-      clip: rect(0,0,0,0);
-    }
-
-    .data-table th {
-      text-align: left;
-      padding: 0 8px 8px 0;
-      font-size: 11px;
-      font-weight: 600;
-      letter-spacing: 0.06em;
-      text-transform: uppercase;
-      color: var(--gray-40);
-      border-bottom: 1px solid var(--gray-90);
-    }
-
-    .data-table td {
-      padding: 9px 8px 9px 0;
-      border-bottom: 1px solid var(--gray-95);
-      vertical-align: middle;
-    }
-
-    .data-table tbody tr:last-child td { border-bottom: none; }
-
-    .data-table tbody tr:hover td {
-      background: var(--blue-95);
-      transition: background 0.15s;
-    }
-
-    /* ============================================================
-       AVATAR
-    ============================================================ */
-    .avatar {
-      width: 28px;
-      height: 28px;
-      border-radius: 50%;
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 11px;
-      font-weight: 700;
-      color: #fff;
-      flex-shrink: 0;
-    }
-
-    .avatar-blue   { background: var(--blue-50); }
-    .avatar-green  { background: var(--green-50); }
-    .avatar-yellow { background: var(--yellow-70); }
-    .avatar-purple { background: var(--purple-40); }
-    .avatar-gray   { background: var(--gray-40); }
-
-    /* ============================================================
-       ACTION ITEMS
-    ============================================================ */
-    .action-item {
-      display: flex;
-      gap: 12px;
-      align-items: flex-start;
-      padding: 10px 12px;
-      border-radius: 8px;
-    }
-
-    .action-p1 { background: var(--gray-100); border: 1px solid var(--gray-90); }
-    .action-p2 { background: var(--gray-100); border: 1px solid var(--gray-90); }
-    .action-p3 { background: var(--gray-100); border: 1px solid var(--gray-90); }
-    .action-p4 { background: var(--gray-100);  border: 1px solid var(--gray-90); }
-
-    .action-p1 .action-meta { color: var(--blue-40); }
-    .action-p2 .action-meta { color: var(--blue-40); }
-    .action-p3 .action-meta { color: var(--blue-40); }
-    .action-p4 .action-meta { color: var(--blue-40); }
-
-    /* ============================================================
-       HERO
-    ============================================================ */
-    .hero-avatar-wrap { position: relative; display: inline-block; }
-
-    .hero-avatar {
-      width: 64px;
-      height: 64px;
-      border-radius: 50%;
-      background: linear-gradient(135deg, var(--blue-50), var(--green-80));
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 28px;
-      font-weight: 900;
-      color: #fff;
-    }
-
-    .flame {
-      position: absolute;
-      top: -4px;
-      right: -4px;
-      font-size: 18px;
-    }
-
-    @media (prefers-reduced-motion: no-preference) {
-      .flame { animation: flicker 1.4s infinite alternate; }
-    }
-
     @keyframes flicker {
       from { opacity: 1; }
       to   { opacity: 0.7; filter: brightness(1.3); }
     }
-
-    /* ============================================================
-       CODE BLOCK
-    ============================================================ */
-    .code-block {
-      background: var(--gray-25);
-      border: 1px solid var(--gray-90);
-      border-radius: 8px;
-      padding: 12px;
-      font-family: "Consolas", "Courier New", monospace;
-      font-size: 13px;
-      margin-bottom: 12px;
-      overflow-x: auto;
+    @media (prefers-reduced-motion: no-preference) {
+      .animate-flicker { animation: flicker 1.4s infinite alternate; }
     }
-
-    .code-comment { color: var(--gray-75); font-size: 11px; }
-    .code-cmd     { color: var(--teal-85); }
-    .code-output  { color: var(--gray-75); }
-
-    /* ============================================================
-       FLEX & SPACING UTILITIES
-    ============================================================ */
-    .flex           { display: flex; }
-    .flex-col       { flex-direction: column; }
-    .flex-wrap      { flex-wrap: wrap; }
-    .items-center   { align-items: center; }
-    .items-start    { align-items: flex-start; }
-    .justify-between{ justify-content: space-between; }
-    .justify-center { justify-content: center; }
-    .flex-1         { flex: 1; }
-    .shrink-0       { flex-shrink: 0; }
-    .gap-1 { gap: 4px; }
-    .gap-2 { gap: 8px; }
-    .gap-3 { gap: 12px; }
-    .gap-4 { gap: 16px; }
-    .mt-1  { margin-top: 4px; }
-    .mt-2  { margin-top: 8px; }
-    .mt-3  { margin-top: 12px; }
-    .mb-2  { margin-bottom: 8px; }
-    .mb-3  { margin-bottom: 12px; }
-    .space-y-3 > * + * { margin-top: 10px; }
-    .text-center { text-align: center; }
-    .overflow-x-auto { overflow-x: auto; }
-    .relative { position: relative; }
-    .w-full { width: 100%; }
-    .divider { border: none; border-top: 1px solid var(--gray-90); margin: 14px 0; }
-
-    /* Footer */
-    .footer-text {
-      font-size: 12px;
-      color: var(--gray-40);
-    }
+    .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; }
   </style>
 </head>
-<body>
-<div class="container">
+<body class="bg-slate-100 text-slate-900 antialiased leading-relaxed font-sans">
+<div class="max-w-[960px] mx-auto px-4 py-6 flex flex-col gap-4">
 
   <!-- ===== HEADER ===== -->
-  <div class="card">
+  <div class="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm">
     <div class="flex flex-wrap items-center justify-between gap-3">
       <div class="flex items-center gap-3">
-        <div class="shrink-0" style="width:52px;height:52px;border-radius:10px;background:var(--blue-95);display:flex;align-items:center;justify-content:center;font-size:26px;">⚡</div>
+        <div class="w-12 h-12 rounded-xl bg-custom-blue-lt flex items-center justify-center flex-shrink-0">
+          <i data-lucide="zap" class="w-6 h-6 text-custom-blue"></i>
+        </div>
         <div>
-          <div style="font-size:24px;font-weight:800;color:var(--gray-10);">{{ project_name }} Report</div>
-          <div class="text-sm text-muted mt-1">{{ week_label }} &nbsp;·&nbsp; <span class="font-mono" style="color:var(--blue-50);">{{ repo_name }}</span></div>
+          <div class="text-3xl font-black text-slate-900">{{ project_name }} Report</div>
+          <div class="text-sm text-slate-500 mt-0.5">
+            {{ week_label }} &nbsp;·&nbsp;
+            <a href="{{ repo_url }}" class="font-mono text-custom-blue hover:underline">{{ repo_name }}</a>
+          </div>
         </div>
       </div>
-      <div class="flex flex-wrap gap-2">
-        <span class="badge badge-neutral">📅 {{ generated_at }}</span>
-      </div>
+      <span class="inline-flex items-center gap-1.5 bg-slate-100 text-slate-500 border border-slate-200 rounded-full px-3 py-1 text-xs font-medium">
+        <i data-lucide="calendar" class="w-3.5 h-3.5"></i>
+        {{ generated_at }}
+      </span>
     </div>
 
     <!-- Health bar -->
-    <div class="flex items-center gap-3 mt-3">
-      <div class="shrink-0 text-sm text-secondary" style="width:140px;">
-        プロジェクト健全度
+    <!-- health_color_value: 健全度に応じた色 (#007BC0 = 良好, #CDA600 = 注意, #ED0007 = 危険) -->
+    <!-- health_icon: Lucide アイコン名 (circle-check / alert-circle / alert-triangle) -->
+    <div class="flex items-center gap-3 mt-4">
+      <div class="text-sm text-slate-600 flex-shrink-0 w-36">プロジェクト健全度</div>
+      <div class="flex-1 h-2.5 bg-slate-200 rounded-full overflow-hidden"
+           role="progressbar" aria-valuenow="{{ health_pct }}" aria-valuemin="0" aria-valuemax="100"
+           aria-label="プロジェクト健全度 {{ health_pct }}%">
+        <div class="h-full rounded-full transition-all duration-700" style="width:{{ health_pct }}%;background:{{ health_color_value }};"></div>
       </div>
-      <div
-        class="progress-track flex-1"
-        role="progressbar"
-        aria-valuenow="{{ health_pct }}"
-        aria-valuemin="0"
-        aria-valuemax="100"
-        aria-label="プロジェクト健全度 {{ health_pct }}%">
-        <div class="progress-bar {{ health_color_class }}" style="width:{{ health_pct }}%;"></div>
-      </div>
-      <div class="font-bold" style="color:{{ health_color_value }};width:36px;text-align:right;">{{ health_pct }}%</div>
-      <span role="img" aria-label="健全度">{{ health_emoji }}</span>
+      <div class="font-bold text-sm w-10 text-right" style="color:{{ health_color_value }};">{{ health_pct }}%</div>
+      <i data-lucide="{{ health_icon }}" class="w-5 h-5 flex-shrink-0" style="color:{{ health_color_value }};"></i>
     </div>
   </div>
 
-  <!-- ===== ROW 1: Sprint Progress + Stat Cards ===== -->
-  <div class="grid-sprint">
+  <!-- ===== MILESTONE + STAT CARDS ===== -->
+  <div class="grid grid-cols-1 lg:grid-cols-[2fr_1fr] gap-4">
 
-    <!-- Sprint progress -->
-    <div class="card">
-      <div class="section-label">📊 マイルストーン進捗</div>
-      <div class="space-y-3">
+    <!-- Milestone progress -->
+    <!-- sprint_items: マイルストーンごとに以下を出力 -->
+    <!--   - タイトル(milestone.url へリンク) + 進捗% + progress bar + issues closed バッジ + 期限バッジ -->
+    <!--   - 100%: bg-custom-blue / 0%以上: bg-slate-300 -->
+    <!--   - マイルストーンアイコン: apple=red-400 / banana=yellow-600 / cherry=red-400 / その他=gem(purple-400) -->
+    <div class="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm">
+      <div class="flex items-center gap-2 text-sm font-bold text-slate-700 mb-5">
+        <i data-lucide="bar-chart-3" class="w-4 h-4"></i>
+        マイルストーン進捗
+      </div>
+      <div class="flex flex-col gap-5">
         {{ sprint_items }}
       </div>
     </div>
 
-    <!-- Stat cards -->
-    <div class="grid-stats">
-      <div class="card text-center" style="display:flex;flex-direction:column;align-items:center;justify-content:center;">
-        <div style="font-size:2.2rem;font-weight:800;color:var(--gray-35);">{{ prs_merged }}</div>
-        <div class="text-xs text-muted mt-1" style="font-weight:500;">マージ済みPR</div>
+    <!-- Stat cards (全幅 × 5) -->
+    <div class="flex flex-col gap-3">
+      <div class="bg-white rounded-2xl border border-slate-200 p-4 shadow-sm flex items-center justify-between gap-4">
+        <div class="flex items-center gap-2 text-slate-600">
+          <i data-lucide="git-merge" class="w-5 h-5 text-custom-blue flex-shrink-0"></i>
+          <span class="text-sm font-medium">マージ済みPR</span>
+        </div>
+        <div class="text-[2.2rem] font-black text-slate-600 leading-tight">{{ prs_merged }}</div>
       </div>
-      <div class="card text-center" style="display:flex;flex-direction:column;align-items:center;justify-content:center;">
-        <div style="font-size:2.2rem;font-weight:800;color:var(--gray-35);">{{ awaiting_review }}</div>
-        <div class="text-xs text-muted mt-1" style="font-weight:500;">レビュー待ちPR</div>
+      <div class="bg-white rounded-2xl border border-slate-200 p-4 shadow-sm flex items-center justify-between gap-4">
+        <div class="flex items-center gap-2 text-slate-600">
+          <i data-lucide="eye" class="w-5 h-5 text-purple-400 flex-shrink-0"></i>
+          <span class="text-sm font-medium">レビュー待ちPR</span>
+        </div>
+        <div class="text-[2.2rem] font-black text-slate-600 leading-tight">{{ awaiting_review }}</div>
       </div>
-      <div class="card text-center" style="display:flex;flex-direction:column;align-items:center;justify-content:center;">
-        <div style="font-size:2.2rem;font-weight:800;color:var(--gray-35);">{{ blockers }}</div>
-        <div class="text-xs text-muted mt-1" style="font-weight:500;">フィードバック対応中PR</div>
+      <div class="bg-white rounded-2xl border border-slate-200 p-4 shadow-sm flex items-center justify-between gap-4">
+        <div class="flex items-center gap-2 text-slate-600">
+          <i data-lucide="message-square" class="w-5 h-5 text-orange-400 flex-shrink-0"></i>
+          <span class="text-sm font-medium">フィードバック対応中PR</span>
+        </div>
+        <div class="text-[2.2rem] font-black text-slate-600 leading-tight">{{ blockers }}</div>
       </div>
-      <div class="card text-center" style="display:flex;flex-direction:column;align-items:center;justify-content:center;">
-        <div style="font-size:2.2rem;font-weight:800;color:var(--gray-35);">{{ active_branches }}</div>
-        <div class="text-xs text-muted mt-1" style="font-weight:500;">アクティブブランチ</div>
+      <div class="bg-white rounded-2xl border border-slate-200 p-4 shadow-sm flex items-center justify-between gap-4">
+        <div class="flex items-center gap-2 text-slate-600">
+          <i data-lucide="git-branch" class="w-5 h-5 text-custom-green flex-shrink-0"></i>
+          <span class="text-sm font-medium">アクティブブランチ</span>
+        </div>
+        <div class="text-[2.2rem] font-black text-slate-600 leading-tight">{{ active_branches }}</div>
+      </div>
+      <!-- open_issues: issue.open_count -->
+      <div class="bg-white rounded-2xl border border-slate-200 p-4 shadow-sm flex items-center justify-between gap-4">
+        <div class="flex items-center gap-2 text-slate-600">
+          <i data-lucide="circle-dot" class="w-5 h-5 text-orange-400 flex-shrink-0"></i>
+          <span class="text-sm font-medium">オープンissue</span>
+        </div>
+        <div class="text-[2.2rem] font-black text-slate-600 leading-tight">{{ open_issues }}</div>
       </div>
     </div>
   </div>
 
   <!-- ===== ACTION PLAN ===== -->
-  <!-- Claude が {{ action_plan_items }} を埋める -->
-  <div class="card" id="action-plan">
-    <div class="section-label">🎯 アクションプラン</div>
-    <div class="space-y-3">
+  <!-- Claude が {{ action_plan_items }} を埋める。各アイテムは以下の構造で出力: -->
+  <!--   <div class="flex items-start gap-3 bg-slate-50 border border-slate-200 rounded-xl p-3"> -->
+  <!--     <i data-lucide="circle-arrow-right" class="w-4 h-4 text-slate-500 mt-0.5 flex-shrink-0"></i> -->
+  <!--     <div class="flex-1 min-w-0"> -->
+  <!--       <div class="font-semibold text-slate-800 text-sm">{{ タイトル }}</div> -->
+  <!--       <div class="text-xs text-slate-600 mt-1">{{ 説明 }}</div> -->
+  <!--       <div class="flex flex-wrap gap-1.5 mt-2"> -->
+  <!--         担当者が判明: <span class="inline-flex items-center gap-1 bg-slate-100 text-slate-600 border border-slate-200 rounded-full px-2 py-0.5 text-xs font-medium"><i data-lucide="user" class="w-3 h-3"></i>{{ 担当者 }}</span> -->
+  <!--         担当者不明:   <span class="inline-flex items-center gap-1 bg-amber-50 text-amber-700 border border-amber-300 rounded-full px-2 py-0.5 text-xs font-medium"><i data-lucide="alert-circle" class="w-3 h-3"></i>担当: 要確認</span> -->
+  <!--         期限が判明:   <span class="inline-flex items-center gap-1 bg-slate-100 text-slate-600 border border-slate-200 rounded-full px-2 py-0.5 text-xs font-medium"><i data-lucide="calendar" class="w-3 h-3"></i>{{ 期限 }}</span> -->
+  <!--         期限不明:     <span class="inline-flex items-center gap-1 bg-amber-50 text-amber-700 border border-amber-300 rounded-full px-2 py-0.5 text-xs font-medium"><i data-lucide="alert-circle" class="w-3 h-3"></i>期限: 要確認</span> -->
+  <!--       </div> -->
+  <!--     </div> -->
+  <!--   </div> -->
+  <div class="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm" id="action-plan">
+    <div class="flex items-center gap-2 text-sm font-bold text-slate-700 mb-4">
+      <i data-lucide="target" class="w-4 h-4"></i>
+      アクションプラン
+    </div>
+    <div class="flex flex-col gap-3">
       {{ action_plan_items }}
     </div>
   </div>
 
   <!-- ===== BRANCH MAP ===== -->
-  <!-- {{ branch_map_note }} : オープンPRあり時は空文字、なし時は「オープン PR なし — 直近マージ済みブランチを表示」を出力 -->
-  <div class="card">
-    <div class="section-label">🌿 ブランチ状況マップ</div>
+  <!-- branch_map_note: オープンPRあり → 空文字 / なし → <div class="text-xs text-slate-500 mb-4">オープン PR なし — 直近マージ済みブランチを表示</div> -->
+  <!-- branch_col_date: オープンPRあり → 最終更新 / なし → マージ日時 -->
+  <!-- branch_col_link: オープンPRあり → アクション / なし → PR -->
+  <div class="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm">
+    <div class="flex items-center gap-2 text-sm font-bold text-slate-700 mb-1">
+      <i data-lucide="git-branch" class="w-4 h-4"></i>
+      ブランチ状況マップ
+    </div>
     {{ branch_map_note }}
     <div class="overflow-x-auto">
-      <table class="data-table">
-        <caption>ブランチ状況マップ</caption>
+      <table class="w-full text-sm border-collapse">
+        <caption class="sr-only">ブランチ状況マップ</caption>
         <thead>
-          <tr>
-            <th scope="col">ブランチ</th>
-            <th scope="col">担当</th>
-            <th scope="col">ステータス</th>
-            <!-- オープンPRあり: 最終更新 / なし(マージ済み表示): マージ日時 -->
-            <th scope="col">{{ branch_col_date }}</th>
-            <!-- オープンPRあり: アクション / なし(マージ済み表示): PR -->
-            <th scope="col">{{ branch_col_link }}</th>
+          <tr class="border-b border-slate-100">
+            <th class="text-left py-2 pr-4 text-xs font-semibold uppercase tracking-wide text-slate-500">ブランチ</th>
+            <th class="text-left py-2 pr-4 text-xs font-semibold uppercase tracking-wide text-slate-500">担当</th>
+            <th class="text-left py-2 pr-4 text-xs font-semibold uppercase tracking-wide text-slate-500">ステータス</th>
+            <th class="text-left py-2 pr-4 text-xs font-semibold uppercase tracking-wide text-slate-500">{{ branch_col_date }}</th>
+            <th class="text-left py-2 text-xs font-semibold uppercase tracking-wide text-slate-500">{{ branch_col_link }}</th>
           </tr>
         </thead>
         <tbody>
@@ -554,69 +193,104 @@
     </div>
   </div>
 
-  <!-- ===== ROW 3: Hero + Message & Tips ===== -->
-  <div class="grid-2">
+  <!-- ===== HERO / CONTRIBUTORS / MESSAGE / TIPS (2×2) ===== -->
+  <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
 
-    <!-- Hero of the Week -->
-    <div class="card" id="hero">
-      <div class="section-label">🏆 今回のヒーロー</div>
-      <div class="flex flex-col items-center text-center mb-3">
-        <div class="hero-avatar-wrap mb-3">
-          <div class="hero-avatar">{{ hero_initial }}</div>
-          <span class="flame" role="img" aria-label="注目">🔥</span>
+    <!-- 今回のヒーロー -->
+    <!-- hero_badges: 値 > 0 の指標のみバッジ出力 -->
+    <!--   prs_merged      → bg-amber-100 text-amber-700 border-amber-300, git-merge アイコン -->
+    <!--   issues_closed   → bg-green-100 text-green-700 border-green-300, check-circle アイコン -->
+    <!--   reviews_submitted → bg-blue-100 text-blue-700 border-blue-300, eye アイコン -->
+    <!--   commits > 0 は常に → bg-purple-100 text-purple-700 border-purple-300, zap アイコン「コミット最多」 -->
+    <!-- hero_comment: 日本語コメント + <div class="border-t ..."> 内に英語コメント -->
+    <div class="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm" id="hero">
+      <div class="flex items-center gap-2 text-sm font-bold text-slate-700 mb-5">
+        <i data-lucide="trophy" class="w-4 h-4"></i>
+        今回のヒーロー
+      </div>
+      <div class="flex flex-col items-center text-center">
+        <div class="relative mb-3">
+          <div class="w-16 h-16 rounded-full bg-gradient-to-br from-custom-blue to-green-300 flex items-center justify-center text-white text-3xl font-black">{{ hero_initial }}</div>
+          <i data-lucide="flame" class="w-5 h-5 text-orange-500 absolute -top-1 -right-1 animate-flicker"></i>
         </div>
-        <div class="font-bold" style="font-size:17px;">{{ hero_name }}</div>
-        <!-- {{ hero_badges }}: 値が0より大きい指標のバッジのみ出力。prs_merged / reviews_submitted / issues_closed / achievement -->
-        <div class="flex flex-wrap justify-center gap-2 mt-3">
+        <div class="font-bold text-lg text-slate-900">{{ hero_name }}</div>
+        <div class="flex flex-wrap justify-center gap-1.5 mt-3">
           {{ hero_badges }}
         </div>
-        <!-- Claude が {{ hero_comment }} を埋める -->
-        <div class="mt-3 italic text-secondary text-sm" style="background:var(--gray-95);border:1px solid var(--gray-90);border-radius:8px;padding:10px 12px;">
+        <div class="mt-3 bg-slate-50 border border-slate-200 rounded-xl p-3 text-sm text-slate-600 italic text-left w-full">
           {{ hero_comment }}
         </div>
       </div>
+    </div>
 
-      <div class="divider"></div>
-      <div class="text-xs font-bold text-secondary mb-2" style="letter-spacing:0.06em;text-transform:uppercase;">貢献者の皆さん</div>
-      <div class="space-y-3">
+    <!-- 貢献者の皆さん -->
+    <!-- contributor_rows: contributors_ranked の各メンバーを以下の構造で出力 -->
+    <!--   <div class="flex items-center gap-3 p-3 bg-slate-50 border border-slate-200 rounded-xl"> -->
+    <!--     <div class="w-10 h-10 rounded-full bg-gradient-to-br from-custom-blue to-green-300 flex items-center justify-center text-white text-lg font-black flex-shrink-0">{{ 頭文字 }}</div> -->
+    <!--     <div class="flex-1 min-w-0"> -->
+    <!--       <div class="font-semibold text-slate-800 text-sm">{{ login }}</div> -->
+    <!--       <div class="flex flex-wrap gap-1 mt-1"> -->
+    <!--         commits バッジ(git-commit-horizontal) / prs_merged バッジ(git-merge) / issues_closed バッジ(check-circle) -->
+    <!--       </div> -->
+    <!--     </div> -->
+    <!--     <div class="flex-shrink-0 text-right"><div class="text-xs text-slate-500 mb-0.5">スコア</div><div class="text-xl font-black text-custom-blue">{{ score }}</div></div> -->
+    <!--   </div> -->
+    <!-- 1名のみの場合: 最後に <p class="text-xs text-slate-500 mt-4">現在のコントリビューターは1名です。チームメンバーの追加をお待ちしています！</p> を追加 -->
+    <div class="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm" id="contributors">
+      <div class="flex items-center gap-2 text-sm font-bold text-slate-700 mb-5">
+        <i data-lucide="users" class="w-4 h-4"></i>
+        貢献者の皆さん
+      </div>
+      <div class="flex flex-col gap-3">
         {{ contributor_rows }}
       </div>
     </div>
 
-    <!-- Message & Tips (stacked) -->
-    <div class="flex flex-col gap-3">
-
-      <!-- Team message -->
-      <!-- Claude が {{ team_message }} を埋める -->
-      <div class="card" id="team-message">
-        <div class="section-label">💬 チームメッセージ</div>
-        {{ team_message }}
+    <!-- チームメッセージ -->
+    <!-- team_message: <p class="font-semibold text-slate-900">{{ タイトル }}</p> -->
+    <!--               <p class="text-slate-600 text-sm mt-2 leading-relaxed">{{ 日本語本文 }}</p> -->
+    <!--               <div class="border-t border-slate-100 mt-4 pt-4"><p class="text-xs text-slate-500 leading-relaxed">{{ 英語本文 }}</p></div> -->
+    <div class="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm" id="team-message">
+      <div class="flex items-center gap-2 text-sm font-bold text-slate-700 mb-4">
+        <i data-lucide="message-circle" class="w-4 h-4"></i>
+        チームメッセージ
       </div>
-
-      <!-- Tips of the week -->
-      <!-- Claude が {{ tips_content }} を埋める -->
-      <div class="card">
-        <div class="section-label">💡 お役立ち情報</div>
-        {{ tips_content }}
-      </div>
-
+      {{ team_message }}
     </div>
+
+    <!-- お役立ち情報 -->
+    <!-- tips_content: コマンド名 + 説明 + コードブロック(bg-slate-800) + 解説テキスト -->
+    <div class="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm">
+      <div class="flex items-center gap-2 text-sm font-bold text-slate-700 mb-4">
+        <i data-lucide="lightbulb" class="w-4 h-4"></i>
+        お役立ち情報
+      </div>
+      {{ tips_content }}
+    </div>
+
   </div>
 
   <!-- ===== FOOTER ===== -->
-  <div class="card" id="footer">
-    <div class="flex flex-col gap-2" style="align-items:center;">
-      <div class="flex flex-wrap items-center justify-between gap-3 w-full footer-text">
-        <span>⚡ {{ project_name }} Report &nbsp;·&nbsp; AIによる自動生成</span>
-        <div class="flex flex-wrap gap-4">
-          <a href="{{ repo_url }}">🔗 GitHub Repository</a>
-          <a href="{{ past_reports_url }}">📊 過去のレポート</a>
-        </div>
-        <span>Generated: {{ generated_at }}</span>
+  <div class="bg-white rounded-2xl border border-slate-200 p-4 shadow-sm" id="footer">
+    <div class="flex flex-wrap items-center justify-between gap-3 text-xs text-slate-500">
+      <span class="flex items-center gap-1.5">
+        <i data-lucide="zap" class="w-3.5 h-3.5"></i>
+        {{ project_name }} Report &nbsp;·&nbsp; AIによる自動生成
+      </span>
+      <div class="flex flex-wrap gap-4">
+        <a href="{{ repo_url }}" class="flex items-center gap-1.5 hover:text-custom-blue transition-colors">
+          <i data-lucide="github" class="w-3.5 h-3.5"></i>GitHub Repository
+        </a>
+        <a href="{{ past_reports_url }}" class="flex items-center gap-1.5 hover:text-custom-blue transition-colors">
+          <i data-lucide="history" class="w-3.5 h-3.5"></i>過去のレポート
+        </a>
       </div>
+      <span>Generated: {{ generated_at }}</span>
     </div>
   </div>
 
 </div>
+<script src="https://unpkg.com/lucide@latest"></script>
+<script>lucide.createIcons();</script>
 </body>
 </html>

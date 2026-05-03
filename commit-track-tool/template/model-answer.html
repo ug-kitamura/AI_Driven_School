@@ -466,17 +466,14 @@
         </div>
       </div>
       <div class="flex flex-wrap gap-2">
-        <span class="badge badge-neutral">✅ 自動生成 / Auto-generated</span>
-        <span class="badge badge-neutral">📅 毎週月曜 08:00 JST</span>
-        <span class="badge badge-neutral">🌐 日本語 / English</span>
+        <span class="badge badge-neutral">📅 Mon Apr 14, 2026 08:00 JST</span>
       </div>
     </div>
 
     <!-- Health bar -->
     <div class="flex items-center gap-3 mt-3">
       <div class="shrink-0 text-sm text-secondary" style="width:140px;">
-        プロジェクト健全度<br/>
-        <span class="text-xs text-muted">Project Health</span>
+        プロジェクト健全度
       </div>
       <div
         class="progress-track flex-1"
@@ -497,13 +494,13 @@
 
     <!-- Sprint progress -->
     <div class="card">
-      <div class="section-label">📊 スプリント進捗 / Sprint Progress</div>
+      <div class="section-label">📊 マイルストーン進捗</div>
       <div class="space-y-3">
 
         <!-- Feature A -->
         <div>
           <div class="flex items-center justify-between mb-2">
-            <span class="font-semibold">🛒 Feature: Cart Redesign</span>
+            <span class="font-semibold">📌 <a href="https://github.com/abcd-corp/main-app/milestone/1">Feature: Cart Redesign</a></span>
             <span class="font-bold" style="color:var(--blue-50);">88%</span>
           </div>
           <div
@@ -524,7 +521,7 @@
         <!-- Feature B -->
         <div>
           <div class="flex items-center justify-between mb-2">
-            <span class="font-semibold">🔐 Feature: Auth Overhaul</span>
+            <span class="font-semibold">📌 <a href="https://github.com/abcd-corp/main-app/milestone/2">Feature: Auth Overhaul</a></span>
             <span class="font-bold" style="color:var(--blue-50);">55%</span>
           </div>
           <div
@@ -545,7 +542,7 @@
         <!-- Feature C -->
         <div>
           <div class="flex items-center justify-between mb-2">
-            <span class="font-semibold">📊 Feature: Analytics Dashboard</span>
+            <span class="font-semibold">📌 <a href="https://github.com/abcd-corp/main-app/milestone/3">Feature: Analytics Dashboard</a></span>
             <span class="font-bold" style="color:var(--blue-50);">20%</span>
           </div>
           <div
@@ -570,26 +567,26 @@
     <div class="grid-stats">
       <div class="card text-center">
         <div style="font-size:2.2rem;font-weight:800;color:var(--gray-45);">14</div>
-        <div class="text-xs text-muted mt-1">マージ済み<br/>PRs Merged</div>
+        <div class="text-xs text-muted mt-1">マージ済みPR</div>
       </div>
       <div class="card text-center">
         <div style="font-size:2.2rem;font-weight:800;color:var(--gray-45);">6</div>
-        <div class="text-xs text-muted mt-1">レビュー待ち<br/>Awaiting Review</div>
+        <div class="text-xs text-muted mt-1">レビュー待ちPR</div>
       </div>
       <div class="card text-center">
         <div style="font-size:2.2rem;font-weight:800;color:var(--gray-45);">2</div>
-        <div class="text-xs text-muted mt-1">ブロッカー<br/>Blockers</div>
+        <div class="text-xs text-muted mt-1">フィードバック対応中PR</div>
       </div>
       <div class="card text-center">
         <div style="font-size:2.2rem;font-weight:800;color:var(--gray-45);">23</div>
-        <div class="text-xs text-muted mt-1">アクティブブランチ<br/>Active Branches</div>
+        <div class="text-xs text-muted mt-1">アクティブブランチ</div>
       </div>
     </div>
   </div>
 
-  <!-- ===== ACTION PLAN（Branch Mapより前に移動）===== -->
+  <!-- ===== ACTION PLAN ===== -->
   <div class="card">
-    <div class="section-label">🎯 アクションプラン / Action Plan</div>
+    <div class="section-label">🎯 アクションプラン</div>
     <div class="space-y-3">
 
       <!-- P1: 赤 / Critical -->
@@ -633,22 +630,22 @@
 
   <!-- ===== BRANCH MAP ===== -->
   <div class="card">
-    <div class="section-label">🌿 ブランチ状況マップ / Branch Status Map</div>
+    <div class="section-label">🌿 ブランチ状況マップ</div>
     <div class="overflow-x-auto">
       <table class="data-table">
-        <caption>ブランチ状況マップ / Branch Status Map</caption>
+        <caption>ブランチ状況マップ</caption>
         <thead>
           <tr>
-            <th scope="col">Branch</th>
-            <th scope="col">担当 / Author</th>
-            <th scope="col">ステータス / Status</th>
-            <th scope="col">最終更新 / Last Updated</th>
-            <th scope="col">アクション / Action</th>
+            <th scope="col">ブランチ</th>
+            <th scope="col">担当</th>
+            <th scope="col">ステータス</th>
+            <th scope="col">最終更新</th>
+            <th scope="col">アクション</th>
           </tr>
         </thead>
         <tbody>
           <tr>
-            <td class="font-mono text-xs" style="color:var(--blue-40);">feature/cart-ui-v2</td>
+            <td class="font-mono text-xs" style="color:var(--blue-40);"><a href="https://github.com/abcd-corp/main-app/tree/feature/cart-ui-v2">feature/cart-ui-v2</a></td>
             <td>
               <div class="flex items-center gap-2">
                 <span class="avatar avatar-blue">R</span>
@@ -660,7 +657,7 @@
             <td class="text-xs text-muted">—</td>
           </tr>
           <tr>
-            <td class="font-mono text-xs" style="color:var(--blue-40);">feature/auth-jwt</td>
+            <td class="font-mono text-xs" style="color:var(--blue-40);"><a href="https://github.com/abcd-corp/main-app/tree/feature/auth-jwt">feature/auth-jwt</a></td>
             <td>
               <div class="flex items-center gap-2">
                 <span class="avatar avatar-yellow">N</span>
@@ -672,7 +669,7 @@
             <td class="text-xs" style="color:var(--yellow-40);">→ レビュー担当を割り当て</td>
           </tr>
           <tr>
-            <td class="font-mono text-xs" style="color:var(--blue-40);">feature/auth-refresh-token</td>
+            <td class="font-mono text-xs" style="color:var(--blue-40);"><a href="https://github.com/abcd-corp/main-app/tree/feature/auth-refresh-token">feature/auth-refresh-token</a></td>
             <td>
               <div class="flex items-center gap-2">
                 <span class="avatar avatar-green">T</span>
@@ -684,7 +681,7 @@
             <td class="text-xs" style="color:var(--red-35);">⚠️ 依存関係 conflict あり</td>
           </tr>
           <tr>
-            <td class="font-mono text-xs" style="color:var(--blue-40);">feature/analytics-charts</td>
+            <td class="font-mono text-xs" style="color:var(--blue-40);"><a href="https://github.com/abcd-corp/main-app/tree/feature/analytics-charts">feature/analytics-charts</a></td>
             <td>
               <div class="flex items-center gap-2">
                 <span class="avatar avatar-gray">M</span>
@@ -696,7 +693,7 @@
             <td class="text-xs text-muted">—</td>
           </tr>
           <tr>
-            <td class="font-mono text-xs" style="color:var(--blue-40);">feature/payment-refactor</td>
+            <td class="font-mono text-xs" style="color:var(--blue-40);"><a href="https://github.com/abcd-corp/main-app/tree/feature/payment-refactor">feature/payment-refactor</a></td>
             <td>
               <div class="flex items-center gap-2">
                 <span class="avatar avatar-purple">S</span>
@@ -717,17 +714,17 @@
 
     <!-- Hero of the Week -->
     <div class="card">
-      <div class="section-label">🏆 ヒーロー / Hero of the Period</div>
+      <div class="section-label">🏆 今回のヒーロー</div>
       <div class="flex flex-col items-center text-center mb-3">
         <div class="hero-avatar-wrap mb-3">
           <div class="hero-avatar">R</div>
           <span class="flame" role="img" aria-label="注目">🔥</span>
         </div>
         <div class="font-bold" style="font-size:17px;">Ravi Kumar さん</div>
-        <div class="text-xs text-muted mt-1">@ravi-kumar san · India 🇮🇳</div>
         <div class="flex flex-wrap justify-center gap-2 mt-3">
           <span class="badge badge-warning">🥇 5 PRs merged</span>
           <span class="badge badge-success">💬 12 reviews</span>
+          <span class="badge badge-info">✅ 3 issues closed</span>
           <span class="badge badge-info">⚡ 最速マージ</span>
         </div>
         <div class="mt-3 italic text-secondary text-sm" style="background:var(--gray-95);border:1px solid var(--gray-90);border-radius:8px;padding:10px 12px;">
@@ -739,7 +736,7 @@
       </div>
 
       <div class="divider"></div>
-      <div class="text-xs font-bold text-secondary mb-2" style="letter-spacing:0.06em;text-transform:uppercase;">コントリビューター</div>
+      <div class="text-xs font-bold text-secondary mb-2" style="letter-spacing:0.06em;text-transform:uppercase;">貢献者の皆さん</div>
       <div class="space-y-3">
         <div class="flex items-center gap-3">
           <span class="text-xs text-muted font-bold" style="width:16px;">2</span>
@@ -767,7 +764,7 @@
 
       <!-- Motivational message -->
       <div class="card">
-        <div class="section-label">💬 メッセージ / Team Message</div>
+        <div class="section-label">💬 チームメッセージ</div>
         <p class="font-semibold" style="color:var(--gray-15);">🚀 スプリントの折り返し地点！</p>
         <p class="text-secondary text-sm mt-2" style="line-height:1.7;">
           Cart Redesign はほぼ完成、素晴らしい！Auth Overhaul は少し山場ですが、一つひとつのブロッカーを丁寧に解消すれば必ず越えられます。今週もチーム全員で進めていきましょう。
@@ -780,7 +777,7 @@
 
       <!-- Git tip of the week -->
       <div class="card">
-        <div class="section-label">💡 Git Tips / Git Tip of the Period</div>
+        <div class="section-label">💡 お役立ち情報</div>
         <div class="flex items-start gap-3 mb-3">
           <div style="width:36px;height:36px;border-radius:8px;background:var(--green-95);border:1px solid var(--green-85);display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0;">🌿</div>
           <div>
@@ -809,11 +806,10 @@
   <div class="card">
     <div class="flex flex-col gap-2" style="align-items:center;">
       <div class="flex flex-wrap items-center justify-between gap-3 w-full footer-text">
-        <span>⚡ XXX Project Report &nbsp;·&nbsp; 自動生成 / Auto-generated by GitHub Actions</span>
+        <span>⚡ XXX Project Report &nbsp;·&nbsp; AIによる自動生成</span>
         <div class="flex flex-wrap gap-4">
-          <a href="#">📄 フルレポート / Full Report</a>
           <a href="#">🔗 GitHub Repository</a>
-          <a href="#">📊 過去のレポート / Past Reports</a>
+          <a href="#">📊 過去のレポート</a>
         </div>
         <span>Generated: Mon Apr 14, 2026 08:00 JST</span>
       </div>

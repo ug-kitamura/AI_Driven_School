@@ -215,18 +215,19 @@
        TYPOGRAPHY UTILITIES
     ============================================================ */
     .section-label {
-      font-size: 11px;
+      font-size: 14px;
       font-weight: 700;
-      letter-spacing: 0.1em;
-      text-transform: uppercase;
-      color: var(--gray-40);
+      color: var(--gray-20);
       margin-bottom: 14px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
     }
 
     .text-xs     { font-size: 11px; }
     .text-sm     { font-size: 12px; }
-    .text-muted  { color: var(--gray-50); }
-    .text-secondary { color: var(--gray-40); }
+    .text-muted  { color: var(--gray-40); }
+    .text-secondary { color: var(--gray-35); }
     .font-bold   { font-weight: 700; }
     .font-semibold { font-weight: 600; }
     .italic      { font-style: italic; }
@@ -463,17 +464,14 @@
         </div>
       </div>
       <div class="flex flex-wrap gap-2">
-        <span class="badge badge-neutral">✅ 自動生成 / Auto-generated</span>
-        <span class="badge badge-neutral">📅 毎週月曜 08:00 JST</span>
-        <span class="badge badge-neutral">🌐 日本語 / English</span>
+        <span class="badge badge-neutral">📅 {{ generated_at }}</span>
       </div>
     </div>
 
     <!-- Health bar -->
     <div class="flex items-center gap-3 mt-3">
       <div class="shrink-0 text-sm text-secondary" style="width:140px;">
-        プロジェクト健全度<br/>
-        <span class="text-xs text-muted">Project Health</span>
+        プロジェクト健全度
       </div>
       <div
         class="progress-track flex-1"
@@ -494,7 +492,7 @@
 
     <!-- Sprint progress -->
     <div class="card">
-      <div class="section-label">📊 スプリント進捗 / Sprint Progress</div>
+      <div class="section-label">📊 マイルストーン進捗</div>
       <div class="space-y-3">
         {{ sprint_items }}
       </div>
@@ -502,21 +500,21 @@
 
     <!-- Stat cards -->
     <div class="grid-stats">
-      <div class="card text-center">
-        <div style="font-size:2.2rem;font-weight:800;color:var(--gray-45);">{{ prs_merged }}</div>
-        <div class="text-xs text-muted mt-1">マージ済み<br/>PRs Merged</div>
+      <div class="card text-center" style="display:flex;flex-direction:column;align-items:center;justify-content:center;">
+        <div style="font-size:2.2rem;font-weight:800;color:var(--gray-35);">{{ prs_merged }}</div>
+        <div class="text-xs text-muted mt-1" style="font-weight:500;">マージ済みPR</div>
       </div>
-      <div class="card text-center">
-        <div style="font-size:2.2rem;font-weight:800;color:var(--gray-45);">{{ awaiting_review }}</div>
-        <div class="text-xs text-muted mt-1">レビュー待ち<br/>Awaiting Review</div>
+      <div class="card text-center" style="display:flex;flex-direction:column;align-items:center;justify-content:center;">
+        <div style="font-size:2.2rem;font-weight:800;color:var(--gray-35);">{{ awaiting_review }}</div>
+        <div class="text-xs text-muted mt-1" style="font-weight:500;">レビュー待ちPR</div>
       </div>
-      <div class="card text-center">
-        <div style="font-size:2.2rem;font-weight:800;color:var(--gray-45);">{{ blockers }}</div>
-        <div class="text-xs text-muted mt-1">ブロッカー<br/>Blockers</div>
+      <div class="card text-center" style="display:flex;flex-direction:column;align-items:center;justify-content:center;">
+        <div style="font-size:2.2rem;font-weight:800;color:var(--gray-35);">{{ blockers }}</div>
+        <div class="text-xs text-muted mt-1" style="font-weight:500;">フィードバック対応中PR</div>
       </div>
-      <div class="card text-center">
-        <div style="font-size:2.2rem;font-weight:800;color:var(--gray-45);">{{ active_branches }}</div>
-        <div class="text-xs text-muted mt-1">アクティブブランチ<br/>Active Branches</div>
+      <div class="card text-center" style="display:flex;flex-direction:column;align-items:center;justify-content:center;">
+        <div style="font-size:2.2rem;font-weight:800;color:var(--gray-35);">{{ active_branches }}</div>
+        <div class="text-xs text-muted mt-1" style="font-weight:500;">アクティブブランチ</div>
       </div>
     </div>
   </div>
@@ -524,25 +522,29 @@
   <!-- ===== ACTION PLAN ===== -->
   <!-- Claude が {{ action_plan_items }} を埋める -->
   <div class="card" id="action-plan">
-    <div class="section-label">🎯 アクションプラン / Action Plan</div>
+    <div class="section-label">🎯 アクションプラン</div>
     <div class="space-y-3">
       {{ action_plan_items }}
     </div>
   </div>
 
   <!-- ===== BRANCH MAP ===== -->
+  <!-- {{ branch_map_note }} : オープンPRあり時は空文字、なし時は「オープン PR なし — 直近マージ済みブランチを表示」を出力 -->
   <div class="card">
-    <div class="section-label">🌿 ブランチ状況マップ / Branch Status Map</div>
+    <div class="section-label">🌿 ブランチ状況マップ</div>
+    {{ branch_map_note }}
     <div class="overflow-x-auto">
       <table class="data-table">
-        <caption>ブランチ状況マップ / Branch Status Map</caption>
+        <caption>ブランチ状況マップ</caption>
         <thead>
           <tr>
-            <th scope="col">Branch</th>
-            <th scope="col">担当 / Author</th>
-            <th scope="col">ステータス / Status</th>
-            <th scope="col">最終更新 / Last Updated</th>
-            <th scope="col">アクション / Action</th>
+            <th scope="col">ブランチ</th>
+            <th scope="col">担当</th>
+            <th scope="col">ステータス</th>
+            <!-- オープンPRあり: 最終更新 / なし(マージ済み表示): マージ日時 -->
+            <th scope="col">{{ branch_col_date }}</th>
+            <!-- オープンPRあり: アクション / なし(マージ済み表示): PR -->
+            <th scope="col">{{ branch_col_link }}</th>
           </tr>
         </thead>
         <tbody>
@@ -557,18 +559,16 @@
 
     <!-- Hero of the Week -->
     <div class="card" id="hero">
-      <div class="section-label">🏆 ヒーロー / Hero of the Period</div>
+      <div class="section-label">🏆 今回のヒーロー</div>
       <div class="flex flex-col items-center text-center mb-3">
         <div class="hero-avatar-wrap mb-3">
           <div class="hero-avatar">{{ hero_initial }}</div>
           <span class="flame" role="img" aria-label="注目">🔥</span>
         </div>
         <div class="font-bold" style="font-size:17px;">{{ hero_name }}</div>
-        <div class="text-xs text-muted mt-1">{{ hero_handle }}</div>
+        <!-- {{ hero_badges }}: 値が0より大きい指標のバッジのみ出力。prs_merged / reviews_submitted / issues_closed / achievement -->
         <div class="flex flex-wrap justify-center gap-2 mt-3">
-          <span class="badge badge-warning">🥇 {{ hero_prs_merged }} PRs merged</span>
-          <span class="badge badge-success">💬 {{ hero_reviews }} reviews</span>
-          <span class="badge badge-info">{{ hero_achievement }}</span>
+          {{ hero_badges }}
         </div>
         <!-- Claude が {{ hero_comment }} を埋める -->
         <div class="mt-3 italic text-secondary text-sm" style="background:var(--gray-95);border:1px solid var(--gray-90);border-radius:8px;padding:10px 12px;">
@@ -577,7 +577,7 @@
       </div>
 
       <div class="divider"></div>
-      <div class="text-xs font-bold text-secondary mb-2" style="letter-spacing:0.06em;text-transform:uppercase;">コントリビューター</div>
+      <div class="text-xs font-bold text-secondary mb-2" style="letter-spacing:0.06em;text-transform:uppercase;">貢献者の皆さん</div>
       <div class="space-y-3">
         {{ contributor_rows }}
       </div>
@@ -589,14 +589,14 @@
       <!-- Team message -->
       <!-- Claude が {{ team_message }} を埋める -->
       <div class="card" id="team-message">
-        <div class="section-label">💬 メッセージ / Team Message</div>
+        <div class="section-label">💬 チームメッセージ</div>
         {{ team_message }}
       </div>
 
       <!-- Tips of the week -->
       <!-- Claude が {{ tips_content }} を埋める -->
       <div class="card">
-        <div class="section-label">💡 Tips / Tips of the Period</div>
+        <div class="section-label">💡 お役立ち情報</div>
         {{ tips_content }}
       </div>
 
@@ -607,11 +607,10 @@
   <div class="card" id="footer">
     <div class="flex flex-col gap-2" style="align-items:center;">
       <div class="flex flex-wrap items-center justify-between gap-3 w-full footer-text">
-        <span>⚡ {{ project_name }} Report &nbsp;·&nbsp; 自動生成 / Auto-generated by GitHub Actions</span>
+        <span>⚡ {{ project_name }} Report &nbsp;·&nbsp; AIによる自動生成</span>
         <div class="flex flex-wrap gap-4">
-          <a href="{{ report_url }}">📄 フルレポート / Full Report</a>
           <a href="{{ repo_url }}">🔗 GitHub Repository</a>
-          <a href="{{ past_reports_url }}">📊 過去のレポート / Past Reports</a>
+          <a href="{{ past_reports_url }}">📊 過去のレポート</a>
         </div>
         <span>Generated: {{ generated_at }}</span>
       </div>

@@ -30,6 +30,16 @@
       }
     }
   </script>
+  <style>
+    .branch-route-diagram .mermaid svg { height: auto; }
+    .branch-route-diagram .mermaid svg path { stroke-width: 2 !important; }
+    .branch-route-diagram .mermaid svg .commit { stroke-width: 1.5 !important; }
+    .branch-route-diagram .mermaid svg text { font-size: 14px !important; }
+    .branch-route-diagram .mermaid svg .tag-label-bkg + text,
+    .branch-route-diagram .mermaid svg text.tag-label { font-size: 12px !important; }
+    .branch-route-diagram .mermaid { display: flex; justify-content: center; }
+    .branch-route-diagram .mermaid svg { margin: 0 auto; }
+  </style>
 </head>
 <body class="bg-slate-100 text-slate-900 antialiased leading-relaxed font-sans">
 <div class="max-w-[960px] mx-auto px-4 py-6 flex flex-col gap-4">
@@ -38,7 +48,7 @@
   <div class="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm">
     <div class="flex gap-4 items-start">
       <div class="w-28 h-28 rounded-full flex items-center justify-center flex-shrink-0 overflow-hidden" title="Comitora">
-        <img src="{{ comitora_logo_data_uri }}" alt="Comitora" class="w-full h-full object-contain object-center" width="112" height="112" />
+        <img src="{{ comitora_logo_data_uri }}" alt="Comitora" width="112" height="112" />
       </div>
       <div class="flex min-w-0 flex-1 flex-col gap-4">
         <div class="flex flex-wrap items-start justify-between gap-3">
@@ -142,6 +152,7 @@
       ブランチ状況マップ
     </div>
     <div class="text-xs text-slate-500 mb-4">{{ branch_map_note }}</div>
+
     <div class="overflow-x-auto">
       <table class="w-full text-sm border-collapse">
         <thead>
@@ -157,6 +168,19 @@
           {{ branch_rows }}
         </tbody>
       </table>
+    </div>
+  </div>
+
+  <!-- ===== BRANCH ROUTE DIAGRAM (Mermaid gitGraph) ===== -->
+  <div class="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm branch-route-diagram">
+    <div class="flex items-center gap-2 text-lg font-bold text-slate-700 mb-4">
+      <i data-lucide="git-fork" class="w-4 h-4"></i>
+      ブランチ路線図
+    </div>
+    <div class="overflow-x-auto">
+      <pre class="mermaid bg-white text-sm">
+{{ branch_graph }}
+      </pre>
     </div>
   </div>
 
@@ -240,5 +264,9 @@
 </div>
 <script src="https://unpkg.com/lucide@latest"></script>
 <script>lucide.createIcons();</script>
+<script type="module">
+  import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
+  mermaid.initialize({ startOnLoad: true, securityLevel: 'loose', theme: 'base' });
+</script>
 </body>
 </html>

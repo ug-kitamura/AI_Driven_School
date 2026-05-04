@@ -36,35 +36,37 @@
 
   <!-- ===== HEADER ===== -->
   <div class="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm">
-    <div class="flex flex-wrap items-center justify-between gap-3">
-      <div class="flex items-center gap-3">
-        <div class="w-12 h-12 rounded-xl bg-custom-blue-lt flex items-center justify-center flex-shrink-0">
-          <i data-lucide="zap" class="w-6 h-6 text-custom-blue"></i>
-        </div>
-        <div>
-          <div class="text-3xl font-black text-slate-900">Commit and Track Report</div>
-          <div class="text-sm text-slate-500 mt-0.5">
-            直近5日間 (2026-04-28 ～ 2026-05-03) &nbsp;·&nbsp;
-            <a href="https://github.com/ug-kitamura/AI_Driven_School" class="font-mono text-custom-blue hover:underline">ug-kitamura/AI_Driven_School</a>
+    <div class="flex gap-4 items-start">
+      <div class="w-28 h-28 rounded-full flex items-center justify-center flex-shrink-0 overflow-hidden" title="Comitora">
+        <img src="../../../../comitora.png" alt="Comitora" width="112" height="112" />
+      </div>
+      <div class="flex min-w-0 flex-1 flex-col gap-4">
+        <div class="flex flex-wrap items-start justify-between gap-3">
+          <div class="min-w-0">
+            <div class="text-4xl font-black text-slate-900 leading-tight">Commit and Track Report</div>
+            <div class="text-sm text-slate-500 mt-0.5">
+              直近5日間 (2026-04-28 ～ 2026-05-03) &nbsp;·&nbsp;
+              <a href="https://github.com/ug-kitamura/AI_Driven_School" class="font-mono text-custom-blue hover:underline">ug-kitamura/AI_Driven_School</a>
+            </div>
           </div>
+          <span class="inline-flex items-center gap-1.5 bg-slate-100 text-slate-500 border border-slate-200 rounded-full px-3 py-1 text-xs font-medium flex-shrink-0">
+            <i data-lucide="calendar" class="w-3.5 h-3.5"></i>
+            2026/05/03 23:59
+          </span>
+        </div>
+
+        <!-- Health bar（タイトル・期間と左端揃え） -->
+        <div class="flex flex-wrap items-center gap-3">
+          <div class="text-sm text-slate-600 flex-shrink-0 w-36">プロジェクト健全度</div>
+          <div class="flex-1 min-w-[8rem] h-2.5 bg-slate-200 rounded-full overflow-hidden"
+               role="progressbar" aria-valuenow="89" aria-valuemin="0" aria-valuemax="100"
+               aria-label="プロジェクト健全度 89%">
+            <div class="h-full rounded-full transition-all duration-700" style="width:89%;background:#007BC0;"></div>
+          </div>
+          <div class="font-bold text-sm w-10 text-right flex-shrink-0" style="color:#007BC0;">89%</div>
+          <i data-lucide="circle-check" class="w-5 h-5 flex-shrink-0" style="color:#007BC0;"></i>
         </div>
       </div>
-      <span class="inline-flex items-center gap-1.5 bg-slate-100 text-slate-500 border border-slate-200 rounded-full px-3 py-1 text-xs font-medium">
-        <i data-lucide="calendar" class="w-3.5 h-3.5"></i>
-        2026/05/03 23:59
-      </span>
-    </div>
-
-    <!-- Health bar -->
-    <div class="flex items-center gap-3 mt-4">
-      <div class="text-sm text-slate-600 flex-shrink-0 w-36">プロジェクト健全度</div>
-      <div class="flex-1 h-2.5 bg-slate-200 rounded-full overflow-hidden"
-           role="progressbar" aria-valuenow="89" aria-valuemin="0" aria-valuemax="100"
-           aria-label="プロジェクト健全度 89%">
-        <div class="h-full rounded-full transition-all duration-700" style="width:89%;background:#007BC0;"></div>
-      </div>
-      <div class="font-bold text-sm w-10 text-right" style="color:#007BC0;">89%</div>
-      <i data-lucide="circle-check" class="w-5 h-5 flex-shrink-0" style="color:#007BC0;"></i>
     </div>
   </div>
 
@@ -518,13 +520,12 @@
       </span>
       <div class="flex flex-wrap gap-4">
         <a href="https://github.com/ug-kitamura/AI_Driven_School" class="flex items-center gap-1.5 hover:text-custom-blue transition-colors">
-          <i data-lucide="github" class="w-3.5 h-3.5"></i>GitHub Repository
+          <i data-lucide="house" class="w-3.5 h-3.5"></i>GitHub Repository
         </a>
         <a href="#" class="flex items-center gap-1.5 hover:text-custom-blue transition-colors">
           <i data-lucide="history" class="w-3.5 h-3.5"></i>過去のレポート
         </a>
       </div>
-      <span>Generated: 2026/05/03 23:59</span>
     </div>
   </div>
 

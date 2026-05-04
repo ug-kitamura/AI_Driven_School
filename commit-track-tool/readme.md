@@ -1,6 +1,6 @@
 # Commit & Track tool（コミとら）
 
-![コミとら](comitora.png)
+![コミとら](assets/comitora.png)
 
 GitHubのコミット履歴をAIで分析し、レポートをSlackに自動投稿するツール。
 

@@ -17,7 +17,7 @@ from comitora_base import ComitoraBase
 
 
 class ReportNotifier(ComitoraBase):
-	"""週次レポートを外部サービスに通知する。"""
+	"""レポートを外部サービスに通知する。"""
 
 	@classmethod
 	def add_args(cls, parser: argparse.ArgumentParser) -> None:

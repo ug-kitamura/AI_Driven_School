@@ -1,9 +1,9 @@
 """
-main.py - Comitora 週次レポート生成オーケストレータ
+main.py - Comitora レポート生成オーケストレータ
 
 処理フロー:
 	DataCollector   → GitHub データ取得・集計   (output/report_data.json)
-	ReportGenerator → Claude でレポート生成・評価 (output/weekly_report.html)
+	ReportGenerator → Claude でレポート生成・評価 (output/comitora-report.html)
 	ReportNotifier  → レポート通知              (Slack / メール など)
 
 使い方（commit-track-tool/ から実行）:
@@ -36,7 +36,7 @@ from comitora_report_generator import ReportGenerator
 
 def build_parser() -> argparse.ArgumentParser:
 	parser = argparse.ArgumentParser(
-		description="Comitora 週次レポートを生成する",
+		description="Comitora レポートを生成する",
 		formatter_class=argparse.RawDescriptionHelpFormatter,
 	)
 	DataCollector.add_common_args(parser)

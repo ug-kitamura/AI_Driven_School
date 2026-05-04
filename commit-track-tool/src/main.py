@@ -2,27 +2,26 @@
 main.py - Comitora レポート生成オーケストレータ
 
 処理フロー:
-	DataCollector   → GitHub データ取得・集計   (output/report_data.json)
-	ReportGenerator → レポート生成 → レビュー → ロゴ埋め込み → バリデーション（--skip-validation で省略）
-	                  (comitora-evaluate.md → comitora-report.html、既定で validation_result.json)
-	ReportNotifier  → レポート通知              (Slack / メール など)
+	DataCollector   → GitHub データ取得・集計 (output/report_data.json)
+	ReportGenerator → レポート生成 → レビュー → ロゴ埋め込み → バリデーション
+	ReportNotifier  → レポート通知 (Slack / メール など)
 
 使い方（commit-track-tool/ から実行）:
-	python src/main.py --owner your-org --repo your-repo
+	uv run python src/main.py --owner your-org --repo your-repo
 
 オプション:
-	--owner          GitHubオーナー名（必須）
-	--repo           リポジトリ名（必須）
-	--days           直近何日分を対象とするか（デフォルト: 7）
-	--active-days    アクティブブランチ判定日数（デフォルト: 30）
-	--concurrency    ファイル取得並列数（デフォルト: 5）
-	--no-gitignore   .gitignore フィルタを無効化
-	--token          GitHub APIトークン（省略時は環境変数 GH_TOKEN）
-	--anthropic-key  Anthropic APIキー（省略時は環境変数 ANTHROPIC_API_KEY）
-	--skip-claude    Claude API をスキップ（データ取得のみ確認したい場合）
+	--owner            GitHubオーナー名（必須）
+	--repo             リポジトリ名（必須）
+	--days             直近何日分を対象とするか（デフォルト: 7）
+	--active-days      アクティブブランチ判定日数（デフォルト: 30）
+	--concurrency      ファイル取得並列数（デフォルト: 5）
+	--no-gitignore     .gitignore フィルタを無効化
+	--token            GitHub APIトークン（省略時は環境変数 GH_TOKEN）
+	--anthropic-key    Anthropic APIキー（省略時は環境変数 ANTHROPIC_API_KEY）
+	--skip-claude      Claude API をスキップ（データ取得のみ確認したい場合）
+	--skip-review      レポートのレビューをスキップ（既定では実行）
 	--skip-validation  HTML バリデーションをスキップ（既定では実行、失敗時は中断）
-	--skip-review    スキル Step 4 のレビュー（comitora-evaluate.md）をスキップ
-	--slack-webhook  Slack Incoming Webhook URL
+	--slack-webhook    Slack Incoming Webhook URL
 
 環境変数:
 	GH_TOKEN           GitHub APIトークン（--token 未指定時のフォールバック）

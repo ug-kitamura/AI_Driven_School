@@ -12,13 +12,13 @@ comitora_report_generator.py - Claude によるレポート生成クラス
 
 出力ファイル:
 	output/comitora-report.html   生成されたレポートHTML
-	output/comitora-evaluate.md   --skip-review 時以外（レビュー結果）
-	output/validation_result.json --skip-validation 時以外（バリデーション結果）
+	output/comitora-evaluate.md   レビュー結果（--skip-review 時以外に生成）
+	output/validation_result.json バリデーション結果（--skip-validation 時以外に生成）
 
 単体実行（commit-track-tool/ から実行、DataCollector の後に実行すること）:
-	python src/comitora_report_generator.py --owner your-org --repo your-repo
-	python src/comitora_report_generator.py --owner ... --repo ... --skip-review
-	python src/comitora_report_generator.py --owner ... --repo ... --skip-validation
+	uv run python src/comitora_report_generator.py --owner your-org --repo your-repo
+	uv run python src/comitora_report_generator.py --owner ... --repo ... --skip-review
+	uv run python src/comitora_report_generator.py --owner ... --repo ... --skip-validation
 """
 
 import os
@@ -35,7 +35,7 @@ from comitora_base import ComitoraBase
 
 # AIモデルと最大トークン
 LLM_MODEL         = "claude-sonnet-4-6"
-MAX_TOKENS        = 16000
+MAX_TOKENS        = 32768
 MAX_TOKENS_REVIEW = 8192
 
 # スキルの定義ファイル
@@ -150,8 +150,8 @@ class ReportGenerator(ComitoraBase):
 			f"```json\n{json.dumps(data_for_claude, ensure_ascii=False, indent=2)}\n```"
 		)
 
-		client   = anthropic.Anthropic(api_key=api_key)
-		response = client.messages.create(
+		client = anthropic.Anthropic(api_key=api_key)
+		with client.messages.stream(
 			model      = LLM_MODEL,
 			max_tokens = MAX_TOKENS,
 			system     = [
@@ -162,11 +162,11 @@ class ReportGenerator(ComitoraBase):
 				}
 			],
 			messages=[{"role": "user", "content": user_content}],
-		)
+		) as stream:
+			text     = stream.get_final_text()
+			response = stream.get_final_message()
 
 		self._print_usage(response.usage, "生成")
-
-		text = self._extract_text(response)
 		if not text:
 			print("❌ Claude からテキストレスポンスが得られませんでした", file=sys.stderr)
 			sys.exit(1)
@@ -204,8 +204,8 @@ class ReportGenerator(ComitoraBase):
 			f"{html}"
 		)
 
-		client   = anthropic.Anthropic(api_key=api_key)
-		response = client.messages.create(
+		client = anthropic.Anthropic(api_key=api_key)
+		with client.messages.stream(
 			model      = LLM_MODEL,
 			max_tokens = MAX_TOKENS_REVIEW,
 			system     = [
@@ -216,11 +216,13 @@ class ReportGenerator(ComitoraBase):
 				}
 			],
 			messages=[{"role": "user", "content": user_content}],
-		)
+		) as stream:
+			text     = stream.get_final_text()
+			response = stream.get_final_message()
 
 		self._print_usage(response.usage, "レビュー")
 
-		text = self._extract_text(response) or ""
+		text = text or ""
 		if not text.strip():
 			print("❌ レビュー結果が空です", file=sys.stderr)
 			sys.exit(1)
@@ -327,14 +329,6 @@ class ReportGenerator(ComitoraBase):
 	# ------------------------------------------------------------------
 	# 内部ヘルパー
 	# ------------------------------------------------------------------
-
-	@staticmethod
-	def _extract_text(response) -> str:
-		"""レスポンスの content ブロックから最初の text を安全に取り出す。"""
-		for block in response.content:
-			if getattr(block, "type", None) == "text":
-				return block.text
-		return ""
 
 	@staticmethod
 	def _print_usage(usage, label: str) -> None:

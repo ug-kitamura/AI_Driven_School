@@ -11,7 +11,7 @@ comitora_data_collector.py - GitHub データ取得・集計クラス
 	output/report_data.json  ReportGenerator に渡す集計済みデータ
 
 単体実行（commit-track-tool/ から実行）:
-	python src/comitora_data_collector.py --owner your-org --repo your-repo
+	uv run python src/comitora_data_collector.py --owner your-org --repo your-repo
 """
 
 import os

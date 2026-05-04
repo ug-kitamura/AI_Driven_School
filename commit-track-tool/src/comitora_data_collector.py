@@ -5,7 +5,7 @@ comitora_data_collector.py - GitHub データ取得・集計クラス
 	Step 1: コミット取得（ブランチ一覧 → コミット → 変更ファイル）
 	Step 2: PR 取得（マージ済み / オープン / レビュー実績）
 	Step 3: Issue・Milestone 取得
-	Step 4: 集計（貢献スコア・進捗度・ヒーロー算出）
+	Step 4: 集計（貢献スコア・プロジェクト健全度・ヒーロー算出）
 
 出力ファイル:
 	output/report_data.json  ReportGenerator に渡す集計済みデータ
@@ -178,10 +178,18 @@ class DataCollector(ComitoraBase):
 		merged_prs, merged_activity = client.get_merged_prs(since, until, active_since)
 		open_prs,   open_activity   = client.get_open_prs()
 		all_pr_numbers = [p["number"] for p in merged_prs] + [p["number"] for p in open_prs]
-		review_activity = client.get_reviews(all_pr_numbers, since, until)
+		review_activity, pr_reviews_in_period = client.get_reviews(all_pr_numbers, since, until)
 
 		total_reviews = sum(a["reviews_submitted"] for a in review_activity.values())
+		frequent_review_threshold = 1
+		frequent_review_pr_count = sum(
+			1 for _n, cnt in pr_reviews_in_period.items() if cnt >= frequent_review_threshold
+		)
 		print(f"期間内レビュー数: {total_reviews}", file=sys.stderr)
+		print(
+			f"活発レビューPR数（各PR {frequent_review_threshold}件以上）: {frequent_review_pr_count}",
+			file=sys.stderr,
+		)
 
 		awaiting = sum(1 for p in open_prs if p["review_status"] == "awaiting_review")
 		feedback = sum(1 for p in open_prs if p["review_status"] == "feedback_in_progress")
@@ -202,6 +210,8 @@ class DataCollector(ComitoraBase):
 				"feedback_in_progress_count": feedback,
 				"approved_count"            : approved,
 				"draft_count"               : draft,
+				"period_review_count"       : total_reviews,
+				"frequent_review_pr_count"  : frequent_review_pr_count,
 			},
 		}
 		self.REPORT_DATA["pr"] = prs_data
@@ -250,7 +260,8 @@ class DataCollector(ComitoraBase):
 		- コミット数・ユニークファイル数を人ごとに集計
 		- 貢献スコア = コミット数×1 + マージPR数×3 + レビュー数×2 + クローズIssue数x1
 		- スコア順にランク付けし、1位をヒーローとして設定
-		- 進捗度 = マージ済みPR / (マージ済みPR + オープンPR) × 100
+		- プロジェクト健全度: PR・Issue・コミット・ブランチ・滞留 + 活発なレビューPR
+		- aggregate.health.pct に 0〜100 のプロジェクト健全度を格納する
 		"""
 		commit_count_by_author: dict[str, int] = {}
 		unique_files: set[str] = set()
@@ -310,22 +321,95 @@ class DataCollector(ComitoraBase):
 			c["rank"] = i
 
 		hero = contributors_ranked[0] if contributors_ranked else None
-		merged_count = self.REPORT_DATA["pr"]["summary"]["merged_count"]
-		open_count   = self.REPORT_DATA["pr"]["summary"]["open_count"]
-		total_prs    = merged_count + open_count
-		progress_pct = round(merged_count / total_prs * 100) if total_prs > 0 else 0
+		pr_sum     = self.REPORT_DATA["pr"]["summary"]
+		issue_sum  = self.REPORT_DATA["issue"]
+		branch_sum = self.REPORT_DATA["branch"]
+		health_pct, health_breakdown = self._flow_health_raw(
+			merged_count=pr_sum["merged_count"],
+			open_count=pr_sum["open_count"],
+			closed_count=issue_sum.get("closed_count", 0),
+			commit_count=len(self.REPORT_DATA["commit"]),
+			awaiting=pr_sum.get("awaiting_review_count", 0),
+			feedback=pr_sum.get("feedback_in_progress_count", 0),
+			open_issues=issue_sum.get("open_count", 0),
+			active_branches=len(branch_sum.get("active_branches") or []),
+			frequent_review_pr_count=pr_sum.get("frequent_review_pr_count", 0),
+		)
 
 		aggregate_data = {
-			"progress": progress_pct,
+			"health": {
+				"pct"       : health_pct,
+				"breakdown" : health_breakdown,
+			},
 			"contributors_ranked": contributors_ranked,
 			"hero": hero,
 		}
 		self.REPORT_DATA["aggregate"] = aggregate_data
 
-		print(f"進捗度: {progress_pct}%", file=sys.stderr)
+		print(f"プロジェクト健全度: {health_pct}% (raw {health_breakdown.get('raw_score')})", file=sys.stderr)
 		if hero:
 			print(f"ヒーロー: {hero['login']} (スコア: {hero['score']})", file=sys.stderr)
 
+	@staticmethod
+	def _flow_health_raw(
+		merged_count: int,
+		open_count: int,
+		closed_count: int,
+		commit_count: int,
+		awaiting: int,
+		feedback: int,
+		open_issues: int,
+		active_branches: int,
+		frequent_review_pr_count: int,
+	) -> tuple[int, dict]:
+		"""
+		フロー健全性: PR 滞留・オープン Issue・多すぎるアクティブブランチで減点し、
+		マージ比率・コミット活動・期間内 Issue クローズ・「活発なレビューが付いた PR 数」で加点する。
+		raw はおおよそ負値〜80 を想定し、線形に 0〜100 へスケールする。
+		活発レビュー PR: 対象期間内にその PR へ投稿されたレビューが 1 件以上。
+		"""
+		total_prs = merged_count + open_count
+		if total_prs > 0:
+			merge_ratio = merged_count / total_prs
+			pr_points = 40.0 * merge_ratio
+			pr_merge_ratio_pct = round(100.0 * merge_ratio, 1)
+		else:
+			pr_points = 20.0
+			pr_merge_ratio_pct = None
+
+		commit_pts = min(10.0, commit_count / 4.0)
+		close_pts = min(15.0, 5.0 * float(closed_count))
+		review_vitality_pts = min(15.0, 5.0 * float(frequent_review_pr_count))
+
+		pr_stall = min(20.0, 4.0 * awaiting + 5.0 * feedback)
+		issue_backlog = min(15.0, 0.5 * float(open_issues))
+		branch_penalty = min(10.0, 2.0 * max(0, active_branches - 3))
+
+		raw = (
+			pr_points
+			+ commit_pts
+			+ close_pts
+			+ review_vitality_pts
+			- pr_stall
+			- issue_backlog
+			- branch_penalty
+		)
+
+		health_pct = int(round(max(0.0, min(100.0, raw * 100.0 / 80.0))))
+
+		breakdown = {
+			"pr_flow_points"           : round(pr_points, 1),
+			"commit_activity_points"   : round(commit_pts, 1),
+			"issue_close_points"       : round(close_pts, 1),
+			"review_vitality_points"   : round(review_vitality_pts, 1),
+			"frequent_review_pr_count" : frequent_review_pr_count,
+			"stall_penalty"            : round(pr_stall, 1),
+			"open_issue_penalty"       : round(issue_backlog, 1),
+			"branch_penalty"           : round(branch_penalty, 1),
+			"raw_score"                : round(raw, 1),
+			"pr_merge_ratio_pct"       : pr_merge_ratio_pct,
+		}
+		return health_pct, breakdown
 
 	@staticmethod
 	def _merge_contributor_activity(*dicts: dict) -> dict:

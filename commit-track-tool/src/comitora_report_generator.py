@@ -12,13 +12,13 @@ comitora_report_generator.py - Claude によるレポート生成クラス
 
 出力ファイル:
 	output/comitora-report.html   生成されたレポートHTML
-	output/comitora-evaluate.md   --skip-review 時以外（レビュー結果）
-	output/validation_result.json --skip-validation 時以外（バリデーション結果）
+	output/comitora-evaluate.md   レビュー結果（--skip-review 時以外に生成）
+	output/validation_result.json バリデーション結果（--skip-validation 時以外に生成）
 
 単体実行（commit-track-tool/ から実行、DataCollector の後に実行すること）:
-	python src/comitora_report_generator.py --owner your-org --repo your-repo
-	python src/comitora_report_generator.py --owner ... --repo ... --skip-review
-	python src/comitora_report_generator.py --owner ... --repo ... --skip-validation
+	uv run python src/comitora_report_generator.py --owner your-org --repo your-repo
+	uv run python src/comitora_report_generator.py --owner ... --repo ... --skip-review
+	uv run python src/comitora_report_generator.py --owner ... --repo ... --skip-validation
 """
 
 import os

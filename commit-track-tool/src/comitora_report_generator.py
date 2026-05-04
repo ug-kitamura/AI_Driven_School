@@ -1,41 +1,50 @@
 """
-comitora_report_generator.py - Claude によるレポート生成・評価クラス
+comitora_report_generator.py - Claude によるレポート生成クラス
 
 処理内容:
 	- report_data.json を読み込み Claude でHTMLレポートを生成
-	- 生成HTMLをバリデーション
-	- 同じシステムプロンプト（Prompt Caching 再利用）でレポート品質を評価
+	- ロゴ PNG を base64 の data URI にし、Jinja2 で `{{ comitora_logo_data_uri }}` を埋め込む
+	- --validation 指定時のみ HTML をバリデーション（LLM 出力の取り違え検知用）
 
 入力ファイル:
 	output/report_data.json  DataCollector が生成した集計データ
 
 出力ファイル:
 	output/comitora-report.html   生成されたレポートHTML
-	output/validation_result.json バリデーション結果
-	output/evaluation_result.json 品質評価結果
+	output/validation_result.json --validation 時のみ（バリデーション結果）
 
 単体実行（commit-track-tool/ から実行、DataCollector の後に実行すること）:
 	python src/comitora_report_generator.py --owner your-org --repo your-repo
+	python src/comitora_report_generator.py --owner ... --repo ... --validation
 """
 
 import os
 import re
 import sys
 import json
+import base64
 import argparse
 from pathlib import Path
 from html.parser import HTMLParser
+from jinja2 import Environment, StrictUndefined
 from comitora_base import ComitoraBase
 
+
+# スキルの定義ファイル
 SKILL_PATH = Path(".claude/skills/commit-track/SKILL.md")
-# スキル同梱のテンプレート（API 呼び出し時にユーザメッセージへ埋め込む。CLI からパスは受け取らない）
+
+# スキル同梱のテンプレート（API 呼び出し時にユーザメッセージへ埋め込む）
 SKILL_BASE_HTML = Path(".claude/skills/commit-track/references/base.html")
 
+# commit-track-tool/ をカレントにしたときのロゴ候補
+COMMITORA_LOGO_CANDIDATES = (Path("assets/comitora.png"), Path("comitora.png"))
+
+# バリデーションに使用するセクションID
 REQUIRED_SECTION_IDS = ["action-plan", "hero", "team-message", "footer"]
 
 
 class ReportGenerator(ComitoraBase):
-	"""集計データから Claude でレポートを生成し品質を検証する。"""
+	"""集計データから Claude でレポート HTML を生成する（任意でバリデーション）。"""
 
 	@classmethod
 	def add_args(cls, parser: argparse.ArgumentParser) -> None:
@@ -50,6 +59,11 @@ class ReportGenerator(ComitoraBase):
 			action = "store_true",
 			help   = "Claude APIをスキップ（集計データの確認のみ）",
 		)
+		parser.add_argument(
+			"--validation",
+			action = "store_true",
+			help   = "生成後に HTML をバリデーションし validation_result.json を出力（失敗時は終了コード 1）",
+		)
 
 	def run(self) -> None:
 		aggregated = self.load_json("report_data.json")
@@ -60,43 +74,35 @@ class ReportGenerator(ComitoraBase):
 
 		system_content = self._build_system_content()
 
-		# Step 4: レポート生成
+		# レポート生成
 		self.print_section("Claude でレポートを生成中")
 		html = self._generate(aggregated, system_content)
+
+		# ロゴ画像埋め込み
+		self.print_section("ロゴ画像を base64 で埋め込み（Jinja2）")
+		html = self._inject_comitora_logo(html)
 		html_path = self.OUTPUT_DIR / "comitora-report.html"
 		html_path.write_text(html, encoding="utf-8")
 		print(f"  💾 {html_path} ({len(html):,} 文字)", file=sys.stderr)
 
-		# Step 5: バリデーション
-		self.print_section("HTML をバリデーション中")
-		validation = self._validate(html, aggregated)
-		self.save_json("validation_result.json", validation)
+		# バリデーション
+		if self.args.validation:
+			self.print_section("HTML をバリデーション中")
+			validation = self._validate(html, aggregated)
+			self.save_json("validation_result.json", validation)
 
-		if validation["issues"]:
-			print("  ❌ バリデーション失敗:", file=sys.stderr)
-			for issue in validation["issues"]:
-				print(f"    - {issue}", file=sys.stderr)
-			sys.exit(1)
+			if validation["issues"]:
+				print("  ❌ バリデーション失敗:", file=sys.stderr)
+				for issue in validation["issues"]:
+					print(f"    - {issue}", file=sys.stderr)
+				sys.exit(1)
 
-		for w in validation.get("warnings", []):
-			print(f"  ⚠️  {w}", file=sys.stderr)
-		print(f"  ✅ バリデーション通過 ({validation['html_length']:,} 文字)", file=sys.stderr)
-
-		# Step 6: 品質評価
-		self.print_section("サブエージェントで品質を評価中")
-		evaluation = self._evaluate(html, aggregated, system_content)
-		self.save_json("evaluation_result.json", evaluation)
-
-		parsed = evaluation.get("parsed", {})
-		if parsed.get("score"):
-			print(f"  品質スコア: {parsed['score']}/5", file=sys.stderr)
-			if parsed.get("data_accuracy"):
-				print(f"  データ精度: {parsed['data_accuracy']}", file=sys.stderr)
-			for imp in parsed.get("improvements", []):
-				print(f"  💡 {imp}", file=sys.stderr)
+			for w in validation.get("warnings", []):
+				print(f"  ⚠️  {w}", file=sys.stderr)
+			print(f"  ✅ バリデーション通過 ({validation['html_length']:,} 文字)", file=sys.stderr)
 
 	# ------------------------------------------------------------------
-	# システムプロンプト構築（生成・評価で共有 → Prompt Caching 再利用）
+	# システムプロンプト構築（生成で Prompt Caching 再利用）
 	# ------------------------------------------------------------------
 
 	def _build_system_content(self) -> str:
@@ -107,7 +113,7 @@ class ReportGenerator(ComitoraBase):
 		return self.load_text(SKILL_PATH)
 
 	# ------------------------------------------------------------------
-	# Step 4: Claude レポート生成
+	# Claude レポート生成
 	# ------------------------------------------------------------------
 
 	def _generate(self, aggregated: dict, system_content: str) -> str:
@@ -128,7 +134,8 @@ class ReportGenerator(ComitoraBase):
 
 		user_content = (
 			"システムプロンプトの commit-track スキルに従い、次のテンプレートと集計データからレポート HTML を生成してください。\n"
-			"プレースホルダーをすべて置換した完全な HTML のみを出力してください（説明文や ``` フェンスは不要）。\n\n"
+			"プレースホルダーをすべて置換した完全な HTML のみを出力してください（説明文や ``` フェンスは不要）。\n"
+			"ただし `{{ comitora_logo_data_uri }}` は **一切変更せず**、テンプレートと同じ文字列のまま出力に含めること（URL・相対パス・別の img に置換しない）。\n\n"
 			f"## テンプレート（スキル同梱 references/base.html）\n\n"
 			f"```html\n{base_content}\n```\n\n"
 			f"## 集計データ（report_data.json）\n\n"
@@ -162,7 +169,41 @@ class ReportGenerator(ComitoraBase):
 		return text
 
 	# ------------------------------------------------------------------
-	# Step 5: HTML バリデーション
+	# ロゴ data URI 埋め込み
+	# ------------------------------------------------------------------
+
+	@staticmethod
+	def _png_or_jpeg_data_uri(image_path: Path) -> str:
+		"""画像ファイルを data URI に変換する。"""
+		suffix = image_path.suffix.lower()
+		mime_type = "image/png" if suffix == ".png" else "image/jpeg"
+		with open(image_path, "rb") as f:
+			encoded = base64.b64encode(f.read()).decode("utf-8")
+		return f"data:{mime_type};base64,{encoded}"
+
+	def _resolve_comitora_logo_path(self) -> Path:
+		for candidate in COMMITORA_LOGO_CANDIDATES:
+			if candidate.is_file():
+				return candidate.resolve()
+		searched = ", ".join(str(p) for p in COMMITORA_LOGO_CANDIDATES)
+		print(f"❌ Comitora ロゴが見つかりません（次を確認: {searched}）", file=sys.stderr)
+		sys.exit(1)
+
+	def _inject_comitora_logo(self, html: str) -> str:
+		"""`{{ comitora_logo_data_uri }}` を Jinja2 で data URI に置換する。"""
+		logo_path = self._resolve_comitora_logo_path()
+		uri = self._png_or_jpeg_data_uri(logo_path)
+		env = Environment(undefined=StrictUndefined, autoescape=False)
+		try:
+			out = env.from_string(html).render(comitora_logo_data_uri=uri)
+		except Exception as e:
+			print(f"❌ Jinja2 レンダリング失敗（`{{{{ comitora_logo_data_uri }}}}` が Claude 出力に残っているか確認）: {e}", file=sys.stderr)
+			sys.exit(1)
+		print(f"  🖼️ ロゴ埋め込み: {logo_path.name} → data URI ({len(uri):,} 文字)", file=sys.stderr)
+		return out
+
+	# ------------------------------------------------------------------
+	# HTML バリデーション（--validation 時のみ）
 	# ------------------------------------------------------------------
 
 	def _validate(self, html: str, aggregated: dict) -> dict:
@@ -175,12 +216,10 @@ class ReportGenerator(ComitoraBase):
 		issues:   list[str] = []
 		warnings: list[str] = []
 
-		# 必須セクションID
 		for section_id in REQUIRED_SECTION_IDS:
 			if f'id="{section_id}"' not in html and f"id='{section_id}'" not in html:
 				warnings.append(f"セクション id='{section_id}' が見つかりません")
 
-		# HTML 構文チェック
 		if "<html" not in html.lower():
 			issues.append("HTMLタグがありません")
 		if "</body>" not in html.lower():
@@ -191,7 +230,6 @@ class ReportGenerator(ComitoraBase):
 		except Exception as e:
 			issues.append(f"HTMLパースエラー: {e}")
 
-		# 主要数値の転記チェック
 		pr_summary   = aggregated.get("pr", {}).get("summary", {})
 		merged_count = pr_summary.get("merged_count")
 		if merged_count is not None and str(merged_count) not in html:
@@ -207,69 +245,6 @@ class ReportGenerator(ComitoraBase):
 			"warnings"    : warnings,
 			"html_length" : len(html),
 			"validated_at": self.NOW_LOCAL.isoformat(),
-		}
-
-	# ------------------------------------------------------------------
-	# Step 6: 品質評価
-	# ------------------------------------------------------------------
-
-	def _evaluate(self, html: str, aggregated: dict, system_content: str) -> dict:
-		"""
-		同じシステムプロンプト（Prompt Caching 再利用）で品質を評価する。
-		SKILL.md のレビュー指示をそのまま利用する。
-		"""
-		try:
-			anthropic = self._import_anthropic()
-			api_key   = self._resolve_anthropic_key()
-		except SystemExit:
-			return {"skipped": True, "reason": "anthropic 未設定"}
-
-		stats     = aggregated.get("pr", {}).get("summary", {})
-		hero      = aggregated.get("aggregate", {}).get("hero")
-		hero_name = hero.get("login", "不明") if hero else "なし"
-
-		user_content = (
-			"SKILL.md のレビュー指示に従い、以下のレポートHTMLを評価してください。\n"
-			"JSONのみを返してください。説明文は不要です。\n\n"
-			f"## 参考データ\n"
-			f"- コミット数: {len(aggregated.get('commit', []))}\n"
-			f"- マージ済みPR: {stats.get('merged_count', 0)}\n"
-			f"- ブロッカー: {stats.get('feedback_in_progress_count', 0)}\n"
-			f"- クローズしたIssue: {aggregated.get('issue', {}).get('closed_count', 0)}\n"
-			f"- 対象期間のヒーロー: {hero_name}\n\n"
-			f"## レポートHTML（先頭 10,000 文字）\n\n"
-			f"{html[:10000]}"
-		)
-
-		client   = anthropic.Anthropic(api_key=api_key)
-		response = client.messages.create(
-			model      = "claude-sonnet-4-5",
-			max_tokens = 1024,
-			system     = [
-				{
-					"type"         : "text",
-					"text"         : system_content,
-					"cache_control": {"type": "ephemeral"},
-				}
-			],
-			messages=[{"role": "user", "content": user_content}],
-		)
-
-		self._print_usage(response.usage, "評価")
-
-		raw_text     = self._extract_text(response) or ""
-		evaluated_at = self.NOW_LOCAL.isoformat()
-
-		try:
-			json_match = re.search(r"\{.*\}", raw_text, re.DOTALL)
-			parsed     = json.loads(json_match.group()) if json_match else {}
-		except (json.JSONDecodeError, AttributeError):
-			parsed = {}
-
-		return {
-			"evaluated_at": evaluated_at,
-			"parsed"      : parsed,
-			"raw_response": raw_text,
 		}
 
 	# ------------------------------------------------------------------
@@ -317,6 +292,6 @@ class ReportGenerator(ComitoraBase):
 
 if __name__ == "__main__":
 	parser = ReportGenerator.build_parser(
-		"../output/report_data.json を読み込み Claude でレポートを生成・評価する"
+		"../output/report_data.json を読み込み Claude でレポートを生成する"
 	)
 	ReportGenerator(parser.parse_args()).run()

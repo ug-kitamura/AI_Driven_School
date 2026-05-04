@@ -3,7 +3,7 @@ main.py - Comitora レポート生成オーケストレータ
 
 処理フロー:
 	DataCollector   → GitHub データ取得・集計   (output/report_data.json)
-	ReportGenerator → Claude でレポート生成・評価 (output/comitora-report.html)
+	ReportGenerator → Claude でレポート生成 (output/comitora-report.html)
 	ReportNotifier  → レポート通知              (Slack / メール など)
 
 使い方（commit-track-tool/ から実行）:
@@ -19,6 +19,7 @@ main.py - Comitora レポート生成オーケストレータ
 	--token          GitHub APIトークン（省略時は環境変数 GH_TOKEN）
 	--anthropic-key  Anthropic APIキー（省略時は環境変数 ANTHROPIC_API_KEY）
 	--skip-claude    Claude API をスキップ（データ取得のみ確認したい場合）
+	--validation     レポート生成後に HTML バリデーションを実行（失敗時は中断）
 	--slack-webhook  Slack Incoming Webhook URL
 
 環境変数:

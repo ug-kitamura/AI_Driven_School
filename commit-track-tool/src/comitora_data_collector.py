@@ -32,12 +32,22 @@ class DataCollector(ComitoraBase):
 
 	@classmethod
 	def add_args(cls, parser: argparse.ArgumentParser) -> None:
-		parser.add_argument("--concurrency", type=int, default=5,
-							help="ファイル取得の並列リクエスト数（デフォルト: 5）")
-		parser.add_argument("--no-gitignore", action="store_true",
-							help=".gitignore によるファイルフィルタを無効化する")
-		parser.add_argument("--token", default=None,
-							help="GitHub APIトークン（省略時は環境変数 GH_TOKEN）")
+		parser.add_argument(
+			"--concurrency",
+			type    = int,
+			default = 5,
+			help    = "ファイル取得の並列リクエスト数（デフォルト: 5）",
+		)
+		parser.add_argument(
+			"--no-gitignore",
+			action = "store_true",
+			help   = ".gitignore によるファイルフィルタを無効化する",
+		)
+		parser.add_argument(
+			"--token",
+			default = None,
+			help    = "GitHub APIトークン（省略時は環境変数 GH_TOKEN）",
+		)
 
 	def run(self) -> None:
 		token = self.args.token or os.environ.get("GH_TOKEN")

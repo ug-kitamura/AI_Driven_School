@@ -1,21 +1,24 @@
 """
 comitora_report_generator.py - Claude によるレポート生成クラス
 
-処理内容:
-	- report_data.json を読み込み Claude でHTMLレポートを生成
-	- ロゴ PNG を base64 の data URI にし、Jinja2 で `{{ comitora_logo_data_uri }}` を埋め込む
-	- --validation 指定時のみ HTML をバリデーション（LLM 出力の取り違え検知用）
+処理内容（順序）:
+	1. Claude で HTML レポート生成
+	2. --skip-review 以外: スキルに従いレビューし `comitora-evaluate.md` に保存
+	3. ロゴ PNG を base64 の data URI にし Jinja2 で埋め込み、`comitora-report.html` に保存
+	4. --skip-validation 以外: 上記と同一の最終 HTML をバリデーションし `validation_result.json` に保存
 
 入力ファイル:
 	output/report_data.json  DataCollector が生成した集計データ
 
 出力ファイル:
 	output/comitora-report.html   生成されたレポートHTML
-	output/validation_result.json --validation 時のみ（バリデーション結果）
+	output/comitora-evaluate.md   --skip-review 時以外（レビュー結果）
+	output/validation_result.json --skip-validation 時以外（バリデーション結果）
 
 単体実行（commit-track-tool/ から実行、DataCollector の後に実行すること）:
 	python src/comitora_report_generator.py --owner your-org --repo your-repo
-	python src/comitora_report_generator.py --owner ... --repo ... --validation
+	python src/comitora_report_generator.py --owner ... --repo ... --skip-review
+	python src/comitora_report_generator.py --owner ... --repo ... --skip-validation
 """
 
 import os
@@ -29,6 +32,11 @@ from html.parser import HTMLParser
 from jinja2 import Environment, StrictUndefined
 from comitora_base import ComitoraBase
 
+
+# AIモデルと最大トークン
+LLM_MODEL         = "claude-sonnet-4-6"
+MAX_TOKENS        = 16000
+MAX_TOKENS_REVIEW = 8192
 
 # スキルの定義ファイル
 SKILL_PATH = Path(".claude/skills/commit-track/SKILL.md")
@@ -44,7 +52,7 @@ REQUIRED_SECTION_IDS = ["action-plan", "hero", "team-message", "footer"]
 
 
 class ReportGenerator(ComitoraBase):
-	"""集計データから Claude でレポート HTML を生成する（任意でバリデーション）。"""
+	"""集計データから Claude でレポート HTML を生成し、レビューやバリデーションを実施"""
 
 	@classmethod
 	def add_args(cls, parser: argparse.ArgumentParser) -> None:
@@ -60,9 +68,14 @@ class ReportGenerator(ComitoraBase):
 			help   = "Claude APIをスキップ（集計データの確認のみ）",
 		)
 		parser.add_argument(
-			"--validation",
+			"--skip-review",
 			action = "store_true",
-			help   = "生成後に HTML をバリデーションし validation_result.json を出力（失敗時は終了コード 1）",
+			help   = "スキルのレビュー（comitora-evaluate.md）をスキップする",
+		)
+		parser.add_argument(
+			"--skip-validation",
+			action = "store_true",
+			help   = "HTML バリデーション（validation_result.json）をスキップする",
 		)
 
 	def run(self) -> None:
@@ -78,28 +91,23 @@ class ReportGenerator(ComitoraBase):
 		self.print_section("Claude でレポートを生成中")
 		html = self._generate(aggregated, system_content)
 
+		# レポートレビュー
+		if not self.args.skip_review:
+			self.print_section("レポートをレビュー中（comitora-evaluate.md）")
+			self._review_report(html, aggregated, system_content)
+
 		# ロゴ画像埋め込み
-		self.print_section("ロゴ画像を base64 で埋め込み（Jinja2）")
+		self.print_section("ロゴ画像をレポートに埋め込み")
 		html = self._inject_comitora_logo(html)
-		html_path = self.OUTPUT_DIR / "comitora-report.html"
-		html_path.write_text(html, encoding="utf-8")
-		print(f"  💾 {html_path} ({len(html):,} 文字)", file=sys.stderr)
 
-		# バリデーション
-		if self.args.validation:
+		# HTML バリデーション
+		if not self.args.skip_validation:
 			self.print_section("HTML をバリデーション中")
-			validation = self._validate(html, aggregated)
-			self.save_json("validation_result.json", validation)
+			self._validate(html, aggregated)
 
-			if validation["issues"]:
-				print("  ❌ バリデーション失敗:", file=sys.stderr)
-				for issue in validation["issues"]:
-					print(f"    - {issue}", file=sys.stderr)
-				sys.exit(1)
-
-			for w in validation.get("warnings", []):
-				print(f"  ⚠️  {w}", file=sys.stderr)
-			print(f"  ✅ バリデーション通過 ({validation['html_length']:,} 文字)", file=sys.stderr)
+		# レポート保存
+		self.REPORT_PATH.write_text(html, encoding="utf-8")
+		print(f"💾 {self.REPORT_PATH} ({len(html):,} 文字)", file=sys.stderr)
 
 	# ------------------------------------------------------------------
 	# システムプロンプト構築（生成で Prompt Caching 再利用）
@@ -113,7 +121,7 @@ class ReportGenerator(ComitoraBase):
 		return self.load_text(SKILL_PATH)
 
 	# ------------------------------------------------------------------
-	# Claude レポート生成
+	# レポート生成
 	# ------------------------------------------------------------------
 
 	def _generate(self, aggregated: dict, system_content: str) -> str:
@@ -144,8 +152,8 @@ class ReportGenerator(ComitoraBase):
 
 		client   = anthropic.Anthropic(api_key=api_key)
 		response = client.messages.create(
-			model      = "claude-sonnet-4-5",
-			max_tokens = 16000,
+			model      = LLM_MODEL,
+			max_tokens = MAX_TOKENS,
 			system     = [
 				{
 					"type"         : "text",
@@ -169,7 +177,64 @@ class ReportGenerator(ComitoraBase):
 		return text
 
 	# ------------------------------------------------------------------
-	# ロゴ data URI 埋め込み
+	# レポートレビュー
+	# ------------------------------------------------------------------
+
+	def _review_report(self, html: str, aggregated: dict, system_content: str) -> None:
+		"""SKILL.md のレビュー指示に従いマークダウンを生成し保存する。"""
+		anthropic = self._import_anthropic()
+		api_key   = self._resolve_anthropic_key()
+
+		stats     = aggregated.get("pr", {}).get("summary", {})
+		hero      = aggregated.get("aggregate", {}).get("hero")
+		hero_name = hero.get("login", "不明") if hero else "なし"
+
+		user_content = (
+			"システムプロンプト内の **レビュー指示** に厳密に従ってください。\n"
+			"次の2つの視点（プロジェクトマネジメント専門・UI/UX専門）を **1本のマークダウンドキュメント** にまとめてください。\n"
+			"各観点を1〜5点で採点し、合計50点満点のサマリーを出してください。改善案も記載してください。\n"
+			"出力は **マークダウンのみ**（先頭の説明文や ``` での囲みは不要）。\n\n"
+			f"## 参考（report_data.json 要約）\n"
+			f"- コミット数: {len(aggregated.get('commit', []))}\n"
+			f"- マージ済みPR: {stats.get('merged_count', 0)}\n"
+			f"- フィードバック対応中PR: {stats.get('feedback_in_progress_count', 0)}\n"
+			f"- クローズしたIssue: {aggregated.get('issue', {}).get('closed_count', 0)}\n"
+			f"- 対象期間のヒーロー: {hero_name}\n\n"
+			f"## レビュー対象 HTML（ヘッダーロゴはプレースホルダ `{{{{ comitora_logo_data_uri }}}}` のまま）\n\n"
+			f"{html}"
+		)
+
+		client   = anthropic.Anthropic(api_key=api_key)
+		response = client.messages.create(
+			model      = LLM_MODEL,
+			max_tokens = MAX_TOKENS_REVIEW,
+			system     = [
+				{
+					"type"         : "text",
+					"text"         : system_content,
+					"cache_control": {"type": "ephemeral"},
+				}
+			],
+			messages=[{"role": "user", "content": user_content}],
+		)
+
+		self._print_usage(response.usage, "レビュー")
+
+		text = self._extract_text(response) or ""
+		if not text.strip():
+			print("❌ レビュー結果が空です", file=sys.stderr)
+			sys.exit(1)
+
+		text = re.sub(r"^```markdown\s*\n", "", text.strip())
+		text = re.sub(r"^```\s*\n", "", text)
+		text = re.sub(r"\n```\s*$", "", text)
+
+		out_path = self.OUTPUT_DIR / "comitora-evaluate.md"
+		out_path.write_text(text, encoding="utf-8")
+		print(f"💾 {out_path} ({len(text):,} 文字)", file=sys.stderr)
+
+	# ------------------------------------------------------------------
+	# ロゴ画像埋め込み
 	# ------------------------------------------------------------------
 
 	@staticmethod
@@ -199,14 +264,14 @@ class ReportGenerator(ComitoraBase):
 		except Exception as e:
 			print(f"❌ Jinja2 レンダリング失敗（`{{{{ comitora_logo_data_uri }}}}` が Claude 出力に残っているか確認）: {e}", file=sys.stderr)
 			sys.exit(1)
-		print(f"  🖼️ ロゴ埋め込み: {logo_path.name} → data URI ({len(uri):,} 文字)", file=sys.stderr)
+		print(f"🖼️ ロゴ埋め込み: {logo_path.name} → data URI ({len(uri):,} 文字)", file=sys.stderr)
 		return out
 
 	# ------------------------------------------------------------------
-	# HTML バリデーション（--validation 時のみ）
+	# HTML バリデーション
 	# ------------------------------------------------------------------
 
-	def _validate(self, html: str, aggregated: dict) -> dict:
+	def _validate(self, html: str, aggregated: dict) -> None:
 		"""
 		生成された HTML を検証する。
 		- 必須セクションIDの存在チェック
@@ -239,13 +304,25 @@ class ReportGenerator(ComitoraBase):
 		if hero and hero.get("login") and hero["login"] not in html:
 			warnings.append(f"ヒーローのログイン名 ({hero['login']}) が HTML に見つかりません")
 
-		return {
+		validation = {
 			"passed"      : len(issues) == 0,
 			"issues"      : issues,
 			"warnings"    : warnings,
 			"html_length" : len(html),
 			"validated_at": self.NOW_LOCAL.isoformat(),
 		}
+
+		self.save_json("validation_result.json", validation)
+
+		if validation["issues"]:
+			print("❌ バリデーション失敗:", file=sys.stderr)
+			for issue in validation["issues"]:
+				print(f" |- {issue}", file=sys.stderr)
+			sys.exit(1)
+
+		for w in validation.get("warnings", []):
+			print(f"⚠️ {w}", file=sys.stderr)
+		print(f"✅ バリデーション通過 ({validation['html_length']:,} 文字)", file=sys.stderr)
 
 	# ------------------------------------------------------------------
 	# 内部ヘルパー
@@ -262,13 +339,13 @@ class ReportGenerator(ComitoraBase):
 	@staticmethod
 	def _print_usage(usage, label: str) -> None:
 		"""トークン使用量をログ出力する。"""
-		print(f"  [{label}] トークン: input={usage.input_tokens}, output={usage.output_tokens}", file=sys.stderr)
+		print(f"[{label}] トークン: input={usage.input_tokens}, output={usage.output_tokens}", file=sys.stderr)
 		cache_read    = getattr(usage, "cache_read_input_tokens",    0) or 0
 		cache_created = getattr(usage, "cache_creation_input_tokens", 0) or 0
 		if cache_read:
-			print(f"  [{label}] キャッシュヒット: {cache_read:,} tokens", file=sys.stderr)
+			print(f"[{label}] キャッシュヒット: {cache_read:,} tokens", file=sys.stderr)
 		if cache_created:
-			print(f"  [{label}] キャッシュ作成: {cache_created:,} tokens", file=sys.stderr)
+			print(f"[{label}] キャッシュ作成: {cache_created:,} tokens", file=sys.stderr)
 
 	def _import_anthropic(self):
 		try:

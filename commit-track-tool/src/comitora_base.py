@@ -15,7 +15,8 @@ from datetime import datetime, timedelta, timezone
 
 load_dotenv()
 
-OUTPUT_DIR = Path("output")
+OUTPUT_DIR  = Path("output")
+HTML_REPORT = "comitora-report.html"
 
 
 class ComitoraBase(ABC):
@@ -30,6 +31,8 @@ class ComitoraBase(ABC):
 		self.REPORT_DATA = {}
 		self.OUTPUT_DIR  = OUTPUT_DIR
 		self.OUTPUT_DIR.mkdir(exist_ok=True)
+		self.HTML_REPORT = HTML_REPORT
+		self.REPORT_PATH = self.OUTPUT_DIR / self.HTML_REPORT
 
 	# ------------------------------------------------------------------
 	# 共通 CLI 引数

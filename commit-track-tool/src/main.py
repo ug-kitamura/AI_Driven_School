@@ -3,7 +3,8 @@ main.py - Comitora レポート生成オーケストレータ
 
 処理フロー:
 	DataCollector   → GitHub データ取得・集計   (output/report_data.json)
-	ReportGenerator → Claude でレポート生成・評価 (output/comitora-report.html)
+	ReportGenerator → レポート生成 → レビュー → ロゴ埋め込み → バリデーション（--skip-validation で省略）
+	                  (comitora-evaluate.md → comitora-report.html、既定で validation_result.json)
 	ReportNotifier  → レポート通知              (Slack / メール など)
 
 使い方（commit-track-tool/ から実行）:
@@ -19,6 +20,8 @@ main.py - Comitora レポート生成オーケストレータ
 	--token          GitHub APIトークン（省略時は環境変数 GH_TOKEN）
 	--anthropic-key  Anthropic APIキー（省略時は環境変数 ANTHROPIC_API_KEY）
 	--skip-claude    Claude API をスキップ（データ取得のみ確認したい場合）
+	--skip-validation  HTML バリデーションをスキップ（既定では実行、失敗時は中断）
+	--skip-review    スキル Step 4 のレビュー（comitora-evaluate.md）をスキップ
 	--slack-webhook  Slack Incoming Webhook URL
 
 環境変数:
@@ -27,6 +30,7 @@ main.py - Comitora レポート生成オーケストレータ
 """
 
 import sys
+import time
 import argparse
 from comitora_base import OUTPUT_DIR
 from comitora_data_collector import DataCollector
@@ -46,8 +50,17 @@ def build_parser() -> argparse.ArgumentParser:
 	return parser
 
 
+MAIN_OUTPUT_FILES = (
+	"report_data.json",
+	"comitora-report.html",
+	"comitora-evaluate.md",
+	"validation_result.json",
+)
+
+
 def main() -> None:
 	args = build_parser().parse_args()
+	started = time.perf_counter()
 
 	print(f"📁 出力先: {OUTPUT_DIR.resolve()}", file=sys.stderr)
 
@@ -55,11 +68,17 @@ def main() -> None:
 	ReportGenerator(args).run()
 	ReportNotifier(args).run()
 
+	elapsed = time.perf_counter() - started
 	print(f"\n{'='*50}", file=sys.stderr)
 	print(f"✅ 完了！生成ファイル:", file=sys.stderr)
-	for f in sorted(OUTPUT_DIR.iterdir()):
-		size = f.stat().st_size
-		print(f"  {f.name:35s} ({size:>8,} bytes)", file=sys.stderr)
+	for name in MAIN_OUTPUT_FILES:
+		path = OUTPUT_DIR / name
+		if path.is_file():
+			size = path.stat().st_size
+			print(f" |- {name:35s} ({size:>8,} bytes)", file=sys.stderr)
+		else:
+			print(f" |- {name:35s}（未生成）", file=sys.stderr)
+	print(f"⏱️ 所要時間: {elapsed:.1f} 秒", file=sys.stderr)
 
 
 if __name__ == "__main__":

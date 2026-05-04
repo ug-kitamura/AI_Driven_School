@@ -36,35 +36,37 @@
 
   <!-- ===== HEADER ===== -->
   <div class="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm">
-    <div class="flex flex-wrap items-center justify-between gap-3">
-      <div class="flex items-center gap-3">
-        <div class="w-12 h-12 rounded-xl bg-custom-blue-lt flex items-center justify-center flex-shrink-0">
-          <i data-lucide="zap" class="w-6 h-6 text-custom-blue"></i>
-        </div>
-        <div>
-          <div class="text-3xl font-black text-slate-900">Commit and Track Report</div>
-          <div class="text-sm text-slate-500 mt-0.5">
-            {{ period_label }} &nbsp;·&nbsp;
-            <a href="{{ repo_url }}" class="font-mono text-custom-blue hover:underline">{{ repo_name }}</a>
+    <div class="flex gap-4 items-start">
+      <div class="w-28 h-28 rounded-full flex items-center justify-center flex-shrink-0 overflow-hidden" title="Comitora">
+        <img src="{{ comitora_logo_data_uri }}" alt="Comitora" class="w-full h-full object-contain object-center" width="112" height="112" />
+      </div>
+      <div class="flex min-w-0 flex-1 flex-col gap-4">
+        <div class="flex flex-wrap items-start justify-between gap-3">
+          <div class="min-w-0">
+            <div class="text-4xl font-black text-slate-900 leading-tight">Commit and Track Report</div>
+            <div class="text-sm text-slate-500 mt-0.5">
+              {{ period_label }} &nbsp;·&nbsp;
+              <a href="{{ repo_url }}" class="font-mono text-custom-blue hover:underline">{{ repo_name }}</a>
+            </div>
           </div>
+          <span class="inline-flex items-center gap-1.5 bg-slate-100 text-slate-500 border border-slate-200 rounded-full px-3 py-1 text-xs font-medium flex-shrink-0">
+            <i data-lucide="calendar" class="w-3.5 h-3.5"></i>
+            {{ generated_at }}
+          </span>
+        </div>
+
+        <!-- Health bar -->
+        <div class="flex flex-wrap items-center gap-3">
+          <div class="text-sm text-slate-600 flex-shrink-0 w-36">プロジェクト健全度</div>
+          <div class="flex-1 min-w-[8rem] h-2.5 bg-slate-200 rounded-full overflow-hidden"
+               role="progressbar" aria-valuenow="{{ health_pct }}" aria-valuemin="0" aria-valuemax="100"
+               aria-label="プロジェクト健全度 {{ health_pct }}%">
+            <div class="h-full rounded-full transition-all duration-700" style="width:{{ health_pct }}%;background:{{ health_color_value }};"></div>
+          </div>
+          <div class="font-bold text-sm w-10 text-right" style="color:{{ health_color_value }};">{{ health_pct }}%</div>
+          <i data-lucide="{{ health_icon }}" class="w-5 h-5 flex-shrink-0" style="color:{{ health_color_value }};"></i>
         </div>
       </div>
-      <span class="inline-flex items-center gap-1.5 bg-slate-100 text-slate-500 border border-slate-200 rounded-full px-3 py-1 text-xs font-medium">
-        <i data-lucide="calendar" class="w-3.5 h-3.5"></i>
-        {{ generated_at }}
-      </span>
-    </div>
-
-    <!-- Health bar -->
-    <div class="flex items-center gap-3 mt-4">
-      <div class="text-sm text-slate-600 flex-shrink-0 w-36">プロジェクト健全度</div>
-      <div class="flex-1 h-2.5 bg-slate-200 rounded-full overflow-hidden"
-           role="progressbar" aria-valuenow="{{ health_pct }}" aria-valuemin="0" aria-valuemax="100"
-           aria-label="プロジェクト健全度 {{ health_pct }}%">
-        <div class="h-full rounded-full transition-all duration-700" style="width:{{ health_pct }}%;background:{{ health_color_value }};"></div>
-      </div>
-      <div class="font-bold text-sm w-10 text-right" style="color:{{ health_color_value }};">{{ health_pct }}%</div>
-      <i data-lucide="{{ health_icon }}" class="w-5 h-5 flex-shrink-0" style="color:{{ health_color_value }};"></i>
     </div>
   </div>
 
@@ -168,8 +170,15 @@
         今回のヒーロー
       </div>
       <div class="flex flex-col items-center text-center">
-        <div class="mb-3">
-          <img src="{{ hero_avatar_url }}" alt="" class="w-16 h-16 rounded-full object-cover ring-1 ring-slate-200" width="64" height="64" />
+        <div class="relative mb-3 mx-auto flex h-16 w-16 shrink-0 items-center justify-center">
+          <div class="pointer-events-none absolute inset-[-22%] z-0" aria-hidden="true">
+            <i data-lucide="sparkles" class="absolute left-[0%] top-[14%] h-3.5 w-3.5 text-yellow-400/80 -rotate-6"></i>
+            <i data-lucide="star" class="absolute right-[2%] top-[12%] h-3 w-3 text-amber-400/80 rotate-12"></i>
+            <i data-lucide="sparkle" class="absolute left-[-2%] bottom-[18%] h-3.5 w-3.5 text-yellow-400/80 rotate-[20deg]"></i>
+            <i data-lucide="astroid" class="absolute right-[4%] bottom-[10%] h-3 w-3 text-yellow-400/80 -rotate-[10deg]"></i>
+            <i data-lucide="star" class="absolute left-[38%] -top-[6%] h-3 w-3 text-yellow-400/80"></i>
+          </div>
+          <img src="{{ hero_avatar_url }}" alt="" class="relative z-10 w-16 h-16 rounded-full object-cover ring-1 ring-slate-200" width="64" height="64" />
         </div>
         <div class="font-bold text-lg text-slate-900">{{ hero_name }}</div>
         <div class="flex flex-wrap justify-center gap-1.5 mt-3">
@@ -219,13 +228,12 @@
       </span>
       <div class="flex flex-wrap gap-4">
         <a href="{{ repo_url }}" class="flex items-center gap-1.5 hover:text-custom-blue transition-colors">
-          <i data-lucide="github" class="w-3.5 h-3.5"></i>GitHub Repository
+          <i data-lucide="house" class="w-3.5 h-3.5"></i>GitHub Repository
         </a>
         <a href="{{ past_reports_url }}" class="flex items-center gap-1.5 hover:text-custom-blue transition-colors">
           <i data-lucide="history" class="w-3.5 h-3.5"></i>過去のレポート
         </a>
       </div>
-      <span>Generated: {{ generated_at }}</span>
     </div>
   </div>
 

@@ -32,16 +32,16 @@ class ReportNotifier(ComitoraBase):
 		self.print_section("レポートを通知中")
 
 		if not getattr(self.args, "slack_webhook", None):
-			print("  ℹ️  通知先が未設定のためスキップします（--slack-webhook で指定可能）", file=sys.stderr)
+			print("ℹ️ 通知先が未設定のためスキップします（--slack-webhook で指定可能）", file=sys.stderr)
 			return
 
 		html_path = self.OUTPUT_DIR / "weekly_report.html"
 		if not html_path.exists():
-			print(f"  ⚠️  レポートファイルが見つかりません: {html_path}", file=sys.stderr)
+			print(f"⚠️ レポートファイルが見つかりません: {html_path}", file=sys.stderr)
 			return
 
 		# TODO: Slack / メール などへの通知実装
-		print("  🚧 通知機能は未実装です", file=sys.stderr)
+		print("🚧 通知機能は未実装です", file=sys.stderr)
 
 
 # ------------------------------------------------------------------

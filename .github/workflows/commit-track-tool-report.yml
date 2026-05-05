@@ -36,7 +36,12 @@ on:
           - claude-haiku-4-5
         default: claude-sonnet-4-6
       deploy_pages:
-        description: "デプロイ"
+        description: "GitHub Pages デプロイ"
+        required: true
+        type: boolean
+        default: true
+      notify_slack:
+        description: "Slack 投稿"
         required: true
         type: boolean
         default: true
@@ -89,15 +94,21 @@ jobs:
             exit 1
           fi
 
-      - name: Run full pipeline
+      - name: Run data collector
         run: >
-          uv run python src/main.py
+          uv run python src/comitora_data_collector.py
           --owner "${TARGET_OWNER}"
           --repo "${TARGET_REPO}"
           --token "${GH_TOKEN}"
-          --anthropic-key "${ANTHROPIC_API_KEY}"
           --days "${DAYS}"
           --active-days "${ACTIVE_DAYS}"
+
+      - name: Run report generator
+        run: >
+          uv run python src/comitora_report_generator.py
+          --owner "${TARGET_OWNER}"
+          --repo "${TARGET_REPO}"
+          --anthropic-key "${ANTHROPIC_API_KEY}"
           --llm "${LLM}"
 
       - name: Stage output for artifact (exclude .gitkeep)
@@ -145,3 +156,24 @@ jobs:
         if: ${{ github.event_name != 'workflow_dispatch' || inputs.deploy_pages }}
         id: deploy-pages
         uses: actions/deploy-pages@v5
+
+      - name: Notify Slack (with Pages URL)
+        if: ${{ (github.event_name != 'workflow_dispatch' || inputs.deploy_pages) && (github.event_name != 'workflow_dispatch' || inputs.notify_slack) }}
+        env:
+          SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
+          SLACK_CHANNEL_ID: ${{ secrets.SLACK_CHANNEL_ID }}
+        run: >
+          uv run python src/comitora_report_notifier.py
+          --owner "${TARGET_OWNER}"
+          --repo "${TARGET_REPO}"
+          --include-pages-url
+
+      - name: Notify Slack
+        if: ${{ github.event_name == 'workflow_dispatch' && !inputs.deploy_pages && inputs.notify_slack }}
+        env:
+          SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
+          SLACK_CHANNEL_ID: ${{ secrets.SLACK_CHANNEL_ID }}
+        run: >
+          uv run python src/comitora_report_notifier.py
+          --owner "${TARGET_OWNER}"
+          --repo "${TARGET_REPO}"

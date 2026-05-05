@@ -17,12 +17,12 @@ on:
         default: 30
         type: number
       target_owner:
-        description: "対象のオーナーまたは Organization（CI と同じ既定はこのリポの owner）"
+        description: "対象オーナーor組織名"
         required: true
         type: string
         default: "ug-kitamura"
       target_repo:
-        description: "対象リポジトリ名（CI と同じ既定はこのリポの名前）"
+        description: "対象リポジトリ名"
         required: true
         type: string
         default: "AI_Driven_School"
@@ -35,6 +35,11 @@ on:
           - claude-opus-4-7
           - claude-haiku-4-5
         default: claude-sonnet-4-6
+      deploy_pages:
+        description: "GitHub Pages へデプロイ"
+        required: true
+        type: boolean
+        default: true
 
 concurrency:
   group: commit-track-tool-report
@@ -44,11 +49,16 @@ permissions:
   contents: read
   issues: read
   pull-requests: read
+  pages: write
+  id-token: write
 
 jobs:
   comitora-report:
     name: Generate comitora report
     runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy-pages.outputs.page_url }}
     env:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
@@ -110,3 +120,28 @@ jobs:
           name: comitora-report-output-${{ github.run_id }}
           path: _comitora_report_output/
           if-no-files-found: error
+
+      - name: Configure GitHub Pages
+        if: ${{ github.event_name != 'workflow_dispatch' || inputs.deploy_pages }}
+        uses: actions/configure-pages@v5
+
+      - name: Stage comitora-report.html for Pages
+        if: ${{ github.event_name != 'workflow_dispatch' || inputs.deploy_pages }}
+        run: |
+          mkdir -p "${GITHUB_WORKSPACE}/_pages"
+          if [ ! -f "output/comitora-report.html" ]; then
+            echo "::error::output/comitora-report.html が見つかりません"
+            exit 1
+          fi
+          install -D "output/comitora-report.html" "${GITHUB_WORKSPACE}/_pages/comitora-report.html"
+
+      - name: Upload Pages artifact
+        if: ${{ github.event_name != 'workflow_dispatch' || inputs.deploy_pages }}
+        uses: actions/upload-pages-artifact@v5
+        with:
+          path: _pages/
+
+      - name: Deploy to GitHub Pages
+        if: ${{ github.event_name != 'workflow_dispatch' || inputs.deploy_pages }}
+        id: deploy-pages
+        uses: actions/deploy-pages@v5

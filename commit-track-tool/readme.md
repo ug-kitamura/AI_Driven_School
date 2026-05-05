@@ -37,6 +37,8 @@ copy .env.template .env
 ```
 GH_TOKEN=ghp_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 ANTHROPIC_API_KEY=sk-ant-api03-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+SLACK_BOT_TOKEN=xoxb-xxxxxxxxxxxxxxxxxxxxxxxx
+SLACK_CHANNEL_ID=C0123456789
 ```
 
 ---
@@ -56,8 +58,14 @@ uv run python src/main.py --owner your-org --repo your-repo
 | `--days` | 7 | 直近何日分を対象とするか |
 | `--active-days` | 30 | アクティブブランチ判定日数 |
 | `--concurrency` | 5 | ファイル取得の並列リクエスト数 |
+| `--llm` | claude-sonnet-4-6 | 使用する Claude モデル ID |
 | `--skip-claude` | - | Claude API をスキップ（データ取得のみ確認） |
-| `--slack-webhook` | - | Slack Incoming Webhook URL |
+| `--skip-review` | - | レポートレビュー工程をスキップ |
+| `--skip-validation` | - | HTML バリデーション工程をスキップ |
+| `--slack-bot-token` | 環境変数参照 | Slack Bot Token（`SLACK_BOT_TOKEN`） |
+| `--slack-channel-id` | 環境変数参照 | Slack Channel ID（`SLACK_CHANNEL_ID`） |
+| `--include-pages-url` | - | Slack 通知に GitHub Pages URL を含める |
+| `--skip-slack` | - | Slack 通知を無効化（環境変数が設定済みでも投稿しない） |
 
 ---
 

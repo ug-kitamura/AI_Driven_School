@@ -16,7 +16,7 @@ comitora_report_generator.py - Claude によるレポート生成クラス
 	output/validation_result.json バリデーション結果（--skip-validation 時以外に生成）
 
 単体実行（commit-track-tool/ から実行、DataCollector の後に実行すること）:
-	uv run python src/comitora_report_generator.py --owner your-org --repo your-repo
+	uv run python src/comitora_report_generator.py --owner ... --repo ...
 	uv run python src/comitora_report_generator.py --owner ... --repo ... --llm claude-opus-4-6
 	uv run python src/comitora_report_generator.py --owner ... --repo ... --skip-review
 	uv run python src/comitora_report_generator.py --owner ... --repo ... --skip-validation

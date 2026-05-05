@@ -19,12 +19,13 @@ main.py - Comitora レポート生成オーケストレータ
 	--token             GitHub APIトークン（省略時は環境変数 GH_TOKEN）
 	--anthropic-key     Anthropic APIキー（省略時は環境変数 ANTHROPIC_API_KEY）
 	--llm               Claude のモデル ID（既定: claude-sonnet-4-6）
-	--skip-claude       Claude API をスキップ（データ取得のみ確認したい場合）
-	--skip-review       レポートのレビューをスキップ（既定では実行）
-	--skip-validation   HTML バリデーションをスキップ（既定では実行、失敗時は中断）
 	--slack-bot-token   Slack Bot Token（省略時は環境変数 SLACK_BOT_TOKEN）
 	--slack-channel-id  Slack Channel ID（省略時は環境変数 SLACK_CHANNEL_ID）
 	--include-pages-url 通知文に GitHub Pages URL を含める
+	--skip-claude       Claude API をスキップ（データ取得のみ確認したい場合）
+	--skip-review       レポートのレビューをスキップ（既定では実行）
+	--skip-validation   HTML バリデーションをスキップ（既定では実行、失敗時は中断）
+	--skip-slack        Slack 通知を無効にする（環境変数があっても投稿しない）
 
 環境変数:
 	GH_TOKEN            GitHub APIトークン（--token 未指定時のフォールバック）

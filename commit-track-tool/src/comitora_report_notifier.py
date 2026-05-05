@@ -37,9 +37,17 @@ class ReportNotifier(ComitoraBase):
 			action="store_true",
 			help="デプロイ済みの GitHub Pages URL を通知文に含める",
 		)
+		parser.add_argument(
+			"--skip-slack",
+			action="store_true",
+			help="Slack 通知を無効にする（環境変数があっても投稿しない）",
+		)
 
 	def run(self) -> None:
 		self.print_section("レポートを通知中")
+		if getattr(self.args, "skip_slack", False):
+			print("ℹ️ --skip-slack が指定されたため、Slack通知をスキップします", file=sys.stderr)
+			return
 
 		slack_bot_token = getattr(self.args, "slack_bot_token", None) or os.environ.get("SLACK_BOT_TOKEN")
 		slack_channel_id = getattr(self.args, "slack_channel_id", None) or os.environ.get("SLACK_CHANNEL_ID")

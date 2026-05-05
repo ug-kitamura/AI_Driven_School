@@ -17,12 +17,12 @@ on:
         default: 30
         type: number
       target_owner:
-        description: "対象のオーナーまたは Organization（CI と同じ既定はこのリポの owner）"
+        description: "対象オーナーor組織名"
         required: true
         type: string
         default: "ug-kitamura"
       target_repo:
-        description: "対象リポジトリ名（CI と同じ既定はこのリポの名前）"
+        description: "対象リポジトリ名"
         required: true
         type: string
         default: "AI_Driven_School"

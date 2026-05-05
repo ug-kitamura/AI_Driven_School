@@ -18,6 +18,7 @@ main.py - Comitora レポート生成オーケストレータ
 	--no-gitignore     .gitignore フィルタを無効化
 	--token            GitHub APIトークン（省略時は環境変数 GH_TOKEN）
 	--anthropic-key    Anthropic APIキー（省略時は環境変数 ANTHROPIC_API_KEY）
+	--llm              Claude のモデル ID（既定: claude-sonnet-4-6）
 	--skip-claude      Claude API をスキップ（データ取得のみ確認したい場合）
 	--skip-review      レポートのレビューをスキップ（既定では実行）
 	--skip-validation  HTML バリデーションをスキップ（既定では実行、失敗時は中断）

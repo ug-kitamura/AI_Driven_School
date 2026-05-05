@@ -26,6 +26,14 @@ on:
         required: true
         type: string
         default: "${{ vars.TARGET_REPO }}"
+      llm:
+        description: "使用するAIモデル
+        type: choice
+        options:
+          - claude-sonnet-4-6
+          - claude-opus-4-7
+          - claude-haiku-4-5
+        default: claude-sonnet-4-6
 
 concurrency:
   group: commit-track-tool-report
@@ -47,6 +55,7 @@ jobs:
       TARGET_REPO: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.target_repo != '' && github.event.inputs.target_repo || vars.TARGET_REPO }}
       DAYS: ${{ github.event_name != 'workflow_dispatch' && 7 || github.event.inputs.days }}
       ACTIVE_DAYS: ${{ github.event_name != 'workflow_dispatch' && 30 || github.event.inputs.active_days }}
+      LLM: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.llm || vars.LLM || 'claude-sonnet-4-6' }}
     defaults:
       run:
         working-directory: commit-track-tool
@@ -77,6 +86,7 @@ jobs:
           --anthropic-key "${ANTHROPIC_API_KEY}"
           --days "${DAYS}"
           --active-days "${ACTIVE_DAYS}"
+          --llm "${LLM}"
 
       - name: Stage output for artifact (exclude .gitkeep)
         working-directory: commit-track-tool

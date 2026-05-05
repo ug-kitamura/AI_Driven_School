@@ -17,6 +17,7 @@ comitora_report_generator.py - Claude によるレポート生成クラス
 
 単体実行（commit-track-tool/ から実行、DataCollector の後に実行すること）:
 	uv run python src/comitora_report_generator.py --owner your-org --repo your-repo
+	uv run python src/comitora_report_generator.py --owner ... --repo ... --llm claude-opus-4-6
 	uv run python src/comitora_report_generator.py --owner ... --repo ... --skip-review
 	uv run python src/comitora_report_generator.py --owner ... --repo ... --skip-validation
 """
@@ -33,8 +34,8 @@ from jinja2 import Environment, StrictUndefined
 from comitora_base import ComitoraBase
 
 
-# AIモデルと最大トークン
-LLM_MODEL         = "claude-sonnet-4-6"
+# AIモデルと最大トークン（DEFAULT_LLM_MODEL は --llm の既定値）
+DEFAULT_LLM_MODEL = "claude-sonnet-4-6"
 MAX_TOKENS        = 32768
 MAX_TOKENS_REVIEW = 8192
 
@@ -77,6 +78,17 @@ class ReportGenerator(ComitoraBase):
 			action = "store_true",
 			help   = "HTML バリデーション（validation_result.json）をスキップする",
 		)
+		parser.add_argument(
+			"--llm",
+			dest    = "llm",
+			default = DEFAULT_LLM_MODEL,
+			metavar = "MODEL_ID",
+			help    = (
+				"Anthropic Messages API の model ID（既定: %(default)s）。"
+				"生成・レビューの両方で使用する。"
+				"例: claude-opus-4-6, claude-haiku-4-6（API で利用可能な ID を指定）"
+			),
+		)
 
 	def run(self) -> None:
 		aggregated = self.load_json("report_data.json")
@@ -88,7 +100,7 @@ class ReportGenerator(ComitoraBase):
 		system_content = self._build_system_content()
 
 		# レポート生成
-		self.print_section("Claude でレポートを生成中")
+		self.print_section(f"Claude でレポートを生成中（model={self.args.llm}）")
 		html = self._generate(aggregated, system_content)
 
 		# レポートレビュー
@@ -152,7 +164,7 @@ class ReportGenerator(ComitoraBase):
 
 		client = anthropic.Anthropic(api_key=api_key)
 		with client.messages.stream(
-			model      = LLM_MODEL,
+			model      = self.args.llm,
 			max_tokens = MAX_TOKENS,
 			system     = [
 				{
@@ -206,7 +218,7 @@ class ReportGenerator(ComitoraBase):
 
 		client = anthropic.Anthropic(api_key=api_key)
 		with client.messages.stream(
-			model      = LLM_MODEL,
+			model      = self.args.llm,
 			max_tokens = MAX_TOKENS_REVIEW,
 			system     = [
 				{

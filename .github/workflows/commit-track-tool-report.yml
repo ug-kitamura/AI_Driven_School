@@ -8,19 +8,32 @@ on:
     inputs:
       days:
         description: "データ取得期間（日数）"
-        required: false
+        required: true
         default: 7
         type: number
+      active_days:
+        description: "アクティブブランチ判定日数"
+        required: false
+        default: 30
+        type: number
       target_owner:
-        description: "GitHub オーナー（空なら Variables の TARGET_OWNER）"
-        required: false
+        description: "対象のオーナーor組織名"
+        required: true
         type: string
-        default: ""
+        default: "${{ vars.TARGET_OWNER }}"
       target_repo:
-        description: "リポジトリ名（空なら Variables の TARGET_REPO）"
-        required: false
+        description: "対象のリポジトリ名"
+        required: true
         type: string
-        default: ""
+        default: "${{ vars.TARGET_REPO }}"
+      llm:
+        description: "使用するAIモデル"
+        type: choice
+        options:
+          - claude-sonnet-4-6
+          - claude-opus-4-7
+          - claude-haiku-4-5
+        default: claude-sonnet-4-6
 
 concurrency:
   group: commit-track-tool-report
@@ -41,6 +54,8 @@ jobs:
       TARGET_OWNER: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.target_owner != '' && github.event.inputs.target_owner || vars.TARGET_OWNER }}
       TARGET_REPO: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.target_repo != '' && github.event.inputs.target_repo || vars.TARGET_REPO }}
       DAYS: ${{ github.event_name != 'workflow_dispatch' && 7 || github.event.inputs.days }}
+      ACTIVE_DAYS: ${{ github.event_name != 'workflow_dispatch' && 30 || github.event.inputs.active_days }}
+      LLM: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.llm || vars.LLM || 'claude-sonnet-4-6' }}
     defaults:
       run:
         working-directory: commit-track-tool
@@ -70,6 +85,8 @@ jobs:
           --token "${GH_TOKEN}"
           --anthropic-key "${ANTHROPIC_API_KEY}"
           --days "${DAYS}"
+          --active-days "${ACTIVE_DAYS}"
+          --llm "${LLM}"
 
       - name: Stage output for artifact (exclude .gitkeep)
         working-directory: commit-track-tool

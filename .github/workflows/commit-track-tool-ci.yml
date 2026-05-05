@@ -9,8 +9,13 @@ on:
     inputs:
       days:
         description: "データ取得期間（日数）"
-        required: false
+        required: true
         default: 7
+        type: number
+      active_days:
+        description: "アクティブブランチ判定日数"
+        required: false
+        default: 30
         type: number
 
 concurrency:
@@ -26,6 +31,8 @@ jobs:
   continuous-test:
     name: Run main.py (--skip-claude)
     runs-on: ubuntu-latest
+    env:
+      ACTIVE_DAYS: ${{ github.event_name != 'workflow_dispatch' && 30 || github.event.inputs.active_days }}
     defaults:
       run:
         working-directory: commit-track-tool
@@ -48,6 +55,7 @@ jobs:
           --owner "${{ github.repository_owner }}"
           --repo "${{ github.event.repository.name }}"
           --days ${{ github.event_name != 'workflow_dispatch' && 7 || github.event.inputs.days }}
+          --active-days "${ACTIVE_DAYS}"
           --skip-claude
 
       - name: Upload report_data.json

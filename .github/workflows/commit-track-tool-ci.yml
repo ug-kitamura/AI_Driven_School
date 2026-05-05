@@ -14,7 +14,7 @@ on:
         type: number
       active_days:
         description: "アクティブブランチ判定日数"
-        required: false
+        required: true
         default: 30
         type: number
 

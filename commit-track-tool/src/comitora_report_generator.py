@@ -30,7 +30,6 @@ import base64
 import argparse
 from pathlib import Path
 from html.parser import HTMLParser
-from jinja2 import Environment, StrictUndefined
 from comitora_base import ComitoraBase
 
 
@@ -265,15 +264,14 @@ class ReportGenerator(ComitoraBase):
 		sys.exit(1)
 
 	def _inject_comitora_logo(self, html: str) -> str:
-		"""`{{ comitora_logo_data_uri }}` を Jinja2 で data URI に置換する。"""
+		"""`{{ comitora_logo_data_uri }}` を data URI に直接置換する。"""
 		logo_path = self._resolve_comitora_logo_path()
 		uri = self._png_or_jpeg_data_uri(logo_path)
-		env = Environment(undefined=StrictUndefined, autoescape=False)
-		try:
-			out = env.from_string(html).render(comitora_logo_data_uri=uri)
-		except Exception as e:
-			print(f"❌ Jinja2 レンダリング失敗（`{{{{ comitora_logo_data_uri }}}}` が Claude 出力に残っているか確認）: {e}", file=sys.stderr)
+		placeholder_pattern = r"\{\{\s*comitora_logo_data_uri\s*\}\}"
+		if not re.search(placeholder_pattern, html):
+			print("❌ `{{ comitora_logo_data_uri }}` が Claude 出力に見つかりません", file=sys.stderr)
 			sys.exit(1)
+		out = re.sub(placeholder_pattern, uri, html)
 		print(f"🖼️ ロゴ埋め込み: {logo_path.name} → data URI ({len(uri):,} 文字)", file=sys.stderr)
 		return out
 

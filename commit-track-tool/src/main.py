@@ -16,7 +16,7 @@ main.py - Comitora レポート生成オーケストレータ
 	--active-days       アクティブブランチ判定日数（デフォルト: 30）
 	--concurrency       ファイル取得並列数（デフォルト: 5）
 	--no-gitignore      .gitignore フィルタを無効化
-	--token             GitHub APIトークン（省略時は環境変数 GH_TOKEN）
+	--token             GitHub APIトークン（省略時は環境変数 GITHUB_TOKEN）
 	--anthropic-key     Anthropic APIキー（省略時は環境変数 ANTHROPIC_API_KEY）
 	--llm               Claude のモデル ID（既定: claude-sonnet-4-6）
 	--slack-bot-token   Slack Bot Token（省略時は環境変数 SLACK_BOT_TOKEN）
@@ -28,7 +28,7 @@ main.py - Comitora レポート生成オーケストレータ
 	--skip-slack        Slack 通知を無効にする（環境変数があっても投稿しない）
 
 環境変数:
-	GH_TOKEN            GitHub APIトークン（--token 未指定時のフォールバック）
+	GITHUB_TOKEN        GitHub APIトークン（--token 未指定時のフォールバック）
 	ANTHROPIC_API_KEY   Anthropic APIキー（--anthropic-key 未指定時のフォールバック）
 	SLACK_BOT_TOKEN     Slack Bot Token（--slack-bot-token 未指定時のフォールバック）
 	SLACK_CHANNEL_ID    Slack Channel ID（--slack-channel-id 未指定時のフォールバック）

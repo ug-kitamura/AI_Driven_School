@@ -13,21 +13,22 @@ on:
         type: number
       active_days:
         description: "アクティブブランチ判定日数"
-        required: false
+        required: true
         default: 30
         type: number
       target_owner:
-        description: "対象のオーナーor組織名"
+        description: "対象のオーナーまたは Organization（CI と同じ既定はこのリポの owner）"
         required: true
         type: string
-        default: "${{ vars.TARGET_OWNER }}"
+        default: "ug-kitamura"
       target_repo:
-        description: "対象のリポジトリ名"
+        description: "対象リポジトリ名（CI と同じ既定はこのリポの名前）"
         required: true
         type: string
-        default: "${{ vars.TARGET_REPO }}"
+        default: "AI_Driven_School"
       llm:
         description: "使用するAIモデル"
+        required: true
         type: choice
         options:
           - claude-sonnet-4-6
@@ -51,11 +52,11 @@ jobs:
     env:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
-      TARGET_OWNER: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.target_owner != '' && github.event.inputs.target_owner || vars.TARGET_OWNER }}
-      TARGET_REPO: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.target_repo != '' && github.event.inputs.target_repo || vars.TARGET_REPO }}
-      DAYS: ${{ github.event_name != 'workflow_dispatch' && 7 || github.event.inputs.days }}
-      ACTIVE_DAYS: ${{ github.event_name != 'workflow_dispatch' && 30 || github.event.inputs.active_days }}
-      LLM: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.llm || vars.LLM || 'claude-sonnet-4-6' }}
+      TARGET_OWNER:      ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.target_owner || 'ug-kitamura' }}
+      TARGET_REPO:       ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.target_repo  || 'AI_Driven_School' }}
+      DAYS:              ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.days         || 7 }}
+      ACTIVE_DAYS:       ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.active_days  || 30 }}
+      LLM:               ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.llm          || 'claude-sonnet-4-6' }}
     defaults:
       run:
         working-directory: commit-track-tool
@@ -64,6 +65,7 @@ jobs:
 
       - uses: astral-sh/setup-uv@v8.1.0
         with:
+          version: "0.11.8"
           enable-cache: true
           working-directory: commit-track-tool
 
@@ -73,7 +75,7 @@ jobs:
       - name: Check target repository configuration
         run: |
           if [ -z "$TARGET_OWNER" ] || [ -z "$TARGET_REPO" ]; then
-            echo "::error::TARGET_OWNER / TARGET_REPO が空です。リポジトリ Variables に設定するか、手動実行で入力してください。"
+            echo "::error::TARGET_OWNER / TARGET_REPO が空です。"
             exit 1
           fi
 

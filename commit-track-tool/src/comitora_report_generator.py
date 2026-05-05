@@ -83,11 +83,7 @@ class ReportGenerator(ComitoraBase):
 			dest    = "llm",
 			default = DEFAULT_LLM_MODEL,
 			metavar = "MODEL_ID",
-			help    = (
-				"Anthropic Messages API の model ID（既定: %(default)s）。"
-				"生成・レビューの両方で使用する。"
-				"例: claude-opus-4-6, claude-haiku-4-6（API で利用可能な ID を指定）"
-			),
+			help    = "Anthropic Messages API の model ID（既定: %(default)s）",
 		)
 
 	def run(self) -> None:

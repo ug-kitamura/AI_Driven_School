@@ -137,8 +137,8 @@ review = client.messages.create(
 
 ### モックアップ
 
-- `comitora-mockup1.html`: ブランドガイドに則ったシンプルなデザイン
-- `comitora-mockup2.html`: 黒基調でモダンなデザイン
+- `../mockups/comitora-mockup1.html`: ブランドガイドに則ったシンプルなデザイン
+- `../mockups/comitora-mockup2.html`: 黒基調でモダンなデザイン
 
 週次レポートのデザインモックアップ。このHTMLをテンプレートのベースとして使用する。
 

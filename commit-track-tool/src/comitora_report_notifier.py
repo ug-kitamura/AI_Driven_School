@@ -87,54 +87,31 @@ class ReportNotifier(ComitoraBase):
 		active_branches      = len(branch.get("active_branches") or [])
 		open_issues          = issue.get("open_count", 0)
 
-		text = (
-			f"Comitora report | {period_label} | {repo_name} | "
-			f"health={health_pct}% merged={prs_merged} awaiting={awaiting_review} "
-			f"feedback_in_progress={feedback_in_progress} "
-			f"branches={active_branches} open_issues={open_issues}"
-		)
-
-		blocks = [
-			{
-				"type": "header",
-				"text": {"type": "plain_text", "text": "Comitora Report", "emoji": True},
-			},
-			{
-				"type": "section",
-				"text": {
-					"type": "mrkdwn",
-					"text": f"<{repo_url}|*{repo_name}*>\n*{period_label} のレポート*",
-				},
-			},
-			{
-				"type": "section",
-				"fields": [
-					{"type": "mrkdwn", "text": f"*レポート作成日*  `{generated_at}`\n"},
-					{"type": "mrkdwn", "text": f"*プロジェクト健全度*  `{health_pct}%`\n"},
-					{"type": "mrkdwn", "text": f"*マージ済みPR*  `{prs_merged}`\n"},
-					{"type": "mrkdwn", "text": f"*レビュー待ちPR*  `{awaiting_review}`\n"},
-					{"type": "mrkdwn", "text": f"*フィードバック対応中PR*  `{feedback_in_progress}`\n"},
-					{"type": "mrkdwn", "text": f"*アクティブブランチ*  `{active_branches}`\n"},
-					{"type": "mrkdwn", "text": f"*オープンissue*  `{open_issues}`\n"},
-				],
-			},
+		lines = [
+			f"*対象リポジトリ:*  <{repo_url}|*{repo_name}*>",
+			f"*{period_label}*",
+			"\n",
+			f"• レポート作成日:  `{generated_at}`",
+			f"• プロジェクト健全度:  `{health_pct}%`",
+			f"• マージ済みPR:  `{prs_merged}`",
+			f"• レビュー待ちPR:  `{awaiting_review}`",
+			f"• フィードバック対応中PR:  `{feedback_in_progress}`",
+			f"• アクティブブランチ:  `{active_branches}`",
+			f"• オープンissue:  `{open_issues}`",
 		]
 
 		if include_pages_url:
 			pages_url = f"https://{self.args.owner}.github.io/{self.args.repo}/"
-			blocks.append(
-				{
-					"type": "section",
-					"text": {
-						"type": "mrkdwn",
-						"text": (
-							f"🌐 詳細レポートは GitHub Pages で確認できます: <{pages_url}|Open report page>\n"
-							"ブラウザからアクセスして、コミとらレポートを確認してください。"
-						),
-					},
-				}
+			lines.extend(
+				[
+					"\n",
+					f":bar_chart: *詳細レポート*: <{pages_url}|*Comitora Report*>",
+				]
 			)
 
+		markdown_text = "\n".join(lines)
+		text = f"Comitora report | {period_label} | {repo_name}"
+		blocks = [{"type": "section", "text": {"type": "mrkdwn", "text": markdown_text}}]
 		return {"text": text, "blocks": blocks}
 
 	def _send_to_slack(self, token: str, channel_id: str, payload: dict) -> None:

@@ -83,6 +83,13 @@ uv remove パッケージ名
 
 ---
 
+## 補足ドキュメント
+
+- 初期計画: `docs/planning/comitora-plan.md`
+- 初期モック: `docs/mockups/comitora-mockup1.html`, `docs/mockups/comitora-mockup2.html`
+
+---
+
 ## プロジェクト健全度とヒーロー選定
 
 レポート用データは `comitora_data_collector` が `output/report_data.json` に書き出す。

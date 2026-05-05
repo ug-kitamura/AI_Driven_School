@@ -2,7 +2,7 @@ name: commit-track-tool Report
 
 on:
   schedule:
-    - cron: "0 7 * * 1"
+    - cron: "0 7 * * *"
       timezone: "Asia/Tokyo"
   workflow_dispatch:
     inputs:
@@ -65,13 +65,11 @@ jobs:
       name: github-pages
       url: ${{ steps.deploy-pages.outputs.page_url }}
     env:
-      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
-      TARGET_OWNER:      ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.target_owner || 'ug-kitamura' }}
-      TARGET_REPO:       ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.target_repo  || 'AI_Driven_School' }}
-      DAYS:              ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.days         || 7 }}
-      ACTIVE_DAYS:       ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.active_days  || 30 }}
-      LLM:               ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.llm          || 'claude-sonnet-4-6' }}
+      TARGET_OWNER: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.target_owner || 'ug-kitamura' }}
+      TARGET_REPO:  ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.target_repo  || 'AI_Driven_School' }}
+      DAYS:         ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.days         || 7 }}
+      ACTIVE_DAYS:  ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.active_days  || 30 }}
+      LLM:          ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.llm          || 'claude-sonnet-4-6' }}
     defaults:
       run:
         working-directory: commit-track-tool
@@ -95,6 +93,8 @@ jobs:
           fi
 
       - name: Run data collector
+        env:
+          GH_TOKEN: ${{ secrets.GH_TOKEN }}
         run: >
           uv run python src/comitora_data_collector.py
           --owner "${TARGET_OWNER}"
@@ -104,11 +104,12 @@ jobs:
           --active-days "${ACTIVE_DAYS}"
 
       - name: Run report generator
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
         run: >
           uv run python src/comitora_report_generator.py
           --owner "${TARGET_OWNER}"
           --repo "${TARGET_REPO}"
-          --anthropic-key "${ANTHROPIC_API_KEY}"
           --llm "${LLM}"
 
       - name: Stage output for artifact (exclude .gitkeep)

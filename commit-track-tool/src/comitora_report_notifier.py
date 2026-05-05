@@ -63,26 +63,27 @@ class ReportNotifier(ComitoraBase):
 		return self.load_json("report_data.json")
 
 	def _build_slack_payload(self, report_data: dict, include_pages_url: bool) -> dict:
-		metadata        = report_data.get("metadata", {})
-		pr_summary      = report_data.get("pr", {}).get("summary", {})
-		issue           = report_data.get("issue", {})
-		branch          = report_data.get("branch", {})
-		aggregate       = report_data.get("aggregate", {})
-		repo_name       = metadata.get("repository", f"{self.args.owner}/{self.args.repo}")
-		period_label    = metadata.get("period", f"直近{self.args.days}日")
-		repo_url        = f"https://github.com/{self.args.owner}/{self.args.repo}"
-		generated_at    = metadata.get("generated_at", "unknown")
-		health_pct      = aggregate.get("health", {}).get("pct", "N/A")
-		prs_merged      = pr_summary.get("merged_count", 0)
-		awaiting_review = pr_summary.get("awaiting_review_count", 0)
-		blockers        = pr_summary.get("feedback_in_progress_count", 0)
-		active_branches = len(branch.get("active_branches") or [])
-		open_issues     = issue.get("open_count", 0)
+		metadata             = report_data.get("metadata", {})
+		pr_summary           = report_data.get("pr", {}).get("summary", {})
+		issue                = report_data.get("issue", {})
+		branch               = report_data.get("branch", {})
+		aggregate            = report_data.get("aggregate", {})
+		repo_name            = metadata.get("repository", f"{self.args.owner}/{self.args.repo}")
+		period_label         = metadata.get("period", f"直近{self.args.days}日")
+		repo_url             = f"https://github.com/{self.args.owner}/{self.args.repo}"
+		generated_at         = metadata.get("generated_at", "unknown")
+		health_pct           = aggregate.get("health", {}).get("pct", "N/A")
+		prs_merged           = pr_summary.get("merged_count", 0)
+		awaiting_review      = pr_summary.get("awaiting_review_count", 0)
+		feedback_in_progress = pr_summary.get("feedback_in_progress_count", 0)
+		active_branches      = len(branch.get("active_branches") or [])
+		open_issues          = issue.get("open_count", 0)
 
 		text = (
 			f"Comitora report | {period_label} | {repo_name} | "
 			f"health={health_pct}% merged={prs_merged} awaiting={awaiting_review} "
-			f"blockers={blockers} branches={active_branches} open_issues={open_issues}"
+			f"feedback_in_progress={feedback_in_progress} "
+			f"branches={active_branches} open_issues={open_issues}"
 		)
 
 		blocks = [
@@ -104,7 +105,7 @@ class ReportNotifier(ComitoraBase):
 					{"type": "mrkdwn", "text": f"*Health*\n`{health_pct}%`"},
 					{"type": "mrkdwn", "text": f"*PRs merged*\n`{prs_merged}`"},
 					{"type": "mrkdwn", "text": f"*Awaiting review*\n`{awaiting_review}`"},
-					{"type": "mrkdwn", "text": f"*Blockers*\n`{blockers}`"},
+					{"type": "mrkdwn", "text": f"*Feedback in progress*\n`{feedback_in_progress}`"},
 					{"type": "mrkdwn", "text": f"*Active branches*\n`{active_branches}`"},
 					{"type": "mrkdwn", "text": f"*Open issues*\n`{open_issues}`"},
 				],

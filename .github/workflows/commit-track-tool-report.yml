@@ -44,11 +44,16 @@ permissions:
   contents: read
   issues: read
   pull-requests: read
+  pages: write
+  id-token: write
 
 jobs:
   comitora-report:
     name: Generate comitora report
     runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy-pages.outputs.page_url }}
     env:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
@@ -110,3 +115,24 @@ jobs:
           name: comitora-report-output-${{ github.run_id }}
           path: _comitora_report_output/
           if-no-files-found: error
+
+      - name: Configure GitHub Pages
+        uses: actions/configure-pages@v5
+
+      - name: Stage comitora-report.html for Pages
+        run: |
+          mkdir -p "${GITHUB_WORKSPACE}/_pages"
+          if [ ! -f "output/comitora-report.html" ]; then
+            echo "::error::output/comitora-report.html が見つかりません"
+            exit 1
+          fi
+          install -D "output/comitora-report.html" "${GITHUB_WORKSPACE}/_pages/comitora-report.html"
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v5
+        with:
+          path: _pages/
+
+      - name: Deploy to GitHub Pages
+        id: deploy-pages
+        uses: actions/deploy-pages@v5

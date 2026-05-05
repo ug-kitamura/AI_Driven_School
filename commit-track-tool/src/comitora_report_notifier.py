@@ -103,19 +103,19 @@ class ReportNotifier(ComitoraBase):
 				"type": "section",
 				"text": {
 					"type": "mrkdwn",
-					"text": f"*{period_label}*  •  *{repo_name}*\n<{repo_url}|GitHub Repository>",
+					"text": f"<{repo_url}|*{repo_name}*>\n*{period_label} のレポート*",
 				},
 			},
 			{
 				"type": "section",
 				"fields": [
-					{"type": "mrkdwn", "text": f"*Generated at*\n`{generated_at}`"},
-					{"type": "mrkdwn", "text": f"*Health*\n`{health_pct}%`"},
-					{"type": "mrkdwn", "text": f"*PRs merged*\n`{prs_merged}`"},
-					{"type": "mrkdwn", "text": f"*Awaiting review*\n`{awaiting_review}`"},
-					{"type": "mrkdwn", "text": f"*Feedback in progress*\n`{feedback_in_progress}`"},
-					{"type": "mrkdwn", "text": f"*Active branches*\n`{active_branches}`"},
-					{"type": "mrkdwn", "text": f"*Open issues*\n`{open_issues}`"},
+					{"type": "mrkdwn", "text": f"*レポート作成日*  `{generated_at}`\n"},
+					{"type": "mrkdwn", "text": f"*プロジェクト健全度*  `{health_pct}%`\n"},
+					{"type": "mrkdwn", "text": f"*マージ済みPR*  `{prs_merged}`\n"},
+					{"type": "mrkdwn", "text": f"*レビュー待ちPR*  `{awaiting_review}`\n"},
+					{"type": "mrkdwn", "text": f"*フィードバック対応中PR*  `{feedback_in_progress}`\n"},
+					{"type": "mrkdwn", "text": f"*アクティブブランチ*  `{active_branches}`\n"},
+					{"type": "mrkdwn", "text": f"*オープンissue*  `{open_issues}`\n"},
 				],
 			},
 		]

@@ -50,7 +50,7 @@ jobs:
 
       - name: Run pipeline (skip Claude)
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: >
           uv run python src/main.py
           --owner "${{ github.repository_owner }}"

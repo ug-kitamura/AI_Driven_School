@@ -46,13 +46,13 @@ class DataCollector(ComitoraBase):
 		parser.add_argument(
 			"--token",
 			default = None,
-			help    = "GitHub APIトークン（省略時は環境変数 GH_TOKEN）",
+			help    = "GitHub APIトークン（省略時は環境変数 GITHUB_TOKEN）",
 		)
 
 	def run(self) -> None:
-		token = self.args.token or os.environ.get("GH_TOKEN")
+		token = self.args.token or os.environ.get("GITHUB_TOKEN")
 		if not token:
-			print("❌ --token または環境変数 GH_TOKEN でトークンを指定してください", file=sys.stderr)
+			print("❌ --token または環境変数 GITHUB_TOKEN でトークンを指定してください", file=sys.stderr)
 			sys.exit(1)
 
 		client = GitHubClient(token, self.args.owner, self.args.repo)

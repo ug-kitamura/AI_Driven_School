@@ -94,12 +94,12 @@ jobs:
 
       - name: Run data collector
         env:
-          GH_TOKEN: ${{ secrets.GH_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: >
           uv run python src/comitora_data_collector.py
           --owner "${TARGET_OWNER}"
           --repo "${TARGET_REPO}"
-          --token "${GH_TOKEN}"
+          --token "${GITHUB_TOKEN}"
           --days "${DAYS}"
           --active-days "${ACTIVE_DAYS}"
 

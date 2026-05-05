@@ -17,7 +17,7 @@ on:
         default: 30
         type: number
       target_owner:
-        description: "対象オーナーor組織名"
+        description: "対象オーナー or 組織名"
         required: true
         type: string
         default: "ug-kitamura"
@@ -36,7 +36,7 @@ on:
           - claude-haiku-4-5
         default: claude-sonnet-4-6
       deploy_pages:
-        description: "GitHub Pages へデプロイ"
+        description: "デプロイ"
         required: true
         type: boolean
         default: true
@@ -133,7 +133,7 @@ jobs:
             echo "::error::output/comitora-report.html が見つかりません"
             exit 1
           fi
-          install -D "output/comitora-report.html" "${GITHUB_WORKSPACE}/_pages/comitora-report.html"
+          install -D "output/comitora-report.html" "${GITHUB_WORKSPACE}/_pages/index.html"
 
       - name: Upload Pages artifact
         if: ${{ github.event_name != 'workflow_dispatch' || inputs.deploy_pages }}

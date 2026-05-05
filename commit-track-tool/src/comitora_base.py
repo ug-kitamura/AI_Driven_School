@@ -22,7 +22,7 @@ HTML_REPORT = "comitora-report.html"
 class ComitoraBase(ABC):
 	"""Comitora 処理クラスの基底クラス。"""
 
-	DEBUG     = True
+	DEBUG     = False
 	TIMEZONE  = timezone(timedelta(hours=9)) #Japan
 	NOW_LOCAL = datetime.now(TIMEZONE)
 

@@ -1,0 +1,60 @@
+name: commit-track-tool CI
+
+on:
+  push:
+    paths:
+      - "commit-track-tool/**"
+      - ".github/workflows/commit-track-tool-ci.yml"
+  pull_request:
+    paths:
+      - "commit-track-tool/**"
+      - ".github/workflows/commit-track-tool-ci.yml"
+  workflow_dispatch:
+    inputs:
+      days:
+        description: "データ取得期間（日数）"
+        required: false
+        default: 7
+        type: number
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  continuous-test:
+    name: Run main.py (--skip-claude)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: commit-track-tool
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+          working-directory: commit-track-tool
+
+      - name: Install dependencies
+        run: uv sync --frozen
+
+      - name: Run pipeline (skip Claude)
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: >
+          uv run python src/main.py
+          --owner "${{ github.repository_owner }}"
+          --repo "${{ github.event.repository.name }}"
+          --days ${{ github.event_name != 'workflow_dispatch' && 7 || github.event.inputs.days }}
+          --skip-claude
+
+      - name: Upload report_data.json
+        uses: actions/upload-artifact@v4
+        with:
+          name: report-data-${{ github.run_id }}
+          path: commit-track-tool/output/report_data.json
+          if-no-files-found: error

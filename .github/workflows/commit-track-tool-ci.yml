@@ -5,10 +5,6 @@ on:
     paths:
       - "commit-track-tool/**"
       - ".github/workflows/commit-track-tool-ci.yml"
-  pull_request:
-    paths:
-      - "commit-track-tool/**"
-      - ".github/workflows/commit-track-tool-ci.yml"
   workflow_dispatch:
     inputs:
       days:
@@ -36,7 +32,7 @@ jobs:
     steps:
       - uses: actions/checkout@v5
 
-      - uses: astral-sh/setup-uv@v8
+      - uses: astral-sh/setup-uv@v8.1.0
         with:
           enable-cache: true
           working-directory: commit-track-tool

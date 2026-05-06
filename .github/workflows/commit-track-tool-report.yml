@@ -167,7 +167,7 @@ jobs:
           uv run python src/comitora_report_notifier.py
           --owner "${TARGET_OWNER}"
           --repo "${TARGET_REPO}"
-          --include-pages-url
+          --include-page-url
 
       - name: Notify Slack
         if: ${{ github.event_name == 'workflow_dispatch' && !inputs.deploy_pages && inputs.notify_slack }}

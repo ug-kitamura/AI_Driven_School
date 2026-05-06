@@ -10,28 +10,28 @@ main.py - Comitora レポート生成オーケストレータ
 	uv run python src/main.py --owner ... --repo ...
 
 オプション:
-	--owner             GitHubオーナー名（必須）
-	--repo              リポジトリ名（必須）
-	--days              直近何日分を対象とするか（デフォルト: 7）
-	--active-days       アクティブブランチ判定日数（デフォルト: 30）
-	--concurrency       ファイル取得並列数（デフォルト: 5）
-	--no-gitignore      .gitignore フィルタを無効化
-	--token             GitHub APIトークン（省略時は環境変数 GITHUB_TOKEN）
-	--anthropic-key     Anthropic APIキー（省略時は環境変数 ANTHROPIC_API_KEY）
-	--llm               Claude のモデル ID（既定: claude-sonnet-4-6）
-	--slack-bot-token   Slack Bot Token（省略時は環境変数 SLACK_BOT_TOKEN）
-	--slack-channel-id  Slack Channel ID（省略時は環境変数 SLACK_CHANNEL_ID）
-	--include-pages-url 通知文に GitHub Pages URL を含める
-	--skip-claude       Claude API をスキップ（データ取得のみ確認したい場合）
-	--skip-review       レポートのレビューをスキップ（既定では実行）
-	--skip-validation   HTML バリデーションをスキップ（既定では実行、失敗時は中断）
-	--skip-slack        Slack 通知を無効にする（環境変数があっても投稿しない）
+	--owner            GitHubオーナー名（必須）
+	--repo             リポジトリ名（必須）
+	--days             直近何日分を対象とするか（デフォルト: 7）
+	--active-days      アクティブブランチ判定日数（デフォルト: 30）
+	--concurrency      ファイル取得並列数（デフォルト: 5）
+	--no-gitignore     .gitignore フィルタを無効化
+	--token            GitHub APIトークン（省略時は環境変数 GITHUB_TOKEN）
+	--anthropic-key    Anthropic APIキー（省略時は環境変数 ANTHROPIC_API_KEY）
+	--llm              Claude のモデル ID（既定: claude-sonnet-4-6）
+	--slack-bot-token  Slack Bot Token（省略時は環境変数 SLACK_BOT_TOKEN）
+	--slack-channel-id Slack Channel ID（省略時は環境変数 SLACK_CHANNEL_ID）
+	--include-page-url 通知文に GitHub Pages URL を含める
+	--skip-claude      Claude API をスキップ（データ取得のみ確認したい場合）
+	--skip-review      レポートのレビューをスキップ（既定では実行）
+	--skip-validation  HTML バリデーションをスキップ（既定では実行、失敗時は中断）
+	--skip-slack       Slack 通知を無効にする（環境変数があっても投稿しない）
 
 環境変数:
-	GITHUB_TOKEN        GitHub APIトークン（--token 未指定時のフォールバック）
-	ANTHROPIC_API_KEY   Anthropic APIキー（--anthropic-key 未指定時のフォールバック）
-	SLACK_BOT_TOKEN     Slack Bot Token（--slack-bot-token 未指定時のフォールバック）
-	SLACK_CHANNEL_ID    Slack Channel ID（--slack-channel-id 未指定時のフォールバック）
+	GITHUB_TOKEN       GitHub APIトークン（--token 未指定時のフォールバック）
+	ANTHROPIC_API_KEY  Anthropic APIキー（--anthropic-key 未指定時のフォールバック）
+	SLACK_BOT_TOKEN    Slack Bot Token（--slack-bot-token 未指定時のフォールバック）
+	SLACK_CHANNEL_ID   Slack Channel ID（--slack-channel-id 未指定時のフォールバック）
 """
 
 import sys

@@ -18,7 +18,7 @@
               'blue-lt':  '#E8F1FF',
               green:      '#00884A',
               'green-lt': '#E2F5E7',
-              yellow:     '#CDA600',
+              yellow:     '#BD9900',
               'yellow-lt':'#FFEFD1',
             }
           },
@@ -94,7 +94,7 @@
       </div>
     </div>
 
-    <!-- Stat cards (全幅 × 5) -->
+    <!-- Stat cards -->
     <div class="flex flex-col gap-3">
       <div class="bg-white rounded-2xl border border-slate-200 p-4 shadow-sm flex items-center justify-between gap-4">
         <div class="flex items-center gap-2 text-slate-600">
@@ -145,13 +145,13 @@
     </div>
   </div>
 
-  <!-- ===== BRANCH MAP ===== -->
+  <!-- ===== BRANCH TABLE ===== -->
   <div class="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm">
     <div class="flex items-center gap-2 text-lg font-bold text-slate-700 mb-1">
       <i data-lucide="git-branch" class="w-4 h-4"></i>
-      ブランチ状況マップ
+      ブランチテーブル
     </div>
-    <div class="text-xs text-slate-500 mb-4">{{ branch_map_note }}</div>
+    <div class="text-xs text-slate-500 mb-4">{{ branch_table_note }}</div>
 
     <div class="overflow-x-auto">
       <table class="w-full text-sm border-collapse">
@@ -165,18 +165,20 @@
           </tr>
         </thead>
         <tbody>
-          {{ branch_rows }}
+          {{ branch_table }}
         </tbody>
       </table>
     </div>
   </div>
 
-  <!-- ===== BRANCH ROUTE DIAGRAM (Mermaid gitGraph) ===== -->
+  <!-- ===== BRANCH MAP ===== -->
   <div class="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm branch-route-diagram">
     <div class="flex items-center gap-2 text-lg font-bold text-slate-700 mb-4">
       <i data-lucide="git-fork" class="w-4 h-4"></i>
-      ブランチ路線図
+      ブランチグラフ
     </div>
+    <div class="text-xs text-slate-500 mb-4">{{ branch_graph_note }}</div>
+
     <div class="overflow-x-auto">
       <pre class="mermaid bg-white text-sm">
 {{ branch_graph }}
@@ -184,7 +186,7 @@
     </div>
   </div>
 
-  <!-- ===== HERO / CONTRIBUTORS / MESSAGE / TIPS (2×2) ===== -->
+  <!-- ===== HERO / CONTRIBUTORS / MESSAGE / TIPS ===== -->
   <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
 
     <!-- 今回のヒーロー -->

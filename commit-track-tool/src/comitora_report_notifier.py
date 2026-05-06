@@ -33,7 +33,7 @@ class ReportNotifier(ComitoraBase):
 			help="Slack Channel ID（省略時は環境変数 SLACK_CHANNEL_ID）",
 		)
 		parser.add_argument(
-			"--include-pages-url",
+			"--include-page-url",
 			action="store_true",
 			help="デプロイ済みの GitHub Pages URL を通知文に含める",
 		)
@@ -60,7 +60,7 @@ class ReportNotifier(ComitoraBase):
 			return
 
 		report_data = self._load_report_data()
-		payload = self._build_slack_payload(report_data, self.args.include_pages_url)
+		payload = self._build_slack_payload(report_data, self.args.include_page_url)
 		self._send_to_slack(slack_bot_token, slack_channel_id, payload)
 
 	def _load_report_data(self) -> dict:
@@ -70,7 +70,7 @@ class ReportNotifier(ComitoraBase):
 			sys.exit(1)
 		return self.load_json("report_data.json")
 
-	def _build_slack_payload(self, report_data: dict, include_pages_url: bool) -> dict:
+	def _build_slack_payload(self, report_data: dict, include_page_url: bool) -> dict:
 		metadata             = report_data.get("metadata", {})
 		pr_summary           = report_data.get("pr", {}).get("summary", {})
 		issue                = report_data.get("issue", {})
@@ -87,20 +87,32 @@ class ReportNotifier(ComitoraBase):
 		active_branches      = len(branch.get("active_branches") or [])
 		open_issues          = issue.get("open_count", 0)
 
+		try:
+			hp = int(health_pct)
+		except (TypeError, ValueError):
+			health_icon = ":white_circle:"
+		else:
+			if hp >= 80:
+				health_icon = ":large_blue_circle:"
+			elif hp >= 50:
+				health_icon = ":large_yellow_circle:"
+			else:
+				health_icon = ":red_circle:"
+
+		health_value = f"`{health_pct}%`" if health_pct != "N/A" else "`N/A`"
 		lines = [
 			f"*対象リポジトリ:*  <{repo_url}|*{repo_name}*>",
 			f"*{period_label}*",
+			f"*プロジェクト健全度: {health_icon}*  {health_value}",
 			"\n",
-			f"• レポート作成日:  `{generated_at}`",
-			f"• プロジェクト健全度:  `{health_pct}%`",
-			f"• マージ済みPR:  `{prs_merged}`",
-			f"• レビュー待ちPR:  `{awaiting_review}`",
-			f"• フィードバック対応中PR:  `{feedback_in_progress}`",
-			f"• アクティブブランチ:  `{active_branches}`",
-			f"• オープンissue:  `{open_issues}`",
+			f"• マージ済み PR:  `{prs_merged}`",
+			f"• レビュー待ち PR:  `{awaiting_review}`",
+			f"• フィードバック対応中 PR:  `{feedback_in_progress}`",
+			f"• アクティブ Branch:  `{active_branches}`",
+			f"• オープン Issue:  `{open_issues}`",
 		]
 
-		if include_pages_url:
+		if include_page_url:
 			pages_url = f"https://{self.args.owner}.github.io/{self.args.repo}/"
 			lines.extend(
 				[

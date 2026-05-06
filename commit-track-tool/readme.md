@@ -64,7 +64,7 @@ uv run python src/main.py --owner your-org --repo your-repo
 | `--skip-validation` | - | HTML バリデーション工程をスキップ |
 | `--slack-bot-token` | 環境変数参照 | Slack Bot Token（`SLACK_BOT_TOKEN`） |
 | `--slack-channel-id` | 環境変数参照 | Slack Channel ID（`SLACK_CHANNEL_ID`） |
-| `--include-pages-url` | - | Slack 通知に GitHub Pages URL を含める |
+| `--include-page-url` | - | Slack 通知に GitHub Pages URL を含める |
 | `--skip-slack` | - | Slack 通知を無効化（環境変数が設定済みでも投稿しない） |
 
 ---

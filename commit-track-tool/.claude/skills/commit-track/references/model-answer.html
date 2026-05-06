@@ -325,11 +325,11 @@
     </div>
   </div>
 
-  <!-- ===== BRANCH MAP ===== -->
+  <!-- ===== BRANCH TABLE ===== -->
   <div class="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm">
     <div class="flex items-center gap-2 text-lg font-bold text-slate-700 mb-1">
       <i data-lucide="git-branch" class="w-4 h-4"></i>
-      ブランチ状況マップ
+      ブランチテーブル
     </div>
     <div class="text-xs text-slate-500 mb-4">オープンPR → マージ済みPR の順。マージ済みの最終更新列はマージ日時。</div>
 
@@ -588,12 +588,14 @@
     </div>
   </div>
 
-  <!-- ===== BRANCH ROUTE DIAGRAM (Mermaid gitGraph) ===== -->
+  <!-- ===== BRANCH MAP (Mermaid gitGraph) ===== -->
   <div class="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm branch-route-diagram">
     <div class="flex items-center gap-2 text-lg font-bold text-slate-700 mb-4">
       <i data-lucide="git-fork" class="w-4 h-4"></i>
-      ブランチ路線図
+      ブランチグラフ
     </div>
+    <div class="text-xs text-slate-500 mb-4">マージコミットのみ表示。</div>
+
     <div class="overflow-x-auto">
       <pre class="mermaid bg-white text-sm">
 %%{init: {'theme': 'base', 'themeVariables': {'git0': '#007BC0', 'git1': '#00884A', 'git2': '#CDA600', 'git3': '#E040FB', 'git4': '#FF7043', 'git5': '#26C6DA', 'gitBranchLabel0': '#ffffff', 'gitBranchLabel1': '#ffffff', 'gitBranchLabel2': '#000000', 'gitBranchLabel3': '#ffffff', 'gitBranchLabel4': '#ffffff', 'gitBranchLabel5': '#ffffff', 'commitLabelFontSize': '12px'}}}%%

@@ -103,7 +103,7 @@ class ReportNotifier(ComitoraBase):
 		lines = [
 			f"*対象リポジトリ:*  <{repo_url}|*{repo_name}*>",
 			f"*{period_label}*",
-			f"*プロジェクト健全度: {health_icon}*  {health_value}",
+			f"*プロジェクト健全度: {health_icon}*",
 			"\n",
 			f"• マージ済み PR:  `{prs_merged}`",
 			f"• レビュー待ち PR:  `{awaiting_review}`",

@@ -2,6 +2,10 @@
 
 ## ツール一覧
 
+### [DX Training Editor](dx-training-editor)
+
+DX ツールトレーニングのコンテンツ作成を補助する4ペインUIツール。
+
 ### [Commit & Track tool（コミとら）](commit-track-tool)
 
 GitHubのコミット履歴をAIで分析し、図解レポートをSlackに自動投稿するツール。

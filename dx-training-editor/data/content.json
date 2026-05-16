@@ -1,0 +1,176 @@
+[
+  {
+    "id": "series-git",
+    "name": "Git完全マスターシリーズ",
+    "courses": [
+      {
+        "id": "course-git-concept",
+        "name": "Git概念マスターコース",
+        "target_audience": "バージョン管理を全く知らない開発者",
+        "prerequisites": [],
+        "next_courses": ["course-git-env"],
+        "lessons": [
+          {
+            "id": "lesson-git-concept-01",
+            "series": "Git完全マスターシリーズ",
+            "course": "Git概念マスターコース",
+            "lesson": "バージョン管理ってなに？",
+            "status": "done",
+            "description": "バージョン管理の概念とGitの基本を学ぶ",
+            "tags": ["git", "version-control"],
+            "estimated_minutes": 15,
+            "author": "山田太郎",
+            "content": "---\nseries: Git完全マスターシリーズ\ncourse: Git概念マスターコース\nlesson: バージョン管理ってなに？\nstatus: done\ndescription: バージョン管理の概念とGitの基本を学ぶ\ntags: [git, version-control]\nestimated_minutes: 15\nauthor: 山田太郎\n---\n\n# バージョン管理ってなに？\n\nバージョン管理とは、ファイルの変更履歴を記録・管理するしくみです。\n\n## なぜ必要？\n\n- 過去のバージョンに戻せる\n- 誰がいつ何を変更したか分かる\n- 複数人で同じファイルを編集できる\n\n:::quiz\nQ: バージョン管理の主な目的は何ですか？\n- [ ] ファイルを圧縮する\n- [x] 変更履歴を記録する\n- [ ] ファイルを暗号化する\n:::\n"
+          },
+          {
+            "id": "lesson-git-concept-02",
+            "series": "Git完全マスターシリーズ",
+            "course": "Git概念マスターコース",
+            "lesson": "Gitの三大エリア",
+            "status": "done",
+            "description": "作業ツリー・ステージングエリア・リポジトリの関係",
+            "tags": ["git", "staging"],
+            "estimated_minutes": 20,
+            "author": "山田太郎",
+            "content": "---\nseries: Git完全マスターシリーズ\ncourse: Git概念マスターコース\nlesson: Gitの三大エリア\nstatus: done\ndescription: 作業ツリー・ステージングエリア・リポジトリの関係\ntags: [git, staging]\nestimated_minutes: 20\nauthor: 山田太郎\n---\n\n# Gitの三大エリア\n\nGitには3つのエリアがあります。\n\n1. **作業ツリー** — 実際にファイルを編集する場所\n2. **ステージングエリア** — コミットする変更を選ぶ待合室\n3. **リポジトリ** — 確定した変更が保存される場所\n"
+          }
+        ]
+      },
+      {
+        "id": "course-git-env",
+        "name": "Git環境構築コース",
+        "target_audience": "Git未経験の開発者",
+        "prerequisites": ["course-git-concept"],
+        "next_courses": ["course-git-branch", "course-github-intro"],
+        "lessons": [
+          {
+            "id": "lesson-git-env-01",
+            "series": "Git完全マスターシリーズ",
+            "course": "Git環境構築コース",
+            "lesson": "Gitのインストール手順",
+            "status": "done",
+            "description": "Windows/Mac それぞれのGitインストール方法",
+            "tags": ["git", "setup", "install"],
+            "estimated_minutes": 15,
+            "author": "山田太郎",
+            "content": "---\nseries: Git完全マスターシリーズ\ncourse: Git環境構築コース\nlesson: Gitのインストール手順\nstatus: done\ndescription: Windows/Mac それぞれのGitインストール方法\ntags: [git, setup, install]\nestimated_minutes: 15\nauthor: 山田太郎\n---\n\n# Gitのインストール手順\n\n## Windows\n\n1. https://git-scm.com からインストーラーをダウンロード\n2. インストーラーを実行（デフォルト設定でOK）\n3. Git Bash が使えることを確認\n\n## Mac\n\n```bash\nbrew install git\n```\n"
+          },
+          {
+            "id": "lesson-git-env-02",
+            "series": "Git完全マスターシリーズ",
+            "course": "Git環境構築コース",
+            "lesson": "初期設定（名前・メールアドレス）",
+            "status": "in_progress",
+            "description": "git config で名前とメールアドレスを設定する",
+            "tags": ["git", "config"],
+            "estimated_minutes": 10,
+            "author": "山田太郎",
+            "content": "---\nseries: Git完全マスターシリーズ\ncourse: Git環境構築コース\nlesson: 初期設定（名前・メールアドレス）\nstatus: in_progress\ndescription: git config で名前とメールアドレスを設定する\ntags: [git, config]\nestimated_minutes: 10\nauthor: 山田太郎\n---\n\n# 初期設定（名前・メールアドレス）\n\nGitを使い始める前に、名前とメールアドレスを設定します。\n\n```bash\ngit config --global user.name \"あなたの名前\"\ngit config --global user.email \"your@email.com\"\n```\n\n（作成中）\n"
+          },
+          {
+            "id": "lesson-git-env-03",
+            "series": "Git完全マスターシリーズ",
+            "course": "Git環境構築コース",
+            "lesson": "最初のコミット",
+            "status": "draft",
+            "description": "git init から最初のコミットまでの手順",
+            "tags": ["git", "commit"],
+            "estimated_minutes": 20,
+            "author": "山田太郎",
+            "content": ""
+          }
+        ]
+      },
+      {
+        "id": "course-git-branch",
+        "name": "Gitブランチ操作コース",
+        "target_audience": "Git基本操作ができる開発者",
+        "prerequisites": ["course-git-env"],
+        "next_courses": ["course-git-pr"],
+        "lessons": [
+          {
+            "id": "lesson-git-branch-01",
+            "series": "Git完全マスターシリーズ",
+            "course": "Gitブランチ操作コース",
+            "lesson": "ブランチとは何か",
+            "status": "draft",
+            "description": "ブランチの概念と使い所",
+            "tags": ["git", "branch"],
+            "estimated_minutes": 15,
+            "author": "山田太郎",
+            "content": ""
+          }
+        ]
+      },
+      {
+        "id": "course-github-intro",
+        "name": "GitHub入門コース",
+        "target_audience": "Git基本操作ができる開発者",
+        "prerequisites": ["course-git-env"],
+        "next_courses": ["course-git-pr"],
+        "lessons": [
+          {
+            "id": "lesson-github-intro-01",
+            "series": "Git完全マスターシリーズ",
+            "course": "GitHub入門コース",
+            "lesson": "GitHubアカウントの作成",
+            "status": "draft",
+            "description": "GitHubアカウントを作成してリモートリポジトリを理解する",
+            "tags": ["github", "remote"],
+            "estimated_minutes": 20,
+            "author": "山田太郎",
+            "content": ""
+          }
+        ]
+      },
+      {
+        "id": "course-git-pr",
+        "name": "PR・レビュー実践コース",
+        "target_audience": "GitとGitHubの基本を習得した開発者",
+        "prerequisites": ["course-git-branch", "course-github-intro"],
+        "next_courses": [],
+        "lessons": [
+          {
+            "id": "lesson-git-pr-01",
+            "series": "Git完全マスターシリーズ",
+            "course": "PR・レビュー実践コース",
+            "lesson": "プルリクエストの作り方",
+            "status": "done",
+            "description": "GitHubでPRを作成してレビューを依頼する手順",
+            "tags": ["github", "pull-request", "review"],
+            "estimated_minutes": 20,
+            "author": "山田太郎",
+            "content": "---\nseries: Git完全マスターシリーズ\ncourse: PR・レビュー実践コース\nlesson: プルリクエストの作り方\nstatus: done\ndescription: GitHubでPRを作成してレビューを依頼する手順\ntags: [github, pull-request, review]\nestimated_minutes: 20\nauthor: 山田太郎\n---\n\n# プルリクエストの作り方\n\nPR（プルリクエスト）は変更内容をレビューしてもらうための仕組みです。\n\n## 手順\n\n1. フィーチャーブランチを作成してコミット\n2. GitHub にプッシュ\n3. GitHub の画面で「Compare & pull request」をクリック\n4. タイトルと説明を書いてレビュアーを指定\n"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "id": "series-python",
+    "name": "Python基礎シリーズ",
+    "courses": [
+      {
+        "id": "course-python-basics",
+        "name": "Python基礎コース",
+        "target_audience": "プログラミング未経験者",
+        "prerequisites": [],
+        "next_courses": [],
+        "lessons": [
+          {
+            "id": "lesson-python-01",
+            "series": "Python基礎シリーズ",
+            "course": "Python基礎コース",
+            "lesson": "Pythonとは何か",
+            "status": "draft",
+            "description": "Pythonの特徴と使われ方を学ぶ",
+            "tags": ["python"],
+            "estimated_minutes": 15,
+            "author": "山田太郎",
+            "content": ""
+          }
+        ]
+      }
+    ]
+  }
+]

@@ -21,7 +21,7 @@ todos:
     content: SeriesCoursePane.tsx を実装する（グローバル進捗バー・シリーズアコーディオン・コースステータスバッジ）
     status: pending
   - id: pane2
-    content: LessonListPane.tsx を実装する（コース進捗バー・レッスンステータスバッジ・CRUD・DnD並び替え）
+    content: LessonListPane.tsx を実装する（上部：コースメタ情報テーブル・Mermaidグラフ・編集ダイアログ、下部：コース進捗バー・レッスンステータスバッジ・CRUD・DnD並び替え）
     status: pending
   - id: pane3
     content: "MarkdownEditorPane.tsx を実装する（フェーズA: 生マークダウン編集＋react-markdownプレビュー＋ファイル読み込み）"
@@ -104,10 +104,13 @@ const lessonSchema = z.object({
   content: z.string(), // マークダウン本文
 })
 
-// コース → レッスン
+// コース → レッスン（曼陀羅メタ情報を含む）
 const courseSchema = z.object({
   id: z.string(),
   name: z.string(),
+  target_audience: z.string().optional(),       // 想定する受講対象者
+  prerequisites: z.array(z.string()).default([]), // 前提コースIDリスト
+  next_courses: z.array(z.string()).default([]),  // 次のコースIDリスト
   lessons: z.array(lessonSchema),
 })
 
@@ -162,9 +165,23 @@ const pane4Open = !pane4ManuallyClosed
 
 ### Pane 2 — LessonListPane
 
+**上部：コースメタ情報エリア**
+
+- コースメタ情報テーブル（受講対象者・前提コース・次のコース）を表示
+- 前提コース・次のコースの名前はクリック可能 → Pane1のコース選択をジャンプ
+- `[編集]` ボタン → コース設定ダイアログ（target_audience / prerequisites / next_courses を編集）
+- Mermaidミニグラフ：`prerequisites → 現在のコース → next_courses` を動的生成
+  - `mermaid` パッケージをクライアントサイドでレンダリング
+  - コースメタデータから自動的にMermaid定義文字列を生成
+  - 例: `flowchart LR\n  A["Git概念"] --> C["★本コース★"]\n  C --> D["Gitブランチ"]`
+
+**下部：レッスン一覧**
+
 - 既存 `CandidateListPane` の DnD（`@dnd-kit`）と CRUD ダイアログパターンを流用
-- グループ（stage 単位）をコース単位の進捗バーに置き換え
+- コース進捗バー（done件数/総件数）を最上部に配置
 - ステータスバッジは shadcn `<Badge>` で 3 色（`computeStatus` の結果で色分け）
+
+**追加依存パッケージ**: `mermaid`
 
 ### Pane 3 — MarkdownEditorPane（最複雑）
 

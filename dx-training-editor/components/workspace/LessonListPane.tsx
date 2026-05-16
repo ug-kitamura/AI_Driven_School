@@ -31,6 +31,7 @@ import { Progress } from "@/components/ui/progress";
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
   DialogFooter,
@@ -135,6 +136,7 @@ function SortableLessonRow({
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
     useSortable({ id: lesson.id });
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
 
   const style = {
     transform: CSS.Transform.toString(transform),
@@ -143,57 +145,85 @@ function SortableLessonRow({
   };
 
   return (
-    <div
-      ref={setNodeRef}
-      style={style}
-      className={cn(
-        "group flex items-center gap-1 rounded-md px-2 py-1.5 text-sm transition-colors",
-        isSelected
-          ? "bg-primary/10 text-primary"
-          : "hover:bg-accent text-foreground",
-      )}
-    >
-      {/* ドラッグハンドル */}
-      <button
-        {...attributes}
-        {...listeners}
-        className="flex-shrink-0 cursor-grab text-muted-foreground opacity-0 group-hover:opacity-100"
-        tabIndex={-1}
+    <>
+      <div
+        ref={setNodeRef}
+        style={style}
+        className={cn(
+          "group flex items-center gap-1 rounded-md px-2 py-1.5 text-sm transition-colors",
+          isSelected
+            ? "bg-primary/10 text-primary"
+            : "hover:bg-accent text-foreground",
+        )}
       >
-        <GripVertical className="h-3.5 w-3.5" />
-      </button>
+        {/* ドラッグハンドル */}
+        <button
+          {...attributes}
+          {...listeners}
+          className="flex-shrink-0 cursor-grab text-muted-foreground opacity-0 group-hover:opacity-100"
+          tabIndex={-1}
+        >
+          <GripVertical className="h-3.5 w-3.5" />
+        </button>
 
-      {/* レッスン名 */}
-      <button
-        onClick={onSelect}
-        className="flex-1 truncate text-left text-xs"
-      >
-        {lesson.lesson}
-      </button>
+        {/* レッスン名 */}
+        <button
+          onClick={onSelect}
+          className="flex-1 truncate text-left text-xs"
+        >
+          {lesson.lesson}
+        </button>
 
-      {/* 削除ボタン */}
-      <button
-        onClick={(e) => {
-          e.stopPropagation();
-          onDelete();
-        }}
-        className="flex-shrink-0 text-muted-foreground opacity-0 hover:text-destructive group-hover:opacity-100"
-      >
-        <Trash2 className="h-3.5 w-3.5" />
-      </button>
+        {/* 削除ボタン */}
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            setDeleteConfirmOpen(true);
+          }}
+          className="flex-shrink-0 text-muted-foreground opacity-0 hover:text-destructive group-hover:opacity-100"
+        >
+          <Trash2 className="h-3.5 w-3.5" />
+        </button>
 
-      {/* ステータスアイコン（クリックで循環切り替え） */}
-      <button
-        onClick={(e) => {
-          e.stopPropagation();
-          onStatusChange(STATUS_CYCLE[lesson.status]);
-        }}
-        title={`${STATUS_ICON[lesson.status].label} → クリックで変更`}
-        className="ml-1 flex-shrink-0 transition-opacity hover:opacity-70"
-      >
-        {STATUS_ICON[lesson.status].icon}
-      </button>
-    </div>
+        {/* ステータスアイコン（クリックで循環切り替え） */}
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            onStatusChange(STATUS_CYCLE[lesson.status]);
+          }}
+          title={`${STATUS_ICON[lesson.status].label} → クリックで変更`}
+          className="ml-1 flex-shrink-0 transition-opacity hover:opacity-70"
+        >
+          {STATUS_ICON[lesson.status].icon}
+        </button>
+      </div>
+
+      {/* 削除確認ダイアログ */}
+      <Dialog open={deleteConfirmOpen} onOpenChange={setDeleteConfirmOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>レッスンを削除しますか？</DialogTitle>
+            <DialogDescription>
+              「{lesson.lesson}」を削除します。この操作は元に戻せません。
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDeleteConfirmOpen(false)}>
+              キャンセル
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={() => {
+                onDelete();
+                setDeleteConfirmOpen(false);
+              }}
+            >
+              削除
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }
 

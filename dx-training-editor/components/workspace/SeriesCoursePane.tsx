@@ -216,10 +216,10 @@ export function SeriesCoursePane({
         {/* グローバル進捗バー */}
         <div className="mb-3 rounded-lg bg-card px-3 py-2 shadow-xs">
           <div className="mb-1 flex items-center justify-between text-xs">
-            <span className="text-muted-foreground">全体進捗</span>
-            <span className="font-medium text-primary">
-              {doneLessons} / {totalLessons}
+            <span className="text-muted-foreground">
+              全体進捗
             </span>
+            <span className="font-medium text-primary">{globalProgress}%</span>
           </div>
           <Progress value={globalProgress} className="h-1.5" />
         </div>

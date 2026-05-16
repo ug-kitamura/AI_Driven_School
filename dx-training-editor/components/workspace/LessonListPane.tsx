@@ -313,7 +313,7 @@ export function LessonListPane({
         {/* メタ情報テーブル */}
         <div className="space-y-1 text-xs">
           <div className="flex gap-1">
-            <span className="w-12 flex-shrink-0 text-muted-foreground">
+            <span className="w-8 flex-shrink-0 text-muted-foreground">
               対象:
             </span>
             <span className="truncate text-foreground">
@@ -341,7 +341,7 @@ export function LessonListPane({
             </div>
           </div>
           <div className="flex flex-wrap gap-1 items-start">
-            <span className="w-12 flex-shrink-0 text-muted-foreground">
+            <span className="w-8 flex-shrink-0 text-muted-foreground">
               次回:
             </span>
             <div className="flex flex-wrap gap-1">

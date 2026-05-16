@@ -278,9 +278,9 @@ export function Workspace({
           departmentTitle={selectedSeriesName}
           positionTitle={selectedCourse?.name ?? ""}
           candidateName={selectedLesson?.lesson ?? ""}
-          departments={[]}
-          onAddDepartment={() => {}}
-          onDeleteDepartment={() => {}}
+          series={series}
+          selectedCourseId={selectedCourseId}
+          onSelectCourse={selectCourse}
         />
         <div className="flex min-h-0 flex-1">
           <LessonListPane

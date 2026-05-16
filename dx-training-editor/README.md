@@ -24,6 +24,8 @@ npm run dev
 
 GlobalHeader に **DXトレーニング曼陀羅ボタン** があり、全コースの依存グラフをフルスクリーンで表示。ノードをクリックすると対象コースに移動できる。
 
+<img width="1406" height="715" alt="image" src="https://github.com/user-attachments/assets/d481fa5d-c094-4b51-8d54-81d586da04de" />
+
 ## 技術スタック
 
 - **Next.js** / **React** / **TypeScript**

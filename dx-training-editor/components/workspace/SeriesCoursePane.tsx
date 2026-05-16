@@ -228,14 +228,14 @@ export function SeriesCoursePane({
         <div className="space-y-1">
           {series.map((s) => {
             const isExpanded = expandedSeriesIds.has(s.id);
-            // シリーズの進捗
-            const seriesLessons = s.courses.flatMap((c) => c.lessons);
-            const seriesDone = seriesLessons.filter(
-              (l) => l.status === "done",
+            // シリーズの進捗（完成コース数 / コース数）
+            const totalCourses = s.courses.length;
+            const doneCourses = s.courses.filter(
+              (c) => computeStatus(c.lessons.map((l) => l.status)) === "done",
             ).length;
             const seriesProgress =
-              seriesLessons.length > 0
-                ? Math.round((seriesDone / seriesLessons.length) * 100)
+              totalCourses > 0
+                ? Math.round((doneCourses / totalCourses) * 100)
                 : 0;
 
             return (
@@ -274,7 +274,7 @@ export function SeriesCoursePane({
                   <div className="mb-1 px-5 sidebar-label">
                     <div className="mb-0.5 flex items-center justify-between text-[10px] text-muted-foreground">
                       <span>
-                        {seriesDone}/{seriesLessons.length} レッスン
+                        {doneCourses}/{totalCourses} コース
                       </span>
                     </div>
                     <Progress value={seriesProgress} className="h-1" />

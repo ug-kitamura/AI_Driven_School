@@ -285,6 +285,7 @@ export function SeriesCoursePane({
                 {isExpanded && (
                   <div className="ml-3">
                     <DndContext
+                      id={`series-course-dnd-${s.id}`}
                       sensors={sensors}
                       collisionDetection={closestCenter}
                       onDragEnd={handleDragEnd(s.id, s.courses)}

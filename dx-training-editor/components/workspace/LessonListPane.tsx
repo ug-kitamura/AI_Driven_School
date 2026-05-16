@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef, useMemo } from "react";
+import { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import {
   Plus,
   Trash2,
@@ -97,25 +97,34 @@ function resolveCourseNames(
   });
 }
 
+const miniSafeId = (id: string) => `M_${id.replace(/[^a-zA-Z0-9]/g, "_")}`;
+
 // Mermaid グラフ文字列生成
 function buildMermaidDef(
   course: Course,
   prereqNames: Array<{ id: string; name: string }>,
   nextNames: Array<{ id: string; name: string }>,
-): string {
+): { def: string; nodeMap: Record<string, string> } {
   const lines = ["flowchart LR"];
   const safeLabel = (s: string) => s.replace(/"/g, "'");
   const currentId = "CURRENT";
+  const nodeMap: Record<string, string> = {};
   lines.push(`  ${currentId}["★ ${safeLabel(course.name)}"]`);
   prereqNames.forEach(({ id, name }) => {
-    lines.push(`  ${id}["${safeLabel(name)}"]`);
-    lines.push(`  ${id} --> ${currentId}`);
+    const nid = miniSafeId(id);
+    nodeMap[nid] = id;
+    lines.push(`  ${nid}["${safeLabel(name)}"]`);
+    lines.push(`  ${nid} --> ${currentId}`);
+    lines.push(`  click ${nid} call miniGraphNav()`);
   });
   nextNames.forEach(({ id, name }) => {
-    lines.push(`  ${id}["${safeLabel(name)}"]`);
-    lines.push(`  ${currentId} --> ${id}`);
+    const nid = miniSafeId(id);
+    nodeMap[nid] = id;
+    lines.push(`  ${nid}["${safeLabel(name)}"]`);
+    lines.push(`  ${currentId} --> ${nid}`);
+    lines.push(`  click ${nid} call miniGraphNav()`);
   });
-  return lines.join("\n");
+  return { def: lines.join("\n"), nodeMap };
 }
 
 // ソータブル行
@@ -252,6 +261,9 @@ export function LessonListPane({
   const mermaidRef = useRef<HTMLDivElement>(null);
   const [mermaidSvg, setMermaidSvg] = useState<string>("");
   const [mermaidModalOpen, setMermaidModalOpen] = useState(false);
+  const miniSvgContainerRef = useRef<HTMLDivElement>(null);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const miniBndRef = useRef<((el: Element) => void) | null>(null);
 
   const prereqNames = useMemo(
     () => resolveCourseNames(series, course?.prerequisites ?? []),
@@ -262,30 +274,59 @@ export function LessonListPane({
     [series, course],
   );
 
+  // グローバルコールバック登録（ミニグラフ専用）
+  const stableSelectCourse = useCallback(onSelectCourse, [onSelectCourse]);
+  useEffect(() => {
+    (window as unknown as Record<string, unknown>)["miniGraphNav"] = (nodeId: string) => {
+      const w = window as unknown as Record<string, unknown>;
+      const map = w["miniGraphNodeMap"] as Record<string, string> | undefined;
+      const courseId = map?.[nodeId] ?? nodeId.replace(/^M_/, "").replace(/_/g, "-");
+      stableSelectCourse(courseId);
+      setMermaidModalOpen(false);
+    };
+    return () => {
+      const w = window as unknown as Record<string, unknown>;
+      delete w["miniGraphNav"];
+      delete w["miniGraphNodeMap"];
+    };
+  }, [stableSelectCourse]);
+
   useEffect(() => {
     if (!course) {
       setMermaidSvg("");
       return;
     }
-    const def = buildMermaidDef(course, prereqNames, nextNames);
+    const { def, nodeMap } = buildMermaidDef(course, prereqNames, nextNames);
+    (window as unknown as Record<string, unknown>)["miniGraphNodeMap"] = nodeMap;
     let cancelled = false;
-    import("mermaid").then((m) => {
+    import("mermaid").then(async (m) => {
       if (cancelled) return;
-      const mermaid = m.default;
-      mermaid.initialize({ startOnLoad: false, theme: "base" });
-      mermaid
-        .render(`mermaid-${course.id}`, def)
-        .then(({ svg }) => {
-          if (!cancelled) setMermaidSvg(svg);
-        })
-        .catch(() => {
-          if (!cancelled) setMermaidSvg("");
-        });
+      try {
+        const mermaid = m.default;
+        mermaid.initialize({ startOnLoad: false, theme: "base", securityLevel: "loose" });
+        const { svg, bindFunctions } = await mermaid.render(`mermaid-${course.id}-${Date.now()}`, def);
+        if (!cancelled) {
+          miniBndRef.current = bindFunctions ?? null;
+          setMermaidSvg(svg);
+        }
+      } catch {
+        if (!cancelled) setMermaidSvg("");
+      }
     });
-    return () => {
-      cancelled = true;
-    };
+    return () => { cancelled = true; };
   }, [course, prereqNames, nextNames]);
+
+  // モーダルの SVG コンテナがマウントされたら即 bindFunctions を呼ぶ（ポータル対応）
+  const miniSvgCallbackRef = useCallback(
+    (el: HTMLDivElement | null) => {
+      miniSvgContainerRef.current = el;
+      if (el && miniBndRef.current) {
+        miniBndRef.current(el);
+      }
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [mermaidSvg],
+  );
 
   const sensors = useSensors(
     useSensor(PointerSensor),
@@ -412,8 +453,22 @@ export function LessonListPane({
                   <DialogTitle>DX トレーニング曼陀羅</DialogTitle>
                 </DialogHeader>
                 <div
+                  ref={miniSvgCallbackRef}
                   className="overflow-auto rounded bg-white p-4"
                   dangerouslySetInnerHTML={{ __html: mermaidSvg }}
+                  onClick={(e) => {
+                    // foreignObject 内の HTML 要素からクリックが来る場合、
+                    // SVG g ノードまで伝播しないため、コンテナ側でインターセプト
+                    const t = e.target as Element;
+                    const g = t.closest("g") as SVGGElement | null;
+                    if (!g) return;
+                    // ID パターン: "...-flowchart-{nodeId}-{num}" から nodeId を抽出
+                    const match = g.id.match(/-flowchart-(M_[^-]+)-/);
+                    if (!match) return;
+                    const nodeId = match[1];
+                    const nav = (window as unknown as Record<string, unknown>)["miniGraphNav"] as ((id: string) => void) | undefined;
+                    nav?.(nodeId);
+                  }}
                 />
               </DialogContent>
             </Dialog>
@@ -437,6 +492,7 @@ export function LessonListPane({
       {/* レッスン一覧 */}
       <div className="flex-1 overflow-y-auto px-2 py-2">
         <DndContext
+          id="lesson-list-dnd"
           sensors={sensors}
           collisionDetection={closestCenter}
           onDragEnd={handleDragEnd}

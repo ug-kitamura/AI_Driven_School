@@ -110,12 +110,9 @@ export function GlobalHeader({
   // Mermaid の click call は nodeId を第1引数として渡す → nodeId から courseId をルックアップ
   useEffect(() => {
     (window as unknown as Record<string, unknown>)["mandalaNav"] = (nodeId: string) => {
-      console.log("[mandalaNav] called with nodeId:", nodeId);
       const w = window as unknown as Record<string, unknown>;
       const map = w["mandalaNodeMap"] as Record<string, string> | undefined;
-      console.log("[mandalaNav] nodeMap:", map);
       const courseId = map?.[nodeId] ?? nodeId.replace(/^N_/, "").replace(/_/g, "-");
-      console.log("[mandalaNav] resolved courseId:", courseId);
       onSelectCourse?.(courseId);
       setMandalaOpen(false);
     };
@@ -146,7 +143,6 @@ export function GlobalHeader({
           setMandalaDebug("");
         }
       } catch (err) {
-        console.error("[Mandala] render error:", err);
         if (!cancelled) setMandalaDebug(`ERROR: ${String(err)}\n\n---\n${def}`);
       }
     });
@@ -217,6 +213,16 @@ export function GlobalHeader({
                 ref={svgContainerRef}
                 className="flex items-center justify-center"
                 dangerouslySetInnerHTML={{ __html: mandalaSvg }}
+                onClick={(e) => {
+                  const t = e.target as Element;
+                  const g = t.closest("g") as SVGGElement | null;
+                  if (!g) return;
+                  const match = g.id.match(/-flowchart-(N_[^-]+)-/);
+                  if (!match) return;
+                  const nodeId = match[1];
+                  const nav = (window as unknown as Record<string, unknown>)["mandalaNav"] as ((id: string) => void) | undefined;
+                  nav?.(nodeId);
+                }}
               />
             ) : mandalaDebug ? (
               <pre className="text-xs text-muted-foreground whitespace-pre-wrap break-all">

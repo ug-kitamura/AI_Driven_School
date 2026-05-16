@@ -1,7 +1,23 @@
 "use client";
 
 import { useState, useMemo } from "react";
-import { GraduationCap, ChevronDown, ChevronRight } from "lucide-react";
+import { GraduationCap, ChevronDown, ChevronRight, GripVertical } from "lucide-react";
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from "@dnd-kit/core";
+import {
+  SortableContext,
+  sortableKeyboardCoordinates,
+  useSortable,
+  verticalListSortingStrategy,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 import {
   Sidebar,
   SidebarContent,
@@ -12,13 +28,14 @@ import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { cn, computeStatus } from "@/lib/utils";
 import { STATUS_LABELS } from "@/lib/schema";
-import type { Series } from "@/lib/schema";
+import type { Series, Course } from "@/lib/schema";
 
 type Props = {
   workspaceName: string;
   series: Series[];
   selectedCourseId: string;
   onSelectCourse: (courseId: string) => void;
+  onReorderCourses: (seriesId: string, fromIndex: number, toIndex: number) => void;
 };
 
 const STATUS_BADGE_CLASS = {
@@ -29,11 +46,77 @@ const STATUS_BADGE_CLASS = {
     "bg-[--status-draft] text-white border-transparent hover:bg-[--status-draft]",
 };
 
+function SortableCourseRow({
+  course,
+  isSelected,
+  onSelect,
+}: {
+  course: Course;
+  isSelected: boolean;
+  onSelect: () => void;
+}) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: course.id });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+  };
+
+  const courseStatus = computeStatus(course.lessons.map((l) => l.status));
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      className={cn(
+        "group flex items-center gap-1 rounded-md px-2 py-1 text-xs transition-colors",
+        isSelected
+          ? "bg-primary/10 text-primary"
+          : "text-foreground hover:bg-accent",
+      )}
+    >
+      {/* ドラッグハンドル */}
+      <button
+        {...attributes}
+        {...listeners}
+        className="flex-shrink-0 cursor-grab text-muted-foreground opacity-0 group-hover:opacity-100"
+        tabIndex={-1}
+      >
+        <GripVertical className="h-3 w-3" />
+      </button>
+
+      {/* コース名 */}
+      <button onClick={onSelect} className="flex-1 truncate text-left sidebar-label">
+        {course.name}
+      </button>
+
+      {/* ステータスバッジ */}
+      <Badge
+        className={cn(
+          "flex-shrink-0 px-1 py-0 text-[10px] sidebar-label",
+          STATUS_BADGE_CLASS[courseStatus],
+        )}
+      >
+        {STATUS_LABELS[courseStatus]}
+      </Badge>
+    </div>
+  );
+}
+
 export function SeriesCoursePane({
   workspaceName,
   series,
   selectedCourseId,
   onSelectCourse,
+  onReorderCourses,
 }: Props) {
   const [expandedSeriesIds, setExpandedSeriesIds] = useState<Set<string>>(
     () => new Set(series.map((s) => s.id)),
@@ -46,6 +129,24 @@ export function SeriesCoursePane({
       return next;
     });
   };
+
+  const sensors = useSensors(
+    useSensor(PointerSensor),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    }),
+  );
+
+  const handleDragEnd = (seriesId: string, courses: Series["courses"]) =>
+    (event: DragEndEvent) => {
+      const { active, over } = event;
+      if (!over || active.id === over.id) return;
+      const fromIndex = courses.findIndex((c) => c.id === active.id);
+      const toIndex = courses.findIndex((c) => c.id === over.id);
+      if (fromIndex !== -1 && toIndex !== -1) {
+        onReorderCourses(seriesId, fromIndex, toIndex);
+      }
+    };
 
   // グローバル進捗（全シリーズ横断）
   const { totalLessons, doneLessons } = useMemo(() => {
@@ -134,40 +235,30 @@ export function SeriesCoursePane({
                   </div>
                 )}
 
-                {/* コース一覧 */}
+                {/* コース一覧（DnD 並び替え） */}
                 {isExpanded && (
-                  <div className="ml-3 space-y-0.5">
-                    {s.courses.map((c) => {
-                      const courseStatus = computeStatus(
-                        c.lessons.map((l) => l.status),
-                      );
-                      const isSelected = c.id === selectedCourseId;
-
-                      return (
-                        <button
-                          key={c.id}
-                          onClick={() => onSelectCourse(c.id)}
-                          className={cn(
-                            "flex w-full items-center justify-between gap-1 rounded-md px-2 py-1 text-left text-xs transition-colors",
-                            isSelected
-                              ? "bg-primary/10 text-primary"
-                              : "text-foreground hover:bg-accent",
-                          )}
-                        >
-                          <span className="flex-1 truncate sidebar-label">
-                            {c.name}
-                          </span>
-                          <Badge
-                            className={cn(
-                              "flex-shrink-0 px-1 py-0 text-[10px] sidebar-label",
-                              STATUS_BADGE_CLASS[courseStatus],
-                            )}
-                          >
-                            {STATUS_LABELS[courseStatus]}
-                          </Badge>
-                        </button>
-                      );
-                    })}
+                  <div className="ml-3">
+                    <DndContext
+                      sensors={sensors}
+                      collisionDetection={closestCenter}
+                      onDragEnd={handleDragEnd(s.id, s.courses)}
+                    >
+                      <SortableContext
+                        items={s.courses.map((c) => c.id)}
+                        strategy={verticalListSortingStrategy}
+                      >
+                        <div className="space-y-0.5">
+                          {s.courses.map((c) => (
+                            <SortableCourseRow
+                              key={c.id}
+                              course={c}
+                              isSelected={c.id === selectedCourseId}
+                              onSelect={() => onSelectCourse(c.id)}
+                            />
+                          ))}
+                        </div>
+                      </SortableContext>
+                    </DndContext>
                   </div>
                 )}
               </div>

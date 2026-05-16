@@ -151,6 +151,22 @@ export function Workspace({
     [selectedLessonId],
   );
 
+  // コース並び替え（Pane1 DnD から）同シリーズ内のみ
+  const reorderCourses = useCallback(
+    (seriesId: string, fromIndex: number, toIndex: number) => {
+      setSeries((prev) =>
+        prev.map((s) => {
+          if (s.id !== seriesId) return s;
+          const courses = [...s.courses];
+          const [moved] = courses.splice(fromIndex, 1);
+          courses.splice(toIndex, 0, moved);
+          return { ...s, courses };
+        }),
+      );
+    },
+    [],
+  );
+
   // レッスン並び替え（Pane2 DnD から）
   const reorderLessons = useCallback(
     (courseId: string, fromIndex: number, toIndex: number) => {
@@ -225,6 +241,7 @@ export function Workspace({
         series={series}
         selectedCourseId={selectedCourseId}
         onSelectCourse={selectCourse}
+        onReorderCourses={reorderCourses}
       />
       <SidebarInset className="flex min-w-0 flex-col bg-background">
         <GlobalHeader

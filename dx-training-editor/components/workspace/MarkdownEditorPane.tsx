@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState, useCallback } from "react";
 import ReactMarkdown from "react-markdown";
-import { FileText, Clipboard, GitCompare, Code, Eye } from "lucide-react";
+import { FileText, GitCompare, Code, Eye } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import type { Lesson } from "@/lib/schema";
@@ -101,17 +101,6 @@ export function MarkdownEditorPane({
     e.target.value = "";
   };
 
-  // クリップボードからペースト
-  const handlePasteFromClipboard = async () => {
-    if (!lesson) return;
-    try {
-      const text = await navigator.clipboard.readText();
-      if (text) onUpdateContent(lesson.id, text);
-    } catch {
-      // ブラウザ環境でクリップボード読み取り不可の場合は無視
-    }
-  };
-
   if (!lesson) {
     return (
       <div className="flex flex-1 items-center justify-center text-muted-foreground text-sm">
@@ -152,15 +141,6 @@ export function MarkdownEditorPane({
           >
             <FileText className="h-3 w-3" />
             ファイルを開く
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            className="h-7 gap-1 text-xs"
-            onClick={handlePasteFromClipboard}
-          >
-            <Clipboard className="h-3 w-3" />
-            貼付け
           </Button>
         </div>
         <input

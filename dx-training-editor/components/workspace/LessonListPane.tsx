@@ -6,7 +6,9 @@ import {
   Trash2,
   GripVertical,
   Edit3,
-  ChevronRight,
+  CircleCheck,
+  RefreshCw,
+  CircleDashed,
 } from "lucide-react";
 import {
   DndContext,
@@ -24,7 +26,6 @@ import {
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import {
@@ -57,17 +58,29 @@ type Props = {
   onUpdateLessonStatus: (lessonId: string, status: Lesson["status"]) => void;
 };
 
-const STATUS_BADGE_CLASS = {
-  done: "bg-[--status-done] text-white border-transparent",
-  in_progress: "bg-[--status-wip] text-white border-transparent",
-  draft: "bg-[--status-draft] text-white border-transparent",
+const STATUS_ICON: Record<
+  Lesson["status"],
+  { icon: React.ReactNode; label: string }
+> = {
+  done: {
+    icon: <CircleCheck className="h-4 w-4 text-[--status-done]" />,
+    label: "完成",
+  },
+  in_progress: {
+    icon: <RefreshCw className="h-4 w-4 text-[--status-wip]" />,
+    label: "作成中",
+  },
+  draft: {
+    icon: <CircleDashed className="h-4 w-4 text-[--status-draft]" />,
+    label: "未着手",
+  },
 };
 
-const STATUS_OPTIONS: Array<{ value: Lesson["status"]; label: string }> = [
-  { value: "draft", label: "未着手" },
-  { value: "in_progress", label: "作成中" },
-  { value: "done", label: "完成" },
-];
+const STATUS_CYCLE: Record<Lesson["status"], Lesson["status"]> = {
+  draft: "in_progress",
+  in_progress: "done",
+  done: "draft",
+};
 
 // コース名 ID からコース名を解決するヘルパー
 function resolveCourseNames(
@@ -150,26 +163,17 @@ function SortableLessonRow({
         <GripVertical className="h-3.5 w-3.5" />
       </button>
 
-      {/* ステータスバッジ（クリックで切り替え） */}
-      <select
-        value={lesson.status}
-        onChange={(e) => onStatusChange(e.target.value as Lesson["status"])}
-        onClick={(e) => e.stopPropagation()}
-        className={cn(
-          "flex-shrink-0 cursor-pointer rounded px-1 py-0.5 text-[10px] font-medium text-white border-0 outline-none appearance-none",
-          lesson.status === "done"
-            ? "bg-[--status-done]"
-            : lesson.status === "in_progress"
-              ? "bg-[--status-wip]"
-              : "bg-[--status-draft]",
-        )}
+      {/* ステータスアイコン（クリックで循環切り替え） */}
+      <button
+        onClick={(e) => {
+          e.stopPropagation();
+          onStatusChange(STATUS_CYCLE[lesson.status]);
+        }}
+        title={`${STATUS_ICON[lesson.status].label} → クリックで変更`}
+        className="flex-shrink-0 transition-opacity hover:opacity-70"
       >
-        {STATUS_OPTIONS.map((opt) => (
-          <option key={opt.value} value={opt.value}>
-            {opt.label}
-          </option>
-        ))}
-      </select>
+        {STATUS_ICON[lesson.status].icon}
+      </button>
 
       {/* レッスン名 */}
       <button
@@ -289,8 +293,8 @@ export function LessonListPane({
     <div className="flex w-72 flex-shrink-0 flex-col border-r border-border bg-card">
       {/* コースメタ情報エリア */}
       <div className="border-b border-border bg-muted/40 px-3 py-2">
-        <div className="mb-2 flex items-center justify-between">
-          <span className="truncate text-xs font-bold text-foreground">
+        <div className="mb-2 flex items-center gap-1">
+          <span className="flex-1 truncate text-xs font-bold text-foreground">
             {course.name}
           </span>
           <Button
@@ -376,14 +380,6 @@ export function LessonListPane({
         <div className="mb-1 flex items-center justify-between text-xs">
           <span className="text-muted-foreground">コース進捗</span>
           <div className="flex items-center gap-1.5">
-            <Badge
-              className={cn(
-                "px-1 py-0 text-[10px]",
-                STATUS_BADGE_CLASS[courseStatus],
-              )}
-            >
-              {STATUS_LABELS[courseStatus]}
-            </Badge>
             <span className="font-medium text-primary">
               {doneCount}/{course.lessons.length}
             </span>

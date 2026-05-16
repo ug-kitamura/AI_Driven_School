@@ -1,7 +1,15 @@
 "use client";
 
 import { useState, useMemo } from "react";
-import { GraduationCap, ChevronDown, ChevronRight, GripVertical } from "lucide-react";
+import {
+  GraduationCap,
+  ChevronDown,
+  ChevronRight,
+  GripVertical,
+  CircleCheck,
+  RefreshCw,
+  CircleDashed,
+} from "lucide-react";
 import {
   DndContext,
   closestCenter,
@@ -24,7 +32,6 @@ import {
   SidebarHeader,
 } from "@/components/ui/sidebar";
 import { Pane1Toggle } from "@/components/workspace/Pane1Toggle";
-import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { cn, computeStatus } from "@/lib/utils";
 import { STATUS_LABELS } from "@/lib/schema";
@@ -38,13 +45,11 @@ type Props = {
   onReorderCourses: (seriesId: string, fromIndex: number, toIndex: number) => void;
 };
 
-const STATUS_BADGE_CLASS = {
-  done: "bg-[--status-done] text-white border-transparent hover:bg-[--status-done]",
-  in_progress:
-    "bg-[--status-wip] text-white border-transparent hover:bg-[--status-wip]",
-  draft:
-    "bg-[--status-draft] text-white border-transparent hover:bg-[--status-draft]",
-};
+const STATUS_ICON = {
+  done: <CircleCheck className="h-3.5 w-3.5 text-[--status-done]" />,
+  in_progress: <RefreshCw className="h-3.5 w-3.5 text-[--status-wip]" />,
+  draft: <CircleDashed className="h-3.5 w-3.5 text-[--status-draft]" />,
+} as const;
 
 function SortableCourseRow({
   course,
@@ -98,15 +103,13 @@ function SortableCourseRow({
         {course.name}
       </button>
 
-      {/* ステータスバッジ */}
-      <Badge
-        className={cn(
-          "flex-shrink-0 px-1 py-0 text-[10px] sidebar-label",
-          STATUS_BADGE_CLASS[courseStatus],
-        )}
+      {/* ステータスアイコン */}
+      <span
+        className="flex-shrink-0 sidebar-label"
+        title={STATUS_LABELS[courseStatus]}
       >
-        {STATUS_LABELS[courseStatus]}
-      </Badge>
+        {STATUS_ICON[courseStatus]}
+      </span>
     </div>
   );
 }

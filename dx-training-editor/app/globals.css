@@ -102,8 +102,11 @@
   --ring: #007BC0;
   /* ステータスカラー */
   --status-done: #00884A;       /* Custom_Green_50 */
+  --status-done-fg: #FFFFFF;
   --status-wip: #EEC100;        /* Custom_Yellow_80 */
+  --status-wip-fg: #FFFFFF;
   --status-draft: #A4ABB3;      /* Custom_Gray_70 */
+  --status-draft-fg: #FFFFFF;
   --chart-1: #007BC0;
   --chart-2: #00884A;
   --chart-3: #EEC100;

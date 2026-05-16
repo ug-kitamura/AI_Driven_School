@@ -31,6 +31,7 @@ import {
   Sidebar,
   SidebarContent,
   SidebarHeader,
+  useSidebar,
 } from "@/components/ui/sidebar";
 import {
   Dialog,
@@ -140,6 +141,9 @@ export function SeriesCoursePane({
     () => new Set(series.map((s) => s.id)),
   );
 
+  const { state: sidebarState } = useSidebar();
+  const isCollapsed = sidebarState === "collapsed";
+
   // シリーズ追加ダイアログ
   const [addSeriesOpen, setAddSeriesOpen] = useState(false);
   const [newSeriesName, setNewSeriesName] = useState("");
@@ -208,8 +212,9 @@ export function SeriesCoursePane({
       </SidebarHeader>
 
       <SidebarContent className="overflow-y-auto px-2 py-2">
+        {isCollapsed ? null : <>
         {/* グローバル進捗バー */}
-        <div className="mb-3 rounded-lg bg-card px-3 py-2 shadow-xs sidebar-label">
+        <div className="mb-3 rounded-lg bg-card px-3 py-2 shadow-xs">
           <div className="mb-1 flex items-center justify-between text-xs">
             <span className="text-muted-foreground">全体進捗</span>
             <span className="font-medium text-primary">
@@ -220,7 +225,7 @@ export function SeriesCoursePane({
         </div>
 
         {/* シリーズ一覧 */}
-        <div className="space-y-1 sidebar-label">
+        <div className="space-y-1">
           {series.map((s) => {
             const isExpanded = expandedSeriesIds.has(s.id);
             // シリーズの進捗
@@ -320,6 +325,7 @@ export function SeriesCoursePane({
             シリーズを追加
           </Button>
         </div>
+        </>}
       </SidebarContent>
 
       {/* シリーズ追加ダイアログ */}

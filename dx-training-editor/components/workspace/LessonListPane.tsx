@@ -63,15 +63,15 @@ const STATUS_ICON: Record<
   { icon: React.ReactNode; label: string }
 > = {
   done: {
-    icon: <CircleCheck className="h-4 w-4 text-[--status-done]" />,
+    icon: <CircleCheck className="h-3.5 w-3.5 text-[--status-done]" />,
     label: "完成",
   },
   in_progress: {
-    icon: <Loader className="h-4 w-4 text-[--status-wip]" />,
+    icon: <Loader className="h-3.5 w-3.5 text-[--status-wip]" />,
     label: "作成中",
   },
   draft: {
-    icon: <CircleDashed className="h-4 w-4 text-[--status-draft]" />,
+    icon: <CircleDashed className="h-3.5 w-3.5 text-[--status-draft]" />,
     label: "未着手",
   },
 };
@@ -163,18 +163,6 @@ function SortableLessonRow({
         <GripVertical className="h-3.5 w-3.5" />
       </button>
 
-      {/* ステータスアイコン（クリックで循環切り替え） */}
-      <button
-        onClick={(e) => {
-          e.stopPropagation();
-          onStatusChange(STATUS_CYCLE[lesson.status]);
-        }}
-        title={`${STATUS_ICON[lesson.status].label} → クリックで変更`}
-        className="flex-shrink-0 transition-opacity hover:opacity-70"
-      >
-        {STATUS_ICON[lesson.status].icon}
-      </button>
-
       {/* レッスン名 */}
       <button
         onClick={onSelect}
@@ -191,7 +179,19 @@ function SortableLessonRow({
         }}
         className="flex-shrink-0 text-muted-foreground opacity-0 hover:text-destructive group-hover:opacity-100"
       >
-        <Trash2 className="h-3 w-3" />
+        <Trash2 className="h-3.5 w-3.5" />
+      </button>
+
+      {/* ステータスアイコン（クリックで循環切り替え） */}
+      <button
+        onClick={(e) => {
+          e.stopPropagation();
+          onStatusChange(STATUS_CYCLE[lesson.status]);
+        }}
+        title={`${STATUS_ICON[lesson.status].label} → クリックで変更`}
+        className="ml-1 flex-shrink-0 transition-opacity hover:opacity-70"
+      >
+        {STATUS_ICON[lesson.status].icon}
       </button>
     </div>
   );

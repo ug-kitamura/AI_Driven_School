@@ -19,15 +19,6 @@ import {
 import { Button } from "@/components/ui/button";
 import type { Series } from "@/lib/schema";
 
-// シリーズごとに割り当てるカラー（Mermaid classDef 用）
-const SERIES_COLORS = [
-  { fill: "#D1E4FF", stroke: "#007BC0", color: "#004F82" },
-  { fill: "#D4EDDA", stroke: "#28A745", color: "#155724" },
-  { fill: "#FFF3CD", stroke: "#FFC107", color: "#856404" },
-  { fill: "#F8D7DA", stroke: "#DC3545", color: "#721C24" },
-  { fill: "#E2D9F3", stroke: "#6F42C1", color: "#432874" },
-];
-
 // セーフな Mermaid ノード ID
 const safeId = (id: string) => `N_${id.replace(/[^a-zA-Z0-9]/g, "_")}`;
 const safeLabel = (s: string) => s.replace(/"/g, "'");
@@ -39,22 +30,20 @@ function buildFullMandalaGraph(
   const lines = ["flowchart TD"];
   const nodeMap: Record<string, string> = {};
 
-  // classDef
-  series.forEach((_, i) => {
-    const c = SERIES_COLORS[i % SERIES_COLORS.length];
-    lines.push(`  classDef s${i} fill:${c.fill},stroke:${c.stroke}`);
-  });
-  lines.push(`  classDef cur fill:#007BC0,stroke:#004F82`);
+  // 現在選択中コースを強調する classDef のみ
+  lines.push(`  classDef cur stroke-width:3px,font-weight:bold`);
 
-  // シリーズごとにサブグラフとノード
-  series.forEach((s, si) => {
+  // シリーズごとにサブグラフとノード（丸みノード、方向は TB に統一）
+  series.forEach((s) => {
     const sgId = `SG${safeId(s.id)}`;
     lines.push(`  subgraph ${sgId}["${safeLabel(s.name)}"]`);
+    lines.push(`    direction TB`);
     s.courses.forEach((c) => {
       const nid = safeId(c.id);
-      nodeMap[nid] = c.id;                          // nodeId → courseId マッピング
-      const cls = c.id === selectedCourseId ? "cur" : `s${si}`;
-      lines.push(`    ${nid}["${safeLabel(c.name)}"]:::${cls}`);
+      nodeMap[nid] = c.id;
+      const isCurrent = c.id === selectedCourseId;
+      const label = isCurrent ? `★ ${safeLabel(c.name)}` : safeLabel(c.name);
+      lines.push(`    ${nid}("${label}")${isCurrent ? ":::cur" : ""}`);
     });
     lines.push("  end");
   });
@@ -68,7 +57,7 @@ function buildFullMandalaGraph(
     });
   });
 
-  // click ディレクティブ（Mermaid v11 は括弧必須）
+  // click ディレクティブ
   series.forEach((s) => {
     s.courses.forEach((c) => {
       lines.push(`  click ${safeId(c.id)} call mandalaNav()`);
@@ -135,7 +124,7 @@ export function GlobalHeader({
       if (cancelled) return;
       try {
         const mermaid = m.default;
-        mermaid.initialize({ startOnLoad: false, theme: "neutral", securityLevel: "loose" });
+        mermaid.initialize({ startOnLoad: false, theme: "base", securityLevel: "loose" });
         const { svg, bindFunctions } = await mermaid.render(`mandala-${Date.now()}`, def);
         if (!cancelled) {
           bindFnsRef.current = bindFunctions ?? null;
@@ -150,6 +139,14 @@ export function GlobalHeader({
       cancelled = true;
     };
   }, [mandalaOpen, series, selectedCourseId]);
+
+  // モーダルを閉じたら SVG をリセット（次回オープン時に古いキャッシュを表示しない）
+  useEffect(() => {
+    if (!mandalaOpen) {
+      setMandalaSvg("");
+      setMandalaDebug("");
+    }
+  }, [mandalaOpen]);
 
   // SVG が DOM に描画されたタイミングで bindFunctions を呼びクリックハンドラを紐付ける
   useEffect(() => {

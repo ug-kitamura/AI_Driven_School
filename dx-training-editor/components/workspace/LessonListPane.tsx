@@ -109,18 +109,19 @@ function buildMermaidDef(
   const safeLabel = (s: string) => s.replace(/"/g, "'");
   const currentId = "CURRENT";
   const nodeMap: Record<string, string> = {};
-  lines.push(`  ${currentId}["★ ${safeLabel(course.name)}"]`);
+  lines.push(`  classDef cur stroke-width:3px,font-weight:bold`);
+  lines.push(`  ${currentId}("★ ${safeLabel(course.name)}"):::cur`);
   prereqNames.forEach(({ id, name }) => {
     const nid = miniSafeId(id);
     nodeMap[nid] = id;
-    lines.push(`  ${nid}["${safeLabel(name)}"]`);
+    lines.push(`  ${nid}("${safeLabel(name)}")`);
     lines.push(`  ${nid} --> ${currentId}`);
     lines.push(`  click ${nid} call miniGraphNav()`);
   });
   nextNames.forEach(({ id, name }) => {
     const nid = miniSafeId(id);
     nodeMap[nid] = id;
-    lines.push(`  ${nid}["${safeLabel(name)}"]`);
+    lines.push(`  ${nid}("${safeLabel(name)}")`);
     lines.push(`  ${currentId} --> ${nid}`);
     lines.push(`  click ${nid} call miniGraphNav()`);
   });
@@ -450,7 +451,7 @@ export function LessonListPane({
             <Dialog open={mermaidModalOpen} onOpenChange={setMermaidModalOpen}>
               <DialogContent className="max-w-2xl">
                 <DialogHeader>
-                  <DialogTitle>DX トレーニング曼陀羅</DialogTitle>
+                  <DialogTitle>トレーニングフロー</DialogTitle>
                 </DialogHeader>
                 <div
                   ref={miniSvgCallbackRef}

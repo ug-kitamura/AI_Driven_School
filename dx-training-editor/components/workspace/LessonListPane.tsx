@@ -7,7 +7,7 @@ import {
   GripVertical,
   Edit3,
   CircleCheck,
-  RefreshCw,
+  Loader,
   CircleDashed,
 } from "lucide-react";
 import {
@@ -67,7 +67,7 @@ const STATUS_ICON: Record<
     label: "完成",
   },
   in_progress: {
-    icon: <RefreshCw className="h-4 w-4 text-[--status-wip]" />,
+    icon: <Loader className="h-4 w-4 text-[--status-wip]" />,
     label: "作成中",
   },
   draft: {

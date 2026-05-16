@@ -151,6 +151,34 @@ export function Workspace({
     [selectedLessonId],
   );
 
+  // シリーズ追加（Pane1 から）
+  const addSeries = useCallback((name: string) => {
+    const newId = `series-${Date.now()}`;
+    setSeries((prev) => [
+      ...prev,
+      { id: newId, name, courses: [] },
+    ]);
+  }, []);
+
+  // コース追加（Pane1 から）
+  const addCourse = useCallback((seriesId: string, name: string) => {
+    const newId = `course-${Date.now()}`;
+    setSeries((prev) =>
+      prev.map((s) => {
+        if (s.id !== seriesId) return s;
+        const newCourse: Course = {
+          id: newId,
+          name,
+          target_audience: "",
+          prerequisites: [],
+          next_courses: [],
+          lessons: [],
+        };
+        return { ...s, courses: [...s.courses, newCourse] };
+      }),
+    );
+  }, []);
+
   // コース並び替え（Pane1 DnD から）同シリーズ内のみ
   const reorderCourses = useCallback(
     (seriesId: string, fromIndex: number, toIndex: number) => {
@@ -242,6 +270,8 @@ export function Workspace({
         selectedCourseId={selectedCourseId}
         onSelectCourse={selectCourse}
         onReorderCourses={reorderCourses}
+        onAddSeries={addSeries}
+        onAddCourse={addCourse}
       />
       <SidebarInset className="flex min-w-0 flex-col bg-background">
         <GlobalHeader

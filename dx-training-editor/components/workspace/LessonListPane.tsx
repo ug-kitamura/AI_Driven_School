@@ -494,7 +494,7 @@ export function LessonListPane({
                   </div>
                 )}
                 <p className="text-[11px] text-muted-foreground text-center pt-1">
-                  ノードをクリックするとそのコースに移動します
+                  ★ = 現在選択中のコース　　ノードをクリックするとそのコースに移動します
                 </p>
               </DialogContent>
             </Dialog>

@@ -272,10 +272,9 @@ export function SeriesCoursePane({
                 {/* シリーズ進捗バー */}
                 {isExpanded && (
                   <div className="mb-1 px-5 sidebar-label">
-                    <div className="mb-0.5 flex items-center justify-between text-[10px] text-muted-foreground">
-                      <span>
-                        {doneCourses}/{totalCourses} コース
-                      </span>
+                    <div className="mb-0.5 flex items-center justify-between text-[10px]">
+                      <span className="text-muted-foreground">シリーズ進捗</span>
+                      <span className="font-medium text-primary">{doneCourses}/{totalCourses}</span>
                     </div>
                     <Progress value={seriesProgress} className="h-1" />
                   </div>

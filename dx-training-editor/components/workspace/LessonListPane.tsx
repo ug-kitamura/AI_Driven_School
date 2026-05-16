@@ -152,8 +152,8 @@ function SortableLessonRow({
         className={cn(
           "group flex items-center gap-1 rounded-md px-2 py-1.5 text-sm transition-colors",
           isSelected
-            ? "bg-primary/10 text-primary"
-            : "hover:bg-accent text-foreground",
+            ? "bg-accent text-primary"
+            : "hover:bg-muted text-foreground",
         )}
       >
         {/* ドラッグハンドル */}
@@ -251,6 +251,7 @@ export function LessonListPane({
   // Mermaid レンダリング
   const mermaidRef = useRef<HTMLDivElement>(null);
   const [mermaidSvg, setMermaidSvg] = useState<string>("");
+  const [mermaidModalOpen, setMermaidModalOpen] = useState(false);
 
   const prereqNames = useMemo(
     () => resolveCourseNames(series, course?.prerequisites ?? []),
@@ -396,12 +397,27 @@ export function LessonListPane({
           </div>
         </div>
 
-        {/* Mermaid ミニグラフ */}
+        {/* Mermaid ミニグラフ（クリックで拡大） */}
         {mermaidSvg && (
-          <div
-            className="mt-2 overflow-hidden rounded border border-border bg-white p-1"
-            dangerouslySetInnerHTML={{ __html: mermaidSvg }}
-          />
+          <>
+            <button
+              className="mt-2 w-full overflow-hidden rounded border border-border bg-white p-1 transition-opacity hover:opacity-80 cursor-zoom-in"
+              title="クリックで拡大表示"
+              onClick={() => setMermaidModalOpen(true)}
+              dangerouslySetInnerHTML={{ __html: mermaidSvg }}
+            />
+            <Dialog open={mermaidModalOpen} onOpenChange={setMermaidModalOpen}>
+              <DialogContent className="max-w-2xl">
+                <DialogHeader>
+                  <DialogTitle>DX トレーニング曼陀羅</DialogTitle>
+                </DialogHeader>
+                <div
+                  className="overflow-auto rounded bg-white p-4"
+                  dangerouslySetInnerHTML={{ __html: mermaidSvg }}
+                />
+              </DialogContent>
+            </Dialog>
+          </>
         )}
       </div>
 

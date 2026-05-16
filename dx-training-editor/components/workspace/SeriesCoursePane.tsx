@@ -98,8 +98,8 @@ function SortableCourseRow({
       className={cn(
         "group flex items-center gap-1 rounded-md px-2 py-1 text-xs transition-colors",
         isSelected
-          ? "bg-primary/10 text-primary"
-          : "text-foreground hover:bg-accent",
+          ? "bg-accent text-primary"
+          : "text-foreground hover:bg-muted",
       )}
     >
       {/* ドラッグハンドル */}
@@ -244,7 +244,7 @@ export function SeriesCoursePane({
                 <div className="group/series flex items-center">
                   <button
                     onClick={() => toggleSeries(s.id)}
-                    className="flex flex-1 items-center gap-1.5 rounded-md px-2 py-1.5 text-left hover:bg-accent"
+                    className="flex flex-1 items-center gap-1.5 rounded-md px-2 py-1.5 text-left hover:bg-muted"
                   >
                     {isExpanded ? (
                       <ChevronDown className="h-3.5 w-3.5 flex-shrink-0 text-muted-foreground" />
@@ -256,7 +256,7 @@ export function SeriesCoursePane({
                     </span>
                   </button>
                   <button
-                    className="flex-shrink-0 rounded p-1 text-muted-foreground opacity-0 group-hover/series:opacity-100 hover:bg-accent hover:text-primary sidebar-label"
+                    className="flex-shrink-0 rounded p-1 text-muted-foreground opacity-0 group-hover/series:opacity-100 hover:bg-muted hover:text-primary sidebar-label"
                     title="コースを追加"
                     onClick={(e) => {
                       e.stopPropagation();

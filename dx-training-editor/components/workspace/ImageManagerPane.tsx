@@ -161,9 +161,6 @@ export function ImageManagerPane({
               <p className="mt-0.5 text-[10px] text-muted-foreground">
                 またはクリックして選択
               </p>
-              <p className="mt-2 text-[10px] text-muted-foreground">
-                Ctrl+V で貼り付けも可
-              </p>
             </div>
             <input
               ref={fileInputRef}

@@ -314,15 +314,15 @@ export function LessonListPane({
         <div className="space-y-1 text-xs">
           <div className="flex gap-1">
             <span className="w-12 flex-shrink-0 text-muted-foreground">
-              対象者:
+              対象:
             </span>
             <span className="truncate text-foreground">
               {course.target_audience || "—"}
             </span>
           </div>
           <div className="flex flex-wrap gap-1 items-start">
-            <span className="w-12 flex-shrink-0 text-muted-foreground">
-              前提:
+            <span className="w-8 flex-shrink-0 text-muted-foreground">
+              前回:
             </span>
             <div className="flex flex-wrap gap-1">
               {prereqNames.length > 0 ? (
@@ -341,7 +341,9 @@ export function LessonListPane({
             </div>
           </div>
           <div className="flex flex-wrap gap-1 items-start">
-            <span className="w-12 flex-shrink-0 text-muted-foreground">次:</span>
+            <span className="w-12 flex-shrink-0 text-muted-foreground">
+              次回:
+            </span>
             <div className="flex flex-wrap gap-1">
               {nextNames.length > 0 ? (
                 nextNames.map(({ id, name }) => (

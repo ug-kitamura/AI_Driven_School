@@ -109,8 +109,8 @@ function buildMermaidDef(
   const safeLabel = (s: string) => s.replace(/"/g, "'");
   const currentId = "CURRENT";
   const nodeMap: Record<string, string> = {};
-  lines.push(`  classDef cur stroke-width:3px,font-weight:bold`);
-  lines.push(`  ${currentId}("★ ${safeLabel(course.name)}"):::cur`);
+  lines.push(`  ${currentId}("★ ${safeLabel(course.name)}")`);
+  lines.push(`  style ${currentId} stroke-width:3px,font-weight:bold`);
   prereqNames.forEach(({ id, name }) => {
     const nid = miniSafeId(id);
     nodeMap[nid] = id;
@@ -258,14 +258,6 @@ export function LessonListPane({
     next_courses: string;
   }>({ target_audience: "", prerequisites: "", next_courses: "" });
 
-  // Mermaid レンダリング
-  const mermaidRef = useRef<HTMLDivElement>(null);
-  const [mermaidSvg, setMermaidSvg] = useState<string>("");
-  const [mermaidModalOpen, setMermaidModalOpen] = useState(false);
-  const miniSvgContainerRef = useRef<HTMLDivElement>(null);
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const miniBndRef = useRef<((el: Element) => void) | null>(null);
-
   const prereqNames = useMemo(
     () => resolveCourseNames(series, course?.prerequisites ?? []),
     [series, course],
@@ -274,6 +266,32 @@ export function LessonListPane({
     () => resolveCourseNames(series, course?.next_courses ?? []),
     [series, course],
   );
+
+  // --- Mermaid: サムネイル用（常に先行レンダリング）---
+  const [thumbnailSvg, setThumbnailSvg] = useState<string>("");
+  useEffect(() => {
+    if (!course) { setThumbnailSvg(""); return; }
+    const { def } = buildMermaidDef(course, prereqNames, nextNames);
+    let cancelled = false;
+    import("mermaid").then(async (m) => {
+      if (cancelled) return;
+      try {
+        const mermaid = m.default;
+        mermaid.initialize({ startOnLoad: false, theme: "base", securityLevel: "loose" });
+        const id = `mthumb${course.id.replace(/[^a-zA-Z0-9]/g, "")}${Date.now()}`;
+        const { svg } = await mermaid.render(id, def);
+        if (!cancelled) setThumbnailSvg(svg);
+      } catch { if (!cancelled) setThumbnailSvg(""); }
+    });
+    return () => { cancelled = true; };
+  }, [course, prereqNames, nextNames]);
+
+  // --- Mermaid: モーダル用（開いたときにレンダリング・GlobalHeader と同じパターン）---
+  const [mermaidModalOpen, setMermaidModalOpen] = useState(false);
+  const [modalSvg, setModalSvg] = useState<string>("");
+  const modalSvgRef = useRef<HTMLDivElement>(null);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const modalBndRef = useRef<((el: Element) => void) | null>(null);
 
   // グローバルコールバック登録（ミニグラフ専用）
   const stableSelectCourse = useCallback(onSelectCourse, [onSelectCourse]);
@@ -292,11 +310,9 @@ export function LessonListPane({
     };
   }, [stableSelectCourse]);
 
+  // モーダルが開いたときだけレンダリング（GlobalHeader と同じ lazy パターン）
   useEffect(() => {
-    if (!course) {
-      setMermaidSvg("");
-      return;
-    }
+    if (!mermaidModalOpen || !course) return;
     const { def, nodeMap } = buildMermaidDef(course, prereqNames, nextNames);
     (window as unknown as Record<string, unknown>)["miniGraphNodeMap"] = nodeMap;
     let cancelled = false;
@@ -305,29 +321,28 @@ export function LessonListPane({
       try {
         const mermaid = m.default;
         mermaid.initialize({ startOnLoad: false, theme: "base", securityLevel: "loose" });
-        const { svg, bindFunctions } = await mermaid.render(`mermaid-${course.id}-${Date.now()}`, def);
+        const id = `mmodal${course.id.replace(/[^a-zA-Z0-9]/g, "")}${Date.now()}`;
+        const { svg, bindFunctions } = await mermaid.render(id, def);
         if (!cancelled) {
-          miniBndRef.current = bindFunctions ?? null;
-          setMermaidSvg(svg);
+          modalBndRef.current = bindFunctions ?? null;
+          setModalSvg(svg);
         }
-      } catch {
-        if (!cancelled) setMermaidSvg("");
-      }
+      } catch { if (!cancelled) setModalSvg(""); }
     });
     return () => { cancelled = true; };
-  }, [course, prereqNames, nextNames]);
+  }, [mermaidModalOpen, course, prereqNames, nextNames]);
 
-  // モーダルの SVG コンテナがマウントされたら即 bindFunctions を呼ぶ（ポータル対応）
-  const miniSvgCallbackRef = useCallback(
-    (el: HTMLDivElement | null) => {
-      miniSvgContainerRef.current = el;
-      if (el && miniBndRef.current) {
-        miniBndRef.current(el);
-      }
-    },
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [mermaidSvg],
-  );
+  // モーダルを閉じたら SVG リセット
+  useEffect(() => {
+    if (!mermaidModalOpen) setModalSvg("");
+  }, [mermaidModalOpen]);
+
+  // SVG が DOM に描画されたら bindFunctions を呼ぶ（GlobalHeader と同じ）
+  useEffect(() => {
+    if (modalSvg && modalSvgRef.current && modalBndRef.current) {
+      modalBndRef.current(modalSvgRef.current);
+    }
+  }, [modalSvg]);
 
   const sensors = useSensors(
     useSensor(PointerSensor),
@@ -440,37 +455,47 @@ export function LessonListPane({
         </div>
 
         {/* Mermaid ミニグラフ（クリックで拡大） */}
-        {mermaidSvg && (
+        {thumbnailSvg && (
           <>
             <button
               className="mt-2 w-full overflow-hidden rounded border border-border bg-white p-1 transition-opacity hover:opacity-80 cursor-zoom-in"
               title="クリックで拡大表示"
               onClick={() => setMermaidModalOpen(true)}
-              dangerouslySetInnerHTML={{ __html: mermaidSvg }}
+              dangerouslySetInnerHTML={{ __html: thumbnailSvg }}
             />
             <Dialog open={mermaidModalOpen} onOpenChange={setMermaidModalOpen}>
               <DialogContent className="max-w-2xl">
                 <DialogHeader>
                   <DialogTitle>トレーニングフロー</DialogTitle>
                 </DialogHeader>
-                <div
-                  ref={miniSvgCallbackRef}
-                  className="overflow-auto rounded bg-white p-4"
-                  dangerouslySetInnerHTML={{ __html: mermaidSvg }}
-                  onClick={(e) => {
-                    // foreignObject 内の HTML 要素からクリックが来る場合、
-                    // SVG g ノードまで伝播しないため、コンテナ側でインターセプト
-                    const t = e.target as Element;
-                    const g = t.closest("g") as SVGGElement | null;
-                    if (!g) return;
-                    // ID パターン: "...-flowchart-{nodeId}-{num}" から nodeId を抽出
-                    const match = g.id.match(/-flowchart-(M_[^-]+)-/);
-                    if (!match) return;
-                    const nodeId = match[1];
-                    const nav = (window as unknown as Record<string, unknown>)["miniGraphNav"] as ((id: string) => void) | undefined;
-                    nav?.(nodeId);
-                  }}
-                />
+                {modalSvg ? (
+                  <div
+                    ref={modalSvgRef}
+                    className="overflow-auto rounded bg-white p-4"
+                    dangerouslySetInnerHTML={{ __html: modalSvg }}
+                    onClick={(e) => {
+                      // composedPath で SVG/foreignObject 境界を越えて g 要素を探索
+                      for (const el of e.nativeEvent.composedPath()) {
+                        const svgG = el as Element;
+                        if (svgG.tagName === "g" && (svgG as SVGGElement).id) {
+                          const match = (svgG as SVGGElement).id.match(/-flowchart-(M_[^-]+)-/);
+                          if (match) {
+                            const nav = (window as unknown as Record<string, unknown>)["miniGraphNav"] as ((id: string) => void) | undefined;
+                            nav?.(match[1]);
+                            return;
+                          }
+                        }
+                      }
+                    }}
+                  />
+                ) : (
+                  <div className="flex h-40 items-center justify-center text-muted-foreground text-sm">
+                    グラフを生成中...
+                  </div>
+                )}
+                <p className="text-[11px] text-muted-foreground text-center pt-1">
+                  ノードをクリックするとそのコースに移動します
+                </p>
               </DialogContent>
             </Dialog>
           </>

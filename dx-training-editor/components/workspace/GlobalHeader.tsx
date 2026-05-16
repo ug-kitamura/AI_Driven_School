@@ -30,10 +30,8 @@ function buildFullMandalaGraph(
   const lines = ["flowchart TD"];
   const nodeMap: Record<string, string> = {};
 
-  // 現在選択中コースを強調する classDef のみ
-  lines.push(`  classDef cur stroke-width:3px,font-weight:bold`);
-
   // シリーズごとにサブグラフとノード（丸みノード、方向は TB に統一）
+  const currentNid: string[] = [];
   series.forEach((s) => {
     const sgId = `SG${safeId(s.id)}`;
     lines.push(`  subgraph ${sgId}["${safeLabel(s.name)}"]`);
@@ -43,9 +41,15 @@ function buildFullMandalaGraph(
       nodeMap[nid] = c.id;
       const isCurrent = c.id === selectedCourseId;
       const label = isCurrent ? `★ ${safeLabel(c.name)}` : safeLabel(c.name);
-      lines.push(`    ${nid}("${label}")${isCurrent ? ":::cur" : ""}`);
+      lines.push(`    ${nid}("${label}")`);
+      if (isCurrent) currentNid.push(nid);
     });
     lines.push("  end");
+  });
+
+  // 現在選択中コースに style を適用（classDef より安定）
+  currentNid.forEach((nid) => {
+    lines.push(`  style ${nid} stroke-width:3px,font-weight:bold`);
   });
 
   // 依存エッジ

@@ -123,8 +123,8 @@ def build_parser() -> argparse.ArgumentParser:
 		description="Fetch GitHub issue data and save as issue_data.json",
 		formatter_class=argparse.RawDescriptionHelpFormatter,
 	)
-	parser.add_argument("--org",   required=True, help="GitHub org name")
-	parser.add_argument("--repo",  required=True, help="Repository name")
+	parser.add_argument("--org",  required=True, help="GitHub org name")
+	parser.add_argument("--repo", required=True, help="Repository name")
 	parser.add_argument(
 		"--token",
 		default=None,

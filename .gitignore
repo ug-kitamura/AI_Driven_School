@@ -1,6 +1,7 @@
 # 中間生成物
 output/
 *.log
+*.json
 
 # Python
 __pycache__/

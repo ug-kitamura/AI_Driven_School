@@ -521,7 +521,7 @@ export function SeriesCoursePane({
   };
 
   return (
-    <Sidebar collapsible="icon" className="border-r border-border">
+    <Sidebar collapsible="icon" className="border-r-0">
       <PaneWheelRoot
         scrollRef={seriesScrollRef}
         className="min-h-0 flex-1"

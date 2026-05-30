@@ -9,6 +9,8 @@ type Props = {
   onResizeEnd: () => void;
   className?: string;
   style?: React.CSSProperties;
+  /** 区切り線の見た目（未指定時は 1px の border 色） */
+  lineClassName?: string;
 };
 
 export function PaneResizeHandle({
@@ -17,6 +19,7 @@ export function PaneResizeHandle({
   onResizeEnd,
   className,
   style,
+  lineClassName,
 }: Props) {
   const rafRef = useRef<number | null>(null);
 
@@ -76,7 +79,12 @@ export function PaneResizeHandle({
         className,
       )}
     >
-      <div className="h-full w-px bg-border transition-colors hover:bg-primary/40 active:bg-primary/60" />
+      <div
+        className={cn(
+          "h-full w-px bg-border transition-colors hover:bg-primary/40 active:bg-primary/60",
+          lineClassName,
+        )}
+      />
     </div>
   );
 }

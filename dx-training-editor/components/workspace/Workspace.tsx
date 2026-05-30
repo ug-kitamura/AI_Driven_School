@@ -35,7 +35,12 @@ function Pane1ResizeHandle({
   const { state } = useSidebar();
   if (state !== "expanded") return null;
   return (
-    <PaneResizeHandle className={className} style={style} {...props} />
+    <PaneResizeHandle
+      className={className}
+      style={style}
+      lineClassName="w-px origin-center scale-x-[0.35] bg-border/40 hover:bg-primary/25 active:bg-primary/40"
+      {...props}
+    />
   );
 }
 

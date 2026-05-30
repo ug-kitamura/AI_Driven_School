@@ -156,7 +156,7 @@ export function LessonMetaPanel({
         />
       </MetaDialogField>
 
-      <MetaDialogField>
+      <MetaDialogField className="col-span-2">
         <Label htmlFor="lesson-meta-tags" id="lesson-meta-tags-label">
           タグ
         </Label>
@@ -180,7 +180,7 @@ export function LessonMetaPanel({
         ) : null}
       </MetaDialogField>
 
-      <MetaDialogField>
+      <MetaDialogField className="col-span-2">
         <Label htmlFor="lesson-meta-author">著者</Label>
         <Input
           id="lesson-meta-author"

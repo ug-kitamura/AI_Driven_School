@@ -112,9 +112,10 @@ function buildMermaidDef(
   const lines = ["flowchart LR"];
   const safeLabel = (s: string) => s.replace(/"/g, "'");
   const currentId = "CURRENT";
-  const nodeMap: Record<string, string> = {};
+  const nodeMap: Record<string, string> = { [currentId]: input.current.id };
   lines.push(`  ${currentId}("★ ${safeLabel(input.current.name)}")`);
   lines.push(`  style ${currentId} stroke-width:3px,font-weight:bold`);
+  lines.push(`  click ${currentId} call miniGraphNav()`);
 
   if (input.intraPrev) {
     const nid = addMiniNode(lines, nodeMap, input.intraPrev);
@@ -512,7 +513,9 @@ export function LessonListPane({
                       for (const el of e.nativeEvent.composedPath()) {
                         const svgG = el as Element;
                         if (svgG.tagName === "g" && (svgG as SVGGElement).id) {
-                          const match = (svgG as SVGGElement).id.match(/-flowchart-(M_[^-]+)-/);
+                          const match = (svgG as SVGGElement).id.match(
+                            /-flowchart-(M_[^-]+|CURRENT)-/,
+                          );
                           if (match) {
                             const nav = (window as unknown as Record<string, unknown>)["miniGraphNav"] as ((id: string) => void) | undefined;
                             nav?.(match[1]);

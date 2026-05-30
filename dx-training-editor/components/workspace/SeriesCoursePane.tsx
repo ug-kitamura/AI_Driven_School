@@ -48,6 +48,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Pane1Toggle } from "@/components/workspace/Pane1Toggle";
 import { PaneWheelRoot } from "@/components/workspace/PaneWheelRoot";
+import { WorkspaceTooltip } from "@/components/workspace/WorkspaceTooltip";
 import {
   ADD_LIST_BUTTON_CLASS,
   SORTABLE_POINTER_ACTIVATION,
@@ -137,30 +138,35 @@ function SortableCourseRow({
             onSelect();
           }}
           className="flex-1 truncate text-left sidebar-label group-hover/course-row:cursor-grab active:cursor-grabbing"
-          title="クリックで選択・ドラッグで並べ替え"
         >
           {course.name}
         </span>
 
-        <button
-          type="button"
-          onClick={handleDeleteClick}
-          title={
+        <WorkspaceTooltip
+          label={
             hasLessons
               ? "レッスンがあるため削除できません"
               : "コースを削除"
           }
-          className="flex-shrink-0 text-muted-foreground opacity-0 hover:text-destructive group-hover/course-row:opacity-100"
-        >
-          <Trash2 className="h-3.5 w-3.5" />
-        </button>
+          render={
+            <button
+              type="button"
+              onClick={handleDeleteClick}
+              className="flex-shrink-0 text-muted-foreground opacity-0 hover:text-destructive group-hover/course-row:opacity-100"
+            >
+              <Trash2 className="h-3.5 w-3.5" />
+            </button>
+          }
+        />
 
-        <span
-          className="ml-1 flex-shrink-0"
-          title={STATUS_LABELS[courseStatus]}
-        >
-          {STATUS_ICON[courseStatus]}
-        </span>
+        <WorkspaceTooltip
+          label={STATUS_LABELS[courseStatus]}
+          render={
+            <span className="ml-1 flex-shrink-0">
+              {STATUS_ICON[courseStatus]}
+            </span>
+          }
+        />
       </div>
 
       <Dialog open={confirmOpen} onOpenChange={setConfirmOpen}>
@@ -277,53 +283,60 @@ function SortableSeriesBlock({
     <>
       <div ref={setNodeRef} style={style}>
         <div className="group/series flex w-full items-center rounded-md transition-colors hover:bg-muted">
-          <button
-            type="button"
-            onClick={(e) => {
-              e.stopPropagation();
-              onToggle();
-            }}
-            className="flex-shrink-0 rounded p-1.5 text-muted-foreground hover:bg-muted/80"
-            aria-label={isExpanded ? "シリーズを折りたたむ" : "シリーズを展開"}
-            aria-expanded={isExpanded}
-          >
-            {isExpanded ? (
-              <ChevronDown className="h-3.5 w-3.5" />
-            ) : (
-              <ChevronRight className="h-3.5 w-3.5" />
-            )}
-          </button>
+          <WorkspaceTooltip
+            label={isExpanded ? "シリーズを折りたたむ" : "シリーズを展開"}
+            render={
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onToggle();
+                }}
+                className="flex-shrink-0 rounded p-1.5 text-muted-foreground hover:bg-muted/80"
+                aria-label={isExpanded ? "シリーズを折りたたむ" : "シリーズを展開"}
+                aria-expanded={isExpanded}
+              >
+                {isExpanded ? (
+                  <ChevronDown className="h-3.5 w-3.5" />
+                ) : (
+                  <ChevronRight className="h-3.5 w-3.5" />
+                )}
+              </button>
+            }
+          />
           <span
             {...attributes}
             {...listeners}
             className="min-w-0 flex-1 truncate rounded px-1 py-1.5 text-xs font-bold text-foreground transition-colors group-hover/series:cursor-grab group-hover/series:bg-muted/60 group-hover/series:text-primary active:cursor-grabbing sidebar-label"
-            title="ドラッグで並べ替え"
           >
             {seriesItem.name}
           </span>
           <div className="flex shrink-0 items-center sidebar-label">
-            <button
-              type="button"
-              onClick={(e) => {
-                e.stopPropagation();
-                handleDeleteClick(e);
-              }}
-              title={
+            <WorkspaceTooltip
+              label={
                 hasCourses
                   ? "コースがあるため削除できません"
                   : "シリーズを削除"
               }
-              className="rounded p-1 text-muted-foreground opacity-0 hover:bg-muted/80 hover:text-destructive group-hover/series:opacity-100"
-            >
-              <Trash2 className="h-3.5 w-3.5" />
-            </button>
+              render={
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleDeleteClick(e);
+                  }}
+                  className="rounded p-1 text-muted-foreground opacity-0 hover:bg-muted/80 hover:text-destructive group-hover/series:opacity-100"
+                >
+                  <Trash2 className="h-3.5 w-3.5" />
+                </button>
+              }
+            />
             <button
               type="button"
               onClick={(e) => {
                 e.stopPropagation();
                 onEditSeries();
               }}
-              title="シリーズ名を編集"
               aria-label="シリーズ名を編集"
               className="rounded p-1 text-foreground transition-colors hover:bg-muted/80 group-hover/series:text-primary"
             >
@@ -594,18 +607,23 @@ export function SeriesCoursePane({
 
       <SidebarFooter className="shrink-0 gap-0 p-2">
         {isCollapsed ? (
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon-sm"
-            className="mx-auto size-7"
-            onClick={openAddSeriesDialog}
-            aria-label="シリーズを追加"
-            title="シリーズを追加"
-          >
-            <Plus className="h-3.5 w-3.5" />
-            <span className="sr-only">シリーズを追加</span>
-          </Button>
+          <WorkspaceTooltip
+            label="シリーズを追加"
+            side="right"
+            render={
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon-sm"
+                className="mx-auto size-7"
+                onClick={openAddSeriesDialog}
+                aria-label="シリーズを追加"
+              >
+                <Plus className="h-3.5 w-3.5" />
+                <span className="sr-only">シリーズを追加</span>
+              </Button>
+            }
+          />
         ) : (
           <Button
             variant="ghost"

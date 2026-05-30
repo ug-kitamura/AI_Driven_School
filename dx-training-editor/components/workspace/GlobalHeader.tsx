@@ -17,6 +17,11 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import type { Series } from "@/lib/schema";
 import { isCrossSeriesLink } from "@/lib/course-flow";
 
@@ -203,16 +208,22 @@ export function GlobalHeader({
       </Breadcrumb>
 
       {/* 曼陀羅ボタン */}
-      <Button
-        variant="ghost"
-        size="sm"
-        className="flex-shrink-0 gap-1.5 text-xs text-muted-foreground hover:text-primary"
-        onClick={() => setMandalaOpen(true)}
-        title="DXトレーニング曼陀羅"
-      >
-        <Network className="h-4 w-4" />
-        <span className="hidden sm:inline">DXトレーニング曼陀羅</span>
-      </Button>
+      <Tooltip>
+        <TooltipTrigger
+          render={
+            <Button
+              variant="ghost"
+              size="sm"
+              className="flex-shrink-0 gap-1.5 text-xs text-muted-foreground hover:text-primary"
+              onClick={() => setMandalaOpen(true)}
+            >
+              <Network className="h-4 w-4" />
+              <span className="hidden sm:inline">DXトレーニング曼陀羅</span>
+            </Button>
+          }
+        />
+        <TooltipContent side="bottom">DXトレーニング曼陀羅</TooltipContent>
+      </Tooltip>
 
       {/* 曼陀羅フルスクリーンモーダル */}
       <Dialog open={mandalaOpen} onOpenChange={setMandalaOpen}>

@@ -43,6 +43,7 @@ import {
   SORTABLE_POINTER_ACTIVATION,
 } from "@/components/workspace/constants";
 import { PaneWheelRoot } from "@/components/workspace/PaneWheelRoot";
+import { WorkspaceTooltip } from "@/components/workspace/WorkspaceTooltip";
 import { cn, computeStatus } from "@/lib/utils";
 import type { Series, Course, Lesson } from "@/lib/schema";
 import {
@@ -240,7 +241,6 @@ function SortableLessonRow({
             onSelect();
           }}
           className="flex-1 truncate text-left text-xs group-hover:cursor-grab active:cursor-grabbing"
-          title="クリックで選択・ドラッグで並べ替え"
         >
           {lesson.lesson}
         </span>
@@ -258,17 +258,22 @@ function SortableLessonRow({
         </button>
 
         {/* ステータスアイコン（クリックで循環切り替え） */}
-        <button
-          type="button"
-          onClick={(e) => {
-            e.stopPropagation();
-            onStatusChange(STATUS_CYCLE[lesson.status]);
-          }}
-          title={`${STATUS_ICON[lesson.status].label} → クリックで変更`}
-          className="ml-1 flex-shrink-0 transition-opacity hover:opacity-70"
-        >
-          {STATUS_ICON[lesson.status].icon}
-        </button>
+        <WorkspaceTooltip
+          label={STATUS_ICON[lesson.status].label}
+          render={
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                onStatusChange(STATUS_CYCLE[lesson.status]);
+              }}
+              className="ml-1 flex-shrink-0 transition-opacity hover:opacity-70"
+              aria-label={`${STATUS_ICON[lesson.status].label}、クリックで変更`}
+            >
+              {STATUS_ICON[lesson.status].icon}
+            </button>
+          }
+        />
       </div>
 
       {/* 削除確認ダイアログ */}
@@ -471,6 +476,7 @@ export function LessonListPane({
             variant="ghost"
             size="icon"
             className="h-6 w-6 flex-shrink-0"
+            aria-label="コースメタを編集"
             onClick={() => {
               setEditMeta({
                 name: course.name,
@@ -507,11 +513,16 @@ export function LessonListPane({
         {/* Mermaid ミニグラフ（クリックで拡大） */}
         {thumbnailSvg && (
           <>
-            <button
-              className="mt-2 w-full overflow-hidden rounded border border-border bg-white p-1 transition-opacity hover:opacity-80 cursor-zoom-in"
-              title="クリックで拡大表示"
-              onClick={() => setMermaidModalOpen(true)}
-              dangerouslySetInnerHTML={{ __html: thumbnailSvg }}
+            <WorkspaceTooltip
+              label="クリックで拡大表示"
+              render={
+                <button
+                  type="button"
+                  className="mt-2 w-full overflow-hidden rounded border border-border bg-white p-1 transition-opacity hover:opacity-80 cursor-zoom-in"
+                  onClick={() => setMermaidModalOpen(true)}
+                  dangerouslySetInnerHTML={{ __html: thumbnailSvg }}
+                />
+              }
             />
             <Dialog open={mermaidModalOpen} onOpenChange={setMermaidModalOpen}>
               <DialogContent className="max-w-2xl">

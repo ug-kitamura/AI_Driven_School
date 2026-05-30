@@ -296,33 +296,35 @@ function SortableSeriesBlock({
           >
             {seriesItem.name}
           </span>
-          <button
-            type="button"
-            onClick={(e) => {
-              e.stopPropagation();
-              handleDeleteClick(e);
-            }}
-            title={
-              hasCourses
-                ? "コースがあるため削除できません"
-                : "シリーズを削除"
-            }
-            className="flex-shrink-0 rounded px-2 py-1.5 text-muted-foreground opacity-0 hover:bg-muted/80 hover:text-destructive group-hover/series:opacity-100 sidebar-label"
-          >
-            <Trash2 className="h-3.5 w-3.5" />
-          </button>
-          <button
-            type="button"
-            onClick={(e) => {
-              e.stopPropagation();
-              onEditSeries();
-            }}
-            title="シリーズ名を編集"
-            aria-label="シリーズ名を編集"
-            className="flex-shrink-0 rounded px-2 py-1.5 text-muted-foreground hover:bg-muted/80 hover:text-foreground sidebar-label"
-          >
-            <Edit3 className="h-3.5 w-3.5" />
-          </button>
+          <div className="flex shrink-0 items-center sidebar-label">
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                handleDeleteClick(e);
+              }}
+              title={
+                hasCourses
+                  ? "コースがあるため削除できません"
+                  : "シリーズを削除"
+              }
+              className="rounded p-1 text-muted-foreground opacity-0 hover:bg-muted/80 hover:text-destructive group-hover/series:opacity-100"
+            >
+              <Trash2 className="h-3.5 w-3.5" />
+            </button>
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                onEditSeries();
+              }}
+              title="シリーズ名を編集"
+              aria-label="シリーズ名を編集"
+              className="rounded p-1 text-foreground transition-colors hover:bg-muted/80 group-hover/series:text-primary"
+            >
+              <Edit3 className="h-3.5 w-3.5" />
+            </button>
+          </div>
         </div>
 
         {isExpanded && (

@@ -120,7 +120,7 @@ export function normalizeSeriesCourseMeta(allSeries: Series[]): Series[] {
   }));
 }
 
-/** 別シリーズコース選択の候補（自分・同シリーズ兄弟を除く） */
+/** Pane1 一覧と同じ順（シリーズ配列順 → 各 courses 配列順） */
 export function listCrossSeriesCourseCandidates(
   allSeries: Series[],
   courseId: string,
@@ -134,6 +134,14 @@ export function listCrossSeriesCourseCandidates(
     }
   }
   return out;
+}
+
+/** 別シリーズ候補の表示ラベル（Pane1 並びの表記） */
+export function formatCrossSeriesCourseLabel(
+  seriesName: string,
+  courseName: string,
+): string {
+  return `${seriesName} / ${courseName}`;
 }
 
 /** ミニ曼陀羅用ノード集合 */

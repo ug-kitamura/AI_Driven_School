@@ -46,6 +46,7 @@ import {
   buildMiniMandalaGraphInput,
   filterCrossSeriesIds,
   getIntraSeriesNeighbors,
+  formatCrossSeriesCourseLabel,
   listCrossSeriesCourseCandidates,
   type MiniMandalaGraphInput,
 } from "@/lib/course-flow";
@@ -161,7 +162,7 @@ function CrossSeriesCoursePicker({
   }
 
   return (
-    <ScrollArea className="mt-1 h-28 rounded-md border border-border">
+    <ScrollArea className="mt-1 h-40 max-h-[min(10rem,35vh)] rounded-md border border-border">
       <div className="space-y-0.5 p-2">
         {candidates.map((c) => (
           <label
@@ -170,13 +171,12 @@ function CrossSeriesCoursePicker({
           >
             <input
               type="checkbox"
-              className="mt-0.5"
+              className="mt-0.5 shrink-0"
               checked={selectedIds.includes(c.id)}
               onChange={() => toggle(c.id)}
             />
-            <span>
-              <span className="font-medium">{c.name}</span>
-              <span className="text-muted-foreground">（{c.seriesName}）</span>
+            <span className="leading-snug">
+              {formatCrossSeriesCourseLabel(c.seriesName, c.name)}
             </span>
           </label>
         ))}
@@ -634,12 +634,12 @@ export function LessonListPane({
 
       {/* コースメタ編集ダイアログ */}
       <Dialog open={metaDialogOpen} onOpenChange={setMetaDialogOpen}>
-        <DialogContent>
+        <DialogContent className="max-w-2xl">
           <DialogHeader>
-            <DialogTitle>コースメタ情報を編集</DialogTitle>
+            <DialogTitle>{course.name}</DialogTitle>
           </DialogHeader>
-          <div className="space-y-3 py-2 max-h-[70vh] overflow-y-auto">
-            <div>
+          <div className="grid grid-cols-2 gap-x-4 gap-y-3 py-2">
+            <div className="col-span-2">
               <Label>受講対象者</Label>
               <Input
                 value={editMeta.target_audience}
@@ -665,7 +665,7 @@ export function LessonListPane({
                 {intraNeighbors.next?.name ?? "なし"}
               </p>
             </div>
-            <div>
+            <div className="min-w-0">
               <Label>前のコース（別シリーズ）</Label>
               <CrossSeriesCoursePicker
                 candidates={crossSeriesCandidates}
@@ -675,7 +675,7 @@ export function LessonListPane({
                 }
               />
             </div>
-            <div>
+            <div className="min-w-0">
               <Label>次のコース（別シリーズ）</Label>
               <CrossSeriesCoursePicker
                 candidates={crossSeriesCandidates}

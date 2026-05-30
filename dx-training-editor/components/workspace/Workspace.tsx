@@ -21,6 +21,7 @@ import {
   normalizeLessonMeta,
   applyLessonContentEdit,
   patchLessonMeta,
+  reconcileLesson,
   type LessonMetaFields,
 } from "@/lib/lesson-frontmatter";
 
@@ -311,7 +312,10 @@ export function Workspace({
   const updateCourseMeta = useCallback(
     (
       courseId: string,
-      meta: Pick<Course, "target_audience" | "prerequisites" | "next_courses">,
+      meta: Pick<
+        Course,
+        "name" | "target_audience" | "prerequisites" | "next_courses"
+      >,
     ) => {
       setSeries((prev) => {
         const prerequisites = filterCrossSeriesIds(
@@ -326,21 +330,48 @@ export function Workspace({
         );
         return prev.map((s) => ({
           ...s,
-          courses: s.courses.map((c) =>
-            c.id === courseId
-              ? {
-                  ...c,
-                  target_audience: meta.target_audience,
-                  prerequisites,
-                  next_courses,
-                }
-              : c,
-          ),
+          courses: s.courses.map((c) => {
+            if (c.id !== courseId) return c;
+            const newName = meta.name?.trim() || c.name;
+            const ctx = { seriesName: s.name, courseName: newName };
+            return {
+              ...c,
+              name: newName,
+              target_audience: meta.target_audience,
+              prerequisites,
+              next_courses,
+              lessons: c.lessons.map((l) =>
+                reconcileLesson({ ...l, course: newName }, ctx),
+              ),
+            };
+          }),
         }));
       });
     },
     [],
   );
+
+  const updateSeriesName = useCallback((seriesId: string, name: string) => {
+    setSeries((prev) =>
+      prev.map((s) => {
+        if (s.id !== seriesId) return s;
+        const newName = name.trim() || s.name;
+        return {
+          ...s,
+          name: newName,
+          courses: s.courses.map((c) => ({
+            ...c,
+            lessons: c.lessons.map((l) =>
+              reconcileLesson(
+                { ...l, series: newName },
+                { seriesName: newName, courseName: c.name },
+              ),
+            ),
+          })),
+        };
+      }),
+    );
+  }, []);
 
   // 画像追加（Pane4 から）
   const addImage = useCallback((asset: ImageAsset) => {
@@ -398,6 +429,7 @@ export function Workspace({
           onAddCourse={addCourse}
           onDeleteSeries={deleteSeries}
           onDeleteCourse={deleteCourse}
+          onUpdateSeriesName={updateSeriesName}
         />
         <Pane1ResizeHandle
           {...resizeHandleProps("pane1")}

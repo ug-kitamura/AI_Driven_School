@@ -62,7 +62,10 @@ type Props = {
   onReorderLessons: (courseId: string, from: number, to: number) => void;
   onUpdateCourseMeta: (
     courseId: string,
-    meta: Pick<Course, "target_audience" | "prerequisites" | "next_courses">,
+    meta: Pick<
+      Course,
+      "name" | "target_audience" | "prerequisites" | "next_courses"
+    >,
   ) => void;
   onUpdateLessonStatus: (lessonId: string, status: Lesson["status"]) => void;
 };
@@ -311,10 +314,16 @@ export function LessonListPane({
   const [newLessonName, setNewLessonName] = useState("");
   const [metaDialogOpen, setMetaDialogOpen] = useState(false);
   const [editMeta, setEditMeta] = useState<{
+    name: string;
     target_audience: string;
     crossPrerequisites: string[];
     crossNextCourses: string[];
-  }>({ target_audience: "", crossPrerequisites: [], crossNextCourses: [] });
+  }>({
+    name: "",
+    target_audience: "",
+    crossPrerequisites: [],
+    crossNextCourses: [],
+  });
 
   const miniGraphInput = useMemo(
     () => (course ? buildMiniMandalaGraphInput(series, course) : null),
@@ -459,6 +468,7 @@ export function LessonListPane({
             className="h-6 w-6 flex-shrink-0"
             onClick={() => {
               setEditMeta({
+                name: course.name,
                 target_audience: course.target_audience ?? "",
                 crossPrerequisites: filterCrossSeriesIds(
                   series,
@@ -638,10 +648,21 @@ export function LessonListPane({
       {/* コースメタ編集ダイアログ */}
       <Dialog open={metaDialogOpen} onOpenChange={setMetaDialogOpen}>
         <DialogContent className="max-w-2xl">
-          <DialogHeader>
-            <DialogTitle>{course.name}</DialogTitle>
+          <DialogHeader className="sr-only">
+            <DialogTitle>コースメタを編集</DialogTitle>
           </DialogHeader>
           <div className="grid grid-cols-2 gap-x-4 gap-y-3 py-2">
+            <div className="col-span-2">
+              <Label htmlFor="course-meta-name">コース名</Label>
+              <Input
+                id="course-meta-name"
+                value={editMeta.name}
+                onChange={(e) =>
+                  setEditMeta((prev) => ({ ...prev, name: e.target.value }))
+                }
+                className="mt-1 bg-white"
+              />
+            </div>
             <div className="col-span-2">
               <Label>受講対象者</Label>
               <Input
@@ -696,6 +717,7 @@ export function LessonListPane({
             <Button
               onClick={() => {
                 onUpdateCourseMeta(course.id, {
+                  name: editMeta.name.trim() || course.name,
                   target_audience: editMeta.target_audience || undefined,
                   prerequisites: editMeta.crossPrerequisites,
                   next_courses: editMeta.crossNextCourses,

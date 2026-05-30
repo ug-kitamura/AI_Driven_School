@@ -11,6 +11,7 @@ import {
   CircleDashed,
   Plus,
   Trash2,
+  Edit3,
 } from "lucide-react";
 import {
   DndContext,
@@ -64,6 +65,7 @@ type Props = {
   onAddCourse: (seriesId: string, name: string) => void;
   onDeleteSeries: (seriesId: string) => void;
   onDeleteCourse: (seriesId: string, courseId: string) => void;
+  onUpdateSeriesName: (seriesId: string, name: string) => void;
 };
 
 const STATUS_ICON = {
@@ -204,6 +206,7 @@ function SortableSeriesBlock({
   isExpanded,
   onToggle,
   onDelete,
+  onEditSeries,
   selectedCourseId,
   onSelectCourse,
   onDeleteCourse,
@@ -215,6 +218,7 @@ function SortableSeriesBlock({
   isExpanded: boolean;
   onToggle: () => void;
   onDelete: () => void;
+  onEditSeries: () => void;
   selectedCourseId: string;
   onSelectCourse: (courseId: string) => void;
   onDeleteCourse: (seriesId: string, courseId: string) => void;
@@ -306,6 +310,18 @@ function SortableSeriesBlock({
             className="flex-shrink-0 rounded px-2 py-1.5 text-muted-foreground opacity-0 hover:bg-muted/80 hover:text-destructive group-hover/series:opacity-100 sidebar-label"
           >
             <Trash2 className="h-3.5 w-3.5" />
+          </button>
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              onEditSeries();
+            }}
+            title="シリーズ名を編集"
+            aria-label="シリーズ名を編集"
+            className="flex-shrink-0 rounded px-2 py-1.5 text-muted-foreground hover:bg-muted/80 hover:text-foreground sidebar-label"
+          >
+            <Edit3 className="h-3.5 w-3.5" />
           </button>
         </div>
 
@@ -413,6 +429,7 @@ export function SeriesCoursePane({
   onAddCourse,
   onDeleteSeries,
   onDeleteCourse,
+  onUpdateSeriesName,
 }: Props) {
   const [expandedSeriesIds, setExpandedSeriesIds] = useState<Set<string>>(
     () => new Set(series.map((s) => s.id)),
@@ -423,6 +440,10 @@ export function SeriesCoursePane({
 
   const [addSeriesOpen, setAddSeriesOpen] = useState(false);
   const [newSeriesName, setNewSeriesName] = useState("");
+
+  const [editSeriesOpen, setEditSeriesOpen] = useState(false);
+  const [editSeriesId, setEditSeriesId] = useState("");
+  const [editSeriesName, setEditSeriesName] = useState("");
 
   const [addCourseOpen, setAddCourseOpen] = useState(false);
   const [addCourseSeriesId, setAddCourseSeriesId] = useState("");
@@ -437,6 +458,14 @@ export function SeriesCoursePane({
     setAddCourseSeriesId(seriesId);
     setNewCourseName("");
     setAddCourseOpen(true);
+  };
+
+  const openEditSeriesDialog = (seriesId: string) => {
+    const target = series.find((s) => s.id === seriesId);
+    if (!target) return;
+    setEditSeriesId(seriesId);
+    setEditSeriesName(target.name);
+    setEditSeriesOpen(true);
   };
 
   const expandSeries = (id: string) => {
@@ -528,6 +557,7 @@ export function SeriesCoursePane({
                         isExpanded={expandedSeriesIds.has(s.id)}
                         onToggle={() => toggleSeries(s.id)}
                         onDelete={() => handleDeleteSeries(s.id)}
+                        onEditSeries={() => openEditSeriesDialog(s.id)}
                         selectedCourseId={selectedCourseId}
                         onSelectCourse={onSelectCourse}
                         onDeleteCourse={onDeleteCourse}
@@ -648,6 +678,49 @@ export function SeriesCoursePane({
               disabled={!newCourseName.trim()}
             >
               追加
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={editSeriesOpen} onOpenChange={setEditSeriesOpen}>
+        <DialogContent>
+          <DialogHeader className="sr-only">
+            <DialogTitle>シリーズ名を編集</DialogTitle>
+          </DialogHeader>
+          <div className="py-2">
+            <Label htmlFor="edit-series-name">シリーズ名</Label>
+            <Input
+              id="edit-series-name"
+              value={editSeriesName}
+              onChange={(e) => setEditSeriesName(e.target.value)}
+              className="mt-1 bg-white"
+              autoFocus
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && editSeriesName.trim()) {
+                  onUpdateSeriesName(
+                    editSeriesId,
+                    editSeriesName.trim(),
+                  );
+                  setEditSeriesOpen(false);
+                }
+              }}
+            />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditSeriesOpen(false)}>
+              キャンセル
+            </Button>
+            <Button
+              onClick={() => {
+                const trimmed = editSeriesName.trim();
+                if (!trimmed) return;
+                onUpdateSeriesName(editSeriesId, trimmed);
+                setEditSeriesOpen(false);
+              }}
+              disabled={!editSeriesName.trim()}
+            >
+              保存
             </Button>
           </DialogFooter>
         </DialogContent>

@@ -11,6 +11,8 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Pane4Toggle } from "@/components/workspace/Pane4Toggle";
+import { PaneWheelRoot } from "@/components/workspace/PaneWheelRoot";
+import { WorkspaceTooltip } from "@/components/workspace/WorkspaceTooltip";
 import type { ImageAsset } from "@/lib/schema";
 
 type Props = {
@@ -48,6 +50,7 @@ export function ImageManagerPane({
 }: Props) {
   const [activeTab, setActiveTab] = useState<Tab>("upload");
   const [isDragOver, setIsDragOver] = useState(false);
+  const tabScrollRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleFiles = useCallback(
@@ -108,19 +111,20 @@ export function ImageManagerPane({
   }
 
   return (
-    <div
-      className="flex w-60 flex-shrink-0 flex-col border-l border-border bg-card"
+    <PaneWheelRoot
+      scrollRef={tabScrollRef}
+      className="bg-card"
       onPaste={handlePaste}
     >
       {/* ヘッダー */}
-      <div className="flex items-center justify-between border-b border-border px-2 py-1">
-        <div className="flex">
+      <div className="flex h-12 shrink-0 items-center justify-between border-b border-border px-2 py-0">
+        <div className="flex h-full min-w-0 items-center">
           {TABS.map((tab) => (
             <button
               key={tab.value}
               onClick={() => setActiveTab(tab.value)}
               className={cn(
-                "flex items-center gap-1 px-2 py-1.5 text-[10px] font-medium transition-colors",
+                "flex h-full items-center gap-1 px-2 text-[10px] font-medium transition-colors",
                 activeTab === tab.value
                   ? "border-b-2 border-primary text-primary"
                   : "text-muted-foreground hover:text-foreground",
@@ -135,7 +139,10 @@ export function ImageManagerPane({
       </div>
 
       {/* タブコンテンツ */}
-      <div className="flex-1 overflow-hidden">
+      <div
+        ref={tabScrollRef}
+        className="min-h-0 flex-1 overflow-y-auto overscroll-y-contain"
+      >
         {/* アップロードタブ */}
         {activeTab === "upload" && (
           <div className="p-3">
@@ -175,7 +182,7 @@ export function ImageManagerPane({
 
         {/* 履歴タブ */}
         {activeTab === "history" && (
-          <div className="h-full overflow-y-auto p-2">
+          <div className="p-2">
             {imageHistory.length === 0 ? (
               <div className="flex h-32 items-center justify-center text-xs text-muted-foreground">
                 まだ画像がありません
@@ -187,24 +194,29 @@ export function ImageManagerPane({
                 </p>
                 <div className="grid grid-cols-2 gap-1.5">
                   {imageHistory.map((asset) => (
-                    <button
+                    <WorkspaceTooltip
                       key={asset.id}
-                      onClick={() => handleInsertImage(asset)}
-                      className="group relative aspect-square overflow-hidden rounded border border-border bg-muted hover:border-primary transition-colors"
-                      title={asset.name}
-                    >
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img
-                        src={asset.dataUrl}
-                        alt={asset.name}
-                        className="h-full w-full object-cover"
-                      />
-                      <div className="absolute inset-0 flex items-end bg-black/0 p-1 opacity-0 transition-opacity group-hover:bg-black/30 group-hover:opacity-100">
-                        <span className="truncate text-[9px] text-white">
-                          {asset.name}
-                        </span>
-                      </div>
-                    </button>
+                      label={asset.name}
+                      render={
+                        <button
+                          type="button"
+                          onClick={() => handleInsertImage(asset)}
+                          className="group relative aspect-square w-full overflow-hidden rounded border border-border bg-muted hover:border-primary transition-colors"
+                        >
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img
+                            src={asset.dataUrl}
+                            alt={asset.name}
+                            className="h-full w-full object-cover"
+                          />
+                          <div className="absolute inset-0 flex items-end bg-black/0 p-1 opacity-0 transition-opacity group-hover:bg-black/30 group-hover:opacity-100">
+                            <span className="truncate text-[9px] text-white">
+                              {asset.name}
+                            </span>
+                          </div>
+                        </button>
+                      }
+                    />
                   ))}
                 </div>
               </div>
@@ -238,6 +250,6 @@ export function ImageManagerPane({
           </div>
         )}
       </div>
-    </div>
+    </PaneWheelRoot>
   );
 }

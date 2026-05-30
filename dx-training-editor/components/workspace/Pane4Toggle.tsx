@@ -18,7 +18,7 @@ type Pane4ToggleProps = {
 
 export function Pane4Toggle({ open, onToggle, className }: Pane4ToggleProps) {
   const Icon = open ? PanelRightClose : PanelRightOpen;
-  const label = open ? "Pane 4 を閉じる" : "Pane 4 を開く";
+  const label = open ? "閉じる" : "開く";
 
   return (
     <Tooltip>

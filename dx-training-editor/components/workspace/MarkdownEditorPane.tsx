@@ -1,24 +1,34 @@
 "use client";
 
-import { useEffect, useRef, useState, useCallback } from "react";
+import { useEffect, useRef, useState, useCallback, useMemo } from "react";
 import ReactMarkdown from "react-markdown";
-import { FileText, GitCompare, Code, Eye } from "lucide-react";
+import remarkGfm from "remark-gfm";
+import { GitCompare, Code, Eye, Edit3 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { getLessonBody } from "@/lib/lesson-frontmatter";
+import { LessonMetaDialog } from "@/components/workspace/LessonMetaDialog";
+import { PaneWheelRoot } from "@/components/workspace/PaneWheelRoot";
 import type { Lesson } from "@/lib/schema";
 import type { Pane3Mode } from "@/components/workspace/Workspace";
+import type { LessonMetaFields } from "@/lib/lesson-frontmatter";
 
 type Props = {
   lesson: Lesson | undefined;
   mode: Pane3Mode;
   onModeChange: (mode: Pane3Mode) => void;
   onUpdateContent: (lessonId: string, content: string) => void;
+  onUpdateLessonMeta: (
+    lessonId: string,
+    meta: Partial<LessonMetaFields>,
+  ) => void;
   onRegisterInsertCallback: (cb: (markdown: string) => void) => void;
+  tagSuggestions?: readonly string[];
 };
 
 const MODE_TABS: Array<{ value: Pane3Mode; label: string; icon: React.ReactNode }> =
   [
-    { value: "raw", label: "Markdown", icon: <Code className="h-3 w-3" /> },
+    { value: "raw", label: "編集モード", icon: <Code className="h-3 w-3" /> },
     { value: "inline", label: "プレビュー", icon: <Eye className="h-3 w-3" /> },
     {
       value: "diff",
@@ -27,43 +37,64 @@ const MODE_TABS: Array<{ value: Pane3Mode; label: string; icon: React.ReactNode 
     },
   ];
 
+const LESSON_PREVIEW_CLASS = "lesson-preview";
+
 export function MarkdownEditorPane({
   lesson,
   mode,
   onModeChange,
   onUpdateContent,
+  onUpdateLessonMeta,
   onRegisterInsertCallback,
+  tagSuggestions = [],
 }: Props) {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const gutterRef = useRef<HTMLDivElement>(null);
+  const paneScrollRef = useRef<HTMLElement | null>(null);
   const [diffContent, setDiffContent] = useState<string>("");
   const [diffLoading, setDiffLoading] = useState(false);
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [metaDialogOpen, setMetaDialogOpen] = useState(false);
 
-  // 画像挿入コールバックを登録
-  const insertAtCursor = useCallback((markdown: string) => {
-    const ta = textareaRef.current;
-    if (!ta || !lesson) return;
-    const start = ta.selectionStart;
-    const end = ta.selectionEnd;
-    const before = lesson.content.slice(0, start);
-    const after = lesson.content.slice(end);
-    const newContent = before + markdown + after;
-    onUpdateContent(lesson.id, newContent);
-    // カーソルを挿入後に移動
-    requestAnimationFrame(() => {
-      ta.setSelectionRange(
-        start + markdown.length,
-        start + markdown.length,
-      );
-      ta.focus();
-    });
-  }, [lesson, onUpdateContent]);
+  const previewBody = useMemo(
+    () => (lesson ? getLessonBody(lesson) : ""),
+    [lesson],
+  );
+
+  const editContent = lesson?.content ?? "";
+
+  const lineNumbers = useMemo(() => {
+    const count = Math.max(1, editContent.split("\n").length);
+    return Array.from({ length: count }, (_, i) => i + 1);
+  }, [editContent]);
+
+  const insertAtCursor = useCallback(
+    (markdown: string) => {
+      const ta = textareaRef.current;
+      if (!ta || !lesson) return;
+      const start = ta.selectionStart;
+      const end = ta.selectionEnd;
+      const before = editContent.slice(0, start);
+      const after = editContent.slice(end);
+      onUpdateContent(lesson.id, before + markdown + after);
+      requestAnimationFrame(() => {
+        const pos = start + markdown.length;
+        ta.setSelectionRange(pos, pos);
+        ta.focus();
+      });
+    },
+    [editContent, lesson, onUpdateContent],
+  );
 
   useEffect(() => {
     onRegisterInsertCallback(insertAtCursor);
   }, [onRegisterInsertCallback, insertAtCursor]);
 
-  // 差分表示モードで API を呼ぶ
+  const syncGutterScroll = useCallback(() => {
+    const ta = textareaRef.current;
+    const gutter = gutterRef.current;
+    if (ta && gutter) gutter.scrollTop = ta.scrollTop;
+  }, []);
+
   useEffect(() => {
     if (mode !== "diff" || !lesson) {
       setDiffContent("");
@@ -84,23 +115,6 @@ export function MarkdownEditorPane({
       .finally(() => setDiffLoading(false));
   }, [mode, lesson]);
 
-  // ファイルを読み込む
-  const handleFileOpen = () => {
-    fileInputRef.current?.click();
-  };
-
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file || !lesson) return;
-    const reader = new FileReader();
-    reader.onload = (ev) => {
-      const text = ev.target?.result as string;
-      onUpdateContent(lesson.id, text);
-    };
-    reader.readAsText(file);
-    e.target.value = "";
-  };
-
   if (!lesson) {
     return (
       <div className="flex flex-1 items-center justify-center text-muted-foreground text-sm">
@@ -110,83 +124,92 @@ export function MarkdownEditorPane({
   }
 
   return (
-    <div className="flex flex-1 min-w-0 flex-col bg-card">
-      {/* ツールバー */}
-      <div className="flex items-center gap-2 border-b border-border px-3 py-2">
-        {/* モード切り替えタブ */}
-        <div className="flex rounded-md border border-border overflow-hidden">
-          {MODE_TABS.map((tab) => (
-            <button
-              key={tab.value}
-              onClick={() => onModeChange(tab.value)}
-              className={cn(
-                "flex items-center gap-1 px-2 py-1 text-xs transition-colors",
-                mode === tab.value
-                  ? "bg-primary text-white"
-                  : "text-muted-foreground hover:bg-muted",
-              )}
-            >
-              {tab.icon}
-              {tab.label}
-            </button>
-          ))}
-        </div>
-
-        <div className="ml-auto flex items-center gap-1">
+    <PaneWheelRoot scrollRef={paneScrollRef} className="min-w-0 flex-1 bg-card">
+      <div className="flex h-12 shrink-0 items-center gap-2 border-b border-border px-3 py-0">
+        <h2 className="min-w-0 truncate text-sm font-semibold text-foreground">
+          {lesson.lesson}
+        </h2>
+        <div className="ml-auto flex items-center gap-2">
           <Button
-            variant="outline"
-            size="sm"
-            className="h-7 gap-1 text-xs"
-            onClick={handleFileOpen}
+            type="button"
+            variant="ghost"
+            size="icon"
+            className="mr-1 h-6 w-6 shrink-0"
+            aria-label="レッスンメタを編集"
+            onClick={() => setMetaDialogOpen(true)}
           >
-            <FileText className="h-3 w-3" />
-            ファイルを開く
+            <Edit3 className="h-3 w-3" />
           </Button>
+          <div className="flex overflow-hidden rounded-md border border-border">
+            {MODE_TABS.map((tab) => (
+              <button
+                key={tab.value}
+                type="button"
+                onClick={() => onModeChange(tab.value)}
+                className={cn(
+                  "flex items-center gap-1 px-2 py-1 text-xs transition-colors",
+                  mode === tab.value
+                    ? "bg-primary text-white"
+                    : "text-muted-foreground hover:bg-muted",
+                )}
+              >
+                {tab.icon}
+                {tab.label}
+              </button>
+            ))}
+          </div>
         </div>
-        <input
-          ref={fileInputRef}
-          type="file"
-          accept=".md,.txt"
-          className="hidden"
-          onChange={handleFileChange}
-        />
       </div>
 
-      {/* コンテンツエリア */}
-      <div className="flex-1 min-h-0 overflow-hidden">
-        {/* Raw Markdown モード */}
+      <div className="min-h-0 flex-1 overflow-hidden">
         {mode === "raw" && (
-          <textarea
-            ref={textareaRef}
-            value={lesson.content}
-            onChange={(e) => onUpdateContent(lesson.id, e.target.value)}
-            className="h-full w-full resize-none bg-card px-4 py-3 font-mono text-sm text-foreground outline-none"
-            placeholder="マークダウンをここに入力してください..."
-            spellCheck={false}
-          />
+          <div className="flex h-full min-h-0 min-w-0">
+            <div
+              ref={gutterRef}
+              aria-hidden
+              className="shrink-0 overflow-hidden bg-muted/20 px-2 py-3 text-right font-mono text-[11px] leading-[1.375rem] text-muted-foreground/50 tabular-nums select-none"
+            >
+              {lineNumbers.map((n) => (
+                <div key={n}>{n}</div>
+              ))}
+            </div>
+            <textarea
+              ref={(el) => {
+                textareaRef.current = el;
+                paneScrollRef.current = el;
+              }}
+              value={editContent}
+              onChange={(e) => onUpdateContent(lesson.id, e.target.value)}
+              onScroll={syncGutterScroll}
+              className="h-full min-w-0 flex-1 resize-none overflow-y-auto overscroll-y-contain bg-muted/20 px-4 py-3 font-mono text-sm leading-[1.375rem] text-foreground outline-none"
+              placeholder="フロントマターとマークダウン本文..."
+              spellCheck={false}
+            />
+          </div>
         )}
 
-        {/* プレビューモード */}
         {mode === "inline" && (
-          <div className="h-full overflow-y-auto px-6 py-4">
-            <div className="prose prose-sm max-w-none text-foreground
-              prose-headings:text-foreground
-              prose-p:text-foreground
-              prose-strong:text-foreground
-              prose-code:bg-muted prose-code:px-1 prose-code:py-0.5 prose-code:rounded prose-code:text-sm prose-code:font-mono
-              prose-pre:bg-slate-900 prose-pre:text-slate-100
-              prose-blockquote:border-primary prose-blockquote:text-muted-foreground
-              prose-li:text-foreground">
-              <ReactMarkdown>{lesson.content}</ReactMarkdown>
+          <div
+            ref={(el) => {
+              paneScrollRef.current = el;
+            }}
+            className="h-full overflow-y-auto overscroll-y-contain px-6 py-5"
+          >
+            <div className={LESSON_PREVIEW_CLASS}>
+              <ReactMarkdown remarkPlugins={[remarkGfm]}>{previewBody}</ReactMarkdown>
             </div>
           </div>
         )}
 
-        {/* 差分表示モード */}
         {mode === "diff" && (
-          <div className="h-full overflow-y-auto">
+          <div
+            ref={(el) => {
+              paneScrollRef.current = el;
+            }}
+            className="h-full overflow-y-auto overscroll-y-contain"
+          >
             {diffLoading ? (
-              <div className="flex h-full items-center justify-center text-muted-foreground text-sm">
+              <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
                 差分を取得中...
               </div>
             ) : (
@@ -197,11 +220,9 @@ export function MarkdownEditorPane({
                         key={i}
                         className={cn(
                           "leading-relaxed",
-                          line.startsWith("+") &&
-                            !line.startsWith("+++")
+                          line.startsWith("+") && !line.startsWith("+++")
                             ? "bg-green-500/10 text-green-700"
-                            : line.startsWith("-") &&
-                                !line.startsWith("---")
+                            : line.startsWith("-") && !line.startsWith("---")
                               ? "bg-red-500/10 text-red-700"
                               : line.startsWith("@@")
                                 ? "text-blue-600"
@@ -217,6 +238,14 @@ export function MarkdownEditorPane({
           </div>
         )}
       </div>
-    </div>
+
+      <LessonMetaDialog
+        open={metaDialogOpen}
+        onOpenChange={setMetaDialogOpen}
+        lesson={lesson}
+        onSave={onUpdateLessonMeta}
+        tagSuggestions={tagSuggestions}
+      />
+    </PaneWheelRoot>
   );
 }

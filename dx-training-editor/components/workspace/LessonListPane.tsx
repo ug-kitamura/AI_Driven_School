@@ -4,7 +4,6 @@ import { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import {
   Plus,
   Trash2,
-  GripVertical,
   Edit3,
   CircleCheck,
   Loader,
@@ -38,10 +37,29 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
+import {
+  META_DIALOG_CONTROL,
+  META_DIALOG_FORM,
+  META_DIALOG_GRID,
+  MetaDialogField,
+} from "@/components/workspace/metaDialogLayout";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import {
+  ADD_LIST_BUTTON_CLASS,
+  SORTABLE_POINTER_ACTIVATION,
+} from "@/components/workspace/constants";
+import { PaneWheelRoot } from "@/components/workspace/PaneWheelRoot";
+import { WorkspaceTooltip } from "@/components/workspace/WorkspaceTooltip";
 import { cn, computeStatus } from "@/lib/utils";
-import { STATUS_LABELS } from "@/lib/schema";
 import type { Series, Course, Lesson } from "@/lib/schema";
+import {
+  buildMiniMandalaGraphInput,
+  filterCrossSeriesIds,
+  getIntraSeriesNeighbors,
+  formatCrossSeriesCourseLabel,
+  listCrossSeriesCourseCandidates,
+  type MiniMandalaGraphInput,
+} from "@/lib/course-flow";
 
 type Props = {
   series: Series[];
@@ -54,7 +72,10 @@ type Props = {
   onReorderLessons: (courseId: string, from: number, to: number) => void;
   onUpdateCourseMeta: (
     courseId: string,
-    meta: Pick<Course, "target_audience" | "prerequisites" | "next_courses">,
+    meta: Pick<
+      Course,
+      "name" | "target_audience" | "prerequisites" | "next_courses"
+    >,
   ) => void;
   onUpdateLessonStatus: (lessonId: string, status: Lesson["status"]) => void;
 };
@@ -71,61 +92,111 @@ const STATUS_ICON: Record<
     icon: <Loader className="h-3.5 w-3.5 text-[--status-wip]" />,
     label: "作成中",
   },
-  draft: {
+  open: {
     icon: <CircleDashed className="h-3.5 w-3.5 text-[--status-draft]" />,
     label: "未着手",
   },
 };
 
 const STATUS_CYCLE: Record<Lesson["status"], Lesson["status"]> = {
-  draft: "in_progress",
+  open: "in_progress",
   in_progress: "done",
-  done: "draft",
+  done: "open",
 };
-
-// コース名 ID からコース名を解決するヘルパー
-function resolveCourseNames(
-  series: Series[],
-  courseIds: string[],
-): Array<{ id: string; name: string }> {
-  return courseIds.map((id) => {
-    for (const s of series) {
-      const c = s.courses.find((c) => c.id === id);
-      if (c) return { id, name: c.name };
-    }
-    return { id, name: id };
-  });
-}
 
 const miniSafeId = (id: string) => `M_${id.replace(/[^a-zA-Z0-9]/g, "_")}`;
 
-// Mermaid グラフ文字列生成
+function addMiniNode(
+  lines: string[],
+  nodeMap: Record<string, string>,
+  ref: { id: string; name: string },
+) {
+  const safeLabel = (s: string) => s.replace(/"/g, "'");
+  const nid = miniSafeId(ref.id);
+  nodeMap[nid] = ref.id;
+  lines.push(`  ${nid}("${safeLabel(ref.name)}")`);
+  lines.push(`  click ${nid} call miniGraphNav()`);
+  return nid;
+}
+
 function buildMermaidDef(
-  course: Course,
-  prereqNames: Array<{ id: string; name: string }>,
-  nextNames: Array<{ id: string; name: string }>,
+  input: MiniMandalaGraphInput,
 ): { def: string; nodeMap: Record<string, string> } {
   const lines = ["flowchart LR"];
   const safeLabel = (s: string) => s.replace(/"/g, "'");
   const currentId = "CURRENT";
-  const nodeMap: Record<string, string> = {};
-  lines.push(`  ${currentId}("★ ${safeLabel(course.name)}")`);
+  const nodeMap: Record<string, string> = { [currentId]: input.current.id };
+  lines.push(`  ${currentId}("★ ${safeLabel(input.current.name)}")`);
   lines.push(`  style ${currentId} stroke-width:3px,font-weight:bold`);
-  prereqNames.forEach(({ id, name }) => {
-    const nid = miniSafeId(id);
-    nodeMap[nid] = id;
-    lines.push(`  ${nid}("${safeLabel(name)}")`);
+  lines.push(`  click ${currentId} call miniGraphNav()`);
+
+  if (input.intraPrev) {
+    const nid = addMiniNode(lines, nodeMap, input.intraPrev);
     lines.push(`  ${nid} --> ${currentId}`);
-    lines.push(`  click ${nid} call miniGraphNav()`);
+  }
+  input.crossPrereqs.forEach((ref) => {
+    const nid = addMiniNode(lines, nodeMap, ref);
+    lines.push(`  ${nid} --> ${currentId}`);
   });
-  nextNames.forEach(({ id, name }) => {
-    const nid = miniSafeId(id);
-    nodeMap[nid] = id;
-    lines.push(`  ${nid}("${safeLabel(name)}")`);
+  if (input.intraNext) {
+    const nid = addMiniNode(lines, nodeMap, input.intraNext);
     lines.push(`  ${currentId} --> ${nid}`);
-    lines.push(`  click ${nid} call miniGraphNav()`);
+  }
+  input.crossNexts.forEach((ref) => {
+    const nid = addMiniNode(lines, nodeMap, ref);
+    lines.push(`  ${currentId} --> ${nid}`);
   });
+
   return { def: lines.join("\n"), nodeMap };
+}
+
+function CrossSeriesCoursePicker({
+  candidates,
+  selectedIds,
+  onChange,
+}: {
+  candidates: Array<{ id: string; name: string; seriesName: string }>;
+  selectedIds: string[];
+  onChange: (ids: string[]) => void;
+}) {
+  const toggle = (id: string) => {
+    onChange(
+      selectedIds.includes(id)
+        ? selectedIds.filter((x) => x !== id)
+        : [...selectedIds, id],
+    );
+  };
+
+  if (candidates.length === 0) {
+    return (
+      <p className="text-[11px] text-muted-foreground">
+        選択できる別シリーズのコースがありません
+      </p>
+    );
+  }
+
+  return (
+    <ScrollArea className="h-40 max-h-[min(10rem,35vh)] rounded-md border border-border bg-white">
+      <div className="space-y-0.5 p-2">
+        {candidates.map((c) => (
+          <label
+            key={c.id}
+            className="flex cursor-pointer items-start gap-2 rounded px-1 py-1 text-xs hover:bg-muted/60"
+          >
+            <input
+              type="checkbox"
+              className="mt-0.5 shrink-0"
+              checked={selectedIds.includes(c.id)}
+              onChange={() => toggle(c.id)}
+            />
+            <span className="leading-snug">
+              {formatCrossSeriesCourseLabel(c.seriesName, c.name)}
+            </span>
+          </label>
+        ))}
+      </div>
+    </ScrollArea>
+  );
 }
 
 // ソータブル行
@@ -159,33 +230,30 @@ function SortableLessonRow({
       <div
         ref={setNodeRef}
         style={style}
+        onClick={onSelect}
         className={cn(
-          "group flex items-center gap-1 rounded-md px-2 py-1.5 text-sm transition-colors",
+          "group flex cursor-pointer items-center gap-1 rounded-md px-2 py-1.5 text-sm transition-colors",
           isSelected
             ? "bg-accent text-primary"
             : "hover:bg-muted text-foreground",
         )}
       >
-        {/* ドラッグハンドル */}
-        <button
+        <span className="size-3.5 shrink-0" aria-hidden />
+        <span
           {...attributes}
           {...listeners}
-          className="flex-shrink-0 cursor-grab text-muted-foreground opacity-0 group-hover:opacity-100"
-          tabIndex={-1}
-        >
-          <GripVertical className="h-3.5 w-3.5" />
-        </button>
-
-        {/* レッスン名 */}
-        <button
-          onClick={onSelect}
-          className="flex-1 truncate text-left text-xs"
+          onClick={(e) => {
+            e.stopPropagation();
+            onSelect();
+          }}
+          className="flex-1 truncate text-left text-xs group-hover:cursor-grab active:cursor-grabbing"
         >
           {lesson.lesson}
-        </button>
+        </span>
 
         {/* 削除ボタン */}
         <button
+          type="button"
           onClick={(e) => {
             e.stopPropagation();
             setDeleteConfirmOpen(true);
@@ -196,16 +264,22 @@ function SortableLessonRow({
         </button>
 
         {/* ステータスアイコン（クリックで循環切り替え） */}
-        <button
-          onClick={(e) => {
-            e.stopPropagation();
-            onStatusChange(STATUS_CYCLE[lesson.status]);
-          }}
-          title={`${STATUS_ICON[lesson.status].label} → クリックで変更`}
-          className="ml-1 flex-shrink-0 transition-opacity hover:opacity-70"
-        >
-          {STATUS_ICON[lesson.status].icon}
-        </button>
+        <WorkspaceTooltip
+          label={STATUS_ICON[lesson.status].label}
+          render={
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                onStatusChange(STATUS_CYCLE[lesson.status]);
+              }}
+              className="ml-1 flex-shrink-0 transition-opacity hover:opacity-70"
+              aria-label={`${STATUS_ICON[lesson.status].label}、クリックで変更`}
+            >
+              {STATUS_ICON[lesson.status].icon}
+            </button>
+          }
+        />
       </div>
 
       {/* 削除確認ダイアログ */}
@@ -249,29 +323,46 @@ export function LessonListPane({
   onUpdateCourseMeta,
   onUpdateLessonStatus,
 }: Props) {
+  const lessonScrollRef = useRef<HTMLDivElement>(null);
   const [addDialogOpen, setAddDialogOpen] = useState(false);
   const [newLessonName, setNewLessonName] = useState("");
   const [metaDialogOpen, setMetaDialogOpen] = useState(false);
   const [editMeta, setEditMeta] = useState<{
+    name: string;
     target_audience: string;
-    prerequisites: string;
-    next_courses: string;
-  }>({ target_audience: "", prerequisites: "", next_courses: "" });
+    crossPrerequisites: string[];
+    crossNextCourses: string[];
+  }>({
+    name: "",
+    target_audience: "",
+    crossPrerequisites: [],
+    crossNextCourses: [],
+  });
 
-  const prereqNames = useMemo(
-    () => resolveCourseNames(series, course?.prerequisites ?? []),
+  const miniGraphInput = useMemo(
+    () => (course ? buildMiniMandalaGraphInput(series, course) : null),
     [series, course],
   );
-  const nextNames = useMemo(
-    () => resolveCourseNames(series, course?.next_courses ?? []),
+
+  const intraNeighbors = useMemo(
+    () =>
+      course
+        ? getIntraSeriesNeighbors(series, course.id)
+        : { prev: null, next: null },
+    [series, course],
+  );
+
+  const crossSeriesCandidates = useMemo(
+    () =>
+      course ? listCrossSeriesCourseCandidates(series, course.id) : [],
     [series, course],
   );
 
   // --- Mermaid: サムネイル用（常に先行レンダリング）---
   const [thumbnailSvg, setThumbnailSvg] = useState<string>("");
   useEffect(() => {
-    if (!course) { setThumbnailSvg(""); return; }
-    const { def } = buildMermaidDef(course, prereqNames, nextNames);
+    if (!course || !miniGraphInput) { setThumbnailSvg(""); return; }
+    const { def } = buildMermaidDef(miniGraphInput);
     let cancelled = false;
     import("mermaid").then(async (m) => {
       if (cancelled) return;
@@ -284,7 +375,7 @@ export function LessonListPane({
       } catch { if (!cancelled) setThumbnailSvg(""); }
     });
     return () => { cancelled = true; };
-  }, [course, prereqNames, nextNames]);
+  }, [course, miniGraphInput]);
 
   // --- Mermaid: モーダル用（開いたときにレンダリング・GlobalHeader と同じパターン）---
   const [mermaidModalOpen, setMermaidModalOpen] = useState(false);
@@ -312,8 +403,8 @@ export function LessonListPane({
 
   // モーダルが開いたときだけレンダリング（GlobalHeader と同じ lazy パターン）
   useEffect(() => {
-    if (!mermaidModalOpen || !course) return;
-    const { def, nodeMap } = buildMermaidDef(course, prereqNames, nextNames);
+    if (!mermaidModalOpen || !course || !miniGraphInput) return;
+    const { def, nodeMap } = buildMermaidDef(miniGraphInput);
     (window as unknown as Record<string, unknown>)["miniGraphNodeMap"] = nodeMap;
     let cancelled = false;
     import("mermaid").then(async (m) => {
@@ -330,7 +421,7 @@ export function LessonListPane({
       } catch { if (!cancelled) setModalSvg(""); }
     });
     return () => { cancelled = true; };
-  }, [mermaidModalOpen, course, prereqNames, nextNames]);
+  }, [mermaidModalOpen, course, miniGraphInput]);
 
   // モーダルを閉じたら SVG リセット
   useEffect(() => {
@@ -345,7 +436,9 @@ export function LessonListPane({
   }, [modalSvg]);
 
   const sensors = useSensors(
-    useSensor(PointerSensor),
+    useSensor(PointerSensor, {
+      activationConstraint: SORTABLE_POINTER_ACTIVATION,
+    }),
     useSensor(KeyboardSensor, {
       coordinateGetter: sortableKeyboardCoordinates,
     }),
@@ -364,7 +457,7 @@ export function LessonListPane({
 
   if (!course) {
     return (
-      <div className="flex w-72 flex-shrink-0 items-center justify-center border-r border-border bg-card text-muted-foreground text-sm">
+      <div className="flex h-full w-full items-center justify-center bg-card text-muted-foreground text-sm">
         コースを選択してください
       </div>
     );
@@ -378,9 +471,9 @@ export function LessonListPane({
       : 0;
 
   return (
-    <div className="flex w-72 flex-shrink-0 flex-col border-r border-border bg-card">
+    <PaneWheelRoot scrollRef={lessonScrollRef} className="bg-card">
       {/* コースメタ情報エリア */}
-      <div className="border-b border-border bg-muted/40 px-3 py-2">
+      <div className="shrink-0 border-b border-border bg-muted/40 px-3 py-2">
         <div className="mb-2 flex items-center gap-1">
           <span className="flex-1 truncate text-xs font-bold text-foreground">
             {course.name}
@@ -389,11 +482,21 @@ export function LessonListPane({
             variant="ghost"
             size="icon"
             className="h-6 w-6 flex-shrink-0"
+            aria-label="コースメタを編集"
             onClick={() => {
               setEditMeta({
+                name: course.name,
                 target_audience: course.target_audience ?? "",
-                prerequisites: course.prerequisites.join(", "),
-                next_courses: course.next_courses.join(", "),
+                crossPrerequisites: filterCrossSeriesIds(
+                  series,
+                  course.id,
+                  course.prerequisites,
+                ),
+                crossNextCourses: filterCrossSeriesIds(
+                  series,
+                  course.id,
+                  course.next_courses,
+                ),
               });
               setMetaDialogOpen(true);
             }}
@@ -402,8 +505,7 @@ export function LessonListPane({
           </Button>
         </div>
 
-        {/* メタ情報テーブル */}
-        <div className="space-y-1 text-xs">
+        <div className="text-xs">
           <div className="flex gap-1">
             <span className="w-8 flex-shrink-0 text-muted-foreground">
               対象:
@@ -412,61 +514,26 @@ export function LessonListPane({
               {course.target_audience || "—"}
             </span>
           </div>
-          <div className="flex flex-wrap gap-1 items-start">
-            <span className="w-8 flex-shrink-0 text-muted-foreground">
-              前回:
-            </span>
-            <div className="flex flex-wrap gap-1">
-              {prereqNames.length > 0 ? (
-                prereqNames.map(({ id, name }) => (
-                  <button
-                    key={id}
-                    onClick={() => onSelectCourse(id)}
-                    className="rounded bg-secondary px-1.5 py-0.5 text-[10px] text-primary hover:bg-primary hover:text-white transition-colors"
-                  >
-                    {name}
-                  </button>
-                ))
-              ) : (
-                <span className="text-muted-foreground">なし</span>
-              )}
-            </div>
-          </div>
-          <div className="flex flex-wrap gap-1 items-start">
-            <span className="w-8 flex-shrink-0 text-muted-foreground">
-              次回:
-            </span>
-            <div className="flex flex-wrap gap-1">
-              {nextNames.length > 0 ? (
-                nextNames.map(({ id, name }) => (
-                  <button
-                    key={id}
-                    onClick={() => onSelectCourse(id)}
-                    className="rounded bg-secondary px-1.5 py-0.5 text-[10px] text-primary hover:bg-primary hover:text-white transition-colors"
-                  >
-                    {name}
-                  </button>
-                ))
-              ) : (
-                <span className="text-muted-foreground">なし</span>
-              )}
-            </div>
-          </div>
         </div>
 
         {/* Mermaid ミニグラフ（クリックで拡大） */}
         {thumbnailSvg && (
           <>
-            <button
-              className="mt-2 w-full overflow-hidden rounded border border-border bg-white p-1 transition-opacity hover:opacity-80 cursor-zoom-in"
-              title="クリックで拡大表示"
-              onClick={() => setMermaidModalOpen(true)}
-              dangerouslySetInnerHTML={{ __html: thumbnailSvg }}
+            <WorkspaceTooltip
+              label="クリックで拡大表示"
+              render={
+                <button
+                  type="button"
+                  className="mt-2 w-full overflow-hidden rounded border border-border bg-white p-1 transition-opacity hover:opacity-80 cursor-zoom-in"
+                  onClick={() => setMermaidModalOpen(true)}
+                  dangerouslySetInnerHTML={{ __html: thumbnailSvg }}
+                />
+              }
             />
             <Dialog open={mermaidModalOpen} onOpenChange={setMermaidModalOpen}>
               <DialogContent className="max-w-2xl">
                 <DialogHeader>
-                  <DialogTitle>トレーニングフロー</DialogTitle>
+                  <DialogTitle>ミニ曼陀羅</DialogTitle>
                 </DialogHeader>
                 {modalSvg ? (
                   <div
@@ -478,7 +545,9 @@ export function LessonListPane({
                       for (const el of e.nativeEvent.composedPath()) {
                         const svgG = el as Element;
                         if (svgG.tagName === "g" && (svgG as SVGGElement).id) {
-                          const match = (svgG as SVGGElement).id.match(/-flowchart-(M_[^-]+)-/);
+                          const match = (svgG as SVGGElement).id.match(
+                            /-flowchart-(M_[^-]+|CURRENT)-/,
+                          );
                           if (match) {
                             const nav = (window as unknown as Record<string, unknown>)["miniGraphNav"] as ((id: string) => void) | undefined;
                             nav?.(match[1]);
@@ -493,7 +562,7 @@ export function LessonListPane({
                     グラフを生成中...
                   </div>
                 )}
-                <p className="text-[11px] text-muted-foreground text-center pt-1">
+                <p className="text-[11px] text-muted-foreground text-left pt-1">
                   ★ = 現在選択中のコース　　ノードをクリックするとそのコースに移動します
                 </p>
               </DialogContent>
@@ -502,21 +571,22 @@ export function LessonListPane({
         )}
       </div>
 
-      {/* コース進捗バー */}
-      <div className="border-b border-border px-3 py-2">
-        <div className="mb-1 flex items-center justify-between text-xs">
+      {/* コース進捗（レッスン行と同じ px-2 で左右を揃える） */}
+      <div className="mb-2 shrink-0 px-2 pt-2">
+        <div className="mb-0.5 flex items-center justify-between text-[10px]">
           <span className="text-muted-foreground">コース進捗</span>
-          <div className="flex items-center gap-1.5">
-            <span className="font-medium text-primary">
-              {doneCount}/{course.lessons.length}
-            </span>
-          </div>
+          <span className="font-medium text-primary">
+            {doneCount}/{course.lessons.length}
+          </span>
         </div>
-        <Progress value={progress} className="h-1.5" />
+        <Progress value={progress} className="h-1" />
       </div>
 
       {/* レッスン一覧 */}
-      <div className="flex-1 overflow-y-auto px-2 py-2">
+      <div
+        ref={lessonScrollRef}
+        className="flex min-h-0 flex-1 flex-col gap-1 overflow-y-auto overscroll-y-contain px-2 pb-2"
+      >
         <DndContext
           id="lesson-list-dnd"
           sensors={sensors}
@@ -527,7 +597,7 @@ export function LessonListPane({
             items={course.lessons.map((l) => l.id)}
             strategy={verticalListSortingStrategy}
           >
-            <div className="space-y-0.5">
+            <div className="flex flex-col gap-1">
               {course.lessons.map((lesson) => (
                 <SortableLessonRow
                   key={lesson.id}
@@ -549,7 +619,7 @@ export function LessonListPane({
         <Button
           variant="ghost"
           size="sm"
-          className="mt-2 w-full justify-start gap-1 border border-dashed border-border text-xs text-muted-foreground hover:border-primary hover:text-primary"
+          className={ADD_LIST_BUTTON_CLASS}
           onClick={() => {
             setNewLessonName("");
             setAddDialogOpen(true);
@@ -566,21 +636,23 @@ export function LessonListPane({
           <DialogHeader>
             <DialogTitle>レッスンを追加</DialogTitle>
           </DialogHeader>
-          <div className="py-2">
-            <Label htmlFor="lesson-name">レッスン名</Label>
-            <Input
-              id="lesson-name"
-              value={newLessonName}
-              onChange={(e) => setNewLessonName(e.target.value)}
-              placeholder="例: Gitのインストール手順"
-              className="mt-1"
-              onKeyDown={(e) => {
-                if (e.key === "Enter" && newLessonName.trim()) {
-                  onAddLesson(course.id, newLessonName.trim());
-                  setAddDialogOpen(false);
-                }
-              }}
-            />
+          <div className={META_DIALOG_FORM}>
+            <MetaDialogField>
+              <Label htmlFor="lesson-name">レッスン名</Label>
+              <Input
+                id="lesson-name"
+                value={newLessonName}
+                onChange={(e) => setNewLessonName(e.target.value)}
+                placeholder="例: Gitのインストール手順"
+                className={META_DIALOG_CONTROL}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && newLessonName.trim()) {
+                    onAddLesson(course.id, newLessonName.trim());
+                    setAddDialogOpen(false);
+                  }
+                }}
+              />
+            </MetaDialogField>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setAddDialogOpen(false)}>
@@ -602,12 +674,23 @@ export function LessonListPane({
 
       {/* コースメタ編集ダイアログ */}
       <Dialog open={metaDialogOpen} onOpenChange={setMetaDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>コースメタ情報を編集</DialogTitle>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader className="sr-only">
+            <DialogTitle>コースメタを編集</DialogTitle>
           </DialogHeader>
-          <div className="space-y-3 py-2">
-            <div>
+          <div className={cn(META_DIALOG_GRID, META_DIALOG_FORM)}>
+            <MetaDialogField className="col-span-2">
+              <Label htmlFor="course-meta-name">コース名</Label>
+              <Input
+                id="course-meta-name"
+                value={editMeta.name}
+                onChange={(e) =>
+                  setEditMeta((prev) => ({ ...prev, name: e.target.value }))
+                }
+                className={META_DIALOG_CONTROL}
+              />
+            </MetaDialogField>
+            <MetaDialogField className="col-span-2">
               <Label>受講対象者</Label>
               <Input
                 value={editMeta.target_audience}
@@ -618,40 +701,41 @@ export function LessonListPane({
                   }))
                 }
                 placeholder="例: Git未経験の開発者"
-                className="mt-1"
+                className={META_DIALOG_CONTROL}
               />
-            </div>
-            <div>
-              <Label>前提コース ID（カンマ区切り）</Label>
-              <Input
-                value={editMeta.prerequisites}
-                onChange={(e) =>
-                  setEditMeta((prev) => ({
-                    ...prev,
-                    prerequisites: e.target.value,
-                  }))
-                }
-                placeholder="例: course-git-concept, course-git-env"
-                className="mt-1"
-              />
-              <p className="mt-1 text-[11px] text-muted-foreground">
-                コースのIDを入力してください（data/content.json の id フィールド）
+            </MetaDialogField>
+            <MetaDialogField>
+              <Label>前のコース（同シリーズ）</Label>
+              <p className="rounded-md border border-border bg-muted/50 px-2 py-1.5 text-sm">
+                {intraNeighbors.prev?.name ?? "なし"}
               </p>
-            </div>
-            <div>
-              <Label>次のコース ID（カンマ区切り）</Label>
-              <Input
-                value={editMeta.next_courses}
-                onChange={(e) =>
-                  setEditMeta((prev) => ({
-                    ...prev,
-                    next_courses: e.target.value,
-                  }))
+            </MetaDialogField>
+            <MetaDialogField>
+              <Label>次のコース（同シリーズ）</Label>
+              <p className="rounded-md border border-border bg-muted/50 px-2 py-1.5 text-sm">
+                {intraNeighbors.next?.name ?? "なし"}
+              </p>
+            </MetaDialogField>
+            <MetaDialogField className="min-w-0">
+              <Label>前のコース（別シリーズ）</Label>
+              <CrossSeriesCoursePicker
+                candidates={crossSeriesCandidates}
+                selectedIds={editMeta.crossPrerequisites}
+                onChange={(ids) =>
+                  setEditMeta((prev) => ({ ...prev, crossPrerequisites: ids }))
                 }
-                placeholder="例: course-git-branch, course-github-intro"
-                className="mt-1"
               />
-            </div>
+            </MetaDialogField>
+            <MetaDialogField className="min-w-0">
+              <Label>次のコース（別シリーズ）</Label>
+              <CrossSeriesCoursePicker
+                candidates={crossSeriesCandidates}
+                selectedIds={editMeta.crossNextCourses}
+                onChange={(ids) =>
+                  setEditMeta((prev) => ({ ...prev, crossNextCourses: ids }))
+                }
+              />
+            </MetaDialogField>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setMetaDialogOpen(false)}>
@@ -659,15 +743,11 @@ export function LessonListPane({
             </Button>
             <Button
               onClick={() => {
-                const parseIds = (s: string) =>
-                  s
-                    .split(",")
-                    .map((v) => v.trim())
-                    .filter(Boolean);
                 onUpdateCourseMeta(course.id, {
+                  name: editMeta.name.trim() || course.name,
                   target_audience: editMeta.target_audience || undefined,
-                  prerequisites: parseIds(editMeta.prerequisites),
-                  next_courses: parseIds(editMeta.next_courses),
+                  prerequisites: editMeta.crossPrerequisites,
+                  next_courses: editMeta.crossNextCourses,
                 });
                 setMetaDialogOpen(false);
               }}
@@ -677,6 +757,6 @@ export function LessonListPane({
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </div>
+    </PaneWheelRoot>
   );
 }

@@ -36,16 +36,7 @@ const MODE_TABS: Array<{ value: Pane3Mode; label: string; icon: React.ReactNode 
     },
   ];
 
-const PROSE_PREVIEW =
-  "prose prose-sm max-w-none leading-relaxed text-foreground " +
-  "prose-headings:mt-6 prose-headings:mb-3 prose-headings:text-foreground " +
-  "prose-p:my-3 prose-p:text-foreground " +
-  "prose-strong:text-foreground " +
-  "prose-ul:my-3 prose-ol:my-3 prose-li:my-0.5 prose-li:text-foreground " +
-  "prose-code:bg-muted prose-code:px-1 prose-code:py-0.5 prose-code:rounded prose-code:text-sm prose-code:font-mono " +
-  "prose-pre:bg-slate-900 prose-pre:text-slate-100 " +
-  "prose-blockquote:border-primary prose-blockquote:text-muted-foreground " +
-  "[&_h3]:scroll-mt-4";
+const LESSON_PREVIEW_CLASS = "lesson-preview";
 
 export function MarkdownEditorPane({
   lesson,
@@ -202,7 +193,7 @@ export function MarkdownEditorPane({
             }}
             className="h-full overflow-y-auto overscroll-y-contain px-6 py-5"
           >
-            <div className={PROSE_PREVIEW}>
+            <div className={LESSON_PREVIEW_CLASS}>
               <ReactMarkdown remarkPlugins={[remarkGfm]}>{previewBody}</ReactMarkdown>
             </div>
           </div>

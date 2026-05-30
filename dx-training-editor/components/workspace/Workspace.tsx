@@ -161,6 +161,45 @@ export function Workspace({
     return newId;
   }, []);
 
+  // シリーズ削除（Pane1 から・コースがある場合は UI 側でブロック）
+  const deleteSeries = useCallback(
+    (seriesId: string) => {
+      setSeries((prev) => {
+        const next = prev.filter((s) => s.id !== seriesId);
+        const removed = prev.find((s) => s.id === seriesId);
+        const hadSelectedCourse =
+          removed?.courses.some((c) => c.id === selectedCourseId) ?? false;
+        if (hadSelectedCourse) {
+          const firstCourse = next.flatMap((s) => s.courses)[0];
+          setSelectedCourseId(firstCourse?.id ?? "");
+          setSelectedLessonId(firstCourse?.lessons[0]?.id ?? "");
+        }
+        return next;
+      });
+    },
+    [selectedCourseId],
+  );
+
+  // コース削除（Pane1 から・レッスンがある場合は UI 側でブロック）
+  const deleteCourse = useCallback(
+    (seriesId: string, courseId: string) => {
+      setSeries((prev) => {
+        const next = prev.map((s) =>
+          s.id === seriesId
+            ? { ...s, courses: s.courses.filter((c) => c.id !== courseId) }
+            : s,
+        );
+        if (selectedCourseId === courseId) {
+          const firstCourse = next.flatMap((s) => s.courses)[0];
+          setSelectedCourseId(firstCourse?.id ?? "");
+          setSelectedLessonId(firstCourse?.lessons[0]?.id ?? "");
+        }
+        return next;
+      });
+    },
+    [selectedCourseId],
+  );
+
   // コース追加（Pane1 から）
   const addCourse = useCallback((seriesId: string, name: string) => {
     const newId = `course-${Date.now()}`;
@@ -273,6 +312,8 @@ export function Workspace({
         onReorderCourses={reorderCourses}
         onAddSeries={addSeries}
         onAddCourse={addCourse}
+        onDeleteSeries={deleteSeries}
+        onDeleteCourse={deleteCourse}
       />
       <SidebarInset className="flex min-w-0 flex-col bg-background">
         <GlobalHeader

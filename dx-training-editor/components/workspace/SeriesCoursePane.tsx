@@ -10,6 +10,7 @@ import {
   Loader,
   CircleDashed,
   Plus,
+  Trash2,
 } from "lucide-react";
 import {
   DndContext,
@@ -37,6 +38,7 @@ import {
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle,
@@ -59,6 +61,8 @@ type Props = {
   onReorderCourses: (seriesId: string, fromIndex: number, toIndex: number) => void;
   onAddSeries: (name: string) => string;
   onAddCourse: (seriesId: string, name: string) => void;
+  onDeleteSeries: (seriesId: string) => void;
+  onDeleteCourse: (seriesId: string, courseId: string) => void;
 };
 
 const STATUS_ICON = {
@@ -71,10 +75,12 @@ function SortableCourseRow({
   course,
   isSelected,
   onSelect,
+  onDelete,
 }: {
   course: Course;
   isSelected: boolean;
   onSelect: () => void;
+  onDelete: () => void;
 }) {
   const {
     attributes,
@@ -85,6 +91,10 @@ function SortableCourseRow({
     isDragging,
   } = useSortable({ id: course.id });
 
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [blockedOpen, setBlockedOpen] = useState(false);
+  const hasLessons = course.lessons.length > 0;
+
   const style = {
     transform: CSS.Transform.toString(transform),
     transition,
@@ -93,37 +103,192 @@ function SortableCourseRow({
 
   const courseStatus = computeStatus(course.lessons.map((l) => l.status));
 
+  const handleDeleteClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (hasLessons) setBlockedOpen(true);
+    else setConfirmOpen(true);
+  };
+
   return (
-    <div
-      ref={setNodeRef}
-      style={style}
-      className={cn(
-        "group flex items-center gap-1 rounded-md px-2 py-1 text-xs transition-colors",
-        isSelected
-          ? "bg-accent text-primary"
-          : "text-foreground hover:bg-muted",
-      )}
-    >
-      <button
-        {...attributes}
-        {...listeners}
-        className="flex-shrink-0 cursor-grab text-muted-foreground opacity-0 group-hover:opacity-100"
-        tabIndex={-1}
+    <>
+      <div
+        ref={setNodeRef}
+        style={style}
+        className={cn(
+          "group flex items-center gap-1 rounded-md px-2 py-1 text-xs transition-colors",
+          isSelected
+            ? "bg-accent text-primary"
+            : "text-foreground hover:bg-muted",
+        )}
       >
-        <GripVertical className="h-3 w-3" />
-      </button>
+        <button
+          {...attributes}
+          {...listeners}
+          className="flex-shrink-0 cursor-grab text-muted-foreground opacity-0 group-hover:opacity-100"
+          tabIndex={-1}
+        >
+          <GripVertical className="h-3 w-3" />
+        </button>
 
-      <button onClick={onSelect} className="flex-1 truncate text-left sidebar-label">
-        {course.name}
-      </button>
+        <button onClick={onSelect} className="flex-1 truncate text-left sidebar-label">
+          {course.name}
+        </button>
 
-      <span
-        className="flex-shrink-0 sidebar-label"
-        title={STATUS_LABELS[courseStatus]}
-      >
-        {STATUS_ICON[courseStatus]}
-      </span>
-    </div>
+        <button
+          type="button"
+          onClick={handleDeleteClick}
+          title={
+            hasLessons
+              ? "レッスンがあるため削除できません"
+              : "コースを削除"
+          }
+          className="flex-shrink-0 text-muted-foreground opacity-0 hover:text-destructive group-hover:opacity-100 sidebar-label"
+        >
+          <Trash2 className="h-3.5 w-3.5" />
+        </button>
+
+        <span
+          className="flex-shrink-0 sidebar-label"
+          title={STATUS_LABELS[courseStatus]}
+        >
+          {STATUS_ICON[courseStatus]}
+        </span>
+      </div>
+
+      <Dialog open={confirmOpen} onOpenChange={setConfirmOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>コースを削除しますか？</DialogTitle>
+            <DialogDescription>
+              「{course.name}」を削除します。この操作は元に戻せません。
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setConfirmOpen(false)}>
+              キャンセル
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={() => {
+                onDelete();
+                setConfirmOpen(false);
+              }}
+            >
+              削除
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={blockedOpen} onOpenChange={setBlockedOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>コースを削除できません</DialogTitle>
+            <DialogDescription>
+              「{course.name}」にはレッスンが {course.lessons.length}{" "}
+              件あります。先にレッスンを削除してください。
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button onClick={() => setBlockedOpen(false)}>閉じる</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
+  );
+}
+
+function SeriesRow({
+  seriesItem,
+  isExpanded,
+  onToggle,
+  onDelete,
+}: {
+  seriesItem: Series;
+  isExpanded: boolean;
+  onToggle: () => void;
+  onDelete: () => void;
+}) {
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [blockedOpen, setBlockedOpen] = useState(false);
+  const hasCourses = seriesItem.courses.length > 0;
+
+  const handleDeleteClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (hasCourses) setBlockedOpen(true);
+    else setConfirmOpen(true);
+  };
+
+  return (
+    <>
+      <div className="group/series flex w-full items-center rounded-md transition-colors hover:bg-muted">
+        <button
+          onClick={onToggle}
+          className="flex min-w-0 flex-1 items-center gap-1.5 px-2 py-1.5 text-left"
+        >
+          {isExpanded ? (
+            <ChevronDown className="h-3.5 w-3.5 flex-shrink-0 text-muted-foreground" />
+          ) : (
+            <ChevronRight className="h-3.5 w-3.5 flex-shrink-0 text-muted-foreground" />
+          )}
+          <span className="flex-1 truncate text-xs font-bold text-foreground sidebar-label">
+            {seriesItem.name}
+          </span>
+        </button>
+        <button
+          type="button"
+          onClick={handleDeleteClick}
+          title={
+            hasCourses
+              ? "コースがあるため削除できません"
+              : "シリーズを削除"
+          }
+          className="flex-shrink-0 px-2 py-1.5 text-muted-foreground opacity-0 hover:text-destructive group-hover/series:opacity-100 sidebar-label"
+        >
+          <Trash2 className="h-3.5 w-3.5" />
+        </button>
+      </div>
+
+      <Dialog open={confirmOpen} onOpenChange={setConfirmOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>シリーズを削除しますか？</DialogTitle>
+            <DialogDescription>
+              「{seriesItem.name}」を削除します。この操作は元に戻せません。
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setConfirmOpen(false)}>
+              キャンセル
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={() => {
+                onDelete();
+                setConfirmOpen(false);
+              }}
+            >
+              削除
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={blockedOpen} onOpenChange={setBlockedOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>シリーズを削除できません</DialogTitle>
+            <DialogDescription>
+              「{seriesItem.name}」にはコースが {seriesItem.courses.length}{" "}
+              件あります。先にコースを削除してください。
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button onClick={() => setBlockedOpen(false)}>閉じる</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }
 
@@ -135,6 +300,8 @@ export function SeriesCoursePane({
   onReorderCourses,
   onAddSeries,
   onAddCourse,
+  onDeleteSeries,
+  onDeleteCourse,
 }: Props) {
   const [expandedSeriesIds, setExpandedSeriesIds] = useState<Set<string>>(
     () => new Set(series.map((s) => s.id)),
@@ -168,6 +335,15 @@ export function SeriesCoursePane({
   const handleAddSeries = (name: string) => {
     const newId = onAddSeries(name);
     expandSeries(newId);
+  };
+
+  const handleDeleteSeries = (seriesId: string) => {
+    onDeleteSeries(seriesId);
+    setExpandedSeriesIds((prev) => {
+      const next = new Set(prev);
+      next.delete(seriesId);
+      return next;
+    });
   };
 
   const toggleSeries = (id: string) => {
@@ -239,21 +415,12 @@ export function SeriesCoursePane({
 
                   return (
                     <div key={s.id}>
-                      <div className="flex items-center">
-                        <button
-                          onClick={() => toggleSeries(s.id)}
-                          className="flex flex-1 items-center gap-1.5 rounded-md px-2 py-1.5 text-left hover:bg-muted"
-                        >
-                          {isExpanded ? (
-                            <ChevronDown className="h-3.5 w-3.5 flex-shrink-0 text-muted-foreground" />
-                          ) : (
-                            <ChevronRight className="h-3.5 w-3.5 flex-shrink-0 text-muted-foreground" />
-                          )}
-                          <span className="flex-1 truncate text-xs font-bold text-foreground sidebar-label">
-                            {s.name}
-                          </span>
-                        </button>
-                      </div>
+                      <SeriesRow
+                        seriesItem={s}
+                        isExpanded={isExpanded}
+                        onToggle={() => toggleSeries(s.id)}
+                        onDelete={() => handleDeleteSeries(s.id)}
+                      />
 
                       {isExpanded && (
                         <div className="mb-2 ml-3 px-2 sidebar-label">
@@ -288,6 +455,9 @@ export function SeriesCoursePane({
                                     course={c}
                                     isSelected={c.id === selectedCourseId}
                                     onSelect={() => onSelectCourse(c.id)}
+                                    onDelete={() =>
+                                      onDeleteCourse(s.id, c.id)
+                                    }
                                   />
                                 ))}
                               </div>

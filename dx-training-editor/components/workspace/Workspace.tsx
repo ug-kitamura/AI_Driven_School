@@ -24,6 +24,7 @@ import {
   reconcileLesson,
   type LessonMetaFields,
 } from "@/lib/lesson-frontmatter";
+import { collectAllLessonTags } from "@/lib/lesson-tags";
 
 export type Pane3Mode = "inline" | "raw" | "diff";
 
@@ -87,6 +88,11 @@ export function Workspace({
   const selectedLesson = useMemo((): Lesson | undefined => {
     return selectedCourse?.lessons.find((l) => l.id === selectedLessonId);
   }, [selectedCourse, selectedLessonId]);
+
+  const tagSuggestions = useMemo(
+    () => collectAllLessonTags(series),
+    [series],
+  );
 
   // コース選択（Pane1 から、またはPane2の前提/次コースクリック）
   const selectCourse = useCallback((courseId: string) => {
@@ -478,6 +484,7 @@ export function Workspace({
               onUpdateContent={updateLessonContent}
               onUpdateLessonMeta={updateLessonMeta}
               onRegisterInsertCallback={registerInsertCallback}
+              tagSuggestions={tagSuggestions}
             />
           </div>
           {pane4Open ? (

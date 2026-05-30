@@ -20,6 +20,8 @@ import {
   META_DIALOG_GRID,
   MetaDialogField,
 } from "@/components/workspace/metaDialogLayout";
+import { LessonTagsInput } from "@/components/workspace/LessonTagsInput";
+import { isValidTag } from "@/lib/lesson-tags";
 import { normalizeTags, type LessonMetaFields } from "@/lib/lesson-frontmatter";
 import { STATUS_LABELS, type Lesson, type LessonStatus } from "@/lib/schema";
 
@@ -66,7 +68,7 @@ export type LessonMetaDraft = {
   lesson: string;
   status: LessonStatus;
   description: string;
-  tagsInput: string;
+  tags: string[];
   estimatedMinutes: string;
   author: string;
 };
@@ -76,7 +78,7 @@ export function lessonToMetaDraft(lesson: Lesson): LessonMetaDraft {
     lesson: lesson.lesson,
     status: lesson.status,
     description: lesson.description,
-    tagsInput: lesson.tags.join(", "),
+    tags: [...lesson.tags],
     estimatedMinutes: minutesToSelectValue(lesson.estimated_minutes),
     author: lesson.author,
   };
@@ -86,17 +88,14 @@ export function draftToMetaPatch(
   draft: LessonMetaDraft,
   fallbackLesson: Lesson,
 ): { patch: Partial<LessonMetaFields>; tagError: string | null } {
-  const rawTags = draft.tagsInput
-    .split(",")
-    .map((t) => t.trim())
-    .filter(Boolean);
-  const invalid = rawTags.filter((t) => !/^[a-z0-9-]+$/.test(t));
+  const invalid = draft.tags.filter((t) => !isValidTag(t));
   if (invalid.length > 0) {
     return {
       patch: {},
       tagError: `タグは小文字英字・数字・ハイフンのみ: ${invalid.join(", ")}`,
     };
   }
+  const rawTags = draft.tags;
   const estimated_minutes =
     draft.estimatedMinutes === ESTIMATED_MINUTES_UNSET
       ? 0
@@ -119,6 +118,8 @@ type Props = {
   onDraftChange: (draft: LessonMetaDraft) => void;
   className?: string;
   tagError?: string | null;
+  tagSuggestions?: readonly string[];
+  onFlushTagsReady?: (flush: () => string[]) => void;
 };
 
 export function LessonMetaPanel({
@@ -126,6 +127,8 @@ export function LessonMetaPanel({
   draft,
   onDraftChange,
   tagError,
+  tagSuggestions = [],
+  onFlushTagsReady,
 }: Props) {
   const patchDraft = (partial: Partial<LessonMetaDraft>) => {
     onDraftChange({ ...draft, ...partial });
@@ -154,18 +157,17 @@ export function LessonMetaPanel({
       </MetaDialogField>
 
       <MetaDialogField>
-        <Label htmlFor="lesson-meta-tags">タグ</Label>
-        <Input
+        <Label htmlFor="lesson-meta-tags" id="lesson-meta-tags-label">
+          タグ
+        </Label>
+        <LessonTagsInput
           id="lesson-meta-tags"
-          value={draft.tagsInput}
-          onChange={(e) => patchDraft({ tagsInput: e.target.value })}
-          className={cn(
-            META_DIALOG_CONTROL,
-            tagError && "border-destructive ring-destructive/20",
-          )}
-          placeholder="カンマ区切り"
+          tags={draft.tags}
+          onChange={(tags) => patchDraft({ tags })}
+          suggestions={tagSuggestions}
           aria-invalid={Boolean(tagError)}
           aria-describedby={tagError ? "lesson-meta-tags-error" : undefined}
+          onFlushReady={(flush) => onFlushTagsReady?.(flush)}
         />
         {tagError ? (
           <p

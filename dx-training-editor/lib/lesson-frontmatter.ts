@@ -1,3 +1,4 @@
+import { TAG_PATTERN } from "@/lib/lesson-tags";
 import type { Lesson, LessonStatus, Series } from "@/lib/schema";
 
 export type LessonParentContext = {
@@ -17,7 +18,6 @@ export type LessonMetaFields = {
 };
 
 const FRONTMATTER_RE = /^---\r?\n([\s\S]*?)\r?\n---\r?\n?([\s\S]*)$/;
-const TAG_PATTERN = /^[a-z0-9-]+$/;
 const VALID_STATUSES: LessonStatus[] = ["open", "in_progress", "done"];
 
 export function migrateLegacyStatus(status: string): LessonStatus {

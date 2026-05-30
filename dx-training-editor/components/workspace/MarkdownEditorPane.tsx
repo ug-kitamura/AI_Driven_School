@@ -23,6 +23,7 @@ type Props = {
     meta: Partial<LessonMetaFields>,
   ) => void;
   onRegisterInsertCallback: (cb: (markdown: string) => void) => void;
+  tagSuggestions?: readonly string[];
 };
 
 const MODE_TABS: Array<{ value: Pane3Mode; label: string; icon: React.ReactNode }> =
@@ -45,6 +46,7 @@ export function MarkdownEditorPane({
   onUpdateContent,
   onUpdateLessonMeta,
   onRegisterInsertCallback,
+  tagSuggestions = [],
 }: Props) {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const gutterRef = useRef<HTMLDivElement>(null);
@@ -242,6 +244,7 @@ export function MarkdownEditorPane({
         onOpenChange={setMetaDialogOpen}
         lesson={lesson}
         onSave={onUpdateLessonMeta}
+        tagSuggestions={tagSuggestions}
       />
     </PaneWheelRoot>
   );

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   Dialog,
   DialogContent,
@@ -24,6 +24,7 @@ type Props = {
   onOpenChange: (open: boolean) => void;
   lesson: Lesson | undefined;
   onSave: (lessonId: string, meta: Partial<LessonMetaFields>) => void;
+  tagSuggestions?: readonly string[];
 };
 
 export function LessonMetaDialog({
@@ -31,9 +32,11 @@ export function LessonMetaDialog({
   onOpenChange,
   lesson,
   onSave,
+  tagSuggestions = [],
 }: Props) {
   const [draft, setDraft] = useState<LessonMetaDraft | null>(null);
   const [tagError, setTagError] = useState<string | null>(null);
+  const flushTagsRef = useRef<(() => string[]) | null>(null);
 
   useEffect(() => {
     if (!open || !lesson) return;
@@ -43,7 +46,11 @@ export function LessonMetaDialog({
 
   const handleSave = () => {
     if (!lesson || !draft) return;
-    const { patch, tagError: err } = draftToMetaPatch(draft, lesson);
+    const tags = flushTagsRef.current?.() ?? draft.tags;
+    const { patch, tagError: err } = draftToMetaPatch(
+      { ...draft, tags },
+      lesson,
+    );
     if (err) {
       setTagError(err);
       return;
@@ -67,6 +74,10 @@ export function LessonMetaDialog({
             if (tagError) setTagError(null);
           }}
           tagError={tagError}
+          tagSuggestions={tagSuggestions}
+          onFlushTagsReady={(flush) => {
+            flushTagsRef.current = flush;
+          }}
           className={META_DIALOG_FORM}
         />
         <DialogFooter>

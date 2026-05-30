@@ -5,7 +5,6 @@ import {
   GraduationCap,
   ChevronDown,
   ChevronRight,
-  GripVertical,
   CircleCheck,
   Loader,
   CircleDashed,
@@ -49,7 +48,10 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Pane1Toggle } from "@/components/workspace/Pane1Toggle";
 import { PaneWheelRoot } from "@/components/workspace/PaneWheelRoot";
-import { ADD_LIST_BUTTON_CLASS } from "@/components/workspace/constants";
+import {
+  ADD_LIST_BUTTON_CLASS,
+  SORTABLE_POINTER_ACTIVATION,
+} from "@/components/workspace/constants";
 import { Progress } from "@/components/ui/progress";
 import { cn, computeStatus } from "@/lib/utils";
 import { STATUS_LABELS } from "@/lib/schema";
@@ -118,25 +120,27 @@ function SortableCourseRow({
       <div
         ref={setNodeRef}
         style={style}
+        onClick={onSelect}
         className={cn(
-          "group/course-row flex items-center gap-1 rounded-md px-2 py-1.5 text-xs transition-colors",
+          "group/course-row flex cursor-pointer items-center gap-1 rounded-md px-2 py-1.5 text-xs transition-colors",
           isSelected
             ? "bg-accent text-primary"
             : "text-foreground hover:bg-muted",
         )}
       >
-        <button
+        <span className="size-3.5 shrink-0" aria-hidden />
+        <span
           {...attributes}
           {...listeners}
-          className="flex-shrink-0 cursor-grab text-muted-foreground opacity-0 group-hover/course-row:opacity-100"
-          tabIndex={-1}
+          onClick={(e) => {
+            e.stopPropagation();
+            onSelect();
+          }}
+          className="flex-1 truncate text-left sidebar-label group-hover/course-row:cursor-grab active:cursor-grabbing"
+          title="クリックで選択・ドラッグで並べ替え"
         >
-          <GripVertical className="h-3.5 w-3.5" />
-        </button>
-
-        <button onClick={onSelect} className="flex-1 truncate text-left sidebar-label">
           {course.name}
-        </button>
+        </span>
 
         <button
           type="button"
@@ -504,7 +508,9 @@ export function SeriesCoursePane({
   const seriesScrollRef = useRef<HTMLDivElement>(null);
 
   const sensors = useSensors(
-    useSensor(PointerSensor),
+    useSensor(PointerSensor, {
+      activationConstraint: SORTABLE_POINTER_ACTIVATION,
+    }),
     useSensor(KeyboardSensor, {
       coordinateGetter: sortableKeyboardCoordinates,
     }),

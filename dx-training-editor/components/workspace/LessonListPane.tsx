@@ -4,7 +4,6 @@ import { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import {
   Plus,
   Trash2,
-  GripVertical,
   Edit3,
   CircleCheck,
   Loader,
@@ -39,7 +38,10 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { ADD_LIST_BUTTON_CLASS } from "@/components/workspace/constants";
+import {
+  ADD_LIST_BUTTON_CLASS,
+  SORTABLE_POINTER_ACTIVATION,
+} from "@/components/workspace/constants";
 import { PaneWheelRoot } from "@/components/workspace/PaneWheelRoot";
 import { cn, computeStatus } from "@/lib/utils";
 import type { Series, Course, Lesson } from "@/lib/schema";
@@ -221,33 +223,31 @@ function SortableLessonRow({
       <div
         ref={setNodeRef}
         style={style}
+        onClick={onSelect}
         className={cn(
-          "group flex items-center gap-1 rounded-md px-2 py-1.5 text-sm transition-colors",
+          "group flex cursor-pointer items-center gap-1 rounded-md px-2 py-1.5 text-sm transition-colors",
           isSelected
             ? "bg-accent text-primary"
             : "hover:bg-muted text-foreground",
         )}
       >
-        {/* ドラッグハンドル */}
-        <button
+        <span className="size-3.5 shrink-0" aria-hidden />
+        <span
           {...attributes}
           {...listeners}
-          className="flex-shrink-0 cursor-grab text-muted-foreground opacity-0 group-hover:opacity-100"
-          tabIndex={-1}
-        >
-          <GripVertical className="h-3.5 w-3.5" />
-        </button>
-
-        {/* レッスン名 */}
-        <button
-          onClick={onSelect}
-          className="flex-1 truncate text-left text-xs"
+          onClick={(e) => {
+            e.stopPropagation();
+            onSelect();
+          }}
+          className="flex-1 truncate text-left text-xs group-hover:cursor-grab active:cursor-grabbing"
+          title="クリックで選択・ドラッグで並べ替え"
         >
           {lesson.lesson}
-        </button>
+        </span>
 
         {/* 削除ボタン */}
         <button
+          type="button"
           onClick={(e) => {
             e.stopPropagation();
             setDeleteConfirmOpen(true);
@@ -259,6 +259,7 @@ function SortableLessonRow({
 
         {/* ステータスアイコン（クリックで循環切り替え） */}
         <button
+          type="button"
           onClick={(e) => {
             e.stopPropagation();
             onStatusChange(STATUS_CYCLE[lesson.status]);
@@ -424,7 +425,9 @@ export function LessonListPane({
   }, [modalSvg]);
 
   const sensors = useSensors(
-    useSensor(PointerSensor),
+    useSensor(PointerSensor, {
+      activationConstraint: SORTABLE_POINTER_ACTIVATION,
+    }),
     useSensor(KeyboardSensor, {
       coordinateGetter: sortableKeyboardCoordinates,
     }),

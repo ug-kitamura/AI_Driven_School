@@ -38,7 +38,9 @@ export const courseSchema = z.object({
   id: z.string(),
   name: z.string(),
   target_audience: z.string().optional(),
+  /** 別シリーズのコース ID のみ。シリーズ内の前後は series.courses[] の順序で表す */
   prerequisites: z.array(z.string()).default([]),
+  /** 別シリーズのコース ID のみ。シリーズ内の前後は series.courses[] の順序で表す */
   next_courses: z.array(z.string()).default([]),
   lessons: z.array(lessonSchema),
 });

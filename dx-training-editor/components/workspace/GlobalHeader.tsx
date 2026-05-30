@@ -18,6 +18,7 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import type { Series } from "@/lib/schema";
+import { isCrossSeriesLink } from "@/lib/course-flow";
 
 // セーフな Mermaid ノード ID
 const safeId = (id: string) => `N_${id.replace(/[^a-zA-Z0-9]/g, "_")}`;
@@ -52,11 +53,22 @@ function buildFullMandalaGraph(
     lines.push(`  style ${nid} stroke-width:3px,font-weight:bold`);
   });
 
-  // 依存エッジ
+  // シリーズ内: 配列順の隣接鎖
+  series.forEach((s) => {
+    for (let i = 1; i < s.courses.length; i++) {
+      const prev = s.courses[i - 1];
+      const curr = s.courses[i];
+      lines.push(`  ${safeId(prev.id)} --> ${safeId(curr.id)}`);
+    }
+  });
+
+  // 別シリーズ: next_courses のみ
   series.forEach((s) => {
     s.courses.forEach((c) => {
       c.next_courses.forEach((nextId) => {
-        lines.push(`  ${safeId(c.id)} --> ${safeId(nextId)}`);
+        if (isCrossSeriesLink(series, c.id, nextId)) {
+          lines.push(`  ${safeId(c.id)} --> ${safeId(nextId)}`);
+        }
       });
     });
   });

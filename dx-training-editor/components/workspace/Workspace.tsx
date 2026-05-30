@@ -8,6 +8,10 @@ import { LessonListPane } from "@/components/workspace/LessonListPane";
 import { MarkdownEditorPane } from "@/components/workspace/MarkdownEditorPane";
 import { ImageManagerPane } from "@/components/workspace/ImageManagerPane";
 import type { Series, Course, Lesson, ImageAsset } from "@/lib/schema";
+import {
+  filterCrossSeriesIds,
+  normalizeSeriesCourseMeta,
+} from "@/lib/course-flow";
 
 export type Pane3Mode = "inline" | "raw" | "diff";
 
@@ -22,7 +26,9 @@ export function Workspace({
   initialImages,
   workspace,
 }: WorkspaceProps) {
-  const [series, setSeries] = useState<Series[]>(initialSeries);
+  const [series, setSeries] = useState<Series[]>(() =>
+    normalizeSeriesCourseMeta(initialSeries),
+  );
   const [imageHistory, setImageHistory] = useState<ImageAsset[]>(initialImages);
   const [pane4ManuallyClosed, setPane4ManuallyClosed] = useState(false);
   const [pane3Mode, setPane3Mode] = useState<Pane3Mode>("raw");
@@ -260,14 +266,31 @@ export function Workspace({
       courseId: string,
       meta: Pick<Course, "target_audience" | "prerequisites" | "next_courses">,
     ) => {
-      setSeries((prev) =>
-        prev.map((s) => ({
+      setSeries((prev) => {
+        const prerequisites = filterCrossSeriesIds(
+          prev,
+          courseId,
+          meta.prerequisites ?? [],
+        );
+        const next_courses = filterCrossSeriesIds(
+          prev,
+          courseId,
+          meta.next_courses ?? [],
+        );
+        return prev.map((s) => ({
           ...s,
           courses: s.courses.map((c) =>
-            c.id === courseId ? { ...c, ...meta } : c,
+            c.id === courseId
+              ? {
+                  ...c,
+                  target_audience: meta.target_audience,
+                  prerequisites,
+                  next_courses,
+                }
+              : c,
           ),
-        })),
-      );
+        }));
+      });
     },
     [],
   );

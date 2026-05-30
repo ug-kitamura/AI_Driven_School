@@ -112,7 +112,7 @@ export function MarkdownEditorPane({
   return (
     <div className="flex flex-1 min-w-0 flex-col bg-card">
       {/* ツールバー */}
-      <div className="flex items-center gap-2 border-b border-border px-3 py-2">
+      <div className="flex h-12 shrink-0 items-center gap-2 border-b border-border px-3 py-0">
         {/* モード切り替えタブ */}
         <div className="flex rounded-md border border-border overflow-hidden">
           {MODE_TABS.map((tab) => (

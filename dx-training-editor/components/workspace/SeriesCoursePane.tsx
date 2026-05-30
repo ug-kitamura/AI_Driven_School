@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState } from "react";
 import {
   GraduationCap,
   ChevronDown,
@@ -30,6 +30,7 @@ import { CSS } from "@dnd-kit/utilities";
 import {
   Sidebar,
   SidebarContent,
+  SidebarFooter,
   SidebarHeader,
   useSidebar,
 } from "@/components/ui/sidebar";
@@ -44,6 +45,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Pane1Toggle } from "@/components/workspace/Pane1Toggle";
+import { ADD_LIST_BUTTON_CLASS } from "@/components/workspace/constants";
 import { Progress } from "@/components/ui/progress";
 import { cn, computeStatus } from "@/lib/utils";
 import { STATUS_LABELS } from "@/lib/schema";
@@ -55,7 +57,7 @@ type Props = {
   selectedCourseId: string;
   onSelectCourse: (courseId: string) => void;
   onReorderCourses: (seriesId: string, fromIndex: number, toIndex: number) => void;
-  onAddSeries: (name: string) => void;
+  onAddSeries: (name: string) => string;
   onAddCourse: (seriesId: string, name: string) => void;
 };
 
@@ -102,7 +104,6 @@ function SortableCourseRow({
           : "text-foreground hover:bg-muted",
       )}
     >
-      {/* ドラッグハンドル */}
       <button
         {...attributes}
         {...listeners}
@@ -112,12 +113,10 @@ function SortableCourseRow({
         <GripVertical className="h-3 w-3" />
       </button>
 
-      {/* コース名 */}
       <button onClick={onSelect} className="flex-1 truncate text-left sidebar-label">
         {course.name}
       </button>
 
-      {/* ステータスアイコン */}
       <span
         className="flex-shrink-0 sidebar-label"
         title={STATUS_LABELS[courseStatus]}
@@ -144,19 +143,41 @@ export function SeriesCoursePane({
   const { state: sidebarState } = useSidebar();
   const isCollapsed = sidebarState === "collapsed";
 
-  // シリーズ追加ダイアログ
   const [addSeriesOpen, setAddSeriesOpen] = useState(false);
   const [newSeriesName, setNewSeriesName] = useState("");
 
-  // コース追加ダイアログ
   const [addCourseOpen, setAddCourseOpen] = useState(false);
   const [addCourseSeriesId, setAddCourseSeriesId] = useState("");
   const [newCourseName, setNewCourseName] = useState("");
 
+  const openAddSeriesDialog = () => {
+    setNewSeriesName("");
+    setAddSeriesOpen(true);
+  };
+
+  const openAddCourseDialog = (seriesId: string) => {
+    setAddCourseSeriesId(seriesId);
+    setNewCourseName("");
+    setAddCourseOpen(true);
+  };
+
+  const expandSeries = (id: string) => {
+    setExpandedSeriesIds((prev) => new Set([...prev, id]));
+  };
+
+  const handleAddSeries = (name: string) => {
+    const newId = onAddSeries(name);
+    expandSeries(newId);
+  };
+
   const toggleSeries = (id: string) => {
     setExpandedSeriesIds((prev) => {
       const next = new Set(prev);
-      next.has(id) ? next.delete(id) : next.add(id);
+      if (next.has(id)) {
+        next.delete(id);
+      } else {
+        next.add(id);
+      }
       return next;
     });
   };
@@ -179,28 +200,10 @@ export function SeriesCoursePane({
       }
     };
 
-  // グローバル進捗（全シリーズ横断）
-  const { totalLessons, doneLessons } = useMemo(() => {
-    let total = 0;
-    let done = 0;
-    for (const s of series) {
-      for (const c of s.courses) {
-        for (const l of c.lessons) {
-          total++;
-          if (l.status === "done") done++;
-        }
-      }
-    }
-    return { totalLessons: total, doneLessons: done };
-  }, [series]);
-
-  const globalProgress =
-    totalLessons > 0 ? Math.round((doneLessons / totalLessons) * 100) : 0;
-
   return (
     <Sidebar collapsible="icon" className="border-r border-border">
-      <SidebarHeader className="border-b border-border px-3 py-3">
-        <div className="flex items-center justify-between">
+      <SidebarHeader className="flex h-12 shrink-0 flex-row items-center gap-0 border-b border-border px-3 py-0">
+        <div className="flex w-full items-center justify-between">
           <div className="flex items-center gap-2 overflow-hidden">
             <GraduationCap className="h-5 w-5 flex-shrink-0 text-primary" />
             <span className="truncate text-sm font-bold text-foreground sidebar-label">
@@ -212,123 +215,131 @@ export function SeriesCoursePane({
       </SidebarHeader>
 
       <SidebarContent className="overflow-y-auto px-2 py-2">
-        {isCollapsed ? null : <>
-        {/* グローバル進捗バー */}
-        <div className="mb-3 rounded-lg bg-card px-3 py-2 shadow-xs">
-          <div className="mb-1 flex items-center justify-between text-xs">
-            <span className="text-muted-foreground">
-              全体進捗
-            </span>
-            <span className="font-medium text-primary">{globalProgress}%</span>
-          </div>
-          <Progress value={globalProgress} className="h-1.5" />
-        </div>
+        {isCollapsed ? null : (
+          <>
+            {series.length === 0 ? (
+              <p className="px-2 py-6 text-center text-xs text-muted-foreground">
+                シリーズがありません。
+                <br />
+                最初のシリーズを追加して開始してください。
+              </p>
+            ) : (
+              <div className="flex flex-col gap-3">
+                {series.map((s) => {
+                  const isExpanded = expandedSeriesIds.has(s.id);
+                  const totalCourses = s.courses.length;
+                  const doneCourses = s.courses.filter(
+                    (c) =>
+                      computeStatus(c.lessons.map((l) => l.status)) === "done",
+                  ).length;
+                  const seriesProgress =
+                    totalCourses > 0
+                      ? Math.round((doneCourses / totalCourses) * 100)
+                      : 0;
 
-        {/* シリーズ一覧 */}
-        <div className="space-y-1">
-          {series.map((s) => {
-            const isExpanded = expandedSeriesIds.has(s.id);
-            // シリーズの進捗（完成コース数 / コース数）
-            const totalCourses = s.courses.length;
-            const doneCourses = s.courses.filter(
-              (c) => computeStatus(c.lessons.map((l) => l.status)) === "done",
-            ).length;
-            const seriesProgress =
-              totalCourses > 0
-                ? Math.round((doneCourses / totalCourses) * 100)
-                : 0;
+                  return (
+                    <div key={s.id}>
+                      <div className="flex items-center">
+                        <button
+                          onClick={() => toggleSeries(s.id)}
+                          className="flex flex-1 items-center gap-1.5 rounded-md px-2 py-1.5 text-left hover:bg-muted"
+                        >
+                          {isExpanded ? (
+                            <ChevronDown className="h-3.5 w-3.5 flex-shrink-0 text-muted-foreground" />
+                          ) : (
+                            <ChevronRight className="h-3.5 w-3.5 flex-shrink-0 text-muted-foreground" />
+                          )}
+                          <span className="flex-1 truncate text-xs font-bold text-foreground sidebar-label">
+                            {s.name}
+                          </span>
+                        </button>
+                      </div>
 
-            return (
-              <div key={s.id}>
-                {/* シリーズ見出し */}
-                <div className="group/series flex items-center">
-                  <button
-                    onClick={() => toggleSeries(s.id)}
-                    className="flex flex-1 items-center gap-1.5 rounded-md px-2 py-1.5 text-left hover:bg-muted"
-                  >
-                    {isExpanded ? (
-                      <ChevronDown className="h-3.5 w-3.5 flex-shrink-0 text-muted-foreground" />
-                    ) : (
-                      <ChevronRight className="h-3.5 w-3.5 flex-shrink-0 text-muted-foreground" />
-                    )}
-                    <span className="flex-1 truncate text-xs font-bold text-foreground sidebar-label">
-                      {s.name}
-                    </span>
-                  </button>
-                  <button
-                    className="flex-shrink-0 rounded p-1 text-muted-foreground opacity-0 group-hover/series:opacity-100 hover:bg-muted hover:text-primary sidebar-label"
-                    title="コースを追加"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setAddCourseSeriesId(s.id);
-                      setNewCourseName("");
-                      setAddCourseOpen(true);
-                    }}
-                  >
-                    <Plus className="h-3.5 w-3.5" />
-                  </button>
-                </div>
-
-                {/* シリーズ進捗バー */}
-                {isExpanded && (
-                  <div className="mb-1 px-5 sidebar-label">
-                    <div className="mb-0.5 flex items-center justify-between text-[10px]">
-                      <span className="text-muted-foreground">シリーズ進捗</span>
-                      <span className="font-medium text-primary">{doneCourses}/{totalCourses}</span>
-                    </div>
-                    <Progress value={seriesProgress} className="h-1" />
-                  </div>
-                )}
-
-                {/* コース一覧（DnD 並び替え） */}
-                {isExpanded && (
-                  <div className="ml-3">
-                    <DndContext
-                      id={`series-course-dnd-${s.id}`}
-                      sensors={sensors}
-                      collisionDetection={closestCenter}
-                      onDragEnd={handleDragEnd(s.id, s.courses)}
-                    >
-                      <SortableContext
-                        items={s.courses.map((c) => c.id)}
-                        strategy={verticalListSortingStrategy}
-                      >
-                        <div className="space-y-0.5">
-                          {s.courses.map((c) => (
-                            <SortableCourseRow
-                              key={c.id}
-                              course={c}
-                              isSelected={c.id === selectedCourseId}
-                              onSelect={() => onSelectCourse(c.id)}
-                            />
-                          ))}
+                      {isExpanded && (
+                        <div className="mb-2 ml-3 px-2 sidebar-label">
+                          <div className="mb-0.5 flex items-center justify-between text-[10px]">
+                            <span className="text-muted-foreground">
+                              シリーズ進捗
+                            </span>
+                            <span className="font-medium text-primary">
+                              {doneCourses}/{totalCourses}
+                            </span>
+                          </div>
+                          <Progress value={seriesProgress} className="h-1" />
                         </div>
-                      </SortableContext>
-                    </DndContext>
-                  </div>
-                )}
-              </div>
-            );
-          })}
+                      )}
 
-          {/* シリーズを追加 */}
+                      {isExpanded && (
+                        <div className="ml-3 flex flex-col gap-1">
+                          <DndContext
+                            id={`series-course-dnd-${s.id}`}
+                            sensors={sensors}
+                            collisionDetection={closestCenter}
+                            onDragEnd={handleDragEnd(s.id, s.courses)}
+                          >
+                            <SortableContext
+                              items={s.courses.map((c) => c.id)}
+                              strategy={verticalListSortingStrategy}
+                            >
+                              <div className="flex flex-col gap-1">
+                                {s.courses.map((c) => (
+                                  <SortableCourseRow
+                                    key={c.id}
+                                    course={c}
+                                    isSelected={c.id === selectedCourseId}
+                                    onSelect={() => onSelectCourse(c.id)}
+                                  />
+                                ))}
+                              </div>
+                            </SortableContext>
+                          </DndContext>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className={ADD_LIST_BUTTON_CLASS}
+                            onClick={() => openAddCourseDialog(s.id)}
+                          >
+                            <Plus className="h-3 w-3" />
+                            コースを追加
+                          </Button>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </>
+        )}
+      </SidebarContent>
+
+      <SidebarFooter className="shrink-0 gap-0 p-2">
+        {isCollapsed ? (
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon-sm"
+            className="mx-auto size-7"
+            onClick={openAddSeriesDialog}
+            aria-label="シリーズを追加"
+            title="シリーズを追加"
+          >
+            <Plus className="h-3.5 w-3.5" />
+            <span className="sr-only">シリーズを追加</span>
+          </Button>
+        ) : (
           <Button
             variant="ghost"
             size="sm"
-            className="mt-1 w-full justify-start gap-1 border border-dashed border-border text-xs text-muted-foreground hover:border-primary hover:text-primary sidebar-label"
-            onClick={() => {
-              setNewSeriesName("");
-              setAddSeriesOpen(true);
-            }}
+            className={ADD_LIST_BUTTON_CLASS}
+            onClick={openAddSeriesDialog}
           >
             <Plus className="h-3 w-3" />
             シリーズを追加
           </Button>
-        </div>
-        </>}
-      </SidebarContent>
+        )}
+      </SidebarFooter>
 
-      {/* シリーズ追加ダイアログ */}
       <Dialog open={addSeriesOpen} onOpenChange={setAddSeriesOpen}>
         <DialogContent>
           <DialogHeader>
@@ -345,7 +356,7 @@ export function SeriesCoursePane({
               autoFocus
               onKeyDown={(e) => {
                 if (e.key === "Enter" && newSeriesName.trim()) {
-                  onAddSeries(newSeriesName.trim());
+                  handleAddSeries(newSeriesName.trim());
                   setAddSeriesOpen(false);
                 }
               }}
@@ -358,7 +369,7 @@ export function SeriesCoursePane({
             <Button
               onClick={() => {
                 if (newSeriesName.trim()) {
-                  onAddSeries(newSeriesName.trim());
+                  handleAddSeries(newSeriesName.trim());
                   setAddSeriesOpen(false);
                 }
               }}
@@ -370,7 +381,6 @@ export function SeriesCoursePane({
         </DialogContent>
       </Dialog>
 
-      {/* コース追加ダイアログ */}
       <Dialog open={addCourseOpen} onOpenChange={setAddCourseOpen}>
         <DialogContent>
           <DialogHeader>

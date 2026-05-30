@@ -39,6 +39,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { ADD_LIST_BUTTON_CLASS } from "@/components/workspace/constants";
 import { cn, computeStatus } from "@/lib/utils";
 import { STATUS_LABELS } from "@/lib/schema";
 import type { Series, Course, Lesson } from "@/lib/schema";
@@ -502,21 +503,19 @@ export function LessonListPane({
         )}
       </div>
 
-      {/* コース進捗バー */}
-      <div className="border-b border-border px-3 py-2">
-        <div className="mb-1 flex items-center justify-between text-xs">
+      {/* コース進捗（レッスン行と同じ px-2 で左右を揃える） */}
+      <div className="mb-2 px-2 pt-2">
+        <div className="mb-0.5 flex items-center justify-between text-[10px]">
           <span className="text-muted-foreground">コース進捗</span>
-          <div className="flex items-center gap-1.5">
-            <span className="font-medium text-primary">
-              {doneCount}/{course.lessons.length}
-            </span>
-          </div>
+          <span className="font-medium text-primary">
+            {doneCount}/{course.lessons.length}
+          </span>
         </div>
-        <Progress value={progress} className="h-1.5" />
+        <Progress value={progress} className="h-1" />
       </div>
 
       {/* レッスン一覧 */}
-      <div className="flex-1 overflow-y-auto px-2 py-2">
+      <div className="flex flex-1 flex-col gap-1 overflow-y-auto px-2 pb-2">
         <DndContext
           id="lesson-list-dnd"
           sensors={sensors}
@@ -527,7 +526,7 @@ export function LessonListPane({
             items={course.lessons.map((l) => l.id)}
             strategy={verticalListSortingStrategy}
           >
-            <div className="space-y-0.5">
+            <div className="flex flex-col gap-1">
               {course.lessons.map((lesson) => (
                 <SortableLessonRow
                   key={lesson.id}
@@ -549,7 +548,7 @@ export function LessonListPane({
         <Button
           variant="ghost"
           size="sm"
-          className="mt-2 w-full justify-start gap-1 border border-dashed border-border text-xs text-muted-foreground hover:border-primary hover:text-primary"
+          className={ADD_LIST_BUTTON_CLASS}
           onClick={() => {
             setNewLessonName("");
             setAddDialogOpen(true);

@@ -113,14 +113,14 @@ export function ImageManagerPane({
       onPaste={handlePaste}
     >
       {/* ヘッダー */}
-      <div className="flex items-center justify-between border-b border-border px-2 py-1">
-        <div className="flex">
+      <div className="flex h-12 shrink-0 items-center justify-between border-b border-border px-2 py-0">
+        <div className="flex h-full min-w-0 items-center">
           {TABS.map((tab) => (
             <button
               key={tab.value}
               onClick={() => setActiveTab(tab.value)}
               className={cn(
-                "flex items-center gap-1 px-2 py-1.5 text-[10px] font-medium transition-colors",
+                "flex h-full items-center gap-1 px-2 text-[10px] font-medium transition-colors",
                 activeTab === tab.value
                   ? "border-b-2 border-primary text-primary"
                   : "text-muted-foreground hover:text-foreground",

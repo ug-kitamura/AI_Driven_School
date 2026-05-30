@@ -158,6 +158,7 @@ export function Workspace({
       ...prev,
       { id: newId, name, courses: [] },
     ]);
+    return newId;
   }, []);
 
   // コース追加（Pane1 から）

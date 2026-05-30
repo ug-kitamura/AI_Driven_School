@@ -3,9 +3,7 @@
 ## Purpose
 
 DX Training Editor のワークスペース UI（Pane1/Pane2）における進捗表示、ヘッダー高さ、階層別追加ボタン（シリーズ・コース・レッスン）の配置と見た目を定義する。`refine-training-editor-ui` change により確定した挙動を正本とする。
-
 ## Requirements
-
 ### Requirement: ワークスペースヘッダー高さの揃え
 
 Pane1（`SeriesCoursePane`）のサイドバーヘッダーとメイン領域の `GlobalHeader` は、いずれも `h-12`（48px）の固定高で描画し、ワークスペース左上の接合部で下側の `border-b` が水平に揃うようにしなければならない（SHALL）。
@@ -108,4 +106,24 @@ Pane1（`SeriesCoursePane`）のサイドバーヘッダーとメイン領域の
 
 - **WHEN** メタサマリーが表示されている
 - **THEN** ユーザーはサマリー領域からコースメタ編集ダイアログを開ける（例: 編集ボタン）
+
+### Requirement: Pane2 のレッスンステータス語彙と操作
+
+Pane2 のレッスン一覧におけるステータス表示およびクリックによる循環切替は、レッスンステータス `open` / `in_progress` / `done` を用いなければならない（SHALL）。表示ラベルはそれぞれ未着手・作成中・完成としなければならない（SHALL）。クリック時の循環は `open` → `in_progress` → `done` → `open` でなければならない（SHALL）。ステータス更新時、エディタは対応する `Lesson.status` および `content` 内フロントマターの `status` を同期しなければならない（SHALL）。
+
+#### Scenario: ステータスアイコンが三状態を表す
+
+- **WHEN** Pane2 にレッスン行が表示される
+- **THEN** 各行のステータスは `open` / `in_progress` / `done` のいずれかに対応するアイコンで表示される
+
+#### Scenario: クリックで循環し content と同期する
+
+- **WHEN** ユーザーが Pane2 でレッスンステータスアイコンをクリックする
+- **THEN** 次の状態に遷移する（`open` → `in_progress` → `done` → `open`）
+- **AND** 当該レッスンの `content` フロントマター内 `status` も同じ値に更新される
+
+#### Scenario: draft は表示されない
+
+- **WHEN** 読み込み後に Pane2 を表示する
+- **THEN** いずれのレッスンも `draft` ステータスとして表示されない
 

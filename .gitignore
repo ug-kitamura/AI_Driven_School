@@ -10,6 +10,11 @@ __pycache__/
 .venv/
 venv/
 
+# OpenSpec
+.claude/commands/opsx/
+.claude/skills/openspec-*/
+openspec/changes/
+
 # 環境変数
 .env
 

@@ -28,7 +28,7 @@ export function Pane1Toggle({ className }: Pane1ToggleProps) {
   const { state, toggleSidebar } = useSidebar();
   const isExpanded = state === "expanded";
   const Icon = isExpanded ? PanelLeftClose : PanelLeftOpen;
-  const label = isExpanded ? "Pane 1 を閉じる" : "Pane 1 を開く";
+  const label = isExpanded ? "閉じる" : "開く";
 
   return (
     <Button
@@ -37,7 +37,7 @@ export function Pane1Toggle({ className }: Pane1ToggleProps) {
       size="icon-sm"
       onClick={toggleSidebar}
       aria-label={label}
-      title={`${label}（⌘B）`}
+      title={`${label}`}
       className={cn("size-7 text-sidebar-foreground", className)}
     >
       <Icon />

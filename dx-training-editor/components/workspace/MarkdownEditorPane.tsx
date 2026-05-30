@@ -139,6 +139,16 @@ export function MarkdownEditorPane({
           {lesson.lesson}
         </h2>
         <div className="ml-auto flex items-center gap-2">
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            className="mr-1 h-6 w-6 shrink-0"
+            aria-label="レッスンメタを編集"
+            onClick={() => setMetaDialogOpen(true)}
+          >
+            <Edit3 className="h-3 w-3" />
+          </Button>
           <div className="flex overflow-hidden rounded-md border border-border">
             {MODE_TABS.map((tab) => (
               <button
@@ -157,16 +167,6 @@ export function MarkdownEditorPane({
               </button>
             ))}
           </div>
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            className="h-7 shrink-0 gap-1 text-xs"
-            onClick={() => setMetaDialogOpen(true)}
-          >
-            <Edit3 className="h-3 w-3" />
-            メタ編集
-          </Button>
         </div>
       </div>
 

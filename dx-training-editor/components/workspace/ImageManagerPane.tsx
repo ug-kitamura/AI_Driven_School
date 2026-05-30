@@ -109,7 +109,7 @@ export function ImageManagerPane({
 
   return (
     <div
-      className="flex w-60 flex-shrink-0 flex-col border-l border-border bg-card"
+      className="flex h-full w-full min-h-0 flex-col bg-card"
       onPaste={handlePaste}
     >
       {/* ヘッダー */}

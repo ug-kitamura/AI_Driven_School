@@ -431,7 +431,7 @@ export function LessonListPane({
 
   if (!course) {
     return (
-      <div className="flex w-72 flex-shrink-0 items-center justify-center border-r border-border bg-card text-muted-foreground text-sm">
+      <div className="flex h-full w-full items-center justify-center bg-card text-muted-foreground text-sm">
         コースを選択してください
       </div>
     );
@@ -445,7 +445,7 @@ export function LessonListPane({
       : 0;
 
   return (
-    <div className="flex w-72 flex-shrink-0 flex-col border-r border-border bg-card">
+    <div className="flex h-full w-full min-h-0 flex-col bg-card">
       {/* コースメタ情報エリア */}
       <div className="border-b border-border bg-muted/40 px-3 py-2">
         <div className="mb-2 flex items-center gap-1">

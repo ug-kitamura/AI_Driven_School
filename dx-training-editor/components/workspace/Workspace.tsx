@@ -1,12 +1,15 @@
 "use client";
 
 import { useState, useCallback, useMemo } from "react";
-import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
+import { SidebarInset, SidebarProvider, useSidebar } from "@/components/ui/sidebar";
+import { cn } from "@/lib/utils";
 import { GlobalHeader } from "@/components/workspace/GlobalHeader";
 import { SeriesCoursePane } from "@/components/workspace/SeriesCoursePane";
 import { LessonListPane } from "@/components/workspace/LessonListPane";
 import { MarkdownEditorPane } from "@/components/workspace/MarkdownEditorPane";
 import { ImageManagerPane } from "@/components/workspace/ImageManagerPane";
+import { PaneResizeHandle } from "@/components/workspace/PaneResizeHandle";
+import { useWorkspacePaneWidths } from "@/components/workspace/use-workspace-pane-widths";
 import type { Series, Course, Lesson, ImageAsset } from "@/lib/schema";
 import {
   filterCrossSeriesIds,
@@ -14,6 +17,18 @@ import {
 } from "@/lib/course-flow";
 
 export type Pane3Mode = "inline" | "raw" | "diff";
+
+function Pane1ResizeHandle({
+  className,
+  style,
+  ...props
+}: React.ComponentProps<typeof PaneResizeHandle>) {
+  const { state } = useSidebar();
+  if (state !== "expanded") return null;
+  return (
+    <PaneResizeHandle className={className} style={style} {...props} />
+  );
+}
 
 type WorkspaceProps = {
   initialSeries: Series[];
@@ -32,6 +47,8 @@ export function Workspace({
   const [imageHistory, setImageHistory] = useState<ImageAsset[]>(initialImages);
   const [pane4ManuallyClosed, setPane4ManuallyClosed] = useState(false);
   const [pane3Mode, setPane3Mode] = useState<Pane3Mode>("raw");
+  const { paneWidths, isResizing, resizeHandleProps } =
+    useWorkspacePaneWidths();
 
   // 最初のコースを初期選択
   const firstCourseId = initialSeries[0]?.courses[0]?.id ?? "";
@@ -332,24 +349,43 @@ export function Workspace({
     return "";
   }, [series, selectedCourseId]);
 
+  const pane4Open = !pane4ManuallyClosed;
+
   return (
     <SidebarProvider
       defaultOpen
-      className="h-screen w-full overflow-hidden bg-background text-foreground"
+      data-resizing={isResizing ? "" : undefined}
+      className={cn(
+        "h-screen w-full overflow-hidden bg-background text-foreground",
+        isResizing &&
+          "[&_[data-slot=sidebar-gap]]:transition-none [&_[data-slot=sidebar-container]]:transition-none",
+      )}
+      style={
+        {
+          "--sidebar-width": `${paneWidths.pane1}px`,
+        } as React.CSSProperties
+      }
     >
-      <SeriesCoursePane
-        workspaceName={workspace.name}
-        series={series}
-        selectedCourseId={selectedCourseId}
-        onSelectCourse={selectCourse}
-        onReorderSeries={reorderSeries}
-        onReorderCourses={reorderCourses}
-        onAddSeries={addSeries}
-        onAddCourse={addCourse}
-        onDeleteSeries={deleteSeries}
-        onDeleteCourse={deleteCourse}
-      />
-      <SidebarInset className="flex min-w-0 flex-col bg-background">
+      <div className="relative shrink-0">
+        <SeriesCoursePane
+          workspaceName={workspace.name}
+          series={series}
+          selectedCourseId={selectedCourseId}
+          onSelectCourse={selectCourse}
+          onReorderSeries={reorderSeries}
+          onReorderCourses={reorderCourses}
+          onAddSeries={addSeries}
+          onAddCourse={addCourse}
+          onDeleteSeries={deleteSeries}
+          onDeleteCourse={deleteCourse}
+        />
+        <Pane1ResizeHandle
+          {...resizeHandleProps("pane1")}
+          className="absolute inset-y-0 z-30 mx-0 px-2"
+          style={{ left: "calc(var(--sidebar-width) - 8px)" }}
+        />
+      </div>
+      <SidebarInset className="flex min-w-0 flex-1 flex-col bg-background">
         <GlobalHeader
           departmentTitle={selectedSeriesName}
           positionTitle={selectedCourse?.name ?? ""}
@@ -358,33 +394,59 @@ export function Workspace({
           selectedCourseId={selectedCourseId}
           onSelectCourse={selectCourse}
         />
-        <div className="flex min-h-0 flex-1">
-          <LessonListPane
-            series={series}
-            course={selectedCourse}
-            selectedLessonId={selectedLessonId}
-            onSelectLesson={selectLesson}
-            onSelectCourse={selectCourse}
-            onAddLesson={addLesson}
-            onDeleteLesson={deleteLesson}
-            onReorderLessons={reorderLessons}
-            onUpdateCourseMeta={updateCourseMeta}
-            onUpdateLessonStatus={updateLessonStatus}
-          />
-          <MarkdownEditorPane
-            lesson={selectedLesson}
-            mode={pane3Mode}
-            onModeChange={setPane3Mode}
-            onUpdateContent={updateLessonContent}
-            onRegisterInsertCallback={registerInsertCallback}
-          />
-          <ImageManagerPane
-            imageHistory={imageHistory}
-            onAddImage={addImage}
-            onInsertImage={insertImageMarkdown}
-            pane4Open={!pane4ManuallyClosed}
-            onTogglePane4={() => setPane4ManuallyClosed((v) => !v)}
-          />
+        <div className="flex min-h-0 min-w-0 flex-1 overflow-hidden">
+          <div
+            className="flex h-full shrink-0 flex-col overflow-hidden"
+            style={{ width: paneWidths.pane2 }}
+          >
+            <LessonListPane
+              series={series}
+              course={selectedCourse}
+              selectedLessonId={selectedLessonId}
+              onSelectLesson={selectLesson}
+              onSelectCourse={selectCourse}
+              onAddLesson={addLesson}
+              onDeleteLesson={deleteLesson}
+              onReorderLessons={reorderLessons}
+              onUpdateCourseMeta={updateCourseMeta}
+              onUpdateLessonStatus={updateLessonStatus}
+            />
+          </div>
+          <PaneResizeHandle {...resizeHandleProps("pane2")} />
+          <div className="flex h-full min-w-0 flex-1 flex-col overflow-hidden">
+            <MarkdownEditorPane
+              lesson={selectedLesson}
+              mode={pane3Mode}
+              onModeChange={setPane3Mode}
+              onUpdateContent={updateLessonContent}
+              onRegisterInsertCallback={registerInsertCallback}
+            />
+          </div>
+          {pane4Open ? (
+            <>
+              <PaneResizeHandle {...resizeHandleProps("pane4")} />
+              <div
+                className="flex h-full shrink-0 flex-col overflow-hidden"
+                style={{ width: paneWidths.pane4 }}
+              >
+                <ImageManagerPane
+                  imageHistory={imageHistory}
+                  onAddImage={addImage}
+                  onInsertImage={insertImageMarkdown}
+                  pane4Open={pane4Open}
+                  onTogglePane4={() => setPane4ManuallyClosed((v) => !v)}
+                />
+              </div>
+            </>
+          ) : (
+            <ImageManagerPane
+              imageHistory={imageHistory}
+              onAddImage={addImage}
+              onInsertImage={insertImageMarkdown}
+              pane4Open={pane4Open}
+              onTogglePane4={() => setPane4ManuallyClosed((v) => !v)}
+            />
+          )}
         </div>
       </SidebarInset>
     </SidebarProvider>

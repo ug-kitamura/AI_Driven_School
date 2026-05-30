@@ -1,5 +1,53 @@
 [
   {
+    "id": "series-tutorial",
+    "name": "はじめにシリーズ",
+    "courses": [
+      {
+        "id": "course-dx-piyopiyo",
+        "name": "DX piyopiyo コース",
+        "target_audience": "DX トレーニングをこれから受講するすべての方",
+        "prerequisites": [],
+        "next_courses": [
+          "course-python-basics",
+          "course-git-concept"
+        ],
+        "lessons": [
+          {
+            "id": "lesson-tutorial-howto",
+            "series": "チュートリアルシリーズ",
+            "course": "DX piyopiyo コース",
+            "lesson": "トレーニングの進め方",
+            "status": "done",
+            "description": "コースの進め方・完了条件・学習のコツを確認する",
+            "tags": [
+              "tutorial",
+              "onboarding"
+            ],
+            "estimated_minutes": 10,
+            "author": "DX トレーニング運営",
+            "content": "---\nseries: チュートリアルシリーズ\ncourse: DX piyopiyo コース\nlesson: トレーニングの進め方\nstatus: done\ndescription: コースの進め方・完了条件・学習のコツを確認する\ntags: [tutorial, onboarding]\nestimated_minutes: 10\nauthor: DX トレーニング運営\n---\n\n# トレーニングの進め方\n\nこのトレーニングでは、**シリーズ → コース → レッスン** の順に学習を進めます。\n\n## 基本的な流れ\n\n1. 左のペインでシリーズとコースを選ぶ\n2. 中央のペインでレッスン一覧から学ぶ順番を確認する\n3. 右のエディタで本文を読み、必要ならメモを残す\n4. レッスンのステータスを「完成」に更新して次へ進む\n\n## おすすめの学習ペース\n\n- 1日 1〜2 レッスンを目安にする\n- わからない用語はその場でメモし、後でまとめて調べる\n- 実務に近いコースは、手を動かしながら進める\n\n### 確認\n\n最初に取り組むべきことはどれですか？\n\n- [ ] いきなり最難コースから始める\n- [x] チュートリアルと前提コースを完了してから進む\n- [ ] ステータスは更新しなくてよい\n"
+          },
+          {
+            "id": "lesson-tutorial-contact",
+            "series": "チュートリアルシリーズ",
+            "course": "DX piyopiyo コース",
+            "lesson": "問い合わせ先",
+            "status": "done",
+            "description": "困ったときの連絡先とエスカレーション手順",
+            "tags": [
+              "tutorial",
+              "support"
+            ],
+            "estimated_minutes": 5,
+            "author": "DX トレーニング運営",
+            "content": "---\nseries: チュートリアルシリーズ\ncourse: DX piyopiyo コース\nlesson: 問い合わせ先\nstatus: done\ndescription: 困ったときの連絡先とエスカレーション手順\ntags: [tutorial, support]\nestimated_minutes: 5\nauthor: DX トレーニング運営\n---\n\n# 問い合わせ先\n\n学習内容やシステム操作で困ったときは、次の窓口を利用してください。\n\n## 連絡先一覧\n\n| 種別 | 連絡先 | 対応時間 |\n|------|--------|----------|\n| 学習内容 | learning@example.com | 平日 10:00–18:00 |\n| 技術障害 | support@example.com | 平日 9:00–17:00 |\n| 緊急 | 社内 Slack `#dx-training-help` | 常時（ベストエフォート） |\n\n## 問い合わせの際に書くこと\n\n- 対象のシリーズ・コース・レッスン名\n- 画面のスクリーンショット（可能なら）\n- 再現手順と期待する動作\n\n> **ダミーデータ**: 上記メールアドレスはサンプルです。実運用では組織の正式な窓口に差し替えてください。\n"
+          }
+        ]
+      }
+    ]
+  },
+  {
     "id": "series-git",
     "name": "Git完全マスターシリーズ",
     "courses": [
@@ -7,7 +55,9 @@
         "id": "course-git-concept",
         "name": "Git概念マスターコース",
         "target_audience": "バージョン管理を全く知らない開発者",
-        "prerequisites": [],
+        "prerequisites": [
+          "course-dx-piyopiyo"
+        ],
         "next_courses": [
           "course-git-env"
         ],
@@ -198,7 +248,9 @@
         "id": "course-python-basics",
         "name": "Python基礎コース",
         "target_audience": "プログラミング未経験者",
-        "prerequisites": [],
+        "prerequisites": [
+          "course-dx-piyopiyo"
+        ],
         "next_courses": [],
         "lessons": [
           {
@@ -214,6 +266,48 @@
             "estimated_minutes": 15,
             "author": "山田太郎",
             "content": ""
+          }
+        ]
+      },
+      {
+        "id": "course-python-env",
+        "name": "Python環境構築コース",
+        "target_audience": "Pythonの基礎を学んだ方",
+        "prerequisites": [
+          "course-python-basics"
+        ],
+        "next_courses": [],
+        "lessons": [
+          {
+            "id": "lesson-python-env-01",
+            "series": "Python基礎シリーズ",
+            "course": "Python環境構築コース",
+            "lesson": "Pythonのインストール",
+            "status": "open",
+            "description": "Windows/Mac への Python インストール手順",
+            "tags": [
+              "python",
+              "setup",
+              "install"
+            ],
+            "estimated_minutes": 15,
+            "author": "山田太郎",
+            "content": "---\nseries: Python基礎シリーズ\ncourse: Python環境構築コース\nlesson: Pythonのインストール\nstatus: open\ndescription: Windows/Mac への Python インストール手順\ntags: [python, setup, install]\nestimated_minutes: 15\nauthor: 山田太郎\n---\n\n# Pythonのインストール\n\n## Windows\n\n1. [python.org](https://www.python.org/) からインストーラーを取得\n2. インストール時に **「Add python.exe to PATH」** にチェックを入れる\n3. コマンドプロンプトで確認:\n\n```bash\npython --version\n```\n\n## Mac\n\n```bash\nbrew install python\npython3 --version\n```\n"
+          },
+          {
+            "id": "lesson-python-env-02",
+            "series": "Python基礎シリーズ",
+            "course": "Python環境構築コース",
+            "lesson": "仮想環境（venv）の作成",
+            "status": "open",
+            "description": "プロジェクトごとに独立した Python 環境を用意する",
+            "tags": [
+              "python",
+              "venv"
+            ],
+            "estimated_minutes": 20,
+            "author": "山田太郎",
+            "content": "---\nseries: Python基礎シリーズ\ncourse: Python環境構築コース\nlesson: 仮想環境（venv）の作成\nstatus: open\ndescription: プロジェクトごとに独立した Python 環境を用意する\ntags: [python, venv]\nestimated_minutes: 20\nauthor: 山田太郎\n---\n\n# 仮想環境（venv）の作成\n\nプロジェクトごとにパッケージを分離するため、venv を使います。\n\n```bash\ncd my-project\npython -m venv .venv\n```\n\n## 有効化\n\n**Windows (PowerShell):**\n\n```powershell\n.venv\\Scripts\\Activate.ps1\n```\n\n**Mac / Linux:**\n\n```bash\nsource .venv/bin/activate\n```\n\n有効化後、`pip install` で入れたパッケージはこのプロジェクト専用になります。\n"
           }
         ]
       }

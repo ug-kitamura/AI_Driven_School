@@ -115,7 +115,7 @@ function SortableCourseRow({
         ref={setNodeRef}
         style={style}
         className={cn(
-          "group flex items-center gap-1 rounded-md px-2 py-1 text-xs transition-colors",
+          "group/course-row flex items-center gap-1 rounded-md px-2 py-1.5 text-xs transition-colors",
           isSelected
             ? "bg-accent text-primary"
             : "text-foreground hover:bg-muted",
@@ -124,10 +124,10 @@ function SortableCourseRow({
         <button
           {...attributes}
           {...listeners}
-          className="flex-shrink-0 cursor-grab text-muted-foreground opacity-0 group-hover:opacity-100"
+          className="flex-shrink-0 cursor-grab text-muted-foreground opacity-0 group-hover/course-row:opacity-100"
           tabIndex={-1}
         >
-          <GripVertical className="h-3 w-3" />
+          <GripVertical className="h-3.5 w-3.5" />
         </button>
 
         <button onClick={onSelect} className="flex-1 truncate text-left sidebar-label">
@@ -142,13 +142,13 @@ function SortableCourseRow({
               ? "レッスンがあるため削除できません"
               : "コースを削除"
           }
-          className="flex-shrink-0 text-muted-foreground opacity-0 hover:text-destructive group-hover:opacity-100 sidebar-label"
+          className="flex-shrink-0 text-muted-foreground opacity-0 hover:text-destructive group-hover/course-row:opacity-100"
         >
           <Trash2 className="h-3.5 w-3.5" />
         </button>
 
         <span
-          className="flex-shrink-0 sidebar-label"
+          className="ml-1 flex-shrink-0"
           title={STATUS_LABELS[courseStatus]}
         >
           {STATUS_ICON[courseStatus]}

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef } from "react";
 import {
   GraduationCap,
   ChevronDown,
@@ -48,6 +48,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Pane1Toggle } from "@/components/workspace/Pane1Toggle";
+import { PaneWheelRoot } from "@/components/workspace/PaneWheelRoot";
 import { ADD_LIST_BUTTON_CLASS } from "@/components/workspace/constants";
 import { Progress } from "@/components/ui/progress";
 import { cn, computeStatus } from "@/lib/utils";
@@ -500,6 +501,8 @@ export function SeriesCoursePane({
     });
   };
 
+  const seriesScrollRef = useRef<HTMLDivElement>(null);
+
   const sensors = useSensors(
     useSensor(PointerSensor),
     useSensor(KeyboardSensor, {
@@ -519,19 +522,26 @@ export function SeriesCoursePane({
 
   return (
     <Sidebar collapsible="icon" className="border-r border-border">
-      <SidebarHeader className="flex h-12 shrink-0 flex-row items-center gap-0 border-b border-border px-3 py-0">
-        <div className="flex w-full items-center justify-between">
-          <div className="flex items-center gap-2 overflow-hidden">
-            <GraduationCap className="h-5 w-5 flex-shrink-0 text-primary" />
-            <span className="truncate text-sm font-bold text-foreground sidebar-label">
-              {workspaceName}
-            </span>
+      <PaneWheelRoot
+        scrollRef={seriesScrollRef}
+        className="min-h-0 flex-1"
+      >
+        <SidebarHeader className="flex h-12 shrink-0 flex-row items-center gap-0 border-b border-border px-3 py-0">
+          <div className="flex w-full items-center justify-between">
+            <div className="flex items-center gap-2 overflow-hidden">
+              <GraduationCap className="h-5 w-5 flex-shrink-0 text-primary" />
+              <span className="truncate text-sm font-bold text-foreground sidebar-label">
+                {workspaceName}
+              </span>
+            </div>
+            <Pane1Toggle />
           </div>
-          <Pane1Toggle />
-        </div>
-      </SidebarHeader>
+        </SidebarHeader>
 
-      <SidebarContent className="overflow-y-auto px-2 py-2">
+        <SidebarContent
+          ref={seriesScrollRef}
+          className="overflow-y-auto overscroll-y-contain px-2 py-2"
+        >
         {isCollapsed ? null : (
           <>
             {series.length === 0 ? (
@@ -602,6 +612,7 @@ export function SeriesCoursePane({
           </Button>
         )}
       </SidebarFooter>
+      </PaneWheelRoot>
 
       <Dialog open={addSeriesOpen} onOpenChange={setAddSeriesOpen}>
         <DialogContent>

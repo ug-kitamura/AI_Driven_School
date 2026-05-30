@@ -437,7 +437,7 @@ export function Workspace({
           style={{ left: "calc(var(--sidebar-width) - 8px)" }}
         />
       </div>
-      <SidebarInset className="flex min-w-0 flex-1 flex-col bg-background">
+      <SidebarInset className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-background">
         <GlobalHeader
           departmentTitle={selectedSeriesName}
           positionTitle={selectedCourse?.name ?? ""}

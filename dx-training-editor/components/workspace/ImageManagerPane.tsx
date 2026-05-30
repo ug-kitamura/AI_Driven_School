@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Pane4Toggle } from "@/components/workspace/Pane4Toggle";
+import { PaneWheelRoot } from "@/components/workspace/PaneWheelRoot";
 import type { ImageAsset } from "@/lib/schema";
 
 type Props = {
@@ -48,6 +49,7 @@ export function ImageManagerPane({
 }: Props) {
   const [activeTab, setActiveTab] = useState<Tab>("upload");
   const [isDragOver, setIsDragOver] = useState(false);
+  const tabScrollRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleFiles = useCallback(
@@ -108,8 +110,9 @@ export function ImageManagerPane({
   }
 
   return (
-    <div
-      className="flex h-full w-full min-h-0 flex-col bg-card"
+    <PaneWheelRoot
+      scrollRef={tabScrollRef}
+      className="bg-card"
       onPaste={handlePaste}
     >
       {/* ヘッダー */}
@@ -135,7 +138,10 @@ export function ImageManagerPane({
       </div>
 
       {/* タブコンテンツ */}
-      <div className="flex-1 overflow-hidden">
+      <div
+        ref={tabScrollRef}
+        className="min-h-0 flex-1 overflow-y-auto overscroll-y-contain"
+      >
         {/* アップロードタブ */}
         {activeTab === "upload" && (
           <div className="p-3">
@@ -175,7 +181,7 @@ export function ImageManagerPane({
 
         {/* 履歴タブ */}
         {activeTab === "history" && (
-          <div className="h-full overflow-y-auto p-2">
+          <div className="p-2">
             {imageHistory.length === 0 ? (
               <div className="flex h-32 items-center justify-center text-xs text-muted-foreground">
                 まだ画像がありません
@@ -238,6 +244,6 @@ export function ImageManagerPane({
           </div>
         )}
       </div>
-    </div>
+    </PaneWheelRoot>
   );
 }

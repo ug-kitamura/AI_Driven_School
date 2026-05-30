@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { getLessonBody } from "@/lib/lesson-frontmatter";
 import { LessonMetaDialog } from "@/components/workspace/LessonMetaDialog";
+import { PaneWheelRoot } from "@/components/workspace/PaneWheelRoot";
 import type { Lesson } from "@/lib/schema";
 import type { Pane3Mode } from "@/components/workspace/Workspace";
 import type { LessonMetaFields } from "@/lib/lesson-frontmatter";
@@ -60,6 +61,7 @@ export function MarkdownEditorPane({
 }: Props) {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const gutterRef = useRef<HTMLDivElement>(null);
+  const paneScrollRef = useRef<HTMLElement | null>(null);
   const [diffContent, setDiffContent] = useState<string>("");
   const [diffLoading, setDiffLoading] = useState(false);
   const [metaDialogOpen, setMetaDialogOpen] = useState(false);
@@ -133,7 +135,7 @@ export function MarkdownEditorPane({
   }
 
   return (
-    <div className="flex min-w-0 flex-1 flex-col bg-card">
+    <PaneWheelRoot scrollRef={paneScrollRef} className="min-w-0 flex-1 bg-card">
       <div className="flex h-12 shrink-0 items-center gap-2 border-b border-border px-3 py-0">
         <h2 className="min-w-0 truncate text-sm font-semibold text-foreground">
           {lesson.lesson}
@@ -183,11 +185,14 @@ export function MarkdownEditorPane({
               ))}
             </div>
             <textarea
-              ref={textareaRef}
+              ref={(el) => {
+                textareaRef.current = el;
+                paneScrollRef.current = el;
+              }}
               value={editContent}
               onChange={(e) => onUpdateContent(lesson.id, e.target.value)}
               onScroll={syncGutterScroll}
-              className="h-full min-w-0 flex-1 resize-none bg-card px-4 py-3 font-mono text-sm leading-[1.375rem] text-foreground outline-none"
+              className="h-full min-w-0 flex-1 resize-none overflow-y-auto overscroll-y-contain bg-card px-4 py-3 font-mono text-sm leading-[1.375rem] text-foreground outline-none"
               placeholder="マークダウンをここに入力してください..."
               spellCheck={false}
             />
@@ -195,7 +200,12 @@ export function MarkdownEditorPane({
         )}
 
         {mode === "inline" && (
-          <div className="h-full overflow-y-auto px-6 py-5">
+          <div
+            ref={(el) => {
+              paneScrollRef.current = el;
+            }}
+            className="h-full overflow-y-auto overscroll-y-contain px-6 py-5"
+          >
             <div className={PROSE_PREVIEW}>
               <ReactMarkdown remarkPlugins={[remarkGfm]}>{previewBody}</ReactMarkdown>
             </div>
@@ -203,7 +213,12 @@ export function MarkdownEditorPane({
         )}
 
         {mode === "diff" && (
-          <div className="h-full overflow-y-auto">
+          <div
+            ref={(el) => {
+              paneScrollRef.current = el;
+            }}
+            className="h-full overflow-y-auto overscroll-y-contain"
+          >
             {diffLoading ? (
               <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
                 差分を取得中...
@@ -243,6 +258,6 @@ export function MarkdownEditorPane({
         courseName={courseName}
         onSave={onUpdateLessonMeta}
       />
-    </div>
+    </PaneWheelRoot>
   );
 }

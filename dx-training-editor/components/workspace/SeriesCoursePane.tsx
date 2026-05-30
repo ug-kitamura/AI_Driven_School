@@ -54,6 +54,11 @@ import {
   SORTABLE_POINTER_ACTIVATION,
 } from "@/components/workspace/constants";
 import { Progress } from "@/components/ui/progress";
+import {
+  META_DIALOG_CONTROL,
+  META_DIALOG_FORM,
+  MetaDialogField,
+} from "@/components/workspace/metaDialogLayout";
 import { cn, computeStatus } from "@/lib/utils";
 import { STATUS_LABELS } from "@/lib/schema";
 import type { Series, Course } from "@/lib/schema";
@@ -643,22 +648,24 @@ export function SeriesCoursePane({
           <DialogHeader>
             <DialogTitle>シリーズを追加</DialogTitle>
           </DialogHeader>
-          <div className="py-2">
-            <Label htmlFor="series-name">シリーズ名</Label>
-            <Input
-              id="series-name"
-              value={newSeriesName}
-              onChange={(e) => setNewSeriesName(e.target.value)}
-              placeholder="例: GitHub Actions 完全マスターシリーズ"
-              className="mt-1"
-              autoFocus
-              onKeyDown={(e) => {
-                if (e.key === "Enter" && newSeriesName.trim()) {
-                  handleAddSeries(newSeriesName.trim());
-                  setAddSeriesOpen(false);
-                }
-              }}
-            />
+          <div className={META_DIALOG_FORM}>
+            <MetaDialogField>
+              <Label htmlFor="series-name">シリーズ名</Label>
+              <Input
+                id="series-name"
+                value={newSeriesName}
+                onChange={(e) => setNewSeriesName(e.target.value)}
+                placeholder="例: GitHub Actions 完全マスターシリーズ"
+                className={META_DIALOG_CONTROL}
+                autoFocus
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && newSeriesName.trim()) {
+                    handleAddSeries(newSeriesName.trim());
+                    setAddSeriesOpen(false);
+                  }
+                }}
+              />
+            </MetaDialogField>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setAddSeriesOpen(false)}>
@@ -684,22 +691,24 @@ export function SeriesCoursePane({
           <DialogHeader>
             <DialogTitle>コースを追加</DialogTitle>
           </DialogHeader>
-          <div className="py-2">
-            <Label htmlFor="course-name">コース名</Label>
-            <Input
-              id="course-name"
-              value={newCourseName}
-              onChange={(e) => setNewCourseName(e.target.value)}
-              placeholder="例: Git 環境構築コース"
-              className="mt-1"
-              autoFocus
-              onKeyDown={(e) => {
-                if (e.key === "Enter" && newCourseName.trim()) {
-                  onAddCourse(addCourseSeriesId, newCourseName.trim());
-                  setAddCourseOpen(false);
-                }
-              }}
-            />
+          <div className={META_DIALOG_FORM}>
+            <MetaDialogField>
+              <Label htmlFor="course-name">コース名</Label>
+              <Input
+                id="course-name"
+                value={newCourseName}
+                onChange={(e) => setNewCourseName(e.target.value)}
+                placeholder="例: Git 環境構築コース"
+                className={META_DIALOG_CONTROL}
+                autoFocus
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && newCourseName.trim()) {
+                    onAddCourse(addCourseSeriesId, newCourseName.trim());
+                    setAddCourseOpen(false);
+                  }
+                }}
+              />
+            </MetaDialogField>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setAddCourseOpen(false)}>
@@ -725,24 +734,26 @@ export function SeriesCoursePane({
           <DialogHeader className="sr-only">
             <DialogTitle>シリーズ名を編集</DialogTitle>
           </DialogHeader>
-          <div className="py-2">
-            <Label htmlFor="edit-series-name">シリーズ名</Label>
-            <Input
-              id="edit-series-name"
-              value={editSeriesName}
-              onChange={(e) => setEditSeriesName(e.target.value)}
-              className="mt-1 bg-white"
-              autoFocus
-              onKeyDown={(e) => {
-                if (e.key === "Enter" && editSeriesName.trim()) {
-                  onUpdateSeriesName(
-                    editSeriesId,
-                    editSeriesName.trim(),
-                  );
-                  setEditSeriesOpen(false);
-                }
-              }}
-            />
+          <div className={META_DIALOG_FORM}>
+            <MetaDialogField>
+              <Label htmlFor="edit-series-name">シリーズ名</Label>
+              <Input
+                id="edit-series-name"
+                value={editSeriesName}
+                onChange={(e) => setEditSeriesName(e.target.value)}
+                className={META_DIALOG_CONTROL}
+                autoFocus
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && editSeriesName.trim()) {
+                    onUpdateSeriesName(
+                      editSeriesId,
+                      editSeriesName.trim(),
+                    );
+                    setEditSeriesOpen(false);
+                  }
+                }}
+              />
+            </MetaDialogField>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setEditSeriesOpen(false)}>

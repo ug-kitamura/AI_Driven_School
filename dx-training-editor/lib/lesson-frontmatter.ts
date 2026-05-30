@@ -316,3 +316,31 @@ export function patchLessonMeta(
 export function getLessonBody(lesson: Pick<Lesson, "content">): string {
   return parseLessonDocument(lesson.content).body;
 }
+
+/** 本文のみ更新し、レッスンオブジェクトのメタは現状値を正本として FM を再生成 */
+export function applyLessonBodyEdit(
+  lesson: Lesson,
+  ctx: LessonParentContext,
+  body: string,
+): Lesson {
+  const normalized = normalizeLessonMeta(
+    {
+      series: lesson.series,
+      course: lesson.course,
+      lesson: lesson.lesson,
+      status: lesson.status,
+      description: lesson.description,
+      tags: lesson.tags,
+      estimated_minutes: lesson.estimated_minutes,
+      author: lesson.author,
+    },
+    ctx,
+  );
+  const resolvedBody = body.trim()
+    ? migrateQuizBlocksInBody(body)
+    : defaultLessonBody(normalized.lesson);
+  return {
+    ...lesson,
+    content: serializeLessonDocument(normalized, resolvedBody),
+  };
+}

@@ -37,6 +37,12 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  META_DIALOG_CONTROL,
+  META_DIALOG_FORM,
+  META_DIALOG_GRID,
+  MetaDialogField,
+} from "@/components/workspace/metaDialogLayout";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   ADD_LIST_BUTTON_CLASS,
@@ -163,14 +169,14 @@ function CrossSeriesCoursePicker({
 
   if (candidates.length === 0) {
     return (
-      <p className="mt-1 text-[11px] text-muted-foreground">
+      <p className="text-[11px] text-muted-foreground">
         選択できる別シリーズのコースがありません
       </p>
     );
   }
 
   return (
-    <ScrollArea className="mt-1 h-40 max-h-[min(10rem,35vh)] rounded-md border border-border bg-white">
+    <ScrollArea className="h-40 max-h-[min(10rem,35vh)] rounded-md border border-border bg-white">
       <div className="space-y-0.5 p-2">
         {candidates.map((c) => (
           <label
@@ -630,21 +636,23 @@ export function LessonListPane({
           <DialogHeader>
             <DialogTitle>レッスンを追加</DialogTitle>
           </DialogHeader>
-          <div className="py-2">
-            <Label htmlFor="lesson-name">レッスン名</Label>
-            <Input
-              id="lesson-name"
-              value={newLessonName}
-              onChange={(e) => setNewLessonName(e.target.value)}
-              placeholder="例: Gitのインストール手順"
-              className="mt-1"
-              onKeyDown={(e) => {
-                if (e.key === "Enter" && newLessonName.trim()) {
-                  onAddLesson(course.id, newLessonName.trim());
-                  setAddDialogOpen(false);
-                }
-              }}
-            />
+          <div className={META_DIALOG_FORM}>
+            <MetaDialogField>
+              <Label htmlFor="lesson-name">レッスン名</Label>
+              <Input
+                id="lesson-name"
+                value={newLessonName}
+                onChange={(e) => setNewLessonName(e.target.value)}
+                placeholder="例: Gitのインストール手順"
+                className={META_DIALOG_CONTROL}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && newLessonName.trim()) {
+                    onAddLesson(course.id, newLessonName.trim());
+                    setAddDialogOpen(false);
+                  }
+                }}
+              />
+            </MetaDialogField>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setAddDialogOpen(false)}>
@@ -670,8 +678,8 @@ export function LessonListPane({
           <DialogHeader className="sr-only">
             <DialogTitle>コースメタを編集</DialogTitle>
           </DialogHeader>
-          <div className="grid grid-cols-2 gap-x-4 gap-y-3 py-2">
-            <div className="col-span-2">
+          <div className={cn(META_DIALOG_GRID, META_DIALOG_FORM)}>
+            <MetaDialogField className="col-span-2">
               <Label htmlFor="course-meta-name">コース名</Label>
               <Input
                 id="course-meta-name"
@@ -679,10 +687,10 @@ export function LessonListPane({
                 onChange={(e) =>
                   setEditMeta((prev) => ({ ...prev, name: e.target.value }))
                 }
-                className="mt-1 bg-white"
+                className={META_DIALOG_CONTROL}
               />
-            </div>
-            <div className="col-span-2">
+            </MetaDialogField>
+            <MetaDialogField className="col-span-2">
               <Label>受講対象者</Label>
               <Input
                 value={editMeta.target_audience}
@@ -693,22 +701,22 @@ export function LessonListPane({
                   }))
                 }
                 placeholder="例: Git未経験の開発者"
-                className="mt-1 bg-white"
+                className={META_DIALOG_CONTROL}
               />
-            </div>
-            <div>
+            </MetaDialogField>
+            <MetaDialogField>
               <Label>前のコース（同シリーズ）</Label>
-              <p className="mt-1 rounded-md border border-border bg-muted/50 px-2 py-1.5 text-sm">
+              <p className="rounded-md border border-border bg-muted/50 px-2 py-1.5 text-sm">
                 {intraNeighbors.prev?.name ?? "なし"}
               </p>
-            </div>
-            <div>
+            </MetaDialogField>
+            <MetaDialogField>
               <Label>次のコース（同シリーズ）</Label>
-              <p className="mt-1 rounded-md border border-border bg-muted/50 px-2 py-1.5 text-sm">
+              <p className="rounded-md border border-border bg-muted/50 px-2 py-1.5 text-sm">
                 {intraNeighbors.next?.name ?? "なし"}
               </p>
-            </div>
-            <div className="min-w-0">
+            </MetaDialogField>
+            <MetaDialogField className="min-w-0">
               <Label>前のコース（別シリーズ）</Label>
               <CrossSeriesCoursePicker
                 candidates={crossSeriesCandidates}
@@ -717,8 +725,8 @@ export function LessonListPane({
                   setEditMeta((prev) => ({ ...prev, crossPrerequisites: ids }))
                 }
               />
-            </div>
-            <div className="min-w-0">
+            </MetaDialogField>
+            <MetaDialogField className="min-w-0">
               <Label>次のコース（別シリーズ）</Label>
               <CrossSeriesCoursePicker
                 candidates={crossSeriesCandidates}
@@ -727,7 +735,7 @@ export function LessonListPane({
                   setEditMeta((prev) => ({ ...prev, crossNextCourses: ids }))
                 }
               />
-            </div>
+            </MetaDialogField>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setMetaDialogOpen(false)}>

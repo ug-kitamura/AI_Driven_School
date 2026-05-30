@@ -15,8 +15,6 @@ import type { LessonMetaFields } from "@/lib/lesson-frontmatter";
 
 type Props = {
   lesson: Lesson | undefined;
-  seriesName: string;
-  courseName: string;
   mode: Pane3Mode;
   onModeChange: (mode: Pane3Mode) => void;
   onUpdateContent: (lessonId: string, content: string) => void;
@@ -51,8 +49,6 @@ const PROSE_PREVIEW =
 
 export function MarkdownEditorPane({
   lesson,
-  seriesName,
-  courseName,
   mode,
   onModeChange,
   onUpdateContent,
@@ -174,11 +170,11 @@ export function MarkdownEditorPane({
 
       <div className="min-h-0 flex-1 overflow-hidden">
         {mode === "raw" && (
-          <div className="flex h-full min-h-0">
+          <div className="flex h-full min-h-0 min-w-0">
             <div
               ref={gutterRef}
               aria-hidden
-              className="shrink-0 overflow-hidden px-2 py-3 text-right font-mono text-[11px] leading-[1.375rem] text-muted-foreground/50 tabular-nums select-none"
+              className="shrink-0 overflow-hidden bg-muted/20 px-2 py-3 text-right font-mono text-[11px] leading-[1.375rem] text-muted-foreground/50 tabular-nums select-none"
             >
               {lineNumbers.map((n) => (
                 <div key={n}>{n}</div>
@@ -192,8 +188,8 @@ export function MarkdownEditorPane({
               value={editContent}
               onChange={(e) => onUpdateContent(lesson.id, e.target.value)}
               onScroll={syncGutterScroll}
-              className="h-full min-w-0 flex-1 resize-none overflow-y-auto overscroll-y-contain bg-card px-4 py-3 font-mono text-sm leading-[1.375rem] text-foreground outline-none"
-              placeholder="マークダウンをここに入力してください..."
+              className="h-full min-w-0 flex-1 resize-none overflow-y-auto overscroll-y-contain bg-muted/20 px-4 py-3 font-mono text-sm leading-[1.375rem] text-foreground outline-none"
+              placeholder="フロントマターとマークダウン本文..."
               spellCheck={false}
             />
           </div>
@@ -254,8 +250,6 @@ export function MarkdownEditorPane({
         open={metaDialogOpen}
         onOpenChange={setMetaDialogOpen}
         lesson={lesson}
-        seriesName={seriesName}
-        courseName={courseName}
         onSave={onUpdateLessonMeta}
       />
     </PaneWheelRoot>

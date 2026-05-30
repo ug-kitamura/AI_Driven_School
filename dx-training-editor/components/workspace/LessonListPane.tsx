@@ -162,7 +162,7 @@ function CrossSeriesCoursePicker({
   }
 
   return (
-    <ScrollArea className="mt-1 h-40 max-h-[min(10rem,35vh)] rounded-md border border-border">
+    <ScrollArea className="mt-1 h-40 max-h-[min(10rem,35vh)] rounded-md border border-border bg-white">
       <div className="space-y-0.5 p-2">
         {candidates.map((c) => (
           <label
@@ -650,7 +650,7 @@ export function LessonListPane({
                   }))
                 }
                 placeholder="例: Git未経験の開発者"
-                className="mt-1"
+                className="mt-1 bg-white"
               />
             </div>
             <div>

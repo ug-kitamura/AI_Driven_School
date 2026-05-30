@@ -58,6 +58,7 @@ type Props = {
   series: Series[];
   selectedCourseId: string;
   onSelectCourse: (courseId: string) => void;
+  onReorderSeries: (fromIndex: number, toIndex: number) => void;
   onReorderCourses: (seriesId: string, fromIndex: number, toIndex: number) => void;
   onAddSeries: (name: string) => string;
   onAddCourse: (seriesId: string, name: string) => void;
@@ -198,20 +199,47 @@ function SortableCourseRow({
   );
 }
 
-function SeriesRow({
+function SortableSeriesBlock({
   seriesItem,
   isExpanded,
   onToggle,
   onDelete,
+  selectedCourseId,
+  onSelectCourse,
+  onDeleteCourse,
+  onReorderCourses,
+  openAddCourseDialog,
+  sensors,
 }: {
   seriesItem: Series;
   isExpanded: boolean;
   onToggle: () => void;
   onDelete: () => void;
+  selectedCourseId: string;
+  onSelectCourse: (courseId: string) => void;
+  onDeleteCourse: (seriesId: string, courseId: string) => void;
+  onReorderCourses: (seriesId: string, from: number, to: number) => void;
+  openAddCourseDialog: (seriesId: string) => void;
+  sensors: ReturnType<typeof useSensors>;
 }) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: seriesItem.id });
+
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [blockedOpen, setBlockedOpen] = useState(false);
   const hasCourses = seriesItem.courses.length > 0;
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+  };
 
   const handleDeleteClick = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -219,34 +247,116 @@ function SeriesRow({
     else setConfirmOpen(true);
   };
 
+  const handleCourseDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+    const fromIndex = seriesItem.courses.findIndex((c) => c.id === active.id);
+    const toIndex = seriesItem.courses.findIndex((c) => c.id === over.id);
+    if (fromIndex !== -1 && toIndex !== -1) {
+      onReorderCourses(seriesItem.id, fromIndex, toIndex);
+    }
+  };
+
+  const totalCourses = seriesItem.courses.length;
+  const doneCourses = seriesItem.courses.filter(
+    (c) => computeStatus(c.lessons.map((l) => l.status)) === "done",
+  ).length;
+  const seriesProgress =
+    totalCourses > 0 ? Math.round((doneCourses / totalCourses) * 100) : 0;
+
   return (
     <>
-      <div className="group/series flex w-full items-center rounded-md transition-colors hover:bg-muted">
-        <button
-          onClick={onToggle}
-          className="flex min-w-0 flex-1 items-center gap-1.5 px-2 py-1.5 text-left"
-        >
-          {isExpanded ? (
-            <ChevronDown className="h-3.5 w-3.5 flex-shrink-0 text-muted-foreground" />
-          ) : (
-            <ChevronRight className="h-3.5 w-3.5 flex-shrink-0 text-muted-foreground" />
-          )}
-          <span className="flex-1 truncate text-xs font-bold text-foreground sidebar-label">
+      <div ref={setNodeRef} style={style}>
+        <div className="group/series flex w-full items-center rounded-md transition-colors hover:bg-muted">
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              onToggle();
+            }}
+            className="flex-shrink-0 rounded p-1.5 text-muted-foreground hover:bg-muted/80"
+            aria-label={isExpanded ? "シリーズを折りたたむ" : "シリーズを展開"}
+            aria-expanded={isExpanded}
+          >
+            {isExpanded ? (
+              <ChevronDown className="h-3.5 w-3.5" />
+            ) : (
+              <ChevronRight className="h-3.5 w-3.5" />
+            )}
+          </button>
+          <span
+            {...attributes}
+            {...listeners}
+            className="min-w-0 flex-1 truncate rounded px-1 py-1.5 text-xs font-bold text-foreground transition-colors group-hover/series:cursor-grab group-hover/series:bg-muted/60 group-hover/series:text-primary active:cursor-grabbing sidebar-label"
+            title="ドラッグで並べ替え"
+          >
             {seriesItem.name}
           </span>
-        </button>
-        <button
-          type="button"
-          onClick={handleDeleteClick}
-          title={
-            hasCourses
-              ? "コースがあるため削除できません"
-              : "シリーズを削除"
-          }
-          className="flex-shrink-0 px-2 py-1.5 text-muted-foreground opacity-0 hover:text-destructive group-hover/series:opacity-100 sidebar-label"
-        >
-          <Trash2 className="h-3.5 w-3.5" />
-        </button>
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              handleDeleteClick(e);
+            }}
+            title={
+              hasCourses
+                ? "コースがあるため削除できません"
+                : "シリーズを削除"
+            }
+            className="flex-shrink-0 rounded px-2 py-1.5 text-muted-foreground opacity-0 hover:bg-muted/80 hover:text-destructive group-hover/series:opacity-100 sidebar-label"
+          >
+            <Trash2 className="h-3.5 w-3.5" />
+          </button>
+        </div>
+
+        {isExpanded && (
+          <div className="mb-2 ml-3 px-2 sidebar-label">
+            <div className="mb-0.5 flex items-center justify-between text-[10px]">
+              <span className="text-muted-foreground">シリーズ進捗</span>
+              <span className="font-medium text-primary">
+                {doneCourses}/{totalCourses}
+              </span>
+            </div>
+            <Progress value={seriesProgress} className="h-1" />
+          </div>
+        )}
+
+        {isExpanded && (
+          <div className="ml-3 flex flex-col gap-1">
+            <DndContext
+              id={`series-course-dnd-${seriesItem.id}`}
+              sensors={sensors}
+              collisionDetection={closestCenter}
+              onDragEnd={handleCourseDragEnd}
+            >
+              <SortableContext
+                items={seriesItem.courses.map((c) => c.id)}
+                strategy={verticalListSortingStrategy}
+              >
+                <div className="flex flex-col gap-1">
+                  {seriesItem.courses.map((c) => (
+                    <SortableCourseRow
+                      key={c.id}
+                      course={c}
+                      isSelected={c.id === selectedCourseId}
+                      onSelect={() => onSelectCourse(c.id)}
+                      onDelete={() => onDeleteCourse(seriesItem.id, c.id)}
+                    />
+                  ))}
+                </div>
+              </SortableContext>
+            </DndContext>
+            <Button
+              variant="ghost"
+              size="sm"
+              className={ADD_LIST_BUTTON_CLASS}
+              onClick={() => openAddCourseDialog(seriesItem.id)}
+            >
+              <Plus className="h-3 w-3" />
+              コースを追加
+            </Button>
+          </div>
+        )}
       </div>
 
       <Dialog open={confirmOpen} onOpenChange={setConfirmOpen}>
@@ -297,6 +407,7 @@ export function SeriesCoursePane({
   series,
   selectedCourseId,
   onSelectCourse,
+  onReorderSeries,
   onReorderCourses,
   onAddSeries,
   onAddCourse,
@@ -365,16 +476,15 @@ export function SeriesCoursePane({
     }),
   );
 
-  const handleDragEnd = (seriesId: string, courses: Series["courses"]) =>
-    (event: DragEndEvent) => {
-      const { active, over } = event;
-      if (!over || active.id === over.id) return;
-      const fromIndex = courses.findIndex((c) => c.id === active.id);
-      const toIndex = courses.findIndex((c) => c.id === over.id);
-      if (fromIndex !== -1 && toIndex !== -1) {
-        onReorderCourses(seriesId, fromIndex, toIndex);
-      }
-    };
+  const handleSeriesDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+    const fromIndex = series.findIndex((s) => s.id === active.id);
+    const toIndex = series.findIndex((s) => s.id === over.id);
+    if (fromIndex !== -1 && toIndex !== -1) {
+      onReorderSeries(fromIndex, toIndex);
+    }
+  };
 
   return (
     <Sidebar collapsible="icon" className="border-r border-border">
@@ -400,84 +510,35 @@ export function SeriesCoursePane({
                 最初のシリーズを追加して開始してください。
               </p>
             ) : (
-              <div className="flex flex-col gap-3">
-                {series.map((s) => {
-                  const isExpanded = expandedSeriesIds.has(s.id);
-                  const totalCourses = s.courses.length;
-                  const doneCourses = s.courses.filter(
-                    (c) =>
-                      computeStatus(c.lessons.map((l) => l.status)) === "done",
-                  ).length;
-                  const seriesProgress =
-                    totalCourses > 0
-                      ? Math.round((doneCourses / totalCourses) * 100)
-                      : 0;
-
-                  return (
-                    <div key={s.id}>
-                      <SeriesRow
+              <DndContext
+                id="series-list-dnd"
+                sensors={sensors}
+                collisionDetection={closestCenter}
+                onDragEnd={handleSeriesDragEnd}
+              >
+                <SortableContext
+                  items={series.map((s) => s.id)}
+                  strategy={verticalListSortingStrategy}
+                >
+                  <div className="flex flex-col gap-3">
+                    {series.map((s) => (
+                      <SortableSeriesBlock
+                        key={s.id}
                         seriesItem={s}
-                        isExpanded={isExpanded}
+                        isExpanded={expandedSeriesIds.has(s.id)}
                         onToggle={() => toggleSeries(s.id)}
                         onDelete={() => handleDeleteSeries(s.id)}
+                        selectedCourseId={selectedCourseId}
+                        onSelectCourse={onSelectCourse}
+                        onDeleteCourse={onDeleteCourse}
+                        onReorderCourses={onReorderCourses}
+                        openAddCourseDialog={openAddCourseDialog}
+                        sensors={sensors}
                       />
-
-                      {isExpanded && (
-                        <div className="mb-2 ml-3 px-2 sidebar-label">
-                          <div className="mb-0.5 flex items-center justify-between text-[10px]">
-                            <span className="text-muted-foreground">
-                              シリーズ進捗
-                            </span>
-                            <span className="font-medium text-primary">
-                              {doneCourses}/{totalCourses}
-                            </span>
-                          </div>
-                          <Progress value={seriesProgress} className="h-1" />
-                        </div>
-                      )}
-
-                      {isExpanded && (
-                        <div className="ml-3 flex flex-col gap-1">
-                          <DndContext
-                            id={`series-course-dnd-${s.id}`}
-                            sensors={sensors}
-                            collisionDetection={closestCenter}
-                            onDragEnd={handleDragEnd(s.id, s.courses)}
-                          >
-                            <SortableContext
-                              items={s.courses.map((c) => c.id)}
-                              strategy={verticalListSortingStrategy}
-                            >
-                              <div className="flex flex-col gap-1">
-                                {s.courses.map((c) => (
-                                  <SortableCourseRow
-                                    key={c.id}
-                                    course={c}
-                                    isSelected={c.id === selectedCourseId}
-                                    onSelect={() => onSelectCourse(c.id)}
-                                    onDelete={() =>
-                                      onDeleteCourse(s.id, c.id)
-                                    }
-                                  />
-                                ))}
-                              </div>
-                            </SortableContext>
-                          </DndContext>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className={ADD_LIST_BUTTON_CLASS}
-                            onClick={() => openAddCourseDialog(s.id)}
-                          >
-                            <Plus className="h-3 w-3" />
-                            コースを追加
-                          </Button>
-                        </div>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
+                    ))}
+                  </div>
+                </SortableContext>
+              </DndContext>
             )}
           </>
         )}

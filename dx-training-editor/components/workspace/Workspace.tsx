@@ -225,6 +225,16 @@ export function Workspace({
     );
   }, []);
 
+  // シリーズ並び替え（Pane1 DnD から）
+  const reorderSeries = useCallback((fromIndex: number, toIndex: number) => {
+    setSeries((prev) => {
+      const next = [...prev];
+      const [moved] = next.splice(fromIndex, 1);
+      next.splice(toIndex, 0, moved);
+      return next;
+    });
+  }, []);
+
   // コース並び替え（Pane1 DnD から）同シリーズ内のみ
   const reorderCourses = useCallback(
     (seriesId: string, fromIndex: number, toIndex: number) => {
@@ -332,6 +342,7 @@ export function Workspace({
         series={series}
         selectedCourseId={selectedCourseId}
         onSelectCourse={selectCourse}
+        onReorderSeries={reorderSeries}
         onReorderCourses={reorderCourses}
         onAddSeries={addSeries}
         onAddCourse={addCourse}

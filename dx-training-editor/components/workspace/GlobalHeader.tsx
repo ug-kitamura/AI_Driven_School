@@ -211,12 +211,12 @@ export function GlobalHeader({
         title="DXトレーニング曼陀羅"
       >
         <Network className="h-4 w-4" />
-        <span className="hidden sm:inline">曼陀羅</span>
+        <span className="hidden sm:inline">DXトレーニング曼陀羅</span>
       </Button>
 
       {/* 曼陀羅フルスクリーンモーダル */}
       <Dialog open={mandalaOpen} onOpenChange={setMandalaOpen}>
-        <DialogContent className="max-w-4xl max-h-[90vh] flex flex-col">
+        <DialogContent className="max-w-6xl max-h-[100vh] flex flex-col">
           <DialogHeader>
             <DialogTitle>DXトレーニング曼陀羅</DialogTitle>
           </DialogHeader>
@@ -247,7 +247,7 @@ export function GlobalHeader({
               </div>
             )}
           </div>
-          <p className="text-[11px] text-muted-foreground text-center pt-1">
+          <p className="text-[11px] text-muted-foreground text-left pt-1">
             ★ = 現在選択中のコース　　ノードをクリックするとそのコースに移動します
           </p>
         </DialogContent>

@@ -15,6 +15,14 @@ import {
   filterCrossSeriesIds,
   normalizeSeriesCourseMeta,
 } from "@/lib/course-flow";
+import {
+  createLessonContentTemplate,
+  normalizeAllLessonsInSeries,
+  normalizeLessonMeta,
+  applyLessonContentEdit,
+  patchLessonMeta,
+  type LessonMetaFields,
+} from "@/lib/lesson-frontmatter";
 
 export type Pane3Mode = "inline" | "raw" | "diff";
 
@@ -42,7 +50,7 @@ export function Workspace({
   workspace,
 }: WorkspaceProps) {
   const [series, setSeries] = useState<Series[]>(() =>
-    normalizeSeriesCourseMeta(initialSeries),
+    normalizeAllLessonsInSeries(normalizeSeriesCourseMeta(initialSeries)),
   );
   const [imageHistory, setImageHistory] = useState<ImageAsset[]>(initialImages);
   const [pane4ManuallyClosed, setPane4ManuallyClosed] = useState(false);
@@ -93,16 +101,17 @@ export function Workspace({
     setSelectedLessonId(lessonId);
   }, []);
 
-  // レッスンのコンテンツ更新（Pane3 から）
-  const updateLessonContent = useCallback(
-    (lessonId: string, content: string) => {
+  const mapLessonById = useCallback(
+    (lessonId: string, fn: (lesson: Lesson, ctx: { seriesName: string; courseName: string }) => Lesson) => {
       setSeries((prev) =>
         prev.map((s) => ({
           ...s,
           courses: s.courses.map((c) => ({
             ...c,
             lessons: c.lessons.map((l) =>
-              l.id === lessonId ? { ...l, content } : l,
+              l.id === lessonId
+                ? fn(l, { seriesName: s.name, courseName: c.name })
+                : l,
             ),
           })),
         })),
@@ -111,22 +120,29 @@ export function Workspace({
     [],
   );
 
-  // レッスンのステータス更新（Pane2 から）
-  const updateLessonStatus = useCallback(
-    (lessonId: string, status: Lesson["status"]) => {
-      setSeries((prev) =>
-        prev.map((s) => ({
-          ...s,
-          courses: s.courses.map((c) => ({
-            ...c,
-            lessons: c.lessons.map((l) =>
-              l.id === lessonId ? { ...l, status } : l,
-            ),
-          })),
-        })),
+  const updateLessonContent = useCallback(
+    (lessonId: string, content: string) => {
+      mapLessonById(lessonId, (lesson, ctx) =>
+        applyLessonContentEdit(lesson, ctx, content),
       );
     },
-    [],
+    [mapLessonById],
+  );
+
+  const updateLessonMeta = useCallback(
+    (lessonId: string, meta: Partial<LessonMetaFields>) => {
+      mapLessonById(lessonId, (lesson, ctx) =>
+        patchLessonMeta(lesson, ctx, meta),
+      );
+    },
+    [mapLessonById],
+  );
+
+  const updateLessonStatus = useCallback(
+    (lessonId: string, status: Lesson["status"]) => {
+      updateLessonMeta(lessonId, { status });
+    },
+    [updateLessonMeta],
   );
 
   // レッスン追加（Pane2 から）
@@ -137,17 +153,21 @@ export function Workspace({
         ...s,
         courses: s.courses.map((c) => {
           if (c.id !== courseId) return c;
+          const meta = normalizeLessonMeta(
+            {
+              lesson: lessonName,
+              status: "open",
+              description: "",
+              tags: [],
+              estimated_minutes: 0,
+              author: "",
+            },
+            { seriesName: s.name, courseName: c.name },
+          );
           const newLesson: Lesson = {
             id: newId,
-            series: s.name,
-            course: c.name,
-            lesson: lessonName,
-            status: "draft",
-            description: "",
-            tags: [],
-            estimated_minutes: 15,
-            author: "",
-            content: `---\nseries: ${s.name}\ncourse: ${c.name}\nlesson: ${lessonName}\nstatus: draft\ndescription: \ntags: []\nestimated_minutes: 15\nauthor: \n---\n\n# ${lessonName}\n\n（ここに本文を書いてください）\n`,
+            ...meta,
+            content: createLessonContentTemplate(meta),
           };
           return { ...c, lessons: [...c.lessons, newLesson] };
         }),
@@ -416,9 +436,12 @@ export function Workspace({
           <div className="flex h-full min-w-0 flex-1 flex-col overflow-hidden">
             <MarkdownEditorPane
               lesson={selectedLesson}
+              seriesName={selectedSeriesName}
+              courseName={selectedCourse?.name ?? ""}
               mode={pane3Mode}
               onModeChange={setPane3Mode}
               onUpdateContent={updateLessonContent}
+              onUpdateLessonMeta={updateLessonMeta}
               onRegisterInsertCallback={registerInsertCallback}
             />
           </div>

@@ -8,13 +8,13 @@ export function cn(...inputs: ClassValue[]) {
 
 /**
  * 配下レッスンのステータス一覧からコース/シリーズのステータスを自動計算する。
- * - すべて draft → draft
+ * - すべて open → open
  * - すべて done → done
- * - それ以外（作成中または完成が 1 つ以上）→ in_progress
+ * - それ以外 → in_progress
  */
 export function computeStatus(statuses: LessonStatus[]): LessonStatus {
-  if (statuses.length === 0) return "draft";
-  if (statuses.every((s) => s === "draft")) return "draft";
+  if (statuses.length === 0) return "open";
+  if (statuses.every((s) => s === "open")) return "open";
   if (statuses.every((s) => s === "done")) return "done";
   return "in_progress";
 }

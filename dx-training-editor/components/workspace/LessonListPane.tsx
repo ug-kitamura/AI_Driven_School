@@ -79,16 +79,16 @@ const STATUS_ICON: Record<
     icon: <Loader className="h-3.5 w-3.5 text-[--status-wip]" />,
     label: "作成中",
   },
-  draft: {
+  open: {
     icon: <CircleDashed className="h-3.5 w-3.5 text-[--status-draft]" />,
     label: "未着手",
   },
 };
 
 const STATUS_CYCLE: Record<Lesson["status"], Lesson["status"]> = {
-  draft: "in_progress",
+  open: "in_progress",
   in_progress: "done",
-  done: "draft",
+  done: "open",
 };
 
 const miniSafeId = (id: string) => `M_${id.replace(/[^a-zA-Z0-9]/g, "_")}`;
@@ -500,7 +500,7 @@ export function LessonListPane({
             <Dialog open={mermaidModalOpen} onOpenChange={setMermaidModalOpen}>
               <DialogContent className="max-w-2xl">
                 <DialogHeader>
-                  <DialogTitle>トレーニングフロー</DialogTitle>
+                  <DialogTitle>ミニ曼陀羅</DialogTitle>
                 </DialogHeader>
                 {modalSvg ? (
                   <div
@@ -527,7 +527,7 @@ export function LessonListPane({
                     グラフを生成中...
                   </div>
                 )}
-                <p className="text-[11px] text-muted-foreground text-center pt-1">
+                <p className="text-[11px] text-muted-foreground text-left pt-1">
                   ★ = 現在選択中のコース　　ノードをクリックするとそのコースに移動します
                 </p>
               </DialogContent>

@@ -69,7 +69,7 @@ type Props = {
 const STATUS_ICON = {
   done: <CircleCheck className="h-3.5 w-3.5 text-[--status-done]" />,
   in_progress: <Loader className="h-3.5 w-3.5 text-[--status-wip]" />,
-  draft: <CircleDashed className="h-3.5 w-3.5 text-[--status-draft]" />,
+  open: <CircleDashed className="h-3.5 w-3.5 text-[--status-draft]" />,
 } as const;
 
 function SortableCourseRow({

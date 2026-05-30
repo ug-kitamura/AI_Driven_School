@@ -1,7 +1,11 @@
 schema: spec-driven
 
 context: |
-  言語は日本語を使用する。
+  Output language: Japanese
+  以下のルールに従って日本語で記述すること：
+  - テンプレートのセクションヘッダーはそのまま変更しないこと
+  - コードブロック・コマンド・固有名詞・ツール名は英語のままにすること
+  - それ以外の本文・説明・箇条書きはすべて日本語で記述すること
 
 # Project context (optional)
 # This is shown to AI when creating artifacts.

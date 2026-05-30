@@ -62,7 +62,10 @@ export function LessonMetaDialog({
         </DialogHeader>
         <LessonMetaPanel
           draft={draft}
-          onDraftChange={setDraft}
+          onDraftChange={(next) => {
+            setDraft(next);
+            if (tagError) setTagError(null);
+          }}
           tagError={tagError}
           className={META_DIALOG_FORM}
         />

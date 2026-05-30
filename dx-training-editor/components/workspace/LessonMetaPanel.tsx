@@ -159,9 +159,23 @@ export function LessonMetaPanel({
           id="lesson-meta-tags"
           value={draft.tagsInput}
           onChange={(e) => patchDraft({ tagsInput: e.target.value })}
-          className={META_DIALOG_CONTROL}
+          className={cn(
+            META_DIALOG_CONTROL,
+            tagError && "border-destructive ring-destructive/20",
+          )}
           placeholder="カンマ区切り"
+          aria-invalid={Boolean(tagError)}
+          aria-describedby={tagError ? "lesson-meta-tags-error" : undefined}
         />
+        {tagError ? (
+          <p
+            id="lesson-meta-tags-error"
+            className="text-xs text-destructive"
+            role="alert"
+          >
+            {tagError}
+          </p>
+        ) : null}
       </MetaDialogField>
 
       <MetaDialogField>
@@ -228,10 +242,6 @@ export function LessonMetaPanel({
           </SelectContent>
         </Select>
       </MetaDialogField>
-
-      {tagError ? (
-        <p className="col-span-2 text-xs text-destructive">{tagError}</p>
-      ) : null}
     </div>
   );
 }

@@ -44,18 +44,20 @@ const lessonEditorLayout = EditorView.theme(
       padding: "0 2px",
       color: LESSON_LINE_NUMBER,
       cursor: "default",
+      width: "100%",
+      boxSizing: "border-box",
     },
     ".lesson-fold-gutter .cm-gutterElement:has(.lesson-fold-icon)": {
       cursor: "pointer",
     },
-    /* ▼: 当該行ガターのホバー時のみ。▶: 常時表示 */
+    /* ▼: 折りたたみ列ホバー時に全セクション+FM 分を表示 ▶: 常時 */
     ".lesson-fold-gutter span.lesson-fold-open": {
       opacity: "0",
       pointerEvents: "none",
     },
-    ".lesson-fold-gutter .cm-gutterElement:hover span.lesson-fold-open": {
+    ".lesson-fold-gutter.lesson-fold-gutter-column-hovered span.lesson-fold-open": {
       opacity: "1",
-      pointerEvents: "auto",
+      pointerEvents: "none",
     },
     ".lesson-fold-gutter span.lesson-fold-closed": {
       opacity: "1",

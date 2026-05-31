@@ -328,7 +328,7 @@
   color: color-mix(in oklab, var(--muted-foreground) 88%, transparent) !important;
 }
 
-/* 折りたたみガター: 行番号と同色。▼=ホバー時のみ / ▶=常時 */
+/* 折りたたみガター: 行番号と同色。▼=列ホバーで全表示 / ▶=常時 */
 .lesson-content-editor .lesson-fold-gutter .lesson-fold-icon {
   display: inline-block;
   min-width: 1ch;
@@ -345,8 +345,7 @@
 }
 
 .lesson-content-editor
-  .lesson-fold-gutter
-  .cm-gutterElement:hover
+  .lesson-fold-gutter.lesson-fold-gutter-column-hovered
   span.lesson-fold-open {
   opacity: 1 !important;
   pointer-events: none;

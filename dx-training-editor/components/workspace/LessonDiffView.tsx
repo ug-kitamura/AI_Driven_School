@@ -14,12 +14,23 @@ type Props = {
   className?: string;
 };
 
-function diffLineClass(kind: DiffLineKind): string {
+function diffRowBackgroundClass(kind: DiffLineKind): string {
   switch (kind) {
     case "add":
-      return "bg-green-500/10 text-green-700";
+      return "bg-green-500/10";
     case "remove":
-      return "bg-red-500/10 text-red-700";
+      return "bg-red-500/10";
+    default:
+      return "";
+  }
+}
+
+function diffContentTextClass(kind: DiffLineKind): string {
+  switch (kind) {
+    case "add":
+      return "text-green-700";
+    case "remove":
+      return "text-red-700";
     case "hunk-header":
       return "text-primary";
     case "file-old":
@@ -35,7 +46,7 @@ function DiffContentCell({ line }: { line: ParsedDiffLine }) {
     <div
       className={cn(
         "lesson-diff-content min-w-0 flex-1 py-0",
-        diffLineClass(line.kind),
+        diffContentTextClass(line.kind),
       )}
     >
       {line.text || "\u00A0"}
@@ -65,7 +76,10 @@ export function LessonDiffView({ diff, className }: Props) {
         {lines.map((line) => (
           <div
             key={`line-${line.index}`}
-            className="lesson-diff-row flex min-h-[1.375rem]"
+            className={cn(
+              "lesson-diff-row flex min-h-[1.375rem]",
+              diffRowBackgroundClass(line.kind),
+            )}
           >
             <div className="lesson-diff-gutters shrink-0">
               <div className="lesson-diff-gutter-element tabular-nums">

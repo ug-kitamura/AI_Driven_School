@@ -406,7 +406,6 @@
 
 /* Pane3 差分: 編集モード .cm-lineNumbers + 行番号列と本文間の空白ガター */
 .lesson-diff-view {
-  background-color: color-mix(in oklab, var(--muted) 20%, transparent);
   font-family:
     ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono",
     "Courier New", monospace;
@@ -424,7 +423,6 @@
   display: flex;
   flex-shrink: 0;
   box-sizing: border-box;
-  background-color: color-mix(in oklab, var(--muted) 20%, transparent);
 }
 
 .lesson-diff-view .lesson-diff-gutter-element {
@@ -441,9 +439,8 @@
 
 /* 2列目の行番号と差分本文の間（編集モード .cm-line の padding-left: 6px 相当） */
 .lesson-diff-view .lesson-diff-gutter-spacer {
-  flex: 0 0 6px;
+  flex: 0 0 12px;
   box-sizing: border-box;
-  background-color: color-mix(in oklab, var(--muted) 20%, transparent);
 }
 
 .lesson-diff-view .lesson-diff-content {

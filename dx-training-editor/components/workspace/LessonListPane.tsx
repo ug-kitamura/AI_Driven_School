@@ -8,6 +8,7 @@ import {
   CircleCheck,
   Loader,
   CircleDashed,
+  AlertTriangle,
 } from "lucide-react";
 import {
   DndContext,
@@ -57,6 +58,7 @@ import {
   filterCrossSeriesIds,
   getIntraSeriesNeighbors,
   listCrossSeriesCourseCandidates,
+  wouldCourseMetaEditCreateCycle,
   type MiniMandalaGraphInput,
 } from "@/lib/course-flow";
 
@@ -277,6 +279,7 @@ export function LessonListPane({
   const [addDialogOpen, setAddDialogOpen] = useState(false);
   const [newLessonName, setNewLessonName] = useState("");
   const [metaDialogOpen, setMetaDialogOpen] = useState(false);
+  const [metaCycleWarning, setMetaCycleWarning] = useState(false);
   const [editMeta, setEditMeta] = useState<{
     name: string;
     target_audience: string;
@@ -448,6 +451,7 @@ export function LessonListPane({
                   course.next_courses,
                 ),
               });
+              setMetaCycleWarning(false);
               setMetaDialogOpen(true);
             }}
           >
@@ -623,7 +627,13 @@ export function LessonListPane({
       </Dialog>
 
       {/* コースメタ編集ダイアログ */}
-      <Dialog open={metaDialogOpen} onOpenChange={setMetaDialogOpen}>
+      <Dialog
+        open={metaDialogOpen}
+        onOpenChange={(open) => {
+          setMetaDialogOpen(open);
+          if (!open) setMetaCycleWarning(false);
+        }}
+      >
         <DialogContent className="max-w-3xl">
           <DialogHeader className="sr-only">
             <DialogTitle>コースメタを編集</DialogTitle>
@@ -671,9 +681,10 @@ export function LessonListPane({
               <CrossSeriesCourseTreePicker
                 candidates={crossSeriesCandidates}
                 selectedIds={editMeta.crossPrerequisites}
-                onChange={(ids) =>
-                  setEditMeta((prev) => ({ ...prev, crossPrerequisites: ids }))
-                }
+                onChange={(ids) => {
+                  setMetaCycleWarning(false);
+                  setEditMeta((prev) => ({ ...prev, crossPrerequisites: ids }));
+                }}
               />
             </MetaDialogField>
             <MetaDialogField className="min-w-0">
@@ -681,23 +692,57 @@ export function LessonListPane({
               <CrossSeriesCourseTreePicker
                 candidates={crossSeriesCandidates}
                 selectedIds={editMeta.crossNextCourses}
-                onChange={(ids) =>
-                  setEditMeta((prev) => ({ ...prev, crossNextCourses: ids }))
-                }
+                onChange={(ids) => {
+                  setMetaCycleWarning(false);
+                  setEditMeta((prev) => ({ ...prev, crossNextCourses: ids }));
+                }}
               />
             </MetaDialogField>
           </div>
+          {metaCycleWarning && (
+            <div
+              role="alert"
+              className="flex items-start gap-2 rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive"
+            >
+              <AlertTriangle className="mt-0.5 size-4 shrink-0" />
+              <p>
+                曼陀羅全体に循環する経路が生じます。別シリーズの前/次コースの設定を見直してください。
+              </p>
+            </div>
+          )}
           <DialogFooter>
             <Button variant="outline" onClick={() => setMetaDialogOpen(false)}>
               キャンセル
             </Button>
             <Button
               onClick={() => {
+                if (!course) return;
+                const crossPrerequisites = filterCrossSeriesIds(
+                  series,
+                  course.id,
+                  editMeta.crossPrerequisites,
+                );
+                const crossNextCourses = filterCrossSeriesIds(
+                  series,
+                  course.id,
+                  editMeta.crossNextCourses,
+                );
+                if (
+                  wouldCourseMetaEditCreateCycle(
+                    series,
+                    course.id,
+                    crossPrerequisites,
+                    crossNextCourses,
+                  )
+                ) {
+                  setMetaCycleWarning(true);
+                  return;
+                }
                 onUpdateCourseMeta(course.id, {
                   name: editMeta.name.trim() || course.name,
                   target_audience: editMeta.target_audience || undefined,
-                  prerequisites: editMeta.crossPrerequisites,
-                  next_courses: editMeta.crossNextCourses,
+                  prerequisites: crossPrerequisites,
+                  next_courses: crossNextCourses,
                 });
                 setMetaDialogOpen(false);
               }}

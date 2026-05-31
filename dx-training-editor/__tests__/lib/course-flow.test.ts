@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { applyCrossSeriesCourseMetaEdit } from "@/lib/course-flow";
+import { applyCrossSeriesCourseMetaEdit, hasCourseFlowCycle, wouldCourseMetaEditCreateCycle } from "@/lib/course-flow";
 import type { Course, Series } from "@/lib/schema";
 
 function course(id: string, overrides: Partial<Course> = {}): Course {
@@ -109,5 +109,57 @@ describe("applyCrossSeriesCourseMetaEdit", () => {
     expect(getCourse(result, "a2").next_courses).toEqual([]);
     expect(getCourse(result, "b1").prerequisites).toEqual([]);
     expect(getCourse(result, "b2").prerequisites).toEqual(["a1"]);
+  });
+});
+
+describe("hasCourseFlowCycle", () => {
+  it("returns false for acyclic mandala", () => {
+    const data = [
+      series("sa", [
+        course("a1", { next_courses: ["b1"] }),
+        course("a2", { next_courses: ["b2"] }),
+      ]),
+      series("sb", [
+        course("b1", { prerequisites: ["a1"] }),
+        course("b2", { prerequisites: ["a2"] }),
+      ]),
+    ];
+    expect(hasCourseFlowCycle(data)).toBe(false);
+  });
+
+  it("returns true when cross-series links form a cycle", () => {
+    const data = [
+      series("sa", [course("a1", { next_courses: ["b1"] })]),
+      series("sb", [
+        course("b1", { next_courses: ["a1"], prerequisites: ["a1"] }),
+      ]),
+    ];
+    expect(hasCourseFlowCycle(data)).toBe(true);
+  });
+});
+
+describe("wouldCourseMetaEditCreateCycle", () => {
+  it("detects cycle after sync propagation on save preview", () => {
+    const initial = [
+      series("sa", [course("a1")]),
+      series("sb", [course("b1", { next_courses: ["a1"], prerequisites: ["a1"] })]),
+    ];
+
+    expect(
+      wouldCourseMetaEditCreateCycle(initial, "a1", [], ["b1"]),
+    ).toBe(true);
+  });
+
+  it("allows save when preview is cyclic but cross links unchanged", () => {
+    const cyclic = [
+      series("sa", [course("a1", { next_courses: ["b1"] })]),
+      series("sb", [
+        course("b1", { next_courses: ["a1"], prerequisites: ["a1"] }),
+      ]),
+    ];
+
+    expect(
+      wouldCourseMetaEditCreateCycle(cyclic, "a1", [], ["b1"]),
+    ).toBe(false);
   });
 });

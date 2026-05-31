@@ -399,3 +399,111 @@ export function applyCrossSeriesCourseMetaEdit(
 
   return series;
 }
+
+/** 曼陀羅全体の有向辺（シリーズ内鎖 + 別シリーズリンク）を構築する */
+export function buildCourseFlowAdjacency(
+  allSeries: Series[],
+): Map<string, string[]> {
+  const adj = new Map<string, string[]>();
+
+  const addEdge = (fromId: string, toId: string) => {
+    if (fromId === toId) return;
+    const next = adj.get(fromId) ?? [];
+    if (!next.includes(toId)) {
+      next.push(toId);
+      adj.set(fromId, next);
+    }
+    if (!adj.has(toId)) adj.set(toId, []);
+  };
+
+  for (const s of allSeries) {
+    for (let i = 1; i < s.courses.length; i++) {
+      addEdge(s.courses[i - 1].id, s.courses[i].id);
+    }
+  }
+
+  for (const s of allSeries) {
+    for (const c of s.courses) {
+      for (const prevId of c.prerequisites) {
+        if (isCrossSeriesLink(allSeries, c.id, prevId)) {
+          addEdge(prevId, c.id);
+        }
+      }
+      for (const nextId of c.next_courses) {
+        if (isCrossSeriesLink(allSeries, c.id, nextId)) {
+          addEdge(c.id, nextId);
+        }
+      }
+    }
+  }
+
+  return adj;
+}
+
+/** 曼陀羅全体のグラフに循環があるか */
+export function hasCourseFlowCycle(allSeries: Series[]): boolean {
+  const adj = buildCourseFlowAdjacency(allSeries);
+  const nodes = new Set<string>();
+  for (const [from, tos] of adj) {
+    nodes.add(from);
+    for (const to of tos) nodes.add(to);
+  }
+
+  const state = new Map<string, 0 | 1 | 2>();
+
+  const dfs = (nodeId: string): boolean => {
+    state.set(nodeId, 1);
+    for (const nextId of adj.get(nodeId) ?? []) {
+      const nextState = state.get(nextId) ?? 0;
+      if (nextState === 1) return true;
+      if (nextState === 0 && dfs(nextId)) return true;
+    }
+    state.set(nodeId, 2);
+    return false;
+  };
+
+  for (const nodeId of nodes) {
+    if ((state.get(nodeId) ?? 0) === 0 && dfs(nodeId)) return true;
+  }
+  return false;
+}
+
+/** コースメタ保存をドライランし、曼陀羅全体で新たに循環が生じるか */
+export function wouldCourseMetaEditCreateCycle(
+  allSeries: Series[],
+  editedCourseId: string,
+  crossPrerequisites: string[],
+  crossNextCourses: string[],
+): boolean {
+  const edited = findCourse(allSeries, editedCourseId);
+  if (!edited) return false;
+
+  const preview = applyCrossSeriesCourseMetaEdit(
+    allSeries,
+    editedCourseId,
+    crossPrerequisites,
+    crossNextCourses,
+  );
+  if (!hasCourseFlowCycle(preview)) return false;
+
+  if (!hasCourseFlowCycle(allSeries)) return true;
+
+  const oldPrerequisites = filterCrossSeriesIds(
+    allSeries,
+    editedCourseId,
+    edited.prerequisites,
+  );
+  const oldNextCourses = filterCrossSeriesIds(
+    allSeries,
+    editedCourseId,
+    edited.next_courses,
+  );
+  const sameIds = (a: string[], b: string[]) =>
+    a.length === b.length && a.every((id, i) => id === b[i]);
+
+  const linksChanged =
+    !sameIds(oldPrerequisites, crossPrerequisites) ||
+    !sameIds(oldNextCourses, crossNextCourses);
+
+  return linksChanged;
+}

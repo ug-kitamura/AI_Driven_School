@@ -1,7 +1,7 @@
 # dx-training-editor
 
 DX ツールトレーニング用の **4ペイン Next.js 16 × shadcn/ui ワークスペース**。
-起動方法・画面構成は README を参照。
+起動方法・画面構成は [`readme.md`](readme.md) を参照。
 
 ## アーキテクチャ
 

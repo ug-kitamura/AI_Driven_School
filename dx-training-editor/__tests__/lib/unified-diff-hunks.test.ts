@@ -1,5 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { parseHunkHeader, parseUnifiedDiff, isDiffDisplayLine } from "@/lib/unified-diff-hunks";
+import {
+  getDiffLineContent,
+  getDiffLineMarker,
+  isDiffDisplayLine,
+  parseHunkHeader,
+  parseUnifiedDiff,
+} from "@/lib/unified-diff-hunks";
 
 const SAMPLE = [
   "--- a/file.md",
@@ -66,5 +72,14 @@ describe("parseUnifiedDiff", () => {
       "add",
       "context",
     ]);
+  });
+
+  it("extracts marker and content from diff lines", () => {
+    expect(getDiffLineMarker("add")).toBe("+");
+    expect(getDiffLineMarker("remove")).toBe("-");
+    expect(getDiffLineMarker("context")).toBe("");
+    expect(getDiffLineContent(" context", "context")).toBe("context");
+    expect(getDiffLineContent("-removed", "remove")).toBe("removed");
+    expect(getDiffLineContent("+added", "add")).toBe("added");
   });
 });

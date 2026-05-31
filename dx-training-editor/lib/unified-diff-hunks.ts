@@ -41,6 +41,25 @@ export function isDiffDisplayLine(kind: DiffLineKind): boolean {
   return kind === "add" || kind === "remove" || kind === "context";
 }
 
+export function getDiffLineMarker(kind: DiffLineKind): string {
+  switch (kind) {
+    case "add":
+      return "+";
+    case "remove":
+      return "-";
+    default:
+      return "";
+  }
+}
+
+/** unified diff 行頭の + / - / スペースを除いた本文 */
+export function getDiffLineContent(text: string, kind: DiffLineKind): string {
+  if (kind === "add" || kind === "remove" || kind === "context") {
+    return text.slice(1);
+  }
+  return text;
+}
+
 export function parseUnifiedDiff(diff: string): ParsedDiffLine[] {
   if (!diff) return [];
 

@@ -4,6 +4,8 @@ import { useMemo } from "react";
 import { cn } from "@/lib/utils";
 import {
   formatLineNumber,
+  getDiffLineContent,
+  getDiffLineMarker,
   isDiffDisplayLine,
   parseUnifiedDiff,
   type DiffLineKind,
@@ -42,7 +44,34 @@ function diffContentTextClass(kind: DiffLineKind): string {
   }
 }
 
+function diffMarkerTextClass(kind: DiffLineKind): string {
+  switch (kind) {
+    case "add":
+      return "text-green-700";
+    case "remove":
+      return "text-red-700";
+    default:
+      return "";
+  }
+}
+
+function DiffMarkerCell({ line }: { line: ParsedDiffLine }) {
+  const marker = getDiffLineMarker(line.kind);
+  return (
+    <div
+      className={cn(
+        "lesson-diff-marker shrink-0 tabular-nums",
+        diffMarkerTextClass(line.kind),
+      )}
+      aria-hidden={!marker}
+    >
+      {marker || "\u00A0"}
+    </div>
+  );
+}
+
 function DiffContentCell({ line }: { line: ParsedDiffLine }) {
+  const content = getDiffLineContent(line.text, line.kind);
   return (
     <div
       className={cn(
@@ -50,7 +79,7 @@ function DiffContentCell({ line }: { line: ParsedDiffLine }) {
         diffContentTextClass(line.kind),
       )}
     >
-      {line.text || "\u00A0"}
+      {content || "\u00A0"}
     </div>
   );
 }
@@ -94,6 +123,7 @@ export function LessonDiffView({ diff, className }: Props) {
               </div>
               <div className="lesson-diff-gutter-spacer" aria-hidden />
             </div>
+            <DiffMarkerCell line={line} />
             <DiffContentCell line={line} />
           </div>
         ))}

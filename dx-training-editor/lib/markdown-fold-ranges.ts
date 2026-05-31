@@ -14,6 +14,27 @@ export function findFrontmatterCloseLine(lines: string[]): number | null {
   return null;
 }
 
+/** FM 開始行（先頭の `---` のみ。閉じ `---` ではない） */
+export function isFrontmatterOpenLine(
+  lines: string[],
+  lineIndex: number,
+): boolean {
+  return (
+    lineIndex === 0 &&
+    lines[0]?.trim() === "---" &&
+    findFrontmatterCloseLine(lines) !== null
+  );
+}
+
+/** FM 終了行（閉じ `---`） */
+export function isFrontmatterCloseLine(
+  lines: string[],
+  lineIndex: number,
+): boolean {
+  const close = findFrontmatterCloseLine(lines);
+  return close !== null && lineIndex === close;
+}
+
 /**
  * 見出し行（0-based）を折ったときに隠す最終行（0-based, inclusive）。
  * 隠す行が無ければ null。
@@ -48,11 +69,15 @@ export function getFoldRangeAtLine(
 ): LineFoldRange | null {
   if (lineIndex < 0 || lineIndex >= lines.length) return null;
 
-  if (lineIndex === 0 && lines[0].trim() === "---") {
-    const close = findFrontmatterCloseLine(lines);
-    if (close === null || close < 1) return null;
+  if (isFrontmatterCloseLine(lines, lineIndex)) return null;
+
+  if (isFrontmatterOpenLine(lines, lineIndex)) {
+    const close = findFrontmatterCloseLine(lines)!;
+    if (close < 1) return null;
     return { fromLineIndex: 1, toLineIndex: close };
   }
+
+  if (lines[lineIndex].trim() === "---") return null;
 
   const level = parseAtxHeading(lines[lineIndex]);
   if (level === null) return null;

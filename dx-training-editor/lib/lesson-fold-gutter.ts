@@ -2,9 +2,9 @@ import {
   codeFolding,
   foldEffect,
   foldState,
-  foldable,
   unfoldEffect,
 } from "@codemirror/language";
+import { getFoldRangeAtLine } from "@/lib/markdown-fold-ranges";
 import {
   GutterMarker,
   ViewPlugin,
@@ -79,6 +79,12 @@ function setFoldGutterColumnHover(view: EditorView, hovered: boolean) {
   gutter.classList.toggle(FOLD_GUTTER_COLUMN_HOVER_CLASS, hovered);
 }
 
+function isFoldHeaderLine(state: EditorState, lineFrom: number): boolean {
+  const lineIndex = state.doc.lineAt(lineFrom).number - 1;
+  const lines = state.doc.toString().split("\n");
+  return getFoldRangeAtLine(lines, lineIndex) !== null;
+}
+
 function buildFoldGutterMarkers(view: EditorView) {
   const { state } = view;
   const builder = new RangeSetBuilder<GutterMarker>();
@@ -93,7 +99,7 @@ function buildFoldGutterMarkers(view: EditorView) {
       builder.add(line.from, line.from, closedMarker);
       continue;
     }
-    if (foldable(state, line.from, line.to)) {
+    if (isFoldHeaderLine(state, line.from)) {
       builder.add(line.from, line.from, openMarker);
     }
   }
@@ -144,9 +150,14 @@ export function lessonFoldGutter() {
             view.dispatch({ effects: unfoldEffect.of(folded) });
             return true;
           }
-          const range = foldable(view.state, line.from, line.to);
-          if (range) {
-            view.dispatch({ effects: foldEffect.of(range) });
+          const lineIndex = view.state.doc.lineAt(line.from).number - 1;
+          const lines = view.state.doc.toString().split("\n");
+          const foldRange = getFoldRangeAtLine(lines, lineIndex);
+          if (!foldRange) return false;
+          const from = view.state.doc.line(foldRange.fromLineIndex + 1).from;
+          const to = view.state.doc.line(foldRange.toLineIndex + 1).to;
+          if (from < to) {
+            view.dispatch({ effects: foldEffect.of({ from, to }) });
             return true;
           }
           return false;

@@ -9,14 +9,14 @@ import "highlight.js/styles/github.min.css";
 import { GitCompare, Code, Eye, Edit3 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { getLessonBody } from "@/lib/lesson-frontmatter";
+import { getLessonBody, type LessonMetaFields } from "@/lib/lesson-frontmatter";
 import { LessonMetaDialog } from "@/components/workspace/LessonMetaDialog";
 import { LessonDiffView } from "@/components/workspace/LessonDiffView";
 import { PaneWheelRoot } from "@/components/workspace/PaneWheelRoot";
 import type { LessonContentEditorHandle } from "@/components/workspace/LessonContentEditor";
 import type { Lesson } from "@/lib/schema";
 import type { Pane3Mode } from "@/components/workspace/Workspace";
-import type { LessonMetaFields } from "@/lib/lesson-frontmatter";
+import { lessonPreviewMarkdownComponents } from "@/lib/lesson-preview-markdown";
 
 const LessonContentEditor = dynamic(
   () =>
@@ -228,6 +228,7 @@ export function MarkdownEditorPane({
               <ReactMarkdown
                 remarkPlugins={[remarkGfm]}
                 rehypePlugins={[rehypeHighlight]}
+                components={lessonPreviewMarkdownComponents}
               >
                 {previewBody}
               </ReactMarkdown>

@@ -10,7 +10,7 @@ import { MarkdownEditorPane } from "@/components/workspace/MarkdownEditorPane";
 import { ImageManagerPane } from "@/components/workspace/ImageManagerPane";
 import { PaneResizeHandle } from "@/components/workspace/PaneResizeHandle";
 import { useWorkspacePaneWidths } from "@/components/workspace/use-workspace-pane-widths";
-import type { Series, Course, Lesson, ImageAsset } from "@/lib/schema";
+import type { Series, Course, Lesson } from "@/lib/schema";
 import {
   applyCrossSeriesCourseMetaEdit,
   filterCrossSeriesIds,
@@ -48,19 +48,16 @@ function Pane1ResizeHandle({
 
 type WorkspaceProps = {
   initialSeries: Series[];
-  initialImages: ImageAsset[];
   workspace: { name: string; icon: string };
 };
 
 export function Workspace({
   initialSeries,
-  initialImages,
   workspace,
 }: WorkspaceProps) {
   const [series, setSeries] = useState<Series[]>(() =>
     normalizeAllLessonsInSeries(normalizeSeriesCourseMeta(initialSeries)),
   );
-  const [imageHistory, setImageHistory] = useState<ImageAsset[]>(initialImages);
   const [pane4ManuallyClosed, setPane4ManuallyClosed] = useState(false);
   const [pane3Mode, setPane3Mode] = useState<Pane3Mode>("raw");
   const { paneWidths, isResizing, resizeHandleProps } =
@@ -389,11 +386,6 @@ export function Workspace({
     );
   }, []);
 
-  // 画像追加（Pane4 から）
-  const addImage = useCallback((asset: ImageAsset) => {
-    setImageHistory((prev) => [asset, ...prev]);
-  }, []);
-
   // 画像挿入コールバック登録（Pane3 → Pane4 の橋渡し）
   const registerInsertCallback = useCallback(
     (cb: (markdown: string) => void) => {
@@ -403,10 +395,13 @@ export function Workspace({
   );
 
   const insertImageMarkdown = useCallback(
-    (markdown: string) => {
-      insertCallback?.(markdown);
+    (markdown: string): boolean => {
+      if (pane3Mode !== "raw") return false;
+      if (!insertCallback) return false;
+      insertCallback(markdown);
+      return true;
     },
-    [insertCallback],
+    [pane3Mode, insertCallback],
   );
 
   const selectedSeriesName = useMemo(() => {
@@ -500,8 +495,8 @@ export function Workspace({
                 style={{ width: paneWidths.pane4 }}
               >
                 <ImageManagerPane
-                  imageHistory={imageHistory}
-                  onAddImage={addImage}
+                  series={series}
+                  pane3Mode={pane3Mode}
                   onInsertImage={insertImageMarkdown}
                   pane4Open={pane4Open}
                   onTogglePane4={() => setPane4ManuallyClosed((v) => !v)}
@@ -510,8 +505,8 @@ export function Workspace({
             </>
           ) : (
             <ImageManagerPane
-              imageHistory={imageHistory}
-              onAddImage={addImage}
+              series={series}
+              pane3Mode={pane3Mode}
               onInsertImage={insertImageMarkdown}
               pane4Open={pane4Open}
               onTogglePane4={() => setPane4ManuallyClosed((v) => !v)}

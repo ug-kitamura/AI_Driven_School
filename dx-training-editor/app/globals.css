@@ -316,4 +316,8 @@
     max-width: none;
     height: auto;
   }
+
+  .lesson-content-editor .cm-editor {
+    background-color: color-mix(in oklab, var(--muted) 20%, transparent);
+  }
 }

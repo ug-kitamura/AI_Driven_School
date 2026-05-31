@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, useCallback, useMemo } from "react";
+import dynamic from "next/dynamic";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { GitCompare, Code, Eye, Edit3 } from "lucide-react";
@@ -9,9 +10,25 @@ import { cn } from "@/lib/utils";
 import { getLessonBody } from "@/lib/lesson-frontmatter";
 import { LessonMetaDialog } from "@/components/workspace/LessonMetaDialog";
 import { PaneWheelRoot } from "@/components/workspace/PaneWheelRoot";
+import type { LessonContentEditorHandle } from "@/components/workspace/LessonContentEditor";
 import type { Lesson } from "@/lib/schema";
 import type { Pane3Mode } from "@/components/workspace/Workspace";
 import type { LessonMetaFields } from "@/lib/lesson-frontmatter";
+
+const LessonContentEditor = dynamic(
+  () =>
+    import("@/components/workspace/LessonContentEditor").then(
+      (m) => m.LessonContentEditor,
+    ),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
+        エディタを読み込み中...
+      </div>
+    ),
+  },
+);
 
 type Props = {
   lesson: Lesson | undefined;
@@ -48,8 +65,7 @@ export function MarkdownEditorPane({
   onRegisterInsertCallback,
   tagSuggestions = [],
 }: Props) {
-  const textareaRef = useRef<HTMLTextAreaElement>(null);
-  const gutterRef = useRef<HTMLDivElement>(null);
+  const editorRef = useRef<LessonContentEditorHandle>(null);
   const paneScrollRef = useRef<HTMLElement | null>(null);
   const [diffContent, setDiffContent] = useState<string>("");
   const [diffLoading, setDiffLoading] = useState(false);
@@ -62,38 +78,26 @@ export function MarkdownEditorPane({
 
   const editContent = lesson?.content ?? "";
 
-  const lineNumbers = useMemo(() => {
-    const count = Math.max(1, editContent.split("\n").length);
-    return Array.from({ length: count }, (_, i) => i + 1);
-  }, [editContent]);
-
   const insertAtCursor = useCallback(
     (markdown: string) => {
-      const ta = textareaRef.current;
-      if (!ta || !lesson) return;
-      const start = ta.selectionStart;
-      const end = ta.selectionEnd;
-      const before = editContent.slice(0, start);
-      const after = editContent.slice(end);
-      onUpdateContent(lesson.id, before + markdown + after);
-      requestAnimationFrame(() => {
-        const pos = start + markdown.length;
-        ta.setSelectionRange(pos, pos);
-        ta.focus();
-      });
+      editorRef.current?.insertAtCursor(markdown);
     },
-    [editContent, lesson, onUpdateContent],
+    [],
   );
 
   useEffect(() => {
     onRegisterInsertCallback(insertAtCursor);
   }, [onRegisterInsertCallback, insertAtCursor]);
 
-  const syncGutterScroll = useCallback(() => {
-    const ta = textareaRef.current;
-    const gutter = gutterRef.current;
-    if (ta && gutter) gutter.scrollTop = ta.scrollTop;
+  const handleScrollElementReady = useCallback((element: HTMLElement | null) => {
+    paneScrollRef.current = element;
   }, []);
+
+  useEffect(() => {
+    if (mode !== "raw") {
+      paneScrollRef.current = null;
+    }
+  }, [mode]);
 
   useEffect(() => {
     if (mode !== "diff" || !lesson) {
@@ -163,27 +167,13 @@ export function MarkdownEditorPane({
 
       <div className="min-h-0 flex-1 overflow-hidden">
         {mode === "raw" && (
-          <div className="flex h-full min-h-0 min-w-0">
-            <div
-              ref={gutterRef}
-              aria-hidden
-              className="shrink-0 overflow-hidden bg-muted/20 px-2 py-3 text-right font-mono text-[11px] leading-[1.375rem] text-muted-foreground/50 tabular-nums select-none"
-            >
-              {lineNumbers.map((n) => (
-                <div key={n}>{n}</div>
-              ))}
-            </div>
-            <textarea
-              ref={(el) => {
-                textareaRef.current = el;
-                paneScrollRef.current = el;
-              }}
+          <div className="flex h-full min-h-0 min-w-0 bg-muted/20">
+            <LessonContentEditor
+              ref={editorRef}
+              lessonId={lesson.id}
               value={editContent}
-              onChange={(e) => onUpdateContent(lesson.id, e.target.value)}
-              onScroll={syncGutterScroll}
-              className="h-full min-w-0 flex-1 resize-none overflow-y-auto overscroll-y-contain bg-muted/20 px-4 py-3 font-mono text-sm leading-[1.375rem] text-foreground outline-none"
-              placeholder="フロントマターとマークダウン本文..."
-              spellCheck={false}
+              onChange={(content) => onUpdateContent(lesson.id, content)}
+              onScrollElementReady={handleScrollElementReady}
             />
           </div>
         )}

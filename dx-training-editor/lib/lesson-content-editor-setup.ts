@@ -36,7 +36,7 @@ const lessonEditorLayout = EditorView.theme(
     ".cm-gutters": {
       backgroundColor: "color-mix(in oklab, var(--muted) 20%, transparent)",
       borderRight: "none",
-      color: LESSON_LINE_NUMBER,
+      color: `${LESSON_LINE_NUMBER} !important`,
       fontSize: "11px",
       lineHeight: "1.375rem",
     },
@@ -49,6 +49,15 @@ const lessonEditorLayout = EditorView.theme(
     },
     ".lesson-fold-gutter .cm-gutterElement:has(.lesson-fold-icon)": {
       cursor: "pointer",
+    },
+    ".cm-foldGutter.lesson-fold-gutter .lesson-fold-icon": {
+      color: `${LESSON_LINE_NUMBER} !important`,
+    },
+    ".cm-foldGutter.lesson-fold-gutter span.lesson-fold-open": {
+      color: `${LESSON_LINE_NUMBER} !important`,
+    },
+    ".cm-foldGutter.lesson-fold-gutter span.lesson-fold-closed": {
+      color: `${LESSON_LINE_NUMBER} !important`,
     },
     /* ▼: 折りたたみ列ホバー時に全セクション+FM 分を表示 ▶: 常時 */
     ".lesson-fold-gutter span.lesson-fold-open": {

@@ -5,6 +5,7 @@ import {
   unfoldEffect,
 } from "@codemirror/language";
 import { getFoldRangeAtLine } from "@/lib/markdown-fold-ranges";
+import { LESSON_LINE_NUMBER } from "@/lib/lesson-active-line-number";
 import {
   GutterMarker,
   ViewPlugin,
@@ -20,6 +21,11 @@ import {
 
 const FOLD_OPEN = "▼";
 const FOLD_CLOSED = "▶";
+
+function styleFoldIcon(span: HTMLElement) {
+  span.style.color = LESSON_LINE_NUMBER;
+  span.style.setProperty("-webkit-text-fill-color", LESSON_LINE_NUMBER);
+}
 
 /** 折りたたみ範囲の先頭文字位置 → 見出し行（折りたたみ操作行）の先頭 */
 function foldHeaderPos(state: EditorState, foldFrom: number): number {
@@ -50,6 +56,7 @@ class LessonFoldOpenMarker extends GutterMarker {
     span.textContent = FOLD_OPEN;
     span.className = "lesson-fold-icon lesson-fold-open";
     span.setAttribute("aria-hidden", "true");
+    styleFoldIcon(span);
     return span;
   }
 }
@@ -63,6 +70,7 @@ class LessonFoldClosedMarker extends GutterMarker {
     span.textContent = FOLD_CLOSED;
     span.className = "lesson-fold-icon lesson-fold-closed";
     span.setAttribute("aria-hidden", "true");
+    styleFoldIcon(span);
     return span;
   }
 }

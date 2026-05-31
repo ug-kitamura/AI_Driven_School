@@ -39,3 +39,7 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# Pane4 staging images (promote 先は track 対象)
+/images/**/_staging/**
+!/images/**/_staging/.gitkeep

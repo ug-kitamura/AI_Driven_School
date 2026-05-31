@@ -57,10 +57,13 @@ export type Series = z.infer<typeof seriesSchema>;
 
 // ===== 画像アセット =====
 
+export const imageSourceSchema = z.enum(["uploaded", "ai", "web"]);
+export type ImageSource = z.infer<typeof imageSourceSchema>;
+
 export const imageAssetSchema = z.object({
-  id: z.string(),
+  path: z.string(),
   name: z.string(),
-  dataUrl: z.string(),
+  source: imageSourceSchema,
   uploadedAt: z.string(),
 });
 export type ImageAsset = z.infer<typeof imageAssetSchema>;
@@ -68,7 +71,6 @@ export type ImageAsset = z.infer<typeof imageAssetSchema>;
 // ===== JSON 全体用スキーマ =====
 
 export const seriesArraySchema = z.array(seriesSchema);
-export const imageAssetsSchema = z.array(imageAssetSchema);
 export const workspaceSchema = z.object({
   name: z.string(),
   icon: z.string(),

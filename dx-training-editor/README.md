@@ -42,7 +42,7 @@ app/
   page.tsx              JSON 読み込み・Zod 検証・Workspace に渡す
   layout.tsx            タイトル / favicon
   globals.css           カラートークン定義
-  api/git-diff/         git diff API ルート
+  api/lesson-diff/      レッスン content の HEAD vs 現在 diff API
 components/workspace/
   Workspace.tsx         中央状態管理（SSoT）
   SeriesCoursePane.tsx  Pane 1

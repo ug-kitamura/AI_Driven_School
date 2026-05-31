@@ -295,11 +295,15 @@
   }
 
   .lesson-preview pre {
-    @apply my-4 overflow-x-auto rounded-lg bg-slate-900 p-4 text-slate-100;
+    @apply my-4 overflow-x-auto rounded-lg border border-border bg-muted/30 p-4;
   }
 
   .lesson-preview pre code {
-    @apply bg-transparent p-0 text-inherit;
+    @apply bg-transparent p-0 font-mono;
+  }
+
+  .lesson-preview pre code.hljs {
+    @apply bg-transparent text-inherit;
   }
 
   .lesson-preview blockquote {
@@ -310,10 +314,148 @@
     @apply my-6 border-border;
   }
 
+  .lesson-preview table {
+    @apply my-4 w-full border-collapse border border-border text-sm;
+  }
+
+  .lesson-preview th,
+  .lesson-preview td {
+    @apply border border-border px-3 py-2 text-left align-top;
+  }
+
+  .lesson-preview th {
+    @apply bg-muted/40 font-semibold text-foreground;
+  }
+
   /* グローバル曼陀羅: 横スクロール時も SVG 実寸で表示（ミニ曼陀羅は対象外） */
   .global-mandala-graph svg {
     display: block;
     max-width: none;
     height: auto;
   }
+
+  .lesson-content-editor .cm-editor {
+    background-color: color-mix(in oklab, var(--muted) 20%, transparent);
+  }
+}
+
+/* FM: @layer 外 + !important（CodeMirror シンタックスハイライトより優先） */
+.lesson-content-editor .cm-frontmatter-fade,
+.lesson-content-editor .cm-frontmatter-fade * {
+  color: color-mix(in oklab, var(--muted-foreground) 88%, transparent) !important;
+}
+
+/* 折りたたみガター: 行番号と同色（CM 既定 #6c6c6c を上書き） */
+.lesson-content-editor .cm-foldGutter.lesson-fold-gutter .lesson-fold-icon,
+.lesson-content-editor .cm-foldGutter.lesson-fold-gutter span.lesson-fold-open,
+.lesson-content-editor .cm-foldGutter.lesson-fold-gutter span.lesson-fold-closed {
+  display: inline-block;
+  min-width: 1ch;
+  text-align: center;
+  font-size: 11px;
+  line-height: 1.375rem;
+  color: #237893 !important;
+  -webkit-text-fill-color: #237893 !important;
+}
+
+.lesson-content-editor .lesson-fold-gutter span.lesson-fold-open {
+  opacity: 0 !important;
+  pointer-events: none;
+  transition: opacity 0.12s ease;
+}
+
+.lesson-content-editor
+  .lesson-fold-gutter.lesson-fold-gutter-column-hovered
+  span.lesson-fold-open {
+  opacity: 1 !important;
+  pointer-events: none;
+}
+
+.lesson-content-editor .lesson-fold-gutter span.lesson-fold-closed {
+  opacity: 1 !important;
+}
+
+/* 折りたたみプレースホルダー: 「…」テキストのみ背景付き・クリック可能 */
+.lesson-content-editor .cm-foldPlaceholder.lesson-fold-placeholder {
+  display: inline;
+  margin: 0;
+  padding: 0 0.2em;
+  border: none;
+  border-radius: 0.125rem;
+  background-color: color-mix(in oklab, var(--muted) 45%, transparent);
+  color: var(--muted-foreground);
+  cursor: pointer;
+  user-select: none;
+}
+
+.lesson-content-editor .cm-foldPlaceholder.lesson-fold-placeholder:hover {
+  background-color: color-mix(in oklab, var(--muted) 65%, transparent);
+  color: var(--foreground);
+}
+
+/* カーソル行: 行番号・折りガター・本文（CM 標準クラスではなく独自マーカー） */
+.lesson-content-editor .cm-gutterElement.lesson-active-line-gutter,
+.lesson-content-editor .cm-line.lesson-active-line {
+  background-color: color-mix(in oklab, var(--muted) 50%, transparent) !important;
+}
+
+/* 行番号のみ太字（テキスト色は変更しない） */
+.lesson-content-editor .cm-lineNumbers .cm-gutterElement.lesson-active-line-number {
+  font-weight: 700;
+}
+
+/* Pane3 差分: 編集モード .cm-lineNumbers + 行番号列と本文間の空白ガター */
+.lesson-diff-view {
+  font-family:
+    ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono",
+    "Courier New", monospace;
+  font-size: 0.875rem;
+  line-height: 1.375rem;
+  overscroll-behavior: contain;
+}
+
+.lesson-diff-view .lesson-diff-row {
+  display: flex;
+  min-height: 1.375rem;
+}
+
+.lesson-diff-view .lesson-diff-gutters {
+  display: flex;
+  flex-shrink: 0;
+  box-sizing: border-box;
+}
+
+.lesson-diff-view .lesson-diff-gutter-element {
+  box-sizing: border-box;
+  min-width: 20px;
+  padding: 0 3px 0 5px;
+  text-align: right;
+  white-space: nowrap;
+  font-size: 11px;
+  line-height: 1.375rem;
+  color: #237893;
+  user-select: none;
+}
+
+/* 2列目の行番号と差分本文の間（編集モード .cm-line の padding-left: 6px 相当） */
+.lesson-diff-view .lesson-diff-gutter-spacer {
+  flex: 0 0 12px;
+  box-sizing: border-box;
+}
+
+.lesson-diff-view .lesson-diff-marker {
+  box-sizing: border-box;
+  flex: 0 0 12px;
+  padding: 0 2px 0 0;
+  text-align: center;
+  line-height: 1.375rem;
+  user-select: none;
+}
+
+.lesson-diff-view .lesson-diff-content {
+  min-width: 0;
+  flex: 1;
+  padding: 0 2px 0 0;
+  white-space: pre-wrap;
+  word-break: break-word;
 }

@@ -80,18 +80,6 @@ const closedMarker = new LessonFoldClosedMarker();
 
 type FoldRange = { from: number; to: number };
 
-function findFoldOnLine(
-  state: EditorState,
-  lineFrom: number,
-  lineTo: number,
-): FoldRange | null {
-  let found: FoldRange | null = null;
-  state.field(foldState, false)?.between(lineFrom, lineTo, (from, to) => {
-    if (!found || found.from > from) found = { from, to };
-  });
-  return found;
-}
-
 function findFoldAtPos(state: EditorState, pos: number): FoldRange | null {
   let found: FoldRange | null = null;
   state.field(foldState, false)?.between(pos, pos, (from, to) => {
@@ -107,31 +95,16 @@ function unfoldAtEvent(view: EditorView, event: Event, fold: FoldRange): boolean
   return true;
 }
 
-/** 折りたたみプレースホルダー行のクリックを確実に展開へつなぐ */
+/** 「…」プレースホルダー上の mousedown で行選択より先に展開する */
 function lessonFoldPlaceholderClickHandler() {
   return EditorView.domEventHandlers({
     mousedown(event, view) {
       if (event.button !== 0) return false;
-
       const target = event.target as HTMLElement;
-      if (target.closest(".cm-foldPlaceholder")) {
-        const pos = view.posAtDOM(target);
-        const fold = findFoldAtPos(view.state, pos);
-        return fold ? unfoldAtEvent(view, event, fold) : false;
-      }
-
-      const coords = { x: event.clientX, y: event.clientY };
-      const pos = view.posAtCoords(coords);
-      if (pos == null) return false;
-
-      const lineBlock = view.lineBlockAt(pos);
-      const fold = findFoldOnLine(view.state, lineBlock.from, lineBlock.to);
-      if (!fold) return false;
-
-      const line = view.state.doc.lineAt(lineBlock.from);
-      if (fold.from !== line.from) return false;
-
-      return unfoldAtEvent(view, event, fold);
+      if (!target.closest(".cm-foldPlaceholder")) return false;
+      const pos = view.posAtDOM(target);
+      const fold = findFoldAtPos(view.state, pos);
+      return fold ? unfoldAtEvent(view, event, fold) : false;
     },
   });
 }
@@ -143,8 +116,6 @@ function createFoldPlaceholderDOM(
   const span = document.createElement("span");
   span.textContent = "…";
   span.className = "cm-foldPlaceholder lesson-fold-placeholder";
-  span.setAttribute("aria-label", "折りたたまれた内容（クリックで展開）");
-  span.title = "クリックで展開";
   const handle = (event: Event) => {
     event.preventDefault();
     event.stopPropagation();

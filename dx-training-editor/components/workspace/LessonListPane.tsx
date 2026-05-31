@@ -461,11 +461,8 @@ export function LessonListPane({
 
         <div className="text-xs">
           <div className="flex gap-1">
-            <span className="w-8 flex-shrink-0 text-muted-foreground">
-              対象:
-            </span>
-            <span className="truncate text-foreground">
-              {course.target_audience || "—"}
+            <span className="truncate text-foreground text-muted-foreground">
+              対象: {course.target_audience || "—"}
             </span>
           </div>
         </div>

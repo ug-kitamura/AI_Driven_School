@@ -4,6 +4,8 @@ import { useEffect, useRef, useState, useCallback, useMemo } from "react";
 import dynamic from "next/dynamic";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+import rehypeHighlight from "rehype-highlight";
+import "highlight.js/styles/github.min.css";
 import { GitCompare, Code, Eye, Edit3 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -186,7 +188,12 @@ export function MarkdownEditorPane({
             className="h-full overflow-y-auto overscroll-y-contain px-6 py-5"
           >
             <div className={LESSON_PREVIEW_CLASS}>
-              <ReactMarkdown remarkPlugins={[remarkGfm]}>{previewBody}</ReactMarkdown>
+              <ReactMarkdown
+                remarkPlugins={[remarkGfm]}
+                rehypePlugins={[rehypeHighlight]}
+              >
+                {previewBody}
+              </ReactMarkdown>
             </div>
           </div>
         )}

@@ -1,7 +1,7 @@
 import { markdown, markdownLanguage, markdownKeymap } from "@codemirror/lang-markdown";
 import { keymap } from "@codemirror/view";
-import { yaml } from "@codemirror/lang-yaml";
-import { foldService, LanguageDescription } from "@codemirror/language";
+import { languages } from "@codemirror/language-data";
+import { foldService } from "@codemirror/language";
 import { lessonFoldGutter } from "@/lib/lesson-fold-gutter";
 import { EditorView, lineNumbers } from "@codemirror/view";
 import type { EditorState } from "@codemirror/state";
@@ -120,13 +120,7 @@ export function buildLessonEditorExtensions() {
     lessonMarkdownFold,
     markdown({
       base: markdownLanguage,
-      codeLanguages: [
-        LanguageDescription.of({
-          name: "yaml",
-          alias: ["yml"],
-          load: () => Promise.resolve(yaml()),
-        }),
-      ],
+      codeLanguages: languages,
     }),
     keymap.of(markdownKeymap),
     EditorView.lineWrapping,

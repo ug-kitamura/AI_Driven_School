@@ -7,10 +7,10 @@ import {
 import { getFoldRangeAtLine } from "@/lib/markdown-fold-ranges";
 import { LESSON_LINE_NUMBER } from "@/lib/lesson-active-line-number";
 import {
+  EditorView,
   GutterMarker,
   ViewPlugin,
   gutter,
-  type EditorView,
   type ViewUpdate,
 } from "@codemirror/view";
 import {
@@ -77,6 +77,82 @@ class LessonFoldClosedMarker extends GutterMarker {
 
 const openMarker = new LessonFoldOpenMarker();
 const closedMarker = new LessonFoldClosedMarker();
+
+type FoldRange = { from: number; to: number };
+
+function findFoldOnLine(
+  state: EditorState,
+  lineFrom: number,
+  lineTo: number,
+): FoldRange | null {
+  let found: FoldRange | null = null;
+  state.field(foldState, false)?.between(lineFrom, lineTo, (from, to) => {
+    if (!found || found.from > from) found = { from, to };
+  });
+  return found;
+}
+
+function findFoldAtPos(state: EditorState, pos: number): FoldRange | null {
+  let found: FoldRange | null = null;
+  state.field(foldState, false)?.between(pos, pos, (from, to) => {
+    found = { from, to };
+  });
+  return found;
+}
+
+function unfoldAtEvent(view: EditorView, event: Event, fold: FoldRange): boolean {
+  event.preventDefault();
+  event.stopPropagation();
+  view.dispatch({ effects: unfoldEffect.of(fold) });
+  return true;
+}
+
+/** 折りたたみプレースホルダー行のクリックを確実に展開へつなぐ */
+function lessonFoldPlaceholderClickHandler() {
+  return EditorView.domEventHandlers({
+    mousedown(event, view) {
+      if (event.button !== 0) return false;
+
+      const target = event.target as HTMLElement;
+      if (target.closest(".cm-foldPlaceholder")) {
+        const pos = view.posAtDOM(target);
+        const fold = findFoldAtPos(view.state, pos);
+        return fold ? unfoldAtEvent(view, event, fold) : false;
+      }
+
+      const coords = { x: event.clientX, y: event.clientY };
+      const pos = view.posAtCoords(coords);
+      if (pos == null) return false;
+
+      const lineBlock = view.lineBlockAt(pos);
+      const fold = findFoldOnLine(view.state, lineBlock.from, lineBlock.to);
+      if (!fold) return false;
+
+      const line = view.state.doc.lineAt(lineBlock.from);
+      if (fold.from !== line.from) return false;
+
+      return unfoldAtEvent(view, event, fold);
+    },
+  });
+}
+
+function createFoldPlaceholderDOM(
+  _view: EditorView,
+  onclick: (event: Event) => void,
+): HTMLElement {
+  const span = document.createElement("span");
+  span.textContent = "…";
+  span.className = "cm-foldPlaceholder lesson-fold-placeholder";
+  span.setAttribute("aria-label", "折りたたまれた内容（クリックで展開）");
+  span.title = "クリックで展開";
+  const handle = (event: Event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    onclick(event);
+  };
+  span.addEventListener("mousedown", handle);
+  return span;
+}
 
 /** 折りたたみ列にマウスがある間、全 ▼（見出し + FM）を表示 */
 const FOLD_GUTTER_COLUMN_HOVER_CLASS = "lesson-fold-gutter-column-hovered";
@@ -172,6 +248,7 @@ export function lessonFoldGutter() {
         },
       },
     }),
-    codeFolding(),
+    codeFolding({ placeholderDOM: createFoldPlaceholderDOM }),
+    lessonFoldPlaceholderClickHandler(),
   ];
 }

@@ -67,11 +67,14 @@ export function LessonDiffView({ diff, className }: Props) {
             key={`line-${line.index}`}
             className="lesson-diff-row flex min-h-[1.375rem]"
           >
-            <div className="lesson-diff-line-number shrink-0 tabular-nums">
-              {formatLineNumber(line.oldLineNumber)}
-            </div>
-            <div className="lesson-diff-line-number shrink-0 tabular-nums">
-              {formatLineNumber(line.newLineNumber)}
+            <div className="lesson-diff-gutters shrink-0">
+              <div className="lesson-diff-gutter-element tabular-nums">
+                {formatLineNumber(line.oldLineNumber)}
+              </div>
+              <div className="lesson-diff-gutter-element tabular-nums">
+                {formatLineNumber(line.newLineNumber)}
+              </div>
+              <div className="lesson-diff-gutter-spacer" aria-hidden />
             </div>
             <DiffContentCell line={line} />
           </div>

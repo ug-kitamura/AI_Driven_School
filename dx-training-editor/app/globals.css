@@ -404,7 +404,7 @@
   font-weight: 700;
 }
 
-/* Pane3 差分: 編集モードと同じ行番号色・行高（HEAD / 現在の2列） */
+/* Pane3 差分: 編集モード .cm-lineNumbers + 行番号列と本文間の空白ガター */
 .lesson-diff-view {
   background-color: color-mix(in oklab, var(--muted) 20%, transparent);
   font-family:
@@ -420,19 +420,36 @@
   min-height: 1.375rem;
 }
 
-.lesson-diff-view .lesson-diff-line-number {
+.lesson-diff-view .lesson-diff-gutters {
+  display: flex;
+  flex-shrink: 0;
   box-sizing: border-box;
-  min-width: 2.5rem;
-  padding: 0 0.5rem 0 0.25rem;
+  background-color: color-mix(in oklab, var(--muted) 20%, transparent);
+}
+
+.lesson-diff-view .lesson-diff-gutter-element {
+  box-sizing: border-box;
+  min-width: 20px;
+  padding: 0 3px 0 5px;
   text-align: right;
+  white-space: nowrap;
   font-size: 11px;
   line-height: 1.375rem;
   color: #237893;
   user-select: none;
 }
 
+/* 2列目の行番号と差分本文の間（編集モード .cm-line の padding-left: 6px 相当） */
+.lesson-diff-view .lesson-diff-gutter-spacer {
+  flex: 0 0 6px;
+  box-sizing: border-box;
+  background-color: color-mix(in oklab, var(--muted) 20%, transparent);
+}
+
 .lesson-diff-view .lesson-diff-content {
-  padding-right: 1rem;
+  min-width: 0;
+  flex: 1;
+  padding: 0 2px 0 0;
   white-space: pre-wrap;
   word-break: break-word;
 }

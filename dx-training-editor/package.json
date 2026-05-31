@@ -9,7 +9,6 @@
     "lint": "eslint",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "check:radius": "node scripts/check-radius-drift.mjs",
     "test": "vitest run",
     "test:watch": "vitest"
   },

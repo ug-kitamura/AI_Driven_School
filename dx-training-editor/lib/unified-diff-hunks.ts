@@ -37,6 +37,10 @@ export function parseHunkHeader(
   return { oldStart: Number(match[1]), newStart: Number(match[2]) };
 }
 
+export function isDiffDisplayLine(kind: DiffLineKind): boolean {
+  return kind === "add" || kind === "remove" || kind === "context";
+}
+
 export function parseUnifiedDiff(diff: string): ParsedDiffLine[] {
   if (!diff) return [];
 

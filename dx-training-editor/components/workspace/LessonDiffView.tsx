@@ -4,6 +4,7 @@ import { useMemo } from "react";
 import { cn } from "@/lib/utils";
 import {
   formatLineNumber,
+  isDiffDisplayLine,
   parseUnifiedDiff,
   type DiffLineKind,
   type ParsedDiffLine,
@@ -55,7 +56,10 @@ function DiffContentCell({ line }: { line: ParsedDiffLine }) {
 }
 
 export function LessonDiffView({ diff, className }: Props) {
-  const lines = useMemo(() => parseUnifiedDiff(diff), [diff]);
+  const lines = useMemo(
+    () => parseUnifiedDiff(diff).filter((line) => isDiffDisplayLine(line.kind)),
+    [diff],
+  );
 
   if (!diff.trim()) {
     return (

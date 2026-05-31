@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { parseHunkHeader, parseUnifiedDiff } from "@/lib/unified-diff-hunks";
+import { parseHunkHeader, parseUnifiedDiff, isDiffDisplayLine } from "@/lib/unified-diff-hunks";
 
 const SAMPLE = [
   "--- a/file.md",
@@ -54,5 +54,17 @@ describe("parseUnifiedDiff", () => {
       oldLineNumber: 5,
       newLineNumber: 6,
     });
+  });
+
+  it("filters display lines to content only", () => {
+    const lines = parseUnifiedDiff(SAMPLE).filter((line) =>
+      isDiffDisplayLine(line.kind),
+    );
+    expect(lines.map((line) => line.kind)).toEqual([
+      "context",
+      "remove",
+      "add",
+      "context",
+    ]);
   });
 });

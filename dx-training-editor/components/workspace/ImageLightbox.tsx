@@ -50,10 +50,10 @@ export function ImageLightbox({
             }}
           />
         </div>
+        <p className="truncate text-xs text-muted-foreground">{path}</p>
         {sizeLabel ? (
           <p className="text-xs tabular-nums text-muted-foreground">{sizeLabel}</p>
         ) : null}
-        <p className="truncate text-xs text-muted-foreground">{path}</p>
         {statusLabel ? (
           <p className="text-xs text-muted-foreground">{statusLabel}</p>
         ) : null}

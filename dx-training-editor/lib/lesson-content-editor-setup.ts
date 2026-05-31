@@ -10,6 +10,10 @@ import { EditorView, lineNumbers } from "@codemirror/view";
 import type { EditorState } from "@codemirror/state";
 import { vscodeLight } from "@uiw/codemirror-theme-vscode";
 import { getFoldRangeAtLine } from "@/lib/markdown-fold-ranges";
+import {
+  frontmatterEditorTheme,
+  frontmatterHighlight,
+} from "@/lib/lesson-frontmatter-highlight";
 
 const lessonEditorLayout = EditorView.theme(
   {
@@ -80,5 +84,7 @@ export function buildLessonEditorExtensions() {
     }),
     keymap.of(markdownKeymap),
     EditorView.lineWrapping,
+    frontmatterHighlight,
+    frontmatterEditorTheme,
   ];
 }

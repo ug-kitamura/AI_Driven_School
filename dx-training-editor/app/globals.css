@@ -321,3 +321,9 @@
     background-color: color-mix(in oklab, var(--muted) 20%, transparent);
   }
 }
+
+/* FM: @layer 外 + !important（CodeMirror シンタックスハイライトより優先） */
+.lesson-content-editor .cm-frontmatter-fade,
+.lesson-content-editor .cm-frontmatter-fade * {
+  color: color-mix(in oklab, var(--muted-foreground) 88%, transparent) !important;
+}

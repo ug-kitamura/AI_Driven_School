@@ -26,7 +26,7 @@ Windows では `start.bat` でも起動できる（ブラウザを開いて `npm
 
 GlobalHeader に **DXトレーニング曼陀羅ボタン** があり、全コースの依存グラフをフルスクリーンで表示。ノードをクリックすると対象コースに移動できる。
 
-<img width="1406" height="715" alt="image" src="https://github.com/user-attachments/assets/d481fa5d-c094-4b51-8d54-81d586da04de" />
+<img width="1411" height="732" alt="image" src="https://github.com/user-attachments/assets/4ed6a5e6-a5a1-4f7b-99c6-d406ecf462f7" />
 
 ### Pane 3 のモード
 

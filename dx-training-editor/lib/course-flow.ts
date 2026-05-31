@@ -177,3 +177,225 @@ export function isCrossSeriesLink(
 ): boolean {
   return !isSameSeriesCourse(allSeries, fromCourseId, toCourseId);
 }
+
+function findCourse(allSeries: Series[], courseId: string): Course | undefined {
+  for (const s of allSeries) {
+    const c = s.courses.find((co) => co.id === courseId);
+    if (c) return c;
+  }
+  return undefined;
+}
+
+function cloneSeriesLinkArrays(allSeries: Series[]): Series[] {
+  return allSeries.map((s) => ({
+    ...s,
+    courses: s.courses.map((c) => ({
+      ...c,
+      prerequisites: [...c.prerequisites],
+      next_courses: [...c.next_courses],
+    })),
+  }));
+}
+
+function updateCourseById(
+  allSeries: Series[],
+  courseId: string,
+  patch: (course: Course) => Course,
+): Series[] {
+  return allSeries.map((s) => ({
+    ...s,
+    courses: s.courses.map((c) => (c.id === courseId ? patch(c) : c)),
+  }));
+}
+
+function courseIdsInSameSeries(
+  allSeries: Series[],
+  courseId: string,
+): Set<string> {
+  const parent = findSeriesContainingCourse(allSeries, courseId);
+  if (!parent) return new Set();
+  return new Set(parent.courses.map((c) => c.id));
+}
+
+function removeFromPrerequisites(
+  allSeries: Series[],
+  targetCourseId: string,
+  sourceCourseId: string,
+): Series[] {
+  return updateCourseById(allSeries, targetCourseId, (c) => ({
+    ...c,
+    prerequisites: c.prerequisites.filter((id) => id !== sourceCourseId),
+  }));
+}
+
+function removeFromNextCourses(
+  allSeries: Series[],
+  sourceCourseId: string,
+  targetCourseId: string,
+): Series[] {
+  return updateCourseById(allSeries, sourceCourseId, (c) => ({
+    ...c,
+    next_courses: c.next_courses.filter((id) => id !== targetCourseId),
+  }));
+}
+
+/** 出口元から、ターゲットと同シリーズの他 next を1つに排他しミラーを除去 */
+function removeOtherNextInTargetSeries(
+  allSeries: Series[],
+  sourceCourseId: string,
+  targetCourseId: string,
+): Series[] {
+  const targetParent = findSeriesContainingCourse(allSeries, targetCourseId);
+  if (!targetParent) return allSeries;
+
+  const targetSeriesIds = new Set(targetParent.courses.map((c) => c.id));
+  const source = findCourse(allSeries, sourceCourseId);
+  if (!source) return allSeries;
+
+  let series = allSeries;
+  for (const otherTargetId of source.next_courses) {
+    if (otherTargetId !== targetCourseId && targetSeriesIds.has(otherTargetId)) {
+      series = removeFromPrerequisites(series, otherTargetId, sourceCourseId);
+    }
+  }
+
+  return updateCourseById(series, sourceCourseId, (c) => ({
+    ...c,
+    next_courses: c.next_courses.filter(
+      (id) => id === targetCourseId || !targetSeriesIds.has(id),
+    ),
+  }));
+}
+
+/** source → target の出口リンク: ミラー + ソースシリーズ排他 */
+function establishOutgoingLink(
+  allSeries: Series[],
+  sourceCourseId: string,
+  targetCourseId: string,
+): Series[] {
+  const parent = findSeriesContainingCourse(allSeries, sourceCourseId);
+  if (!parent) return allSeries;
+
+  let series = allSeries;
+  const sameSeriesIds = courseIdsInSameSeries(series, sourceCourseId);
+
+  for (const c of parent.courses) {
+    if (c.id === sourceCourseId) continue;
+    series = updateCourseById(series, c.id, (course) => ({
+      ...course,
+      next_courses: course.next_courses.filter((id) => id !== targetCourseId),
+    }));
+  }
+
+  series = updateCourseById(series, targetCourseId, (c) => {
+    const prereqs = c.prerequisites.filter((id) => !sameSeriesIds.has(id));
+    if (!prereqs.includes(sourceCourseId)) {
+      prereqs.push(sourceCourseId);
+    }
+    return { ...c, prerequisites: prereqs };
+  });
+
+  series = updateCourseById(series, sourceCourseId, (c) => ({
+    ...c,
+    next_courses: c.next_courses.includes(targetCourseId)
+      ? c.next_courses
+      : [...c.next_courses, targetCourseId],
+  }));
+
+  return removeOtherNextInTargetSeries(series, sourceCourseId, targetCourseId);
+}
+
+/** source → target の入口リンク: ミラー + ソースシリーズ排他 */
+function establishIncomingLink(
+  allSeries: Series[],
+  sourceCourseId: string,
+  targetCourseId: string,
+): Series[] {
+  const parent = findSeriesContainingCourse(allSeries, sourceCourseId);
+  if (!parent) return allSeries;
+
+  let series = allSeries;
+  const sameSeriesIds = courseIdsInSameSeries(series, sourceCourseId);
+
+  for (const c of parent.courses) {
+    if (c.id === sourceCourseId) continue;
+    series = updateCourseById(series, c.id, (course) => ({
+      ...course,
+      next_courses: course.next_courses.filter((id) => id !== targetCourseId),
+    }));
+  }
+
+  series = updateCourseById(series, sourceCourseId, (c) => ({
+    ...c,
+    next_courses: c.next_courses.includes(targetCourseId)
+      ? c.next_courses
+      : [...c.next_courses, targetCourseId],
+  }));
+
+  series = updateCourseById(series, targetCourseId, (c) => {
+    const prereqs = c.prerequisites.filter((id) => !sameSeriesIds.has(id));
+    if (!prereqs.includes(sourceCourseId)) {
+      prereqs.push(sourceCourseId);
+    }
+    return { ...c, prerequisites: prereqs };
+  });
+
+  series = removeOtherNextInTargetSeries(series, sourceCourseId, targetCourseId);
+
+  return series;
+}
+
+/**
+ * コースメタ保存時に別シリーズリンクを双方向同期する。
+ * 編集コースの cross prerequisites / next_courses を正とし、ミラー・排他を伝播する。
+ */
+export function applyCrossSeriesCourseMetaEdit(
+  allSeries: Series[],
+  editedCourseId: string,
+  crossPrerequisites: string[],
+  crossNextCourses: string[],
+): Series[] {
+  const edited = findCourse(allSeries, editedCourseId);
+  if (!edited) return allSeries;
+
+  const oldPrerequisites = filterCrossSeriesIds(
+    allSeries,
+    editedCourseId,
+    edited.prerequisites,
+  );
+  const oldNextCourses = filterCrossSeriesIds(
+    allSeries,
+    editedCourseId,
+    edited.next_courses,
+  );
+
+  let series = cloneSeriesLinkArrays(allSeries);
+
+  series = updateCourseById(series, editedCourseId, (c) => ({
+    ...c,
+    prerequisites: [...crossPrerequisites],
+    next_courses: [...crossNextCourses],
+  }));
+
+  for (const targetId of oldNextCourses) {
+    if (!crossNextCourses.includes(targetId)) {
+      series = removeFromPrerequisites(series, targetId, editedCourseId);
+    }
+  }
+
+  for (const sourceId of oldPrerequisites) {
+    if (!crossPrerequisites.includes(sourceId)) {
+      series = removeFromNextCourses(series, sourceId, editedCourseId);
+    }
+  }
+
+  for (const targetId of crossNextCourses) {
+    series = establishOutgoingLink(series, editedCourseId, targetId);
+  }
+
+  for (const sourceId of crossPrerequisites) {
+    series = establishIncomingLink(series, sourceId, editedCourseId);
+  }
+
+  return series;
+}

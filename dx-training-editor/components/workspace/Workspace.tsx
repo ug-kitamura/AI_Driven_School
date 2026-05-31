@@ -12,6 +12,7 @@ import { PaneResizeHandle } from "@/components/workspace/PaneResizeHandle";
 import { useWorkspacePaneWidths } from "@/components/workspace/use-workspace-pane-widths";
 import type { Series, Course, Lesson, ImageAsset } from "@/lib/schema";
 import {
+  applyCrossSeriesCourseMetaEdit,
   filterCrossSeriesIds,
   normalizeSeriesCourseMeta,
 } from "@/lib/course-flow";
@@ -329,17 +330,23 @@ export function Workspace({
       >,
     ) => {
       setSeries((prev) => {
-        const prerequisites = filterCrossSeriesIds(
+        const crossPrerequisites = filterCrossSeriesIds(
           prev,
           courseId,
           meta.prerequisites ?? [],
         );
-        const next_courses = filterCrossSeriesIds(
+        const crossNextCourses = filterCrossSeriesIds(
           prev,
           courseId,
           meta.next_courses ?? [],
         );
-        return prev.map((s) => ({
+        const synced = applyCrossSeriesCourseMetaEdit(
+          prev,
+          courseId,
+          crossPrerequisites,
+          crossNextCourses,
+        );
+        return synced.map((s) => ({
           ...s,
           courses: s.courses.map((c) => {
             if (c.id !== courseId) return c;
@@ -349,8 +356,6 @@ export function Workspace({
               ...c,
               name: newName,
               target_audience: meta.target_audience,
-              prerequisites,
-              next_courses,
               lessons: c.lessons.map((l) =>
                 reconcileLesson({ ...l, course: newName }, ctx),
               ),

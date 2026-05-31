@@ -29,6 +29,24 @@ import { isCrossSeriesLink } from "@/lib/course-flow";
 const safeId = (id: string) => `N_${id.replace(/[^a-zA-Z0-9]/g, "_")}`;
 const safeLabel = (s: string) => s.replace(/"/g, "'");
 
+/** 大規模グラフ向け: デフォルトより一回りコンパクトに描画 */
+const GLOBAL_MANDALA_MERMAID_CONFIG = {
+  startOnLoad: false,
+  theme: "base",
+  securityLevel: "loose",
+  flowchart: {
+    nodeSpacing: 36,
+    rankSpacing: 36,
+    padding: 10,
+    diagramPadding: 8,
+    useMaxWidth: false,
+  },
+  themeVariables: {
+    fontSize: "12px",
+    fontFamily: "ui-sans-serif, system-ui, sans-serif",
+  },
+} as const;
+
 function buildFullMandalaGraph(
   series: Series[],
   selectedCourseId: string,
@@ -55,7 +73,7 @@ function buildFullMandalaGraph(
 
   // 現在選択中コースに style を適用（classDef より安定）
   currentNid.forEach((nid) => {
-    lines.push(`  style ${nid} stroke-width:3px,font-weight:bold`);
+    lines.push(`  style ${nid} stroke-width:2px,font-weight:bold`);
   });
 
   // シリーズ内: 配列順の隣接鎖
@@ -157,7 +175,7 @@ export function GlobalHeader({
       if (cancelled) return;
       try {
         const mermaid = m.default;
-        mermaid.initialize({ startOnLoad: false, theme: "base", securityLevel: "loose" });
+        mermaid.initialize(GLOBAL_MANDALA_MERMAID_CONFIG);
         const { svg, bindFunctions } = await mermaid.render(`mandala-${Date.now()}`, def);
         if (!cancelled) {
           bindFnsRef.current = bindFunctions ?? null;
@@ -243,11 +261,11 @@ export function GlobalHeader({
           <DialogHeader>
             <DialogTitle>DXトレーニング曼陀羅</DialogTitle>
           </DialogHeader>
-          <div className="flex-1 overflow-auto rounded bg-white p-4 min-h-0">
+          <div className="flex-1 overflow-auto rounded bg-white p-2 min-h-0">
             {mandalaSvg ? (
               <div
                 ref={svgContainerRef}
-                className="flex items-center justify-center"
+                className="global-mandala-graph mx-auto w-fit"
                 dangerouslySetInnerHTML={{ __html: mandalaSvg }}
                 onClick={(e) => {
                   const t = e.target as Element;

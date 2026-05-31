@@ -309,4 +309,11 @@
   .lesson-preview hr {
     @apply my-6 border-border;
   }
+
+  /* グローバル曼陀羅: 横スクロール時も SVG 実寸で表示（ミニ曼陀羅は対象外） */
+  .global-mandala-graph svg {
+    display: block;
+    max-width: none;
+    height: auto;
+  }
 }

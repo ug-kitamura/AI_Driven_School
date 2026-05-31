@@ -95,14 +95,27 @@ function unfoldAtEvent(view: EditorView, event: Event, fold: FoldRange): boolean
   return true;
 }
 
-/** 「…」プレースホルダー上の mousedown で行選択より先に展開する */
+function isFoldPlaceholderTarget(target: EventTarget | null): target is HTMLElement {
+  return target instanceof HTMLElement && !!target.closest(".cm-foldPlaceholder");
+}
+
+function preventFoldPlaceholderMouseDown(event: Event): void {
+  event.preventDefault();
+  event.stopPropagation();
+}
+
+/** 「…」プレースホルダー: mousedown は選択抑止のみ、click（リリース）で展開 */
 function lessonFoldPlaceholderClickHandler() {
   return EditorView.domEventHandlers({
-    mousedown(event, view) {
+    mousedown(event) {
       if (event.button !== 0) return false;
-      const target = event.target as HTMLElement;
-      if (!target.closest(".cm-foldPlaceholder")) return false;
-      const pos = view.posAtDOM(target);
+      if (!isFoldPlaceholderTarget(event.target)) return false;
+      preventFoldPlaceholderMouseDown(event);
+      return true;
+    },
+    click(event, view) {
+      if (!isFoldPlaceholderTarget(event.target)) return false;
+      const pos = view.posAtDOM(event.target);
       const fold = findFoldAtPos(view.state, pos);
       return fold ? unfoldAtEvent(view, event, fold) : false;
     },
@@ -116,12 +129,11 @@ function createFoldPlaceholderDOM(
   const span = document.createElement("span");
   span.textContent = "…";
   span.className = "cm-foldPlaceholder lesson-fold-placeholder";
-  const handle = (event: Event) => {
-    event.preventDefault();
-    event.stopPropagation();
+  span.addEventListener("mousedown", preventFoldPlaceholderMouseDown);
+  span.addEventListener("click", (event) => {
+    preventFoldPlaceholderMouseDown(event);
     onclick(event);
-  };
-  span.addEventListener("mousedown", handle);
+  });
   return span;
 }
 

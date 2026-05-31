@@ -4,7 +4,7 @@
  * App Router の Error Boundary。
  *
  * 主な発火経路は `app/page.tsx` の Zod `safeParse` 失敗（`data/*.json` の形式不正）。
- * 受講生がデータを書き換えて壊した場合に「何が悪いか」を画面で読み取れるよう、
+ * ユーザーがデータを書き換えて壊した場合に「何が悪いか」を画面で読み取れるよう、
  * `error.message` をそのまま表示し、`reset()` で再試行ボタンを出す。
  *
  * Next.js の規約により Client Component（`"use client"`）必須。

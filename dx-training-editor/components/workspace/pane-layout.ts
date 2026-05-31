@@ -13,7 +13,7 @@ export const PANE_WIDTH_DEFAULTS: WorkspacePaneWidths = {
 export const PANE_WIDTH_LIMITS = {
   pane1: { min: 180, max: 480 },
   pane2: { min: 200, max: 520 },
-  pane4: { min: 160, max: 480 },
+  pane4: { min: 240, max: 480 },
 } as const;
 
 /** 左端の区切り線: 右ドラッグでペイン幅が狭くなる */

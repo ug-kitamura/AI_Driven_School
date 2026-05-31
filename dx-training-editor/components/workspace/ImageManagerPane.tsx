@@ -11,7 +11,7 @@ import {
   Upload,
   Sparkles,
   Search,
-  Link2,
+  SquareCheckBig,
   ImageIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -48,7 +48,7 @@ type Props = {
 type Tab = "used" | "upload" | "ai" | "web";
 
 const TABS: Array<{ value: Tab; label: string; icon: React.ReactNode }> = [
-  { value: "used", label: "Used", icon: <Link2 className="h-3 w-3" /> },
+  { value: "used", label: "Used", icon: <SquareCheckBig className="h-3 w-3" /> },
   { value: "upload", label: "UP", icon: <Upload className="h-3 w-3" /> },
   { value: "ai", label: "AI", icon: <Sparkles className="h-3 w-3" /> },
   { value: "web", label: "Web", icon: <Search className="h-3 w-3" /> },

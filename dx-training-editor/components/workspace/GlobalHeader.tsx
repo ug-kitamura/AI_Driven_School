@@ -67,12 +67,24 @@ function buildFullMandalaGraph(
     }
   });
 
-  // 別シリーズ: next_courses のみ
+  // 別シリーズ: prerequisites と next_courses（同一 from→to は1本にまとめる）
+  const crossEdgeKeys = new Set<string>();
+  const addCrossEdge = (fromId: string, toId: string) => {
+    const key = `${fromId}-->${toId}`;
+    if (crossEdgeKeys.has(key)) return;
+    crossEdgeKeys.add(key);
+    lines.push(`  ${safeId(fromId)} --> ${safeId(toId)}`);
+  };
   series.forEach((s) => {
     s.courses.forEach((c) => {
+      c.prerequisites.forEach((prevId) => {
+        if (isCrossSeriesLink(series, c.id, prevId)) {
+          addCrossEdge(prevId, c.id);
+        }
+      });
       c.next_courses.forEach((nextId) => {
         if (isCrossSeriesLink(series, c.id, nextId)) {
-          lines.push(`  ${safeId(c.id)} --> ${safeId(nextId)}`);
+          addCrossEdge(c.id, nextId);
         }
       });
     });

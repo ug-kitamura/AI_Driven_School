@@ -81,7 +81,7 @@ TBD - created by archiving change course-order-and-mandala. Update Purpose after
 
 ### Requirement: グローバル曼陀羅はコース順序を反映する
 
-グローバル曼陀羅（`GlobalHeader` ダイアログ）は、各シリーズの隣接ペアごとに `courses[i-1]` から `courses[i]` へのエッジを描画しなければならない（SHALL）。別シリーズのコースに解決する `next_courses` の各エントリについてもエッジを描画しなければならない（SHALL）。`series` が変更されたとき（シリーズ内の並べ替えを含む）、次回描画で使う曼陀羅定義は、シリーズ内の鎖について更新後の配列順を反映しなければならない（MUST）。
+グローバル曼陀羅（`GlobalHeader` ダイアログ）は、各シリーズの隣接ペアごとに `courses[i-1]` から `courses[i]` へのエッジを描画しなければならない（SHALL）。別シリーズのコースに解決する `prerequisites` の各エントリについて `前提 → 当該` のエッジを、`next_courses` の各エントリについて `当該 → 次` のエッジを描画しなければならない（SHALL）。同一のコース対 `(from, to)` について、両配列から同じ向きのリンクが得られる場合はエッジを1本にまとめなければならない（SHALL）。`series` が変更されたとき（シリーズ内の並べ替えを含む）、次回描画で使う曼陀羅定義は、シリーズ内の鎖について更新後の配列順を反映しなければならない（MUST）。
 
 #### Scenario: グローバル曼陀羅にシリーズ内の鎖がある
 
@@ -92,6 +92,16 @@ TBD - created by archiving change course-order-and-mandala. Update Purpose after
 
 - **WHEN** ユーザーがシリーズ内でコースを並べ替え、`series` 状態が更新されたうえでグローバル曼陀羅を開くまたは再描画する
 - **THEN** シリーズ内エッジが新しい `courses[]` の順序と一致する
+
+#### Scenario: 別シリーズの前提コースがグローバル曼陀羅に表示される
+
+- **WHEN** コース X の `prerequisites` に別シリーズのコース P がある
+- **THEN** グローバル曼陀羅に `P → X` のエッジがある
+
+#### Scenario: 双方向メタでも別シリーズエッジは1本
+
+- **WHEN** コース A の `next_courses` に B があり、かつコース B の `prerequisites` に A がある（いずれも別シリーズ）
+- **THEN** グローバル曼陀羅に `A → B` のエッジは1本だけある
 
 #### Scenario: 並べ替えでも別シリーズエッジは維持される
 

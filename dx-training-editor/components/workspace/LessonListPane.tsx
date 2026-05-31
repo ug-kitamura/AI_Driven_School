@@ -43,7 +43,7 @@ import {
   META_DIALOG_GRID,
   MetaDialogField,
 } from "@/components/workspace/metaDialogLayout";
-import { ScrollArea } from "@/components/ui/scroll-area";
+import { CrossSeriesCourseTreePicker } from "@/components/workspace/CrossSeriesCourseTreePicker";
 import {
   ADD_LIST_BUTTON_CLASS,
   SORTABLE_POINTER_ACTIVATION,
@@ -56,7 +56,6 @@ import {
   buildMiniMandalaGraphInput,
   filterCrossSeriesIds,
   getIntraSeriesNeighbors,
-  formatCrossSeriesCourseLabel,
   listCrossSeriesCourseCandidates,
   type MiniMandalaGraphInput,
 } from "@/lib/course-flow";
@@ -148,55 +147,6 @@ function buildMermaidDef(
   });
 
   return { def: lines.join("\n"), nodeMap };
-}
-
-function CrossSeriesCoursePicker({
-  candidates,
-  selectedIds,
-  onChange,
-}: {
-  candidates: Array<{ id: string; name: string; seriesName: string }>;
-  selectedIds: string[];
-  onChange: (ids: string[]) => void;
-}) {
-  const toggle = (id: string) => {
-    onChange(
-      selectedIds.includes(id)
-        ? selectedIds.filter((x) => x !== id)
-        : [...selectedIds, id],
-    );
-  };
-
-  if (candidates.length === 0) {
-    return (
-      <p className="text-[11px] text-muted-foreground">
-        選択できる別シリーズのコースがありません
-      </p>
-    );
-  }
-
-  return (
-    <ScrollArea className="h-40 max-h-[min(10rem,35vh)] rounded-md border border-border bg-white">
-      <div className="space-y-0.5 p-2">
-        {candidates.map((c) => (
-          <label
-            key={c.id}
-            className="flex cursor-pointer items-start gap-2 rounded px-1 py-1 text-xs hover:bg-muted/60"
-          >
-            <input
-              type="checkbox"
-              className="mt-0.5 shrink-0"
-              checked={selectedIds.includes(c.id)}
-              onChange={() => toggle(c.id)}
-            />
-            <span className="leading-snug">
-              {formatCrossSeriesCourseLabel(c.seriesName, c.name)}
-            </span>
-          </label>
-        ))}
-      </div>
-    </ScrollArea>
-  );
 }
 
 // ソータブル行
@@ -674,7 +624,7 @@ export function LessonListPane({
 
       {/* コースメタ編集ダイアログ */}
       <Dialog open={metaDialogOpen} onOpenChange={setMetaDialogOpen}>
-        <DialogContent className="max-w-2xl">
+        <DialogContent className="max-w-3xl">
           <DialogHeader className="sr-only">
             <DialogTitle>コースメタを編集</DialogTitle>
           </DialogHeader>
@@ -718,7 +668,7 @@ export function LessonListPane({
             </MetaDialogField>
             <MetaDialogField className="min-w-0">
               <Label>前のコース（別シリーズ）</Label>
-              <CrossSeriesCoursePicker
+              <CrossSeriesCourseTreePicker
                 candidates={crossSeriesCandidates}
                 selectedIds={editMeta.crossPrerequisites}
                 onChange={(ids) =>
@@ -728,7 +678,7 @@ export function LessonListPane({
             </MetaDialogField>
             <MetaDialogField className="min-w-0">
               <Label>次のコース（別シリーズ）</Label>
-              <CrossSeriesCoursePicker
+              <CrossSeriesCourseTreePicker
                 candidates={crossSeriesCandidates}
                 selectedIds={editMeta.crossNextCourses}
                 onChange={(ids) =>

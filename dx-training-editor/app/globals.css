@@ -314,6 +314,19 @@
     @apply my-6 border-border;
   }
 
+  .lesson-preview table {
+    @apply my-4 w-full border-collapse border border-border text-sm;
+  }
+
+  .lesson-preview th,
+  .lesson-preview td {
+    @apply border border-border px-3 py-2 text-left align-top;
+  }
+
+  .lesson-preview th {
+    @apply bg-muted/40 font-semibold text-foreground;
+  }
+
   /* グローバル曼陀羅: 横スクロール時も SVG 実寸で表示（ミニ曼陀羅は対象外） */
   .global-mandala-graph svg {
     display: block;

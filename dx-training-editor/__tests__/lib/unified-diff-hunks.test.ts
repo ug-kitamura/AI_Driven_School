@@ -1,0 +1,58 @@
+import { describe, expect, it } from "vitest";
+import { parseHunkHeader, parseUnifiedDiff } from "@/lib/unified-diff-hunks";
+
+const SAMPLE = [
+  "--- a/file.md",
+  "+++ b/file.md",
+  "@@ -1,2 +1,3 @@",
+  " context",
+  "-removed",
+  "+added",
+  "@@ -5,1 +6,1 @@",
+  " second",
+].join("\n");
+
+describe("parseHunkHeader", () => {
+  it("parses old and new start lines", () => {
+    expect(parseHunkHeader("@@ -1,2 +1,3 @@")).toEqual({
+      oldStart: 1,
+      newStart: 1,
+    });
+  });
+});
+
+describe("parseUnifiedDiff", () => {
+  it("leaves preamble without line numbers", () => {
+    const lines = parseUnifiedDiff(SAMPLE);
+    expect(lines[0]?.oldLineNumber).toBeNull();
+    expect(lines[0]?.newLineNumber).toBeNull();
+  });
+
+  it("assigns dual line numbers inside hunks", () => {
+    const lines = parseUnifiedDiff(SAMPLE);
+    expect(lines[3]).toMatchObject({
+      kind: "context",
+      oldLineNumber: 1,
+      newLineNumber: 1,
+    });
+    expect(lines[4]).toMatchObject({
+      kind: "remove",
+      oldLineNumber: 2,
+      newLineNumber: null,
+    });
+    expect(lines[5]).toMatchObject({
+      kind: "add",
+      oldLineNumber: null,
+      newLineNumber: 2,
+    });
+  });
+
+  it("resets counters at each hunk header", () => {
+    const lines = parseUnifiedDiff(SAMPLE);
+    expect(lines[7]).toMatchObject({
+      kind: "context",
+      oldLineNumber: 5,
+      newLineNumber: 6,
+    });
+  });
+});

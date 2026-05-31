@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { getLessonBody } from "@/lib/lesson-frontmatter";
 import { LessonMetaDialog } from "@/components/workspace/LessonMetaDialog";
+import { LessonDiffView } from "@/components/workspace/LessonDiffView";
 import { PaneWheelRoot } from "@/components/workspace/PaneWheelRoot";
 import type { LessonContentEditorHandle } from "@/components/workspace/LessonContentEditor";
 import type { Lesson } from "@/lib/schema";
@@ -58,6 +59,12 @@ const MODE_TABS: Array<{ value: Pane3Mode; label: string; icon: React.ReactNode 
 
 const LESSON_PREVIEW_CLASS = "lesson-preview";
 
+type DiffState =
+  | { status: "idle" }
+  | { status: "loading" }
+  | { status: "ready"; diff: string }
+  | { status: "error"; message: string };
+
 export function MarkdownEditorPane({
   lesson,
   mode,
@@ -69,8 +76,7 @@ export function MarkdownEditorPane({
 }: Props) {
   const editorRef = useRef<LessonContentEditorHandle>(null);
   const paneScrollRef = useRef<HTMLElement | null>(null);
-  const [diffContent, setDiffContent] = useState<string>("");
-  const [diffLoading, setDiffLoading] = useState(false);
+  const [diffState, setDiffState] = useState<DiffState>({ status: "idle" });
   const [metaDialogOpen, setMetaDialogOpen] = useState(false);
 
   const previewBody = useMemo(
@@ -103,23 +109,54 @@ export function MarkdownEditorPane({
 
   useEffect(() => {
     if (mode !== "diff" || !lesson) {
-      setDiffContent("");
+      setDiffState({ status: "idle" });
       return;
     }
-    setDiffLoading(true);
-    const filePath = encodeURIComponent(
-      `dx-training-editor/data/${lesson.id}.md`,
-    );
-    fetch(`/api/git-diff?path=${filePath}`)
-      .then((r) => r.json())
-      .then((data: { diff: string }) => {
-        setDiffContent(data.diff || "（差分なし）");
+
+    const controller = new AbortController();
+    setDiffState({ status: "loading" });
+
+    fetch("/api/lesson-diff", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      signal: controller.signal,
+      body: JSON.stringify({
+        lessonId: lesson.id,
+        content: lesson.content,
+        series: lesson.series,
+        course: lesson.course,
+        lesson: lesson.lesson,
+      }),
+    })
+      .then(async (response) => {
+        const data: { diff?: string; error?: string } = await response.json();
+        if (!response.ok) {
+          throw new Error(data.error ?? "差分の取得に失敗しました");
+        }
+        setDiffState({ status: "ready", diff: data.diff ?? "" });
       })
-      .catch(() => {
-        setDiffContent("（差分の取得に失敗しました）");
-      })
-      .finally(() => setDiffLoading(false));
-  }, [mode, lesson]);
+      .catch((error: unknown) => {
+        if (error instanceof DOMException && error.name === "AbortError") {
+          return;
+        }
+        setDiffState({
+          status: "error",
+          message:
+            error instanceof Error
+              ? error.message
+              : "差分の取得に失敗しました",
+        });
+      });
+
+    return () => controller.abort();
+  }, [
+    mode,
+    lesson?.id,
+    lesson?.content,
+    lesson?.series,
+    lesson?.course,
+    lesson?.lesson,
+  ]);
 
   if (!lesson) {
     return (
@@ -205,33 +242,17 @@ export function MarkdownEditorPane({
             }}
             className="h-full overflow-y-auto overscroll-y-contain"
           >
-            {diffLoading ? (
+            {diffState.status === "loading" ? (
               <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
                 差分を取得中...
               </div>
-            ) : (
-              <pre className="h-full overflow-auto whitespace-pre-wrap px-4 py-3 font-mono text-xs text-foreground">
-                {diffContent
-                  ? diffContent.split("\n").map((line, i) => (
-                      <div
-                        key={i}
-                        className={cn(
-                          "leading-relaxed",
-                          line.startsWith("+") && !line.startsWith("+++")
-                            ? "bg-green-500/10 text-green-700"
-                            : line.startsWith("-") && !line.startsWith("---")
-                              ? "bg-red-500/10 text-red-700"
-                              : line.startsWith("@@")
-                                ? "text-blue-600"
-                                : "",
-                        )}
-                      >
-                        {line || "\u00A0"}
-                      </div>
-                    ))
-                  : "（差分なし）"}
-              </pre>
-            )}
+            ) : diffState.status === "error" ? (
+              <div className="flex h-full items-center justify-center px-4 text-sm text-destructive">
+                {diffState.message}
+              </div>
+            ) : diffState.status === "ready" ? (
+              <LessonDiffView diff={diffState.diff} />
+            ) : null}
           </div>
         )}
       </div>

@@ -55,8 +55,9 @@ async function main() {
       viewport: { width: 768, height: 600 },
       deviceScaleFactor: 2,
     });
-    await page.setContent(fullHtml, { waitUntil: "networkidle" });
-    await page.evaluate(() => document.fonts.ready);
+    await page.setContent(fullHtml, { waitUntil: "load", timeout: 60_000 });
+    await page.evaluate(() => document.fonts.ready).catch(() => {});
+    await page.waitForTimeout(800);
 
     const root = page.locator("#capture-root");
     await root.waitFor({ state: "visible", timeout: 15000 });

@@ -11,16 +11,17 @@ import {
 import { sanitizeUploadFileName } from "@/lib/image-path";
 import { saveStagingImage } from "@/lib/image-store";
 import { listLessonImageSlots } from "@/lib/lesson-image-slots";
-import type { Lesson } from "@/lib/schema";
+import { lessonSchema } from "@/lib/schema";
 
 const execFileAsync = promisify(execFile);
 
 const bodySchema = z.object({
-  lesson: z.custom<Lesson>(),
+  lesson: lessonSchema,
   canonicalPath: z.string().min(1),
 });
 
-const DEFAULT_MODEL = "claude-sonnet-4-20250514";
+/** @see https://platform.claude.com/docs/en/about-claude/models/overview */
+const DEFAULT_MODEL = "claude-sonnet-4-6";
 
 function resolveApiKey(req: Request): string | null {
   const header = req.headers.get("x-anthropic-api-key")?.trim();
@@ -46,12 +47,18 @@ async function callClaude(apiKey: string, system: string, user: string): Promise
   });
 
   const data = (await res.json()) as {
-    error?: { message?: string };
+    error?: { type?: string; message?: string };
     content?: Array<{ type: string; text?: string }>;
   };
 
   if (!res.ok) {
-    throw new Error(data.error?.message ?? "Claude API error");
+    const apiMessage = data.error?.message?.trim();
+    const apiType = data.error?.type?.trim();
+    const detail =
+      apiMessage && apiType && !apiMessage.includes(apiType)
+        ? `${apiType}: ${apiMessage}`
+        : apiMessage || apiType;
+    throw new Error(detail ?? "Claude API error");
   }
 
   const text = data.content
@@ -136,19 +143,15 @@ export async function POST(req: Request) {
   } catch (error) {
     const stderr =
       error instanceof Error && "stderr" in error
-        ? String((error as { stderr?: string }).stderr)
+        ? String((error as { stderr?: string }).stderr).trim()
         : "";
+    const message = error instanceof Error ? error.message : "PNG 変換に失敗しました";
+    const detail = stderr ? `${message}\n${stderr.slice(0, 500)}` : message;
     const isPlaywright =
-      /playwright|chromium|Executable doesn't exist/i.test(
-        `${error instanceof Error ? error.message : ""} ${stderr}`,
-      );
+      /playwright|chromium|Executable doesn't exist/i.test(detail);
     return Response.json(
       {
-        error: isPlaywright
-          ? playwrightHint()
-          : error instanceof Error
-            ? error.message
-            : "PNG 変換に失敗しました",
+        error: isPlaywright ? playwrightHint() : detail,
       },
       { status: 500 },
     );

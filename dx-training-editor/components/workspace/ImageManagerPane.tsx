@@ -82,6 +82,9 @@ export function ImageManagerPane({
   const [generatingPath, setGeneratingPath] = useState<string | null>(null);
   const [isDragOver, setIsDragOver] = useState(false);
   const [insertNotice, setInsertNotice] = useState<string | null>(null);
+  const [insertNoticeTone, setInsertNoticeTone] = useState<"error" | "success">(
+    "error",
+  );
   const [preview, setPreview] = useState<PreviewState | null>(null);
   const [pendingDelete, setPendingDelete] = useState<PendingDelete | null>(null);
   const tabScrollRef = useRef<HTMLDivElement>(null);
@@ -147,17 +150,22 @@ export function ImageManagerPane({
     }
   }, [pane4Open, activeTab, refreshAiSlots, lesson?.content, lesson?.id]);
 
+  const showNotice = useCallback((message: string, tone: "error" | "success") => {
+    setInsertNoticeTone(tone);
+    setInsertNotice(message);
+  }, []);
+
   const tryInsert = useCallback(
     (markdown: string) => {
       const ok = onInsertImage(markdown);
       if (!ok) {
-        setInsertNotice("編集モードに切り替えてから挿入してください");
+        showNotice("編集モードに切り替えてから挿入してください", "error");
       } else {
         setInsertNotice(null);
       }
       return ok;
     },
-    [onInsertImage],
+    [onInsertImage, showNotice],
   );
 
   const handleInsertStaging = useCallback(
@@ -169,14 +177,14 @@ export function ImageManagerPane({
       });
       const data: { file?: ImageAsset; error?: string } = await res.json();
       if (!res.ok || !data.file) {
-        setInsertNotice(data.error ?? "画像の promote に失敗しました");
+        showNotice(data.error ?? "画像の promote に失敗しました", "error");
         return;
       }
       if (tryInsert(toImageMarkdown(data.file.path))) {
         await refreshLists();
       }
     },
-    [tryInsert, refreshLists],
+    [tryInsert, refreshLists, showNotice],
   );
 
   const handleInsertPromoted = useCallback(
@@ -196,12 +204,12 @@ export function ImageManagerPane({
       const res = await fetch(`/api/images/file?${params}`, { method: "DELETE" });
       if (!res.ok) {
         const data: { error?: string } = await res.json();
-        setInsertNotice(data.error ?? "削除に失敗しました");
+        showNotice(data.error ?? "削除に失敗しました", "error");
         return;
       }
       await refreshLists();
     },
-    [refreshLists],
+    [refreshLists, showNotice],
   );
 
   const handleDeleteRequest = useCallback(
@@ -258,36 +266,56 @@ export function ImageManagerPane({
     async (slot: LessonImageSlot) => {
       if (!lesson) return;
       const settings = loadWorkspaceSettings();
-      if (!settings.anthropicApiKey) {
-        setInsertNotice("設定から Anthropic API キーを入力してください");
-        return;
+      const headers: Record<string, string> = {
+        "Content-Type": "application/json",
+      };
+      if (settings.anthropicApiKey) {
+        headers["x-anthropic-api-key"] = settings.anthropicApiKey;
       }
       setGeneratingPath(slot.canonicalPath);
       setInsertNotice(null);
       try {
         const res = await fetch("/api/images/generate", {
           method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "x-anthropic-api-key": settings.anthropicApiKey,
-          },
+          headers,
           body: JSON.stringify({
             lesson,
             canonicalPath: slot.canonicalPath,
           }),
         });
-        const data: { file?: ImageAsset; error?: string } = await res.json();
+        let data: { file?: ImageAsset; error?: string };
+        try {
+          data = (await res.json()) as { file?: ImageAsset; error?: string };
+        } catch {
+          showNotice("サーバー応答の解析に失敗しました", "error");
+          return;
+        }
         if (!res.ok || !data.file) {
-          setInsertNotice(data.error ?? "画像の生成に失敗しました");
+          showNotice(
+            data.error ??
+              (res.status === 401
+                ? "Anthropic API キーを設定（歯車）するか、サーバーに ANTHROPIC_API_KEY を設定してください"
+                : "画像の生成に失敗しました"),
+            "error",
+          );
           return;
         }
         await refreshLists();
         await refreshAiSlots();
+        showNotice(
+          `AI staging に保存しました: ${data.file.name}（下のグリッドで確認）`,
+          "success",
+        );
+      } catch (error) {
+        showNotice(
+          error instanceof Error ? error.message : "画像の生成に失敗しました",
+          "error",
+        );
       } finally {
         setGeneratingPath(null);
       }
     },
-    [lesson, refreshLists, refreshAiSlots],
+    [lesson, refreshLists, refreshAiSlots, showNotice],
   );
 
   const aiStagingGridItems: ImageGridItem[] = aiStagingFiles.map((file) => ({
@@ -354,7 +382,14 @@ export function ImageManagerPane({
       </div>
 
       {insertNotice ? (
-        <div className="border-b border-amber-500/30 bg-amber-500/10 px-3 py-1.5 text-[10px] text-amber-800 dark:text-amber-200">
+        <div
+          className={cn(
+            "border-b px-3 py-1.5 text-[10px]",
+            insertNoticeTone === "success"
+              ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-900 dark:text-emerald-100"
+              : "border-amber-500/30 bg-amber-500/10 text-amber-800 dark:text-amber-200",
+          )}
+        >
           {insertNotice}
         </div>
       ) : null}
@@ -499,7 +534,7 @@ export function ImageManagerPane({
                 </div>
                 <div className="flex flex-col gap-1">
                   <p className="text-[10px] font-medium text-muted-foreground">
-                    AI staging
+                    AI staging（生成直後はここに表示。挿入で正本へ）
                   </p>
                   <ImageGrid
                     items={aiStagingGridItems}

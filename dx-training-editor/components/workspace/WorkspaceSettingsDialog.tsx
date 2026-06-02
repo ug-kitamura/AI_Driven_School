@@ -182,7 +182,9 @@ function SettingsForm({
                 onChange={(e) => setApiKeyInput(e.target.value)}
               />
               <p className="text-[10px] text-muted-foreground">
-                キーはこの PC のブラウザにのみ保存されます。サーバーには永続化しません。
+                キーはこの PC のブラウザにのみ保存されます。未設定時はサーバー環境変数{" "}
+                <code className="text-[9px]">ANTHROPIC_API_KEY</code>{" "}
+                を利用します（保存後に反映）。
               </p>
             </MetaDialogField>
             <Button

@@ -7,6 +7,8 @@ DX ツールトレーニング用の **4ペイン Next.js 16 × shadcn/ui ワー
 
 - **状態の SSoT**: `components/workspace/Workspace.tsx`
 - **Pane 1–4**: `SeriesCoursePane`, `LessonListPane`, `MarkdownEditorPane`, `ImageManagerPane`
+- **画像**: 正本 `images/<file>`、staging `images/{uploaded|ai|web}/`（`lib/image-path.ts`, `lib/image-store.ts`）
+- **設定**: `lib/workspace-settings.ts`、GlobalHeader 歯車 → `WorkspaceSettingsDialog`
 - **データ**: `data/content.json`（シリーズ/コース/レッスン）, `data/workspace.json`（UI 状態）
 - **スキーマ**: `lib/schema.ts`（Zod）
 

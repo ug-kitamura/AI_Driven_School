@@ -71,9 +71,15 @@ export function useWorkspacePaneWidths() {
     [beginResize, moveResize, endResize],
   );
 
+  const applyPaneWidths = useCallback((widths: WorkspacePaneWidths) => {
+    setPaneWidths(widths);
+    savePaneWidths(widths);
+  }, []);
+
   return {
     paneWidths,
     isResizing,
     resizeHandleProps,
+    applyPaneWidths,
   };
 }

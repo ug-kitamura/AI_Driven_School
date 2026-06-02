@@ -11,52 +11,72 @@ export function isImageSource(value: string): value is ImageSource {
   return (IMAGE_SOURCES as readonly string[]).includes(value);
 }
 
-/** `images/{source}/...` 形式かつ traversal なし */
+function pathPartsAfterImages(normalized: string): string[] {
+  if (!normalized.startsWith(IMAGE_PATH_PREFIX)) return [];
+  return normalized.slice(IMAGE_PATH_PREFIX.length).split("/").filter(Boolean);
+}
+
+/** 正本: `images/<filename>`（1 セグメント、予約ディレクトリ名は不可） */
+export function isCanonicalImagePath(path: string): boolean {
+  const parts = pathPartsAfterImages(normalizeImageLogicalPath(path));
+  if (parts.length !== 1) return false;
+  if (isImageSource(parts[0])) return false;
+  return parts[0].length > 0 && parts[0] !== "." && parts[0] !== "..";
+}
+
+/** staging: `images/{source}/<filename>` */
+export function isStagingImagePath(path: string): boolean {
+  const parts = pathPartsAfterImages(normalizeImageLogicalPath(path));
+  if (parts.length !== 2) return false;
+  if (!isImageSource(parts[0])) return false;
+  return parts[1].length > 0 && parts[1] !== "." && parts[1] !== "..";
+}
+
+/** 正本または staging の論理パス */
 export function isSafeImageLogicalPath(path: string): boolean {
   const normalized = normalizeImageLogicalPath(path);
   if (!normalized.startsWith(IMAGE_PATH_PREFIX)) return false;
   if (normalized.includes("..")) return false;
-  const rest = normalized.slice(IMAGE_PATH_PREFIX.length);
-  const parts = rest.split("/").filter(Boolean);
-  if (parts.length < 2) return false;
-  if (!isImageSource(parts[0])) return false;
-  return parts.every((part) => part.length > 0 && part !== "." && part !== "..");
+  return isCanonicalImagePath(normalized) || isStagingImagePath(normalized);
 }
 
+/** @deprecated staging は `isStagingImagePath` を使用 */
 export function isStagingPath(path: string): boolean {
-  return /\/_staging\//.test(normalizeImageLogicalPath(path));
+  return isStagingImagePath(path);
 }
 
-/** staging パスから promote 先の論理パス */
+/** staging パスから正本の論理パス */
 export function promoteTargetPath(stagingPath: string): string | null {
   const normalized = normalizeImageLogicalPath(stagingPath);
-  if (!isSafeImageLogicalPath(normalized) || !isStagingPath(normalized)) {
-    return null;
-  }
-  return normalized.replace("/_staging/", "/");
+  if (!isStagingImagePath(normalized)) return null;
+  const fileName = pathPartsAfterImages(normalized)[1];
+  return `${IMAGE_PATH_PREFIX}${fileName}`;
 }
 
 export function stagingDirLogical(source: ImageSource): string {
-  return `images/${source}/_staging`;
+  return `images/${source}`;
 }
 
 export function imageFileName(path: string): string {
   const normalized = normalizeImageLogicalPath(path);
-  const parts = normalized.split("/");
+  const parts = pathPartsAfterImages(normalized);
   return parts[parts.length - 1] ?? normalized;
 }
 
 export function sourceFromPath(path: string): ImageSource | null {
   const normalized = normalizeImageLogicalPath(path);
-  if (!isSafeImageLogicalPath(normalized)) return null;
-  const source = normalized.slice(IMAGE_PATH_PREFIX.length).split("/")[0];
+  if (!isStagingImagePath(normalized)) return null;
+  const source = pathPartsAfterImages(normalized)[0];
   return isImageSource(source) ? source : null;
 }
 
 export function toImageMarkdown(path: string): string {
   const name = imageFileName(path);
   const normalized = normalizeImageLogicalPath(path);
-  return `![${name}](${normalized})`;
+  const canonical = isCanonicalImagePath(normalized)
+    ? normalized
+    : promoteTargetPath(normalized) ?? normalized;
+  return `![${name}](${canonical})`;
 }
 
 export function toImageApiUrl(logicalPath: string): string {

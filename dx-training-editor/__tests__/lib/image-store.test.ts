@@ -30,7 +30,7 @@ describe("image-store", () => {
     const staging = await saveStagingImage(tmpRoot, "uploaded", "test.png", png);
     const promoted = await promoteStagingImage(tmpRoot, staging.path);
 
-    expect(promoted.path).toBe("images/uploaded/test.png");
+    expect(promoted.path).toBe("images/test.png");
     await expect(
       fs.access(resolveAbsoluteImagePath(tmpRoot, staging.path)!),
     ).resolves.toBeUndefined();

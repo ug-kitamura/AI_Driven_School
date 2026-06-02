@@ -9,6 +9,8 @@ import { LessonListPane } from "@/components/workspace/LessonListPane";
 import { MarkdownEditorPane } from "@/components/workspace/MarkdownEditorPane";
 import { ImageManagerPane } from "@/components/workspace/ImageManagerPane";
 import { PaneResizeHandle } from "@/components/workspace/PaneResizeHandle";
+import { ThemeInitializer } from "@/components/workspace/ThemeInitializer";
+import { WorkspaceSettingsDialog } from "@/components/workspace/WorkspaceSettingsDialog";
 import { useWorkspacePaneWidths } from "@/components/workspace/use-workspace-pane-widths";
 import type { Series, Course, Lesson } from "@/lib/schema";
 import {
@@ -60,7 +62,8 @@ export function Workspace({
   );
   const [pane4ManuallyClosed, setPane4ManuallyClosed] = useState(false);
   const [pane3Mode, setPane3Mode] = useState<Pane3Mode>("raw");
-  const { paneWidths, isResizing, resizeHandleProps } =
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const { paneWidths, isResizing, resizeHandleProps, applyPaneWidths } =
     useWorkspacePaneWidths();
 
   // 最初のコースを初期選択
@@ -428,6 +431,7 @@ export function Workspace({
         } as React.CSSProperties
       }
     >
+      <ThemeInitializer />
       <div className="relative shrink-0">
         <SeriesCoursePane
           workspaceName={workspace.name}
@@ -456,6 +460,13 @@ export function Workspace({
           series={series}
           selectedCourseId={selectedCourseId}
           onSelectCourse={selectCourse}
+          onOpenSettings={() => setSettingsOpen(true)}
+        />
+        <WorkspaceSettingsDialog
+          open={settingsOpen}
+          onOpenChange={setSettingsOpen}
+          currentPaneWidths={paneWidths}
+          onApplyPaneWidths={applyPaneWidths}
         />
         <div className="flex min-h-0 min-w-0 flex-1 overflow-hidden">
           <div
@@ -496,6 +507,7 @@ export function Workspace({
               >
                 <ImageManagerPane
                   series={series}
+                  lesson={selectedLesson}
                   pane3Mode={pane3Mode}
                   onInsertImage={insertImageMarkdown}
                   pane4Open={pane4Open}
@@ -506,6 +518,7 @@ export function Workspace({
           ) : (
             <ImageManagerPane
               series={series}
+              lesson={selectedLesson}
               pane3Mode={pane3Mode}
               onInsertImage={insertImageMarkdown}
               pane4Open={pane4Open}

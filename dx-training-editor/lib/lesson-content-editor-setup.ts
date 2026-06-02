@@ -5,7 +5,7 @@ import { foldService } from "@codemirror/language";
 import { lessonFoldGutter } from "@/lib/lesson-fold-gutter";
 import { EditorView, lineNumbers } from "@codemirror/view";
 import type { EditorState } from "@codemirror/state";
-import { vscodeLightInit } from "@uiw/codemirror-theme-vscode";
+import { vscodeDarkInit, vscodeLightInit } from "@uiw/codemirror-theme-vscode";
 import {
   activeLineRowHighlight,
   LESSON_ACTIVE_LINE_BG,
@@ -111,10 +111,18 @@ const lessonMarkdownFold = foldService.of(
   },
 );
 
+const lessonVscodeDark = vscodeDarkInit({
+  settings: {
+    lineHighlight: "transparent",
+    gutterForeground: LESSON_LINE_NUMBER,
+    gutterActiveForeground: "",
+  },
+});
+
 /** Pane3 編集モード用 CodeMirror 拡張 */
-export function buildLessonEditorExtensions() {
+export function buildLessonEditorExtensions(isDark = false) {
   return [
-    lessonVscodeLight,
+    isDark ? lessonVscodeDark : lessonVscodeLight,
     lineNumbers(),
     ...lessonFoldGutter(),
     lessonMarkdownFold,

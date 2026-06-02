@@ -29,16 +29,18 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { Button } from "@/components/ui/button";
 import { buildUsedImageRows } from "@/lib/build-used-image-rows";
 import { countImageRefsInSeries } from "@/lib/extract-image-refs";
-import {
-  toImageMarkdown,
-} from "@/lib/image-path";
-import type { ImageAsset, Series } from "@/lib/schema";
+import { toImageMarkdown } from "@/lib/image-path";
+import type { LessonImageSlot } from "@/lib/lesson-image-slots";
+import { loadWorkspaceSettings } from "@/lib/workspace-settings";
+import type { ImageAsset, Lesson, Series } from "@/lib/schema";
 import type { Pane3Mode } from "@/components/workspace/Workspace";
 
 type Props = {
   series: Series[];
+  lesson: Lesson | undefined;
   pane3Mode: Pane3Mode;
   onInsertImage: (markdown: string) => boolean;
   pane4Open: boolean;
@@ -64,6 +66,7 @@ type PendingDelete = ImageGridItem & { referenceCount?: number };
 
 export function ImageManagerPane({
   series,
+  lesson,
   pane3Mode,
   onInsertImage,
   pane4Open,
@@ -71,8 +74,12 @@ export function ImageManagerPane({
 }: Props) {
   const [activeTab, setActiveTab] = useState<Tab>("used");
   const [stagingFiles, setStagingFiles] = useState<ImageAsset[]>([]);
+  const [aiStagingFiles, setAiStagingFiles] = useState<ImageAsset[]>([]);
   const [promotedFiles, setPromotedFiles] = useState<ImageAsset[]>([]);
+  const [aiSlots, setAiSlots] = useState<LessonImageSlot[]>([]);
   const [loading, setLoading] = useState(false);
+  const [aiLoading, setAiLoading] = useState(false);
+  const [generatingPath, setGeneratingPath] = useState<string | null>(null);
   const [isDragOver, setIsDragOver] = useState(false);
   const [insertNotice, setInsertNotice] = useState<string | null>(null);
   const [preview, setPreview] = useState<PreviewState | null>(null);
@@ -93,24 +100,52 @@ export function ImageManagerPane({
   const refreshLists = useCallback(async () => {
     setLoading(true);
     try {
-      const [stagingRes, usedRes] = await Promise.all([
+      const [stagingRes, usedRes, aiRes] = await Promise.all([
         fetch("/api/images/list?scope=staging&source=uploaded"),
         fetch("/api/images/list?scope=used"),
+        fetch("/api/images/list?scope=staging&source=ai"),
       ]);
       const stagingJson: { files?: ImageAsset[] } = await stagingRes.json();
       const usedJson: { files?: ImageAsset[] } = await usedRes.json();
+      const aiJson: { files?: ImageAsset[] } = await aiRes.json();
       if (stagingRes.ok) setStagingFiles(stagingJson.files ?? []);
       if (usedRes.ok) setPromotedFiles(usedJson.files ?? []);
+      if (aiRes.ok) setAiStagingFiles(aiJson.files ?? []);
     } finally {
       setLoading(false);
     }
   }, []);
+
+  const refreshAiSlots = useCallback(async () => {
+    if (!lesson) {
+      setAiSlots([]);
+      return;
+    }
+    setAiLoading(true);
+    try {
+      const res = await fetch("/api/images/slots", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ lesson }),
+      });
+      const data: { slots?: LessonImageSlot[]; error?: string } = await res.json();
+      if (res.ok) setAiSlots(data.slots ?? []);
+    } finally {
+      setAiLoading(false);
+    }
+  }, [lesson]);
 
   useEffect(() => {
     if (pane4Open) {
       void refreshLists();
     }
   }, [pane4Open, refreshLists, series]);
+
+  useEffect(() => {
+    if (pane4Open && activeTab === "ai") {
+      void refreshAiSlots();
+    }
+  }, [pane4Open, activeTab, refreshAiSlots, lesson?.content, lesson?.id]);
 
   const tryInsert = useCallback(
     (markdown: string) => {
@@ -218,6 +253,49 @@ export function ImageManagerPane({
     },
     [uploadFiles],
   );
+
+  const handleGenerateSlot = useCallback(
+    async (slot: LessonImageSlot) => {
+      if (!lesson) return;
+      const settings = loadWorkspaceSettings();
+      if (!settings.anthropicApiKey) {
+        setInsertNotice("設定から Anthropic API キーを入力してください");
+        return;
+      }
+      setGeneratingPath(slot.canonicalPath);
+      setInsertNotice(null);
+      try {
+        const res = await fetch("/api/images/generate", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "x-anthropic-api-key": settings.anthropicApiKey,
+          },
+          body: JSON.stringify({
+            lesson,
+            canonicalPath: slot.canonicalPath,
+          }),
+        });
+        const data: { file?: ImageAsset; error?: string } = await res.json();
+        if (!res.ok || !data.file) {
+          setInsertNotice(data.error ?? "画像の生成に失敗しました");
+          return;
+        }
+        await refreshLists();
+        await refreshAiSlots();
+      } finally {
+        setGeneratingPath(null);
+      }
+    },
+    [lesson, refreshLists, refreshAiSlots],
+  );
+
+  const aiStagingGridItems: ImageGridItem[] = aiStagingFiles.map((file) => ({
+    path: file.path,
+    name: file.name,
+    showInsert: true,
+    showDelete: true,
+  }));
 
   const stagingGridItems: ImageGridItem[] = stagingFiles.map((file) => ({
     path: file.path,
@@ -366,10 +444,77 @@ export function ImageManagerPane({
         ) : null}
 
         {activeTab === "ai" ? (
-          <div className="flex h-full flex-col items-center justify-center gap-2 p-4 text-center">
-            <Sparkles className="h-8 w-8 text-muted-foreground/50" />
-            <p className="text-xs font-medium text-muted-foreground">AI画像生成</p>
-            <p className="text-[10px] text-muted-foreground/70">準備中です</p>
+          <div className="flex flex-col gap-3 p-3">
+            {!lesson ? (
+              <p className="text-center text-xs text-muted-foreground">
+                レッスンを選択してください
+              </p>
+            ) : (
+              <>
+                <div className="flex flex-col gap-2">
+                  <p className="text-[10px] font-medium text-muted-foreground">
+                    本文内の画像スロット
+                  </p>
+                  {aiLoading ? (
+                    <p className="text-xs text-muted-foreground">読み込み中...</p>
+                  ) : aiSlots.length === 0 ? (
+                    <p className="text-xs text-muted-foreground">
+                      images/ 形式の画像プレースホルダがありません
+                    </p>
+                  ) : (
+                    <ul className="flex flex-col gap-2">
+                      {aiSlots.map((slot) => (
+                        <li
+                          key={slot.canonicalPath}
+                          className="rounded-lg border border-border bg-muted/20 p-2"
+                        >
+                          <p className="truncate text-[10px] font-medium text-foreground">
+                            {slot.fileName}
+                          </p>
+                          <p className="mt-0.5 line-clamp-2 text-[10px] text-muted-foreground">
+                            {slot.alt || "（alt なし）"}
+                          </p>
+                          <p className="mt-1 text-[10px] text-muted-foreground">
+                            {slot.status === "canonical"
+                              ? "正本あり"
+                              : slot.status === "staging"
+                                ? "AI staging あり"
+                                : "未生成"}
+                          </p>
+                          <Button
+                            type="button"
+                            size="sm"
+                            className="mt-2 h-7 w-full text-xs"
+                            disabled={generatingPath === slot.canonicalPath}
+                            onClick={() => void handleGenerateSlot(slot)}
+                          >
+                            {generatingPath === slot.canonicalPath
+                              ? "生成中..."
+                              : "生成"}
+                          </Button>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+                <div className="flex flex-col gap-1">
+                  <p className="text-[10px] font-medium text-muted-foreground">
+                    AI staging
+                  </p>
+                  <ImageGrid
+                    items={aiStagingGridItems}
+                    emptyMessage="AI staging に画像がありません"
+                    onPreview={(item) =>
+                      setPreview({ name: item.name, path: item.path })
+                    }
+                    onInsert={handleInsertStaging}
+                    onDelete={(item) =>
+                      void executeDelete({ ...item, referenceCount: 0 })
+                    }
+                  />
+                </div>
+              </>
+            )}
           </div>
         ) : null}
 

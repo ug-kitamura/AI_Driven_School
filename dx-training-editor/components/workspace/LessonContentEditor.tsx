@@ -6,6 +6,8 @@ import {
   useMemo,
   useRef,
   useCallback,
+  useEffect,
+  useState,
 } from "react";
 import CodeMirror from "@uiw/react-codemirror";
 import type { EditorView } from "@codemirror/view";
@@ -33,7 +35,24 @@ export const LessonContentEditor = forwardRef<
   ref,
 ) {
   const viewRef = useRef<EditorView | null>(null);
-  const extensions = useMemo(() => buildLessonEditorExtensions(), []);
+  const [isDark, setIsDark] = useState(false);
+
+  useEffect(() => {
+    const update = () =>
+      setIsDark(document.documentElement.classList.contains("dark"));
+    update();
+    const obs = new MutationObserver(update);
+    obs.observe(document.documentElement, {
+      attributes: true,
+      attributeFilter: ["class"],
+    });
+    return () => obs.disconnect();
+  }, []);
+
+  const extensions = useMemo(
+    () => buildLessonEditorExtensions(isDark),
+    [isDark],
+  );
 
   const handleCreateEditor = useCallback(
     (view: EditorView) => {
@@ -67,7 +86,7 @@ export const LessonContentEditor = forwardRef<
 
   return (
     <CodeMirror
-      key={lessonId}
+      key={`${lessonId}-${isDark ? "dark" : "light"}`}
       value={value}
       height="100%"
       className={cn(

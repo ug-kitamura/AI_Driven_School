@@ -1,25 +1,26 @@
 import { describe, expect, it } from "vitest";
-import { countImageRefsInSeries, extractImageRefs } from "@/lib/extract-image-refs";
+import {
+  countImageRefsInSeries,
+  extractImageRefs,
+} from "@/lib/extract-image-refs";
 import type { Series } from "@/lib/schema";
 
 describe("extractImageRefs", () => {
-  it("extracts images paths from markdown", () => {
+  it("extracts canonical image paths only", () => {
     const content = [
-      "text",
-      "![a](images/uploaded/a.png)",
-      "![b](images/ai/b.png)",
-      "![data](data:image/png;base64,abc)",
-      "![ext](https://example.com/x.png)",
+      "![a](images/a.png)",
+      "![b](images/b.png)",
+      "![legacy](images/uploaded/legacy.png)",
     ].join("\n");
     expect(extractImageRefs(content)).toEqual([
-      "images/uploaded/a.png",
-      "images/ai/b.png",
+      "images/a.png",
+      "images/b.png",
     ]);
   });
 });
 
 describe("countImageRefsInSeries", () => {
-  it("counts occurrences across lessons", () => {
+  it("counts refs across lessons", () => {
     const series: Series[] = [
       {
         id: "s1",
@@ -28,6 +29,8 @@ describe("countImageRefsInSeries", () => {
           {
             id: "c1",
             name: "C",
+            prerequisites: [],
+            next_courses: [],
             lessons: [
               {
                 id: "l1",
@@ -39,7 +42,7 @@ describe("countImageRefsInSeries", () => {
                 tags: [],
                 estimated_minutes: 0,
                 author: "",
-                content: "![a](images/uploaded/a.png)",
+                content: "![a](images/foo.png)",
               },
               {
                 id: "l2",
@@ -51,17 +54,15 @@ describe("countImageRefsInSeries", () => {
                 tags: [],
                 estimated_minutes: 0,
                 author: "",
-                content: "![a](images/uploaded/a.png)\n![b](images/uploaded/b.png)",
+                content: "![a](images/foo.png)\n![b](images/bar.png)",
               },
             ],
-            prerequisites: [],
-            next_courses: [],
           },
         ],
       },
     ];
     const counts = countImageRefsInSeries(series);
-    expect(counts.get("images/uploaded/a.png")).toBe(2);
-    expect(counts.get("images/uploaded/b.png")).toBe(1);
+    expect(counts.get("images/foo.png")).toBe(2);
+    expect(counts.get("images/bar.png")).toBe(1);
   });
 });

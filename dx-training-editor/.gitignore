@@ -14,6 +14,7 @@ node_modules/
 *.tsbuildinfo
 next-env.d.ts
 
-# images
-/images/**/_staging/**
-!/images/**/_staging/.gitkeep
+# image staging (per source tab)
+/images/uploaded/
+/images/ai/
+/images/web/

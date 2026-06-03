@@ -85,16 +85,13 @@ const FILTER_ALL = "all";
 /** Pane4 タブ本文の左右インセット（プロンプト・ボタン・グリッドで共有） */
 const PANE4_TAB_INSET = "px-3";
 
-/** UP D&D・AI/Web プロンプト欄で共有する最小高さ */
-const PANE4_TOP_BOX_MIN_H = "min-h-[120px]";
-const PANE4_TOP_BOX_CLASS = cn(
-  PANE4_TOP_BOX_MIN_H,
-  "flex flex-col items-center justify-center rounded-lg border-2 border-dashed p-6 text-center",
-);
-const PANE4_PROMPT_TEXTAREA_CLASS = cn(
-  PANE4_TOP_BOX_MIN_H,
-  "w-full resize-y rounded-lg border border-border bg-background px-3 py-6 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary",
-);
+/** UP D&D・AI/Web プロンプト欄で共有する高さ（AI の生成ボタン上端に UP 下線を揃える） */
+const PANE4_PROMPT_BLOCK_CLASS = "flex flex-col gap-2";
+const PANE4_BUTTON_ROW_CLASS = "flex h-8 items-center justify-start gap-2";
+const PANE4_TOP_BOX_CLASS =
+  "flex h-[calc(96px+0.5rem)] flex-col items-center justify-center rounded-lg border-2 border-dashed p-4 text-center";
+const PANE4_PROMPT_TEXTAREA_CLASS =
+  "h-[96px] min-h-[96px] w-full resize-y overflow-y-auto rounded-lg border border-border bg-background px-3 pt-2 pb-3 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary";
 
 const AI_KEY_ERROR =
   "AI API キーを設定（歯車）するか、サーバーに AI_API_KEY を設定してください";
@@ -945,15 +942,15 @@ export function ImageManagerPane({
               </p>
             ) : (
               <>
-                <div className="flex flex-col gap-2">
+                <div className={PANE4_PROMPT_BLOCK_CLASS}>
                   <textarea
                     value={aiPrompt}
                     onChange={(e) => setAiPrompt(e.target.value)}
-                    rows={5}
+                    rows={3}
                     placeholder="画像生成プロンプトを入力してください"
                     className={PANE4_PROMPT_TEXTAREA_CLASS}
                   />
-                  <div className="flex items-center justify-start gap-2">
+                  <div className={PANE4_BUTTON_ROW_CLASS}>
                     <Button
                       type="button"
                       size="sm"
@@ -1026,15 +1023,15 @@ export function ImageManagerPane({
               </p>
             ) : (
               <>
-                <div className="flex flex-col gap-2">
+                <div className={PANE4_PROMPT_BLOCK_CLASS}>
                   <textarea
                     value={webPrompt}
                     onChange={(e) => setWebPrompt(e.target.value)}
-                    rows={5}
+                    rows={3}
                     placeholder="画像検索条件を入力してください"
                     className={PANE4_PROMPT_TEXTAREA_CLASS}
                   />
-                  <div className="flex items-center justify-start gap-2">
+                  <div className={PANE4_BUTTON_ROW_CLASS}>
                     <Button
                       type="button"
                       size="sm"

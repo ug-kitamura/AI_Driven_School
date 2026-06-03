@@ -42,3 +42,8 @@ export function htmlCommentInnerTextAtOffset(
   }
   return null;
 }
+
+/** プレビュー表示用: HTML コメント（AI 画像指示）を除去する */
+export function stripHtmlComments(content: string): string {
+  return content.replace(HTML_COMMENT_RE, "");
+}

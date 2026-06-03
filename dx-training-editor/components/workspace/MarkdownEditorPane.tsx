@@ -10,6 +10,7 @@ import { GitCompare, Code, Eye, Edit3 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { getLessonBody, type LessonMetaFields } from "@/lib/lesson-frontmatter";
+import { stripHtmlComments } from "@/lib/html-comment-at-cursor";
 import { LessonMetaDialog } from "@/components/workspace/LessonMetaDialog";
 import { LessonDiffView } from "@/components/workspace/LessonDiffView";
 import { PaneWheelRoot } from "@/components/workspace/PaneWheelRoot";
@@ -82,7 +83,7 @@ export function MarkdownEditorPane({
   const [metaDialogOpen, setMetaDialogOpen] = useState(false);
 
   const previewBody = useMemo(
-    () => (lesson ? getLessonBody(lesson) : ""),
+    () => (lesson ? stripHtmlComments(getLessonBody(lesson)) : ""),
     [lesson],
   );
 

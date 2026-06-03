@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   findHtmlCommentRanges,
   htmlCommentInnerTextAtOffset,
+  stripHtmlComments,
 } from "@/lib/html-comment-at-cursor";
 
 describe("html-comment-at-cursor", () => {
@@ -29,5 +30,12 @@ Git フロー図
   it("returns null when cursor outside comment", () => {
     expect(htmlCommentInnerTextAtOffset(content, 0)).toBeNull();
     expect(htmlCommentInnerTextAtOffset(content, content.length - 1)).toBeNull();
+  });
+});
+
+describe("stripHtmlComments", () => {
+  it("removes html comments for preview", () => {
+    const body = "Before\n<!-- git branch -->\nAfter";
+    expect(stripHtmlComments(body)).toBe("Before\n\nAfter");
   });
 });

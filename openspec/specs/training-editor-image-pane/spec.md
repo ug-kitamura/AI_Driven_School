@@ -127,7 +127,13 @@ Pane3 プレビューモードは、本文中の `images/<filename>` 形式の M
 
 ### Requirement: AI タブは ai staging を UP と同型のグリッドで表示する
 
-AI タブは `images/ai/` 内の staging 画像を UP タブと同型のサムネイルグリッドで表示し、挿入・削除・拡大プレビューを提供しなければならない（SHALL）。未充足スロット一覧は `training-editor-ai-image-generation` に従う。
+AI タブは UP タブと同型の構成とし、**上部**に実線枠のプロンプト入力エリアと生成操作、**下部**に `images/ai/` 内の staging 画像をサムネイルグリッドで表示し、挿入・削除・拡大プレビューを提供しなければならない（SHALL）。プロンプト入力枠は UP の点線 D&D エリアとは異なり **実線 border** としなければならない（SHALL）。詳細な生成契約は `training-editor-ai-image-generation` に従う。
+
+#### Scenario: AI タブにプロンプト欄と staging がある
+
+- **WHEN** ユーザーが AI タブを開く
+- **THEN** プロンプト入力エリアと staging グリッドが表示される
+- **AND** UP タブの点線 D&D エリアは表示されない
 
 #### Scenario: AI staging から挿入できる
 

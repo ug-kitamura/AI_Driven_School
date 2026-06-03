@@ -64,6 +64,7 @@ type Props = {
   editorCursorOffset: number | null;
   pane4Open: boolean;
   onTogglePane4: () => void;
+  onImageAssetsChanged?: (removedPaths?: string | string[]) => void;
 };
 
 type Tab = "used" | "upload" | "ai" | "web";
@@ -137,6 +138,7 @@ export function ImageManagerPane({
   editorCursorOffset,
   pane4Open,
   onTogglePane4,
+  onImageAssetsChanged,
 }: Props) {
   const [activeTab, setActiveTab] = useState<Tab>("used");
   const [stagingFiles, setStagingFiles] = useState<ImageAsset[]>([]);
@@ -277,9 +279,10 @@ export function ImageManagerPane({
       const alt = aiStagingAlts[item.path] ?? aiStagingAlts[item.name];
       if (tryInsert(toImageMarkdown(data.file.path, alt), "ai")) {
         await refreshLists();
+        onImageAssetsChanged?.();
       }
     },
-    [tryInsert, refreshLists, showNotice, aiStagingAlts],
+    [tryInsert, refreshLists, showNotice, aiStagingAlts, onImageAssetsChanged],
   );
 
   const handleInsertWebStaging = useCallback(
@@ -297,9 +300,10 @@ export function ImageManagerPane({
       const alt = webStagingAlts[item.path] ?? webStagingAlts[item.name];
       if (tryInsert(toImageMarkdown(data.file.path, alt), "web")) {
         await refreshLists();
+        onImageAssetsChanged?.();
       }
     },
-    [tryInsert, refreshLists, showNotice, webStagingAlts],
+    [tryInsert, refreshLists, showNotice, webStagingAlts, onImageAssetsChanged],
   );
 
   const handleInsertStaging = useCallback(
@@ -316,9 +320,10 @@ export function ImageManagerPane({
       }
       if (tryInsert(toImageMarkdown(data.file.path), "upload")) {
         await refreshLists();
+        onImageAssetsChanged?.();
       }
     },
-    [tryInsert, refreshLists, showNotice],
+    [tryInsert, refreshLists, showNotice, onImageAssetsChanged],
   );
 
   const handleInsertPromoted = useCallback(
@@ -342,8 +347,9 @@ export function ImageManagerPane({
         return;
       }
       await refreshLists();
+      onImageAssetsChanged?.(item.path);
     },
-    [refreshLists, showNotice],
+    [refreshLists, showNotice, onImageAssetsChanged],
   );
 
   const handleDeleteRequest = useCallback(
@@ -1166,7 +1172,6 @@ export function ImageManagerPane({
             <AlertDialogTitle>画像を削除しますか？</AlertDialogTitle>
             <AlertDialogDescription>
               {pendingDelete?.name} は {pendingDelete?.referenceCount} 箇所で使用しています。
-              ファイルを削除すると Markdown 上のリンクが壊れます。
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

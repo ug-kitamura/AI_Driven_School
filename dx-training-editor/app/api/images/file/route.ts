@@ -22,7 +22,7 @@ export async function GET(req: Request) {
     return new Response(data, {
       headers: {
         "Content-Type": mimeTypeForPath(pathParam),
-        "Cache-Control": "private, max-age=3600",
+        "Cache-Control": "private, no-cache, must-revalidate",
       },
     });
   } catch {

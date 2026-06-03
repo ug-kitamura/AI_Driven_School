@@ -17,7 +17,7 @@ import { PaneWheelRoot } from "@/components/workspace/PaneWheelRoot";
 import type { LessonContentEditorHandle } from "@/components/workspace/LessonContentEditor";
 import type { Lesson } from "@/lib/schema";
 import type { Pane3Mode } from "@/components/workspace/Workspace";
-import { lessonPreviewMarkdownComponents } from "@/lib/lesson-preview-markdown";
+import { createLessonPreviewMarkdownComponents } from "@/lib/lesson-preview-markdown";
 
 const LessonContentEditor = dynamic(
   () =>
@@ -46,6 +46,8 @@ type Props = {
   onRegisterInsertCallback: (cb: (markdown: string) => void) => void;
   onEditorCursorChange?: (offset: number) => void;
   tagSuggestions?: readonly string[];
+  availableImagePaths?: ReadonlySet<string> | null;
+  imageAssetsRevision?: number;
 };
 
 const MODE_TABS: Array<{ value: Pane3Mode; label: string; icon: React.ReactNode }> =
@@ -76,6 +78,8 @@ export function MarkdownEditorPane({
   onRegisterInsertCallback,
   onEditorCursorChange,
   tagSuggestions = [],
+  availableImagePaths = null,
+  imageAssetsRevision = 0,
 }: Props) {
   const editorRef = useRef<LessonContentEditorHandle>(null);
   const paneScrollRef = useRef<HTMLElement | null>(null);
@@ -85,6 +89,15 @@ export function MarkdownEditorPane({
   const previewBody = useMemo(
     () => (lesson ? stripHtmlComments(getLessonBody(lesson)) : ""),
     [lesson],
+  );
+
+  const previewMarkdownComponents = useMemo(
+    () =>
+      createLessonPreviewMarkdownComponents({
+        availableImagePaths,
+        imageAssetsRevision,
+      }),
+    [availableImagePaths, imageAssetsRevision],
   );
 
   const editContent = lesson?.content ?? "";
@@ -230,9 +243,10 @@ export function MarkdownEditorPane({
           >
             <div className={LESSON_PREVIEW_CLASS}>
               <ReactMarkdown
+                key={`${lesson.id}-${imageAssetsRevision}`}
                 remarkPlugins={[remarkGfm]}
                 rehypePlugins={[rehypeHighlight]}
-                components={lessonPreviewMarkdownComponents}
+                components={previewMarkdownComponents}
               >
                 {previewBody}
               </ReactMarkdown>

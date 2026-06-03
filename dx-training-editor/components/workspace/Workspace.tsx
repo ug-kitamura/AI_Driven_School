@@ -28,6 +28,8 @@ import {
   type LessonMetaFields,
 } from "@/lib/lesson-frontmatter";
 import { collectAllLessonTags } from "@/lib/lesson-tags";
+import { fetchAvailableImagePaths } from "@/lib/preview-image-assets";
+import { normalizeImageLogicalPath } from "@/lib/image-path";
 import { htmlCommentInnerTextAtOffset } from "@/lib/html-comment-at-cursor";
 
 export type Pane3Mode = "inline" | "raw" | "diff";
@@ -70,6 +72,10 @@ export function Workspace({
   const [editorCursorOffset, setEditorCursorOffset] = useState<number | null>(
     null,
   );
+  const [imageAssetsRevision, setImageAssetsRevision] = useState(0);
+  const [availableImagePaths, setAvailableImagePaths] = useState<Set<string> | null>(
+    null,
+  );
   const { paneWidths, isResizing, resizeHandleProps, applyPaneWidths } =
     useWorkspacePaneWidths();
 
@@ -101,6 +107,34 @@ export function Workspace({
     () => collectAllLessonTags(series),
     [series],
   );
+
+  const notifyImageAssetsChanged = useCallback(
+    (removedPaths?: string | string[]) => {
+      if (removedPaths) {
+        const list = Array.isArray(removedPaths) ? removedPaths : [removedPaths];
+        setAvailableImagePaths((prev) => {
+          if (!prev) return prev;
+          const next = new Set(prev);
+          for (const path of list) {
+            next.delete(normalizeImageLogicalPath(path));
+          }
+          return next;
+        });
+      }
+      setImageAssetsRevision((v) => v + 1);
+    },
+    [],
+  );
+
+  useEffect(() => {
+    let cancelled = false;
+    void fetchAvailableImagePaths().then((paths) => {
+      if (!cancelled) setAvailableImagePaths(paths);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [imageAssetsRevision]);
 
   // コース選択（Pane1 から、またはPane2の前提/次コースクリック）
   const selectCourse = useCallback((courseId: string) => {
@@ -526,6 +560,8 @@ export function Workspace({
               onRegisterInsertCallback={registerInsertCallback}
               onEditorCursorChange={handleEditorCursorChange}
               tagSuggestions={tagSuggestions}
+              availableImagePaths={availableImagePaths}
+              imageAssetsRevision={imageAssetsRevision}
             />
           </div>
           {pane4Open ? (
@@ -544,6 +580,7 @@ export function Workspace({
                   editorCursorOffset={editorCursorOffset}
                   pane4Open={pane4Open}
                   onTogglePane4={() => setPane4ManuallyClosed((v) => !v)}
+                  onImageAssetsChanged={notifyImageAssetsChanged}
                 />
               </div>
             </>
@@ -557,6 +594,7 @@ export function Workspace({
               editorCursorOffset={editorCursorOffset}
               pane4Open={pane4Open}
               onTogglePane4={() => setPane4ManuallyClosed((v) => !v)}
+              onImageAssetsChanged={notifyImageAssetsChanged}
             />
           )}
         </div>

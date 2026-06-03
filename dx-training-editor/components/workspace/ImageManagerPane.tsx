@@ -66,6 +66,24 @@ type PreviewState = {
 
 type PendingDelete = ImageGridItem & { referenceCount?: number };
 
+type TabNotice = { message: string; tone: "error" | "success" };
+
+function TabNoticeBanner({ notice }: { notice: TabNotice | undefined }) {
+  if (!notice) return null;
+  return (
+    <div
+      className={cn(
+        "border-b px-3 py-1.5 text-[10px]",
+        notice.tone === "success"
+          ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-900 dark:text-emerald-100"
+          : "border-amber-500/30 bg-amber-500/10 text-amber-800 dark:text-amber-200",
+      )}
+    >
+      {notice.message}
+    </div>
+  );
+}
+
 export function ImageManagerPane({
   series,
   lesson,
@@ -84,9 +102,8 @@ export function ImageManagerPane({
   const [loading, setLoading] = useState(false);
   const [generating, setGenerating] = useState(false);
   const [isDragOver, setIsDragOver] = useState(false);
-  const [insertNotice, setInsertNotice] = useState<string | null>(null);
-  const [insertNoticeTone, setInsertNoticeTone] = useState<"error" | "success">(
-    "error",
+  const [tabNotices, setTabNotices] = useState<Partial<Record<Tab, TabNotice>>>(
+    {},
   );
   const [preview, setPreview] = useState<PreviewState | null>(null);
   const [pendingDelete, setPendingDelete] = useState<PendingDelete | null>(null);
@@ -134,22 +151,33 @@ export function ImageManagerPane({
     }
   }, [pane4Open, refreshLists, series]);
 
-  const showNotice = useCallback((message: string, tone: "error" | "success") => {
-    setInsertNoticeTone(tone);
-    setInsertNotice(message);
+  const showNotice = useCallback(
+    (tab: Tab, message: string, tone: "error" | "success") => {
+      setTabNotices((prev) => ({ ...prev, [tab]: { message, tone } }));
+    },
+    [],
+  );
+
+  const clearNotice = useCallback((tab: Tab) => {
+    setTabNotices((prev) => {
+      if (!(tab in prev)) return prev;
+      const next = { ...prev };
+      delete next[tab];
+      return next;
+    });
   }, []);
 
   const tryInsert = useCallback(
-    (markdown: string) => {
+    (markdown: string, tab: Tab) => {
       const ok = onInsertImage(markdown);
       if (!ok) {
-        showNotice("編集モードに切り替えてから挿入してください", "error");
+        showNotice(tab, "編集モードに切り替えてから挿入してください", "error");
       } else {
-        setInsertNotice(null);
+        clearNotice(tab);
       }
       return ok;
     },
-    [onInsertImage, showNotice],
+    [onInsertImage, showNotice, clearNotice],
   );
 
   const handleInsertAiStaging = useCallback(
@@ -161,11 +189,11 @@ export function ImageManagerPane({
       });
       const data: { file?: ImageAsset; error?: string } = await res.json();
       if (!res.ok || !data.file) {
-        showNotice(data.error ?? "画像の promote に失敗しました", "error");
+        showNotice("ai", data.error ?? "画像の promote に失敗しました", "error");
         return;
       }
       const alt = aiStagingAlts[item.path] ?? aiStagingAlts[item.name];
-      if (tryInsert(toImageMarkdown(data.file.path, alt))) {
+      if (tryInsert(toImageMarkdown(data.file.path, alt), "ai")) {
         await refreshLists();
       }
     },
@@ -181,10 +209,10 @@ export function ImageManagerPane({
       });
       const data: { file?: ImageAsset; error?: string } = await res.json();
       if (!res.ok || !data.file) {
-        showNotice(data.error ?? "画像の promote に失敗しました", "error");
+        showNotice("upload", data.error ?? "画像の promote に失敗しました", "error");
         return;
       }
-      if (tryInsert(toImageMarkdown(data.file.path))) {
+      if (tryInsert(toImageMarkdown(data.file.path), "upload")) {
         await refreshLists();
       }
     },
@@ -193,13 +221,13 @@ export function ImageManagerPane({
 
   const handleInsertPromoted = useCallback(
     (item: ImageGridItem) => {
-      tryInsert(toImageMarkdown(item.path));
+      tryInsert(toImageMarkdown(item.path), "used");
     },
     [tryInsert],
   );
 
   const executeDelete = useCallback(
-    async (item: PendingDelete, force = false) => {
+    async (item: PendingDelete, tab: Tab, force = false) => {
       const params = new URLSearchParams({ path: item.path });
       if (force && item.referenceCount) {
         params.set("force", "1");
@@ -208,7 +236,7 @@ export function ImageManagerPane({
       const res = await fetch(`/api/images/file?${params}`, { method: "DELETE" });
       if (!res.ok) {
         const data: { error?: string } = await res.json();
-        showNotice(data.error ?? "削除に失敗しました", "error");
+        showNotice(tab, data.error ?? "削除に失敗しました", "error");
         return;
       }
       await refreshLists();
@@ -223,7 +251,7 @@ export function ImageManagerPane({
         setPendingDelete({ ...item, referenceCount });
         return;
       }
-      void executeDelete({ ...item, referenceCount });
+      void executeDelete({ ...item, referenceCount }, "used");
     },
     [executeDelete],
   );
@@ -270,7 +298,7 @@ export function ImageManagerPane({
     if (!lesson) return;
     const prompt = aiPrompt.trim();
     if (!prompt) {
-      showNotice("プロンプトを入力してください", "error");
+      showNotice("ai", "プロンプトを入力してください", "error");
       return;
     }
     const settings = loadWorkspaceSettings();
@@ -281,7 +309,7 @@ export function ImageManagerPane({
       headers["x-anthropic-api-key"] = settings.anthropicApiKey;
     }
     setGenerating(true);
-    setInsertNotice(null);
+    clearNotice("ai");
     try {
       const res = await fetch("/api/images/generate", {
         method: "POST",
@@ -292,11 +320,12 @@ export function ImageManagerPane({
       try {
         data = (await res.json()) as typeof data;
       } catch {
-        showNotice("サーバー応答の解析に失敗しました", "error");
+        showNotice("ai", "サーバー応答の解析に失敗しました", "error");
         return;
       }
       if (!res.ok || !data.file) {
         showNotice(
+          "ai",
           data.error ??
             (res.status === 401
               ? "Anthropic API キーを設定（歯車）するか、サーバーに ANTHROPIC_API_KEY を設定してください"
@@ -314,18 +343,20 @@ export function ImageManagerPane({
       }
       await refreshLists();
       showNotice(
+        "ai",
         `AI staging に保存しました: ${data.file.name}`,
         "success",
       );
     } catch (error) {
       showNotice(
+        "ai",
         error instanceof Error ? error.message : "画像の生成に失敗しました",
         "error",
       );
     } finally {
       setGenerating(false);
     }
-  }, [lesson, aiPrompt, refreshLists, showNotice]);
+  }, [lesson, aiPrompt, refreshLists, showNotice, clearNotice]);
 
   const aiStagingGridItems: ImageGridItem[] = aiStagingFiles.map((file) => ({
     path: file.path,
@@ -390,19 +421,6 @@ export function ImageManagerPane({
         <Pane4Toggle open={true} onToggle={onTogglePane4} />
       </div>
 
-      {insertNotice ? (
-        <div
-          className={cn(
-            "border-b px-3 py-1.5 text-[10px]",
-            insertNoticeTone === "success"
-              ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-900 dark:text-emerald-100"
-              : "border-amber-500/30 bg-amber-500/10 text-amber-800 dark:text-amber-200",
-          )}
-        >
-          {insertNotice}
-        </div>
-      ) : null}
-
       {pane3Mode !== "raw" && activeTab !== "ai" && activeTab !== "web" ? (
         <div className="border-b border-border bg-muted/40 px-3 py-1 text-[10px] text-muted-foreground">
           画像の挿入は編集モードでのみ利用できます
@@ -420,7 +438,9 @@ export function ImageManagerPane({
         ) : null}
 
         {activeTab === "used" && !loading ? (
-          <ImageGrid
+          <>
+            <TabNoticeBanner notice={tabNotices.used} />
+            <ImageGrid
             items={usedGridItems}
             emptyMessage="promote 済みの画像がありません"
             onPreview={(item) =>
@@ -436,10 +456,12 @@ export function ImageManagerPane({
               handleDeleteRequest(item, row?.referenceCount ?? 0);
             }}
           />
+          </>
         ) : null}
 
         {activeTab === "upload" && !loading ? (
           <>
+            <TabNoticeBanner notice={tabNotices.upload} />
             <div className="p-3">
               <div
                 className={cn(
@@ -482,13 +504,17 @@ export function ImageManagerPane({
                 setPreview({ name: item.name, path: item.path })
               }
               onInsert={handleInsertStaging}
-              onDelete={(item) => void executeDelete({ ...item, referenceCount: 0 })}
+              onDelete={(item) =>
+                void executeDelete({ ...item, referenceCount: 0 }, "upload")
+              }
             />
           </>
         ) : null}
 
         {activeTab === "ai" ? (
-          <div className="flex flex-col gap-3 p-3">
+          <>
+            <TabNoticeBanner notice={tabNotices.ai} />
+            <div className="flex flex-col gap-3 p-3">
             {!lesson ? (
               <p className="text-center text-xs text-muted-foreground">
                 レッスンを選択してください
@@ -524,9 +550,6 @@ export function ImageManagerPane({
                   </Button>
                 </div>
                 <div className="flex flex-col gap-1">
-                  <p className="text-[10px] font-medium text-muted-foreground">
-                    AI staging
-                  </p>
                   <ImageGrid
                     items={aiStagingGridItems}
                     emptyMessage="AI staging に画像がありません"
@@ -535,20 +558,24 @@ export function ImageManagerPane({
                     }
                     onInsert={handleInsertAiStaging}
                     onDelete={(item) =>
-                      void executeDelete({ ...item, referenceCount: 0 })
+                      void executeDelete({ ...item, referenceCount: 0 }, "ai")
                     }
                   />
                 </div>
               </>
             )}
-          </div>
+            </div>
+          </>
         ) : null}
 
         {activeTab === "web" ? (
-          <div className="flex h-full flex-col items-center justify-center gap-2 p-4 text-center">
-            <Search className="h-8 w-8 text-muted-foreground/50" />
-            <p className="text-xs font-medium text-muted-foreground">Web画像検索</p>
-            <p className="text-[10px] text-muted-foreground/70">準備中です</p>
+          <div className="flex h-full flex-col">
+            <TabNoticeBanner notice={tabNotices.web} />
+            <div className="flex flex-1 flex-col items-center justify-center gap-2 p-4 text-center">
+              <Search className="h-8 w-8 text-muted-foreground/50" />
+              <p className="text-xs font-medium text-muted-foreground">Web画像検索</p>
+              <p className="text-[10px] text-muted-foreground/70">準備中です</p>
+            </div>
           </div>
         ) : null}
       </div>
@@ -580,7 +607,7 @@ export function ImageManagerPane({
             <AlertDialogAction
               onClick={() => {
                 if (pendingDelete) {
-                  void executeDelete(pendingDelete, true);
+                  void executeDelete(pendingDelete, "used", true);
                   setPendingDelete(null);
                 }
               }}

@@ -183,17 +183,12 @@ function SettingsForm({
               <Input
                 type="password"
                 autoComplete="off"
-                placeholder="sk-ant-..."
+                placeholder="sk-ant-api03-..."
                 value={apiKeyInput}
                 onChange={(e) => setApiKeyInput(e.target.value)}
               />
               <p className="text-[10px] text-muted-foreground">
-                入力がある場合はダイアログの値を優先します。
-                {aiEnvConfigured
-                  ? " 未入力時は "
-                  : " 未入力時は `.env.local` に "}
-                <code className="text-[9px]">AI_API_KEY</code>
-                {aiEnvConfigured ? " を参照します。" : " を設定してください。"}
+                未入力時は環境変数 AI_API_KEY を取得
               </p>
             </MetaDialogField>
             <MetaDialogField>
@@ -208,12 +203,7 @@ function SettingsForm({
                 onChange={(e) => setPixabayKeyInput(e.target.value)}
               />
               <p className="text-[10px] text-muted-foreground">
-                入力がある場合はダイアログの値を優先します。
-                {pixabayEnvConfigured
-                  ? " 未入力時は "
-                  : " 未入力時は `.env.local` に "}
-                <code className="text-[9px]">PIXABAY_API_KEY</code>
-                {pixabayEnvConfigured ? " を参照します。" : " を設定してください。"}
+                未入力時は環境変数 PIXABAY_API_KEY を取得
               </p>
             </MetaDialogField>
             <Button

@@ -4,6 +4,7 @@ import os from "node:os";
 import path from "node:path";
 import { promisify } from "node:util";
 import { z } from "zod";
+import { resolveAiApiKey } from "@/lib/api-keys";
 import {
   buildImageGenerationMessages,
   parseAiGenerationResponse,
@@ -23,10 +24,7 @@ const bodySchema = z.object({
 const DEFAULT_MODEL = "claude-sonnet-4-6";
 
 function resolveApiKey(req: Request): string | null {
-  const header = req.headers.get("x-anthropic-api-key")?.trim();
-  if (header) return header;
-  const env = process.env.ANTHROPIC_API_KEY?.trim();
-  return env || null;
+  return resolveAiApiKey(req);
 }
 
 async function callClaude(apiKey: string, system: string, user: string): Promise<string> {
@@ -38,7 +36,7 @@ async function callClaude(apiKey: string, system: string, user: string): Promise
       "anthropic-version": "2023-06-01",
     },
     body: JSON.stringify({
-      model: process.env.ANTHROPIC_MODEL ?? DEFAULT_MODEL,
+      model: process.env.AI_MODEL ?? DEFAULT_MODEL,
       max_tokens: 8192,
       system,
       messages: [{ role: "user", content: user }],
@@ -78,7 +76,7 @@ export async function POST(req: Request) {
   const apiKey = resolveApiKey(req);
   if (!apiKey) {
     return Response.json(
-      { error: "Anthropic API キーが未設定です。設定ダイアログから入力してください。" },
+      { error: "AI API キーが未設定です。`.env.local` の AI_API_KEY または設定ダイアログから入力してください。" },
       { status: 401 },
     );
   }

@@ -1,6 +1,8 @@
 export const IMAGE_SOURCES = ["uploaded", "ai", "web"] as const;
 export type ImageSource = (typeof IMAGE_SOURCES)[number];
 
+export const IMAGE_TRASH_DIR = "trash";
+
 const IMAGE_PATH_PREFIX = "images/";
 
 export function normalizeImageLogicalPath(path: string): string {
@@ -16,12 +18,25 @@ function pathPartsAfterImages(normalized: string): string[] {
   return normalized.slice(IMAGE_PATH_PREFIX.length).split("/").filter(Boolean);
 }
 
+/** trash: `images/trash/<filename>` */
+export function isTrashImagePath(path: string): boolean {
+  const parts = pathPartsAfterImages(normalizeImageLogicalPath(path));
+  if (parts.length !== 2) return false;
+  if (parts[0] !== IMAGE_TRASH_DIR) return false;
+  return parts[1].length > 0 && parts[1] !== "." && parts[1] !== "..";
+}
+
 /** 正本: `images/<filename>`（1 セグメント、予約ディレクトリ名は不可） */
 export function isCanonicalImagePath(path: string): boolean {
   const parts = pathPartsAfterImages(normalizeImageLogicalPath(path));
   if (parts.length !== 1) return false;
   if (isImageSource(parts[0])) return false;
+  if (parts[0] === IMAGE_TRASH_DIR) return false;
   return parts[0].length > 0 && parts[0] !== "." && parts[0] !== "..";
+}
+
+export function trashDirLogical(): string {
+  return `${IMAGE_PATH_PREFIX}${IMAGE_TRASH_DIR}`;
 }
 
 /** staging: `images/{source}/<filename>` */

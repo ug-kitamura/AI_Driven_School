@@ -1,68 +1,90 @@
 import { describe, expect, it } from "vitest";
-import {
-  countImageRefsInSeries,
-  extractImageRefs,
-} from "@/lib/extract-image-refs";
 import type { Series } from "@/lib/schema";
+import {
+  indexImageRefLocations,
+  isUsedImageFilterActive,
+  usedRowMatchesFilter,
+  type UsedImageFilter,
+} from "@/lib/extract-image-refs";
 
-describe("extractImageRefs", () => {
-  it("extracts canonical image paths only", () => {
-    const content = [
-      "![a](images/a.png)",
-      "![b](images/b.png)",
-      "![legacy](images/uploaded/legacy.png)",
-    ].join("\n");
-    expect(extractImageRefs(content)).toEqual([
-      "images/a.png",
-      "images/b.png",
-    ]);
-  });
-});
-
-describe("countImageRefsInSeries", () => {
-  it("counts refs across lessons", () => {
-    const series: Series[] = [
+const seriesFixture: Series[] = [
+  {
+    id: "s1",
+    name: "Series A",
+    courses: [
       {
-        id: "s1",
-        name: "S",
-        courses: [
+        id: "c1",
+        name: "Course 1",
+        target_audience: "",
+        prerequisites: [],
+        next_courses: [],
+        lessons: [
           {
-            id: "c1",
-            name: "C",
-            prerequisites: [],
-            next_courses: [],
-            lessons: [
-              {
-                id: "l1",
-                series: "S",
-                course: "C",
-                lesson: "L1",
-                status: "open",
-                description: "",
-                tags: [],
-                estimated_minutes: 0,
-                author: "",
-                content: "![a](images/foo.png)",
-              },
-              {
-                id: "l2",
-                series: "S",
-                course: "C",
-                lesson: "L2",
-                status: "open",
-                description: "",
-                tags: [],
-                estimated_minutes: 0,
-                author: "",
-                content: "![a](images/foo.png)\n![b](images/bar.png)",
-              },
-            ],
+            id: "l1",
+            lesson: "Lesson 1",
+            status: "open",
+            description: "",
+            tags: [],
+            estimatedMinutes: 0,
+            author: "",
+            content: "![a](images/used.png)\n",
+          },
+          {
+            id: "l2",
+            lesson: "Lesson 2",
+            status: "open",
+            description: "",
+            tags: [],
+            estimatedMinutes: 0,
+            author: "",
+            content: "no images",
           },
         ],
       },
-    ];
-    const counts = countImageRefsInSeries(series);
-    expect(counts.get("images/foo.png")).toBe(2);
-    expect(counts.get("images/bar.png")).toBe(1);
+    ],
+  },
+];
+
+describe("usedRowMatchesFilter", () => {
+  const refLocations = indexImageRefLocations(seriesFixture);
+
+  it("shows all rows when filter inactive", () => {
+    const filter: UsedImageFilter = {
+      seriesId: null,
+      courseId: null,
+      lessonId: null,
+    };
+    expect(isUsedImageFilterActive(filter)).toBe(false);
+    expect(
+      usedRowMatchesFilter("images/used.png", 1, filter, refLocations),
+    ).toBe(true);
+    expect(
+      usedRowMatchesFilter("images/unused.png", 0, filter, refLocations),
+    ).toBe(true);
+  });
+
+  it("hides unused when filter active", () => {
+    const filter: UsedImageFilter = {
+      seriesId: "s1",
+      courseId: null,
+      lessonId: null,
+    };
+    expect(
+      usedRowMatchesFilter("images/unused.png", 0, filter, refLocations),
+    ).toBe(false);
+  });
+
+  it("matches lesson scope", () => {
+    const filter: UsedImageFilter = {
+      seriesId: "s1",
+      courseId: "c1",
+      lessonId: "l1",
+    };
+    expect(
+      usedRowMatchesFilter("images/used.png", 1, filter, refLocations),
+    ).toBe(true);
+    expect(
+      usedRowMatchesFilter("images/other.png", 1, filter, refLocations),
+    ).toBe(false);
   });
 });

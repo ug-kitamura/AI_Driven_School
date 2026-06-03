@@ -3,6 +3,7 @@ import type { Lesson } from "@/lib/schema";
 
 const SYSTEM_PROMPT = `You write image diagram instructions for a Japanese DX training lesson editor.
 The author uses your output as the prompt for AI diagram generation (same style as HTML comment instructions).
+When a seed prompt is provided, refine and complete it into a polished generation prompt — keep the author's intent.
 Respond with ONLY the prompt text — no markdown fences, no JSON, no preamble or explanation.
 
 Prompt style:
@@ -29,12 +30,13 @@ export function snippetAroundOffset(
 export function buildSuggestPromptMessages(
   lesson: Lesson,
   cursorOffset: number,
+  seedPrompt?: string,
 ): { system: string; user: string } {
   const { meta } = parseLessonDocument(lesson.content);
   const body = getLessonBody(lesson);
   const cursorContext = snippetAroundOffset(lesson.content, cursorOffset);
 
-  const user = [
+  const lines = [
     "## Task",
     "Write an image generation prompt suitable for inserting at the author's cursor position in this lesson.",
     "",
@@ -45,14 +47,26 @@ export function buildSuggestPromptMessages(
     "",
     "## Text around cursor (insertion point)",
     cursorContext,
+  ];
+
+  const seed = seedPrompt?.trim();
+  if (seed) {
+    lines.push(
+      "",
+      "## Seed prompt (refine and complete this)",
+      seed,
+    );
+  }
+
+  lines.push(
     "",
     "## Full lesson markdown body",
     body,
     "",
     "Output the prompt text only.",
-  ].join("\n");
+  );
 
-  return { system: SYSTEM_PROMPT, user };
+  return { system: SYSTEM_PROMPT, user: lines.join("\n") };
 }
 
 export function parseSuggestPromptResponse(raw: string): string {

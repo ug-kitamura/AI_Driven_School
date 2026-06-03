@@ -14,7 +14,12 @@ node_modules/
 *.tsbuildinfo
 next-env.d.ts
 
-# image staging (per source tab)
+# env (secrets)
+.env.local
+.env*.local
+
+# image staging (per source tab) and trash
 /images/uploaded/
 /images/ai/
 /images/web/
+/images/trash/

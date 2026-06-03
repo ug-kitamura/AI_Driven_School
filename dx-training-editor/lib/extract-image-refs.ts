@@ -6,6 +6,15 @@ import {
 
 const MD_IMAGE_RE = /!\[[^\]]*\]\(([^)]+)\)/g;
 
+export type ImageRefLocation = {
+  seriesId: string;
+  seriesName: string;
+  courseId: string;
+  courseName: string;
+  lessonId: string;
+  lessonName: string;
+};
+
 /** Markdown 本文から正本 `images/<filename>` 参照を抽出 */
 export function extractImageRefs(content: string): string[] {
   const refs: string[] = [];
@@ -33,4 +42,59 @@ export function countImageRefsInSeries(series: Series[]): Map<string, number> {
     }
   }
   return counts;
+}
+
+/** 正本パス → 参照しているレッスン位置（重複レッスン内複数 ref も複数行） */
+export function indexImageRefLocations(
+  seriesList: Series[],
+): Map<string, ImageRefLocation[]> {
+  const index = new Map<string, ImageRefLocation[]>();
+  for (const s of seriesList) {
+    for (const course of s.courses) {
+      for (const lesson of course.lessons) {
+        const loc: ImageRefLocation = {
+          seriesId: s.id,
+          seriesName: s.name,
+          courseId: course.id,
+          courseName: course.name,
+          lessonId: lesson.id,
+          lessonName: lesson.lesson,
+        };
+        for (const ref of extractImageRefs(lesson.content)) {
+          const list = index.get(ref) ?? [];
+          list.push(loc);
+          index.set(ref, list);
+        }
+      }
+    }
+  }
+  return index;
+}
+
+export type UsedImageFilter = {
+  seriesId: string | null;
+  courseId: string | null;
+  lessonId: string | null;
+};
+
+export function isUsedImageFilterActive(filter: UsedImageFilter): boolean {
+  return Boolean(filter.seriesId || filter.courseId || filter.lessonId);
+}
+
+/** フィルタ適用中: 未使用は非表示。選択スコープ内のレッスンが参照する path のみ true */
+export function usedRowMatchesFilter(
+  path: string,
+  referenceCount: number,
+  filter: UsedImageFilter,
+  refLocations: Map<string, ImageRefLocation[]>,
+): boolean {
+  if (!isUsedImageFilterActive(filter)) return true;
+  if (referenceCount === 0) return false;
+  const locs = refLocations.get(path) ?? [];
+  return locs.some((loc) => {
+    if (filter.lessonId) return loc.lessonId === filter.lessonId;
+    if (filter.courseId) return loc.courseId === filter.courseId;
+    if (filter.seriesId) return loc.seriesId === filter.seriesId;
+    return true;
+  });
 }

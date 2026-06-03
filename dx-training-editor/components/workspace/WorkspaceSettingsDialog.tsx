@@ -23,7 +23,10 @@ import {
   type WorkspacePaneWidths,
 } from "@/components/workspace/pane-layout";
 import {
-  DEFAULT_WORKSPACE_SETTINGS,
+  isAiApiKeyConfiguredOnServer,
+  isPixabayApiKeyConfiguredOnServer,
+} from "@/lib/api-keys";
+import {
   applyThemeToDocument,
   loadWorkspaceSettings,
   saveWorkspaceSettings,
@@ -45,13 +48,15 @@ function SettingsForm({
 }: Omit<Props, "open">) {
   const initial = loadWorkspaceSettings();
   const [draft, setDraft] = useState<WorkspaceSettings>(initial);
-  const [apiKeyInput, setApiKeyInput] = useState(initial.anthropicApiKey ?? "");
+  const [apiKeyInput, setApiKeyInput] = useState(initial.aiApiKey ?? "");
   const [pixabayKeyInput, setPixabayKeyInput] = useState(initial.pixabayApiKey ?? "");
+  const aiEnvConfigured = isAiApiKeyConfiguredOnServer();
+  const pixabayEnvConfigured = isPixabayApiKeyConfiguredOnServer();
 
   const handleSave = () => {
     const next: WorkspaceSettings = {
       ...draft,
-      anthropicApiKey: apiKeyInput.trim() || null,
+      aiApiKey: apiKeyInput.trim() || null,
       pixabayApiKey: pixabayKeyInput.trim() || null,
       paneDefaults: {
         pane1: clampPaneWidth("pane1", draft.paneDefaults.pane1),
@@ -173,7 +178,7 @@ function SettingsForm({
             <h3 className="text-sm font-semibold text-foreground">API</h3>
             <MetaDialogField>
               <Label className="text-xs text-muted-foreground">
-                Anthropic API キー
+                AI API キー
               </Label>
               <Input
                 type="password"
@@ -181,9 +186,22 @@ function SettingsForm({
                 placeholder="sk-ant-..."
                 value={apiKeyInput}
                 onChange={(e) => setApiKeyInput(e.target.value)}
+                disabled={aiEnvConfigured}
               />
               <p className="text-[10px] text-muted-foreground">
-              未設定時は環境変数 <code className="text-[9px]">ANTHROPIC_API_KEY</code> を利用
+                {aiEnvConfigured ? (
+                  <>
+                    サーバー環境変数 <code className="text-[9px]">AI_API_KEY</code>{" "}
+                    を使用中（ダイアログの値は無視されます）
+                  </>
+                ) : (
+                  <>
+                    未設定時はリクエストヘッダー{" "}
+                    <code className="text-[9px]">x-ai-api-key</code> として送信。
+                    推奨: <code className="text-[9px]">.env.local</code> に{" "}
+                    <code className="text-[9px]">AI_API_KEY</code>
+                  </>
+                )}
               </p>
             </MetaDialogField>
             <MetaDialogField>
@@ -196,9 +214,22 @@ function SettingsForm({
                 placeholder="Pixabay API key"
                 value={pixabayKeyInput}
                 onChange={(e) => setPixabayKeyInput(e.target.value)}
+                disabled={pixabayEnvConfigured}
               />
               <p className="text-[10px] text-muted-foreground">
-                未設定時は環境変数 <code className="text-[9px]">PIXABAY_API_KEY</code> を利用
+                {pixabayEnvConfigured ? (
+                  <>
+                    サーバー環境変数{" "}
+                    <code className="text-[9px]">PIXABAY_API_KEY</code>{" "}
+                    を使用中
+                  </>
+                ) : (
+                  <>
+                    未設定時はヘッダー{" "}
+                    <code className="text-[9px]">x-pixabay-api-key</code>。
+                    推奨: <code className="text-[9px]">.env.local</code>
+                  </>
+                )}
               </p>
             </MetaDialogField>
             <Button

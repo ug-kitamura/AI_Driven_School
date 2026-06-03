@@ -3,6 +3,7 @@ import os from "node:os";
 import path from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import {
+  moveImageToTrash,
   promoteStagingImage,
   resolveAbsoluteImagePath,
   saveStagingImage,
@@ -37,5 +38,18 @@ describe("image-store", () => {
     await expect(
       fs.access(resolveAbsoluteImagePath(tmpRoot, promoted.path)!),
     ).resolves.toBeUndefined();
+  });
+
+  it("moveImageToTrash moves canonical and staging files", async () => {
+    tmpRoot = await fs.mkdtemp(path.join(os.tmpdir(), "img-store-"));
+    const png = Buffer.from([0x89, 0x50, 0x4e, 0x47]);
+    const staging = await saveStagingImage(tmpRoot, "ai", "trash-me.png", png);
+    await moveImageToTrash(tmpRoot, staging.path);
+
+    const trashAbsolute = path.join(tmpRoot, "images", "trash", "trash-me.png");
+    await expect(fs.access(trashAbsolute)).resolves.toBeUndefined();
+    await expect(
+      fs.access(resolveAbsoluteImagePath(tmpRoot, staging.path)!),
+    ).rejects.toThrow();
   });
 });

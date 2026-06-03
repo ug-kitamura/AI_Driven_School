@@ -34,10 +34,23 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { buildUsedImageRows } from "@/lib/build-used-image-rows";
-import { countImageRefsInSeries } from "@/lib/extract-image-refs";
+import {
+  countImageRefsInSeries,
+  indexImageRefLocations,
+  isUsedImageFilterActive,
+  usedRowMatchesFilter,
+  type UsedImageFilter,
+} from "@/lib/extract-image-refs";
 import { toImageMarkdown } from "@/lib/image-path";
-import { loadWorkspaceSettings } from "@/lib/workspace-settings";
+import { loadWorkspaceSettings, type WorkspaceSettings } from "@/lib/workspace-settings";
 import type { ImageAsset, Lesson, Series } from "@/lib/schema";
 import type { Pane3Mode } from "@/components/workspace/Workspace";
 
@@ -62,18 +75,42 @@ const TABS: Array<{ value: Tab; label: string; icon: React.ReactNode }> = [
   { value: "web", label: "Web", icon: <Search className="h-3 w-3" /> },
 ];
 
-type PreviewState = {
-  name: string;
-  path: string;
-  statusLabel?: string;
-};
-
 type PendingDelete = ImageGridItem & { referenceCount?: number };
 
 type TabNotice = { message: string; tone: "error" | "success" };
 
+const FILTER_ALL = "__all__";
+
 /** Pane4 タブ本文の左右インセット（プロンプト・ボタン・グリッドで共有） */
 const PANE4_TAB_INSET = "px-3";
+
+/** UP D&D・AI/Web プロンプト欄で共有する最小高さ */
+const PANE4_TOP_BOX_MIN_H = "min-h-[120px]";
+const PANE4_TOP_BOX_CLASS = cn(
+  PANE4_TOP_BOX_MIN_H,
+  "flex flex-col items-center justify-center rounded-lg border-2 border-dashed p-6 text-center",
+);
+const PANE4_PROMPT_TEXTAREA_CLASS = cn(
+  PANE4_TOP_BOX_MIN_H,
+  "w-full resize-y rounded-lg border border-border bg-background px-3 py-6 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary",
+);
+
+const AI_KEY_ERROR =
+  "AI API キーを設定（歯車）するか、サーバーに AI_API_KEY を設定してください";
+const AI_PIXABAY_KEY_ERROR =
+  "AI / Pixabay API キーを設定（歯車）するか、サーバー環境変数を設定してください";
+
+function aiRequestHeaders(
+  settings: WorkspaceSettings,
+  includePixabay = false,
+): Record<string, string> {
+  const headers: Record<string, string> = { "Content-Type": "application/json" };
+  if (settings.aiApiKey) headers["x-ai-api-key"] = settings.aiApiKey;
+  if (includePixabay && settings.pixabayApiKey) {
+    headers["x-pixabay-api-key"] = settings.pixabayApiKey;
+  }
+  return headers;
+}
 
 function TabNoticeBanner({ notice }: { notice: TabNotice | undefined }) {
   if (!notice) return null;
@@ -119,8 +156,13 @@ export function ImageManagerPane({
   const [tabNotices, setTabNotices] = useState<Partial<Record<Tab, TabNotice>>>(
     {},
   );
-  const [preview, setPreview] = useState<PreviewState | null>(null);
+  const [previewIndex, setPreviewIndex] = useState<number | null>(null);
   const [pendingDelete, setPendingDelete] = useState<PendingDelete | null>(null);
+  const [usedFilter, setUsedFilter] = useState<UsedImageFilter>({
+    seriesId: null,
+    courseId: null,
+    lessonId: null,
+  });
   const tabScrollRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -129,9 +171,27 @@ export function ImageManagerPane({
     [series],
   );
 
+  const refLocations = useMemo(
+    () => indexImageRefLocations(series),
+    [series],
+  );
+
   const usedRows = useMemo(
     () => buildUsedImageRows(promotedFiles, refCounts),
     [promotedFiles, refCounts],
+  );
+
+  const filteredUsedRows = useMemo(
+    () =>
+      usedRows.filter((row) =>
+        usedRowMatchesFilter(
+          row.path,
+          row.referenceCount,
+          usedFilter,
+          refLocations,
+        ),
+      ),
+    [usedRows, usedFilter, refLocations],
   );
 
   const refreshLists = useCallback(async () => {
@@ -168,6 +228,10 @@ export function ImageManagerPane({
       void refreshLists();
     }
   }, [pane4Open, refreshLists, series]);
+
+  useEffect(() => {
+    setPreviewIndex(null);
+  }, [activeTab]);
 
   const showNotice = useCallback(
     (tab: Tab, message: string, tone: "error" | "success") => {
@@ -340,12 +404,7 @@ export function ImageManagerPane({
       return;
     }
     const settings = loadWorkspaceSettings();
-    const headers: Record<string, string> = {
-      "Content-Type": "application/json",
-    };
-    if (settings.anthropicApiKey) {
-      headers["x-anthropic-api-key"] = settings.anthropicApiKey;
-    }
+    const headers = aiRequestHeaders(settings);
     setGenerating(true);
     clearNotice("ai");
     try {
@@ -365,9 +424,7 @@ export function ImageManagerPane({
         showNotice(
           "ai",
           data.error ??
-            (res.status === 401
-              ? "Anthropic API キーを設定（歯車）するか、サーバーに ANTHROPIC_API_KEY を設定してください"
-              : "画像の生成に失敗しました"),
+            (res.status === 401 ? AI_KEY_ERROR : "画像の生成に失敗しました"),
           "error",
         );
         return;
@@ -399,19 +456,9 @@ export function ImageManagerPane({
   const handleAutoFill = useCallback(async () => {
     if (!lesson) return;
 
-    if (editorCommentPrompt !== null) {
-      setAiPrompt(editorCommentPrompt);
-      clearNotice("ai");
-      return;
-    }
-
     const settings = loadWorkspaceSettings();
-    const headers: Record<string, string> = {
-      "Content-Type": "application/json",
-    };
-    if (settings.anthropicApiKey) {
-      headers["x-anthropic-api-key"] = settings.anthropicApiKey;
-    }
+    const headers = aiRequestHeaders(settings);
+    const seedPrompt = editorCommentPrompt ?? undefined;
 
     setSuggesting(true);
     clearNotice("ai");
@@ -422,6 +469,7 @@ export function ImageManagerPane({
         body: JSON.stringify({
           lesson,
           cursorOffset: editorCursorOffset ?? 0,
+          seedPrompt,
         }),
       });
       let data: { prompt?: string; error?: string };
@@ -435,9 +483,7 @@ export function ImageManagerPane({
         showNotice(
           "ai",
           data.error ??
-            (res.status === 401
-              ? "Anthropic API キーを設定（歯車）するか、サーバーに ANTHROPIC_API_KEY を設定してください"
-              : "プロンプトの自動入力に失敗しました"),
+            (res.status === 401 ? AI_KEY_ERROR : "プロンプトの自動入力に失敗しました"),
           "error",
         );
         return;
@@ -473,15 +519,7 @@ export function ImageManagerPane({
       return;
     }
     const settings = loadWorkspaceSettings();
-    const headers: Record<string, string> = {
-      "Content-Type": "application/json",
-    };
-    if (settings.anthropicApiKey) {
-      headers["x-anthropic-api-key"] = settings.anthropicApiKey;
-    }
-    if (settings.pixabayApiKey) {
-      headers["x-pixabay-api-key"] = settings.pixabayApiKey;
-    }
+    const headers = aiRequestHeaders(settings, true);
     setSearching(true);
     clearNotice("web");
     try {
@@ -504,9 +542,7 @@ export function ImageManagerPane({
         showNotice(
           "web",
           data.error ??
-            (res.status === 401
-              ? "Anthropic / Pixabay API キーを設定（歯車）するか、サーバー環境変数を設定してください"
-              : "画像の検索に失敗しました"),
+            (res.status === 401 ? AI_PIXABAY_KEY_ERROR : "画像の検索に失敗しました"),
           "error",
         );
         return;
@@ -541,19 +577,9 @@ export function ImageManagerPane({
   const handleWebAutoFill = useCallback(async () => {
     if (!lesson) return;
 
-    if (editorCommentPrompt !== null) {
-      setWebPrompt(editorCommentPrompt);
-      clearNotice("web");
-      return;
-    }
-
     const settings = loadWorkspaceSettings();
-    const headers: Record<string, string> = {
-      "Content-Type": "application/json",
-    };
-    if (settings.anthropicApiKey) {
-      headers["x-anthropic-api-key"] = settings.anthropicApiKey;
-    }
+    const headers = aiRequestHeaders(settings);
+    const seedPrompt = editorCommentPrompt ?? undefined;
 
     setWebSuggesting(true);
     clearNotice("web");
@@ -564,6 +590,7 @@ export function ImageManagerPane({
         body: JSON.stringify({
           lesson,
           cursorOffset: editorCursorOffset ?? 0,
+          seedPrompt,
         }),
       });
       let data: { prompt?: string; error?: string };
@@ -577,9 +604,7 @@ export function ImageManagerPane({
         showNotice(
           "web",
           data.error ??
-            (res.status === 401
-              ? "Anthropic API キーを設定（歯車）するか、サーバーに ANTHROPIC_API_KEY を設定してください"
-              : "プロンプトの自動入力に失敗しました"),
+            (res.status === 401 ? AI_KEY_ERROR : "プロンプトの自動入力に失敗しました"),
           "error",
         );
         return;
@@ -628,7 +653,7 @@ export function ImageManagerPane({
     showDelete: true,
   }));
 
-  const usedGridItems: ImageGridItem[] = usedRows.map((row) => ({
+  const usedGridItems: ImageGridItem[] = filteredUsedRows.map((row) => ({
     path: row.path,
     name: row.name,
     missing: row.missing,
@@ -640,6 +665,57 @@ export function ImageManagerPane({
     showInsert: !row.missing,
     showDelete: !row.missing,
   }));
+
+  const previewItems: ImageGridItem[] = useMemo(() => {
+    switch (activeTab) {
+      case "used":
+        return usedGridItems;
+      case "upload":
+        return stagingGridItems;
+      case "ai":
+        return aiStagingGridItems;
+      case "web":
+        return webStagingGridItems;
+      default:
+        return [];
+    }
+  }, [
+    activeTab,
+    usedGridItems,
+    stagingGridItems,
+    aiStagingGridItems,
+    webStagingGridItems,
+  ]);
+
+  const openPreview = useCallback(
+    (item: ImageGridItem) => {
+      const idx = previewItems.findIndex((i) => i.path === item.path);
+      setPreviewIndex(idx >= 0 ? idx : 0);
+    },
+    [previewItems],
+  );
+
+  const currentPreviewItem =
+    previewIndex !== null ? previewItems[previewIndex] : null;
+
+  const filterCourses = useMemo(() => {
+    if (!usedFilter.seriesId) return [];
+    const s = series.find((x) => x.id === usedFilter.seriesId);
+    return s?.courses ?? [];
+  }, [series, usedFilter.seriesId]);
+
+  const filterLessons = useMemo(() => {
+    if (!usedFilter.courseId) return [];
+    for (const s of series) {
+      const course = s.courses.find((c) => c.id === usedFilter.courseId);
+      if (course) return course.lessons;
+    }
+    return [];
+  }, [series, usedFilter.courseId]);
+
+  const resetUsedFilter = useCallback(() => {
+    setUsedFilter({ seriesId: null, courseId: null, lessonId: null });
+  }, []);
 
   if (!pane4Open) {
     return (
@@ -696,17 +772,94 @@ export function ImageManagerPane({
         {activeTab === "used" && !loading ? (
           <>
             <TabNoticeBanner notice={tabNotices.used} />
-            <div className={cn(PANE4_TAB_INSET, "pb-3 pt-3")}>
+            <div className={cn(PANE4_TAB_INSET, "flex flex-col gap-3 pb-3 pt-3")}>
+              <div className="flex flex-col gap-2">
+                <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+                  <Select
+                    value={usedFilter.seriesId ?? FILTER_ALL}
+                    onValueChange={(value) => {
+                      setUsedFilter({
+                        seriesId: value === FILTER_ALL ? null : value,
+                        courseId: null,
+                        lessonId: null,
+                      });
+                    }}
+                  >
+                    <SelectTrigger size="sm" className="w-full text-xs">
+                      <SelectValue placeholder="シリーズ" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value={FILTER_ALL}>すべてのシリーズ</SelectItem>
+                      {series.map((s) => (
+                        <SelectItem key={s.id} value={s.id}>
+                          {s.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <Select
+                    value={usedFilter.courseId ?? FILTER_ALL}
+                    onValueChange={(value) => {
+                      setUsedFilter((prev) => ({
+                        ...prev,
+                        courseId: value === FILTER_ALL ? null : value,
+                        lessonId: null,
+                      }));
+                    }}
+                    disabled={!usedFilter.seriesId}
+                  >
+                    <SelectTrigger size="sm" className="w-full text-xs">
+                      <SelectValue placeholder="コース" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value={FILTER_ALL}>すべてのコース</SelectItem>
+                      {filterCourses.map((c) => (
+                        <SelectItem key={c.id} value={c.id}>
+                          {c.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <Select
+                    value={usedFilter.lessonId ?? FILTER_ALL}
+                    onValueChange={(value) => {
+                      setUsedFilter((prev) => ({
+                        ...prev,
+                        lessonId: value === FILTER_ALL ? null : value,
+                      }));
+                    }}
+                    disabled={!usedFilter.courseId}
+                  >
+                    <SelectTrigger size="sm" className="w-full text-xs">
+                      <SelectValue placeholder="レッスン" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value={FILTER_ALL}>すべてのレッスン</SelectItem>
+                      {filterLessons.map((l) => (
+                        <SelectItem key={l.id} value={l.id}>
+                          {l.lesson}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                {isUsedImageFilterActive(usedFilter) ? (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="h-7 w-fit text-xs"
+                    onClick={resetUsedFilter}
+                  >
+                    <RotateCcw className="h-3.5 w-3.5" />
+                    フィルタリセット
+                  </Button>
+                ) : null}
+              </div>
               <ImageGrid
                 items={usedGridItems}
                 emptyMessage="promote 済みの画像がありません"
-                onPreview={(item) =>
-                  setPreview({
-                    name: item.name,
-                    path: item.path,
-                    statusLabel: item.statusLabel,
-                  })
-                }
+                onPreview={openPreview}
                 onInsert={handleInsertPromoted}
                 onDelete={(item) => {
                   const row = usedRows.find((r) => r.path === item.path);
@@ -723,7 +876,8 @@ export function ImageManagerPane({
             <div className={cn(PANE4_TAB_INSET, "flex flex-col gap-3 pb-3 pt-3")}>
               <div
                 className={cn(
-                  "flex cursor-pointer flex-col items-center justify-center rounded-lg border-2 border-dashed p-6 text-center transition-colors",
+                  PANE4_TOP_BOX_CLASS,
+                  "cursor-pointer transition-colors",
                   isDragOver
                     ? "border-primary bg-primary/5"
                     : "border-border hover:border-primary hover:bg-primary/5",
@@ -757,9 +911,7 @@ export function ImageManagerPane({
               <ImageGrid
                 items={stagingGridItems}
                 emptyMessage="staging に画像がありません"
-                onPreview={(item) =>
-                  setPreview({ name: item.name, path: item.path })
-                }
+                onPreview={openPreview}
                 onInsert={handleInsertStaging}
                 onDelete={(item) =>
                   void executeDelete({ ...item, referenceCount: 0 }, "upload")
@@ -785,7 +937,7 @@ export function ImageManagerPane({
                     onChange={(e) => setAiPrompt(e.target.value)}
                     rows={5}
                     placeholder="画像生成プロンプトを入力してください"
-                    className="min-h-[100px] w-full resize-y rounded-lg border border-border bg-background px-3 py-2 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+                    className={PANE4_PROMPT_TEXTAREA_CLASS}
                   />
                   <div className="flex items-center justify-start gap-2">
                     <Button
@@ -838,9 +990,7 @@ export function ImageManagerPane({
                 <ImageGrid
                   items={aiStagingGridItems}
                   emptyMessage="AI staging に画像がありません"
-                  onPreview={(item) =>
-                    setPreview({ name: item.name, path: item.path })
-                  }
+                  onPreview={openPreview}
                   onInsert={handleInsertAiStaging}
                   onDelete={(item) =>
                     void executeDelete({ ...item, referenceCount: 0 }, "ai")
@@ -868,7 +1018,7 @@ export function ImageManagerPane({
                     onChange={(e) => setWebPrompt(e.target.value)}
                     rows={5}
                     placeholder="画像検索条件を入力してください"
-                    className="min-h-[100px] w-full resize-y rounded-lg border border-border bg-background px-3 py-2 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+                    className={PANE4_PROMPT_TEXTAREA_CLASS}
                   />
                   <div className="flex items-center justify-start gap-2">
                     <Button
@@ -923,9 +1073,7 @@ export function ImageManagerPane({
                 <ImageGrid
                   items={webStagingGridItems}
                   emptyMessage="Web staging に画像がありません"
-                  onPreview={(item) =>
-                    setPreview({ name: item.name, path: item.path })
-                  }
+                  onPreview={openPreview}
                   onInsert={handleInsertWebStaging}
                   onDelete={(item) =>
                     void executeDelete({ ...item, referenceCount: 0 }, "web")
@@ -938,13 +1086,63 @@ export function ImageManagerPane({
         ) : null}
       </div>
 
-      {preview ? (
+      {previewIndex !== null && currentPreviewItem ? (
         <ImageLightbox
-          open={!!preview}
-          onOpenChange={(open) => !open && setPreview(null)}
-          name={preview.name}
-          path={preview.path}
-          statusLabel={preview.statusLabel}
+          open
+          onOpenChange={(open) => !open && setPreviewIndex(null)}
+          items={previewItems}
+          index={previewIndex}
+          onIndexChange={setPreviewIndex}
+          showInsert={currentPreviewItem.showInsert}
+          showDelete={currentPreviewItem.showDelete}
+          onInsert={() => {
+            if (!currentPreviewItem) return;
+            switch (activeTab) {
+              case "used":
+                handleInsertPromoted(currentPreviewItem);
+                break;
+              case "upload":
+                void handleInsertStaging(currentPreviewItem);
+                break;
+              case "ai":
+                void handleInsertAiStaging(currentPreviewItem);
+                break;
+              case "web":
+                void handleInsertWebStaging(currentPreviewItem);
+                break;
+            }
+          }}
+          onDelete={() => {
+            if (!currentPreviewItem) return;
+            switch (activeTab) {
+              case "used": {
+                const row = usedRows.find((r) => r.path === currentPreviewItem.path);
+                handleDeleteRequest(
+                  currentPreviewItem,
+                  row?.referenceCount ?? 0,
+                );
+                break;
+              }
+              case "upload":
+                void executeDelete(
+                  { ...currentPreviewItem, referenceCount: 0 },
+                  "upload",
+                );
+                break;
+              case "ai":
+                void executeDelete(
+                  { ...currentPreviewItem, referenceCount: 0 },
+                  "ai",
+                );
+                break;
+              case "web":
+                void executeDelete(
+                  { ...currentPreviewItem, referenceCount: 0 },
+                  "web",
+                );
+                break;
+            }
+          }}
         />
       ) : null}
 

@@ -2,7 +2,9 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import {
   IMAGE_SOURCES,
+  IMAGE_TRASH_DIR,
   type ImageSource,
+  imageFileName,
   isCanonicalImagePath,
   isImageSource,
   isSafeImageLogicalPath,
@@ -11,6 +13,7 @@ import {
   promoteTargetPath,
   sanitizeUploadFileName,
   stagingDirLogical,
+  trashDirLogical,
 } from "@/lib/image-path";
 
 export type ImageFileEntry = {
@@ -29,7 +32,7 @@ const MIME_BY_EXT: Record<string, string> = {
   ".svg": "image/svg+xml",
 };
 
-const STAGING_DIR_NAMES = new Set<string>(IMAGE_SOURCES);
+const RESERVED_ROOT_DIRS = new Set<string>([...IMAGE_SOURCES, IMAGE_TRASH_DIR]);
 
 export function getImagesRoot(projectRoot: string): string {
   return path.join(projectRoot, "images");
@@ -58,6 +61,9 @@ export async function ensureImageDirectories(projectRoot: string): Promise<void>
       recursive: true,
     });
   }
+  await fs.mkdir(path.join(getImagesRoot(projectRoot), IMAGE_TRASH_DIR), {
+    recursive: true,
+  });
 }
 
 async function listFilesInDir(
@@ -110,7 +116,7 @@ export async function listPromotedImages(
   const result: ImageFileEntry[] = [];
   for (const name of entries) {
     if (name.startsWith(".")) continue;
-    if (STAGING_DIR_NAMES.has(name)) continue;
+    if (RESERVED_ROOT_DIRS.has(name)) continue;
     const absolute = path.join(root, name);
     const stat = await fs.stat(absolute);
     if (!stat.isFile()) continue;
@@ -186,23 +192,53 @@ function sourceFromStagingPath(stagingPath: string): ImageSource | null {
   return segment && isImageSource(segment) ? segment : null;
 }
 
-export async function deleteImageFile(
+export async function moveImageToTrash(
   projectRoot: string,
   logicalPath: string,
 ): Promise<void> {
-  const absolute = resolveAbsoluteImagePath(projectRoot, logicalPath);
-  if (!absolute) throw new Error("invalid path");
-  if (!isStagingImagePath(logicalPath) && !isCanonicalImagePath(logicalPath)) {
+  const normalized = normalizeImageLogicalPath(logicalPath);
+  if (!isCanonicalImagePath(normalized) && !isStagingImagePath(normalized)) {
     throw new Error("invalid path");
   }
+  const sourceAbsolute = resolveAbsoluteImagePath(projectRoot, normalized);
+  if (!sourceAbsolute) throw new Error("invalid path");
+
+  await ensureImageDirectories(projectRoot);
+  const fileName = imageFileName(normalized);
+  const trashLogical = `${trashDirLogical()}/${fileName}`;
+  const trashAbsolute = path.join(
+    getImagesRoot(projectRoot),
+    IMAGE_TRASH_DIR,
+    fileName,
+  );
+
   try {
-    await fs.unlink(absolute);
+    await fs.access(trashAbsolute);
+    await fs.unlink(trashAbsolute);
+  } catch {
+    // no existing trash file
+  }
+
+  try {
+    await fs.rename(sourceAbsolute, trashAbsolute);
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code === "ENOENT") {
       throw new Error("file not found");
     }
     throw error;
   }
+
+  if (!trashLogical.startsWith(trashDirLogical())) {
+    throw new Error("invalid trash path");
+  }
+}
+
+/** @deprecated use moveImageToTrash */
+export async function deleteImageFile(
+  projectRoot: string,
+  logicalPath: string,
+): Promise<void> {
+  await moveImageToTrash(projectRoot, logicalPath);
 }
 
 export async function imageFileExists(

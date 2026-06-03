@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { resolveAnthropicApiKey } from "@/lib/api-keys";
+import { resolveAiApiKey } from "@/lib/api-keys";
 import {
   buildWebSuggestPromptMessages,
   parseWebSuggestPromptResponse,
@@ -11,6 +11,7 @@ const DEFAULT_MODEL = "claude-sonnet-4-6";
 const bodySchema = z.object({
   lesson: lessonSchema,
   cursorOffset: z.number().int().min(0).optional(),
+  seedPrompt: z.string().optional(),
 });
 
 async function callClaude(apiKey: string, system: string, user: string): Promise<string> {
@@ -22,7 +23,7 @@ async function callClaude(apiKey: string, system: string, user: string): Promise
       "anthropic-version": "2023-06-01",
     },
     body: JSON.stringify({
-      model: process.env.ANTHROPIC_MODEL ?? DEFAULT_MODEL,
+      model: process.env.AI_MODEL ?? DEFAULT_MODEL,
       max_tokens: 2048,
       system,
       messages: [{ role: "user", content: user }],
@@ -55,10 +56,10 @@ async function callClaude(apiKey: string, system: string, user: string): Promise
 }
 
 export async function POST(req: Request) {
-  const apiKey = resolveAnthropicApiKey(req);
+  const apiKey = resolveAiApiKey(req);
   if (!apiKey) {
     return Response.json(
-      { error: "Anthropic API キーが未設定です。設定ダイアログから入力してください。" },
+      { error: "AI API キーが未設定です。`.env.local` の AI_API_KEY または設定ダイアログから入力してください。" },
       { status: 401 },
     );
   }
@@ -72,7 +73,11 @@ export async function POST(req: Request) {
   }
 
   const cursorOffset = parsed.cursorOffset ?? 0;
-  const { system, user } = buildWebSuggestPromptMessages(parsed.lesson, cursorOffset);
+  const { system, user } = buildWebSuggestPromptMessages(
+    parsed.lesson,
+    cursorOffset,
+    parsed.seedPrompt,
+  );
 
   try {
     const raw = await callClaude(apiKey, system, user);

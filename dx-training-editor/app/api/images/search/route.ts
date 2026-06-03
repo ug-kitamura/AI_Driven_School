@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { resolveAnthropicApiKey, resolvePixabayApiKey } from "@/lib/api-keys";
+import { resolveAiApiKey, resolvePixabayApiKey } from "@/lib/api-keys";
 import { lessonSchema } from "@/lib/schema";
 import { executeWebImageSearch } from "@/lib/web-image-search";
 import {
@@ -23,7 +23,7 @@ async function callClaude(apiKey: string, system: string, user: string): Promise
       "anthropic-version": "2023-06-01",
     },
     body: JSON.stringify({
-      model: process.env.ANTHROPIC_MODEL ?? DEFAULT_MODEL,
+      model: process.env.AI_MODEL ?? DEFAULT_MODEL,
       max_tokens: 2048,
       system,
       messages: [{ role: "user", content: user }],
@@ -56,10 +56,10 @@ async function callClaude(apiKey: string, system: string, user: string): Promise
 }
 
 export async function POST(req: Request) {
-  const anthropicKey = resolveAnthropicApiKey(req);
-  if (!anthropicKey) {
+  const aiKey = resolveAiApiKey(req);
+  if (!aiKey) {
     return Response.json(
-      { error: "Anthropic API キーが未設定です。設定ダイアログから入力してください。" },
+      { error: "AI API キーが未設定です。`.env.local` の AI_API_KEY または設定ダイアログから入力してください。" },
       { status: 401 },
     );
   }
@@ -67,7 +67,7 @@ export async function POST(req: Request) {
   const pixabayKey = resolvePixabayApiKey(req);
   if (!pixabayKey) {
     return Response.json(
-      { error: "Pixabay API キーが未設定です。設定ダイアログから入力してください。" },
+      { error: "Pixabay API キーが未設定です。`.env.local` の PIXABAY_API_KEY または設定ダイアログから入力してください。" },
       { status: 401 },
     );
   }
@@ -84,7 +84,7 @@ export async function POST(req: Request) {
 
   let plan: ReturnType<typeof parseWebSearchPlanResponse>;
   try {
-    const raw = await callClaude(anthropicKey, system, user);
+    const raw = await callClaude(aiKey, system, user);
     plan = parseWebSearchPlanResponse(raw);
   } catch (error) {
     const message = error instanceof Error ? error.message : "検索計画の生成に失敗しました";

@@ -19,6 +19,7 @@ type Props = {
   onPreview: (item: ImageGridItem) => void;
   onInsert?: (item: ImageGridItem) => void;
   onDelete?: (item: ImageGridItem) => void;
+  className?: string;
 };
 
 export function ImageGrid({
@@ -27,17 +28,23 @@ export function ImageGrid({
   onPreview,
   onInsert,
   onDelete,
+  className,
 }: Props) {
   if (items.length === 0) {
     return (
-      <div className="flex h-32 items-center justify-center px-3 text-center text-xs text-muted-foreground">
+      <div className="flex h-32 items-center justify-center text-center text-xs text-muted-foreground">
         {emptyMessage}
       </div>
     );
   }
 
   return (
-    <div className="grid grid-cols-[repeat(auto-fill,minmax(100px,1fr))] gap-2 p-2">
+    <div
+      className={cn(
+        "grid grid-cols-[repeat(auto-fill,minmax(100px,1fr))] gap-2",
+        className,
+      )}
+    >
       {items.map((item) => (
         <div
           key={item.path}

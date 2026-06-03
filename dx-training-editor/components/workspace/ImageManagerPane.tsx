@@ -72,6 +72,9 @@ type PendingDelete = ImageGridItem & { referenceCount?: number };
 
 type TabNotice = { message: string; tone: "error" | "success" };
 
+/** Pane4 タブ本文の左右インセット（プロンプト・ボタン・グリッドで共有） */
+const PANE4_TAB_INSET = "px-3";
+
 function TabNoticeBanner({ notice }: { notice: TabNotice | undefined }) {
   if (!notice) return null;
   return (
@@ -515,29 +518,31 @@ export function ImageManagerPane({
         {activeTab === "used" && !loading ? (
           <>
             <TabNoticeBanner notice={tabNotices.used} />
-            <ImageGrid
-            items={usedGridItems}
-            emptyMessage="promote 済みの画像がありません"
-            onPreview={(item) =>
-              setPreview({
-                name: item.name,
-                path: item.path,
-                statusLabel: item.statusLabel,
-              })
-            }
-            onInsert={handleInsertPromoted}
-            onDelete={(item) => {
-              const row = usedRows.find((r) => r.path === item.path);
-              handleDeleteRequest(item, row?.referenceCount ?? 0);
-            }}
-          />
+            <div className={cn(PANE4_TAB_INSET, "pb-3 pt-3")}>
+              <ImageGrid
+                items={usedGridItems}
+                emptyMessage="promote 済みの画像がありません"
+                onPreview={(item) =>
+                  setPreview({
+                    name: item.name,
+                    path: item.path,
+                    statusLabel: item.statusLabel,
+                  })
+                }
+                onInsert={handleInsertPromoted}
+                onDelete={(item) => {
+                  const row = usedRows.find((r) => r.path === item.path);
+                  handleDeleteRequest(item, row?.referenceCount ?? 0);
+                }}
+              />
+            </div>
           </>
         ) : null}
 
         {activeTab === "upload" && !loading ? (
           <>
             <TabNoticeBanner notice={tabNotices.upload} />
-            <div className="p-3">
+            <div className={cn(PANE4_TAB_INSET, "flex flex-col gap-3 pb-3 pt-3")}>
               <div
                 className={cn(
                   "flex cursor-pointer flex-col items-center justify-center rounded-lg border-2 border-dashed p-6 text-center transition-colors",
@@ -571,25 +576,25 @@ export function ImageManagerPane({
                   e.target.files && void uploadFiles(e.target.files)
                 }
               />
+              <ImageGrid
+                items={stagingGridItems}
+                emptyMessage="staging に画像がありません"
+                onPreview={(item) =>
+                  setPreview({ name: item.name, path: item.path })
+                }
+                onInsert={handleInsertStaging}
+                onDelete={(item) =>
+                  void executeDelete({ ...item, referenceCount: 0 }, "upload")
+                }
+              />
             </div>
-            <ImageGrid
-              items={stagingGridItems}
-              emptyMessage="staging に画像がありません"
-              onPreview={(item) =>
-                setPreview({ name: item.name, path: item.path })
-              }
-              onInsert={handleInsertStaging}
-              onDelete={(item) =>
-                void executeDelete({ ...item, referenceCount: 0 }, "upload")
-              }
-            />
           </>
         ) : null}
 
         {activeTab === "ai" ? (
           <>
             <TabNoticeBanner notice={tabNotices.ai} />
-            <div className="flex flex-col gap-3 p-3">
+            <div className={cn(PANE4_TAB_INSET, "flex flex-col gap-3 pb-3 pt-3")}>
             {!lesson ? (
               <p className="text-center text-xs text-muted-foreground">
                 レッスンを選択してください
@@ -652,19 +657,17 @@ export function ImageManagerPane({
                     </Button>
                   </div>
                 </div>
-                <div className="flex flex-col gap-1">
-                  <ImageGrid
-                    items={aiStagingGridItems}
-                    emptyMessage="AI staging に画像がありません"
-                    onPreview={(item) =>
-                      setPreview({ name: item.name, path: item.path })
-                    }
-                    onInsert={handleInsertAiStaging}
-                    onDelete={(item) =>
-                      void executeDelete({ ...item, referenceCount: 0 }, "ai")
-                    }
-                  />
-                </div>
+                <ImageGrid
+                  items={aiStagingGridItems}
+                  emptyMessage="AI staging に画像がありません"
+                  onPreview={(item) =>
+                    setPreview({ name: item.name, path: item.path })
+                  }
+                  onInsert={handleInsertAiStaging}
+                  onDelete={(item) =>
+                    void executeDelete({ ...item, referenceCount: 0 }, "ai")
+                  }
+                />
               </>
             )}
             </div>

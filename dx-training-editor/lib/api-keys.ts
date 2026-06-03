@@ -1,15 +1,15 @@
 export function resolveAiApiKey(req: Request): string | null {
-  const env = process.env.AI_API_KEY?.trim();
-  if (env) return env;
   const header = req.headers.get("x-ai-api-key")?.trim();
-  return header || null;
+  if (header) return header;
+  const env = process.env.AI_API_KEY?.trim();
+  return env || null;
 }
 
 export function resolvePixabayApiKey(req: Request): string | null {
-  const env = process.env.PIXABAY_API_KEY?.trim();
-  if (env) return env;
   const header = req.headers.get("x-pixabay-api-key")?.trim();
-  return header || null;
+  if (header) return header;
+  const env = process.env.PIXABAY_API_KEY?.trim();
+  return env || null;
 }
 
 export function isAiApiKeyConfiguredOnServer(): boolean {

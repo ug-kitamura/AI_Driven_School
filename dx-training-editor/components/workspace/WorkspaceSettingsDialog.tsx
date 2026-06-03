@@ -186,22 +186,14 @@ function SettingsForm({
                 placeholder="sk-ant-..."
                 value={apiKeyInput}
                 onChange={(e) => setApiKeyInput(e.target.value)}
-                disabled={aiEnvConfigured}
               />
               <p className="text-[10px] text-muted-foreground">
-                {aiEnvConfigured ? (
-                  <>
-                    サーバー環境変数 <code className="text-[9px]">AI_API_KEY</code>{" "}
-                    を使用中（ダイアログの値は無視されます）
-                  </>
-                ) : (
-                  <>
-                    未設定時はリクエストヘッダー{" "}
-                    <code className="text-[9px]">x-ai-api-key</code> として送信。
-                    推奨: <code className="text-[9px]">.env.local</code> に{" "}
-                    <code className="text-[9px]">AI_API_KEY</code>
-                  </>
-                )}
+                入力がある場合はダイアログの値を優先します。
+                {aiEnvConfigured
+                  ? " 未入力時は "
+                  : " 未入力時は `.env.local` に "}
+                <code className="text-[9px]">AI_API_KEY</code>
+                {aiEnvConfigured ? " を参照します。" : " を設定してください。"}
               </p>
             </MetaDialogField>
             <MetaDialogField>
@@ -214,22 +206,14 @@ function SettingsForm({
                 placeholder="Pixabay API key"
                 value={pixabayKeyInput}
                 onChange={(e) => setPixabayKeyInput(e.target.value)}
-                disabled={pixabayEnvConfigured}
               />
               <p className="text-[10px] text-muted-foreground">
-                {pixabayEnvConfigured ? (
-                  <>
-                    サーバー環境変数{" "}
-                    <code className="text-[9px]">PIXABAY_API_KEY</code>{" "}
-                    を使用中
-                  </>
-                ) : (
-                  <>
-                    未設定時はヘッダー{" "}
-                    <code className="text-[9px]">x-pixabay-api-key</code>。
-                    推奨: <code className="text-[9px]">.env.local</code>
-                  </>
-                )}
+                入力がある場合はダイアログの値を優先します。
+                {pixabayEnvConfigured
+                  ? " 未入力時は "
+                  : " 未入力時は `.env.local` に "}
+                <code className="text-[9px]">PIXABAY_API_KEY</code>
+                {pixabayEnvConfigured ? " を参照します。" : " を設定してください。"}
               </p>
             </MetaDialogField>
             <Button

@@ -35,7 +35,7 @@ cp .env.example .env.local
 # AI_API_KEY / PIXABAY_API_KEY を設定
 ```
 
-サーバー環境変数が設定されている場合は **env が優先**され、設定ダイアログの値は無視されます。env 未設定時のみダイアログのキーがリクエストヘッダー（`x-ai-api-key` / `x-pixabay-api-key`）として使われます。
+**設定ダイアログにキーがある場合はダイアログを優先**します。ダイアログ未入力のときのみ `.env.local` の `AI_API_KEY` / `PIXABAY_API_KEY` を参照します。
 
 <img width="1411" height="732" alt="image" src="https://github.com/user-attachments/assets/4ed6a5e6-a5a1-4f7b-99c6-d406ecf462f7" />
 

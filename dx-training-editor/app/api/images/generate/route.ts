@@ -76,7 +76,7 @@ export async function POST(req: Request) {
   const apiKey = resolveApiKey(req);
   if (!apiKey) {
     return Response.json(
-      { error: "AI API キーが未設定です。`.env.local` の AI_API_KEY または設定ダイアログから入力してください。" },
+      { error: "AI API キーが未設定です。設定ダイアログから入力するか、`.env.local` に AI_API_KEY を設定してください。" },
       { status: 401 },
     );
   }

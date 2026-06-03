@@ -59,7 +59,7 @@ export async function POST(req: Request) {
   const aiKey = resolveAiApiKey(req);
   if (!aiKey) {
     return Response.json(
-      { error: "AI API キーが未設定です。`.env.local` の AI_API_KEY または設定ダイアログから入力してください。" },
+      { error: "AI API キーが未設定です。設定ダイアログから入力するか、`.env.local` に AI_API_KEY を設定してください。" },
       { status: 401 },
     );
   }
@@ -67,7 +67,7 @@ export async function POST(req: Request) {
   const pixabayKey = resolvePixabayApiKey(req);
   if (!pixabayKey) {
     return Response.json(
-      { error: "Pixabay API キーが未設定です。`.env.local` の PIXABAY_API_KEY または設定ダイアログから入力してください。" },
+      { error: "Pixabay API キーが未設定です。設定ダイアログから入力するか、`.env.local` に PIXABAY_API_KEY を設定してください。" },
       { status: 401 },
     );
   }

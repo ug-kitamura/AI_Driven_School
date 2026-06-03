@@ -79,7 +79,7 @@ type PendingDelete = ImageGridItem & { referenceCount?: number };
 
 type TabNotice = { message: string; tone: "error" | "success" };
 
-const FILTER_ALL = "__all__";
+const FILTER_ALL = "all";
 
 /** Pane4 タブ本文の左右インセット（プロンプト・ボタン・グリッドで共有） */
 const PANE4_TAB_INSET = "px-3";
@@ -156,7 +156,7 @@ export function ImageManagerPane({
   const [tabNotices, setTabNotices] = useState<Partial<Record<Tab, TabNotice>>>(
     {},
   );
-  const [previewIndex, setPreviewIndex] = useState<number | null>(null);
+  const [previewPath, setPreviewPath] = useState<string | null>(null);
   const [pendingDelete, setPendingDelete] = useState<PendingDelete | null>(null);
   const [usedFilter, setUsedFilter] = useState<UsedImageFilter>({
     seriesId: null,
@@ -230,7 +230,7 @@ export function ImageManagerPane({
   }, [pane4Open, refreshLists, series]);
 
   useEffect(() => {
-    setPreviewIndex(null);
+    setPreviewPath(null);
   }, [activeTab]);
 
   const showNotice = useCallback(
@@ -687,16 +687,24 @@ export function ImageManagerPane({
     webStagingGridItems,
   ]);
 
-  const openPreview = useCallback(
-    (item: ImageGridItem) => {
-      const idx = previewItems.findIndex((i) => i.path === item.path);
-      setPreviewIndex(idx >= 0 ? idx : 0);
-    },
+  const previewableItems: ImageGridItem[] = useMemo(
+    () => previewItems.filter((item) => !item.missing),
     [previewItems],
   );
 
+  const previewIndex = useMemo(() => {
+    if (!previewPath) return null;
+    const idx = previewableItems.findIndex((i) => i.path === previewPath);
+    return idx >= 0 ? idx : null;
+  }, [previewPath, previewableItems]);
+
+  const openPreview = useCallback((item: ImageGridItem) => {
+    if (item.missing) return;
+    setPreviewPath(item.path);
+  }, []);
+
   const currentPreviewItem =
-    previewIndex !== null ? previewItems[previewIndex] : null;
+    previewIndex !== null ? previewableItems[previewIndex] : null;
 
   const filterCourses = useMemo(() => {
     if (!usedFilter.seriesId) return [];
@@ -1089,10 +1097,13 @@ export function ImageManagerPane({
       {previewIndex !== null && currentPreviewItem ? (
         <ImageLightbox
           open
-          onOpenChange={(open) => !open && setPreviewIndex(null)}
-          items={previewItems}
+          onOpenChange={(open) => !open && setPreviewPath(null)}
+          items={previewableItems}
           index={previewIndex}
-          onIndexChange={setPreviewIndex}
+          onIndexChange={(idx) => {
+            const item = previewableItems[idx];
+            if (item) setPreviewPath(item.path);
+          }}
           showInsert={currentPreviewItem.showInsert}
           showDelete={currentPreviewItem.showDelete}
           onInsert={() => {

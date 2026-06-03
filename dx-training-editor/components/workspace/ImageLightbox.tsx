@@ -66,32 +66,31 @@ export function ImageLightbox({
             ) : null}
           </DialogTitle>
         </DialogHeader>
+
         <div className="relative overflow-hidden rounded border border-border bg-muted">
-          {items.length > 1 ? (
-            <>
-              <Button
-                type="button"
-                variant="secondary"
-                size="icon"
-                className="absolute left-2 top-1/2 z-10 h-8 w-8 -translate-y-1/2 opacity-90"
-                disabled={!hasPrev}
-                onClick={() => onIndexChange(index - 1)}
-                aria-label="前の画像"
-              >
-                <ChevronLeft className="h-4 w-4" />
-              </Button>
-              <Button
-                type="button"
-                variant="secondary"
-                size="icon"
-                className="absolute right-2 top-1/2 z-10 h-8 w-8 -translate-y-1/2 opacity-90"
-                disabled={!hasNext}
-                onClick={() => onIndexChange(index + 1)}
-                aria-label="次の画像"
-              >
-                <ChevronRight className="h-4 w-4" />
-              </Button>
-            </>
+          {hasPrev ? (
+            <Button
+              type="button"
+              variant="secondary"
+              size="icon"
+              className="absolute left-2 top-1/2 z-10 h-8 w-8 -translate-y-1/2 opacity-90 transition-none active:!-translate-y-1/2"
+              onClick={() => onIndexChange(index - 1)}
+              aria-label="前の画像"
+            >
+              <ChevronLeft className="h-4 w-4" />
+            </Button>
+          ) : null}
+          {hasNext ? (
+            <Button
+              type="button"
+              variant="secondary"
+              size="icon"
+              className="absolute right-2 top-1/2 z-10 h-8 w-8 -translate-y-1/2 opacity-90 transition-none active:!-translate-y-1/2"
+              onClick={() => onIndexChange(index + 1)}
+              aria-label="次の画像"
+            >
+              <ChevronRight className="h-4 w-4" />
+            </Button>
           ) : null}
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
@@ -104,13 +103,30 @@ export function ImageLightbox({
               setSizeLabel(`${img.naturalWidth} × ${img.naturalHeight}px`);
             }}
           />
+        </div>
+        <div className="flex items-center justify-between gap-3">
+          <div className="flex min-w-0 flex-1 items-center gap-1.5 overflow-hidden text-xs text-muted-foreground">
+            <span className="truncate">{item.path}</span>
+            {sizeLabel ? (
+              <>
+                <span className="shrink-0 text-border">·</span>
+                <span className="shrink-0 tabular-nums">{sizeLabel}</span>
+              </>
+            ) : null}
+            {item.statusLabel ? (
+              <>
+                <span className="shrink-0 text-border">·</span>
+                <span className="shrink-0">{item.statusLabel}</span>
+              </>
+            ) : null}
+          </div>
           {(showInsert || showDelete) && (onInsert || onDelete) ? (
-            <div className="absolute bottom-2 right-2 flex gap-1.5">
+            <div className="flex shrink-0 gap-1.5">
               {showInsert && onInsert ? (
                 <Button
                   type="button"
                   size="sm"
-                  className="h-8 gap-1 text-xs shadow-md"
+                  className="h-8 gap-1 text-xs"
                   onClick={onInsert}
                 >
                   <Plus className="h-3.5 w-3.5" />
@@ -122,7 +138,7 @@ export function ImageLightbox({
                   type="button"
                   size="sm"
                   variant="destructive"
-                  className="h-8 gap-1 text-xs shadow-md"
+                  className="h-8 gap-1 text-xs"
                   onClick={onDelete}
                 >
                   <Trash2 className="h-3.5 w-3.5" />
@@ -132,13 +148,6 @@ export function ImageLightbox({
             </div>
           ) : null}
         </div>
-        <p className="truncate text-xs text-muted-foreground">{item.path}</p>
-        {sizeLabel ? (
-          <p className="text-xs tabular-nums text-muted-foreground">{sizeLabel}</p>
-        ) : null}
-        {item.statusLabel ? (
-          <p className="text-xs text-muted-foreground">{item.statusLabel}</p>
-        ) : null}
       </DialogContent>
     </Dialog>
   );

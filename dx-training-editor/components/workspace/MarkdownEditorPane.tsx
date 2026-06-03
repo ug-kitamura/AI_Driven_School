@@ -50,7 +50,7 @@ type Props = {
 
 const MODE_TABS: Array<{ value: Pane3Mode; label: string; icon: React.ReactNode }> =
   [
-    { value: "raw", label: "編集モード", icon: <Code className="h-3 w-3" /> },
+    { value: "raw", label: "編集", icon: <Code className="h-3 w-3" /> },
     { value: "inline", label: "プレビュー", icon: <Eye className="h-3 w-3" /> },
     {
       value: "diff",

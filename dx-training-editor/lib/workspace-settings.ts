@@ -8,6 +8,7 @@ export type ThemeMode = "light" | "dark" | "system";
 
 export type WorkspaceSettings = {
   anthropicApiKey: string | null;
+  pixabayApiKey: string | null;
   theme: ThemeMode;
   paneDefaults: WorkspacePaneWidths;
 };
@@ -16,6 +17,7 @@ const STORAGE_KEY = "dx-training-editor-settings";
 
 export const DEFAULT_WORKSPACE_SETTINGS: WorkspaceSettings = {
   anthropicApiKey: null,
+  pixabayApiKey: null,
   theme: "light",
   paneDefaults: { ...PANE_WIDTH_DEFAULTS },
 };
@@ -41,6 +43,8 @@ export function loadWorkspaceSettings(): WorkspaceSettings {
         typeof parsed.anthropicApiKey === "string"
           ? parsed.anthropicApiKey
           : null,
+      pixabayApiKey:
+        typeof parsed.pixabayApiKey === "string" ? parsed.pixabayApiKey : null,
       theme:
         parsed.theme === "dark" ||
         parsed.theme === "system" ||

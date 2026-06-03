@@ -46,11 +46,13 @@ function SettingsForm({
   const initial = loadWorkspaceSettings();
   const [draft, setDraft] = useState<WorkspaceSettings>(initial);
   const [apiKeyInput, setApiKeyInput] = useState(initial.anthropicApiKey ?? "");
+  const [pixabayKeyInput, setPixabayKeyInput] = useState(initial.pixabayApiKey ?? "");
 
   const handleSave = () => {
     const next: WorkspaceSettings = {
       ...draft,
       anthropicApiKey: apiKeyInput.trim() || null,
+      pixabayApiKey: pixabayKeyInput.trim() || null,
       paneDefaults: {
         pane1: clampPaneWidth("pane1", draft.paneDefaults.pane1),
         pane2: clampPaneWidth("pane2", draft.paneDefaults.pane2),
@@ -93,9 +95,8 @@ function SettingsForm({
         </DialogHeader>
         <div className={META_DIALOG_STACK}>
           <section className="flex flex-col gap-3">
-            <h3 className="text-sm font-semibold text-foreground">表示</h3>
+            <h3 className="text-sm font-semibold text-foreground">テーマ</h3>
             <MetaDialogField>
-              <Label className="text-xs text-muted-foreground">テーマ</Label>
               <div className="flex flex-wrap gap-2">
                 {(
                   [
@@ -122,14 +123,14 @@ function SettingsForm({
 
           <section className="flex flex-col gap-3">
             <h3 className="text-sm font-semibold text-foreground">
-              レイアウト（ペイン幅 px）
+              横幅
             </h3>
             {(["pane1", "pane2", "pane4"] as const).map((pane) => {
               const limits = PANE_WIDTH_LIMITS[pane];
               const labels = {
-                pane1: "Pane 1（シリーズ）",
-                pane2: "Pane 2（レッスン）",
-                pane4: "Pane 4（画像）",
+                pane1: "Pane 1",
+                pane2: "Pane 2",
+                pane4: "Pane 4",
               };
               return (
                 <MetaDialogField key={pane}>
@@ -163,7 +164,7 @@ function SettingsForm({
                 今のレイアウトに適用
               </Button>
               <Button type="button" size="sm" variant="ghost" onClick={handleResetPaneDefaults}>
-                工場出荷値に戻す
+                リセット
               </Button>
             </div>
           </section>
@@ -182,16 +183,32 @@ function SettingsForm({
                 onChange={(e) => setApiKeyInput(e.target.value)}
               />
               <p className="text-[10px] text-muted-foreground">
-                キーはこの PC のブラウザにのみ保存されます。未設定時はサーバー環境変数{" "}
-                <code className="text-[9px]">ANTHROPIC_API_KEY</code>{" "}
-                を利用します（保存後に反映）。
+              未設定時は環境変数 <code className="text-[9px]">ANTHROPIC_API_KEY</code> を利用
+              </p>
+            </MetaDialogField>
+            <MetaDialogField>
+              <Label className="text-xs text-muted-foreground">
+                Pixabay API キー
+              </Label>
+              <Input
+                type="password"
+                autoComplete="off"
+                placeholder="Pixabay API key"
+                value={pixabayKeyInput}
+                onChange={(e) => setPixabayKeyInput(e.target.value)}
+              />
+              <p className="text-[10px] text-muted-foreground">
+                未設定時は環境変数 <code className="text-[9px]">PIXABAY_API_KEY</code> を利用
               </p>
             </MetaDialogField>
             <Button
               type="button"
               size="sm"
               variant="ghost"
-              onClick={() => setApiKeyInput("")}
+              onClick={() => {
+                setApiKeyInput("");
+                setPixabayKeyInput("");
+              }}
             >
               API キーをクリア
             </Button>

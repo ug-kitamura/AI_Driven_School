@@ -53,14 +53,38 @@ export async function resolveUniquePngFileName(
   projectRoot: string,
   slug: string,
 ): Promise<string> {
-  const safe = sanitizeImageSlug(slug);
+  return resolveUniqueFileName(projectRoot, sanitizeImageSlug(slug), ".png");
+}
+
+const ALLOWED_WEB_EXT = new Set([".jpg", ".jpeg", ".png", ".webp", ".gif"]);
+
+/** Pixabay 取得画像用。`web-{id}{ext}` が衝突したら連番付与 */
+export async function resolveUniqueWebFileName(
+  projectRoot: string,
+  pixabayId: number,
+  ext: string,
+): Promise<string> {
+  const normalized = ext.startsWith(".")
+    ? ext.toLowerCase()
+    : `.${ext.toLowerCase()}`;
+  const safeExt = ALLOWED_WEB_EXT.has(normalized) ? normalized : ".jpg";
+  return resolveUniqueFileName(projectRoot, `web-${pixabayId}`, safeExt);
+}
+
+/** `{base}{ext}` が空きならそれ、否则 `{base}-2{ext}` … を返す */
+export async function resolveUniqueFileName(
+  projectRoot: string,
+  base: string,
+  ext: string,
+): Promise<string> {
+  const safeExt = ext.startsWith(".") ? ext.toLowerCase() : `.${ext.toLowerCase()}`;
   const existing = await collectExistingImageBaseNames(projectRoot);
-  let candidate = `${safe}.png`;
+  let candidate = `${base}${safeExt}`;
   if (!existing.has(candidate.toLowerCase())) return candidate;
 
   for (let n = 2; n < 10_000; n++) {
-    candidate = `${safe}-${n}.png`;
+    candidate = `${base}-${n}${safeExt}`;
     if (!existing.has(candidate.toLowerCase())) return candidate;
   }
-  return `${safe}-${Date.now()}.png`;
+  return `${base}-${Date.now()}${safeExt}`;
 }

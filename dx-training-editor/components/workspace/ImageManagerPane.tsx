@@ -104,12 +104,17 @@ export function ImageManagerPane({
   const [activeTab, setActiveTab] = useState<Tab>("used");
   const [stagingFiles, setStagingFiles] = useState<ImageAsset[]>([]);
   const [aiStagingFiles, setAiStagingFiles] = useState<ImageAsset[]>([]);
+  const [webStagingFiles, setWebStagingFiles] = useState<ImageAsset[]>([]);
   const [promotedFiles, setPromotedFiles] = useState<ImageAsset[]>([]);
   const [aiPrompt, setAiPrompt] = useState("");
+  const [webPrompt, setWebPrompt] = useState("");
   const [aiStagingAlts, setAiStagingAlts] = useState<Record<string, string>>({});
+  const [webStagingAlts, setWebStagingAlts] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(false);
   const [generating, setGenerating] = useState(false);
+  const [searching, setSearching] = useState(false);
   const [suggesting, setSuggesting] = useState(false);
+  const [webSuggesting, setWebSuggesting] = useState(false);
   const [isDragOver, setIsDragOver] = useState(false);
   const [tabNotices, setTabNotices] = useState<Partial<Record<Tab, TabNotice>>>(
     {},
@@ -132,17 +137,20 @@ export function ImageManagerPane({
   const refreshLists = useCallback(async () => {
     setLoading(true);
     try {
-      const [stagingRes, usedRes, aiRes] = await Promise.all([
+      const [stagingRes, usedRes, aiRes, webRes] = await Promise.all([
         fetch("/api/images/list?scope=staging&source=uploaded"),
         fetch("/api/images/list?scope=used"),
         fetch("/api/images/list?scope=staging&source=ai"),
+        fetch("/api/images/list?scope=staging&source=web"),
       ]);
       const stagingJson: { files?: ImageAsset[] } = await stagingRes.json();
       const usedJson: { files?: ImageAsset[] } = await usedRes.json();
       const aiJson: { files?: ImageAsset[] } = await aiRes.json();
+      const webJson: { files?: ImageAsset[] } = await webRes.json();
       if (stagingRes.ok) setStagingFiles(stagingJson.files ?? []);
       if (usedRes.ok) setPromotedFiles(usedJson.files ?? []);
       if (aiRes.ok) setAiStagingFiles(aiJson.files ?? []);
+      if (webRes.ok) setWebStagingFiles(webJson.files ?? []);
     } finally {
       setLoading(false);
     }
@@ -151,6 +159,7 @@ export function ImageManagerPane({
   useEffect(() => {
     if (editorCommentPrompt !== null) {
       setAiPrompt(editorCommentPrompt);
+      setWebPrompt(editorCommentPrompt);
     }
   }, [editorCommentPrompt]);
 
@@ -207,6 +216,26 @@ export function ImageManagerPane({
       }
     },
     [tryInsert, refreshLists, showNotice, aiStagingAlts],
+  );
+
+  const handleInsertWebStaging = useCallback(
+    async (item: ImageGridItem) => {
+      const res = await fetch("/api/images/promote", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ stagingPath: item.path }),
+      });
+      const data: { file?: ImageAsset; error?: string } = await res.json();
+      if (!res.ok || !data.file) {
+        showNotice("web", data.error ?? "画像の promote に失敗しました", "error");
+        return;
+      }
+      const alt = webStagingAlts[item.path] ?? webStagingAlts[item.name];
+      if (tryInsert(toImageMarkdown(data.file.path, alt), "web")) {
+        await refreshLists();
+      }
+    },
+    [tryInsert, refreshLists, showNotice, webStagingAlts],
   );
 
   const handleInsertStaging = useCallback(
@@ -436,7 +465,156 @@ export function ImageManagerPane({
     clearNotice("ai");
   }, [clearNotice]);
 
+  const handleSearch = useCallback(async () => {
+    if (!lesson) return;
+    const prompt = webPrompt.trim();
+    if (!prompt) {
+      showNotice("web", "プロンプトを入力してください", "error");
+      return;
+    }
+    const settings = loadWorkspaceSettings();
+    const headers: Record<string, string> = {
+      "Content-Type": "application/json",
+    };
+    if (settings.anthropicApiKey) {
+      headers["x-anthropic-api-key"] = settings.anthropicApiKey;
+    }
+    if (settings.pixabayApiKey) {
+      headers["x-pixabay-api-key"] = settings.pixabayApiKey;
+    }
+    setSearching(true);
+    clearNotice("web");
+    try {
+      const res = await fetch("/api/images/search", {
+        method: "POST",
+        headers,
+        body: JSON.stringify({ lesson, prompt }),
+      });
+      let data: {
+        results?: Array<{ file: ImageAsset; alt?: string }>;
+        error?: string;
+      };
+      try {
+        data = (await res.json()) as typeof data;
+      } catch {
+        showNotice("web", "サーバー応答の解析に失敗しました", "error");
+        return;
+      }
+      if (!res.ok || !data.results?.length) {
+        showNotice(
+          "web",
+          data.error ??
+            (res.status === 401
+              ? "Anthropic / Pixabay API キーを設定（歯車）するか、サーバー環境変数を設定してください"
+              : "画像の検索に失敗しました"),
+          "error",
+        );
+        return;
+      }
+      setWebStagingAlts((prev) => {
+        const next = { ...prev };
+        for (const item of data.results!) {
+          if (item.alt) {
+            next[item.file.path] = item.alt;
+            next[item.file.name] = item.alt;
+          }
+        }
+        return next;
+      });
+      await refreshLists();
+      showNotice(
+        "web",
+        `Web staging に ${data.results.length} 件保存しました`,
+        "success",
+      );
+    } catch (error) {
+      showNotice(
+        "web",
+        error instanceof Error ? error.message : "画像の検索に失敗しました",
+        "error",
+      );
+    } finally {
+      setSearching(false);
+    }
+  }, [lesson, webPrompt, refreshLists, showNotice, clearNotice]);
+
+  const handleWebAutoFill = useCallback(async () => {
+    if (!lesson) return;
+
+    if (editorCommentPrompt !== null) {
+      setWebPrompt(editorCommentPrompt);
+      clearNotice("web");
+      return;
+    }
+
+    const settings = loadWorkspaceSettings();
+    const headers: Record<string, string> = {
+      "Content-Type": "application/json",
+    };
+    if (settings.anthropicApiKey) {
+      headers["x-anthropic-api-key"] = settings.anthropicApiKey;
+    }
+
+    setWebSuggesting(true);
+    clearNotice("web");
+    try {
+      const res = await fetch("/api/images/suggest-web-prompt", {
+        method: "POST",
+        headers,
+        body: JSON.stringify({
+          lesson,
+          cursorOffset: editorCursorOffset ?? 0,
+        }),
+      });
+      let data: { prompt?: string; error?: string };
+      try {
+        data = (await res.json()) as typeof data;
+      } catch {
+        showNotice("web", "サーバー応答の解析に失敗しました", "error");
+        return;
+      }
+      if (!res.ok || !data.prompt) {
+        showNotice(
+          "web",
+          data.error ??
+            (res.status === 401
+              ? "Anthropic API キーを設定（歯車）するか、サーバーに ANTHROPIC_API_KEY を設定してください"
+              : "プロンプトの自動入力に失敗しました"),
+          "error",
+        );
+        return;
+      }
+      setWebPrompt(data.prompt);
+    } catch (error) {
+      showNotice(
+        "web",
+        error instanceof Error ? error.message : "プロンプトの自動入力に失敗しました",
+        "error",
+      );
+    } finally {
+      setWebSuggesting(false);
+    }
+  }, [
+    lesson,
+    editorCommentPrompt,
+    editorCursorOffset,
+    clearNotice,
+    showNotice,
+  ]);
+
+  const handleResetWebPrompt = useCallback(() => {
+    setWebPrompt("");
+    clearNotice("web");
+  }, [clearNotice]);
+
   const aiStagingGridItems: ImageGridItem[] = aiStagingFiles.map((file) => ({
+    path: file.path,
+    name: file.name,
+    showInsert: true,
+    showDelete: true,
+  }));
+
+  const webStagingGridItems: ImageGridItem[] = webStagingFiles.map((file) => ({
     path: file.path,
     name: file.name,
     showInsert: true,
@@ -675,14 +853,88 @@ export function ImageManagerPane({
         ) : null}
 
         {activeTab === "web" ? (
-          <div className="flex h-full flex-col">
+          <>
             <TabNoticeBanner notice={tabNotices.web} />
-            <div className="flex flex-1 flex-col items-center justify-center gap-2 p-4 text-center">
-              <Search className="h-8 w-8 text-muted-foreground/50" />
-              <p className="text-xs font-medium text-muted-foreground">Web画像検索</p>
-              <p className="text-[10px] text-muted-foreground/70">準備中です</p>
+            <div className={cn(PANE4_TAB_INSET, "flex flex-col gap-3 pb-3 pt-3")}>
+            {!lesson ? (
+              <p className="text-center text-xs text-muted-foreground">
+                レッスンを選択してください
+              </p>
+            ) : (
+              <>
+                <div className="flex flex-col gap-2">
+                  <textarea
+                    value={webPrompt}
+                    onChange={(e) => setWebPrompt(e.target.value)}
+                    rows={5}
+                    placeholder="画像検索条件を入力してください"
+                    className="min-h-[100px] w-full resize-y rounded-lg border border-border bg-background px-3 py-2 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+                  />
+                  <div className="flex items-center justify-start gap-2">
+                    <Button
+                      type="button"
+                      size="sm"
+                      className="h-8 shrink-0 px-4 text-xs transition-colors enabled:hover:bg-primary/85"
+                      disabled={
+                        searching || webSuggesting || !webPrompt.trim()
+                      }
+                      onClick={() => void handleSearch()}
+                    >
+                      {searching ? (
+                        <>
+                          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                          検索中...
+                        </>
+                      ) : (
+                        <>
+                          <Search className="h-3.5 w-3.5" />
+                          検索
+                        </>
+                      )}
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="h-8 shrink-0 text-xs"
+                      disabled={!lesson || webSuggesting || searching}
+                      onClick={() => void handleWebAutoFill()}
+                    >
+                      {webSuggesting ? (
+                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                      ) : (
+                        <Pen className="h-3.5 w-3.5" />
+                      )}
+                      自動入力
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="h-8 shrink-0 text-xs"
+                      disabled={webSuggesting || searching}
+                      onClick={handleResetWebPrompt}
+                    >
+                      <RotateCcw className="h-3.5 w-3.5" />
+                      リセット
+                    </Button>
+                  </div>
+                </div>
+                <ImageGrid
+                  items={webStagingGridItems}
+                  emptyMessage="Web staging に画像がありません"
+                  onPreview={(item) =>
+                    setPreview({ name: item.name, path: item.path })
+                  }
+                  onInsert={handleInsertWebStaging}
+                  onDelete={(item) =>
+                    void executeDelete({ ...item, referenceCount: 0 }, "web")
+                  }
+                />
+              </>
+            )}
             </div>
-          </div>
+          </>
         ) : null}
       </div>
 

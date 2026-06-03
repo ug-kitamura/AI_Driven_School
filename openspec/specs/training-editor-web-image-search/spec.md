@@ -5,7 +5,7 @@ TBD - created by archiving change pane4-web-image-search. Update Purpose after a
 ## Requirements
 ### Requirement: Web タブは Pixabay から最大 3 枚を staging 保存する
 
-`POST /api/images/search` は、リクエスト body の **prompt**（Web タブの説明文）と **lesson**（未保存 `content` 全文）を受け取らなければならない（SHALL）。Anthropic API キーおよび Pixabay API キーのいずれかが未設定のときは、不足しているキーに応じて 401 等で失敗しなければならない（SHALL）。
+`POST /api/images/search` は、リクエスト body の **prompt**（Web タブの説明文）と **lesson**（未保存 `content` 全文）を受け取らなければならない（SHALL）。**AI API キー**および **Pixabay API キー**（各解決優先順位は workspace-settings に従う）のいずれかが未設定のときは、不足しているキーに応じて 401 等で失敗しなければならない（SHALL）。
 
 サーバーは Claude により Pixabay 向けの検索計画（1〜3 件のクエリ、各 `photo` または `illustration`）を生成し、Pixabay API を呼び出して候補を取得しなければならない（SHALL）。同一検索実行で **新規に staging へ保存する画像は最大 3 枚** とし、3 枚未満の取得でも成功として返してよい（MAY）。Markdown 本文は変更してはならない（MUST NOT）。
 

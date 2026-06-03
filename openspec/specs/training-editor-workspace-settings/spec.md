@@ -12,15 +12,31 @@ TBD - created by archiving change pane4-ai-generation-and-settings. Update Purpo
 - **WHEN** ユーザーが設定ボタンをクリックする
 - **THEN** 設定ダイアログが表示される
 
-### Requirement: Anthropic API キーをマスク入力で保存する
+### Requirement: AI API キーをマスク入力で保存する
 
-設定ダイアログは Anthropic API キーを password 入力（マスク表示）で編集でき、保存操作で `localStorage` の `dx-training-editor-settings` に格納しなければならない（SHALL）。サーバーはキーを永続化してはならない（MUST NOT）。クリア操作でキーを削除できなければならない（SHALL）。ダイアログにはキーがブラウザ内のみに保存される旨を表示しなければならない（SHALL）。
+設定ダイアログは **AI API キー**（Claude 等の AI 呼び出し用）を password 入力（マスク表示）で編集でき、保存操作で `localStorage` の `dx-training-editor-settings` に **`aiApiKey`** として格納しなければならない（SHALL）。サーバーはキーを永続化してはならない（MUST NOT）。クリア操作でキーを削除できなければならない（SHALL）。ダイアログにはキーがブラウザ内のみに保存される旨を表示しなければならない（SHALL）。
+
+クライアントは AI 系 API 呼び出し時 **`x-ai-api-key`** ヘッダーでキーを渡してよい（MAY）。サーバーはキー解決時 **ダイアログ由来のヘッダーを優先**し、ヘッダーが無い（ダイアログ未入力）ときのみ **`process.env.AI_API_KEY`（`.env.local`）** を参照しなければならない（SHALL）。
 
 #### Scenario: 保存後に AI 生成が可能になる
 
-- **WHEN** ユーザーが有効な API キーを保存する
+- **WHEN** ユーザーが有効な AI API キーを保存する
 - **AND** AI タブで生成を実行する
 - **THEN** サーバー経由の Claude API 呼び出しが行われる
+
+#### Scenario: ダイアログ入力時はダイアログが優先される
+
+- **WHEN** `AI_API_KEY` が `.env.local` に設定されている
+- **AND** ダイアログに別のキーが保存されている
+- **AND** ユーザーが AI タブで生成を実行する
+- **THEN** サーバーはダイアログ由来のキーのみを用いる
+
+#### Scenario: ダイアログ未入力時は env を参照する
+
+- **WHEN** ダイアログに AI API キーが未入力である
+- **AND** `AI_API_KEY` が `.env.local` に設定されている
+- **AND** ユーザーが AI タブで生成を実行する
+- **THEN** サーバーは `AI_API_KEY` を用いる
 
 ### Requirement: テーマをライト・ダーク・システムで切り替える
 
@@ -61,19 +77,29 @@ TBD - created by archiving change pane4-ai-generation-and-settings. Update Purpo
 
 設定ダイアログは Pixabay API キーを password 入力（マスク表示）で編集でき、保存操作で `localStorage` の `dx-training-editor-settings` に格納しなければならない（SHALL）。サーバーはキーを永続化してはならない（MUST NOT）。クリア操作でキーを削除できなければならない（SHALL）。ダイアログにはキーがブラウザ内のみに保存される旨を表示しなければならない（SHALL）。
 
-Web タブの検索 API 呼び出し時、クライアントは `x-pixabay-api-key` ヘッダーでキーを渡さなければならない（SHALL）。サーバーは `PIXABAY_API_KEY` 環境変数をフォールバックとして用いてよい（MAY）。
+Web タブの検索 API 呼び出し時、クライアントは `x-pixabay-api-key` ヘッダーでキーを渡してよい（MAY）。サーバーはキー解決時 **ダイアログ由来のヘッダーを優先**し、ヘッダーが無い（ダイアログ未入力）ときのみ **`process.env.PIXABAY_API_KEY`（`.env.local`）** を参照しなければならない（SHALL）。
 
 #### Scenario: 保存後に Web 検索が可能になる
 
 - **WHEN** ユーザーが有効な Pixabay API キーを保存する
-- **AND** Anthropic API キーも設定されている
+- **AND** AI API キーも設定されている
 - **AND** Web タブで検索を実行する
 - **THEN** サーバー経由の Pixabay API 呼び出しが行われる
 
 #### Scenario: Pixabay キー未設定で検索拒否
 
-- **WHEN** Pixabay API キーが未設定である
+- **WHEN** Pixabay API キーが環境変数にもダイアログにも未設定である
 - **AND** ユーザーが Web タブで検索を試みる
 - **THEN** 検索 API は 401 等で失敗する
 - **AND** 設定を促すメッセージが表示される
+
+### Requirement: 環境変数テンプレートを提供する
+
+リポジトリは **`dx-training-editor/.env.example`** をコミットし、`AI_API_KEY` および `PIXABAY_API_KEY` のプレースホルダを含めなければならない（SHALL）。**`.env.local`** は git 追跡対象外としなければならない（SHALL）。readme は `.env.example` をコピーして `.env.local` を作成する手順を記載しなければならない（SHALL）。
+
+#### Scenario: 新規開発者が env を設定できる
+
+- **WHEN** 開発者が `.env.example` を `.env.local` にコピーしキーを記入する
+- **AND** `npm run dev` で起動する
+- **THEN** 設定ダイアログ未入力でも AI / Web API が env キーで動作する
 

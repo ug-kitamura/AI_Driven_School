@@ -5,11 +5,11 @@ TBD - created by archiving change pane4-ai-generation-and-settings. Update Purpo
 ## Requirements
 ### Requirement: API キー未設定時は生成できない
 
-Anthropic API キーがクライアント設定およびサーバー環境変数のいずれにも無いとき、生成 API は失敗を返さなければならない（SHALL）。AI タブは生成を実行し、失敗レスポンスに基づき設定ダイアログへの導線を示さなければならない（SHALL）。
+**AI API キー**（`AI_API_KEY` または `x-ai-api-key`、解決優先順位は workspace-settings に従う）が未設定のとき、生成 API は失敗を返さなければならない（SHALL）。AI タブは生成を実行し、失敗レスポンスに基づき設定ダイアログまたは `.env.local` への導線を示さなければならない（SHALL）。
 
 #### Scenario: キー未設定で生成拒否
 
-- **WHEN** API キーが未設定である
+- **WHEN** AI API キーが未設定である
 - **AND** ユーザーが生成を試みる
 - **THEN** 生成 API は 401 等で失敗する
 - **AND** 設定を促すメッセージが表示される

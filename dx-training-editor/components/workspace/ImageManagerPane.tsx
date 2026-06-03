@@ -522,14 +522,11 @@ export function ImageManagerPane({
             ) : (
               <>
                 <div className="flex flex-col gap-2">
-                  <p className="text-[10px] font-medium text-muted-foreground">
-                    プロンプト
-                  </p>
                   <textarea
                     value={aiPrompt}
                     onChange={(e) => setAiPrompt(e.target.value)}
                     rows={5}
-                    placeholder="<!-- --> 内の指示をコピーするか、ここに直接入力"
+                    placeholder="画像生成プロンプトを入力してください"
                     className="min-h-[100px] w-full resize-y rounded-lg border border-border bg-background px-3 py-2 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary"
                   />
                   <Button

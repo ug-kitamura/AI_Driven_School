@@ -17,6 +17,7 @@ const GRAPHIC_VOCABULARY = `
 - Experience mocks: chat UI, editor UI (traffic lights + sidebar), terminal UI, browser UI, generic app mini-screens.
 - Use Lucide via data-lucide attributes only. No emoji. Tailwind utility classes only inside the diagram block.
 - Text may appear INSIDE steps, cards, and UI mocks (short labels, 2-3 line hints like model-answer step flow). Optional one-line diagram title (h3).
+- **Language:** All visible text inside the diagram (titles, step labels, UI mock strings, button text) MUST be **English** unless the author prompt explicitly requests another language (e.g. "日本語で", "labels in Japanese").
 - Do NOT output intro paragraphs, summaries, or captions OUTSIDE the single diagram wrapper card.
 `.trim();
 
@@ -24,20 +25,20 @@ const FEW_SHOT_FLOW = `
 Example quality (single diagram block inside html field — structure and density reference):
 
 <div class="bg-custom-surface border border-custom-border rounded-xl p-6">
-  <h3 class="text-lg font-bold text-slate-900 text-center mb-6">APIリクエスト〜レスポンスの流れ</h3>
+  <h3 class="text-lg font-bold text-slate-900 text-center mb-6">API Request to Response Flow</h3>
   <div class="flex flex-row items-stretch justify-center gap-0">
     <div class="flex-1 bg-blue-500/10 border border-blue-500/20 rounded-xl p-4 text-center">
       <div class="w-8 h-8 rounded-full bg-blue-500 text-white text-sm font-bold flex items-center justify-center mx-auto mb-3">1</div>
       <i data-lucide="send" class="w-6 h-6 text-blue-600 mx-auto mb-2"></i>
-      <div class="font-bold text-blue-700 text-sm mb-1">リクエスト送信</div>
-      <div class="text-xs text-custom-muted leading-relaxed">アプリがAPIに<br>リクエストを送る</div>
+      <div class="font-bold text-blue-700 text-sm mb-1">Send Request</div>
+      <div class="text-xs text-custom-muted leading-relaxed">App sends a request<br>to the API</div>
     </div>
     <div class="flex items-center justify-center w-10"><i data-lucide="chevron-right" class="w-5 h-5 text-custom-dim"></i></div>
     <div class="flex-1 bg-emerald-500/10 border border-emerald-500/20 rounded-xl p-4 text-center">
       <div class="w-8 h-8 rounded-full bg-emerald-500 text-white text-sm font-bold flex items-center justify-center mx-auto mb-3">2</div>
       <i data-lucide="reply" class="w-6 h-6 text-emerald-600 mx-auto mb-2"></i>
-      <div class="font-bold text-emerald-700 text-sm mb-1">レスポンス返却</div>
-      <div class="text-xs text-custom-muted leading-relaxed">結果がアプリに<br>届く</div>
+      <div class="font-bold text-emerald-700 text-sm mb-1">Receive Response</div>
+      <div class="text-xs text-custom-muted leading-relaxed">Result arrives<br>back in the app</div>
     </div>
   </div>
 </div>
@@ -53,6 +54,10 @@ Rules for html:
 - Lucide icons: <i data-lucide="name" class="..."></i>
 - No <script>, no <style>, no external images, no emoji.
 - Width ~768px. Light background.
+- Diagram text language: English by default for all labels/titles/UI copy inside html. Use another language only when the author prompt explicitly asks for it.
+
+Rules for alt (markdown accessibility, not rendered in the PNG):
+- Keep alt in concise Japanese (1 line) matching the lesson audience.
 
 ${GRAPHIC_VOCABULARY}
 

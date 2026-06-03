@@ -156,6 +156,9 @@ export function ImageManagerPane({
     {},
   );
   const [previewPath, setPreviewPath] = useState<string | null>(null);
+  const closePreview = useCallback(() => {
+    setPreviewPath(null);
+  }, []);
   const [pendingDelete, setPendingDelete] = useState<PendingDelete | null>(null);
   const [usedFilter, setUsedFilter] = useState<UsedImageFilter>({
     seriesId: null,
@@ -345,8 +348,9 @@ export function ImageManagerPane({
       }
       await refreshLists();
       onImageAssetsChanged?.(item.path);
+      closePreview();
     },
-    [refreshLists, showNotice, onImageAssetsChanged],
+    [refreshLists, showNotice, onImageAssetsChanged, closePreview],
   );
 
   const handleDeleteRequest = useCallback(
@@ -1100,7 +1104,7 @@ export function ImageManagerPane({
       {previewIndex !== null && currentPreviewItem ? (
         <ImageLightbox
           open
-          onOpenChange={(open) => !open && setPreviewPath(null)}
+          onOpenChange={(open) => !open && closePreview()}
           items={previewableItems}
           index={previewIndex}
           onIndexChange={(idx) => {
@@ -1111,6 +1115,7 @@ export function ImageManagerPane({
           showDelete={currentPreviewItem.showDelete}
           onInsert={() => {
             if (!currentPreviewItem) return;
+            closePreview();
             switch (activeTab) {
               case "used":
                 handleInsertPromoted(currentPreviewItem);

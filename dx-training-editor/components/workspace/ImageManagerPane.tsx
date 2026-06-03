@@ -14,6 +14,7 @@ import {
   SquareCheckBig,
   ImageIcon,
   Loader2,
+  Wand2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Pane4Toggle } from "@/components/workspace/Pane4Toggle";
@@ -532,17 +533,20 @@ export function ImageManagerPane({
                   <Button
                     type="button"
                     size="sm"
-                    className="h-8 w-full text-xs"
+                    className="h-8 w-full text-xs transition-colors enabled:hover:bg-primary/85"
                     disabled={generating || !aiPrompt.trim()}
                     onClick={() => void handleGenerate()}
                   >
                     {generating ? (
                       <>
-                        <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
                         生成中...
                       </>
                     ) : (
-                      "生成"
+                      <>
+                        <Wand2 className="h-3.5 w-3.5" />
+                        生成
+                      </>
                     )}
                   </Button>
                 </div>

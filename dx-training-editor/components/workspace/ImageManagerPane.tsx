@@ -789,7 +789,7 @@ export function ImageManagerPane({
             <TabNoticeBanner notice={tabNotices.used} />
             <div className={cn(PANE4_TAB_INSET, "flex flex-col gap-3 pb-3 pt-3")}>
               <div className="flex flex-col gap-2">
-                <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+                <div className="flex flex-col gap-2">
                   <Select
                     value={usedFilter.seriesId ?? FILTER_ALL}
                     onValueChange={(value) => {
@@ -803,10 +803,12 @@ export function ImageManagerPane({
                     <SelectTrigger size="sm" className="w-full text-xs">
                       <SelectValue placeholder="シリーズ" />
                     </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value={FILTER_ALL}>すべてのシリーズ</SelectItem>
+                    <SelectContent className="text-xs">
+                      <SelectItem value={FILTER_ALL} className="text-xs">
+                        すべてのシリーズ
+                      </SelectItem>
                       {series.map((s) => (
-                        <SelectItem key={s.id} value={s.id}>
+                        <SelectItem key={s.id} value={s.id} className="text-xs">
                           {s.name}
                         </SelectItem>
                       ))}
@@ -826,10 +828,12 @@ export function ImageManagerPane({
                     <SelectTrigger size="sm" className="w-full text-xs">
                       <SelectValue placeholder="コース" />
                     </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value={FILTER_ALL}>すべてのコース</SelectItem>
+                    <SelectContent className="text-xs">
+                      <SelectItem value={FILTER_ALL} className="text-xs">
+                        すべてのコース
+                      </SelectItem>
                       {filterCourses.map((c) => (
-                        <SelectItem key={c.id} value={c.id}>
+                        <SelectItem key={c.id} value={c.id} className="text-xs">
                           {c.name}
                         </SelectItem>
                       ))}
@@ -848,10 +852,12 @@ export function ImageManagerPane({
                     <SelectTrigger size="sm" className="w-full text-xs">
                       <SelectValue placeholder="レッスン" />
                     </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value={FILTER_ALL}>すべてのレッスン</SelectItem>
+                    <SelectContent className="text-xs">
+                      <SelectItem value={FILTER_ALL} className="text-xs">
+                        すべてのレッスン
+                      </SelectItem>
                       {filterLessons.map((l) => (
-                        <SelectItem key={l.id} value={l.id}>
+                        <SelectItem key={l.id} value={l.id} className="text-xs">
                           {l.lesson}
                         </SelectItem>
                       ))}

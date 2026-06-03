@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useMemo } from "react";
+import { useState, useCallback, useMemo, useEffect } from "react";
 import { SidebarInset, SidebarProvider, useSidebar } from "@/components/ui/sidebar";
 import { cn } from "@/lib/utils";
 import { GlobalHeader } from "@/components/workspace/GlobalHeader";
@@ -28,6 +28,7 @@ import {
   type LessonMetaFields,
 } from "@/lib/lesson-frontmatter";
 import { collectAllLessonTags } from "@/lib/lesson-tags";
+import { htmlCommentInnerTextAtOffset } from "@/lib/html-comment-at-cursor";
 
 export type Pane3Mode = "inline" | "raw" | "diff";
 
@@ -63,6 +64,9 @@ export function Workspace({
   const [pane4ManuallyClosed, setPane4ManuallyClosed] = useState(false);
   const [pane3Mode, setPane3Mode] = useState<Pane3Mode>("raw");
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [editorCommentPrompt, setEditorCommentPrompt] = useState<string | null>(
+    null,
+  );
   const { paneWidths, isResizing, resizeHandleProps, applyPaneWidths } =
     useWorkspacePaneWidths();
 
@@ -407,6 +411,25 @@ export function Workspace({
     [pane3Mode, insertCallback],
   );
 
+  const handleEditorCursorChange = useCallback(
+    (offset: number) => {
+      if (pane3Mode !== "raw" || !selectedLesson) {
+        setEditorCommentPrompt(null);
+        return;
+      }
+      setEditorCommentPrompt(
+        htmlCommentInnerTextAtOffset(selectedLesson.content, offset),
+      );
+    },
+    [pane3Mode, selectedLesson],
+  );
+
+  useEffect(() => {
+    if (pane3Mode !== "raw" || !selectedLesson) {
+      setEditorCommentPrompt(null);
+    }
+  }, [pane3Mode, selectedLesson?.id]);
+
   const selectedSeriesName = useMemo(() => {
     for (const s of series) {
       if (s.courses.some((c) => c.id === selectedCourseId)) return s.name;
@@ -495,6 +518,7 @@ export function Workspace({
               onUpdateContent={updateLessonContent}
               onUpdateLessonMeta={updateLessonMeta}
               onRegisterInsertCallback={registerInsertCallback}
+              onEditorCursorChange={handleEditorCursorChange}
               tagSuggestions={tagSuggestions}
             />
           </div>
@@ -510,6 +534,7 @@ export function Workspace({
                   lesson={selectedLesson}
                   pane3Mode={pane3Mode}
                   onInsertImage={insertImageMarkdown}
+                  editorCommentPrompt={editorCommentPrompt}
                   pane4Open={pane4Open}
                   onTogglePane4={() => setPane4ManuallyClosed((v) => !v)}
                 />
@@ -521,6 +546,7 @@ export function Workspace({
               lesson={selectedLesson}
               pane3Mode={pane3Mode}
               onInsertImage={insertImageMarkdown}
+              editorCommentPrompt={editorCommentPrompt}
               pane4Open={pane4Open}
               onTogglePane4={() => setPane4ManuallyClosed((v) => !v)}
             />

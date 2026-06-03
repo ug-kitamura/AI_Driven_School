@@ -13,6 +13,7 @@ import {
   Search,
   SquareCheckBig,
   ImageIcon,
+  Loader2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Pane4Toggle } from "@/components/workspace/Pane4Toggle";
@@ -33,7 +34,6 @@ import { Button } from "@/components/ui/button";
 import { buildUsedImageRows } from "@/lib/build-used-image-rows";
 import { countImageRefsInSeries } from "@/lib/extract-image-refs";
 import { toImageMarkdown } from "@/lib/image-path";
-import type { LessonImageSlot } from "@/lib/lesson-image-slots";
 import { loadWorkspaceSettings } from "@/lib/workspace-settings";
 import type { ImageAsset, Lesson, Series } from "@/lib/schema";
 import type { Pane3Mode } from "@/components/workspace/Workspace";
@@ -43,6 +43,8 @@ type Props = {
   lesson: Lesson | undefined;
   pane3Mode: Pane3Mode;
   onInsertImage: (markdown: string) => boolean;
+  /** null = コメント外（プロンプト上書きしない）、string = コメント内テキスト */
+  editorCommentPrompt: string | null;
   pane4Open: boolean;
   onTogglePane4: () => void;
 };
@@ -69,6 +71,7 @@ export function ImageManagerPane({
   lesson,
   pane3Mode,
   onInsertImage,
+  editorCommentPrompt,
   pane4Open,
   onTogglePane4,
 }: Props) {
@@ -76,10 +79,10 @@ export function ImageManagerPane({
   const [stagingFiles, setStagingFiles] = useState<ImageAsset[]>([]);
   const [aiStagingFiles, setAiStagingFiles] = useState<ImageAsset[]>([]);
   const [promotedFiles, setPromotedFiles] = useState<ImageAsset[]>([]);
-  const [aiSlots, setAiSlots] = useState<LessonImageSlot[]>([]);
+  const [aiPrompt, setAiPrompt] = useState("");
+  const [aiStagingAlts, setAiStagingAlts] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(false);
-  const [aiLoading, setAiLoading] = useState(false);
-  const [generatingPath, setGeneratingPath] = useState<string | null>(null);
+  const [generating, setGenerating] = useState(false);
   const [isDragOver, setIsDragOver] = useState(false);
   const [insertNotice, setInsertNotice] = useState<string | null>(null);
   const [insertNoticeTone, setInsertNoticeTone] = useState<"error" | "success">(
@@ -119,36 +122,17 @@ export function ImageManagerPane({
     }
   }, []);
 
-  const refreshAiSlots = useCallback(async () => {
-    if (!lesson) {
-      setAiSlots([]);
-      return;
+  useEffect(() => {
+    if (editorCommentPrompt !== null) {
+      setAiPrompt(editorCommentPrompt);
     }
-    setAiLoading(true);
-    try {
-      const res = await fetch("/api/images/slots", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ lesson }),
-      });
-      const data: { slots?: LessonImageSlot[]; error?: string } = await res.json();
-      if (res.ok) setAiSlots(data.slots ?? []);
-    } finally {
-      setAiLoading(false);
-    }
-  }, [lesson]);
+  }, [editorCommentPrompt]);
 
   useEffect(() => {
     if (pane4Open) {
       void refreshLists();
     }
   }, [pane4Open, refreshLists, series]);
-
-  useEffect(() => {
-    if (pane4Open && activeTab === "ai") {
-      void refreshAiSlots();
-    }
-  }, [pane4Open, activeTab, refreshAiSlots, lesson?.content, lesson?.id]);
 
   const showNotice = useCallback((message: string, tone: "error" | "success") => {
     setInsertNoticeTone(tone);
@@ -166,6 +150,26 @@ export function ImageManagerPane({
       return ok;
     },
     [onInsertImage, showNotice],
+  );
+
+  const handleInsertAiStaging = useCallback(
+    async (item: ImageGridItem) => {
+      const res = await fetch("/api/images/promote", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ stagingPath: item.path }),
+      });
+      const data: { file?: ImageAsset; error?: string } = await res.json();
+      if (!res.ok || !data.file) {
+        showNotice(data.error ?? "画像の promote に失敗しました", "error");
+        return;
+      }
+      const alt = aiStagingAlts[item.path] ?? aiStagingAlts[item.name];
+      if (tryInsert(toImageMarkdown(data.file.path, alt))) {
+        await refreshLists();
+      }
+    },
+    [tryInsert, refreshLists, showNotice, aiStagingAlts],
   );
 
   const handleInsertStaging = useCallback(
@@ -262,61 +266,66 @@ export function ImageManagerPane({
     [uploadFiles],
   );
 
-  const handleGenerateSlot = useCallback(
-    async (slot: LessonImageSlot) => {
-      if (!lesson) return;
-      const settings = loadWorkspaceSettings();
-      const headers: Record<string, string> = {
-        "Content-Type": "application/json",
-      };
-      if (settings.anthropicApiKey) {
-        headers["x-anthropic-api-key"] = settings.anthropicApiKey;
-      }
-      setGeneratingPath(slot.canonicalPath);
-      setInsertNotice(null);
+  const handleGenerate = useCallback(async () => {
+    if (!lesson) return;
+    const prompt = aiPrompt.trim();
+    if (!prompt) {
+      showNotice("プロンプトを入力してください", "error");
+      return;
+    }
+    const settings = loadWorkspaceSettings();
+    const headers: Record<string, string> = {
+      "Content-Type": "application/json",
+    };
+    if (settings.anthropicApiKey) {
+      headers["x-anthropic-api-key"] = settings.anthropicApiKey;
+    }
+    setGenerating(true);
+    setInsertNotice(null);
+    try {
+      const res = await fetch("/api/images/generate", {
+        method: "POST",
+        headers,
+        body: JSON.stringify({ lesson, prompt }),
+      });
+      let data: { file?: ImageAsset; alt?: string; error?: string };
       try {
-        const res = await fetch("/api/images/generate", {
-          method: "POST",
-          headers,
-          body: JSON.stringify({
-            lesson,
-            canonicalPath: slot.canonicalPath,
-          }),
-        });
-        let data: { file?: ImageAsset; error?: string };
-        try {
-          data = (await res.json()) as { file?: ImageAsset; error?: string };
-        } catch {
-          showNotice("サーバー応答の解析に失敗しました", "error");
-          return;
-        }
-        if (!res.ok || !data.file) {
-          showNotice(
-            data.error ??
-              (res.status === 401
-                ? "Anthropic API キーを設定（歯車）するか、サーバーに ANTHROPIC_API_KEY を設定してください"
-                : "画像の生成に失敗しました"),
-            "error",
-          );
-          return;
-        }
-        await refreshLists();
-        await refreshAiSlots();
+        data = (await res.json()) as typeof data;
+      } catch {
+        showNotice("サーバー応答の解析に失敗しました", "error");
+        return;
+      }
+      if (!res.ok || !data.file) {
         showNotice(
-          `AI staging に保存しました: ${data.file.name}（下のグリッドで確認）`,
-          "success",
-        );
-      } catch (error) {
-        showNotice(
-          error instanceof Error ? error.message : "画像の生成に失敗しました",
+          data.error ??
+            (res.status === 401
+              ? "Anthropic API キーを設定（歯車）するか、サーバーに ANTHROPIC_API_KEY を設定してください"
+              : "画像の生成に失敗しました"),
           "error",
         );
-      } finally {
-        setGeneratingPath(null);
+        return;
       }
-    },
-    [lesson, refreshLists, refreshAiSlots, showNotice],
-  );
+      if (data.alt) {
+        setAiStagingAlts((prev) => ({
+          ...prev,
+          [data.file!.path]: data.alt!,
+          [data.file!.name]: data.alt!,
+        }));
+      }
+      await refreshLists();
+      showNotice(
+        `AI staging に保存しました: ${data.file.name}`,
+        "success",
+      );
+    } catch (error) {
+      showNotice(
+        error instanceof Error ? error.message : "画像の生成に失敗しました",
+        "error",
+      );
+    } finally {
+      setGenerating(false);
+    }
+  }, [lesson, aiPrompt, refreshLists, showNotice]);
 
   const aiStagingGridItems: ImageGridItem[] = aiStagingFiles.map((file) => ({
     path: file.path,
@@ -488,53 +497,35 @@ export function ImageManagerPane({
               <>
                 <div className="flex flex-col gap-2">
                   <p className="text-[10px] font-medium text-muted-foreground">
-                    本文内の画像スロット
+                    プロンプト
                   </p>
-                  {aiLoading ? (
-                    <p className="text-xs text-muted-foreground">読み込み中...</p>
-                  ) : aiSlots.length === 0 ? (
-                    <p className="text-xs text-muted-foreground">
-                      images/ 形式の画像プレースホルダがありません
-                    </p>
-                  ) : (
-                    <ul className="flex flex-col gap-2">
-                      {aiSlots.map((slot) => (
-                        <li
-                          key={slot.canonicalPath}
-                          className="rounded-lg border border-border bg-muted/20 p-2"
-                        >
-                          <p className="truncate text-[10px] font-medium text-foreground">
-                            {slot.fileName}
-                          </p>
-                          <p className="mt-0.5 line-clamp-2 text-[10px] text-muted-foreground">
-                            {slot.alt || "（alt なし）"}
-                          </p>
-                          <p className="mt-1 text-[10px] text-muted-foreground">
-                            {slot.status === "canonical"
-                              ? "正本あり"
-                              : slot.status === "staging"
-                                ? "AI staging あり"
-                                : "未生成"}
-                          </p>
-                          <Button
-                            type="button"
-                            size="sm"
-                            className="mt-2 h-7 w-full text-xs"
-                            disabled={generatingPath === slot.canonicalPath}
-                            onClick={() => void handleGenerateSlot(slot)}
-                          >
-                            {generatingPath === slot.canonicalPath
-                              ? "生成中..."
-                              : "生成"}
-                          </Button>
-                        </li>
-                      ))}
-                    </ul>
-                  )}
+                  <textarea
+                    value={aiPrompt}
+                    onChange={(e) => setAiPrompt(e.target.value)}
+                    rows={5}
+                    placeholder="<!-- --> 内の指示をコピーするか、ここに直接入力"
+                    className="min-h-[100px] w-full resize-y rounded-lg border border-border bg-background px-3 py-2 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+                  />
+                  <Button
+                    type="button"
+                    size="sm"
+                    className="h-8 w-full text-xs"
+                    disabled={generating || !aiPrompt.trim()}
+                    onClick={() => void handleGenerate()}
+                  >
+                    {generating ? (
+                      <>
+                        <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+                        生成中...
+                      </>
+                    ) : (
+                      "生成"
+                    )}
+                  </Button>
                 </div>
                 <div className="flex flex-col gap-1">
                   <p className="text-[10px] font-medium text-muted-foreground">
-                    AI staging（生成直後はここに表示。挿入で正本へ）
+                    AI staging
                   </p>
                   <ImageGrid
                     items={aiStagingGridItems}
@@ -542,7 +533,7 @@ export function ImageManagerPane({
                     onPreview={(item) =>
                       setPreview({ name: item.name, path: item.path })
                     }
-                    onInsert={handleInsertStaging}
+                    onInsert={handleInsertAiStaging}
                     onDelete={(item) =>
                       void executeDelete({ ...item, referenceCount: 0 })
                     }

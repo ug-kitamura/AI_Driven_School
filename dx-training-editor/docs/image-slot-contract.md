@@ -1,16 +1,26 @@
-# レッスン画像スロット契約（骨子 AI スキル向け）
+# レッスン画像指示契約（骨子 AI スキル向け）
 
-## Markdown 記法（記法案 A）
+## Markdown 記法
+
+骨子 AI スキルは、画像生成の指示を **HTML コメント** に書く。
 
 ```markdown
-![ui] VSCode 風の画面。ファイルツリーとエディタ、下部にターミナル。](images/git-env-overview.png)
+<!--
+Git の commit から push までを
+4 ステップのフロー図 + ターミナル UI mock で
+-->
 ```
 
-- **path**: 必ず `images/<filename>`（`uploaded` / `ai` / `web` を path に含めない）
-- **alt**: 生成ヒント。接頭辞 `[ui]` / `[diagram]` / `[photo]` を推奨
-- ファイルは未作成のままでよい（プレビューは壊れ画像＝挿入予定の目印）
+- **プロンプト本文のみ**（ファイル名行は不要 — 生成時に AI がスラッグを付ける）
+- コメントはプレビューに表示されない（制作メモ）
+- `![…](images/…)` 形式の **未生成プレースホルダは使わない**
 
-## ワークスペースでの充足
+## ワークスペースでの制作フロー
+
+1. 骨子 AI が `<!-- プロンプト -->` を本文に挿入
+2. 作者が編集モードでコメント内にカーソルを置く → AI タブのプロンプト欄へ **自動同期**
+3. 必要ならプロンプトを編集し **生成** → `images/ai/` に staging PNG
+4. **挿入** → 正本 `images/<file>.png` へ promote + カーソル位置に `![短い alt](images/<file>.png)` を追加（コメントは残す）
 
 | タブ | staging | promote 先 |
 |---|---|---|
@@ -18,4 +28,8 @@
 | AI | `images/ai/` | `images/` |
 | Web | `images/web/`（将来） | `images/` |
 
-挿入操作で staging → 正本にコピーし、編集モードのカーソル（または選択範囲）に `![filename](images/filename)` を反映する。
+## 生成品質
+
+- creating-visual-explainers の **グラフィック語彙**（構造図 + UI mock）
+- model-answer.html の **図 1 ブロック** 水準（`custom.*` 配色・Lucide）
+- 図内テキスト OK、図外の説明段落 NG

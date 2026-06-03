@@ -43,6 +43,7 @@ type Props = {
     meta: Partial<LessonMetaFields>,
   ) => void;
   onRegisterInsertCallback: (cb: (markdown: string) => void) => void;
+  onEditorCursorChange?: (offset: number) => void;
   tagSuggestions?: readonly string[];
 };
 
@@ -72,6 +73,7 @@ export function MarkdownEditorPane({
   onUpdateContent,
   onUpdateLessonMeta,
   onRegisterInsertCallback,
+  onEditorCursorChange,
   tagSuggestions = [],
 }: Props) {
   const editorRef = useRef<LessonContentEditorHandle>(null);
@@ -213,6 +215,7 @@ export function MarkdownEditorPane({
               value={editContent}
               onChange={(content) => onUpdateContent(lesson.id, content)}
               onScrollElementReady={handleScrollElementReady}
+              onCursorChange={onEditorCursorChange}
             />
           </div>
         )}

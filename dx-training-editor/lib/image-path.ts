@@ -70,13 +70,14 @@ export function sourceFromPath(path: string): ImageSource | null {
   return isImageSource(source) ? source : null;
 }
 
-export function toImageMarkdown(path: string): string {
+export function toImageMarkdown(path: string, alt?: string): string {
   const name = imageFileName(path);
   const normalized = normalizeImageLogicalPath(path);
   const canonical = isCanonicalImagePath(normalized)
     ? normalized
     : promoteTargetPath(normalized) ?? normalized;
-  return `![${name}](${canonical})`;
+  const label = alt?.trim() || name;
+  return `![${label}](${canonical})`;
 }
 
 export function toImageApiUrl(logicalPath: string): string {

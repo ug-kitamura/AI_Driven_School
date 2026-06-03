@@ -10,13 +10,14 @@ import {
   useState,
 } from "react";
 import CodeMirror from "@uiw/react-codemirror";
-import type { EditorView } from "@codemirror/view";
+import { EditorView } from "@codemirror/view";
 import { cn } from "@/lib/utils";
 import { buildLessonEditorExtensions } from "@/lib/lesson-content-editor-setup";
 
 export type LessonContentEditorHandle = {
   insertAtCursor: (markdown: string) => void;
   getScrollElement: () => HTMLElement | null;
+  getCursorOffset: () => number;
 };
 
 type Props = {
@@ -24,6 +25,7 @@ type Props = {
   value: string;
   onChange: (value: string) => void;
   onScrollElementReady?: (element: HTMLElement | null) => void;
+  onCursorChange?: (offset: number) => void;
   className?: string;
 };
 
@@ -31,10 +33,12 @@ export const LessonContentEditor = forwardRef<
   LessonContentEditorHandle,
   Props
 >(function LessonContentEditor(
-  { lessonId, value, onChange, onScrollElementReady, className },
+  { lessonId, value, onChange, onScrollElementReady, onCursorChange, className },
   ref,
 ) {
   const viewRef = useRef<EditorView | null>(null);
+  const onCursorChangeRef = useRef(onCursorChange);
+  onCursorChangeRef.current = onCursorChange;
   const [isDark, setIsDark] = useState(false);
 
   useEffect(() => {
@@ -50,7 +54,14 @@ export const LessonContentEditor = forwardRef<
   }, []);
 
   const extensions = useMemo(
-    () => buildLessonEditorExtensions(isDark),
+    () => [
+      ...buildLessonEditorExtensions(isDark),
+      EditorView.updateListener.of((update) => {
+        if (update.selectionSet || update.docChanged) {
+          onCursorChangeRef.current?.(update.state.selection.main.head);
+        }
+      }),
+    ],
     [isDark],
   );
 
@@ -79,6 +90,9 @@ export const LessonContentEditor = forwardRef<
       },
       getScrollElement() {
         return viewRef.current?.scrollDOM ?? null;
+      },
+      getCursorOffset() {
+        return viewRef.current?.state.selection.main.head ?? 0;
       },
     }),
     [onChange],

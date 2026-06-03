@@ -6,18 +6,17 @@ import { promisify } from "node:util";
 import { z } from "zod";
 import {
   buildImageGenerationMessages,
-  isUnsupportedPhotoResponse,
+  parseAiGenerationResponse,
 } from "@/lib/ai-image-prompt";
-import { sanitizeUploadFileName } from "@/lib/image-path";
+import { resolveUniquePngFileName } from "@/lib/image-slug";
 import { saveStagingImage } from "@/lib/image-store";
-import { listLessonImageSlots } from "@/lib/lesson-image-slots";
 import { lessonSchema } from "@/lib/schema";
 
 const execFileAsync = promisify(execFile);
 
 const bodySchema = z.object({
   lesson: lessonSchema,
-  canonicalPath: z.string().min(1),
+  prompt: z.string().min(1),
 });
 
 /** @see https://platform.claude.com/docs/en/about-claude/models/overview */
@@ -71,12 +70,6 @@ async function callClaude(apiKey: string, system: string, user: string): Promise
   return text;
 }
 
-function stripCodeFences(text: string): string {
-  const trimmed = text.trim();
-  const m = trimmed.match(/^```(?:html)?\s*([\s\S]*?)```$/i);
-  return m ? m[1].trim() : trimmed;
-}
-
 function playwrightHint(): string {
   return "Playwright の Chromium が未導入の可能性があります。start.bat で起動するか、dx-training-editor で npx playwright install chromium を実行してください。";
 }
@@ -98,48 +91,38 @@ export async function POST(req: Request) {
     return Response.json({ error: "リクエストが不正です" }, { status: 400 });
   }
 
-  const slots = await listLessonImageSlots(process.cwd(), parsed.lesson);
-  const slot = slots.find((s) => s.canonicalPath === parsed.canonicalPath);
-  if (!slot) {
-    return Response.json({ error: "スロットが見つかりません" }, { status: 404 });
-  }
+  const { system, user } = buildImageGenerationMessages(parsed.lesson, parsed.prompt);
 
-  const { system, user } = buildImageGenerationMessages(parsed.lesson, slot);
-
-  let htmlFragment: string;
+  let generation: ReturnType<typeof parseAiGenerationResponse>;
   try {
-    htmlFragment = stripCodeFences(await callClaude(apiKey, system, user));
+    const raw = await callClaude(apiKey, system, user);
+    generation = parseAiGenerationResponse(raw, parsed.prompt);
   } catch (error) {
     const message = error instanceof Error ? error.message : "生成に失敗しました";
     return Response.json({ error: message }, { status: 502 });
   }
 
-  if (isUnsupportedPhotoResponse(htmlFragment)) {
-    return Response.json(
-      { error: "[photo] スロットの外部画像生成は未対応です" },
-      { status: 422 },
-    );
-  }
+  const projectRoot = process.cwd();
+  const fileName = await resolveUniquePngFileName(projectRoot, generation.slug);
 
   const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), "dx-img-gen-"));
   const htmlFile = path.join(tmpDir, "fragment.html");
   const pngFile = path.join(tmpDir, "out.png");
-  const scriptPath = path.join(process.cwd(), "scripts", "render-diagram.mjs");
+  const scriptPath = path.join(projectRoot, "scripts", "render-diagram.mjs");
 
   try {
-    await fs.writeFile(htmlFile, htmlFragment, "utf8");
+    await fs.writeFile(htmlFile, generation.html, "utf8");
     await execFileAsync(process.execPath, [scriptPath, htmlFile, pngFile], {
-      cwd: process.cwd(),
+      cwd: projectRoot,
       timeout: 120_000,
     });
     const png = await fs.readFile(pngFile);
-    const file = await saveStagingImage(
-      process.cwd(),
-      "ai",
-      sanitizeUploadFileName(slot.fileName),
-      png,
-    );
-    return Response.json({ file });
+    const file = await saveStagingImage(projectRoot, "ai", fileName, png);
+    return Response.json({
+      file,
+      alt: generation.alt,
+      slug: generation.slug,
+    });
   } catch (error) {
     const stderr =
       error instanceof Error && "stderr" in error

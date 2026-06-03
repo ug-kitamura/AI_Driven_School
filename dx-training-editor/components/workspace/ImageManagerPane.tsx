@@ -380,7 +380,7 @@ export function ImageManagerPane({
     statusLabel: row.missing
       ? "画像が存在しません"
       : row.referenceCount > 0
-        ? `参照: ${row.referenceCount}`
+        ? `使用中: ${row.referenceCount}`
         : "未使用",
     showInsert: !row.missing,
     showDelete: !row.missing,

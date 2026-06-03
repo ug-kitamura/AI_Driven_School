@@ -604,7 +604,26 @@ export function ImageManagerPane({
                     placeholder="画像生成プロンプトを入力してください"
                     className="min-h-[100px] w-full resize-y rounded-lg border border-border bg-background px-3 py-2 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary"
                   />
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center justify-start gap-2">
+                    <Button
+                      type="button"
+                      size="sm"
+                      className="h-8 shrink-0 px-4 text-xs transition-colors enabled:hover:bg-primary/85"
+                      disabled={generating || suggesting || !aiPrompt.trim()}
+                      onClick={() => void handleGenerate()}
+                    >
+                      {generating ? (
+                        <>
+                          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                          生成中...
+                        </>
+                      ) : (
+                        <>
+                          <Wand2 className="h-3.5 w-3.5" />
+                          生成
+                        </>
+                      )}
+                    </Button>
                     <Button
                       type="button"
                       variant="outline"
@@ -630,25 +649,6 @@ export function ImageManagerPane({
                     >
                       <RotateCcw className="h-3.5 w-3.5" />
                       リセット
-                    </Button>
-                    <Button
-                      type="button"
-                      size="sm"
-                      className="ml-auto h-8 shrink-0 px-4 text-xs transition-colors enabled:hover:bg-primary/85"
-                      disabled={generating || suggesting || !aiPrompt.trim()}
-                      onClick={() => void handleGenerate()}
-                    >
-                      {generating ? (
-                        <>
-                          <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                          生成中...
-                        </>
-                      ) : (
-                        <>
-                          <Wand2 className="h-3.5 w-3.5" />
-                          生成
-                        </>
-                      )}
                     </Button>
                   </div>
                 </div>

@@ -2,13 +2,18 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import {
   IMAGE_SOURCES,
+  IMAGE_TRASH_DIR,
   type ImageSource,
+  imageFileName,
+  isCanonicalImagePath,
+  isImageSource,
   isSafeImageLogicalPath,
-  isStagingPath,
+  isStagingImagePath,
   normalizeImageLogicalPath,
   promoteTargetPath,
   sanitizeUploadFileName,
   stagingDirLogical,
+  trashDirLogical,
 } from "@/lib/image-path";
 
 export type ImageFileEntry = {
@@ -26,6 +31,8 @@ const MIME_BY_EXT: Record<string, string> = {
   ".webp": "image/webp",
   ".svg": "image/svg+xml",
 };
+
+const RESERVED_ROOT_DIRS = new Set<string>([...IMAGE_SOURCES, IMAGE_TRASH_DIR]);
 
 export function getImagesRoot(projectRoot: string): string {
   return path.join(projectRoot, "images");
@@ -48,14 +55,15 @@ export function resolveAbsoluteImagePath(
 }
 
 export async function ensureImageDirectories(projectRoot: string): Promise<void> {
+  await fs.mkdir(getImagesRoot(projectRoot), { recursive: true });
   for (const source of IMAGE_SOURCES) {
-    await fs.mkdir(path.join(getImagesRoot(projectRoot), source, "_staging"), {
-      recursive: true,
-    });
     await fs.mkdir(path.join(getImagesRoot(projectRoot), source), {
       recursive: true,
     });
   }
+  await fs.mkdir(path.join(getImagesRoot(projectRoot), IMAGE_TRASH_DIR), {
+    recursive: true,
+  });
 }
 
 async function listFilesInDir(
@@ -90,20 +98,38 @@ export async function listStagingImages(
   projectRoot: string,
   source: ImageSource,
 ): Promise<ImageFileEntry[]> {
-  const dir = path.join(getImagesRoot(projectRoot), source, "_staging");
+  const dir = path.join(getImagesRoot(projectRoot), source);
   return listFilesInDir(dir, source, stagingDirLogical(source));
 }
 
 export async function listPromotedImages(
   projectRoot: string,
 ): Promise<ImageFileEntry[]> {
-  const all: ImageFileEntry[] = [];
-  for (const source of IMAGE_SOURCES) {
-    const dir = path.join(getImagesRoot(projectRoot), source);
-    const entries = await listFilesInDir(dir, source, `images/${source}`);
-    all.push(...entries);
+  const root = getImagesRoot(projectRoot);
+  let entries: string[];
+  try {
+    entries = await fs.readdir(root);
+  } catch {
+    return [];
   }
-  return all.sort((a, b) => b.uploadedAt.localeCompare(a.uploadedAt));
+
+  const result: ImageFileEntry[] = [];
+  for (const name of entries) {
+    if (name.startsWith(".")) continue;
+    if (RESERVED_ROOT_DIRS.has(name)) continue;
+    const absolute = path.join(root, name);
+    const stat = await fs.stat(absolute);
+    if (!stat.isFile()) continue;
+    const logicalPath = `images/${name}`;
+    if (!isCanonicalImagePath(logicalPath)) continue;
+    result.push({
+      path: logicalPath,
+      name,
+      source: "uploaded",
+      uploadedAt: stat.mtime.toISOString(),
+    });
+  }
+  return result.sort((a, b) => b.uploadedAt.localeCompare(a.uploadedAt));
 }
 
 export async function saveStagingImage(
@@ -147,10 +173,8 @@ export async function promoteStagingImage(
   await fs.mkdir(path.dirname(targetAbsolute), { recursive: true });
   await fs.copyFile(sourceAbsolute, targetAbsolute);
   const stat = await fs.stat(targetAbsolute);
-  const source = stagingPath.match(/^images\/([^/]+)\//)?.[1];
-  if (source !== "uploaded" && source !== "ai" && source !== "web") {
-    throw new Error("invalid source");
-  }
+  const source = sourceFromStagingPath(stagingPath);
+  if (!source) throw new Error("invalid source");
 
   return {
     path: targetLogical,
@@ -160,23 +184,61 @@ export async function promoteStagingImage(
   };
 }
 
-export async function deleteImageFile(
+function sourceFromStagingPath(stagingPath: string): ImageSource | null {
+  const match = normalizeImageLogicalPath(stagingPath).match(
+    /^images\/([^/]+)\//,
+  );
+  const segment = match?.[1];
+  return segment && isImageSource(segment) ? segment : null;
+}
+
+export async function moveImageToTrash(
   projectRoot: string,
   logicalPath: string,
 ): Promise<void> {
-  const absolute = resolveAbsoluteImagePath(projectRoot, logicalPath);
-  if (!absolute) throw new Error("invalid path");
-  if (!isStagingPath(logicalPath) && !isSafeImageLogicalPath(logicalPath)) {
+  const normalized = normalizeImageLogicalPath(logicalPath);
+  if (!isCanonicalImagePath(normalized) && !isStagingImagePath(normalized)) {
     throw new Error("invalid path");
   }
+  const sourceAbsolute = resolveAbsoluteImagePath(projectRoot, normalized);
+  if (!sourceAbsolute) throw new Error("invalid path");
+
+  await ensureImageDirectories(projectRoot);
+  const fileName = imageFileName(normalized);
+  const trashLogical = `${trashDirLogical()}/${fileName}`;
+  const trashAbsolute = path.join(
+    getImagesRoot(projectRoot),
+    IMAGE_TRASH_DIR,
+    fileName,
+  );
+
   try {
-    await fs.unlink(absolute);
+    await fs.access(trashAbsolute);
+    await fs.unlink(trashAbsolute);
+  } catch {
+    // no existing trash file
+  }
+
+  try {
+    await fs.rename(sourceAbsolute, trashAbsolute);
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code === "ENOENT") {
       throw new Error("file not found");
     }
     throw error;
   }
+
+  if (!trashLogical.startsWith(trashDirLogical())) {
+    throw new Error("invalid trash path");
+  }
+}
+
+/** @deprecated use moveImageToTrash */
+export async function deleteImageFile(
+  projectRoot: string,
+  logicalPath: string,
+): Promise<void> {
+  await moveImageToTrash(projectRoot, logicalPath);
 }
 
 export async function imageFileExists(

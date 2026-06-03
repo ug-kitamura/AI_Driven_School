@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { Network } from "lucide-react";
+import { Network, Settings } from "lucide-react";
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -125,6 +125,7 @@ type GlobalHeaderProps = {
   series?: Series[];
   selectedCourseId?: string;
   onSelectCourse?: (courseId: string) => void;
+  onOpenSettings?: () => void;
   // 後方互換のため残す（未使用）
   departments?: unknown[];
   onAddDepartment?: (name: string) => void;
@@ -138,6 +139,7 @@ export function GlobalHeader({
   series = [],
   selectedCourseId = "",
   onSelectCourse,
+  onOpenSettings,
 }: GlobalHeaderProps) {
   const [mandalaOpen, setMandalaOpen] = useState(false);
   const [mandalaSvg, setMandalaSvg] = useState("");
@@ -253,6 +255,22 @@ export function GlobalHeader({
           }
         />
         <TooltipContent side="bottom">DXトレーニング曼陀羅</TooltipContent>
+      </Tooltip>
+
+      <Tooltip>
+        <TooltipTrigger
+          render={
+            <Button
+              variant="ghost"
+              size="icon"
+              className="size-8 shrink-0 text-muted-foreground hover:text-primary"
+              onClick={() => onOpenSettings?.()}
+            >
+              <Settings className="size-4" />
+            </Button>
+          }
+        />
+        <TooltipContent side="bottom">設定</TooltipContent>
       </Tooltip>
 
       {/* 曼陀羅フルスクリーンモーダル */}

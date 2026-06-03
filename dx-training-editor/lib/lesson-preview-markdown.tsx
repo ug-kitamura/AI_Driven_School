@@ -1,17 +1,25 @@
 import type { Components } from "react-markdown";
-import { isSafeImageLogicalPath, toImageApiUrl } from "@/lib/image-path";
+import { LessonPreviewImage } from "@/components/workspace/LessonPreviewImage";
 
-/** プレビュー用: `images/...` と data URL を解決 */
-export const lessonPreviewMarkdownComponents: Components = {
-  img({ src, alt, ...props }) {
-    if (!src || typeof src !== "string") return null;
-    let resolved = src;
-    if (isSafeImageLogicalPath(src)) {
-      resolved = toImageApiUrl(src);
-    }
-    return (
-      // eslint-disable-next-line @next/next/no-img-element
-      <img {...props} src={resolved} alt={alt ?? ""} />
-    );
-  },
+export type PreviewImageContext = {
+  availableImagePaths: ReadonlySet<string> | null;
+  imageAssetsRevision: number;
 };
+
+/** プレビュー用 markdown コンポーネント（画像可用性を Workspace から注入） */
+export function createLessonPreviewMarkdownComponents(
+  ctx: PreviewImageContext,
+): Components {
+  return {
+    img({ src, alt }) {
+      return (
+        <LessonPreviewImage
+          src={src}
+          alt={alt}
+          availableImagePaths={ctx.availableImagePaths}
+          cacheRevision={ctx.imageAssetsRevision}
+        />
+      );
+    },
+  };
+}

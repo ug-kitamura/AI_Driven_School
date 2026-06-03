@@ -27,6 +27,26 @@ export const PANE_RESIZE_INVERT_DELTA: Record<
 };
 
 const STORAGE_KEY = "dx-training-editor-pane-widths";
+const SETTINGS_STORAGE_KEY = "dx-training-editor-settings";
+
+function loadPaneDefaultsFromSettings(): WorkspacePaneWidths {
+  if (typeof window === "undefined") return { ...PANE_WIDTH_DEFAULTS };
+  try {
+    const raw = localStorage.getItem(SETTINGS_STORAGE_KEY);
+    if (!raw) return { ...PANE_WIDTH_DEFAULTS };
+    const parsed = JSON.parse(raw) as {
+      paneDefaults?: Partial<WorkspacePaneWidths>;
+    };
+    const d = parsed.paneDefaults;
+    return {
+      pane1: clampPaneWidth("pane1", d?.pane1 ?? PANE_WIDTH_DEFAULTS.pane1),
+      pane2: clampPaneWidth("pane2", d?.pane2 ?? PANE_WIDTH_DEFAULTS.pane2),
+      pane4: clampPaneWidth("pane4", d?.pane4 ?? PANE_WIDTH_DEFAULTS.pane4),
+    };
+  } catch {
+    return { ...PANE_WIDTH_DEFAULTS };
+  }
+}
 
 function clamp(value: number, min: number, max: number) {
   return Math.min(max, Math.max(min, value));
@@ -42,26 +62,18 @@ export function clampPaneWidth(
 
 export function loadPaneWidths(): WorkspacePaneWidths {
   if (typeof window === "undefined") return { ...PANE_WIDTH_DEFAULTS };
+  const defaults = loadPaneDefaultsFromSettings();
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return { ...PANE_WIDTH_DEFAULTS };
+    if (!raw) return { ...defaults };
     const parsed = JSON.parse(raw) as Partial<WorkspacePaneWidths>;
     return {
-      pane1: clampPaneWidth(
-        "pane1",
-        parsed.pane1 ?? PANE_WIDTH_DEFAULTS.pane1,
-      ),
-      pane2: clampPaneWidth(
-        "pane2",
-        parsed.pane2 ?? PANE_WIDTH_DEFAULTS.pane2,
-      ),
-      pane4: clampPaneWidth(
-        "pane4",
-        parsed.pane4 ?? PANE_WIDTH_DEFAULTS.pane4,
-      ),
+      pane1: clampPaneWidth("pane1", parsed.pane1 ?? defaults.pane1),
+      pane2: clampPaneWidth("pane2", parsed.pane2 ?? defaults.pane2),
+      pane4: clampPaneWidth("pane4", parsed.pane4 ?? defaults.pane4),
     };
   } catch {
-    return { ...PANE_WIDTH_DEFAULTS };
+    return { ...defaults };
   }
 }
 

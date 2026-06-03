@@ -1,6 +1,6 @@
 import fs from "node:fs/promises";
 import {
-  deleteImageFile,
+  moveImageToTrash,
   mimeTypeForPath,
   resolveAbsoluteImagePath,
 } from "@/lib/image-store";
@@ -22,7 +22,7 @@ export async function GET(req: Request) {
     return new Response(data, {
       headers: {
         "Content-Type": mimeTypeForPath(pathParam),
-        "Cache-Control": "private, max-age=3600",
+        "Cache-Control": "private, no-cache, must-revalidate",
       },
     });
   } catch {
@@ -41,7 +41,7 @@ export async function DELETE(req: Request) {
 
   if (isStagingPath(pathParam)) {
     try {
-      await deleteImageFile(process.cwd(), pathParam);
+      await moveImageToTrash(process.cwd(), pathParam);
       return Response.json({ ok: true });
     } catch (error) {
       const message = error instanceof Error ? error.message : "削除に失敗しました";
@@ -58,7 +58,7 @@ export async function DELETE(req: Request) {
   }
 
   try {
-    await deleteImageFile(process.cwd(), pathParam);
+    await moveImageToTrash(process.cwd(), pathParam);
     return Response.json({ ok: true });
   } catch (error) {
     const message = error instanceof Error ? error.message : "削除に失敗しました";

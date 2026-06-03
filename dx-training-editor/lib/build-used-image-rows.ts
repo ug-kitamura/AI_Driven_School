@@ -49,5 +49,6 @@ export function buildUsedImageRows(
 function inferSourceFromPath(path: string): UsedImageRow["source"] {
   if (path.startsWith("images/ai/")) return "ai";
   if (path.startsWith("images/web/")) return "web";
+  if (path.startsWith("images/uploaded/")) return "uploaded";
   return "uploaded";
 }

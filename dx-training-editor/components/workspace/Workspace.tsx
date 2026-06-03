@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useMemo } from "react";
+import { useState, useCallback, useMemo, useEffect } from "react";
 import { SidebarInset, SidebarProvider, useSidebar } from "@/components/ui/sidebar";
 import { cn } from "@/lib/utils";
 import { GlobalHeader } from "@/components/workspace/GlobalHeader";
@@ -9,6 +9,8 @@ import { LessonListPane } from "@/components/workspace/LessonListPane";
 import { MarkdownEditorPane } from "@/components/workspace/MarkdownEditorPane";
 import { ImageManagerPane } from "@/components/workspace/ImageManagerPane";
 import { PaneResizeHandle } from "@/components/workspace/PaneResizeHandle";
+import { ThemeInitializer } from "@/components/workspace/ThemeInitializer";
+import { WorkspaceSettingsDialog } from "@/components/workspace/WorkspaceSettingsDialog";
 import { useWorkspacePaneWidths } from "@/components/workspace/use-workspace-pane-widths";
 import type { Series, Course, Lesson } from "@/lib/schema";
 import {
@@ -26,6 +28,9 @@ import {
   type LessonMetaFields,
 } from "@/lib/lesson-frontmatter";
 import { collectAllLessonTags } from "@/lib/lesson-tags";
+import { fetchAvailableImagePaths } from "@/lib/preview-image-assets";
+import { normalizeImageLogicalPath } from "@/lib/image-path";
+import { htmlCommentInnerTextAtOffset } from "@/lib/html-comment-at-cursor";
 
 export type Pane3Mode = "inline" | "raw" | "diff";
 
@@ -60,7 +65,18 @@ export function Workspace({
   );
   const [pane4ManuallyClosed, setPane4ManuallyClosed] = useState(false);
   const [pane3Mode, setPane3Mode] = useState<Pane3Mode>("raw");
-  const { paneWidths, isResizing, resizeHandleProps } =
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [editorCommentPrompt, setEditorCommentPrompt] = useState<string | null>(
+    null,
+  );
+  const [editorCursorOffset, setEditorCursorOffset] = useState<number | null>(
+    null,
+  );
+  const [imageAssetsRevision, setImageAssetsRevision] = useState(0);
+  const [availableImagePaths, setAvailableImagePaths] = useState<Set<string> | null>(
+    null,
+  );
+  const { paneWidths, isResizing, resizeHandleProps, applyPaneWidths } =
     useWorkspacePaneWidths();
 
   // 最初のコースを初期選択
@@ -91,6 +107,34 @@ export function Workspace({
     () => collectAllLessonTags(series),
     [series],
   );
+
+  const notifyImageAssetsChanged = useCallback(
+    (removedPaths?: string | string[]) => {
+      if (removedPaths) {
+        const list = Array.isArray(removedPaths) ? removedPaths : [removedPaths];
+        setAvailableImagePaths((prev) => {
+          if (!prev) return prev;
+          const next = new Set(prev);
+          for (const path of list) {
+            next.delete(normalizeImageLogicalPath(path));
+          }
+          return next;
+        });
+      }
+      setImageAssetsRevision((v) => v + 1);
+    },
+    [],
+  );
+
+  useEffect(() => {
+    let cancelled = false;
+    void fetchAvailableImagePaths().then((paths) => {
+      if (!cancelled) setAvailableImagePaths(paths);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [imageAssetsRevision]);
 
   // コース選択（Pane1 から、またはPane2の前提/次コースクリック）
   const selectCourse = useCallback((courseId: string) => {
@@ -404,6 +448,28 @@ export function Workspace({
     [pane3Mode, insertCallback],
   );
 
+  const handleEditorCursorChange = useCallback(
+    (offset: number) => {
+      if (pane3Mode !== "raw" || !selectedLesson) {
+        setEditorCommentPrompt(null);
+        setEditorCursorOffset(null);
+        return;
+      }
+      setEditorCursorOffset(offset);
+      setEditorCommentPrompt(
+        htmlCommentInnerTextAtOffset(selectedLesson.content, offset),
+      );
+    },
+    [pane3Mode, selectedLesson],
+  );
+
+  useEffect(() => {
+    if (pane3Mode !== "raw" || !selectedLesson) {
+      setEditorCommentPrompt(null);
+      setEditorCursorOffset(null);
+    }
+  }, [pane3Mode, selectedLesson?.id]);
+
   const selectedSeriesName = useMemo(() => {
     for (const s of series) {
       if (s.courses.some((c) => c.id === selectedCourseId)) return s.name;
@@ -428,6 +494,7 @@ export function Workspace({
         } as React.CSSProperties
       }
     >
+      <ThemeInitializer />
       <div className="relative shrink-0">
         <SeriesCoursePane
           workspaceName={workspace.name}
@@ -456,6 +523,13 @@ export function Workspace({
           series={series}
           selectedCourseId={selectedCourseId}
           onSelectCourse={selectCourse}
+          onOpenSettings={() => setSettingsOpen(true)}
+        />
+        <WorkspaceSettingsDialog
+          open={settingsOpen}
+          onOpenChange={setSettingsOpen}
+          currentPaneWidths={paneWidths}
+          onApplyPaneWidths={applyPaneWidths}
         />
         <div className="flex min-h-0 min-w-0 flex-1 overflow-hidden">
           <div
@@ -484,7 +558,10 @@ export function Workspace({
               onUpdateContent={updateLessonContent}
               onUpdateLessonMeta={updateLessonMeta}
               onRegisterInsertCallback={registerInsertCallback}
+              onEditorCursorChange={handleEditorCursorChange}
               tagSuggestions={tagSuggestions}
+              availableImagePaths={availableImagePaths}
+              imageAssetsRevision={imageAssetsRevision}
             />
           </div>
           {pane4Open ? (
@@ -496,20 +573,28 @@ export function Workspace({
               >
                 <ImageManagerPane
                   series={series}
+                  lesson={selectedLesson}
                   pane3Mode={pane3Mode}
                   onInsertImage={insertImageMarkdown}
+                  editorCommentPrompt={editorCommentPrompt}
+                  editorCursorOffset={editorCursorOffset}
                   pane4Open={pane4Open}
                   onTogglePane4={() => setPane4ManuallyClosed((v) => !v)}
+                  onImageAssetsChanged={notifyImageAssetsChanged}
                 />
               </div>
             </>
           ) : (
             <ImageManagerPane
               series={series}
+              lesson={selectedLesson}
               pane3Mode={pane3Mode}
               onInsertImage={insertImageMarkdown}
+              editorCommentPrompt={editorCommentPrompt}
+              editorCursorOffset={editorCursorOffset}
               pane4Open={pane4Open}
               onTogglePane4={() => setPane4ManuallyClosed((v) => !v)}
+              onImageAssetsChanged={notifyImageAssetsChanged}
             />
           )}
         </div>

@@ -10,13 +10,14 @@ import { GitCompare, Code, Eye, Edit3 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { getLessonBody, type LessonMetaFields } from "@/lib/lesson-frontmatter";
+import { stripHtmlComments } from "@/lib/html-comment-at-cursor";
 import { LessonMetaDialog } from "@/components/workspace/LessonMetaDialog";
 import { LessonDiffView } from "@/components/workspace/LessonDiffView";
 import { PaneWheelRoot } from "@/components/workspace/PaneWheelRoot";
 import type { LessonContentEditorHandle } from "@/components/workspace/LessonContentEditor";
 import type { Lesson } from "@/lib/schema";
 import type { Pane3Mode } from "@/components/workspace/Workspace";
-import { lessonPreviewMarkdownComponents } from "@/lib/lesson-preview-markdown";
+import { createLessonPreviewMarkdownComponents } from "@/lib/lesson-preview-markdown";
 
 const LessonContentEditor = dynamic(
   () =>
@@ -43,12 +44,15 @@ type Props = {
     meta: Partial<LessonMetaFields>,
   ) => void;
   onRegisterInsertCallback: (cb: (markdown: string) => void) => void;
+  onEditorCursorChange?: (offset: number) => void;
   tagSuggestions?: readonly string[];
+  availableImagePaths?: ReadonlySet<string> | null;
+  imageAssetsRevision?: number;
 };
 
 const MODE_TABS: Array<{ value: Pane3Mode; label: string; icon: React.ReactNode }> =
   [
-    { value: "raw", label: "編集モード", icon: <Code className="h-3 w-3" /> },
+    { value: "raw", label: "編集", icon: <Code className="h-3 w-3" /> },
     { value: "inline", label: "プレビュー", icon: <Eye className="h-3 w-3" /> },
     {
       value: "diff",
@@ -72,7 +76,10 @@ export function MarkdownEditorPane({
   onUpdateContent,
   onUpdateLessonMeta,
   onRegisterInsertCallback,
+  onEditorCursorChange,
   tagSuggestions = [],
+  availableImagePaths = null,
+  imageAssetsRevision = 0,
 }: Props) {
   const editorRef = useRef<LessonContentEditorHandle>(null);
   const paneScrollRef = useRef<HTMLElement | null>(null);
@@ -80,8 +87,17 @@ export function MarkdownEditorPane({
   const [metaDialogOpen, setMetaDialogOpen] = useState(false);
 
   const previewBody = useMemo(
-    () => (lesson ? getLessonBody(lesson) : ""),
+    () => (lesson ? stripHtmlComments(getLessonBody(lesson)) : ""),
     [lesson],
+  );
+
+  const previewMarkdownComponents = useMemo(
+    () =>
+      createLessonPreviewMarkdownComponents({
+        availableImagePaths,
+        imageAssetsRevision,
+      }),
+    [availableImagePaths, imageAssetsRevision],
   );
 
   const editContent = lesson?.content ?? "";
@@ -213,6 +229,7 @@ export function MarkdownEditorPane({
               value={editContent}
               onChange={(content) => onUpdateContent(lesson.id, content)}
               onScrollElementReady={handleScrollElementReady}
+              onCursorChange={onEditorCursorChange}
             />
           </div>
         )}
@@ -226,9 +243,10 @@ export function MarkdownEditorPane({
           >
             <div className={LESSON_PREVIEW_CLASS}>
               <ReactMarkdown
+                key={`${lesson.id}-${imageAssetsRevision}`}
                 remarkPlugins={[remarkGfm]}
                 rehypePlugins={[rehypeHighlight]}
-                components={lessonPreviewMarkdownComponents}
+                components={previewMarkdownComponents}
               >
                 {previewBody}
               </ReactMarkdown>

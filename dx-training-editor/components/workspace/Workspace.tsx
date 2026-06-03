@@ -67,6 +67,9 @@ export function Workspace({
   const [editorCommentPrompt, setEditorCommentPrompt] = useState<string | null>(
     null,
   );
+  const [editorCursorOffset, setEditorCursorOffset] = useState<number | null>(
+    null,
+  );
   const { paneWidths, isResizing, resizeHandleProps, applyPaneWidths } =
     useWorkspacePaneWidths();
 
@@ -415,8 +418,10 @@ export function Workspace({
     (offset: number) => {
       if (pane3Mode !== "raw" || !selectedLesson) {
         setEditorCommentPrompt(null);
+        setEditorCursorOffset(null);
         return;
       }
+      setEditorCursorOffset(offset);
       setEditorCommentPrompt(
         htmlCommentInnerTextAtOffset(selectedLesson.content, offset),
       );
@@ -427,6 +432,7 @@ export function Workspace({
   useEffect(() => {
     if (pane3Mode !== "raw" || !selectedLesson) {
       setEditorCommentPrompt(null);
+      setEditorCursorOffset(null);
     }
   }, [pane3Mode, selectedLesson?.id]);
 
@@ -535,6 +541,7 @@ export function Workspace({
                   pane3Mode={pane3Mode}
                   onInsertImage={insertImageMarkdown}
                   editorCommentPrompt={editorCommentPrompt}
+                  editorCursorOffset={editorCursorOffset}
                   pane4Open={pane4Open}
                   onTogglePane4={() => setPane4ManuallyClosed((v) => !v)}
                 />
@@ -547,6 +554,7 @@ export function Workspace({
               pane3Mode={pane3Mode}
               onInsertImage={insertImageMarkdown}
               editorCommentPrompt={editorCommentPrompt}
+              editorCursorOffset={editorCursorOffset}
               pane4Open={pane4Open}
               onTogglePane4={() => setPane4ManuallyClosed((v) => !v)}
             />

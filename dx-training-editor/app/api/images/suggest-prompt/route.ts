@@ -1,0 +1,94 @@
+import { z } from "zod";
+import {
+  buildSuggestPromptMessages,
+  parseSuggestPromptResponse,
+} from "@/lib/ai-image-suggest-prompt";
+import { lessonSchema } from "@/lib/schema";
+
+const DEFAULT_MODEL = "claude-sonnet-4-6";
+
+const bodySchema = z.object({
+  lesson: lessonSchema,
+  cursorOffset: z.number().int().min(0).optional(),
+});
+
+function resolveApiKey(req: Request): string | null {
+  const header = req.headers.get("x-anthropic-api-key")?.trim();
+  if (header) return header;
+  const env = process.env.ANTHROPIC_API_KEY?.trim();
+  return env || null;
+}
+
+async function callClaude(apiKey: string, system: string, user: string): Promise<string> {
+  const res = await fetch("https://api.anthropic.com/v1/messages", {
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+      "x-api-key": apiKey,
+      "anthropic-version": "2023-06-01",
+    },
+    body: JSON.stringify({
+      model: process.env.ANTHROPIC_MODEL ?? DEFAULT_MODEL,
+      max_tokens: 2048,
+      system,
+      messages: [{ role: "user", content: user }],
+    }),
+  });
+
+  const data = (await res.json()) as {
+    error?: { type?: string; message?: string };
+    content?: Array<{ type: string; text?: string }>;
+  };
+
+  if (!res.ok) {
+    const apiMessage = data.error?.message?.trim();
+    const apiType = data.error?.type?.trim();
+    const detail =
+      apiMessage && apiType && !apiMessage.includes(apiType)
+        ? `${apiType}: ${apiMessage}`
+        : apiMessage || apiType;
+    throw new Error(detail ?? "Claude API error");
+  }
+
+  const text = data.content
+    ?.filter((c) => c.type === "text")
+    .map((c) => c.text ?? "")
+    .join("")
+    .trim();
+
+  if (!text) throw new Error("empty Claude response");
+  return text;
+}
+
+export async function POST(req: Request) {
+  const apiKey = resolveApiKey(req);
+  if (!apiKey) {
+    return Response.json(
+      { error: "Anthropic API キーが未設定です。設定ダイアログから入力してください。" },
+      { status: 401 },
+    );
+  }
+
+  let parsed: z.infer<typeof bodySchema>;
+  try {
+    const json: unknown = await req.json();
+    parsed = bodySchema.parse(json);
+  } catch {
+    return Response.json({ error: "リクエストが不正です" }, { status: 400 });
+  }
+
+  const cursorOffset = parsed.cursorOffset ?? 0;
+  const { system, user } = buildSuggestPromptMessages(parsed.lesson, cursorOffset);
+
+  try {
+    const raw = await callClaude(apiKey, system, user);
+    const prompt = parseSuggestPromptResponse(raw);
+    if (!prompt) {
+      return Response.json({ error: "プロンプトを生成できませんでした" }, { status: 502 });
+    }
+    return Response.json({ prompt });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "プロンプト生成に失敗しました";
+    return Response.json({ error: message }, { status: 502 });
+  }
+}

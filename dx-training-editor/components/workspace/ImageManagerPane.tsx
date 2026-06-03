@@ -15,6 +15,8 @@ import {
   ImageIcon,
   Loader2,
   Wand2,
+  RotateCcw,
+  Pen,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Pane4Toggle } from "@/components/workspace/Pane4Toggle";
@@ -46,6 +48,7 @@ type Props = {
   onInsertImage: (markdown: string) => boolean;
   /** null = コメント外（プロンプト上書きしない）、string = コメント内テキスト */
   editorCommentPrompt: string | null;
+  editorCursorOffset: number | null;
   pane4Open: boolean;
   onTogglePane4: () => void;
 };
@@ -91,6 +94,7 @@ export function ImageManagerPane({
   pane3Mode,
   onInsertImage,
   editorCommentPrompt,
+  editorCursorOffset,
   pane4Open,
   onTogglePane4,
 }: Props) {
@@ -102,6 +106,7 @@ export function ImageManagerPane({
   const [aiStagingAlts, setAiStagingAlts] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(false);
   const [generating, setGenerating] = useState(false);
+  const [suggesting, setSuggesting] = useState(false);
   const [isDragOver, setIsDragOver] = useState(false);
   const [tabNotices, setTabNotices] = useState<Partial<Record<Tab, TabNotice>>>(
     {},
@@ -359,6 +364,75 @@ export function ImageManagerPane({
     }
   }, [lesson, aiPrompt, refreshLists, showNotice, clearNotice]);
 
+  const handleAutoFill = useCallback(async () => {
+    if (!lesson) return;
+
+    if (editorCommentPrompt !== null) {
+      setAiPrompt(editorCommentPrompt);
+      clearNotice("ai");
+      return;
+    }
+
+    const settings = loadWorkspaceSettings();
+    const headers: Record<string, string> = {
+      "Content-Type": "application/json",
+    };
+    if (settings.anthropicApiKey) {
+      headers["x-anthropic-api-key"] = settings.anthropicApiKey;
+    }
+
+    setSuggesting(true);
+    clearNotice("ai");
+    try {
+      const res = await fetch("/api/images/suggest-prompt", {
+        method: "POST",
+        headers,
+        body: JSON.stringify({
+          lesson,
+          cursorOffset: editorCursorOffset ?? 0,
+        }),
+      });
+      let data: { prompt?: string; error?: string };
+      try {
+        data = (await res.json()) as typeof data;
+      } catch {
+        showNotice("ai", "サーバー応答の解析に失敗しました", "error");
+        return;
+      }
+      if (!res.ok || !data.prompt) {
+        showNotice(
+          "ai",
+          data.error ??
+            (res.status === 401
+              ? "Anthropic API キーを設定（歯車）するか、サーバーに ANTHROPIC_API_KEY を設定してください"
+              : "プロンプトの自動入力に失敗しました"),
+          "error",
+        );
+        return;
+      }
+      setAiPrompt(data.prompt);
+    } catch (error) {
+      showNotice(
+        "ai",
+        error instanceof Error ? error.message : "プロンプトの自動入力に失敗しました",
+        "error",
+      );
+    } finally {
+      setSuggesting(false);
+    }
+  }, [
+    lesson,
+    editorCommentPrompt,
+    editorCursorOffset,
+    clearNotice,
+    showNotice,
+  ]);
+
+  const handleResetPrompt = useCallback(() => {
+    setAiPrompt("");
+    clearNotice("ai");
+  }, [clearNotice]);
+
   const aiStagingGridItems: ImageGridItem[] = aiStagingFiles.map((file) => ({
     path: file.path,
     name: file.name,
@@ -530,25 +604,53 @@ export function ImageManagerPane({
                     placeholder="画像生成プロンプトを入力してください"
                     className="min-h-[100px] w-full resize-y rounded-lg border border-border bg-background px-3 py-2 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary"
                   />
-                  <Button
-                    type="button"
-                    size="sm"
-                    className="h-8 w-full text-xs transition-colors enabled:hover:bg-primary/85"
-                    disabled={generating || !aiPrompt.trim()}
-                    onClick={() => void handleGenerate()}
-                  >
-                    {generating ? (
-                      <>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="h-8 shrink-0 text-xs"
+                      disabled={!lesson || suggesting || generating}
+                      onClick={() => void handleAutoFill()}
+                    >
+                      {suggesting ? (
                         <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                        生成中...
-                      </>
-                    ) : (
-                      <>
-                        <Wand2 className="h-3.5 w-3.5" />
-                        生成
-                      </>
-                    )}
-                  </Button>
+                      ) : (
+                        <Pen className="h-3.5 w-3.5" />
+                      )}
+                      自動入力
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="h-8 shrink-0 text-xs"
+                      disabled={suggesting || generating}
+                      onClick={handleResetPrompt}
+                    >
+                      <RotateCcw className="h-3.5 w-3.5" />
+                      リセット
+                    </Button>
+                    <Button
+                      type="button"
+                      size="sm"
+                      className="ml-auto h-8 shrink-0 px-4 text-xs transition-colors enabled:hover:bg-primary/85"
+                      disabled={generating || suggesting || !aiPrompt.trim()}
+                      onClick={() => void handleGenerate()}
+                    >
+                      {generating ? (
+                        <>
+                          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                          生成中...
+                        </>
+                      ) : (
+                        <>
+                          <Wand2 className="h-3.5 w-3.5" />
+                          生成
+                        </>
+                      )}
+                    </Button>
+                  </div>
                 </div>
                 <div className="flex flex-col gap-1">
                   <ImageGrid

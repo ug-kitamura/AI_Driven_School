@@ -57,3 +57,23 @@ TBD - created by archiving change pane4-ai-generation-and-settings. Update Purpo
 - **AND** ユーザーが編集モードを開く
 - **THEN** CodeMirror の背景がダーク配色である
 
+### Requirement: Pixabay API キーをマスク入力で保存する
+
+設定ダイアログは Pixabay API キーを password 入力（マスク表示）で編集でき、保存操作で `localStorage` の `dx-training-editor-settings` に格納しなければならない（SHALL）。サーバーはキーを永続化してはならない（MUST NOT）。クリア操作でキーを削除できなければならない（SHALL）。ダイアログにはキーがブラウザ内のみに保存される旨を表示しなければならない（SHALL）。
+
+Web タブの検索 API 呼び出し時、クライアントは `x-pixabay-api-key` ヘッダーでキーを渡さなければならない（SHALL）。サーバーは `PIXABAY_API_KEY` 環境変数をフォールバックとして用いてよい（MAY）。
+
+#### Scenario: 保存後に Web 検索が可能になる
+
+- **WHEN** ユーザーが有効な Pixabay API キーを保存する
+- **AND** Anthropic API キーも設定されている
+- **AND** Web タブで検索を実行する
+- **THEN** サーバー経由の Pixabay API 呼び出しが行われる
+
+#### Scenario: Pixabay キー未設定で検索拒否
+
+- **WHEN** Pixabay API キーが未設定である
+- **AND** ユーザーが Web タブで検索を試みる
+- **THEN** 検索 API は 401 等で失敗する
+- **AND** 設定を促すメッセージが表示される
+

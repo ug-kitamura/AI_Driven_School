@@ -956,7 +956,7 @@ export function ImageManagerPane({
           <AlertDialogHeader>
             <AlertDialogTitle>画像を削除しますか？</AlertDialogTitle>
             <AlertDialogDescription>
-              {pendingDelete?.name} は {pendingDelete?.referenceCount} 箇所で参照されています。
+              {pendingDelete?.name} は {pendingDelete?.referenceCount} 箇所で使用しています。
               ファイルを削除すると Markdown 上のリンクが壊れます。
             </AlertDialogDescription>
           </AlertDialogHeader>

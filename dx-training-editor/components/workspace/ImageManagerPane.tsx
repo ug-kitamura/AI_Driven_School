@@ -39,7 +39,6 @@ import {
   SelectContent,
   SelectItem,
   SelectTrigger,
-  SelectValue,
 } from "@/components/ui/select";
 import { buildUsedImageRows } from "@/lib/build-used-image-rows";
 import {
@@ -728,6 +727,25 @@ export function ImageManagerPane({
     return [];
   }, [series, usedFilter.courseId]);
 
+  const usedFilterSeriesLabel = useMemo(() => {
+    if (!usedFilter.seriesId) return "すべてのシリーズ";
+    return series.find((s) => s.id === usedFilter.seriesId)?.name ?? "シリーズ";
+  }, [usedFilter.seriesId, series]);
+
+  const usedFilterCourseLabel = useMemo(() => {
+    if (!usedFilter.courseId) return "すべてのコース";
+    return (
+      filterCourses.find((c) => c.id === usedFilter.courseId)?.name ?? "コース"
+    );
+  }, [usedFilter.courseId, filterCourses]);
+
+  const usedFilterLessonLabel = useMemo(() => {
+    if (!usedFilter.lessonId) return "すべてのレッスン";
+    return (
+      filterLessons.find((l) => l.id === usedFilter.lessonId)?.lesson ?? "レッスン"
+    );
+  }, [usedFilter.lessonId, filterLessons]);
+
   const resetUsedFilter = useCallback(() => {
     setUsedFilter({ seriesId: null, courseId: null, lessonId: null });
   }, []);
@@ -801,7 +819,7 @@ export function ImageManagerPane({
                     }}
                   >
                     <SelectTrigger size="sm" className="w-full text-xs">
-                      <SelectValue placeholder="シリーズ" />
+                      <span className="truncate">{usedFilterSeriesLabel}</span>
                     </SelectTrigger>
                     <SelectContent className="text-xs">
                       <SelectItem value={FILTER_ALL} className="text-xs">
@@ -826,7 +844,7 @@ export function ImageManagerPane({
                     disabled={!usedFilter.seriesId}
                   >
                     <SelectTrigger size="sm" className="w-full text-xs">
-                      <SelectValue placeholder="コース" />
+                      <span className="truncate">{usedFilterCourseLabel}</span>
                     </SelectTrigger>
                     <SelectContent className="text-xs">
                       <SelectItem value={FILTER_ALL} className="text-xs">
@@ -850,7 +868,7 @@ export function ImageManagerPane({
                     disabled={!usedFilter.courseId}
                   >
                     <SelectTrigger size="sm" className="w-full text-xs">
-                      <SelectValue placeholder="レッスン" />
+                      <span className="truncate">{usedFilterLessonLabel}</span>
                     </SelectTrigger>
                     <SelectContent className="text-xs">
                       <SelectItem value={FILTER_ALL} className="text-xs">

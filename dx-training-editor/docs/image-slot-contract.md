@@ -33,4 +33,3 @@ Git の commit から push までを
 - creating-visual-explainers の **グラフィック語彙**（構造図 + UI mock）
 - model-answer.html の **図 1 ブロック** 水準（`custom.*` 配色・Lucide）
 - 図内テキスト OK、図外の説明段落 NG
-- **図内テキストは原則英語**（プロンプトで「日本語で」等と明示された場合のみ例外）

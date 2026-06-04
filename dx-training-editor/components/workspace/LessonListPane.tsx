@@ -330,21 +330,40 @@ export function LessonListPane({
 
   // --- Mermaid: サムネイル用（常に先行レンダリング）---
   const [thumbnailSvg, setThumbnailSvg] = useState<string>("");
+  const [thumbnailError, setThumbnailError] = useState(false);
   useEffect(() => {
-    if (!course || !miniGraphInput) { setThumbnailSvg(""); return; }
+    if (!course || !miniGraphInput) {
+      setThumbnailSvg("");
+      setThumbnailError(false);
+      return;
+    }
     const { def } = buildMermaidDef(miniGraphInput);
     let cancelled = false;
+    setThumbnailError(false);
     import("mermaid").then(async (m) => {
       if (cancelled) return;
       try {
         const mermaid = m.default;
-        mermaid.initialize(getMermaidWorkspaceConfig(mermaidIsDark, { compact: true }));
+        const isDark = document.documentElement.classList.contains("dark");
+        mermaid.initialize(
+          getMermaidWorkspaceConfig(isDark, { thumbnail: true }),
+        );
         const id = `mthumb${course.id.replace(/[^a-zA-Z0-9]/g, "")}${Date.now()}`;
         const { svg } = await mermaid.render(id, def);
-        if (!cancelled) setThumbnailSvg(svg);
-      } catch { if (!cancelled) setThumbnailSvg(""); }
+        if (!cancelled) {
+          setThumbnailSvg(svg);
+          setThumbnailError(false);
+        }
+      } catch {
+        if (!cancelled) {
+          setThumbnailSvg("");
+          setThumbnailError(true);
+        }
+      }
     });
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, [course, miniGraphInput, mermaidIsDark]);
 
   // --- Mermaid: モーダル用（開いたときにレンダリング・GlobalHeader と同じパターン）---
@@ -485,19 +504,26 @@ export function LessonListPane({
         </div>
 
         {/* Mermaid ミニグラフ（クリックで拡大） */}
-        {thumbnailSvg && (
+        {miniGraphInput ? (
           <>
-            <button
-              type="button"
-              className="mini-mandala-thumbnail mt-2 flex w-full cursor-zoom-in justify-center overflow-hidden rounded border border-border bg-card p-1 transition-opacity hover:opacity-80"
-              onClick={() => setMermaidModalOpen(true)}
-              aria-label="ミニ曼陀羅を拡大表示"
-            >
-              <div
-                className="mini-mandala-thumbnail-graph w-fit max-w-full"
+            {thumbnailSvg ? (
+              <button
+                type="button"
+                className="mini-mandala-thumbnail mt-2 block w-full cursor-zoom-in overflow-x-auto rounded border border-border bg-card p-1 transition-opacity hover:opacity-80"
+                onClick={() => setMermaidModalOpen(true)}
+                aria-label="ミニ曼陀羅を拡大表示"
                 dangerouslySetInnerHTML={{ __html: thumbnailSvg }}
               />
-            </button>
+            ) : (
+              <button
+                type="button"
+                className="mt-2 flex min-h-[72px] w-full items-center justify-center rounded border border-border bg-card px-2 text-[10px] text-muted-foreground hover:bg-muted/30"
+                onClick={() => setMermaidModalOpen(true)}
+                aria-label="ミニ曼陀羅を拡大表示"
+              >
+                {thumbnailError ? "グラフを表示できません（クリックで拡大）" : "グラフを生成中..."}
+              </button>
+            )}
             <Dialog open={mermaidModalOpen} onOpenChange={setMermaidModalOpen}>
               <DialogContent className="max-w-2xl">
                 <DialogHeader>
@@ -538,7 +564,7 @@ export function LessonListPane({
               </DialogContent>
             </Dialog>
           </>
-        )}
+        ) : null}
       </div>
 
       {/* コース進捗（レッスン行と同じ px-2 で左右を揃える） */}

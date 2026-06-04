@@ -380,10 +380,10 @@
     font-weight: 700 !important;
   }
 
-  /* Pane2 サムネイル: 図を中央寄せ（ペイン幅が広いときも維持） */
-  .mini-mandala-thumbnail-graph svg {
+  /* Pane2 サムネイル: ペイン幅に収めつつ実寸を維持 */
+  .mini-mandala-thumbnail > svg {
     display: block;
-    width: auto !important;
+    width: 100%;
     max-width: 100%;
     height: auto;
     margin-inline: auto;

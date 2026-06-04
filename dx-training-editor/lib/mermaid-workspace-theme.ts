@@ -21,6 +21,15 @@ const FLOWCHART_LAYOUT_COMPACT = {
   useMaxWidth: true,
 } as const;
 
+/** Pane2 サムネイル用（useMaxWidth だと親 width 未定で SVG が潰れることがある） */
+const FLOWCHART_LAYOUT_THUMBNAIL = {
+  nodeSpacing: 36,
+  rankSpacing: 36,
+  padding: 12,
+  diagramPadding: 10,
+  useMaxWidth: false,
+} as const;
+
 const LIGHT_THEME_VARIABLES = {
   fontSize: "14px",
   fontFamily: "ui-sans-serif, system-ui, sans-serif",
@@ -64,13 +73,20 @@ export function mandalaCurrentCourseStyleLine(
   return `  style ${nodeId} stroke:${MANDALA_CURRENT_COURSE_STROKE},stroke-width:${strokeWidthPx}px,font-weight:bold`;
 }
 
-export function getMermaidWorkspaceConfig(isDark: boolean, options?: { compact?: boolean }) {
-  const compact = options?.compact ?? false;
+export function getMermaidWorkspaceConfig(
+  isDark: boolean,
+  options?: { compact?: boolean; thumbnail?: boolean },
+) {
+  const flowchart = options?.thumbnail
+    ? FLOWCHART_LAYOUT_THUMBNAIL
+    : options?.compact
+      ? FLOWCHART_LAYOUT_COMPACT
+      : FLOWCHART_LAYOUT;
   return {
     startOnLoad: false,
     theme: "base" as const,
     securityLevel: "loose" as const,
-    flowchart: compact ? FLOWCHART_LAYOUT_COMPACT : FLOWCHART_LAYOUT,
+    flowchart,
     themeVariables: isDark ? DARK_THEME_VARIABLES : LIGHT_THEME_VARIABLES,
   };
 }

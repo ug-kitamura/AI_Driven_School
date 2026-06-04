@@ -1,15 +1,28 @@
 /** ワークスペース曼陀羅（グローバル / ミニ）用 Mermaid 設定 */
 
+/** ミニ曼陀羅拡大モーダルなど */
 const FLOWCHART_LAYOUT = {
   nodeSpacing: 48,
   rankSpacing: 48,
   padding: 14,
   diagramPadding: 12,
   useMaxWidth: false,
-  /** グローバル曼陀羅のシリーズ名（subgraph タイトル）上下の余白 */
   subGraphTitleMargin: {
     top: 10,
     bottom: 10,
+  },
+} as const;
+
+/** ヘッダー「DXトレーニング曼陀羅」用（全体をややコンパクトに） */
+const FLOWCHART_LAYOUT_GLOBAL = {
+  nodeSpacing: 42,
+  rankSpacing: 42,
+  padding: 12,
+  diagramPadding: 10,
+  useMaxWidth: false,
+  subGraphTitleMargin: {
+    top: 8,
+    bottom: 8,
   },
 } as const;
 
@@ -75,18 +88,24 @@ export function mandalaCurrentCourseStyleLine(
 
 export function getMermaidWorkspaceConfig(
   isDark: boolean,
-  options?: { compact?: boolean; thumbnail?: boolean },
+  options?: { compact?: boolean; thumbnail?: boolean; global?: boolean },
 ) {
   const flowchart = options?.thumbnail
     ? FLOWCHART_LAYOUT_THUMBNAIL
     : options?.compact
       ? FLOWCHART_LAYOUT_COMPACT
-      : FLOWCHART_LAYOUT;
+      : options?.global
+        ? FLOWCHART_LAYOUT_GLOBAL
+        : FLOWCHART_LAYOUT;
+  const baseTheme = isDark ? DARK_THEME_VARIABLES : LIGHT_THEME_VARIABLES;
+  const themeVariables = options?.global
+    ? { ...baseTheme, fontSize: "13px" }
+    : baseTheme;
   return {
     startOnLoad: false,
     theme: "base" as const,
     securityLevel: "loose" as const,
     flowchart,
-    themeVariables: isDark ? DARK_THEME_VARIABLES : LIGHT_THEME_VARIABLES,
+    themeVariables,
   };
 }

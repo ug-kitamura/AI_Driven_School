@@ -172,7 +172,7 @@ export function GlobalHeader({
       if (cancelled) return;
       try {
         const mermaid = m.default;
-        mermaid.initialize(getMermaidWorkspaceConfig(isDark));
+        mermaid.initialize(getMermaidWorkspaceConfig(isDark, { global: true }));
         const { svg, bindFunctions } = await mermaid.render(`mandala-${Date.now()}`, def);
         if (!cancelled) {
           bindFnsRef.current = bindFunctions ?? null;

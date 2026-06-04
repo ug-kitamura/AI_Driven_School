@@ -32,7 +32,7 @@ function buildFullMandalaGraph(
   series: Series[],
   selectedCourseId: string,
 ): { def: string; nodeMap: Record<string, string> } {
-  const lines = ["flowchart TD"];
+  const lines = ["flowchart TD", "  classDef mandalaSeriesTitle font-weight:bold"];
   const nodeMap: Record<string, string> = {};
 
   // シリーズごとにサブグラフとノード（丸みノード、方向は TB に統一）
@@ -50,6 +50,7 @@ function buildFullMandalaGraph(
       if (isCurrent) currentNid.push(nid);
     });
     lines.push("  end");
+    lines.push(`  class ${sgId} mandalaSeriesTitle`);
   });
 
   // 現在選択中コースに style を適用（classDef より安定）

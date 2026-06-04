@@ -6,6 +6,11 @@ const FLOWCHART_LAYOUT = {
   padding: 14,
   diagramPadding: 12,
   useMaxWidth: false,
+  /** グローバル曼陀羅のシリーズ名（subgraph タイトル）上下の余白 */
+  subGraphTitleMargin: {
+    top: 10,
+    bottom: 10,
+  },
 } as const;
 
 const FLOWCHART_LAYOUT_COMPACT = {

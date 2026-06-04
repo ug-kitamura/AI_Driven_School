@@ -335,6 +335,13 @@
     height: auto;
   }
 
+  /* グローバル曼陀羅: シリーズ名（subgraph タイトル）を太字 */
+  .global-mandala-graph g.cluster-label text,
+  .global-mandala-graph g.cluster g.cluster-label div,
+  .global-mandala-graph g.cluster g.cluster-label span {
+    font-weight: 700 !important;
+  }
+
   /* Pane2 サムネイル: 図を中央寄せ（ペイン幅が広いときも維持） */
   .mini-mandala-thumbnail-graph svg {
     display: block;

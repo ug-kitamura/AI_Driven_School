@@ -40,6 +40,8 @@
   --color-secondary: var(--secondary);
   --color-primary-foreground: var(--primary-foreground);
   --color-primary: var(--primary);
+  --color-primary-hover: var(--primary-hover);
+  --color-button-outline-hover: var(--button-outline-hover);
   --color-popover-foreground: var(--popover-foreground);
   --color-popover: var(--popover);
   --color-card-foreground: var(--card-foreground);
@@ -89,6 +91,8 @@
   --popover: #FFFFFF;
   --popover-foreground: #1A1C1D;
   --primary: #007BC0;           /* Custom_Blue_50: プライマリ */
+  --primary-hover: color-mix(in oklab, var(--primary) 90%, black);
+  --button-outline-hover: color-mix(in oklab, var(--background) 82%, var(--input));
   --primary-foreground: #FFFFFF;
   --secondary: #D1E4FF;         /* Custom_Blue_90: 淡いアクセント */
   --secondary-foreground: #007BC0;
@@ -168,6 +172,8 @@
   --popover: oklch(0.2668 0.0071 248.094);
   --popover-foreground: oklch(0.9168 0.0035 67.7802);
   --primary: oklch(0.7441 0.1311 264.2789);
+  --primary-hover: color-mix(in oklab, var(--primary) 92%, black);
+  --button-outline-hover: color-mix(in oklab, var(--background) 88%, var(--input));
   --primary-foreground: oklch(0.2077 0.0398 265.7549);
   --secondary: oklch(0.2972 0 0);
   --secondary-foreground: oklch(0.9168 0.0035 67.7802);

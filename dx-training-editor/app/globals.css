@@ -149,6 +149,14 @@
     0px 4px 12px 0px hsl(0 0% 0% / 0.05), 0px 8px 10px -1px hsl(0 0% 0% / 0.05);
   --shadow-2xl: 0px 4px 12px 0px hsl(0 0% 0% / 0.13);
   --tracking-normal: 0;
+  /* ワークスペーススクロールバー（形状共通・色はテーマの semantic トークンから算出） */
+  --workspace-scrollbar-track: var(--card);
+  --workspace-scrollbar-thumb: color-mix(
+    in oklab,
+    var(--muted-foreground) 50%,
+    var(--border)
+  );
+  --workspace-scrollbar-thumb-hover: var(--muted-foreground);
 }
 
 .dark {
@@ -228,35 +236,34 @@
   }
 }
 
-/* ダーク: Pane3・グローバル曼陀羅などのネイティブスクロールバー */
-html.dark .workspace-scrollbar,
-html.dark .lesson-content-editor .cm-scroller {
+/* Pane3・グローバル曼陀羅: ネイティブスクロールバー（ライト/ダークで形状同一） */
+.workspace-scrollbar,
+.lesson-content-editor .cm-scroller {
   scrollbar-width: thin;
-  scrollbar-color: color-mix(in oklab, var(--muted-foreground) 55%, var(--border))
-    var(--card);
+  scrollbar-color: var(--workspace-scrollbar-thumb) var(--workspace-scrollbar-track);
 }
 
-html.dark .workspace-scrollbar::-webkit-scrollbar,
-html.dark .lesson-content-editor .cm-scroller::-webkit-scrollbar {
+.workspace-scrollbar::-webkit-scrollbar,
+.lesson-content-editor .cm-scroller::-webkit-scrollbar {
   width: 10px;
   height: 10px;
 }
 
-html.dark .workspace-scrollbar::-webkit-scrollbar-track,
-html.dark .lesson-content-editor .cm-scroller::-webkit-scrollbar-track {
-  background: var(--card);
+.workspace-scrollbar::-webkit-scrollbar-track,
+.lesson-content-editor .cm-scroller::-webkit-scrollbar-track {
+  background: var(--workspace-scrollbar-track);
 }
 
-html.dark .workspace-scrollbar::-webkit-scrollbar-thumb,
-html.dark .lesson-content-editor .cm-scroller::-webkit-scrollbar-thumb {
-  background-color: color-mix(in oklab, var(--muted-foreground) 50%, var(--border));
-  border: 2px solid var(--card);
+.workspace-scrollbar::-webkit-scrollbar-thumb,
+.lesson-content-editor .cm-scroller::-webkit-scrollbar-thumb {
+  background-color: var(--workspace-scrollbar-thumb);
+  border: 2px solid var(--workspace-scrollbar-track);
   border-radius: 9999px;
 }
 
-html.dark .workspace-scrollbar::-webkit-scrollbar-thumb:hover,
-html.dark .lesson-content-editor .cm-scroller::-webkit-scrollbar-thumb:hover {
-  background-color: var(--muted-foreground);
+.workspace-scrollbar::-webkit-scrollbar-thumb:hover,
+.lesson-content-editor .cm-scroller::-webkit-scrollbar-thumb:hover {
+  background-color: var(--workspace-scrollbar-thumb-hover);
 }
 
 /* Pane3 プレビュー: preflight で flat になる見出し・リストを復元（typography プラグイン非依存） */

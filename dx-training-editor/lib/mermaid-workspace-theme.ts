@@ -44,6 +44,7 @@ const DARK_THEME_VARIABLES = {
   mainBkg: "#2a2d2e",
   nodeBorder: "#4b5563",
   clusterBkg: "#252526",
+  clusterBorder: "#383d43",
   titleColor: "#e8e8e8",
   edgeLabelBackground: "#2a2d2e",
 } as const;

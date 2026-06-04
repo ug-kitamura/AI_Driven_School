@@ -55,6 +55,7 @@ import { cn, computeStatus } from "@/lib/utils";
 import {
   getMermaidWorkspaceConfig,
   mandalaCurrentCourseStyleLine,
+  scaleMiniMandalaThumbnailSvg,
 } from "@/lib/mermaid-workspace-theme";
 import type { Series, Course, Lesson } from "@/lib/schema";
 import {
@@ -351,7 +352,7 @@ export function LessonListPane({
         const id = `mthumb${course.id.replace(/[^a-zA-Z0-9]/g, "")}${Date.now()}`;
         const { svg } = await mermaid.render(id, def);
         if (!cancelled) {
-          setThumbnailSvg(svg);
+          setThumbnailSvg(scaleMiniMandalaThumbnailSvg(svg));
           setThumbnailError(false);
         }
       } catch {
@@ -460,9 +461,9 @@ export function LessonListPane({
       : 0;
 
   return (
-    <PaneWheelRoot scrollRef={lessonScrollRef} className="bg-card">
+    <PaneWheelRoot scrollRef={lessonScrollRef} className="min-w-0 bg-card">
       {/* コースメタ情報エリア */}
-      <div className="shrink-0 border-b border-border bg-muted/40 px-3 py-2">
+      <div className="min-w-0 shrink-0 border-b border-border bg-muted/40 px-3 py-2">
         <div className="mb-2 flex items-center gap-1">
           <span className="flex-1 truncate text-xs font-bold text-foreground">
             {course.name}
@@ -509,11 +510,15 @@ export function LessonListPane({
             {thumbnailSvg ? (
               <button
                 type="button"
-                className="mini-mandala-thumbnail mt-2 block w-full cursor-zoom-in overflow-x-auto rounded border border-border bg-card p-1 transition-opacity hover:opacity-80"
+                className="mt-2 block w-full min-w-0 cursor-zoom-in overflow-hidden rounded border border-border bg-card p-1 text-left transition-opacity hover:opacity-80"
                 onClick={() => setMermaidModalOpen(true)}
                 aria-label="ミニ曼陀羅を拡大表示"
-                dangerouslySetInnerHTML={{ __html: thumbnailSvg }}
-              />
+              >
+                <div
+                  className="mini-mandala-thumbnail w-full min-w-0"
+                  dangerouslySetInnerHTML={{ __html: thumbnailSvg }}
+                />
+              </button>
             ) : (
               <button
                 type="button"

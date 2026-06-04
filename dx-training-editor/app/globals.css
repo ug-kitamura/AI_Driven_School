@@ -386,12 +386,12 @@
     font-weight: 700 !important;
   }
 
-  /* Pane2 サムネイル: ペイン幅に収めつつ実寸を維持 */
-  .mini-mandala-thumbnail > svg {
-    display: block;
-    width: 100%;
-    max-width: 100%;
-    height: auto;
+  /* Pane2 サムネイル: ペイン幅に合わせて拡大縮小（実寸固定は .mini-mandala-graph のみ） */
+  .mini-mandala-thumbnail svg {
+    display: block !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    height: auto !important;
     margin-inline: auto;
   }
 

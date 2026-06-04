@@ -86,6 +86,17 @@ export function mandalaCurrentCourseStyleLine(
   return `  style ${nodeId} stroke:${MANDALA_CURRENT_COURSE_STROKE},stroke-width:${strokeWidthPx}px,font-weight:bold`;
 }
 
+/** Pane2 サムネイル: 固定 width 属性を外し、親幅に CSS で追従させる */
+export function scaleMiniMandalaThumbnailSvg(svg: string): string {
+  return svg.replace(/^<svg\b([^>]*)>/i, (_, attrs: string) => {
+    const cleaned = attrs
+      .replace(/\s+width="[^"]*"/gi, "")
+      .replace(/\s+height="[^"]*"/gi, "")
+      .replace(/\s+style="[^"]*"/gi, "");
+    return `<svg${cleaned} preserveAspectRatio="xMidYMid meet" style="width:100%;max-width:100%;height:auto;display:block">`;
+  });
+}
+
 export function getMermaidWorkspaceConfig(
   isDark: boolean,
   options?: { compact?: boolean; thumbnail?: boolean; global?: boolean },

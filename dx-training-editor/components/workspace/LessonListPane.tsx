@@ -489,11 +489,15 @@ export function LessonListPane({
           <>
             <button
               type="button"
-              className="mini-mandala-thumbnail mt-2 w-full cursor-zoom-in overflow-hidden rounded border border-border bg-card p-1 transition-opacity hover:opacity-80"
+              className="mini-mandala-thumbnail mt-2 flex w-full cursor-zoom-in justify-center overflow-hidden rounded border border-border bg-card p-1 transition-opacity hover:opacity-80"
               onClick={() => setMermaidModalOpen(true)}
               aria-label="ミニ曼陀羅を拡大表示"
-              dangerouslySetInnerHTML={{ __html: thumbnailSvg }}
-            />
+            >
+              <div
+                className="mini-mandala-thumbnail-graph w-fit max-w-full"
+                dangerouslySetInnerHTML={{ __html: thumbnailSvg }}
+              />
+            </button>
             <Dialog open={mermaidModalOpen} onOpenChange={setMermaidModalOpen}>
               <DialogContent className="max-w-2xl">
                 <DialogHeader>

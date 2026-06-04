@@ -335,6 +335,15 @@
     height: auto;
   }
 
+  /* Pane2 サムネイル: 図を中央寄せ（ペイン幅が広いときも維持） */
+  .mini-mandala-thumbnail-graph svg {
+    display: block;
+    width: auto !important;
+    max-width: 100%;
+    height: auto;
+    margin-inline: auto;
+  }
+
   /* Pane2 サムネイル: 全体クリックで拡大のみ。ノードの pointer は使わない */
   .mini-mandala-thumbnail svg,
   .mini-mandala-thumbnail svg * {

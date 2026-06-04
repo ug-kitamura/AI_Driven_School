@@ -161,9 +161,11 @@
     var(--border)
   );
   --workspace-scrollbar-thumb-hover: var(--muted-foreground);
+  color-scheme: light;
 }
 
 .dark {
+  color-scheme: dark;
   --background: oklch(0.2252 0.0049 248.0473);
   --foreground: oklch(0.9168 0.0035 67.7802);
   --card: oklch(0.2668 0.0071 248.094);
@@ -239,6 +241,11 @@
   }
   html {
     @apply font-sans;
+  }
+
+  /* ダーク時: type=number の上下スピナーをダーク UI 配色に（設定モーダル等） */
+  html.dark input[type="number"] {
+    color-scheme: dark;
   }
 }
 

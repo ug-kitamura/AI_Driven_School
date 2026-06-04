@@ -96,10 +96,7 @@ export function CrossSeriesCourseTreePicker({
                   return (
                     <li key={course.id}>
                       <label
-                        className={cn(
-                          "flex cursor-pointer items-center gap-2.5 py-1.5 pl-5 pr-3 text-sm transition-colors hover:bg-muted",
-                          checked && "bg-accent text-accent-foreground",
-                        )}
+                        className="flex cursor-pointer items-center gap-2.5 py-1.5 pl-5 pr-3 text-sm transition-colors hover:bg-muted"
                       >
                         <input
                           type="checkbox"

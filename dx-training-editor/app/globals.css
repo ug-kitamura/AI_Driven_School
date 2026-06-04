@@ -337,6 +337,14 @@
   .lesson-content-editor .cm-editor {
     background-color: color-mix(in oklab, var(--muted) 20%, transparent);
   }
+
+  .dark .lesson-content-editor .cm-editor {
+    background-color: #1e1e1e;
+  }
+
+  .dark .lesson-content-editor .cm-gutters {
+    background-color: #1e1e1e;
+  }
 }
 
 /* FM: @layer 外 + !important（CodeMirror シンタックスハイライトより優先） */
@@ -345,7 +353,7 @@
   color: color-mix(in oklab, var(--muted-foreground) 88%, transparent) !important;
 }
 
-/* 折りたたみガター: 行番号と同色（CM 既定 #6c6c6c を上書き） */
+/* 折りたたみガター: 行番号と同色（ライト） */
 .lesson-content-editor .cm-foldGutter.lesson-fold-gutter .lesson-fold-icon,
 .lesson-content-editor .cm-foldGutter.lesson-fold-gutter span.lesson-fold-open,
 .lesson-content-editor .cm-foldGutter.lesson-fold-gutter span.lesson-fold-closed {
@@ -356,6 +364,13 @@
   line-height: 1.375rem;
   color: #237893 !important;
   -webkit-text-fill-color: #237893 !important;
+}
+
+.dark .lesson-content-editor .cm-foldGutter.lesson-fold-gutter .lesson-fold-icon,
+.dark .lesson-content-editor .cm-foldGutter.lesson-fold-gutter span.lesson-fold-open,
+.dark .lesson-content-editor .cm-foldGutter.lesson-fold-gutter span.lesson-fold-closed {
+  color: #858585 !important;
+  -webkit-text-fill-color: #858585 !important;
 }
 
 .lesson-content-editor .lesson-fold-gutter span.lesson-fold-open {
@@ -435,6 +450,10 @@
   line-height: 1.375rem;
   color: #237893;
   user-select: none;
+}
+
+.dark .lesson-diff-view .lesson-diff-gutter-element {
+  color: #858585;
 }
 
 /* 2列目の行番号と差分本文の間（編集モード .cm-line の padding-left: 6px 相当） */

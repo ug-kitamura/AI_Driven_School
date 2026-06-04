@@ -71,13 +71,21 @@ export function indexImageRefLocations(
   return index;
 }
 
+/** シリーズ Select「未使用」モード用 sentinel（実シリーズ ID ではない） */
+export const FILTER_SERIES_UNUSED = "__unused__" as const;
+
 export type UsedImageFilter = {
   seriesId: string | null;
   courseId: string | null;
   lessonId: string | null;
 };
 
+export function isSeriesUnusedFilter(filter: UsedImageFilter): boolean {
+  return filter.seriesId === FILTER_SERIES_UNUSED;
+}
+
 export function isUsedImageFilterActive(filter: UsedImageFilter): boolean {
+  if (isSeriesUnusedFilter(filter)) return true;
   return Boolean(filter.seriesId || filter.courseId || filter.lessonId);
 }
 
@@ -88,6 +96,9 @@ export function usedRowMatchesFilter(
   filter: UsedImageFilter,
   refLocations: Map<string, ImageRefLocation[]>,
 ): boolean {
+  if (isSeriesUnusedFilter(filter)) {
+    return referenceCount === 0;
+  }
   if (!isUsedImageFilterActive(filter)) return true;
   if (referenceCount === 0) return false;
   const locs = refLocations.get(path) ?? [];

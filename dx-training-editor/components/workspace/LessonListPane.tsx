@@ -52,6 +52,7 @@ import {
 import { PaneWheelRoot } from "@/components/workspace/PaneWheelRoot";
 import { WorkspaceTooltip } from "@/components/workspace/WorkspaceTooltip";
 import { cn, computeStatus } from "@/lib/utils";
+import { getMermaidWorkspaceConfig } from "@/lib/mermaid-workspace-theme";
 import type { Series, Course, Lesson } from "@/lib/schema";
 import {
   buildMiniMandalaGraphInput,
@@ -311,6 +312,19 @@ export function LessonListPane({
     [series, course],
   );
 
+  const [mermaidIsDark, setMermaidIsDark] = useState(false);
+  useEffect(() => {
+    const update = () =>
+      setMermaidIsDark(document.documentElement.classList.contains("dark"));
+    update();
+    const obs = new MutationObserver(update);
+    obs.observe(document.documentElement, {
+      attributes: true,
+      attributeFilter: ["class"],
+    });
+    return () => obs.disconnect();
+  }, []);
+
   // --- Mermaid: サムネイル用（常に先行レンダリング）---
   const [thumbnailSvg, setThumbnailSvg] = useState<string>("");
   useEffect(() => {
@@ -321,14 +335,14 @@ export function LessonListPane({
       if (cancelled) return;
       try {
         const mermaid = m.default;
-        mermaid.initialize({ startOnLoad: false, theme: "base", securityLevel: "loose" });
+        mermaid.initialize(getMermaidWorkspaceConfig(mermaidIsDark, { compact: true }));
         const id = `mthumb${course.id.replace(/[^a-zA-Z0-9]/g, "")}${Date.now()}`;
         const { svg } = await mermaid.render(id, def);
         if (!cancelled) setThumbnailSvg(svg);
       } catch { if (!cancelled) setThumbnailSvg(""); }
     });
     return () => { cancelled = true; };
-  }, [course, miniGraphInput]);
+  }, [course, miniGraphInput, mermaidIsDark]);
 
   // --- Mermaid: モーダル用（開いたときにレンダリング・GlobalHeader と同じパターン）---
   const [mermaidModalOpen, setMermaidModalOpen] = useState(false);
@@ -364,7 +378,7 @@ export function LessonListPane({
       if (cancelled) return;
       try {
         const mermaid = m.default;
-        mermaid.initialize({ startOnLoad: false, theme: "base", securityLevel: "loose" });
+        mermaid.initialize(getMermaidWorkspaceConfig(mermaidIsDark));
         const id = `mmodal${course.id.replace(/[^a-zA-Z0-9]/g, "")}${Date.now()}`;
         const { svg, bindFunctions } = await mermaid.render(id, def);
         if (!cancelled) {
@@ -374,7 +388,7 @@ export function LessonListPane({
       } catch { if (!cancelled) setModalSvg(""); }
     });
     return () => { cancelled = true; };
-  }, [mermaidModalOpen, course, miniGraphInput]);
+  }, [mermaidModalOpen, course, miniGraphInput, mermaidIsDark]);
 
   // モーダルを閉じたら SVG リセット
   useEffect(() => {
@@ -475,7 +489,7 @@ export function LessonListPane({
               render={
                 <button
                   type="button"
-                  className="mt-2 w-full overflow-hidden rounded border border-border bg-white p-1 transition-opacity hover:opacity-80 cursor-zoom-in"
+                  className="mt-2 w-full overflow-hidden rounded border border-border bg-card p-1 transition-opacity hover:opacity-80 cursor-zoom-in"
                   onClick={() => setMermaidModalOpen(true)}
                   dangerouslySetInnerHTML={{ __html: thumbnailSvg }}
                 />
@@ -489,7 +503,7 @@ export function LessonListPane({
                 {modalSvg ? (
                   <div
                     ref={modalSvgRef}
-                    className="overflow-auto rounded bg-white p-4"
+                    className="overflow-auto rounded bg-card p-4"
                     dangerouslySetInnerHTML={{ __html: modalSvg }}
                     onClick={(e) => {
                       // composedPath で SVG/foreignObject 境界を越えて g 要素を探索

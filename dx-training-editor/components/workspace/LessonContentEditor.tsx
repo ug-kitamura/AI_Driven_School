@@ -13,6 +13,11 @@ import CodeMirror from "@uiw/react-codemirror";
 import { EditorView } from "@codemirror/view";
 import { cn } from "@/lib/utils";
 import { buildLessonEditorExtensions } from "@/lib/lesson-content-editor-setup";
+import {
+  clampEditorFontSizePx,
+  loadWorkspaceSettings,
+  saveWorkspaceSettings,
+} from "@/lib/workspace-settings";
 
 export type LessonContentEditorHandle = {
   insertAtCursor: (markdown: string) => void;
@@ -40,6 +45,11 @@ export const LessonContentEditor = forwardRef<
   const onCursorChangeRef = useRef(onCursorChange);
   onCursorChangeRef.current = onCursorChange;
   const [isDark, setIsDark] = useState(false);
+  const [fontSizePx, setFontSizePx] = useState(() =>
+    clampEditorFontSizePx(loadWorkspaceSettings().editorFontSizePx),
+  );
+  const fontSizeRef = useRef(fontSizePx);
+  fontSizeRef.current = fontSizePx;
 
   useEffect(() => {
     const update = () =>
@@ -53,16 +63,26 @@ export const LessonContentEditor = forwardRef<
     return () => obs.disconnect();
   }, []);
 
+  const handleFontSizeChange = useCallback((next: number) => {
+    const clamped = clampEditorFontSizePx(next);
+    setFontSizePx(clamped);
+    const settings = loadWorkspaceSettings();
+    saveWorkspaceSettings({ ...settings, editorFontSizePx: clamped });
+  }, []);
+
   const extensions = useMemo(
     () => [
-      ...buildLessonEditorExtensions(isDark),
+      ...buildLessonEditorExtensions(isDark, fontSizePx, {
+        getFontSize: () => fontSizeRef.current,
+        onFontSizeChange: handleFontSizeChange,
+      }),
       EditorView.updateListener.of((update) => {
         if (update.selectionSet || update.docChanged) {
           onCursorChangeRef.current?.(update.state.selection.main.head);
         }
       }),
     ],
-    [isDark],
+    [isDark, fontSizePx, handleFontSizeChange],
   );
 
   const handleCreateEditor = useCallback(
@@ -100,7 +120,7 @@ export const LessonContentEditor = forwardRef<
 
   return (
     <CodeMirror
-      key={`${lessonId}-${isDark ? "dark" : "light"}`}
+      key={`${lessonId}-${isDark ? "dark" : "light"}-${fontSizePx}`}
       value={value}
       height="100%"
       className={cn(

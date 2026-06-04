@@ -24,28 +24,11 @@ import {
 } from "@/components/ui/tooltip";
 import type { Series } from "@/lib/schema";
 import { isCrossSeriesLink } from "@/lib/course-flow";
+import { getMermaidWorkspaceConfig } from "@/lib/mermaid-workspace-theme";
 
 // セーフな Mermaid ノード ID
 const safeId = (id: string) => `N_${id.replace(/[^a-zA-Z0-9]/g, "_")}`;
 const safeLabel = (s: string) => s.replace(/"/g, "'");
-
-/** 大規模グラフ向け: デフォルトより一回りコンパクトに描画 */
-const GLOBAL_MANDALA_MERMAID_CONFIG = {
-  startOnLoad: false,
-  theme: "base",
-  securityLevel: "loose",
-  flowchart: {
-    nodeSpacing: 36,
-    rankSpacing: 36,
-    padding: 10,
-    diagramPadding: 8,
-    useMaxWidth: false,
-  },
-  themeVariables: {
-    fontSize: "12px",
-    fontFamily: "ui-sans-serif, system-ui, sans-serif",
-  },
-} as const;
 
 function buildFullMandalaGraph(
   series: Series[],
@@ -144,7 +127,20 @@ export function GlobalHeader({
   const [mandalaOpen, setMandalaOpen] = useState(false);
   const [mandalaSvg, setMandalaSvg] = useState("");
   const [mandalaDebug, setMandalaDebug] = useState("");
+  const [isDark, setIsDark] = useState(false);
   const svgContainerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const update = () =>
+      setIsDark(document.documentElement.classList.contains("dark"));
+    update();
+    const obs = new MutationObserver(update);
+    obs.observe(document.documentElement, {
+      attributes: true,
+      attributeFilter: ["class"],
+    });
+    return () => obs.disconnect();
+  }, []);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const bindFnsRef = useRef<((el: Element) => void) | null>(null);
 
@@ -177,7 +173,7 @@ export function GlobalHeader({
       if (cancelled) return;
       try {
         const mermaid = m.default;
-        mermaid.initialize(GLOBAL_MANDALA_MERMAID_CONFIG);
+        mermaid.initialize(getMermaidWorkspaceConfig(isDark));
         const { svg, bindFunctions } = await mermaid.render(`mandala-${Date.now()}`, def);
         if (!cancelled) {
           bindFnsRef.current = bindFunctions ?? null;
@@ -191,7 +187,7 @@ export function GlobalHeader({
     return () => {
       cancelled = true;
     };
-  }, [mandalaOpen, series, selectedCourseId]);
+  }, [mandalaOpen, series, selectedCourseId, isDark]);
 
   // モーダルを閉じたら SVG をリセット（次回オープン時に古いキャッシュを表示しない）
   useEffect(() => {
@@ -279,7 +275,7 @@ export function GlobalHeader({
           <DialogHeader>
             <DialogTitle>DXトレーニング曼陀羅</DialogTitle>
           </DialogHeader>
-          <div className="flex-1 overflow-auto rounded bg-white p-2 min-h-0">
+          <div className="flex-1 overflow-auto rounded bg-card p-2 min-h-0">
             {mandalaSvg ? (
               <div
                 ref={svgContainerRef}

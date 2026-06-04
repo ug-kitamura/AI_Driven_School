@@ -24,7 +24,7 @@ export const META_DIALOG_STACK = cn("flex flex-col", GROUP_GAP_Y);
 export const META_DIALOG_FORM = "py-2";
 
 /** 入力・セレクトの共通見た目 */
-export const META_DIALOG_CONTROL = "bg-white";
+export const META_DIALOG_CONTROL = "bg-background dark:bg-input/30";
 
 type MetaDialogFieldProps = {
   children: ReactNode;

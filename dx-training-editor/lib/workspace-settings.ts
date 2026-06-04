@@ -6,12 +6,23 @@ import {
 
 export type ThemeMode = "light" | "dark" | "system";
 
+export const EDITOR_FONT_SIZE_DEFAULT = 14;
+export const EDITOR_FONT_SIZE_MIN = 11;
+export const EDITOR_FONT_SIZE_MAX = 22;
+
 export type WorkspaceSettings = {
   aiApiKey: string | null;
   pixabayApiKey: string | null;
   theme: ThemeMode;
   paneDefaults: WorkspacePaneWidths;
+  editorFontSizePx: number;
 };
+
+export function clampEditorFontSizePx(value: number): number {
+  const n = Math.round(value);
+  if (!Number.isFinite(n)) return EDITOR_FONT_SIZE_DEFAULT;
+  return Math.min(EDITOR_FONT_SIZE_MAX, Math.max(EDITOR_FONT_SIZE_MIN, n));
+}
 
 const STORAGE_KEY = "dx-training-editor-settings";
 
@@ -20,6 +31,7 @@ export const DEFAULT_WORKSPACE_SETTINGS: WorkspaceSettings = {
   pixabayApiKey: null,
   theme: "light",
   paneDefaults: { ...PANE_WIDTH_DEFAULTS },
+  editorFontSizePx: EDITOR_FONT_SIZE_DEFAULT,
 };
 
 function normalizePaneDefaults(
@@ -50,6 +62,11 @@ export function loadWorkspaceSettings(): WorkspaceSettings {
           ? parsed.theme
           : DEFAULT_WORKSPACE_SETTINGS.theme,
       paneDefaults: normalizePaneDefaults(parsed.paneDefaults),
+      editorFontSizePx: clampEditorFontSizePx(
+        typeof parsed.editorFontSizePx === "number"
+          ? parsed.editorFontSizePx
+          : EDITOR_FONT_SIZE_DEFAULT,
+      ),
     };
   } catch {
     return { ...DEFAULT_WORKSPACE_SETTINGS };

@@ -63,6 +63,9 @@ import { cn, computeStatus } from "@/lib/utils";
 import { STATUS_LABELS } from "@/lib/schema";
 import type { Series, Course } from "@/lib/schema";
 
+/** シリーズ進捗バーとコース行の左右端を揃える */
+const SERIES_CHILD_INSET = "ml-3 px-2";
+
 type Props = {
   workspaceName: string;
   series: Series[];
@@ -128,7 +131,7 @@ function SortableCourseRow({
         style={style}
         onClick={onSelect}
         className={cn(
-          "group/course-row flex cursor-pointer items-center gap-1 rounded-md px-2 py-1.5 text-xs transition-colors",
+          "group/course-row flex cursor-pointer items-center gap-1 rounded-md py-1.5 text-xs transition-colors",
           isSelected
             ? "bg-accent text-primary"
             : "text-foreground hover:bg-muted",
@@ -351,19 +354,19 @@ function SortableSeriesBlock({
         </div>
 
         {isExpanded && (
-          <div className="mb-2 ml-3 px-2 sidebar-label">
+          <div className={cn("mb-2 sidebar-label", SERIES_CHILD_INSET)}>
             <div className="mb-0.5 flex items-center justify-between text-[10px]">
               <span className="text-muted-foreground">シリーズ進捗</span>
               <span className="font-medium text-primary">
                 {doneCourses}/{totalCourses}
               </span>
             </div>
-            <Progress value={seriesProgress} className="h-1" />
+            <Progress value={seriesProgress} className="h-1 w-full gap-0" />
           </div>
         )}
 
         {isExpanded && (
-          <div className="ml-3 flex flex-col gap-1">
+          <div className={cn("flex flex-col gap-1", SERIES_CHILD_INSET)}>
             <DndContext
               id={`series-course-dnd-${seriesItem.id}`}
               sensors={sensors}

@@ -10,11 +10,6 @@ import { PanelLeftClose, PanelLeftOpen } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { useSidebar } from "@/components/ui/sidebar";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 
 type Pane1ToggleProps = {
@@ -28,22 +23,15 @@ export function Pane1Toggle({ className }: Pane1ToggleProps) {
   const label = isExpanded ? "閉じる" : "開く";
 
   return (
-    <Tooltip>
-      <TooltipTrigger
-        render={
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon-sm"
-            onClick={toggleSidebar}
-            aria-label={label}
-            className={cn("size-7 text-sidebar-foreground", className)}
-          >
-            <Icon />
-          </Button>
-        }
-      />
-      <TooltipContent side="bottom">{label}</TooltipContent>
-    </Tooltip>
+    <Button
+      type="button"
+      variant="ghost"
+      size="icon-sm"
+      onClick={toggleSidebar}
+      aria-label={label}
+      className={cn("size-7 text-sidebar-foreground", className)}
+    >
+      <Icon />
+    </Button>
   );
 }

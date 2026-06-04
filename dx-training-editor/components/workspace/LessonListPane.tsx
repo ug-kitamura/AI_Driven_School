@@ -484,16 +484,12 @@ export function LessonListPane({
         {/* Mermaid ミニグラフ（クリックで拡大） */}
         {thumbnailSvg && (
           <>
-            <WorkspaceTooltip
-              label="クリックで拡大表示"
-              render={
-                <button
-                  type="button"
-                  className="mt-2 w-full overflow-hidden rounded border border-border bg-card p-1 transition-opacity hover:opacity-80 cursor-zoom-in"
-                  onClick={() => setMermaidModalOpen(true)}
-                  dangerouslySetInnerHTML={{ __html: thumbnailSvg }}
-                />
-              }
+            <button
+              type="button"
+              className="mt-2 w-full cursor-zoom-in overflow-hidden rounded border border-border bg-card p-1 transition-opacity hover:opacity-80"
+              onClick={() => setMermaidModalOpen(true)}
+              aria-label="ミニ曼陀羅を拡大表示"
+              dangerouslySetInnerHTML={{ __html: thumbnailSvg }}
             />
             <Dialog open={mermaidModalOpen} onOpenChange={setMermaidModalOpen}>
               <DialogContent className="max-w-2xl">

@@ -17,11 +17,6 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
 import type { Series } from "@/lib/schema";
 import { isCrossSeriesLink } from "@/lib/course-flow";
 import { getMermaidWorkspaceConfig } from "@/lib/mermaid-workspace-theme";
@@ -235,39 +230,25 @@ export function GlobalHeader({
         </BreadcrumbList>
       </Breadcrumb>
 
-      {/* 曼陀羅ボタン */}
-      <Tooltip>
-        <TooltipTrigger
-          render={
-            <Button
-              variant="ghost"
-              size="sm"
-              className="flex-shrink-0 gap-1.5 text-xs text-muted-foreground hover:text-primary"
-              onClick={() => setMandalaOpen(true)}
-            >
-              <Network className="h-4 w-4" />
-              <span className="hidden sm:inline">DXトレーニング曼陀羅</span>
-            </Button>
-          }
-        />
-        <TooltipContent side="bottom">DXトレーニング曼陀羅</TooltipContent>
-      </Tooltip>
+      <Button
+        variant="ghost"
+        size="sm"
+        className="flex-shrink-0 gap-1.5 text-xs text-muted-foreground hover:text-primary"
+        onClick={() => setMandalaOpen(true)}
+      >
+        <Network className="h-4 w-4" />
+        <span className="hidden sm:inline">DXトレーニング曼陀羅</span>
+      </Button>
 
-      <Tooltip>
-        <TooltipTrigger
-          render={
-            <Button
-              variant="ghost"
-              size="icon"
-              className="size-8 shrink-0 text-muted-foreground hover:text-primary"
-              onClick={() => onOpenSettings?.()}
-            >
-              <Settings className="size-4" />
-            </Button>
-          }
-        />
-        <TooltipContent side="bottom">設定</TooltipContent>
-      </Tooltip>
+      <Button
+        variant="ghost"
+        size="icon"
+        className="size-8 shrink-0 text-muted-foreground hover:text-primary"
+        onClick={() => onOpenSettings?.()}
+        aria-label="設定"
+      >
+        <Settings className="size-4" />
+      </Button>
 
       {/* 曼陀羅フルスクリーンモーダル */}
       <Dialog open={mandalaOpen} onOpenChange={setMandalaOpen}>

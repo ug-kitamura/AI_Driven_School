@@ -7,6 +7,7 @@ import {
   useRef,
   useCallback,
   useState,
+  useEffect,
 } from "react";
 import CodeMirror from "@uiw/react-codemirror";
 import { EditorView } from "@codemirror/view";
@@ -15,6 +16,7 @@ import { buildLessonEditorExtensions } from "@/lib/lesson-content-editor-setup";
 import { useResolvedDarkMode } from "@/lib/use-resolved-dark-mode";
 import {
   clampEditorFontSizePx,
+  EDITOR_FONT_SIZE_CHANGED_EVENT,
   loadWorkspaceSettings,
   saveWorkspaceSettings,
 } from "@/lib/workspace-settings";
@@ -56,6 +58,18 @@ export const LessonContentEditor = forwardRef<
     setFontSizePx(clamped);
     const settings = loadWorkspaceSettings();
     saveWorkspaceSettings({ ...settings, editorFontSizePx: clamped });
+  }, []);
+
+  useEffect(() => {
+    const onExternalFontSize = (event: Event) => {
+      const px = (event as CustomEvent<{ px: number }>).detail?.px;
+      if (typeof px === "number") {
+        setFontSizePx(clampEditorFontSizePx(px));
+      }
+    };
+    window.addEventListener(EDITOR_FONT_SIZE_CHANGED_EVENT, onExternalFontSize);
+    return () =>
+      window.removeEventListener(EDITOR_FONT_SIZE_CHANGED_EVENT, onExternalFontSize);
   }, []);
 
   const extensions = useMemo(

@@ -7,8 +7,10 @@ import {
 export type ThemeMode = "light" | "dark" | "system";
 
 export const EDITOR_FONT_SIZE_DEFAULT = 14;
-export const EDITOR_FONT_SIZE_MIN = 11;
-export const EDITOR_FONT_SIZE_MAX = 22;
+export const EDITOR_FONT_SIZE_MIN = 8;
+export const EDITOR_FONT_SIZE_MAX = 32;
+
+export const EDITOR_FONT_SIZE_CHANGED_EVENT = "dx-training-editor-font-size-changed";
 
 export type WorkspaceSettings = {
   aiApiKey: string | null;
@@ -80,6 +82,22 @@ export function saveWorkspaceSettings(settings: WorkspaceSettings): void {
   } catch {
     // ignore quota
   }
+}
+
+/** 設定モーダル等からエディタへ即時反映（localStorage も更新） */
+export function applyEditorFontSizePx(px: number): number {
+  const clamped = clampEditorFontSizePx(px);
+  if (typeof window === "undefined") return clamped;
+  saveWorkspaceSettings({
+    ...loadWorkspaceSettings(),
+    editorFontSizePx: clamped,
+  });
+  window.dispatchEvent(
+    new CustomEvent(EDITOR_FONT_SIZE_CHANGED_EVENT, {
+      detail: { px: clamped },
+    }),
+  );
+  return clamped;
 }
 
 export function resolveThemeClass(theme: ThemeMode): "light" | "dark" {

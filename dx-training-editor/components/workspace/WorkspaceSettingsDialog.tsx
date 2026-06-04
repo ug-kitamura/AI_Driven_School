@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Eye, EyeOff, RotateCcw } from "lucide-react";
 import {
   Dialog,
@@ -20,12 +20,13 @@ import {
   PANE_WIDTH_DEFAULTS,
   PANE_WIDTH_LIMITS,
   clampPaneWidth,
-  savePaneWidths,
   type WorkspacePaneWidths,
 } from "@/components/workspace/pane-layout";
 import {
+  EDITOR_FONT_SIZE_DEFAULT,
   EDITOR_FONT_SIZE_MAX,
   EDITOR_FONT_SIZE_MIN,
+  applyEditorFontSizePx,
   applyThemeToDocument,
   clampEditorFontSizePx,
   loadWorkspaceSettings,
@@ -40,6 +41,14 @@ type Props = {
   currentPaneWidths: WorkspacePaneWidths;
   onApplyPaneWidths: (widths: WorkspacePaneWidths) => void;
 };
+
+function clampPaneWidths(widths: WorkspacePaneWidths): WorkspacePaneWidths {
+  return {
+    pane1: clampPaneWidth("pane1", widths.pane1),
+    pane2: clampPaneWidth("pane2", widths.pane2),
+    pane4: clampPaneWidth("pane4", widths.pane4),
+  };
+}
 
 function ApiKeyField({
   id,
@@ -98,55 +107,43 @@ function ApiKeyField({
   );
 }
 
+type SettingsFormProps = Omit<Props, "open"> & {
+  onSaved: () => void;
+};
+
 function SettingsForm({
   onOpenChange,
   currentPaneWidths,
   onApplyPaneWidths,
-}: Omit<Props, "open">) {
+  onSaved,
+}: SettingsFormProps) {
   const initial = loadWorkspaceSettings();
   const [draft, setDraft] = useState<WorkspaceSettings>(initial);
   const [apiKeyInput, setApiKeyInput] = useState(initial.aiApiKey ?? "");
   const [pixabayKeyInput, setPixabayKeyInput] = useState(initial.pixabayApiKey ?? "");
+  const [paneDraft, setPaneDraft] = useState<WorkspacePaneWidths>(() =>
+    clampPaneWidths(currentPaneWidths),
+  );
+  const [fontDraft, setFontDraft] = useState(() =>
+    clampEditorFontSizePx(initial.editorFontSizePx),
+  );
 
   const handleSave = () => {
     const next: WorkspaceSettings = {
       ...draft,
       aiApiKey: apiKeyInput.trim() || null,
       pixabayApiKey: pixabayKeyInput.trim() || null,
-      editorFontSizePx: clampEditorFontSizePx(draft.editorFontSizePx),
-      paneDefaults: {
-        pane1: clampPaneWidth("pane1", draft.paneDefaults.pane1),
-        pane2: clampPaneWidth("pane2", draft.paneDefaults.pane2),
-        pane4: clampPaneWidth("pane4", draft.paneDefaults.pane4),
-      },
+      editorFontSizePx: clampEditorFontSizePx(fontDraft),
+      paneDefaults: clampPaneWidths(paneDraft),
     };
     saveWorkspaceSettings(next);
     applyThemeToDocument(next.theme);
+    onSaved();
     onOpenChange(false);
   };
 
-  const handleApplyLayout = () => {
-    const widths = {
-      pane1: clampPaneWidth("pane1", draft.paneDefaults.pane1),
-      pane2: clampPaneWidth("pane2", draft.paneDefaults.pane2),
-      pane4: clampPaneWidth("pane4", draft.paneDefaults.pane4),
-    };
-    savePaneWidths(widths);
-    onApplyPaneWidths(widths);
-  };
-
-  const handleResetPaneDefaults = () => {
-    setDraft((prev) => ({
-      ...prev,
-      paneDefaults: { ...PANE_WIDTH_DEFAULTS },
-    }));
-  };
-
-  const handleUseCurrentWidths = () => {
-    setDraft((prev) => ({
-      ...prev,
-      paneDefaults: { ...currentPaneWidths },
-    }));
+  const handleCancel = () => {
+    onOpenChange(false);
   };
 
   const paneLabels = {
@@ -157,61 +154,79 @@ function SettingsForm({
 
   return (
     <DialogContent className="max-w-lg">
-        <DialogHeader>
-          <DialogTitle>設定</DialogTitle>
-        </DialogHeader>
-        <div className={META_DIALOG_STACK}>
-          <section className="flex flex-col gap-3">
-            <h3 className="text-sm font-semibold text-foreground">テーマ</h3>
-            <MetaDialogField>
-              <div className="flex flex-wrap gap-2">
-                {(
-                  [
-                    ["light", "ライト"],
-                    ["dark", "ダーク"],
-                    ["system", "システム"],
-                  ] as const
-                ).map(([value, label]) => (
-                  <Button
-                    key={value}
-                    type="button"
-                    size="sm"
-                    variant={draft.theme === value ? "default" : "outline"}
-                    onClick={() =>
-                      setDraft((prev) => ({ ...prev, theme: value as ThemeMode }))
-                    }
-                  >
-                    {label}
-                  </Button>
-                ))}
-              </div>
-            </MetaDialogField>
-          </section>
+      <DialogHeader>
+        <DialogTitle>設定</DialogTitle>
+      </DialogHeader>
+      <div className={META_DIALOG_STACK}>
+        <section className="flex flex-col gap-3">
+          <h3 className="text-sm font-semibold text-foreground">テーマ</h3>
+          <MetaDialogField>
+            <div className="flex flex-wrap gap-2">
+              {(
+                [
+                  ["light", "ライト"],
+                  ["dark", "ダーク"],
+                  ["system", "システム"],
+                ] as const
+              ).map(([value, label]) => (
+                <Button
+                  key={value}
+                  type="button"
+                  size="sm"
+                  variant={draft.theme === value ? "default" : "outline"}
+                  onClick={() =>
+                    setDraft((prev) => ({ ...prev, theme: value as ThemeMode }))
+                  }
+                >
+                  {label}
+                </Button>
+              ))}
+            </div>
+          </MetaDialogField>
+        </section>
 
-          <section className="flex flex-col gap-3">
-            <h3 className="text-sm font-semibold text-foreground">フォントサイズ</h3>
-            <MetaDialogField>
+        <section className="flex flex-col gap-3">
+          <h3 className="text-sm font-semibold text-foreground">フォントサイズ</h3>
+          <MetaDialogField>
+            <div className="flex items-center gap-1.5">
               <Input
                 type="number"
                 min={EDITOR_FONT_SIZE_MIN}
                 max={EDITOR_FONT_SIZE_MAX}
-                value={draft.editorFontSizePx}
+                value={fontDraft}
+                className="min-w-0 flex-1"
                 onChange={(e) => {
                   const n = Number(e.target.value);
-                  setDraft((prev) => ({
-                    ...prev,
-                    editorFontSizePx: clampEditorFontSizePx(
-                      Number.isFinite(n) ? n : prev.editorFontSizePx,
-                    ),
-                  }));
+                  setFontDraft((prev) => {
+                    const next = clampEditorFontSizePx(
+                      Number.isFinite(n) ? n : prev,
+                    );
+                    applyEditorFontSizePx(next);
+                    return next;
+                  });
                 }}
               />
-            </MetaDialogField>
-          </section>
+              <Button
+                type="button"
+                size="icon-sm"
+                variant="outline"
+                className="shrink-0"
+                aria-label="フォントサイズを既定値に戻す"
+                onClick={() => {
+                  const next = applyEditorFontSizePx(EDITOR_FONT_SIZE_DEFAULT);
+                  setFontDraft(next);
+                }}
+              >
+                <RotateCcw className="size-3.5" />
+              </Button>
+            </div>
+          </MetaDialogField>
+        </section>
 
-          <section className="flex flex-col gap-3">
-            <h3 className="text-sm font-semibold text-foreground">横幅</h3>
-            <div className="grid grid-cols-3 gap-2">
+        <section className="flex flex-col gap-3">
+          <h3 className="text-sm font-semibold text-foreground">横幅</h3>
+          <div className="flex items-end gap-1.5">
+            <div className="grid min-w-0 flex-1 grid-cols-3 gap-2">
               {(["pane1", "pane2", "pane4"] as const).map((pane) => {
                 const limits = PANE_WIDTH_LIMITS[pane];
                 return (
@@ -223,72 +238,72 @@ function SettingsForm({
                       type="number"
                       min={limits.min}
                       max={limits.max}
-                      value={draft.paneDefaults[pane]}
+                      value={paneDraft[pane]}
                       onChange={(e) => {
                         const n = Number(e.target.value);
-                        setDraft((prev) => ({
-                          ...prev,
-                          paneDefaults: {
-                            ...prev.paneDefaults,
+                        setPaneDraft((prev) => {
+                          const next = clampPaneWidths({
+                            ...prev,
                             [pane]: clampPaneWidth(
                               pane,
                               Number.isFinite(n) ? n : limits.min,
                             ),
-                          },
-                        }));
+                          });
+                          onApplyPaneWidths(next);
+                          return next;
+                        });
                       }}
                     />
                   </MetaDialogField>
                 );
               })}
             </div>
-            <div className="flex flex-wrap gap-2">
-              <Button type="button" size="sm" variant="outline" onClick={handleUseCurrentWidths}>
-                現在の幅を反映
-              </Button>
-              <Button type="button" size="sm" variant="outline" onClick={handleApplyLayout}>
-                今のレイアウトに適用
-              </Button>
-              <Button
-                type="button"
-                size="sm"
-                variant="outline"
-                onClick={handleResetPaneDefaults}
-              >
-                既定幅に戻す
-              </Button>
-            </div>
-          </section>
+            <Button
+              type="button"
+              size="icon-sm"
+              variant="outline"
+              className="mb-0.5 shrink-0"
+              aria-label="横幅を既定値に戻す"
+              onClick={() => {
+                const next = clampPaneWidths({ ...PANE_WIDTH_DEFAULTS });
+                setPaneDraft(next);
+                onApplyPaneWidths(next);
+              }}
+            >
+              <RotateCcw className="size-3.5" />
+            </Button>
+          </div>
+        </section>
 
-          <section className="flex flex-col gap-3">
-            <h3 className="text-sm font-semibold text-foreground">API</h3>
-            <ApiKeyField
-              id="settings-ai-api-key"
-              label="AI API キー"
-              value={apiKeyInput}
-              onChange={setApiKeyInput}
-              placeholder="sk-ant-api03-..."
-              hint="未入力時は環境変数 AI_API_KEY を取得"
-            />
-            <ApiKeyField
-              id="settings-pixabay-api-key"
-              label="Pixabay API キー"
-              value={pixabayKeyInput}
-              onChange={setPixabayKeyInput}
-              placeholder="Pixabay API key"
-              hint="未入力時は環境変数 PIXABAY_API_KEY を取得"
-            />
-          </section>
-        </div>
-        <DialogFooter>
-          <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
-            キャンセル
-          </Button>
-          <Button type="button" onClick={handleSave}>
-            保存
-          </Button>
-        </DialogFooter>
-      </DialogContent>
+        <section className="flex flex-col gap-3">
+          <h3 className="text-sm font-semibold text-foreground">API</h3>
+          <ApiKeyField
+            id="settings-ai-api-key"
+            label="AI API キー"
+            value={apiKeyInput}
+            onChange={setApiKeyInput}
+            placeholder="sk-ant-api03-..."
+            hint="未入力時は環境変数 AI_API_KEY を取得"
+          />
+          <ApiKeyField
+            id="settings-pixabay-api-key"
+            label="Pixabay API キー"
+            value={pixabayKeyInput}
+            onChange={setPixabayKeyInput}
+            placeholder="Pixabay API key"
+            hint="未入力時は環境変数 PIXABAY_API_KEY を取得"
+          />
+        </section>
+      </div>
+      <DialogFooter>
+        <Button type="button" variant="outline" onClick={handleCancel}>
+          キャンセル
+        </Button>
+        <Button type="button" onClick={handleSave}>
+          保存
+        </Button>
+      </DialogFooter>
+    </DialogContent>
   );
 }
 
@@ -298,13 +313,40 @@ export function WorkspaceSettingsDialog({
   currentPaneWidths,
   onApplyPaneWidths,
 }: Props) {
+  const paneWidthsAtOpenRef = useRef<WorkspacePaneWidths>(currentPaneWidths);
+  const fontSizeAtOpenRef = useRef(EDITOR_FONT_SIZE_DEFAULT);
+  const savedRef = useRef(false);
+  const prevOpenRef = useRef(false);
+
+  useEffect(() => {
+    if (open && !prevOpenRef.current) {
+      paneWidthsAtOpenRef.current = { ...currentPaneWidths };
+      fontSizeAtOpenRef.current = clampEditorFontSizePx(
+        loadWorkspaceSettings().editorFontSizePx,
+      );
+      savedRef.current = false;
+    }
+    prevOpenRef.current = open;
+  }, [open, currentPaneWidths]);
+
+  const handleOpenChange = (next: boolean) => {
+    if (!next && !savedRef.current) {
+      onApplyPaneWidths(paneWidthsAtOpenRef.current);
+      applyEditorFontSizePx(fontSizeAtOpenRef.current);
+    }
+    onOpenChange(next);
+  };
+
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       {open ? (
         <SettingsForm
-          onOpenChange={onOpenChange}
+          onOpenChange={handleOpenChange}
           currentPaneWidths={currentPaneWidths}
           onApplyPaneWidths={onApplyPaneWidths}
+          onSaved={() => {
+            savedRef.current = true;
+          }}
         />
       ) : null}
     </Dialog>

@@ -189,12 +189,8 @@ function SettingsForm({
           </section>
 
           <section className="flex flex-col gap-3">
-            <h3 className="text-sm font-semibold text-foreground">編集</h3>
+            <h3 className="text-sm font-semibold text-foreground">フォントサイズ</h3>
             <MetaDialogField>
-              <Label className="text-xs text-muted-foreground">
-                編集エリアのデフォルトフォントサイズ（{EDITOR_FONT_SIZE_MIN}–
-                {EDITOR_FONT_SIZE_MAX} px）
-              </Label>
               <Input
                 type="number"
                 min={EDITOR_FONT_SIZE_MIN}
@@ -210,9 +206,6 @@ function SettingsForm({
                   }));
                 }}
               />
-              <p className="text-[10px] text-muted-foreground">
-                編集モードで Ctrl+ホイールでも変更できます
-              </p>
             </MetaDialogField>
           </section>
 

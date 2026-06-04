@@ -27,9 +27,9 @@ const LIGHT_THEME_VARIABLES = {
 const DARK_THEME_VARIABLES = {
   fontSize: "12px",
   fontFamily: "ui-sans-serif, system-ui, sans-serif",
-  primaryColor: "#2d4a6f",
+  primaryColor: "#3d4146",
   primaryTextColor: "#e8e8e8",
-  primaryBorderColor: "#7eb8e8",
+  primaryBorderColor: "#6b7280",
   lineColor: "#9ca3af",
   secondaryColor: "#2a2d2e",
   tertiaryColor: "#1e1e1e",

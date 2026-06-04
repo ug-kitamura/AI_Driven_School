@@ -158,12 +158,12 @@ export function LessonTagsInput({
         {tags.map((tag) => (
           <span
             key={tag}
-            className="inline-flex max-w-full items-center gap-0.5 rounded-full bg-secondary px-2 py-0.5 text-xs font-medium text-secondary-foreground"
+            className="inline-flex max-w-full items-center gap-0.5 rounded-full bg-secondary px-2 py-0.5 text-xs font-medium text-secondary-foreground dark:bg-[color-mix(in_oklch,var(--input)_45%,var(--foreground)_16%)] dark:text-foreground"
           >
             <span className="truncate">{tag}</span>
             <button
               type="button"
-              className="rounded-full p-0.5 text-secondary-foreground/80 hover:bg-primary/15 hover:text-primary"
+              className="rounded-full p-0.5 text-secondary-foreground/80 hover:bg-primary/15 hover:text-primary dark:text-foreground/70 dark:hover:text-primary"
               aria-label={`${tag} を削除`}
               onClick={(e) => {
                 e.stopPropagation();

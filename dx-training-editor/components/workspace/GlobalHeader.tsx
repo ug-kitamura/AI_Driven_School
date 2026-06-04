@@ -19,7 +19,10 @@ import {
 import { Button } from "@/components/ui/button";
 import type { Series } from "@/lib/schema";
 import { isCrossSeriesLink } from "@/lib/course-flow";
-import { getMermaidWorkspaceConfig } from "@/lib/mermaid-workspace-theme";
+import {
+  getMermaidWorkspaceConfig,
+  mandalaCurrentCourseStyleLine,
+} from "@/lib/mermaid-workspace-theme";
 
 // セーフな Mermaid ノード ID
 const safeId = (id: string) => `N_${id.replace(/[^a-zA-Z0-9]/g, "_")}`;
@@ -51,7 +54,7 @@ function buildFullMandalaGraph(
 
   // 現在選択中コースに style を適用（classDef より安定）
   currentNid.forEach((nid) => {
-    lines.push(`  style ${nid} stroke-width:2px,font-weight:bold`);
+    lines.push(mandalaCurrentCourseStyleLine(nid, 2));
   });
 
   // シリーズ内: 配列順の隣接鎖

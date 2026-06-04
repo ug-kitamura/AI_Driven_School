@@ -52,7 +52,10 @@ import {
 import { PaneWheelRoot } from "@/components/workspace/PaneWheelRoot";
 import { WorkspaceTooltip } from "@/components/workspace/WorkspaceTooltip";
 import { cn, computeStatus } from "@/lib/utils";
-import { getMermaidWorkspaceConfig } from "@/lib/mermaid-workspace-theme";
+import {
+  getMermaidWorkspaceConfig,
+  mandalaCurrentCourseStyleLine,
+} from "@/lib/mermaid-workspace-theme";
 import type { Series, Course, Lesson } from "@/lib/schema";
 import {
   buildMiniMandalaGraphInput,
@@ -129,7 +132,7 @@ function buildMermaidDef(
   const currentId = "CURRENT";
   const nodeMap: Record<string, string> = { [currentId]: input.current.id };
   lines.push(`  ${currentId}("★ ${safeLabel(input.current.name)}")`);
-  lines.push(`  style ${currentId} stroke-width:3px,font-weight:bold`);
+  lines.push(mandalaCurrentCourseStyleLine(currentId, 2));
   lines.push(`  click ${currentId} call miniGraphNav()`);
 
   if (input.intraPrev) {

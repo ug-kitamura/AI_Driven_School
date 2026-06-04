@@ -17,41 +17,22 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
 import type { Series } from "@/lib/schema";
 import { isCrossSeriesLink } from "@/lib/course-flow";
+import {
+  getMermaidWorkspaceConfig,
+  mandalaCurrentCourseStyleLine,
+} from "@/lib/mermaid-workspace-theme";
 
 // セーフな Mermaid ノード ID
 const safeId = (id: string) => `N_${id.replace(/[^a-zA-Z0-9]/g, "_")}`;
 const safeLabel = (s: string) => s.replace(/"/g, "'");
 
-/** 大規模グラフ向け: デフォルトより一回りコンパクトに描画 */
-const GLOBAL_MANDALA_MERMAID_CONFIG = {
-  startOnLoad: false,
-  theme: "base",
-  securityLevel: "loose",
-  flowchart: {
-    nodeSpacing: 36,
-    rankSpacing: 36,
-    padding: 10,
-    diagramPadding: 8,
-    useMaxWidth: false,
-  },
-  themeVariables: {
-    fontSize: "12px",
-    fontFamily: "ui-sans-serif, system-ui, sans-serif",
-  },
-} as const;
-
 function buildFullMandalaGraph(
   series: Series[],
   selectedCourseId: string,
 ): { def: string; nodeMap: Record<string, string> } {
-  const lines = ["flowchart TD"];
+  const lines = ["flowchart TD", "  classDef mandalaSeriesTitle font-weight:bold"];
   const nodeMap: Record<string, string> = {};
 
   // シリーズごとにサブグラフとノード（丸みノード、方向は TB に統一）
@@ -69,11 +50,12 @@ function buildFullMandalaGraph(
       if (isCurrent) currentNid.push(nid);
     });
     lines.push("  end");
+    lines.push(`  class ${sgId} mandalaSeriesTitle`);
   });
 
   // 現在選択中コースに style を適用（classDef より安定）
   currentNid.forEach((nid) => {
-    lines.push(`  style ${nid} stroke-width:2px,font-weight:bold`);
+    lines.push(mandalaCurrentCourseStyleLine(nid, 2));
   });
 
   // シリーズ内: 配列順の隣接鎖
@@ -144,7 +126,20 @@ export function GlobalHeader({
   const [mandalaOpen, setMandalaOpen] = useState(false);
   const [mandalaSvg, setMandalaSvg] = useState("");
   const [mandalaDebug, setMandalaDebug] = useState("");
+  const [isDark, setIsDark] = useState(false);
   const svgContainerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const update = () =>
+      setIsDark(document.documentElement.classList.contains("dark"));
+    update();
+    const obs = new MutationObserver(update);
+    obs.observe(document.documentElement, {
+      attributes: true,
+      attributeFilter: ["class"],
+    });
+    return () => obs.disconnect();
+  }, []);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const bindFnsRef = useRef<((el: Element) => void) | null>(null);
 
@@ -177,7 +172,7 @@ export function GlobalHeader({
       if (cancelled) return;
       try {
         const mermaid = m.default;
-        mermaid.initialize(GLOBAL_MANDALA_MERMAID_CONFIG);
+        mermaid.initialize(getMermaidWorkspaceConfig(isDark, { global: true }));
         const { svg, bindFunctions } = await mermaid.render(`mandala-${Date.now()}`, def);
         if (!cancelled) {
           bindFnsRef.current = bindFunctions ?? null;
@@ -191,7 +186,7 @@ export function GlobalHeader({
     return () => {
       cancelled = true;
     };
-  }, [mandalaOpen, series, selectedCourseId]);
+  }, [mandalaOpen, series, selectedCourseId, isDark]);
 
   // モーダルを閉じたら SVG をリセット（次回オープン時に古いキャッシュを表示しない）
   useEffect(() => {
@@ -239,39 +234,25 @@ export function GlobalHeader({
         </BreadcrumbList>
       </Breadcrumb>
 
-      {/* 曼陀羅ボタン */}
-      <Tooltip>
-        <TooltipTrigger
-          render={
-            <Button
-              variant="ghost"
-              size="sm"
-              className="flex-shrink-0 gap-1.5 text-xs text-muted-foreground hover:text-primary"
-              onClick={() => setMandalaOpen(true)}
-            >
-              <Network className="h-4 w-4" />
-              <span className="hidden sm:inline">DXトレーニング曼陀羅</span>
-            </Button>
-          }
-        />
-        <TooltipContent side="bottom">DXトレーニング曼陀羅</TooltipContent>
-      </Tooltip>
+      <Button
+        variant="ghost"
+        size="sm"
+        className="flex-shrink-0 gap-1.5 text-xs text-muted-foreground hover:text-primary"
+        onClick={() => setMandalaOpen(true)}
+      >
+        <Network className="h-4 w-4" />
+        <span className="hidden sm:inline">DXトレーニング曼陀羅</span>
+      </Button>
 
-      <Tooltip>
-        <TooltipTrigger
-          render={
-            <Button
-              variant="ghost"
-              size="icon"
-              className="size-8 shrink-0 text-muted-foreground hover:text-primary"
-              onClick={() => onOpenSettings?.()}
-            >
-              <Settings className="size-4" />
-            </Button>
-          }
-        />
-        <TooltipContent side="bottom">設定</TooltipContent>
-      </Tooltip>
+      <Button
+        variant="ghost"
+        size="icon"
+        className="size-8 shrink-0 text-muted-foreground hover:text-primary"
+        onClick={() => onOpenSettings?.()}
+        aria-label="設定"
+      >
+        <Settings className="size-4" />
+      </Button>
 
       {/* 曼陀羅フルスクリーンモーダル */}
       <Dialog open={mandalaOpen} onOpenChange={setMandalaOpen}>
@@ -279,11 +260,11 @@ export function GlobalHeader({
           <DialogHeader>
             <DialogTitle>DXトレーニング曼陀羅</DialogTitle>
           </DialogHeader>
-          <div className="flex-1 overflow-auto rounded bg-white p-2 min-h-0">
+          <div className="workspace-scrollbar flex flex-1 justify-center overflow-auto rounded bg-card p-3 min-h-0">
             {mandalaSvg ? (
               <div
                 ref={svgContainerRef}
-                className="global-mandala-graph mx-auto w-fit"
+                className="global-mandala-graph w-fit"
                 dangerouslySetInnerHTML={{ __html: mandalaSvg }}
                 onClick={(e) => {
                   const t = e.target as Element;

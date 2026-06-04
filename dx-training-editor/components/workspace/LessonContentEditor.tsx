@@ -6,13 +6,20 @@ import {
   useMemo,
   useRef,
   useCallback,
-  useEffect,
   useState,
+  useEffect,
 } from "react";
 import CodeMirror from "@uiw/react-codemirror";
 import { EditorView } from "@codemirror/view";
 import { cn } from "@/lib/utils";
 import { buildLessonEditorExtensions } from "@/lib/lesson-content-editor-setup";
+import { useResolvedDarkMode } from "@/lib/use-resolved-dark-mode";
+import {
+  clampEditorFontSizePx,
+  EDITOR_FONT_SIZE_CHANGED_EVENT,
+  loadWorkspaceSettings,
+  saveWorkspaceSettings,
+} from "@/lib/workspace-settings";
 
 export type LessonContentEditorHandle = {
   insertAtCursor: (markdown: string) => void;
@@ -39,30 +46,45 @@ export const LessonContentEditor = forwardRef<
   const viewRef = useRef<EditorView | null>(null);
   const onCursorChangeRef = useRef(onCursorChange);
   onCursorChangeRef.current = onCursorChange;
-  const [isDark, setIsDark] = useState(false);
+  const isDark = useResolvedDarkMode();
+  const [fontSizePx, setFontSizePx] = useState(() =>
+    clampEditorFontSizePx(loadWorkspaceSettings().editorFontSizePx),
+  );
+  const fontSizeRef = useRef(fontSizePx);
+  fontSizeRef.current = fontSizePx;
+
+  const handleFontSizeChange = useCallback((next: number) => {
+    const clamped = clampEditorFontSizePx(next);
+    setFontSizePx(clamped);
+    const settings = loadWorkspaceSettings();
+    saveWorkspaceSettings({ ...settings, editorFontSizePx: clamped });
+  }, []);
 
   useEffect(() => {
-    const update = () =>
-      setIsDark(document.documentElement.classList.contains("dark"));
-    update();
-    const obs = new MutationObserver(update);
-    obs.observe(document.documentElement, {
-      attributes: true,
-      attributeFilter: ["class"],
-    });
-    return () => obs.disconnect();
+    const onExternalFontSize = (event: Event) => {
+      const px = (event as CustomEvent<{ px: number }>).detail?.px;
+      if (typeof px === "number") {
+        setFontSizePx(clampEditorFontSizePx(px));
+      }
+    };
+    window.addEventListener(EDITOR_FONT_SIZE_CHANGED_EVENT, onExternalFontSize);
+    return () =>
+      window.removeEventListener(EDITOR_FONT_SIZE_CHANGED_EVENT, onExternalFontSize);
   }, []);
 
   const extensions = useMemo(
     () => [
-      ...buildLessonEditorExtensions(isDark),
+      ...buildLessonEditorExtensions(isDark, fontSizePx, {
+        getFontSize: () => fontSizeRef.current,
+        onFontSizeChange: handleFontSizeChange,
+      }),
       EditorView.updateListener.of((update) => {
         if (update.selectionSet || update.docChanged) {
           onCursorChangeRef.current?.(update.state.selection.main.head);
         }
       }),
     ],
-    [isDark],
+    [isDark, fontSizePx, handleFontSizeChange],
   );
 
   const handleCreateEditor = useCallback(
@@ -100,11 +122,13 @@ export const LessonContentEditor = forwardRef<
 
   return (
     <CodeMirror
-      key={`${lessonId}-${isDark ? "dark" : "light"}`}
+      key={`${lessonId}-${isDark ? "dark" : "light"}-${fontSizePx}`}
+      theme="none"
       value={value}
       height="100%"
       className={cn(
         "lesson-content-editor h-full min-h-0 min-w-0 flex-1 [&_.cm-editor]:h-full",
+        isDark && "lesson-content-editor--dark",
         className,
       )}
       extensions={extensions}

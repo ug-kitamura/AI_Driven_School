@@ -101,7 +101,7 @@ export function ImageGrid({
                   type="button"
                   onClick={() => onInsert(item)}
                   className="flex flex-1 items-center justify-center gap-0.5 rounded border border-border py-0.5 text-[9px] hover:border-primary hover:text-primary"
-                  title="エディタに挿入"
+                  aria-label="エディタに挿入"
                 >
                   <Plus className="h-3 w-3" />
                   挿入
@@ -112,7 +112,6 @@ export function ImageGrid({
                   type="button"
                   onClick={() => onDelete(item)}
                   className="flex items-center justify-center rounded border border-border px-1.5 py-0.5 text-[9px] text-muted-foreground hover:border-destructive hover:text-destructive"
-                  title="削除"
                   aria-label="削除"
                 >
                   <Trash2 className="h-3 w-3" />

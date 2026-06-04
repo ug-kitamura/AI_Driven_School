@@ -40,6 +40,8 @@
   --color-secondary: var(--secondary);
   --color-primary-foreground: var(--primary-foreground);
   --color-primary: var(--primary);
+  --color-primary-hover: var(--primary-hover);
+  --color-button-outline-hover: var(--button-outline-hover);
   --color-popover-foreground: var(--popover-foreground);
   --color-popover: var(--popover);
   --color-card-foreground: var(--card-foreground);
@@ -89,6 +91,8 @@
   --popover: #FFFFFF;
   --popover-foreground: #1A1C1D;
   --primary: #007BC0;           /* Custom_Blue_50: プライマリ */
+  --primary-hover: color-mix(in oklab, var(--primary) 90%, black);
+  --button-outline-hover: color-mix(in oklab, var(--background) 82%, var(--input));
   --primary-foreground: #FFFFFF;
   --secondary: #D1E4FF;         /* Custom_Blue_90: 淡いアクセント */
   --secondary-foreground: #007BC0;
@@ -149,6 +153,14 @@
     0px 4px 12px 0px hsl(0 0% 0% / 0.05), 0px 8px 10px -1px hsl(0 0% 0% / 0.05);
   --shadow-2xl: 0px 4px 12px 0px hsl(0 0% 0% / 0.13);
   --tracking-normal: 0;
+  /* ワークスペーススクロールバー（形状共通・色はテーマの semantic トークンから算出） */
+  --workspace-scrollbar-track: var(--card);
+  --workspace-scrollbar-thumb: color-mix(
+    in oklab,
+    var(--muted-foreground) 50%,
+    var(--border)
+  );
+  --workspace-scrollbar-thumb-hover: var(--muted-foreground);
 }
 
 .dark {
@@ -160,6 +172,8 @@
   --popover: oklch(0.2668 0.0071 248.094);
   --popover-foreground: oklch(0.9168 0.0035 67.7802);
   --primary: oklch(0.7441 0.1311 264.2789);
+  --primary-hover: color-mix(in oklab, var(--primary) 92%, black);
+  --button-outline-hover: color-mix(in oklab, var(--background) 88%, var(--input));
   --primary-foreground: oklch(0.2077 0.0398 265.7549);
   --secondary: oklch(0.2972 0 0);
   --secondary-foreground: oklch(0.9168 0.0035 67.7802);
@@ -226,6 +240,36 @@
   html {
     @apply font-sans;
   }
+}
+
+/* Pane3・グローバル曼陀羅: ネイティブスクロールバー（ライト/ダークで形状同一） */
+.workspace-scrollbar,
+.lesson-content-editor .cm-scroller {
+  scrollbar-width: thin;
+  scrollbar-color: var(--workspace-scrollbar-thumb) var(--workspace-scrollbar-track);
+}
+
+.workspace-scrollbar::-webkit-scrollbar,
+.lesson-content-editor .cm-scroller::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+.workspace-scrollbar::-webkit-scrollbar-track,
+.lesson-content-editor .cm-scroller::-webkit-scrollbar-track {
+  background: var(--workspace-scrollbar-track);
+}
+
+.workspace-scrollbar::-webkit-scrollbar-thumb,
+.lesson-content-editor .cm-scroller::-webkit-scrollbar-thumb {
+  background-color: var(--workspace-scrollbar-thumb);
+  border: 2px solid var(--workspace-scrollbar-track);
+  border-radius: 9999px;
+}
+
+.workspace-scrollbar::-webkit-scrollbar-thumb:hover,
+.lesson-content-editor .cm-scroller::-webkit-scrollbar-thumb:hover {
+  background-color: var(--workspace-scrollbar-thumb-hover);
 }
 
 /* Pane3 プレビュー: preflight で flat になる見出し・リストを復元（typography プラグイン非依存） */
@@ -327,15 +371,48 @@
     @apply bg-muted/40 font-semibold text-foreground;
   }
 
-  /* グローバル曼陀羅: 横スクロール時も SVG 実寸で表示（ミニ曼陀羅は対象外） */
-  .global-mandala-graph svg {
+  /* 曼陀羅 SVG: 実寸表示（横スクロール時も縮小しない） */
+  .global-mandala-graph svg,
+  .mini-mandala-graph svg {
     display: block;
     max-width: none;
     height: auto;
   }
 
+  /* グローバル曼陀羅: シリーズ名（subgraph タイトル）を太字 */
+  .global-mandala-graph g.cluster-label text,
+  .global-mandala-graph g.cluster g.cluster-label div,
+  .global-mandala-graph g.cluster g.cluster-label span {
+    font-weight: 700 !important;
+  }
+
+  /* Pane2 サムネイル: ペイン幅に収めつつ実寸を維持 */
+  .mini-mandala-thumbnail > svg {
+    display: block;
+    width: 100%;
+    max-width: 100%;
+    height: auto;
+    margin-inline: auto;
+  }
+
+  /* Pane2 サムネイル: 全体クリックで拡大のみ。ノードの pointer は使わない */
+  .mini-mandala-thumbnail svg,
+  .mini-mandala-thumbnail svg * {
+    cursor: inherit !important;
+  }
+
   .lesson-content-editor .cm-editor {
     background-color: color-mix(in oklab, var(--muted) 20%, transparent);
+  }
+
+  html.dark .lesson-content-editor .cm-editor,
+  html.dark .lesson-content-editor .cm-scroller,
+  html.dark .lesson-content-editor .cm-content {
+    background-color: #1e1e1e !important;
+  }
+
+  html.dark .lesson-content-editor .cm-gutters {
+    background-color: #1e1e1e !important;
   }
 }
 
@@ -345,7 +422,7 @@
   color: color-mix(in oklab, var(--muted-foreground) 88%, transparent) !important;
 }
 
-/* 折りたたみガター: 行番号と同色（CM 既定 #6c6c6c を上書き） */
+/* 折りたたみガター: 行番号と同色（ライト） */
 .lesson-content-editor .cm-foldGutter.lesson-fold-gutter .lesson-fold-icon,
 .lesson-content-editor .cm-foldGutter.lesson-fold-gutter span.lesson-fold-open,
 .lesson-content-editor .cm-foldGutter.lesson-fold-gutter span.lesson-fold-closed {
@@ -356,6 +433,13 @@
   line-height: 1.375rem;
   color: #237893 !important;
   -webkit-text-fill-color: #237893 !important;
+}
+
+html.dark .lesson-content-editor .cm-foldGutter.lesson-fold-gutter .lesson-fold-icon,
+html.dark .lesson-content-editor .cm-foldGutter.lesson-fold-gutter span.lesson-fold-open,
+html.dark .lesson-content-editor .cm-foldGutter.lesson-fold-gutter span.lesson-fold-closed {
+  color: #858585 !important;
+  -webkit-text-fill-color: #858585 !important;
 }
 
 .lesson-content-editor .lesson-fold-gutter span.lesson-fold-open {
@@ -435,6 +519,10 @@
   line-height: 1.375rem;
   color: #237893;
   user-select: none;
+}
+
+.dark .lesson-diff-view .lesson-diff-gutter-element {
+  color: #858585;
 }
 
 /* 2列目の行番号と差分本文の間（編集モード .cm-line の padding-left: 6px 相当） */

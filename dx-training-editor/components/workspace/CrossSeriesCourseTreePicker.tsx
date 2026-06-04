@@ -83,11 +83,11 @@ export function CrossSeriesCourseTreePicker({
       <p className="text-[11px] text-muted-foreground">
         各シリーズから1コースまで選択できます
       </p>
-      <ScrollArea className="h-80 max-h-[min(24rem,48vh)] rounded-md border border-border bg-white">
+      <ScrollArea className="h-80 max-h-[min(24rem,48vh)] rounded-md border border-border bg-card">
         <div className="divide-y divide-border/70">
           {groups.map(({ seriesName, courses }) => (
             <div key={seriesName}>
-              <div className="bg-muted/50 px-3 py-2 text-xs font-semibold text-foreground">
+              <div className="bg-muted px-3 py-2 text-xs font-semibold text-foreground">
                 {seriesName}
               </div>
               <ul className="py-0.5">
@@ -96,10 +96,7 @@ export function CrossSeriesCourseTreePicker({
                   return (
                     <li key={course.id}>
                       <label
-                        className={cn(
-                          "flex cursor-pointer items-center gap-2.5 py-1.5 pl-5 pr-3 text-sm transition-colors hover:bg-muted/50",
-                          checked && "bg-primary/5",
-                        )}
+                        className="flex cursor-pointer items-center gap-2.5 py-1.5 pl-5 pr-3 text-sm transition-colors hover:bg-muted"
                       >
                         <input
                           type="checkbox"

@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { Series } from "@/lib/schema";
 import {
+  FILTER_SERIES_UNUSED,
   indexImageRefLocations,
   isUsedImageFilterActive,
   usedRowMatchesFilter,
@@ -72,6 +73,21 @@ describe("usedRowMatchesFilter", () => {
     expect(
       usedRowMatchesFilter("images/unused.png", 0, filter, refLocations),
     ).toBe(false);
+  });
+
+  it("series unused mode shows only unreferenced images", () => {
+    const filter: UsedImageFilter = {
+      seriesId: FILTER_SERIES_UNUSED,
+      courseId: null,
+      lessonId: null,
+    };
+    expect(isUsedImageFilterActive(filter)).toBe(true);
+    expect(
+      usedRowMatchesFilter("images/used.png", 1, filter, refLocations),
+    ).toBe(false);
+    expect(
+      usedRowMatchesFilter("images/unused.png", 0, filter, refLocations),
+    ).toBe(true);
   });
 
   it("matches lesson scope", () => {

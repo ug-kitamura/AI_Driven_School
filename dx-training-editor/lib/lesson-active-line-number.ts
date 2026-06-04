@@ -10,8 +10,14 @@ import {
   type ViewUpdate,
 } from "@codemirror/view";
 
-/** 行番号・折りガターのテキスト色（vscode light gutter） */
-export const LESSON_LINE_NUMBER = "#237893";
+/** 行番号・折りガターのテキスト色（ライト） */
+export const LESSON_LINE_NUMBER_LIGHT = "#237893";
+
+/** 行番号・折りガターのテキスト色（ダーク / Cursor 風） */
+export const LESSON_LINE_NUMBER_DARK = "#858585";
+
+/** @deprecated LESSON_LINE_NUMBER_LIGHT を使用 */
+export const LESSON_LINE_NUMBER = LESSON_LINE_NUMBER_LIGHT;
 
 /** カーソル行の背景（行番号・折りガター・本文で共通） */
 export const LESSON_ACTIVE_LINE_BG =

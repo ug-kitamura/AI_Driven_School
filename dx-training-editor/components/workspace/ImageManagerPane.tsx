@@ -43,7 +43,9 @@ import {
 import { buildUsedImageRows } from "@/lib/build-used-image-rows";
 import {
   countImageRefsInSeries,
+  FILTER_SERIES_UNUSED,
   indexImageRefLocations,
+  isSeriesUnusedFilter,
   isUsedImageFilterActive,
   usedRowMatchesFilter,
   type UsedImageFilter,
@@ -80,6 +82,7 @@ type PendingDelete = ImageGridItem & { referenceCount?: number };
 type TabNotice = { message: string; tone: "error" | "success" };
 
 const FILTER_ALL = "all";
+const FILTER_UNUSED = "unused";
 
 /** Pane4 タブ本文の左右インセット（プロンプト・ボタン・グリッドで共有） */
 const PANE4_TAB_INSET = "px-3";
@@ -712,11 +715,13 @@ export function ImageManagerPane({
   const currentPreviewItem =
     previewIndex !== null ? previewableItems[previewIndex] : null;
 
+  const seriesUnusedMode = isSeriesUnusedFilter(usedFilter);
+
   const filterCourses = useMemo(() => {
-    if (!usedFilter.seriesId) return [];
+    if (seriesUnusedMode || !usedFilter.seriesId) return [];
     const s = series.find((x) => x.id === usedFilter.seriesId);
     return s?.courses ?? [];
-  }, [series, usedFilter.seriesId]);
+  }, [series, usedFilter.seriesId, seriesUnusedMode]);
 
   const filterLessons = useMemo(() => {
     if (!usedFilter.courseId) return [];
@@ -728,23 +733,30 @@ export function ImageManagerPane({
   }, [series, usedFilter.courseId]);
 
   const usedFilterSeriesLabel = useMemo(() => {
+    if (seriesUnusedMode) return "未使用";
     if (!usedFilter.seriesId) return "すべてのシリーズ";
     return series.find((s) => s.id === usedFilter.seriesId)?.name ?? "シリーズ";
-  }, [usedFilter.seriesId, series]);
+  }, [usedFilter.seriesId, series, seriesUnusedMode]);
 
   const usedFilterCourseLabel = useMemo(() => {
+    if (seriesUnusedMode) return "未使用";
     if (!usedFilter.courseId) return "すべてのコース";
     return (
       filterCourses.find((c) => c.id === usedFilter.courseId)?.name ?? "コース"
     );
-  }, [usedFilter.courseId, filterCourses]);
+  }, [usedFilter.courseId, filterCourses, seriesUnusedMode]);
 
   const usedFilterLessonLabel = useMemo(() => {
+    if (seriesUnusedMode) return "未使用";
     if (!usedFilter.lessonId) return "すべてのレッスン";
     return (
       filterLessons.find((l) => l.id === usedFilter.lessonId)?.lesson ?? "レッスン"
     );
-  }, [usedFilter.lessonId, filterLessons]);
+  }, [usedFilter.lessonId, filterLessons, seriesUnusedMode]);
+
+  const seriesSelectValue = seriesUnusedMode
+    ? FILTER_UNUSED
+    : (usedFilter.seriesId ?? FILTER_ALL);
 
   const resetUsedFilter = useCallback(() => {
     setUsedFilter({ seriesId: null, courseId: null, lessonId: null });
@@ -809,8 +821,16 @@ export function ImageManagerPane({
               <div className="flex flex-col gap-2">
                 <div className="flex flex-col gap-2">
                   <Select
-                    value={usedFilter.seriesId ?? FILTER_ALL}
+                    value={seriesSelectValue}
                     onValueChange={(value) => {
+                      if (value === FILTER_UNUSED) {
+                        setUsedFilter({
+                          seriesId: FILTER_SERIES_UNUSED,
+                          courseId: null,
+                          lessonId: null,
+                        });
+                        return;
+                      }
                       setUsedFilter({
                         seriesId: value === FILTER_ALL ? null : value,
                         courseId: null,
@@ -824,6 +844,9 @@ export function ImageManagerPane({
                     <SelectContent className="text-xs">
                       <SelectItem value={FILTER_ALL} className="text-xs">
                         すべてのシリーズ
+                      </SelectItem>
+                      <SelectItem value={FILTER_UNUSED} className="text-xs">
+                        未使用
                       </SelectItem>
                       {series.map((s) => (
                         <SelectItem key={s.id} value={s.id} className="text-xs">
@@ -841,7 +864,7 @@ export function ImageManagerPane({
                         lessonId: null,
                       }));
                     }}
-                    disabled={!usedFilter.seriesId}
+                    disabled={seriesUnusedMode || !usedFilter.seriesId}
                   >
                     <SelectTrigger size="sm" className="w-full text-xs">
                       <span className="truncate">{usedFilterCourseLabel}</span>
@@ -865,7 +888,7 @@ export function ImageManagerPane({
                         lessonId: value === FILTER_ALL ? null : value,
                       }));
                     }}
-                    disabled={!usedFilter.courseId}
+                    disabled={seriesUnusedMode || !usedFilter.courseId}
                   >
                     <SelectTrigger size="sm" className="w-full text-xs">
                       <span className="truncate">{usedFilterLessonLabel}</span>

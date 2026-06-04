@@ -52,6 +52,10 @@ import {
 import { PaneWheelRoot } from "@/components/workspace/PaneWheelRoot";
 import { WorkspaceTooltip } from "@/components/workspace/WorkspaceTooltip";
 import { cn, computeStatus } from "@/lib/utils";
+import {
+  getMermaidWorkspaceConfig,
+  mandalaCurrentCourseStyleLine,
+} from "@/lib/mermaid-workspace-theme";
 import type { Series, Course, Lesson } from "@/lib/schema";
 import {
   buildMiniMandalaGraphInput,
@@ -128,7 +132,7 @@ function buildMermaidDef(
   const currentId = "CURRENT";
   const nodeMap: Record<string, string> = { [currentId]: input.current.id };
   lines.push(`  ${currentId}("★ ${safeLabel(input.current.name)}")`);
-  lines.push(`  style ${currentId} stroke-width:3px,font-weight:bold`);
+  lines.push(mandalaCurrentCourseStyleLine(currentId, 2));
   lines.push(`  click ${currentId} call miniGraphNav()`);
 
   if (input.intraPrev) {
@@ -311,24 +315,56 @@ export function LessonListPane({
     [series, course],
   );
 
+  const [mermaidIsDark, setMermaidIsDark] = useState(false);
+  useEffect(() => {
+    const update = () =>
+      setMermaidIsDark(document.documentElement.classList.contains("dark"));
+    update();
+    const obs = new MutationObserver(update);
+    obs.observe(document.documentElement, {
+      attributes: true,
+      attributeFilter: ["class"],
+    });
+    return () => obs.disconnect();
+  }, []);
+
   // --- Mermaid: サムネイル用（常に先行レンダリング）---
   const [thumbnailSvg, setThumbnailSvg] = useState<string>("");
+  const [thumbnailError, setThumbnailError] = useState(false);
   useEffect(() => {
-    if (!course || !miniGraphInput) { setThumbnailSvg(""); return; }
+    if (!course || !miniGraphInput) {
+      setThumbnailSvg("");
+      setThumbnailError(false);
+      return;
+    }
     const { def } = buildMermaidDef(miniGraphInput);
     let cancelled = false;
+    setThumbnailError(false);
     import("mermaid").then(async (m) => {
       if (cancelled) return;
       try {
         const mermaid = m.default;
-        mermaid.initialize({ startOnLoad: false, theme: "base", securityLevel: "loose" });
+        const isDark = document.documentElement.classList.contains("dark");
+        mermaid.initialize(
+          getMermaidWorkspaceConfig(isDark, { thumbnail: true }),
+        );
         const id = `mthumb${course.id.replace(/[^a-zA-Z0-9]/g, "")}${Date.now()}`;
         const { svg } = await mermaid.render(id, def);
-        if (!cancelled) setThumbnailSvg(svg);
-      } catch { if (!cancelled) setThumbnailSvg(""); }
+        if (!cancelled) {
+          setThumbnailSvg(svg);
+          setThumbnailError(false);
+        }
+      } catch {
+        if (!cancelled) {
+          setThumbnailSvg("");
+          setThumbnailError(true);
+        }
+      }
     });
-    return () => { cancelled = true; };
-  }, [course, miniGraphInput]);
+    return () => {
+      cancelled = true;
+    };
+  }, [course, miniGraphInput, mermaidIsDark]);
 
   // --- Mermaid: モーダル用（開いたときにレンダリング・GlobalHeader と同じパターン）---
   const [mermaidModalOpen, setMermaidModalOpen] = useState(false);
@@ -364,7 +400,7 @@ export function LessonListPane({
       if (cancelled) return;
       try {
         const mermaid = m.default;
-        mermaid.initialize({ startOnLoad: false, theme: "base", securityLevel: "loose" });
+        mermaid.initialize(getMermaidWorkspaceConfig(mermaidIsDark));
         const id = `mmodal${course.id.replace(/[^a-zA-Z0-9]/g, "")}${Date.now()}`;
         const { svg, bindFunctions } = await mermaid.render(id, def);
         if (!cancelled) {
@@ -374,7 +410,7 @@ export function LessonListPane({
       } catch { if (!cancelled) setModalSvg(""); }
     });
     return () => { cancelled = true; };
-  }, [mermaidModalOpen, course, miniGraphInput]);
+  }, [mermaidModalOpen, course, miniGraphInput, mermaidIsDark]);
 
   // モーダルを閉じたら SVG リセット
   useEffect(() => {
@@ -468,29 +504,37 @@ export function LessonListPane({
         </div>
 
         {/* Mermaid ミニグラフ（クリックで拡大） */}
-        {thumbnailSvg && (
+        {miniGraphInput ? (
           <>
-            <WorkspaceTooltip
-              label="クリックで拡大表示"
-              render={
-                <button
-                  type="button"
-                  className="mt-2 w-full overflow-hidden rounded border border-border bg-white p-1 transition-opacity hover:opacity-80 cursor-zoom-in"
-                  onClick={() => setMermaidModalOpen(true)}
-                  dangerouslySetInnerHTML={{ __html: thumbnailSvg }}
-                />
-              }
-            />
+            {thumbnailSvg ? (
+              <button
+                type="button"
+                className="mini-mandala-thumbnail mt-2 block w-full cursor-zoom-in overflow-x-auto rounded border border-border bg-card p-1 transition-opacity hover:opacity-80"
+                onClick={() => setMermaidModalOpen(true)}
+                aria-label="ミニ曼陀羅を拡大表示"
+                dangerouslySetInnerHTML={{ __html: thumbnailSvg }}
+              />
+            ) : (
+              <button
+                type="button"
+                className="mt-2 flex min-h-[72px] w-full items-center justify-center rounded border border-border bg-card px-2 text-[10px] text-muted-foreground hover:bg-muted/30"
+                onClick={() => setMermaidModalOpen(true)}
+                aria-label="ミニ曼陀羅を拡大表示"
+              >
+                {thumbnailError ? "グラフを表示できません（クリックで拡大）" : "グラフを生成中..."}
+              </button>
+            )}
             <Dialog open={mermaidModalOpen} onOpenChange={setMermaidModalOpen}>
               <DialogContent className="max-w-2xl">
                 <DialogHeader>
                   <DialogTitle>ミニ曼陀羅</DialogTitle>
                 </DialogHeader>
                 {modalSvg ? (
-                  <div
-                    ref={modalSvgRef}
-                    className="overflow-auto rounded bg-white p-4"
-                    dangerouslySetInnerHTML={{ __html: modalSvg }}
+                  <div className="flex justify-center overflow-auto rounded bg-card p-4">
+                    <div
+                      ref={modalSvgRef}
+                      className="mini-mandala-graph w-fit"
+                      dangerouslySetInnerHTML={{ __html: modalSvg }}
                     onClick={(e) => {
                       // composedPath で SVG/foreignObject 境界を越えて g 要素を探索
                       for (const el of e.nativeEvent.composedPath()) {
@@ -507,7 +551,8 @@ export function LessonListPane({
                         }
                       }
                     }}
-                  />
+                    />
+                  </div>
                 ) : (
                   <div className="flex h-40 items-center justify-center text-muted-foreground text-sm">
                     グラフを生成中...
@@ -519,7 +564,7 @@ export function LessonListPane({
               </DialogContent>
             </Dialog>
           </>
-        )}
+        ) : null}
       </div>
 
       {/* コース進捗（レッスン行と同じ px-2 で左右を揃える） */}

@@ -327,11 +327,18 @@
     @apply bg-muted/40 font-semibold text-foreground;
   }
 
-  /* グローバル曼陀羅: 横スクロール時も SVG 実寸で表示（ミニ曼陀羅は対象外） */
-  .global-mandala-graph svg {
+  /* 曼陀羅 SVG: 実寸表示（横スクロール時も縮小しない） */
+  .global-mandala-graph svg,
+  .mini-mandala-graph svg {
     display: block;
     max-width: none;
     height: auto;
+  }
+
+  /* Pane2 サムネイル: 全体クリックで拡大のみ。ノードの pointer は使わない */
+  .mini-mandala-thumbnail svg,
+  .mini-mandala-thumbnail svg * {
+    cursor: inherit !important;
   }
 
   .lesson-content-editor .cm-editor {

@@ -259,11 +259,11 @@ export function GlobalHeader({
           <DialogHeader>
             <DialogTitle>DXトレーニング曼陀羅</DialogTitle>
           </DialogHeader>
-          <div className="flex-1 overflow-auto rounded bg-card p-2 min-h-0">
+          <div className="flex flex-1 justify-center overflow-auto rounded bg-card p-3 min-h-0">
             {mandalaSvg ? (
               <div
                 ref={svgContainerRef}
-                className="global-mandala-graph mx-auto w-fit"
+                className="global-mandala-graph w-fit"
                 dangerouslySetInnerHTML={{ __html: mandalaSvg }}
                 onClick={(e) => {
                   const t = e.target as Element;

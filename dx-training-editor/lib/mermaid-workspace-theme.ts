@@ -1,15 +1,23 @@
 /** ワークスペース曼陀羅（グローバル / ミニ）用 Mermaid 設定 */
 
 const FLOWCHART_LAYOUT = {
-  nodeSpacing: 36,
-  rankSpacing: 36,
-  padding: 10,
-  diagramPadding: 8,
+  nodeSpacing: 48,
+  rankSpacing: 48,
+  padding: 14,
+  diagramPadding: 12,
   useMaxWidth: false,
 } as const;
 
+const FLOWCHART_LAYOUT_COMPACT = {
+  nodeSpacing: 36,
+  rankSpacing: 36,
+  padding: 12,
+  diagramPadding: 10,
+  useMaxWidth: true,
+} as const;
+
 const LIGHT_THEME_VARIABLES = {
-  fontSize: "12px",
+  fontSize: "14px",
   fontFamily: "ui-sans-serif, system-ui, sans-serif",
   primaryColor: "#D1E4FF",
   primaryTextColor: "#1A1C1D",
@@ -25,7 +33,7 @@ const LIGHT_THEME_VARIABLES = {
 } as const;
 
 const DARK_THEME_VARIABLES = {
-  fontSize: "12px",
+  fontSize: "14px",
   fontFamily: "ui-sans-serif, system-ui, sans-serif",
   primaryColor: "#2d4a6f",
   primaryTextColor: "#e8e8e8",
@@ -56,15 +64,7 @@ export function getMermaidWorkspaceConfig(isDark: boolean, options?: { compact?:
     startOnLoad: false,
     theme: "base" as const,
     securityLevel: "loose" as const,
-    flowchart: compact
-      ? {
-          nodeSpacing: 28,
-          rankSpacing: 28,
-          padding: 8,
-          diagramPadding: 6,
-          useMaxWidth: true,
-        }
-      : FLOWCHART_LAYOUT,
+    flowchart: compact ? FLOWCHART_LAYOUT_COMPACT : FLOWCHART_LAYOUT,
     themeVariables: isDark ? DARK_THEME_VARIABLES : LIGHT_THEME_VARIABLES,
   };
 }

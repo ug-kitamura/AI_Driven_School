@@ -489,7 +489,7 @@ export function LessonListPane({
           <>
             <button
               type="button"
-              className="mt-2 w-full cursor-zoom-in overflow-hidden rounded border border-border bg-card p-1 transition-opacity hover:opacity-80"
+              className="mini-mandala-thumbnail mt-2 w-full cursor-zoom-in overflow-hidden rounded border border-border bg-card p-1 transition-opacity hover:opacity-80"
               onClick={() => setMermaidModalOpen(true)}
               aria-label="ミニ曼陀羅を拡大表示"
               dangerouslySetInnerHTML={{ __html: thumbnailSvg }}
@@ -500,10 +500,11 @@ export function LessonListPane({
                   <DialogTitle>ミニ曼陀羅</DialogTitle>
                 </DialogHeader>
                 {modalSvg ? (
-                  <div
-                    ref={modalSvgRef}
-                    className="overflow-auto rounded bg-card p-4"
-                    dangerouslySetInnerHTML={{ __html: modalSvg }}
+                  <div className="flex justify-center overflow-auto rounded bg-card p-4">
+                    <div
+                      ref={modalSvgRef}
+                      className="mini-mandala-graph w-fit"
+                      dangerouslySetInnerHTML={{ __html: modalSvg }}
                     onClick={(e) => {
                       // composedPath で SVG/foreignObject 境界を越えて g 要素を探索
                       for (const el of e.nativeEvent.composedPath()) {
@@ -520,7 +521,8 @@ export function LessonListPane({
                         }
                       }
                     }}
-                  />
+                    />
+                  </div>
                 ) : (
                   <div className="flex h-40 items-center justify-center text-muted-foreground text-sm">
                     グラフを生成中...

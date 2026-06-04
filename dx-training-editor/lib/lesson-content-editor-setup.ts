@@ -30,16 +30,19 @@ function editorGutterFontSizePx(fontSizePx: number): number {
 function createLessonEditorLayout(
   fontSizePx: number,
   lineNumberColor: string,
+  isDark: boolean,
 ) {
   const lineHeightPx = editorLineHeightPx(fontSizePx);
   const gutterFontPx = editorGutterFontSizePx(fontSizePx);
+  const editorBg = isDark ? "#1e1e1e" : undefined;
   return EditorView.theme(
     {
-      "&": { height: "100%" },
+      "&": { height: "100%", backgroundColor: editorBg },
       "&.cm-focused": { outline: "none" },
       ".cm-scroller": {
         overflow: "auto",
         overscrollBehavior: "contain",
+        backgroundColor: editorBg,
         fontFamily:
           'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace',
         fontSize: `${fontSizePx}px`,
@@ -48,9 +51,12 @@ function createLessonEditorLayout(
       ".cm-content": {
         padding: "0.75rem 0",
         caretColor: "var(--foreground)",
+        backgroundColor: editorBg,
       },
       ".cm-gutters": {
-        backgroundColor: "color-mix(in oklab, var(--muted) 20%, transparent)",
+        backgroundColor: isDark
+          ? "#1e1e1e"
+          : "color-mix(in oklab, var(--muted) 20%, transparent)",
         borderRight: "none",
         color: `${lineNumberColor} !important`,
         fontSize: `${gutterFontPx}px`,
@@ -97,7 +103,7 @@ function createLessonEditorLayout(
         fontWeight: "700",
       },
     },
-    { dark: false },
+    { dark: isDark },
   );
 }
 
@@ -180,7 +186,7 @@ export function buildLessonEditorExtensions(
     frontmatterHighlight,
     frontmatterEditorTheme,
     ...activeLineRowHighlight(),
-    createLessonEditorLayout(size, lineNumberColor),
+    createLessonEditorLayout(size, lineNumberColor, isDark),
   ];
   if (options?.onFontSizeChange) {
     extensions.push(

@@ -222,7 +222,7 @@ export function MarkdownEditorPane({
 
       <div className="min-h-0 flex-1 overflow-hidden">
         {mode === "raw" && (
-          <div className="flex h-full min-h-0 min-w-0 bg-muted/20">
+          <div className="flex h-full min-h-0 min-w-0 bg-background">
             <LessonContentEditor
               ref={editorRef}
               lessonId={lesson.id}

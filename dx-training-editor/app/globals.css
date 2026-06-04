@@ -338,12 +338,14 @@
     background-color: color-mix(in oklab, var(--muted) 20%, transparent);
   }
 
-  .dark .lesson-content-editor .cm-editor {
-    background-color: #1e1e1e;
+  html.dark .lesson-content-editor .cm-editor,
+  html.dark .lesson-content-editor .cm-scroller,
+  html.dark .lesson-content-editor .cm-content {
+    background-color: #1e1e1e !important;
   }
 
-  .dark .lesson-content-editor .cm-gutters {
-    background-color: #1e1e1e;
+  html.dark .lesson-content-editor .cm-gutters {
+    background-color: #1e1e1e !important;
   }
 }
 
@@ -366,9 +368,9 @@
   -webkit-text-fill-color: #237893 !important;
 }
 
-.dark .lesson-content-editor .cm-foldGutter.lesson-fold-gutter .lesson-fold-icon,
-.dark .lesson-content-editor .cm-foldGutter.lesson-fold-gutter span.lesson-fold-open,
-.dark .lesson-content-editor .cm-foldGutter.lesson-fold-gutter span.lesson-fold-closed {
+html.dark .lesson-content-editor .cm-foldGutter.lesson-fold-gutter .lesson-fold-icon,
+html.dark .lesson-content-editor .cm-foldGutter.lesson-fold-gutter span.lesson-fold-open,
+html.dark .lesson-content-editor .cm-foldGutter.lesson-fold-gutter span.lesson-fold-closed {
   color: #858585 !important;
   -webkit-text-fill-color: #858585 !important;
 }

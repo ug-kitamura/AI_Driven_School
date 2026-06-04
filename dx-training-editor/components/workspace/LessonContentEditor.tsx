@@ -6,13 +6,13 @@ import {
   useMemo,
   useRef,
   useCallback,
-  useEffect,
   useState,
 } from "react";
 import CodeMirror from "@uiw/react-codemirror";
 import { EditorView } from "@codemirror/view";
 import { cn } from "@/lib/utils";
 import { buildLessonEditorExtensions } from "@/lib/lesson-content-editor-setup";
+import { useResolvedDarkMode } from "@/lib/use-resolved-dark-mode";
 import {
   clampEditorFontSizePx,
   loadWorkspaceSettings,
@@ -44,24 +44,12 @@ export const LessonContentEditor = forwardRef<
   const viewRef = useRef<EditorView | null>(null);
   const onCursorChangeRef = useRef(onCursorChange);
   onCursorChangeRef.current = onCursorChange;
-  const [isDark, setIsDark] = useState(false);
+  const isDark = useResolvedDarkMode();
   const [fontSizePx, setFontSizePx] = useState(() =>
     clampEditorFontSizePx(loadWorkspaceSettings().editorFontSizePx),
   );
   const fontSizeRef = useRef(fontSizePx);
   fontSizeRef.current = fontSizePx;
-
-  useEffect(() => {
-    const update = () =>
-      setIsDark(document.documentElement.classList.contains("dark"));
-    update();
-    const obs = new MutationObserver(update);
-    obs.observe(document.documentElement, {
-      attributes: true,
-      attributeFilter: ["class"],
-    });
-    return () => obs.disconnect();
-  }, []);
 
   const handleFontSizeChange = useCallback((next: number) => {
     const clamped = clampEditorFontSizePx(next);
@@ -121,10 +109,12 @@ export const LessonContentEditor = forwardRef<
   return (
     <CodeMirror
       key={`${lessonId}-${isDark ? "dark" : "light"}-${fontSizePx}`}
+      theme="none"
       value={value}
       height="100%"
       className={cn(
         "lesson-content-editor h-full min-h-0 min-w-0 flex-1 [&_.cm-editor]:h-full",
+        isDark && "lesson-content-editor--dark",
         className,
       )}
       extensions={extensions}

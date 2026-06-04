@@ -239,7 +239,7 @@ export function MarkdownEditorPane({
             ref={(el) => {
               paneScrollRef.current = el;
             }}
-            className="h-full overflow-y-auto overscroll-y-contain px-6 py-5"
+            className="workspace-scrollbar h-full overflow-y-auto overscroll-y-contain px-6 py-5"
           >
             <div className={LESSON_PREVIEW_CLASS}>
               <ReactMarkdown
@@ -259,7 +259,7 @@ export function MarkdownEditorPane({
             ref={(el) => {
               paneScrollRef.current = el;
             }}
-            className="h-full overflow-y-auto overscroll-y-contain"
+            className="workspace-scrollbar h-full overflow-y-auto overscroll-y-contain"
           >
             {diffState.status === "loading" ? (
               <div className="flex h-full items-center justify-center text-sm text-muted-foreground">

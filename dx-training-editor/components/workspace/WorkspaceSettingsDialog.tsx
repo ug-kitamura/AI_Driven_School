@@ -197,13 +197,11 @@ function SettingsForm({
                 className="min-w-0 flex-1"
                 onChange={(e) => {
                   const n = Number(e.target.value);
-                  setFontDraft((prev) => {
-                    const next = clampEditorFontSizePx(
-                      Number.isFinite(n) ? n : prev,
-                    );
-                    applyEditorFontSizePx(next);
-                    return next;
-                  });
+                  const next = clampEditorFontSizePx(
+                    Number.isFinite(n) ? n : fontDraft,
+                  );
+                  setFontDraft(next);
+                  applyEditorFontSizePx(next);
                 }}
               />
               <Button
@@ -241,17 +239,15 @@ function SettingsForm({
                       value={paneDraft[pane]}
                       onChange={(e) => {
                         const n = Number(e.target.value);
-                        setPaneDraft((prev) => {
-                          const next = clampPaneWidths({
-                            ...prev,
-                            [pane]: clampPaneWidth(
-                              pane,
-                              Number.isFinite(n) ? n : limits.min,
-                            ),
-                          });
-                          onApplyPaneWidths(next);
-                          return next;
+                        const next = clampPaneWidths({
+                          ...paneDraft,
+                          [pane]: clampPaneWidth(
+                            pane,
+                            Number.isFinite(n) ? n : limits.min,
+                          ),
                         });
+                        setPaneDraft(next);
+                        onApplyPaneWidths(next);
                       }}
                     />
                   </MetaDialogField>

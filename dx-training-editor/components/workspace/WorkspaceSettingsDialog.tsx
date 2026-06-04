@@ -19,7 +19,9 @@ import {
 import {
   PANE_WIDTH_DEFAULTS,
   PANE_WIDTH_LIMITS,
-  clampPaneWidth,
+  PANE_WIDTH_STEP,
+  snapPaneWidth,
+  snapPaneWidths,
   type WorkspacePaneWidths,
 } from "@/components/workspace/pane-layout";
 import {
@@ -41,14 +43,6 @@ type Props = {
   currentPaneWidths: WorkspacePaneWidths;
   onApplyPaneWidths: (widths: WorkspacePaneWidths) => void;
 };
-
-function clampPaneWidths(widths: WorkspacePaneWidths): WorkspacePaneWidths {
-  return {
-    pane1: clampPaneWidth("pane1", widths.pane1),
-    pane2: clampPaneWidth("pane2", widths.pane2),
-    pane4: clampPaneWidth("pane4", widths.pane4),
-  };
-}
 
 function ApiKeyField({
   id,
@@ -122,7 +116,7 @@ function SettingsForm({
   const [apiKeyInput, setApiKeyInput] = useState(initial.aiApiKey ?? "");
   const [pixabayKeyInput, setPixabayKeyInput] = useState(initial.pixabayApiKey ?? "");
   const [paneDraft, setPaneDraft] = useState<WorkspacePaneWidths>(() =>
-    clampPaneWidths(currentPaneWidths),
+    snapPaneWidths(currentPaneWidths),
   );
   const [fontDraft, setFontDraft] = useState(() =>
     clampEditorFontSizePx(initial.editorFontSizePx),
@@ -134,7 +128,7 @@ function SettingsForm({
       aiApiKey: apiKeyInput.trim() || null,
       pixabayApiKey: pixabayKeyInput.trim() || null,
       editorFontSizePx: clampEditorFontSizePx(fontDraft),
-      paneDefaults: clampPaneWidths(paneDraft),
+      paneDefaults: snapPaneWidths(paneDraft),
     };
     saveWorkspaceSettings(next);
     applyThemeToDocument(next.theme);
@@ -236,12 +230,13 @@ function SettingsForm({
                       type="number"
                       min={limits.min}
                       max={limits.max}
+                      step={PANE_WIDTH_STEP}
                       value={paneDraft[pane]}
                       onChange={(e) => {
                         const n = Number(e.target.value);
-                        const next = clampPaneWidths({
+                        const next = snapPaneWidths({
                           ...paneDraft,
-                          [pane]: clampPaneWidth(
+                          [pane]: snapPaneWidth(
                             pane,
                             Number.isFinite(n) ? n : limits.min,
                           ),
@@ -261,7 +256,7 @@ function SettingsForm({
               className="mb-0.5 shrink-0"
               aria-label="横幅を既定値に戻す"
               onClick={() => {
-                const next = clampPaneWidths({ ...PANE_WIDTH_DEFAULTS });
+                const next = snapPaneWidths({ ...PANE_WIDTH_DEFAULTS });
                 setPaneDraft(next);
                 onApplyPaneWidths(next);
               }}

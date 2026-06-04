@@ -5,10 +5,13 @@ export type WorkspacePaneWidths = {
 };
 
 export const PANE_WIDTH_DEFAULTS: WorkspacePaneWidths = {
-  pane1: 256,
-  pane2: 288,
-  pane4: 240,
+  pane1: 275,
+  pane2: 300,
+  pane4: 300,
 };
+
+/** 設定モーダルでのペイン既定幅の変更刻み（px） */
+export const PANE_WIDTH_STEP = 5;
 
 export const PANE_WIDTH_LIMITS = {
   pane1: { min: 180, max: 480 },
@@ -58,6 +61,26 @@ export function clampPaneWidth(
 ): number {
   const { min, max } = PANE_WIDTH_LIMITS[pane];
   return clamp(value, min, max);
+}
+
+/** 設定モーダル用: 範囲内に収めたうえで PANE_WIDTH_STEP 刻みに丸める */
+export function snapPaneWidth(
+  pane: keyof WorkspacePaneWidths,
+  value: number,
+): number {
+  const clamped = clampPaneWidth(pane, value);
+  return clampPaneWidth(
+    pane,
+    Math.round(clamped / PANE_WIDTH_STEP) * PANE_WIDTH_STEP,
+  );
+}
+
+export function snapPaneWidths(widths: WorkspacePaneWidths): WorkspacePaneWidths {
+  return {
+    pane1: snapPaneWidth("pane1", widths.pane1),
+    pane2: snapPaneWidth("pane2", widths.pane2),
+    pane4: snapPaneWidth("pane4", widths.pane4),
+  };
 }
 
 export function loadPaneWidths(): WorkspacePaneWidths {

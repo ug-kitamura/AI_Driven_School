@@ -66,7 +66,7 @@ export function UploadImagesTab({
         />
         <ImageGrid
           items={gridItems}
-          emptyMessage="staging に画像がありません"
+          emptyMessage="UP staging に画像がありません"
           onPreview={onPreview}
           onInsert={onInsert}
           onDelete={onDelete}

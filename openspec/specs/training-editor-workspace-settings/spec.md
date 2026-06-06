@@ -14,7 +14,7 @@ TBD - created by archiving change pane4-ai-generation-and-settings. Update Purpo
 
 ### Requirement: AI API キーをマスク入力で保存する
 
-設定ダイアログは **AI API キー**（Claude 等の AI 呼び出し用）を password 入力（マスク表示）で編集でき、保存操作で `localStorage` の `dx-training-editor-settings` に **`aiApiKey`** として格納しなければならない（SHALL）。サーバーはキーを永続化してはならない（MUST NOT）。クリア操作でキーを削除できなければならない（SHALL）。ダイアログにはキーがブラウザ内のみに保存される旨を表示しなければならない（SHALL）。
+設定ダイアログは **AI API キー**（Claude 等の AI 呼び出し用）を password 入力（マスク表示）で編集でき、保存操作で `localStorage` の `dx-training-editor-settings` に **`aiApiKey`** として格納しなければならない（SHALL）。サーバーはキーを永続化してはならない（MUST NOT）。各キー行に **表示トグル**（目アイコン、`password` ↔ `text`）と **リセット**（当該フィールドの draft を空文字にする）を提供しなければならない（SHALL）。一括クリアのみの操作に限定してはならない（MUST NOT）。ダイアログにはキーがブラウザ内のみに保存される旨を表示しなければならない（SHALL）。
 
 クライアントは AI 系 API 呼び出し時 **`x-ai-api-key`** ヘッダーでキーを渡してよい（MAY）。サーバーはキー解決時 **ダイアログ由来のヘッダーを優先**し、ヘッダーが無い（ダイアログ未入力）ときのみ **`process.env.AI_API_KEY`（`.env.local`）** を参照しなければならない（SHALL）。
 
@@ -38,6 +38,18 @@ TBD - created by archiving change pane4-ai-generation-and-settings. Update Purpo
 - **AND** ユーザーが AI タブで生成を実行する
 - **THEN** サーバーは `AI_API_KEY` を用いる
 
+#### Scenario: AI キーを表示トグルできる
+
+- **WHEN** ユーザーが AI API キー行の表示ボタンを押す
+- **THEN** 入力がマスクなしで表示される
+- **AND** 再度押すとマスク表示に戻る
+
+#### Scenario: AI キーをリセットできる
+
+- **WHEN** ユーザーが AI API キー行のリセットを実行する
+- **THEN** 入力欄の draft が空になる
+- **AND** 保存前は保存済みキーは変更されない
+
 ### Requirement: テーマをライト・ダーク・システムで切り替える
 
 設定ダイアログはテーマとして `light`・`dark`・`system` のいずれかを選択でき、保存時に `<html>` へ `dark` class を適用または除去しなければならない（SHALL）。`system` は `prefers-color-scheme` に従わなければならない（SHALL）。設定は `dx-training-editor-settings` に永続化し、起動時に復元しなければならない（SHALL）。
@@ -55,7 +67,7 @@ TBD - created by archiving change pane4-ai-generation-and-settings. Update Purpo
 
 ### Requirement: ペイン既定幅を設定できる
 
-設定ダイアログは Pane1・Pane2・Pane4 の既定幅（px）を `pane-layout.ts` の min/max 内で編集でき、保存時に `settings.paneDefaults` へ格納しなければならない（SHALL）。「今のレイアウトに適用」は現在値をワークスペース幅 state および `dx-training-editor-pane-widths` に書き込まなければならない（SHALL）。「既定に戻す」は `paneDefaults`（未設定時はコード既定）を適用しなければならない（SHALL）。初回起動で `pane-widths` が無いときは `paneDefaults` を読み込まなければならない（SHALL）。
+設定ダイアログは Pane1・Pane2・Pane4 の既定幅（px）を `pane-layout.ts` の min/max 内で編集でき、**3 ペイン分の数値入力を横 1 行**（レスポンシブ時は折り返し可）に配置しなければならない（SHALL）。保存時に `settings.paneDefaults` へ格納しなければならない（SHALL）。「今のレイアウトに適用」は現在値をワークスペース幅 state および `dx-training-editor-pane-widths` に書き込まなければならない（SHALL）。「既定幅に戻す」（リセット）は `paneDefaults` をコード既定に戻す操作として、`ghost` より視認しやすいスタイル（例: `outline`）で提供しなければならない（SHALL）。初回起動で `pane-widths` が無いときは `paneDefaults` を読み込まなければならない（SHALL）。
 
 #### Scenario: 初回起動でカスタム既定が使われる
 
@@ -63,19 +75,25 @@ TBD - created by archiving change pane4-ai-generation-and-settings. Update Purpo
 - **AND** ユーザーが以前 paneDefaults を 300/320/360 に保存している
 - **THEN** ワークスペースはその幅で開く
 
+#### Scenario: 横幅入力が 1 行に並ぶ
+
+- **WHEN** ユーザーが設定ダイアログの横幅セクションを表示する（十分な幅のビューポート）
+- **THEN** Pane1・Pane2・Pane4 の入力が縦 3 段ではなく横並びで表示される
+
 ### Requirement: 編集モードの CodeMirror はテーマに追従する
 
-テーマが `dark` または `system` かつ OS がダークのとき、レッスン編集 CodeMirror はダーク向け配色で表示しなければならない（SHALL）。ライトテーマ時は現行のライト配色を用いなければならない（SHALL）。
+テーマが `dark` または `system` かつ OS がダークのとき、レッスン編集 CodeMirror は **Cursor 現在のエディタに近い**ダーク向け Markdown 配色で表示しなければならない（SHALL）。ライトテーマ時は現行のライト配色を用いなければならない（SHALL）。詳細な色要件は `training-editor-workspace-dark-mode` を参照する（SHALL）。
 
 #### Scenario: ダークテーマでエディタ背景が暗色
 
 - **WHEN** テーマが `dark` である
 - **AND** ユーザーが編集モードを開く
 - **THEN** CodeMirror の背景がダーク配色である
+- **AND** Markdown 要素が識別可能なコントラストである
 
 ### Requirement: Pixabay API キーをマスク入力で保存する
 
-設定ダイアログは Pixabay API キーを password 入力（マスク表示）で編集でき、保存操作で `localStorage` の `dx-training-editor-settings` に格納しなければならない（SHALL）。サーバーはキーを永続化してはならない（MUST NOT）。クリア操作でキーを削除できなければならない（SHALL）。ダイアログにはキーがブラウザ内のみに保存される旨を表示しなければならない（SHALL）。
+設定ダイアログは Pixabay API キーを password 入力（マスク表示）で編集でき、保存操作で `localStorage` の `dx-training-editor-settings` に格納しなければならない（SHALL）。サーバーはキーを永続化してはならない（MUST NOT）。各キー行に **表示トグル**と **リセット**（draft を空にする）を提供しなければならない（SHALL）。ダイアログにはキーがブラウザ内のみに保存される旨を表示しなければならない（SHALL）。
 
 Web タブの検索 API 呼び出し時、クライアントは `x-pixabay-api-key` ヘッダーでキーを渡してよい（MAY）。サーバーはキー解決時 **ダイアログ由来のヘッダーを優先**し、ヘッダーが無い（ダイアログ未入力）ときのみ **`process.env.PIXABAY_API_KEY`（`.env.local`）** を参照しなければならない（SHALL）。
 
@@ -93,6 +111,11 @@ Web タブの検索 API 呼び出し時、クライアントは `x-pixabay-api-k
 - **THEN** 検索 API は 401 等で失敗する
 - **AND** 設定を促すメッセージが表示される
 
+#### Scenario: Pixabay キーを表示とリセットできる
+
+- **WHEN** ユーザーが Pixabay API キー行の表示およびリセットを操作する
+- **THEN** AI API キー行と同様にマスク切替と draft クリアができる
+
 ### Requirement: 環境変数テンプレートを提供する
 
 リポジトリは **`dx-training-editor/.env.example`** をコミットし、`AI_API_KEY` および `PIXABAY_API_KEY` のプレースホルダを含めなければならない（SHALL）。**`.env.local`** は git 追跡対象外としなければならない（SHALL）。readme は `.env.example` をコピーして `.env.local` を作成する手順を記載しなければならない（SHALL）。
@@ -102,4 +125,20 @@ Web タブの検索 API 呼び出し時、クライアントは `x-pixabay-api-k
 - **WHEN** 開発者が `.env.example` を `.env.local` にコピーしキーを記入する
 - **AND** `npm run dev` で起動する
 - **THEN** 設定ダイアログ未入力でも AI / Web API が env キーで動作する
+
+### Requirement: 編集エリアのデフォルトフォントサイズを設定できる
+
+設定ダイアログは Pane3 編集モード（raw）の **デフォルトフォントサイズ**（px、整数）を `pane-layout` 等と同様に min/max 内で編集し、`dx-training-editor-settings` に **`editorFontSizePx`** として永続化しなければならない（SHALL）。未設定時は **14** px を既定としなければならない（SHALL）。保存後、次回以降の編集モード初期表示および Ctrl+ホイール調整の基準値として用いなければならない（SHALL）。
+
+#### Scenario: デフォルトフォントを保存して反映する
+
+- **WHEN** ユーザーがデフォルトフォントサイズを 16 に設定して保存する
+- **AND** 編集モードでレッスンを開く
+- **THEN** エディタ本文のフォントサイズが 16 px 相当で表示される
+
+#### Scenario: 未設定時は 14 px
+
+- **WHEN** `editorFontSizePx` が settings に存在しない
+- **AND** ユーザーが編集モードを開く
+- **THEN** フォントサイズは 14 px 相当である
 

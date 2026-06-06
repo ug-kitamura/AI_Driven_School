@@ -1,5 +1,13 @@
 import { saveStagingImage } from "@/lib/image-store";
-import { isImageSource } from "@/lib/image-path";
+import {
+  isAllowedUploadMime,
+  isImageSource,
+  isMp4FileName,
+  MAX_MP4_BYTES,
+} from "@/lib/image-path";
+
+const MP4_SIZE_ERROR =
+  "MP4 は 3 MB 以下にしてください（10 秒以内の録画を推奨）";
 
 export async function POST(req: Request) {
   let formData: FormData;
@@ -17,12 +25,22 @@ export async function POST(req: Request) {
   if (!isImageSource(sourceRaw)) {
     return Response.json({ error: "source が不正です" }, { status: 400 });
   }
-  if (!file.type.startsWith("image/")) {
-    return Response.json({ error: "画像ファイルのみアップロードできます" }, { status: 400 });
+  if (!isAllowedUploadMime(file.type, file.name)) {
+    return Response.json(
+      { error: "画像または MP4 ファイルのみアップロードできます" },
+      { status: 400 },
+    );
   }
+
+  const isMp4 =
+    file.type === "video/mp4" ||
+    (file.type === "" && isMp4FileName(file.name));
 
   try {
     const buffer = Buffer.from(await file.arrayBuffer());
+    if (isMp4 && buffer.length > MAX_MP4_BYTES) {
+      return Response.json({ error: MP4_SIZE_ERROR }, { status: 413 });
+    }
     const entry = await saveStagingImage(
       process.cwd(),
       sourceRaw,

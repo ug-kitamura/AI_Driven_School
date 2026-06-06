@@ -18,7 +18,7 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import type { Series } from "@/lib/schema";
-import { isCrossSeriesLink } from "@/lib/course-flow";
+import { findSeriesContainingCourse, isCrossSeriesLink } from "@/lib/course-flow";
 import {
   getMermaidWorkspaceConfig,
   mandalaCurrentCourseStyleLine,
@@ -78,12 +78,18 @@ function buildFullMandalaGraph(
   series.forEach((s) => {
     s.courses.forEach((c) => {
       c.prerequisites.forEach((prevId) => {
-        if (isCrossSeriesLink(series, c.id, prevId)) {
+        if (
+          findSeriesContainingCourse(series, prevId) &&
+          isCrossSeriesLink(series, c.id, prevId)
+        ) {
           addCrossEdge(prevId, c.id);
         }
       });
       c.next_courses.forEach((nextId) => {
-        if (isCrossSeriesLink(series, c.id, nextId)) {
+        if (
+          findSeriesContainingCourse(series, nextId) &&
+          isCrossSeriesLink(series, c.id, nextId)
+        ) {
           addCrossEdge(c.id, nextId);
         }
       });

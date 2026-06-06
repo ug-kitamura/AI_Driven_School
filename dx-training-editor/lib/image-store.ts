@@ -30,6 +30,7 @@ const MIME_BY_EXT: Record<string, string> = {
   ".gif": "image/gif",
   ".webp": "image/webp",
   ".svg": "image/svg+xml",
+  ".mp4": "video/mp4",
 };
 
 const RESERVED_ROOT_DIRS = new Set<string>([...IMAGE_SOURCES, IMAGE_TRASH_DIR]);

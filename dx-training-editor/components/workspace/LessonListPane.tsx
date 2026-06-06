@@ -47,6 +47,7 @@ import {
 import { CrossSeriesCourseTreePicker } from "@/components/workspace/CrossSeriesCourseTreePicker";
 import {
   ADD_LIST_BUTTON_CLASS,
+  LIST_ROW_X_INSET_CLASS,
   SORTABLE_POINTER_ACTIVATION,
 } from "@/components/workspace/constants";
 import { PaneWheelRoot } from "@/components/workspace/PaneWheelRoot";
@@ -189,13 +190,13 @@ function SortableLessonRow({
         style={style}
         onClick={onSelect}
         className={cn(
-          "group flex cursor-pointer items-center gap-1 rounded-md px-2 py-1.5 text-sm transition-colors",
+          "group flex cursor-pointer items-center gap-1 rounded-md py-1.5 text-sm transition-colors",
+          LIST_ROW_X_INSET_CLASS,
           isSelected
-            ? "bg-accent text-primary"
+            ? "bg-muted text-primary dark:bg-accent dark:text-primary"
             : "hover:bg-muted text-foreground",
         )}
       >
-        <span className="size-3.5 shrink-0" aria-hidden />
         <span
           {...attributes}
           {...listeners}
@@ -626,8 +627,8 @@ export function LessonListPane({
             setAddDialogOpen(true);
           }}
         >
-          <Plus className="h-3 w-3" />
           レッスンを追加
+          <Plus className="h-3 w-3 shrink-0" />
         </Button>
       </div>
 

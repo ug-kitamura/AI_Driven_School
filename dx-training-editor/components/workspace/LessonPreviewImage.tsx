@@ -2,9 +2,11 @@
 
 import { useEffect, useState } from "react";
 import { ImageOff } from "lucide-react";
+import { LessonPreviewVideo } from "@/components/workspace/LessonPreviewVideo";
 import {
-  isSafeImageLogicalPath,
-  normalizeImageLogicalPath,
+  isMp4Path,
+  resolveImageLogicalPathFromMarkdown,
+  resolveToAvailablePath,
   toImageApiUrl,
 } from "@/lib/image-path";
 
@@ -46,30 +48,46 @@ export function LessonPreviewImage({
   const [failed, setFailed] = useState(false);
 
   const logicalPath =
-    src && typeof src === "string" && isSafeImageLogicalPath(src)
-      ? normalizeImageLogicalPath(src)
+    src && typeof src === "string"
+      ? resolveImageLogicalPathFromMarkdown(src)
       : null;
+
+  const fetchPath =
+    logicalPath && availableImagePaths
+      ? (resolveToAvailablePath(logicalPath, availableImagePaths) ?? logicalPath)
+      : logicalPath;
 
   const isKnownMissing = Boolean(
     logicalPath &&
       availableImagePaths &&
-      !availableImagePaths.has(logicalPath),
+      !resolveToAvailablePath(logicalPath, availableImagePaths),
   );
 
   const resolved =
     src && typeof src === "string"
-      ? logicalPath
-        ? `${toImageApiUrl(logicalPath)}&v=${cacheRevision}`
+      ? fetchPath
+        ? `${toImageApiUrl(fetchPath)}&v=${cacheRevision}`
         : src
       : null;
 
-  const label = logicalPath ?? resolved ?? "";
+  const label = logicalPath ?? (typeof src === "string" ? src : "") ?? "";
 
   useEffect(() => {
     setFailed(false);
   }, [resolved, isKnownMissing, cacheRevision]);
 
   if (!src || typeof src !== "string") return null;
+
+  if (logicalPath && isMp4Path(logicalPath)) {
+    return (
+      <LessonPreviewVideo
+        src={src}
+        alt={alt}
+        availableImagePaths={availableImagePaths}
+        cacheRevision={cacheRevision}
+      />
+    );
+  }
 
   if (isKnownMissing || failed) {
     return <MissingImagePlaceholder label={label} alt={alt} />;

@@ -50,7 +50,12 @@ import {
   usedRowMatchesFilter,
   type UsedImageFilter,
 } from "@/lib/extract-image-refs";
-import { toImageMarkdown } from "@/lib/image-path";
+import {
+  isAllowedUploadMime,
+  isMp4FileName,
+  MAX_MP4_BYTES,
+  toImageMarkdown,
+} from "@/lib/image-path";
 import { loadWorkspaceSettings, type WorkspaceSettings } from "@/lib/workspace-settings";
 import type { ImageAsset, Lesson, Series } from "@/lib/schema";
 import type { Pane3Mode } from "@/components/workspace/Workspace";
@@ -77,7 +82,11 @@ const TABS: Array<{ value: Tab; label: string; icon: React.ReactNode }> = [
   { value: "web", label: "Web", icon: <Search className="h-3 w-3" /> },
 ];
 
-type PendingDelete = ImageGridItem & { referenceCount?: number };
+type PendingDelete = ImageGridItem & {
+  referenceCount: number;
+  kind: "referenced" | "simple";
+  tab: Tab;
+};
 
 type TabNotice = { message: string; tone: "error" | "success" };
 
@@ -99,6 +108,8 @@ const AI_KEY_ERROR =
   "AI API キーを設定（歯車）するか、サーバーに AI_API_KEY を設定してください";
 const AI_PIXABAY_KEY_ERROR =
   "AI / Pixabay API キーを設定（歯車）するか、サーバー環境変数を設定してください";
+const MP4_SIZE_ERROR =
+  "MP4 は 3 MB 以下にしてください（10 秒以内の録画を推奨）";
 
 function aiRequestHeaders(
   settings: WorkspaceSettings,
@@ -355,31 +366,44 @@ export function ImageManagerPane({
     [refreshLists, showNotice, onImageAssetsChanged, closePreview],
   );
 
-  const handleDeleteRequest = useCallback(
-    (item: ImageGridItem, referenceCount = 0) => {
+  const requestDelete = useCallback(
+    (item: ImageGridItem, tab: Tab, referenceCount = 0) => {
       if (item.missing) return;
-      if (referenceCount > 0) {
-        setPendingDelete({ ...item, referenceCount });
-        return;
-      }
-      void executeDelete({ ...item, referenceCount }, "used");
+      const kind =
+        tab === "used" && referenceCount > 0 ? "referenced" : "simple";
+      setPendingDelete({ ...item, referenceCount, kind, tab });
     },
-    [executeDelete],
+    [],
   );
 
   const uploadFiles = useCallback(
     async (files: FileList | File[]) => {
+      let uploaded = false;
       for (const file of Array.from(files)) {
-        if (!file.type.startsWith("image/")) continue;
+        if (!isAllowedUploadMime(file.type, file.name)) continue;
+        const isMp4 =
+          file.type === "video/mp4" ||
+          (file.type === "" && isMp4FileName(file.name));
+        if (isMp4 && file.size > MAX_MP4_BYTES) {
+          showNotice("upload", MP4_SIZE_ERROR, "error");
+          continue;
+        }
         const form = new FormData();
         form.append("file", file);
         form.append("source", "uploaded");
-        await fetch("/api/images/upload", { method: "POST", body: form });
+        const res = await fetch("/api/images/upload", { method: "POST", body: form });
+        if (!res.ok) {
+          const data: { error?: string } = await res.json();
+          showNotice("upload", data.error ?? "アップロードに失敗しました", "error");
+          continue;
+        }
+        uploaded = true;
       }
+      if (uploaded) clearNotice("upload");
       await refreshLists();
       setActiveTab("upload");
     },
-    [refreshLists],
+    [refreshLists, showNotice, clearNotice],
   );
 
   const handleDrop = useCallback(
@@ -395,7 +419,10 @@ export function ImageManagerPane({
     (e: React.ClipboardEvent) => {
       const imageFiles: File[] = [];
       for (const item of Array.from(e.clipboardData.items)) {
-        if (item.type.startsWith("image/")) {
+        if (
+          item.type.startsWith("image/") ||
+          item.type === "video/mp4"
+        ) {
           const file = item.getAsFile();
           if (file) imageFiles.push(file);
         }
@@ -733,13 +760,13 @@ export function ImageManagerPane({
   }, [series, usedFilter.courseId]);
 
   const usedFilterSeriesLabel = useMemo(() => {
-    if (seriesUnusedMode) return "未使用";
+    if (seriesUnusedMode) return "（未使用）";
     if (!usedFilter.seriesId) return "すべてのシリーズ";
     return series.find((s) => s.id === usedFilter.seriesId)?.name ?? "シリーズ";
   }, [usedFilter.seriesId, series, seriesUnusedMode]);
 
   const usedFilterCourseLabel = useMemo(() => {
-    if (seriesUnusedMode) return "未使用";
+    if (seriesUnusedMode) return "（未使用）";
     if (!usedFilter.courseId) return "すべてのコース";
     return (
       filterCourses.find((c) => c.id === usedFilter.courseId)?.name ?? "コース"
@@ -747,7 +774,7 @@ export function ImageManagerPane({
   }, [usedFilter.courseId, filterCourses, seriesUnusedMode]);
 
   const usedFilterLessonLabel = useMemo(() => {
-    if (seriesUnusedMode) return "未使用";
+    if (seriesUnusedMode) return "（未使用）";
     if (!usedFilter.lessonId) return "すべてのレッスン";
     return (
       filterLessons.find((l) => l.id === usedFilter.lessonId)?.lesson ?? "レッスン"
@@ -845,14 +872,14 @@ export function ImageManagerPane({
                       <SelectItem value={FILTER_ALL} className="text-xs">
                         すべてのシリーズ
                       </SelectItem>
-                      <SelectItem value={FILTER_UNUSED} className="text-xs">
-                        未使用
-                      </SelectItem>
                       {series.map((s) => (
                         <SelectItem key={s.id} value={s.id} className="text-xs">
                           {s.name}
                         </SelectItem>
                       ))}
+                      <SelectItem value={FILTER_UNUSED} className="text-xs">
+                        （未使用）
+                      </SelectItem>
                     </SelectContent>
                   </Select>
                   <Select
@@ -925,7 +952,7 @@ export function ImageManagerPane({
                 onInsert={handleInsertPromoted}
                 onDelete={(item) => {
                   const row = usedRows.find((r) => r.path === item.path);
-                  handleDeleteRequest(item, row?.referenceCount ?? 0);
+                  requestDelete(item, "used", row?.referenceCount ?? 0);
                 }}
               />
             </div>
@@ -963,7 +990,7 @@ export function ImageManagerPane({
               <input
                 ref={fileInputRef}
                 type="file"
-                accept="image/*"
+                accept="image/*,video/mp4"
                 multiple
                 className="hidden"
                 onChange={(e) =>
@@ -975,9 +1002,7 @@ export function ImageManagerPane({
                 emptyMessage="staging に画像がありません"
                 onPreview={openPreview}
                 onInsert={handleInsertStaging}
-                onDelete={(item) =>
-                  void executeDelete({ ...item, referenceCount: 0 }, "upload")
-                }
+                onDelete={(item) => requestDelete(item, "upload")}
               />
             </div>
           </>
@@ -1054,9 +1079,7 @@ export function ImageManagerPane({
                   emptyMessage="AI staging に画像がありません"
                   onPreview={openPreview}
                   onInsert={handleInsertAiStaging}
-                  onDelete={(item) =>
-                    void executeDelete({ ...item, referenceCount: 0 }, "ai")
-                  }
+                  onDelete={(item) => requestDelete(item, "ai")}
                 />
               </>
             )}
@@ -1137,9 +1160,7 @@ export function ImageManagerPane({
                   emptyMessage="Web staging に画像がありません"
                   onPreview={openPreview}
                   onInsert={handleInsertWebStaging}
-                  onDelete={(item) =>
-                    void executeDelete({ ...item, referenceCount: 0 }, "web")
-                  }
+                  onDelete={(item) => requestDelete(item, "web")}
                 />
               </>
             )}
@@ -1180,34 +1201,16 @@ export function ImageManagerPane({
           }}
           onDelete={() => {
             if (!currentPreviewItem) return;
-            switch (activeTab) {
-              case "used": {
-                const row = usedRows.find((r) => r.path === currentPreviewItem.path);
-                handleDeleteRequest(
-                  currentPreviewItem,
-                  row?.referenceCount ?? 0,
-                );
-                break;
-              }
-              case "upload":
-                void executeDelete(
-                  { ...currentPreviewItem, referenceCount: 0 },
-                  "upload",
-                );
-                break;
-              case "ai":
-                void executeDelete(
-                  { ...currentPreviewItem, referenceCount: 0 },
-                  "ai",
-                );
-                break;
-              case "web":
-                void executeDelete(
-                  { ...currentPreviewItem, referenceCount: 0 },
-                  "web",
-                );
-                break;
+            if (activeTab === "used") {
+              const row = usedRows.find((r) => r.path === currentPreviewItem.path);
+              requestDelete(
+                currentPreviewItem,
+                "used",
+                row?.referenceCount ?? 0,
+              );
+              return;
             }
+            requestDelete(currentPreviewItem, activeTab);
           }}
         />
       ) : null}
@@ -1219,16 +1222,23 @@ export function ImageManagerPane({
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>画像を削除しますか？</AlertDialogTitle>
-            <AlertDialogDescription>
-              {pendingDelete?.name} は {pendingDelete?.referenceCount} 箇所で使用しています。
-            </AlertDialogDescription>
+            {pendingDelete?.kind === "referenced" ? (
+              <AlertDialogDescription>
+                {pendingDelete.name} は {pendingDelete.referenceCount}{" "}
+                箇所で使用しています。
+              </AlertDialogDescription>
+            ) : null}
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>キャンセル</AlertDialogCancel>
             <AlertDialogAction
               onClick={() => {
                 if (pendingDelete) {
-                  void executeDelete(pendingDelete, "used", true);
+                  void executeDelete(
+                    pendingDelete,
+                    pendingDelete.tab,
+                    pendingDelete.kind === "referenced",
+                  );
                   setPendingDelete(null);
                 }
               }}

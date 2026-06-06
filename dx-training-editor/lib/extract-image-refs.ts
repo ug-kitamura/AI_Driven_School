@@ -1,5 +1,6 @@
 import type { Series } from "@/lib/schema";
 import {
+  decodeImageMarkdownSrc,
   isCanonicalImagePath,
   normalizeImageLogicalPath,
 } from "@/lib/image-path";
@@ -21,7 +22,7 @@ export function extractImageRefs(content: string): string[] {
   for (const match of content.matchAll(MD_IMAGE_RE)) {
     const url = match[1]?.trim();
     if (!url || url.startsWith("data:")) continue;
-    const normalized = normalizeImageLogicalPath(url);
+    const normalized = normalizeImageLogicalPath(decodeImageMarkdownSrc(url));
     if (isCanonicalImagePath(normalized)) {
       refs.push(normalized);
     }

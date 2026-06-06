@@ -1,5 +1,13 @@
 import { describe, it, expect } from "vitest";
-import { applyCrossSeriesCourseMetaEdit, hasCourseFlowCycle, wouldCourseMetaEditCreateCycle } from "@/lib/course-flow";
+import {
+  applyCourseDeletion,
+  applyCrossSeriesCourseMetaEdit,
+  applySeriesDeletion,
+  hasCourseFlowCycle,
+  normalizeSeriesCourseMeta,
+  resolveCourseRefs,
+  wouldCourseMetaEditCreateCycle,
+} from "@/lib/course-flow";
 import type { Course, Series } from "@/lib/schema";
 
 function course(id: string, overrides: Partial<Course> = {}): Course {
@@ -109,6 +117,67 @@ describe("applyCrossSeriesCourseMetaEdit", () => {
     expect(getCourse(result, "a2").next_courses).toEqual([]);
     expect(getCourse(result, "b1").prerequisites).toEqual([]);
     expect(getCourse(result, "b2").prerequisites).toEqual(["a1"]);
+  });
+});
+
+describe("applyCourseDeletion", () => {
+  it("removes course and strips cross-series link references", () => {
+    const initial = [
+      series("sa", [
+        course("a1", { next_courses: ["b1"] }),
+        course("deleted"),
+      ]),
+      series("sb", [course("b1", { prerequisites: ["deleted", "a1"] })]),
+    ];
+
+    const result = applyCourseDeletion(initial, "sa", "deleted");
+
+    expect(result.flatMap((s) => s.courses).map((c) => c.id)).toEqual([
+      "a1",
+      "b1",
+    ]);
+    expect(getCourse(result, "a1").next_courses).toEqual(["b1"]);
+    expect(getCourse(result, "b1").prerequisites).toEqual(["a1"]);
+  });
+});
+
+describe("applySeriesDeletion", () => {
+  it("removes series and strips links to its courses", () => {
+    const initial = [
+      series("sa", [course("a1", { next_courses: ["b1"] })]),
+      series("sb", [course("b1", { prerequisites: ["a1"] })]),
+    ];
+
+    const result = applySeriesDeletion(initial, "sb");
+
+    expect(result).toHaveLength(1);
+    expect(getCourse(result, "a1").next_courses).toEqual([]);
+  });
+});
+
+describe("normalizeSeriesCourseMeta", () => {
+  it("strips dangling course ids from prerequisites and next_courses", () => {
+    const initial = [
+      series("sa", [
+        course("a1", { next_courses: ["ghost"] }),
+        course("a2", { prerequisites: ["ghost"] }),
+      ]),
+    ];
+
+    const result = normalizeSeriesCourseMeta(initial);
+
+    expect(getCourse(result, "a1").next_courses).toEqual([]);
+    expect(getCourse(result, "a2").prerequisites).toEqual([]);
+  });
+});
+
+describe("resolveCourseRefs", () => {
+  it("omits missing courses instead of using raw ids as labels", () => {
+    const refs = resolveCourseRefs(
+      [series("sa", [course("a1")])],
+      ["a1", "ghost"],
+    );
+    expect(refs).toEqual([{ id: "a1", name: "a1" }]);
   });
 });
 

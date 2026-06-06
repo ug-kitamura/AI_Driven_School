@@ -51,6 +51,7 @@ import { PaneWheelRoot } from "@/components/workspace/PaneWheelRoot";
 import { WorkspaceTooltip } from "@/components/workspace/WorkspaceTooltip";
 import {
   ADD_LIST_BUTTON_CLASS,
+  LIST_ROW_X_INSET_CLASS,
   SORTABLE_POINTER_ACTIVATION,
 } from "@/components/workspace/constants";
 import { Progress } from "@/components/ui/progress";
@@ -63,8 +64,8 @@ import { cn, computeStatus } from "@/lib/utils";
 import { STATUS_LABELS } from "@/lib/schema";
 import type { Series, Course } from "@/lib/schema";
 
-/** シリーズ進捗バーとコース行の左右端を揃える */
-const SERIES_CHILD_INSET = "ml-3 px-2";
+/** 子ブロック左のみインデント。右端はシリーズ行と揃える */
+const SERIES_CHILD_INSET = "ml-3 pl-2";
 
 type Props = {
   workspaceName: string;
@@ -132,12 +133,12 @@ function SortableCourseRow({
         onClick={onSelect}
         className={cn(
           "group/course-row flex cursor-pointer items-center gap-1 rounded-md py-1.5 text-xs transition-colors",
+          LIST_ROW_X_INSET_CLASS,
           isSelected
-            ? "bg-accent text-primary"
+            ? "bg-muted text-primary dark:bg-accent dark:text-primary"
             : "text-foreground hover:bg-muted",
         )}
       >
-        <span className="size-3.5 shrink-0" aria-hidden />
         <span
           {...attributes}
           {...listeners}
@@ -396,8 +397,8 @@ function SortableSeriesBlock({
               className={ADD_LIST_BUTTON_CLASS}
               onClick={() => openAddCourseDialog(seriesItem.id)}
             >
-              <Plus className="h-3 w-3" />
               コースを追加
+              <Plus className="h-3 w-3 shrink-0" />
             </Button>
           </div>
         )}
@@ -639,8 +640,8 @@ export function SeriesCoursePane({
             className={ADD_LIST_BUTTON_CLASS}
             onClick={openAddSeriesDialog}
           >
-            <Plus className="h-3 w-3" />
             シリーズを追加
+            <Plus className="h-3 w-3 shrink-0" />
           </Button>
         )}
       </SidebarFooter>

@@ -3,10 +3,31 @@ export type ImageSource = (typeof IMAGE_SOURCES)[number];
 
 export const IMAGE_TRASH_DIR = "trash";
 
+/** UP タブ MP4 アップロード上限（3 MB） */
+export const MAX_MP4_BYTES = 3 * 1024 * 1024;
+
 const IMAGE_PATH_PREFIX = "images/";
 
 export function normalizeImageLogicalPath(path: string): string {
   return path.replace(/\\/g, "/").replace(/^\/+/, "");
+}
+
+/** Markdown / react-markdown 由来の src を論理パスへ（% エンコードを復元） */
+export function decodeImageMarkdownSrc(src: string): string {
+  const trimmed = src.trim();
+  if (!trimmed) return trimmed;
+  try {
+    return decodeURIComponent(trimmed);
+  } catch {
+    return trimmed;
+  }
+}
+
+/** プレビュー用: Markdown src から安全な論理パスを得る */
+export function resolveImageLogicalPathFromMarkdown(src: string): string | null {
+  const decoded = decodeImageMarkdownSrc(src);
+  const normalized = normalizeImageLogicalPath(decoded);
+  return isSafeImageLogicalPath(normalized) ? normalized : null;
 }
 
 export function isImageSource(value: string): value is ImageSource {
@@ -78,6 +99,20 @@ export function imageFileName(path: string): string {
   return parts[parts.length - 1] ?? normalized;
 }
 
+export function isMp4FileName(name: string): boolean {
+  return name.toLowerCase().endsWith(".mp4");
+}
+
+export function isMp4Path(path: string): boolean {
+  return isMp4FileName(imageFileName(path));
+}
+
+export function isAllowedUploadMime(type: string, fileName: string): boolean {
+  if (type.startsWith("image/")) return true;
+  if (type === "video/mp4") return true;
+  return type === "" && isMp4FileName(fileName);
+}
+
 export function sourceFromPath(path: string): ImageSource | null {
   const normalized = normalizeImageLogicalPath(path);
   if (!isStagingImagePath(normalized)) return null;
@@ -103,4 +138,16 @@ export function sanitizeUploadFileName(name: string): string {
   const base = name.replace(/\\/g, "/").split("/").pop() ?? "image";
   const cleaned = base.replace(/[^\w.\-()\u3000-\u9fff\u3040-\u309f\u30a0-\u30ff]+/g, "_");
   return cleaned.length > 0 ? cleaned : "image.png";
+}
+
+/** 一覧にある正本パスへ寄せる（空白等→sanitize 済みファイル名へのフォールバック） */
+export function resolveToAvailablePath(
+  logicalPath: string,
+  available: ReadonlySet<string>,
+): string | null {
+  const normalized = normalizeImageLogicalPath(logicalPath);
+  if (available.has(normalized)) return normalized;
+  const sanitized = `${IMAGE_PATH_PREFIX}${sanitizeUploadFileName(imageFileName(normalized))}`;
+  if (available.has(sanitized)) return sanitized;
+  return null;
 }

@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { Series } from "@/lib/schema";
 import {
+  extractImageRefs,
   FILTER_SERIES_UNUSED,
   indexImageRefLocations,
   isUsedImageFilterActive,
@@ -45,6 +46,14 @@ const seriesFixture: Series[] = [
     ],
   },
 ];
+
+describe("extractImageRefs", () => {
+  it("extracts mp4 canonical paths", () => {
+    expect(extractImageRefs("![demo](images/demo.mp4)")).toEqual([
+      "images/demo.mp4",
+    ]);
+  });
+});
 
 describe("usedRowMatchesFilter", () => {
   const refLocations = indexImageRefLocations(seriesFixture);

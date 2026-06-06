@@ -1,8 +1,11 @@
 import { describe, expect, it } from "vitest";
 import {
+  isAllowedUploadMime,
   isCanonicalImagePath,
+  isMp4Path,
   isSafeImageLogicalPath,
   isStagingImagePath,
+  MAX_MP4_BYTES,
   normalizeImageLogicalPath,
   promoteTargetPath,
   sanitizeUploadFileName,
@@ -36,6 +39,32 @@ describe("isSafeImageLogicalPath", () => {
 describe("isCanonicalImagePath", () => {
   it("rejects source-only segment", () => {
     expect(isCanonicalImagePath("images/uploaded")).toBe(false);
+  });
+
+  it("accepts mp4 canonical paths", () => {
+    expect(isCanonicalImagePath("images/demo.mp4")).toBe(true);
+  });
+});
+
+describe("isMp4Path", () => {
+  it("detects mp4 paths", () => {
+    expect(isMp4Path("images/uploaded/demo.mp4")).toBe(true);
+    expect(isMp4Path("images/foo.png")).toBe(false);
+  });
+});
+
+describe("isAllowedUploadMime", () => {
+  it("accepts images and mp4", () => {
+    expect(isAllowedUploadMime("image/png", "a.png")).toBe(true);
+    expect(isAllowedUploadMime("video/mp4", "a.mp4")).toBe(true);
+    expect(isAllowedUploadMime("", "a.mp4")).toBe(true);
+    expect(isAllowedUploadMime("video/webm", "a.webm")).toBe(false);
+  });
+});
+
+describe("MAX_MP4_BYTES", () => {
+  it("is 3 MB", () => {
+    expect(MAX_MP4_BYTES).toBe(3 * 1024 * 1024);
   });
 });
 

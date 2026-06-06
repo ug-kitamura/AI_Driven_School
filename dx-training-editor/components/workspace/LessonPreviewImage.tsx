@@ -2,7 +2,9 @@
 
 import { useEffect, useState } from "react";
 import { ImageOff } from "lucide-react";
+import { LessonPreviewVideo } from "@/components/workspace/LessonPreviewVideo";
 import {
+  isMp4Path,
   isSafeImageLogicalPath,
   normalizeImageLogicalPath,
   toImageApiUrl,
@@ -70,6 +72,17 @@ export function LessonPreviewImage({
   }, [resolved, isKnownMissing, cacheRevision]);
 
   if (!src || typeof src !== "string") return null;
+
+  if (isMp4Path(src)) {
+    return (
+      <LessonPreviewVideo
+        src={src}
+        alt={alt}
+        availableImagePaths={availableImagePaths}
+        cacheRevision={cacheRevision}
+      />
+    );
+  }
 
   if (isKnownMissing || failed) {
     return <MissingImagePlaceholder label={label} alt={alt} />;

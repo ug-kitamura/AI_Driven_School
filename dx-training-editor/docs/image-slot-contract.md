@@ -30,6 +30,12 @@ Git の commit から push までを
 | AI | `images/ai/` | `images/` |
 | Web | `images/web/` | `images/` |
 
+### UP タブ（MP4 ショート録画）
+
+- 操作デモ用の短い画面録画（Screenity 等で作成）を **MP4** でアップロードできる
+- **上限 3 MB**（超過時は拒否）。**10 秒以内**の録画を推奨（秒数は検証しない）
+- 挿入・参照追跡は画像と同様 `![alt](images/<file>.mp4)`。レビュー・Pane4 グリッドではクリック再生
+
 ### Web タブ（Pixabay 素材検索）
 
 - プロンプト欄は **人間向けの説明文**（図解指示でも可 — 検索時に Claude が Pixabay キーワードへ変換）

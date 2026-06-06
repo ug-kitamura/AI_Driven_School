@@ -3,6 +3,9 @@ export type ImageSource = (typeof IMAGE_SOURCES)[number];
 
 export const IMAGE_TRASH_DIR = "trash";
 
+/** UP タブ MP4 アップロード上限（3 MB） */
+export const MAX_MP4_BYTES = 3 * 1024 * 1024;
+
 const IMAGE_PATH_PREFIX = "images/";
 
 export function normalizeImageLogicalPath(path: string): string {
@@ -76,6 +79,20 @@ export function imageFileName(path: string): string {
   const normalized = normalizeImageLogicalPath(path);
   const parts = pathPartsAfterImages(normalized);
   return parts[parts.length - 1] ?? normalized;
+}
+
+export function isMp4FileName(name: string): boolean {
+  return name.toLowerCase().endsWith(".mp4");
+}
+
+export function isMp4Path(path: string): boolean {
+  return isMp4FileName(imageFileName(path));
+}
+
+export function isAllowedUploadMime(type: string, fileName: string): boolean {
+  if (type.startsWith("image/")) return true;
+  if (type === "video/mp4") return true;
+  return type === "" && isMp4FileName(fileName);
 }
 
 export function sourceFromPath(path: string): ImageSource | null {

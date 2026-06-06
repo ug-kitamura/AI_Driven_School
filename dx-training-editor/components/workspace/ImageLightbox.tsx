@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useRef, useState } from "react";
 import { ChevronLeft, ChevronRight, Plus, Trash2 } from "lucide-react";
 import {
   Dialog,
@@ -9,7 +9,8 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { toImageApiUrl } from "@/lib/image-path";
+import { MediaPlayOverlay } from "@/components/workspace/MediaPlayOverlay";
+import { isMp4Path, toImageApiUrl } from "@/lib/image-path";
 
 export type LightboxItem = {
   name: string;
@@ -40,21 +41,55 @@ export function ImageLightbox({
   showInsert = false,
   showDelete = false,
 }: Props) {
+  const videoRef = useRef<HTMLVideoElement>(null);
   const [sizeLabel, setSizeLabel] = useState<string | null>(null);
+  const [playing, setPlaying] = useState(false);
   const item = items[index];
   const hasPrev = index > 0;
   const hasNext = index < items.length - 1;
+  const isVideo = item ? isMp4Path(item.path) : false;
 
-  useEffect(() => {
-    if (!open) {
+  const resetVideo = () => {
+    setPlaying(false);
+    const video = videoRef.current;
+    if (video) {
+      video.pause();
+      video.currentTime = 0;
+    }
+  };
+
+  const handleOpenChange = (next: boolean) => {
+    if (!next) {
+      resetVideo();
       setSizeLabel(null);
     }
-  }, [open, item?.path]);
+    onOpenChange(next);
+  };
+
+  const handleIndexChange = (nextIndex: number) => {
+    resetVideo();
+    setSizeLabel(null);
+    onIndexChange(nextIndex);
+  };
 
   if (!item) return null;
 
+  const mediaUrl = toImageApiUrl(item.path);
+
+  const handleVideoAreaClick = () => {
+    const video = videoRef.current;
+    if (!video) return;
+    if (playing) {
+      video.pause();
+      setPlaying(false);
+      return;
+    }
+    void video.play();
+    setPlaying(true);
+  };
+
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="max-w-[min(90vw,720px)] gap-3">
         <DialogHeader>
           <DialogTitle className="truncate text-sm">
@@ -74,7 +109,7 @@ export function ImageLightbox({
               variant="secondary"
               size="icon"
               className="absolute left-2 top-1/2 z-10 h-8 w-8 -translate-y-1/2 opacity-90 transition-none active:!-translate-y-1/2"
-              onClick={() => onIndexChange(index - 1)}
+              onClick={() => handleIndexChange(index - 1)}
               aria-label="前の画像"
             >
               <ChevronLeft className="h-4 w-4" />
@@ -86,23 +121,47 @@ export function ImageLightbox({
               variant="secondary"
               size="icon"
               className="absolute right-2 top-1/2 z-10 h-8 w-8 -translate-y-1/2 opacity-90 transition-none active:!-translate-y-1/2"
-              onClick={() => onIndexChange(index + 1)}
+              onClick={() => handleIndexChange(index + 1)}
               aria-label="次の画像"
             >
               <ChevronRight className="h-4 w-4" />
             </Button>
           ) : null}
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            key={item.path}
-            src={toImageApiUrl(item.path)}
-            alt={item.name}
-            className="max-h-[70vh] w-full object-contain"
-            onLoad={(e) => {
-              const img = e.currentTarget;
-              setSizeLabel(`${img.naturalWidth} × ${img.naturalHeight}px`);
-            }}
-          />
+          {isVideo ? (
+            <button
+              type="button"
+              className="relative block w-full"
+              aria-label={playing ? "動画を一時停止" : "動画を再生"}
+              onClick={handleVideoAreaClick}
+            >
+              <video
+                ref={videoRef}
+                key={item.path}
+                src={mediaUrl}
+                preload="metadata"
+                playsInline
+                className="max-h-[70vh] w-full object-contain"
+                onLoadedMetadata={(e) => {
+                  const video = e.currentTarget;
+                  setSizeLabel(`${video.videoWidth} × ${video.videoHeight}px`);
+                }}
+                onEnded={() => setPlaying(false)}
+              />
+              <MediaPlayOverlay visible={!playing} />
+            </button>
+          ) : (
+            /* eslint-disable-next-line @next/next/no-img-element */
+            <img
+              key={item.path}
+              src={mediaUrl}
+              alt={item.name}
+              className="max-h-[70vh] w-full object-contain"
+              onLoad={(e) => {
+                const img = e.currentTarget;
+                setSizeLabel(`${img.naturalWidth} × ${img.naturalHeight}px`);
+              }}
+            />
+          )}
         </div>
         <div className="flex items-center justify-between gap-3">
           <div className="flex min-w-0 flex-1 items-center gap-1.5 overflow-hidden text-xs text-muted-foreground">

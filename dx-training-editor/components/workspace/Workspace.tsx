@@ -14,7 +14,9 @@ import { WorkspaceSettingsDialog } from "@/components/workspace/WorkspaceSetting
 import { useWorkspacePaneWidths } from "@/components/workspace/use-workspace-pane-widths";
 import type { Series, Course, Lesson } from "@/lib/schema";
 import {
+  applyCourseDeletion,
   applyCrossSeriesCourseMetaEdit,
+  applySeriesDeletion,
   filterCrossSeriesIds,
   normalizeSeriesCourseMeta,
 } from "@/lib/course-flow";
@@ -262,7 +264,7 @@ export function Workspace({
   const deleteSeries = useCallback(
     (seriesId: string) => {
       setSeries((prev) => {
-        const next = prev.filter((s) => s.id !== seriesId);
+        const next = applySeriesDeletion(prev, seriesId);
         const removed = prev.find((s) => s.id === seriesId);
         const hadSelectedCourse =
           removed?.courses.some((c) => c.id === selectedCourseId) ?? false;
@@ -281,11 +283,7 @@ export function Workspace({
   const deleteCourse = useCallback(
     (seriesId: string, courseId: string) => {
       setSeries((prev) => {
-        const next = prev.map((s) =>
-          s.id === seriesId
-            ? { ...s, courses: s.courses.filter((c) => c.id !== courseId) }
-            : s,
-        );
+        const next = applyCourseDeletion(prev, seriesId, courseId);
         if (selectedCourseId === courseId) {
           const firstCourse = next.flatMap((s) => s.courses)[0];
           setSelectedCourseId(firstCourse?.id ?? "");

@@ -82,13 +82,57 @@ export function resolveCourseRefs(
   allSeries: Series[],
   courseIds: string[],
 ): CourseRef[] {
-  return courseIds.map((id) => {
+  const refs: CourseRef[] = [];
+  for (const id of courseIds) {
     for (const s of allSeries) {
       const c = s.courses.find((co) => co.id === id);
-      if (c) return { id, name: c.name };
+      if (c) {
+        refs.push({ id, name: c.name });
+        break;
+      }
     }
-    return { id, name: id };
-  });
+  }
+  return refs;
+}
+
+function existingCourseIds(allSeries: Series[]): Set<string> {
+  return new Set(allSeries.flatMap((s) => s.courses.map((c) => c.id)));
+}
+
+/** prerequisites / next_courses から存在しないコース ID を除去する */
+export function stripDanglingCourseLinks(allSeries: Series[]): Series[] {
+  const ids = existingCourseIds(allSeries);
+  return allSeries.map((s) => ({
+    ...s,
+    courses: s.courses.map((c) => ({
+      ...c,
+      prerequisites: c.prerequisites.filter((id) => ids.has(id)),
+      next_courses: c.next_courses.filter((id) => ids.has(id)),
+    })),
+  }));
+}
+
+/** コース削除: 当該コースを除去し、全シリーズのリンク参照を掃除する */
+export function applyCourseDeletion(
+  allSeries: Series[],
+  seriesId: string,
+  courseId: string,
+): Series[] {
+  const withoutCourse = allSeries.map((s) =>
+    s.id === seriesId
+      ? { ...s, courses: s.courses.filter((c) => c.id !== courseId) }
+      : s,
+  );
+  return stripDanglingCourseLinks(withoutCourse);
+}
+
+/** シリーズ削除: 当該シリーズを除去し、削除コースへのリンク参照を掃除する */
+export function applySeriesDeletion(
+  allSeries: Series[],
+  seriesId: string,
+): Series[] {
+  const withoutSeries = allSeries.filter((s) => s.id !== seriesId);
+  return stripDanglingCourseLinks(withoutSeries);
 }
 
 /** 1コースのメタを正規化 */
@@ -114,10 +158,11 @@ export function normalizeCourseMeta(
 
 /** 全シリーズのコースメタを正規化 */
 export function normalizeSeriesCourseMeta(allSeries: Series[]): Series[] {
-  return allSeries.map((s) => ({
+  const normalized = allSeries.map((s) => ({
     ...s,
     courses: s.courses.map((c) => normalizeCourseMeta(allSeries, c.id, c)),
   }));
+  return stripDanglingCourseLinks(normalized);
 }
 
 /** Pane1 一覧と同じ順（シリーズ配列順 → 各 courses 配列順） */
@@ -422,15 +467,22 @@ export function buildCourseFlowAdjacency(
     }
   }
 
+  const ids = existingCourseIds(allSeries);
   for (const s of allSeries) {
     for (const c of s.courses) {
       for (const prevId of c.prerequisites) {
-        if (isCrossSeriesLink(allSeries, c.id, prevId)) {
+        if (
+          ids.has(prevId) &&
+          isCrossSeriesLink(allSeries, c.id, prevId)
+        ) {
           addEdge(prevId, c.id);
         }
       }
       for (const nextId of c.next_courses) {
-        if (isCrossSeriesLink(allSeries, c.id, nextId)) {
+        if (
+          ids.has(nextId) &&
+          isCrossSeriesLink(allSeries, c.id, nextId)
+        ) {
           addEdge(c.id, nextId);
         }
       }

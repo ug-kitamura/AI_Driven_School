@@ -25,7 +25,7 @@ function MissingImagePlaceholder({
   alt?: string;
 }) {
   return (
-    <div
+    <span
       role="img"
       aria-label={alt ? `${alt}（画像が存在しません）` : "画像が存在しません"}
       className="my-4 flex items-center gap-2 rounded-md border border-destructive/40 bg-destructive/5 px-3 py-3 text-destructive"
@@ -35,7 +35,7 @@ function MissingImagePlaceholder({
         画像が存在しません
         <span className="mt-0.5 block truncate text-xs opacity-80">{label}</span>
       </span>
-    </div>
+    </span>
   );
 }
 

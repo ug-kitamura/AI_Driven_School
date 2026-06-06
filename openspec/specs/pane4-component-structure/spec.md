@@ -73,3 +73,47 @@ Pane4 の 4 タブ（Used・UP・AI・Web）のコンテンツ領域は、それ
 
 - **WHEN** ユーザーが Used タブでシリーズ・コース・レッスンフィルタを操作する
 - **THEN** Step 0 以前と同様の行が表示される
+
+### Requirement: AI タブの API ロジックは useAiImageTab hook に集約する
+
+AI タブのプロンプト state、generate / 自動入力 / リセット、staging alt 更新、および `/api/images/generate`・`/api/images/suggest-prompt` 呼び出しは `useAiImageTab` hook に集約しなければならない（SHALL）。`AiImagesTab` は hook を内部で利用し、シェルから prompt / generating 等の props を受け取ってはならない（MUST NOT）。
+
+#### Scenario: シェルに AI プロンプト state がない
+
+- **WHEN** 開発者が `ImageManagerPane` シェルを開く
+- **THEN** `aiPrompt` / `generating` / `suggesting` の useState がシェルに存在しない
+- **AND** 当該 state は `useAiImageTab` 内にある
+
+#### Scenario: AI 生成成功時に staging を refresh する
+
+- **WHEN** ユーザーが AI タブで画像生成に成功する
+- **THEN** `refreshScope("ai")` が silent で呼び出される
+- **AND** 成功通知が AI タブ内に表示される
+
+### Requirement: Web タブの API ロジックは useWebImageTab hook に集約する
+
+Web タブのプロンプト state、search / 自動入力 / リセット、staging alt 更新、および `/api/images/search`・`/api/images/suggest-web-prompt` 呼び出しは `useWebImageTab` hook に集約しなければならない（SHALL）。`WebImagesTab` は hook を内部で利用しなければならない（SHALL）。
+
+#### Scenario: シェルに Web プロンプト state がない
+
+- **WHEN** 開発者が `ImageManagerPane` シェルを開く
+- **THEN** `webPrompt` / `searching` / `webSuggesting` の useState がシェルに存在しない
+
+### Requirement: UP タブのアップロードロジックは useUploadImagesTab hook に集約する
+
+UP タブのファイルアップロード（`/api/images/upload`）、クリップボード paste 処理、MP4 サイズ検証は `useUploadImagesTab` hook に集約しなければならない（SHALL）。成功時は `refreshScope("uploaded")` と UP タブへの切替を行わなければならない（SHALL）。
+
+#### Scenario: アップロード成功後に UP タブへ切替
+
+- **WHEN** ユーザーが画像をアップロードする
+- **THEN** staging リストが refresh される
+- **AND** アクティブタブが upload になる
+
+### Requirement: ImageManagerPane シェルは横断 concern のみ保持する
+
+`ImageManagerPane` シェルはタブバー、Pane4 折りたたみ、Used フィルタ state、共有 Lightbox / 削除 Dialog、`useImageLists`、`usePromoteAndInsert`、およびタブコンポーネントの配置に限定しなければならない（SHALL）。タブ専用 API ロジックをシェルに残してはならない（MUST NOT）。
+
+#### Scenario: シェル行数の縮小
+
+- **WHEN** 本 change 適用後に `ImageManagerPane.tsx` の行数を計測する
+- **THEN** 850 行超から大幅に減少している（目安 350 行以下）

@@ -51,6 +51,7 @@ import { PaneWheelRoot } from "@/components/workspace/PaneWheelRoot";
 import { WorkspaceTooltip } from "@/components/workspace/WorkspaceTooltip";
 import {
   ADD_LIST_BUTTON_CLASS,
+  LIST_ROW_X_INSET_CLASS,
   SORTABLE_POINTER_ACTIVATION,
 } from "@/components/workspace/constants";
 import { Progress } from "@/components/ui/progress";
@@ -131,13 +132,13 @@ function SortableCourseRow({
         style={style}
         onClick={onSelect}
         className={cn(
-          "group/course-row flex cursor-pointer items-center gap-1 rounded-md py-1.5 pr-2 text-xs transition-colors",
+          "group/course-row flex cursor-pointer items-center gap-1 rounded-md py-1.5 text-xs transition-colors",
+          LIST_ROW_X_INSET_CLASS,
           isSelected
             ? "bg-muted text-primary dark:bg-accent dark:text-primary"
             : "text-foreground hover:bg-muted",
         )}
       >
-        <span className="size-3.5 shrink-0" aria-hidden />
         <span
           {...attributes}
           {...listeners}

@@ -131,7 +131,7 @@ function SortableCourseRow({
         style={style}
         onClick={onSelect}
         className={cn(
-          "group/course-row flex cursor-pointer items-center gap-1 rounded-md py-1.5 text-xs transition-colors",
+          "group/course-row flex cursor-pointer items-center gap-1 rounded-md py-1.5 pr-2 text-xs transition-colors",
           isSelected
             ? "bg-accent text-primary"
             : "text-foreground hover:bg-muted",

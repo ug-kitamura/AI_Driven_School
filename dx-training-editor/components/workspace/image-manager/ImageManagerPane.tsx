@@ -30,30 +30,17 @@ import {
   usedRowMatchesFilter,
   type UsedImageFilter,
 } from "@/lib/extract-image-refs";
-import {
-  isAllowedUploadMime,
-  isMp4FileName,
-  MAX_MP4_BYTES,
-  toImageMarkdown,
-} from "@/lib/image-path";
-import { loadWorkspaceSettings } from "@/lib/workspace-settings";
-import type { ImageAsset } from "@/lib/schema";
+import { toImageMarkdown } from "@/lib/image-path";
 import { AiImagesTab } from "@/components/workspace/image-manager/AiImagesTab";
 import { UploadImagesTab } from "@/components/workspace/image-manager/UploadImagesTab";
 import { UsedImagesTab } from "@/components/workspace/image-manager/UsedImagesTab";
 import { WebImagesTab } from "@/components/workspace/image-manager/WebImagesTab";
 import {
-  AI_KEY_ERROR,
-  AI_PIXABAY_KEY_ERROR,
   FILTER_ALL,
   FILTER_UNUSED,
   IMAGE_MANAGER_TABS,
-  MP4_SIZE_ERROR,
 } from "@/components/workspace/image-manager/image-manager-constants";
-import {
-  aiRequestHeaders,
-  tabToScope,
-} from "@/components/workspace/image-manager/image-manager-utils";
+import { tabToScope } from "@/components/workspace/image-manager/image-manager-utils";
 import type {
   ImageManagerPaneProps,
   ImageManagerTab,
@@ -75,14 +62,6 @@ export function ImageManagerPane({
   onImageAssetsChanged,
 }: ImageManagerPaneProps) {
   const [activeTab, setActiveTab] = useState<ImageManagerTab>("used");
-  const [aiPrompt, setAiPrompt] = useState("");
-  const [webPrompt, setWebPrompt] = useState("");
-  const [aiStagingAlts, setAiStagingAlts] = useState<Record<string, string>>({});
-  const [webStagingAlts, setWebStagingAlts] = useState<Record<string, string>>({});
-  const [generating, setGenerating] = useState(false);
-  const [searching, setSearching] = useState(false);
-  const [suggesting, setSuggesting] = useState(false);
-  const [webSuggesting, setWebSuggesting] = useState(false);
   const [tabNotices, setTabNotices] = useState<
     Partial<Record<ImageManagerTab, TabNotice>>
   >({});
@@ -94,6 +73,15 @@ export function ImageManagerPane({
     lessonId: null,
   });
   const tabScrollRef = useRef<HTMLDivElement>(null);
+  const pasteHandlerRef = useRef<
+    ((e: React.ClipboardEvent) => void) | null
+  >(null);
+  const aiResolveAltRef = useRef<
+    ((item: ImageGridItem) => string | undefined) | null
+  >(null);
+  const webResolveAltRef = useRef<
+    ((item: ImageGridItem) => string | undefined) | null
+  >(null);
 
   const closePreview = useCallback(() => {
     setPreviewPath(null);
@@ -136,13 +124,6 @@ export function ImageManagerPane({
       ),
     [usedRows, usedFilter, refLocations],
   );
-
-  useEffect(() => {
-    if (editorCommentPrompt !== null) {
-      setAiPrompt(editorCommentPrompt);
-      setWebPrompt(editorCommentPrompt);
-    }
-  }, [editorCommentPrompt]);
 
   useEffect(() => {
     setPreviewPath(null);
@@ -202,9 +183,9 @@ export function ImageManagerPane({
       promoteAndInsert(item, {
         tab: "ai",
         stagingScope: "ai",
-        resolveAlt: (i) => aiStagingAlts[i.path] ?? aiStagingAlts[i.name],
+        resolveAlt: (i) => aiResolveAltRef.current?.(i),
       }),
-    [promoteAndInsert, aiStagingAlts],
+    [promoteAndInsert],
   );
 
   const handleInsertWebStaging = useCallback(
@@ -212,9 +193,9 @@ export function ImageManagerPane({
       promoteAndInsert(item, {
         tab: "web",
         stagingScope: "web",
-        resolveAlt: (i) => webStagingAlts[i.path] ?? webStagingAlts[i.name],
+        resolveAlt: (i) => webResolveAltRef.current?.(i),
       }),
-    [promoteAndInsert, webStagingAlts],
+    [promoteAndInsert],
   );
 
   const executeDelete = useCallback(
@@ -247,281 +228,30 @@ export function ImageManagerPane({
     [],
   );
 
-  const uploadFiles = useCallback(
-    async (files: FileList | File[]) => {
-      let uploaded = false;
-      for (const file of Array.from(files)) {
-        if (!isAllowedUploadMime(file.type, file.name)) continue;
-        const isMp4 =
-          file.type === "video/mp4" ||
-          (file.type === "" && isMp4FileName(file.name));
-        if (isMp4 && file.size > MAX_MP4_BYTES) {
-          showNotice("upload", MP4_SIZE_ERROR, "error");
-          continue;
-        }
-        const form = new FormData();
-        form.append("file", file);
-        form.append("source", "uploaded");
-        const res = await fetch("/api/images/upload", { method: "POST", body: form });
-        if (!res.ok) {
-          const data: { error?: string } = await res.json();
-          showNotice("upload", data.error ?? "アップロードに失敗しました", "error");
-          continue;
-        }
-        uploaded = true;
-      }
-      if (uploaded) clearNotice("upload");
-      await refreshScope("uploaded", { silent: true });
-      setActiveTab("upload");
+  const onPasteReady = useCallback(
+    (handler: ((e: React.ClipboardEvent) => void) | null) => {
+      pasteHandlerRef.current = handler;
     },
-    [refreshScope, showNotice, clearNotice],
+    [],
   );
 
-  const handlePaste = useCallback(
-    (e: React.ClipboardEvent) => {
-      const imageFiles: File[] = [];
-      for (const item of Array.from(e.clipboardData.items)) {
-        if (item.type.startsWith("image/") || item.type === "video/mp4") {
-          const file = item.getAsFile();
-          if (file) imageFiles.push(file);
-        }
-      }
-      if (imageFiles.length > 0) void uploadFiles(imageFiles);
+  const onAiResolveAltReady = useCallback(
+    (resolveAlt: ((item: ImageGridItem) => string | undefined) | null) => {
+      aiResolveAltRef.current = resolveAlt;
     },
-    [uploadFiles],
+    [],
   );
 
-  const handleGenerate = useCallback(async () => {
-    if (!lesson) return;
-    const prompt = aiPrompt.trim();
-    if (!prompt) {
-      showNotice("ai", "プロンプトを入力してください", "error");
-      return;
-    }
-    const settings = loadWorkspaceSettings();
-    const headers = aiRequestHeaders(settings);
-    setGenerating(true);
-    clearNotice("ai");
-    try {
-      const res = await fetch("/api/images/generate", {
-        method: "POST",
-        headers,
-        body: JSON.stringify({ lesson, prompt }),
-      });
-      let data: { file?: ImageAsset; alt?: string; error?: string };
-      try {
-        data = (await res.json()) as typeof data;
-      } catch {
-        showNotice("ai", "サーバー応答の解析に失敗しました", "error");
-        return;
-      }
-      if (!res.ok || !data.file) {
-        showNotice(
-          "ai",
-          data.error ??
-            (res.status === 401 ? AI_KEY_ERROR : "画像の生成に失敗しました"),
-          "error",
-        );
-        return;
-      }
-      if (data.alt) {
-        setAiStagingAlts((prev) => ({
-          ...prev,
-          [data.file!.path]: data.alt!,
-          [data.file!.name]: data.alt!,
-        }));
-      }
-      await refreshScope("ai", { silent: true });
-      showNotice("ai", `AI staging に保存しました: ${data.file.name}`, "success");
-    } catch (error) {
-      showNotice(
-        "ai",
-        error instanceof Error ? error.message : "画像の生成に失敗しました",
-        "error",
-      );
-    } finally {
-      setGenerating(false);
-    }
-  }, [lesson, aiPrompt, refreshScope, showNotice, clearNotice]);
+  const onWebResolveAltReady = useCallback(
+    (resolveAlt: ((item: ImageGridItem) => string | undefined) | null) => {
+      webResolveAltRef.current = resolveAlt;
+    },
+    [],
+  );
 
-  const handleAutoFill = useCallback(async () => {
-    if (!lesson) return;
-
-    const settings = loadWorkspaceSettings();
-    const headers = aiRequestHeaders(settings);
-    const seedPrompt = editorCommentPrompt ?? undefined;
-
-    setSuggesting(true);
-    clearNotice("ai");
-    try {
-      const res = await fetch("/api/images/suggest-prompt", {
-        method: "POST",
-        headers,
-        body: JSON.stringify({
-          lesson,
-          cursorOffset: editorCursorOffset ?? 0,
-          seedPrompt,
-        }),
-      });
-      let data: { prompt?: string; error?: string };
-      try {
-        data = (await res.json()) as typeof data;
-      } catch {
-        showNotice("ai", "サーバー応答の解析に失敗しました", "error");
-        return;
-      }
-      if (!res.ok || !data.prompt) {
-        showNotice(
-          "ai",
-          data.error ??
-            (res.status === 401 ? AI_KEY_ERROR : "プロンプトの自動入力に失敗しました"),
-          "error",
-        );
-        return;
-      }
-      setAiPrompt(data.prompt);
-    } catch (error) {
-      showNotice(
-        "ai",
-        error instanceof Error ? error.message : "プロンプトの自動入力に失敗しました",
-        "error",
-      );
-    } finally {
-      setSuggesting(false);
-    }
-  }, [
-    lesson,
-    editorCommentPrompt,
-    editorCursorOffset,
-    clearNotice,
-    showNotice,
-  ]);
-
-  const handleResetPrompt = useCallback(() => {
-    setAiPrompt("");
-    clearNotice("ai");
-  }, [clearNotice]);
-
-  const handleSearch = useCallback(async () => {
-    if (!lesson) return;
-    const prompt = webPrompt.trim();
-    if (!prompt) {
-      showNotice("web", "プロンプトを入力してください", "error");
-      return;
-    }
-    const settings = loadWorkspaceSettings();
-    const headers = aiRequestHeaders(settings, true);
-    setSearching(true);
-    clearNotice("web");
-    try {
-      const res = await fetch("/api/images/search", {
-        method: "POST",
-        headers,
-        body: JSON.stringify({ lesson, prompt }),
-      });
-      let data: {
-        results?: Array<{ file: ImageAsset; alt?: string }>;
-        error?: string;
-      };
-      try {
-        data = (await res.json()) as typeof data;
-      } catch {
-        showNotice("web", "サーバー応答の解析に失敗しました", "error");
-        return;
-      }
-      if (!res.ok || !data.results?.length) {
-        showNotice(
-          "web",
-          data.error ??
-            (res.status === 401 ? AI_PIXABAY_KEY_ERROR : "画像の検索に失敗しました"),
-          "error",
-        );
-        return;
-      }
-      setWebStagingAlts((prev) => {
-        const next = { ...prev };
-        for (const item of data.results!) {
-          if (item.alt) {
-            next[item.file.path] = item.alt;
-            next[item.file.name] = item.alt;
-          }
-        }
-        return next;
-      });
-      await refreshScope("web", { silent: true });
-      showNotice(
-        "web",
-        `Web staging に ${data.results.length} 件保存しました`,
-        "success",
-      );
-    } catch (error) {
-      showNotice(
-        "web",
-        error instanceof Error ? error.message : "画像の検索に失敗しました",
-        "error",
-      );
-    } finally {
-      setSearching(false);
-    }
-  }, [lesson, webPrompt, refreshScope, showNotice, clearNotice]);
-
-  const handleWebAutoFill = useCallback(async () => {
-    if (!lesson) return;
-
-    const settings = loadWorkspaceSettings();
-    const headers = aiRequestHeaders(settings);
-    const seedPrompt = editorCommentPrompt ?? undefined;
-
-    setWebSuggesting(true);
-    clearNotice("web");
-    try {
-      const res = await fetch("/api/images/suggest-web-prompt", {
-        method: "POST",
-        headers,
-        body: JSON.stringify({
-          lesson,
-          cursorOffset: editorCursorOffset ?? 0,
-          seedPrompt,
-        }),
-      });
-      let data: { prompt?: string; error?: string };
-      try {
-        data = (await res.json()) as typeof data;
-      } catch {
-        showNotice("web", "サーバー応答の解析に失敗しました", "error");
-        return;
-      }
-      if (!res.ok || !data.prompt) {
-        showNotice(
-          "web",
-          data.error ??
-            (res.status === 401 ? AI_KEY_ERROR : "プロンプトの自動入力に失敗しました"),
-          "error",
-        );
-        return;
-      }
-      setWebPrompt(data.prompt);
-    } catch (error) {
-      showNotice(
-        "web",
-        error instanceof Error ? error.message : "プロンプトの自動入力に失敗しました",
-        "error",
-      );
-    } finally {
-      setWebSuggesting(false);
-    }
-  }, [
-    lesson,
-    editorCommentPrompt,
-    editorCursorOffset,
-    clearNotice,
-    showNotice,
-  ]);
-
-  const handleResetWebPrompt = useCallback(() => {
-    setWebPrompt("");
-    clearNotice("web");
-  }, [clearNotice]);
+  const handlePaste = useCallback((e: React.ClipboardEvent) => {
+    pasteHandlerRef.current?.(e);
+  }, []);
 
   const aiStagingGridItems: ImageGridItem[] = aiStagingFiles.map((file) => ({
     path: file.path,
@@ -696,7 +426,7 @@ export function ImageManagerPane({
           </div>
         ) : null}
 
-        {activeTab === "used" && !loading ? (
+        <div className={cn(activeTab !== "used" || loading ? "hidden" : undefined)}>
           <UsedImagesTab
             series={series}
             usedFilter={usedFilter}
@@ -718,54 +448,56 @@ export function ImageManagerPane({
               requestDelete(item, "used", referenceCount)
             }
           />
-        ) : null}
+        </div>
 
-        {activeTab === "upload" && !loading ? (
+        <div className={cn(activeTab !== "upload" || loading ? "hidden" : undefined)}>
           <UploadImagesTab
             gridItems={stagingGridItems}
             notice={tabNotices.upload}
-            onUploadFiles={uploadFiles}
+            refreshScope={refreshScope}
+            showNotice={showNotice}
+            clearNotice={clearNotice}
+            setActiveTab={setActiveTab}
+            onPasteReady={onPasteReady}
             onPreview={openPreview}
             onInsert={handleInsertStaging}
             onDelete={(item) => requestDelete(item, "upload")}
           />
-        ) : null}
+        </div>
 
-        {activeTab === "ai" ? (
+        <div className={cn(activeTab !== "ai" ? "hidden" : undefined)}>
           <AiImagesTab
-            hasLesson={!!lesson}
-            prompt={aiPrompt}
-            onPromptChange={setAiPrompt}
-            generating={generating}
-            suggesting={suggesting}
+            lesson={lesson}
+            editorCommentPrompt={editorCommentPrompt}
+            editorCursorOffset={editorCursorOffset}
+            refreshScope={refreshScope}
+            showNotice={showNotice}
+            clearNotice={clearNotice}
             gridItems={aiStagingGridItems}
             notice={tabNotices.ai}
-            onGenerate={() => void handleGenerate()}
-            onAutoFill={() => void handleAutoFill()}
-            onResetPrompt={handleResetPrompt}
+            onResolveAltReady={onAiResolveAltReady}
             onPreview={openPreview}
             onInsert={handleInsertAiStaging}
             onDelete={(item) => requestDelete(item, "ai")}
           />
-        ) : null}
+        </div>
 
-        {activeTab === "web" ? (
+        <div className={cn(activeTab !== "web" ? "hidden" : undefined)}>
           <WebImagesTab
-            hasLesson={!!lesson}
-            prompt={webPrompt}
-            onPromptChange={setWebPrompt}
-            searching={searching}
-            suggesting={webSuggesting}
+            lesson={lesson}
+            editorCommentPrompt={editorCommentPrompt}
+            editorCursorOffset={editorCursorOffset}
+            refreshScope={refreshScope}
+            showNotice={showNotice}
+            clearNotice={clearNotice}
             gridItems={webStagingGridItems}
             notice={tabNotices.web}
-            onSearch={() => void handleSearch()}
-            onAutoFill={() => void handleWebAutoFill()}
-            onResetPrompt={handleResetWebPrompt}
+            onResolveAltReady={onWebResolveAltReady}
             onPreview={openPreview}
             onInsert={handleInsertWebStaging}
             onDelete={(item) => requestDelete(item, "web")}
           />
-        ) : null}
+        </div>
       </div>
 
       {previewIndex !== null && currentPreviewItem ? (

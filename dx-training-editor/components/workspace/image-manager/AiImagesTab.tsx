@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect } from "react";
 import { Loader2, Pen, RotateCcw, Wand2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ImageGrid, type ImageGridItem } from "@/components/workspace/ImageGrid";
@@ -12,43 +13,71 @@ import {
 } from "@/components/workspace/image-manager/image-manager-constants";
 import { TabNoticeBanner } from "@/components/workspace/image-manager/TabNoticeBanner";
 import type { TabNotice } from "@/components/workspace/image-manager/types";
+import { useAiImageTab } from "@/components/workspace/image-manager/use-ai-image-tab";
+import type { Lesson } from "@/lib/schema";
 
 type Props = {
-  hasLesson: boolean;
-  prompt: string;
-  onPromptChange: (value: string) => void;
-  generating: boolean;
-  suggesting: boolean;
+  lesson: Lesson | undefined;
+  editorCommentPrompt: string | null;
+  editorCursorOffset: number | null;
+  refreshScope: (
+    scope: "ai",
+    options?: { silent?: boolean },
+  ) => Promise<void>;
+  showNotice: (tab: "ai", message: string, tone: "error" | "success") => void;
+  clearNotice: (tab: "ai") => void;
   gridItems: ImageGridItem[];
   notice?: TabNotice;
-  onGenerate: () => void;
-  onAutoFill: () => void;
-  onResetPrompt: () => void;
+  onResolveAltReady: (
+    resolveAlt: ((item: ImageGridItem) => string | undefined) | null,
+  ) => void;
   onPreview: (item: ImageGridItem) => void;
   onInsert: (item: ImageGridItem) => void;
   onDelete: (item: ImageGridItem) => void;
 };
 
 export function AiImagesTab({
-  hasLesson,
-  prompt,
-  onPromptChange,
-  generating,
-  suggesting,
+  lesson,
+  editorCommentPrompt,
+  editorCursorOffset,
+  refreshScope,
+  showNotice,
+  clearNotice,
   gridItems,
   notice,
-  onGenerate,
-  onAutoFill,
-  onResetPrompt,
+  onResolveAltReady,
   onPreview,
   onInsert,
   onDelete,
 }: Props) {
+  const {
+    prompt,
+    setPrompt,
+    generating,
+    suggesting,
+    resolveAlt,
+    handleGenerate,
+    handleAutoFill,
+    handleResetPrompt,
+  } = useAiImageTab({
+    lesson,
+    editorCommentPrompt,
+    editorCursorOffset,
+    refreshScope,
+    showNotice,
+    clearNotice,
+  });
+
+  useEffect(() => {
+    onResolveAltReady(resolveAlt);
+    return () => onResolveAltReady(null);
+  }, [resolveAlt, onResolveAltReady]);
+
   return (
     <>
       <TabNoticeBanner notice={notice} />
       <div className={cn(PANE4_TAB_INSET, "flex flex-col gap-3 pb-3 pt-3")}>
-        {!hasLesson ? (
+        {!lesson ? (
           <p className="text-center text-xs text-muted-foreground">
             レッスンを選択してください
           </p>
@@ -57,7 +86,7 @@ export function AiImagesTab({
             <div className={PANE4_PROMPT_BLOCK_CLASS}>
               <textarea
                 value={prompt}
-                onChange={(e) => onPromptChange(e.target.value)}
+                onChange={(e) => setPrompt(e.target.value)}
                 rows={3}
                 placeholder="画像生成プロンプトを入力してください"
                 className={PANE4_PROMPT_TEXTAREA_CLASS}
@@ -68,7 +97,7 @@ export function AiImagesTab({
                   size="sm"
                   className="h-8 shrink-0 px-4 text-xs transition-colors enabled:hover:bg-primary/85"
                   disabled={generating || suggesting || !prompt.trim()}
-                  onClick={onGenerate}
+                  onClick={() => void handleGenerate()}
                 >
                   {generating ? (
                     <>
@@ -87,8 +116,8 @@ export function AiImagesTab({
                   variant="outline"
                   size="sm"
                   className="h-8 shrink-0 text-xs"
-                  disabled={!hasLesson || suggesting || generating}
-                  onClick={onAutoFill}
+                  disabled={!lesson || suggesting || generating}
+                  onClick={() => void handleAutoFill()}
                 >
                   {suggesting ? (
                     <Loader2 className="h-3.5 w-3.5 animate-spin" />
@@ -103,7 +132,7 @@ export function AiImagesTab({
                   size="sm"
                   className="h-8 shrink-0 text-xs"
                   disabled={suggesting || generating}
-                  onClick={onResetPrompt}
+                  onClick={handleResetPrompt}
                 >
                   <RotateCcw className="h-3.5 w-3.5" />
                   リセット

@@ -56,6 +56,11 @@ import {
   MAX_MP4_BYTES,
   toImageMarkdown,
 } from "@/lib/image-path";
+import {
+  fetchImageList,
+  scopesAfterPromote,
+  type ImageListScope,
+} from "@/lib/image-list-client";
 import { loadWorkspaceSettings, type WorkspaceSettings } from "@/lib/workspace-settings";
 import type { ImageAsset, Lesson, Series } from "@/lib/schema";
 import type { Pane3Mode } from "@/components/workspace/Workspace";
@@ -74,6 +79,19 @@ type Props = {
 };
 
 type Tab = "used" | "upload" | "ai" | "web";
+
+function tabToScope(tab: Tab): ImageListScope {
+  switch (tab) {
+    case "used":
+      return "used";
+    case "upload":
+      return "uploaded";
+    case "ai":
+      return "ai";
+    case "web":
+      return "web";
+  }
+}
 
 const TABS: Array<{ value: Tab; label: string; icon: React.ReactNode }> = [
   { value: "used", label: "Used", icon: <SquareCheckBig className="h-3 w-3" /> },
@@ -209,27 +227,52 @@ export function ImageManagerPane({
     [usedRows, usedFilter, refLocations],
   );
 
-  const refreshLists = useCallback(async () => {
-    setLoading(true);
-    try {
-      const [stagingRes, usedRes, aiRes, webRes] = await Promise.all([
-        fetch("/api/images/list?scope=staging&source=uploaded"),
-        fetch("/api/images/list?scope=used"),
-        fetch("/api/images/list?scope=staging&source=ai"),
-        fetch("/api/images/list?scope=staging&source=web"),
-      ]);
-      const stagingJson: { files?: ImageAsset[] } = await stagingRes.json();
-      const usedJson: { files?: ImageAsset[] } = await usedRes.json();
-      const aiJson: { files?: ImageAsset[] } = await aiRes.json();
-      const webJson: { files?: ImageAsset[] } = await webRes.json();
-      if (stagingRes.ok) setStagingFiles(stagingJson.files ?? []);
-      if (usedRes.ok) setPromotedFiles(usedJson.files ?? []);
-      if (aiRes.ok) setAiStagingFiles(aiJson.files ?? []);
-      if (webRes.ok) setWebStagingFiles(webJson.files ?? []);
-    } finally {
-      setLoading(false);
+  const applyScopeFiles = useCallback((scope: ImageListScope, files: ImageAsset[]) => {
+    switch (scope) {
+      case "used":
+        setPromotedFiles(files);
+        break;
+      case "uploaded":
+        setStagingFiles(files);
+        break;
+      case "ai":
+        setAiStagingFiles(files);
+        break;
+      case "web":
+        setWebStagingFiles(files);
+        break;
     }
   }, []);
+
+  const refreshScope = useCallback(
+    async (scope: ImageListScope, options?: { silent?: boolean }) => {
+      if (!options?.silent) setLoading(true);
+      try {
+        const files = await fetchImageList(scope);
+        applyScopeFiles(scope, files);
+      } finally {
+        if (!options?.silent) setLoading(false);
+      }
+    },
+    [applyScopeFiles],
+  );
+
+  const refreshScopes = useCallback(
+    async (scopes: ImageListScope[], options?: { silent?: boolean }) => {
+      if (!options?.silent) setLoading(true);
+      try {
+        const results = await Promise.all(
+          scopes.map(async (scope) => [scope, await fetchImageList(scope)] as const),
+        );
+        for (const [scope, files] of results) {
+          applyScopeFiles(scope, files);
+        }
+      } finally {
+        if (!options?.silent) setLoading(false);
+      }
+    },
+    [applyScopeFiles],
+  );
 
   useEffect(() => {
     if (editorCommentPrompt !== null) {
@@ -240,9 +283,9 @@ export function ImageManagerPane({
 
   useEffect(() => {
     if (pane4Open) {
-      void refreshLists();
+      void refreshScope(tabToScope(activeTab));
     }
-  }, [pane4Open, refreshLists, series]);
+  }, [pane4Open, activeTab, refreshScope]);
 
   useEffect(() => {
     setPreviewPath(null);
@@ -291,11 +334,11 @@ export function ImageManagerPane({
       }
       const alt = aiStagingAlts[item.path] ?? aiStagingAlts[item.name];
       if (tryInsert(toImageMarkdown(data.file.path, alt), "ai")) {
-        await refreshLists();
+        await refreshScopes(scopesAfterPromote("ai"), { silent: true });
         onImageAssetsChanged?.();
       }
     },
-    [tryInsert, refreshLists, showNotice, aiStagingAlts, onImageAssetsChanged],
+    [tryInsert, refreshScopes, showNotice, aiStagingAlts, onImageAssetsChanged],
   );
 
   const handleInsertWebStaging = useCallback(
@@ -312,11 +355,11 @@ export function ImageManagerPane({
       }
       const alt = webStagingAlts[item.path] ?? webStagingAlts[item.name];
       if (tryInsert(toImageMarkdown(data.file.path, alt), "web")) {
-        await refreshLists();
+        await refreshScopes(scopesAfterPromote("web"), { silent: true });
         onImageAssetsChanged?.();
       }
     },
-    [tryInsert, refreshLists, showNotice, webStagingAlts, onImageAssetsChanged],
+    [tryInsert, refreshScopes, showNotice, webStagingAlts, onImageAssetsChanged],
   );
 
   const handleInsertStaging = useCallback(
@@ -332,11 +375,11 @@ export function ImageManagerPane({
         return;
       }
       if (tryInsert(toImageMarkdown(data.file.path), "upload")) {
-        await refreshLists();
+        await refreshScopes(scopesAfterPromote("uploaded"), { silent: true });
         onImageAssetsChanged?.();
       }
     },
-    [tryInsert, refreshLists, showNotice, onImageAssetsChanged],
+    [tryInsert, refreshScopes, showNotice, onImageAssetsChanged],
   );
 
   const handleInsertPromoted = useCallback(
@@ -359,11 +402,11 @@ export function ImageManagerPane({
         showNotice(tab, data.error ?? "削除に失敗しました", "error");
         return;
       }
-      await refreshLists();
+      await refreshScope(tabToScope(tab), { silent: true });
       onImageAssetsChanged?.(item.path);
       closePreview();
     },
-    [refreshLists, showNotice, onImageAssetsChanged, closePreview],
+    [refreshScope, showNotice, onImageAssetsChanged, closePreview],
   );
 
   const requestDelete = useCallback(
@@ -400,10 +443,10 @@ export function ImageManagerPane({
         uploaded = true;
       }
       if (uploaded) clearNotice("upload");
-      await refreshLists();
+      await refreshScope("uploaded", { silent: true });
       setActiveTab("upload");
     },
-    [refreshLists, showNotice, clearNotice],
+    [refreshScope, showNotice, clearNotice],
   );
 
   const handleDrop = useCallback(
@@ -472,7 +515,7 @@ export function ImageManagerPane({
           [data.file!.name]: data.alt!,
         }));
       }
-      await refreshLists();
+      await refreshScope("ai", { silent: true });
       showNotice(
         "ai",
         `AI staging に保存しました: ${data.file.name}`,
@@ -487,7 +530,7 @@ export function ImageManagerPane({
     } finally {
       setGenerating(false);
     }
-  }, [lesson, aiPrompt, refreshLists, showNotice, clearNotice]);
+  }, [lesson, aiPrompt, refreshScope, showNotice, clearNotice]);
 
   const handleAutoFill = useCallback(async () => {
     if (!lesson) return;
@@ -593,7 +636,7 @@ export function ImageManagerPane({
         }
         return next;
       });
-      await refreshLists();
+      await refreshScope("web", { silent: true });
       showNotice(
         "web",
         `Web staging に ${data.results.length} 件保存しました`,
@@ -608,7 +651,7 @@ export function ImageManagerPane({
     } finally {
       setSearching(false);
     }
-  }, [lesson, webPrompt, refreshLists, showNotice, clearNotice]);
+  }, [lesson, webPrompt, refreshScope, showNotice, clearNotice]);
 
   const handleWebAutoFill = useCallback(async () => {
     if (!lesson) return;

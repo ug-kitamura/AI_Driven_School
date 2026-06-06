@@ -95,7 +95,7 @@ export function ImageGrid({
               )}
               {isVideo ? <MediaPlayOverlay /> : null}
             </button>
-            <div className="flex min-h-0 flex-1 flex-col gap-1 p-1.5">
+            <div className="flex min-h-0 flex-1 flex-col gap-1 p-1.5 dark:bg-muted">
               <p
                 className="truncate text-[10px] font-medium text-foreground"
                 title={item.name}

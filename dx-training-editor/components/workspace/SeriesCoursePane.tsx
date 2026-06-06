@@ -63,8 +63,8 @@ import { cn, computeStatus } from "@/lib/utils";
 import { STATUS_LABELS } from "@/lib/schema";
 import type { Series, Course } from "@/lib/schema";
 
-/** シリーズ進捗バーとコース行の左右端を揃える */
-const SERIES_CHILD_INSET = "ml-3 px-2";
+/** 子ブロック左のみインデント。右端はシリーズ行と揃える */
+const SERIES_CHILD_INSET = "ml-3 pl-2";
 
 type Props = {
   workspaceName: string;

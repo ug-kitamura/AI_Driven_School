@@ -5,7 +5,7 @@ export type WorkspacePaneWidths = {
 };
 
 export const PANE_WIDTH_DEFAULTS: WorkspacePaneWidths = {
-  pane1: 275,
+  pane1: 300,
   pane2: 300,
   pane4: 300,
 };

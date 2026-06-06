@@ -191,7 +191,7 @@ function SortableLessonRow({
         className={cn(
           "group flex cursor-pointer items-center gap-1 rounded-md px-2 py-1.5 text-sm transition-colors",
           isSelected
-            ? "bg-accent text-primary"
+            ? "bg-muted text-primary dark:bg-accent dark:text-primary"
             : "hover:bg-muted text-foreground",
         )}
       >

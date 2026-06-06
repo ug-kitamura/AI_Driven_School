@@ -219,9 +219,9 @@ export function Workspace({
       </div>
       <SidebarInset className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-background">
         <GlobalHeader
-          departmentTitle={selectedSeriesName}
-          positionTitle={selectedCourse?.name ?? ""}
-          candidateName={selectedLesson?.lesson ?? ""}
+          seriesName={selectedSeriesName}
+          courseName={selectedCourse?.name ?? ""}
+          lessonName={selectedLesson?.lesson ?? ""}
           series={series}
           selectedCourseId={selectedCourseId}
           onSelectCourse={selectCourse}

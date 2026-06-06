@@ -48,7 +48,7 @@ export async function collectExistingImageBaseNames(
   return names;
 }
 
-/** `{slug}.png` が空きならそれ、否则 `{slug}-2.png` … を返す */
+/** `{slug}.png` が空きならそれ、なければ `{slug}-2.png` … を返す */
 export async function resolveUniquePngFileName(
   projectRoot: string,
   slug: string,
@@ -71,7 +71,7 @@ export async function resolveUniqueWebFileName(
   return resolveUniqueFileName(projectRoot, `web-${pixabayId}`, safeExt);
 }
 
-/** `{base}{ext}` が空きならそれ、否则 `{base}-2{ext}` … を返す */
+/** `{base}{ext}` が空きならそれ、なければ `{base}-2{ext}` … を返す */
 export async function resolveUniqueFileName(
   projectRoot: string,
   base: string,

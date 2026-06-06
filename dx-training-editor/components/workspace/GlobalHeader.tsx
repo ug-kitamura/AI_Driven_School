@@ -107,23 +107,19 @@ function buildFullMandalaGraph(
 }
 
 type GlobalHeaderProps = {
-  departmentTitle: string;
-  positionTitle: string;
-  candidateName: string;
+  seriesName: string;
+  courseName: string;
+  lessonName: string;
   series?: Series[];
   selectedCourseId?: string;
   onSelectCourse?: (courseId: string) => void;
   onOpenSettings?: () => void;
-  // 後方互換のため残す（未使用）
-  departments?: unknown[];
-  onAddDepartment?: (name: string) => void;
-  onDeleteDepartment?: (deptId: string) => void;
 };
 
 export function GlobalHeader({
-  departmentTitle,
-  positionTitle,
-  candidateName,
+  seriesName,
+  courseName,
+  lessonName,
   series = [],
   selectedCourseId = "",
   onSelectCourse,
@@ -216,25 +212,25 @@ export function GlobalHeader({
         aria-label="パンくず"
       >
         <BreadcrumbList className="flex-nowrap text-[11px]">
-          {departmentTitle && (
+          {seriesName && (
             <>
               <BreadcrumbItem className="shrink-0">
-                <BreadcrumbLink>{departmentTitle}</BreadcrumbLink>
+                <BreadcrumbLink>{seriesName}</BreadcrumbLink>
               </BreadcrumbItem>
               <BreadcrumbSeparator />
             </>
           )}
-          {positionTitle && (
+          {courseName && (
             <>
               <BreadcrumbItem className="shrink-0">
-                <BreadcrumbLink>{positionTitle}</BreadcrumbLink>
+                <BreadcrumbLink>{courseName}</BreadcrumbLink>
               </BreadcrumbItem>
               <BreadcrumbSeparator />
             </>
           )}
           <BreadcrumbItem className="min-w-0">
             <BreadcrumbPage className="truncate font-medium">
-              {candidateName}
+              {lessonName}
             </BreadcrumbPage>
           </BreadcrumbItem>
         </BreadcrumbList>

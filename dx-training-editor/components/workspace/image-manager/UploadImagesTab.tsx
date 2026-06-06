@@ -1,0 +1,82 @@
+"use client";
+
+import { useRef, useState } from "react";
+import { ImageIcon } from "lucide-react";
+import { cn } from "@/lib/utils";
+import { ImageGrid, type ImageGridItem } from "@/components/workspace/ImageGrid";
+import {
+  PANE4_TAB_INSET,
+  PANE4_TOP_BOX_CLASS,
+} from "@/components/workspace/image-manager/image-manager-constants";
+import { TabNoticeBanner } from "@/components/workspace/image-manager/TabNoticeBanner";
+import type { TabNotice } from "@/components/workspace/image-manager/types";
+
+type Props = {
+  gridItems: ImageGridItem[];
+  notice?: TabNotice;
+  onUploadFiles: (files: FileList | File[]) => void | Promise<void>;
+  onPreview: (item: ImageGridItem) => void;
+  onInsert: (item: ImageGridItem) => void;
+  onDelete: (item: ImageGridItem) => void;
+};
+
+export function UploadImagesTab({
+  gridItems,
+  notice,
+  onUploadFiles,
+  onPreview,
+  onInsert,
+  onDelete,
+}: Props) {
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [isDragOver, setIsDragOver] = useState(false);
+
+  return (
+    <>
+      <TabNoticeBanner notice={notice} />
+      <div className={cn(PANE4_TAB_INSET, "flex flex-col gap-3 pb-3 pt-3")}>
+        <div
+          className={cn(
+            PANE4_TOP_BOX_CLASS,
+            "cursor-pointer transition-colors",
+            isDragOver
+              ? "border-primary bg-primary/5"
+              : "border-border hover:border-primary hover:bg-primary/5",
+          )}
+          onDragOver={(e) => {
+            e.preventDefault();
+            setIsDragOver(true);
+          }}
+          onDragLeave={() => setIsDragOver(false)}
+          onDrop={(e) => {
+            e.preventDefault();
+            setIsDragOver(false);
+            void onUploadFiles(e.dataTransfer.files);
+          }}
+          onClick={() => fileInputRef.current?.click()}
+        >
+          <ImageIcon className="mb-2 h-8 w-8 text-muted-foreground" />
+          <p className="text-xs font-medium text-foreground">ドラッグ&ドロップ</p>
+          <p className="mt-0.5 text-[10px] text-muted-foreground">
+            またはクリックして選択
+          </p>
+        </div>
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="image/*,video/mp4"
+          multiple
+          className="hidden"
+          onChange={(e) => e.target.files && void onUploadFiles(e.target.files)}
+        />
+        <ImageGrid
+          items={gridItems}
+          emptyMessage="staging に画像がありません"
+          onPreview={onPreview}
+          onInsert={onInsert}
+          onDelete={onDelete}
+        />
+      </div>
+    </>
+  );
+}

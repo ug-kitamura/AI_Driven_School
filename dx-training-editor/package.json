@@ -5,7 +5,6 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "build:vercel": "next build && node scripts/vercel-postbuild.mjs",
     "start": "next start",
     "lint": "eslint",
     "format": "prettier --write .",

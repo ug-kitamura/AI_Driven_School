@@ -125,6 +125,43 @@ AI 向けの編集ルールは [`CLAUDE.md`](CLAUDE.md) を参照。
 
 shadcn 部品の追加: `npx shadcn@latest add <name> --diff`（設定は `components.json`）
 
+## Vercel にデプロイ（デモ）
+
+リポジトリ [`AI_Driven_School`](https://github.com/ug-kitamura/AI_Driven_School) のサブディレクトリとして Vercel に公開する。デモ URL: [https://ai-driven-school.vercel.app](https://ai-driven-school.vercel.app)
+
+### プロジェクト設定
+
+Vercel ダッシュボード → **Settings** → **Build and Deployment**
+
+| 項目 | 値 |
+|---|---|
+| Root Directory | `dx-training-editor` |
+| Framework Preset | Next.js |
+| Build Command | `npm run build` |
+| Output Directory | デフォルト（Override しない） |
+| Install Command | `npm install` |
+| **Include files outside the root directory in the Build Step** | **Disabled** |
+
+**Include files outside… を Enabled にすると**、monorepo 全体がビルドに含まれ post-build で ENOENT になることがある。**必ず Disabled** にする。
+
+### 環境変数（任意）
+
+デモで UI と既存コンテンツの閲覧だけなら未設定でよい。AI / Web タブも試す場合は `AI_API_KEY` / `PIXABAY_API_KEY` を Vercel の Environment Variables に追加する（設定ダイアログの値が優先）。
+
+### Vercel 上の制限
+
+デモ・プレビュー用途を想定。以下はローカルと異なる。
+
+| 機能 | Vercel |
+|---|---|
+| 4ペイン UI・プレビュー・既存 `images/` | 動作 |
+| マークダウン編集 | セッション内のみ（リロードで初期値に戻る） |
+| Git 差分モード | 不可（`.git` がデプロイに含まれない） |
+| AI 画像生成（Playwright） | 不可 |
+| アップロード・編集の永続化 | 不可 |
+
+`main` への push で Production デプロイが走る。設定変更後は **Deployments → Redeploy**（Build Cache OFF 推奨）。
+
 ## データ構造
 
 ```

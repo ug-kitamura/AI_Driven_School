@@ -72,6 +72,14 @@ function createLessonEditorLayout(
       ".lesson-fold-gutter .cm-gutterElement:has(.lesson-fold-icon)": {
         cursor: "pointer",
       },
+      ".lesson-fold-gutter .lesson-fold-icon, .lesson-fold-gutter span.lesson-fold-open, .lesson-fold-gutter span.lesson-fold-closed":
+        {
+          display: "inline-block",
+          minWidth: "1ch",
+          textAlign: "center",
+          fontSize: `${gutterFontPx}px`,
+          lineHeight: `${lineHeightPx}px`,
+        },
       ".cm-foldGutter.lesson-fold-gutter .lesson-fold-icon": {
         color: `${lineNumberColor} !important`,
       },

@@ -433,11 +433,6 @@
 .lesson-content-editor .cm-foldGutter.lesson-fold-gutter .lesson-fold-icon,
 .lesson-content-editor .cm-foldGutter.lesson-fold-gutter span.lesson-fold-open,
 .lesson-content-editor .cm-foldGutter.lesson-fold-gutter span.lesson-fold-closed {
-  display: inline-block;
-  min-width: 1ch;
-  text-align: center;
-  font-size: 11px;
-  line-height: 1.375rem;
   color: #237893 !important;
   -webkit-text-fill-color: #237893 !important;
 }

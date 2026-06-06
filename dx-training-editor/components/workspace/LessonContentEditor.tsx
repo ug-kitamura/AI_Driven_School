@@ -122,7 +122,7 @@ export const LessonContentEditor = forwardRef<
 
   return (
     <CodeMirror
-      key={`${lessonId}-${isDark ? "dark" : "light"}-${fontSizePx}`}
+      key={`${lessonId}-${isDark ? "dark" : "light"}`}
       theme="none"
       value={value}
       height="100%"

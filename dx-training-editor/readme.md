@@ -3,6 +3,10 @@
 DX ツールトレーニングのコンテンツ作成を補助する 4 ペイン UI ツール。  
 シリーズ → コース → レッスンの階層構造でコンテンツを管理し、マークダウン編集・画像アセット管理・進捗トラッキングを一画面で行える。
 
+## ツール画面
+
+<img width="1571" height="741" alt="image" src="https://github.com/user-attachments/assets/1c7b1e26-e08d-42c6-9af0-8b87a84ef369" />
+
 ## 起動する
 
 ```bash
@@ -36,8 +40,6 @@ cp .env.example .env.local
 ```
 
 **設定ダイアログにキーがある場合はダイアログを優先**します。ダイアログ未入力のときのみ `.env.local` の `AI_API_KEY` / `PIXABAY_API_KEY` を参照します。
-
-<img width="1411" height="732" alt="image" src="https://github.com/user-attachments/assets/4ed6a5e6-a5a1-4f7b-99c6-d406ecf462f7" />
 
 ### Pane 3 のモード
 

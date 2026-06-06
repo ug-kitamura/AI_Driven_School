@@ -34,7 +34,7 @@ function createLessonEditorLayout(
 ) {
   const lineHeightPx = editorLineHeightPx(fontSizePx);
   const gutterFontPx = editorGutterFontSizePx(fontSizePx);
-  const editorBg = isDark ? "#1e1e1e" : undefined;
+  const editorBg = isDark ? "#1e1e1e" : "#ffffff";
   return EditorView.theme(
     {
       "&": { height: "100%", backgroundColor: editorBg },

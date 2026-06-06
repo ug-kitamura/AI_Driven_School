@@ -90,7 +90,7 @@ export function ImageLightbox({
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent className="max-w-[min(90vw,720px)] gap-3">
+      <DialogContent className="w-[min(90vw,720px)] max-w-[min(90vw,720px)] gap-3">
         <DialogHeader>
           <DialogTitle className="truncate text-sm">
             {item.name}
@@ -102,66 +102,70 @@ export function ImageLightbox({
           </DialogTitle>
         </DialogHeader>
 
-        <div className="relative overflow-hidden rounded border border-border bg-muted">
-          {hasPrev ? (
-            <Button
-              type="button"
-              variant="secondary"
-              size="icon"
-              className="absolute left-2 top-1/2 z-10 h-8 w-8 -translate-y-1/2 opacity-90 transition-none active:!-translate-y-1/2"
-              onClick={() => handleIndexChange(index - 1)}
-              aria-label="前の画像"
-            >
-              <ChevronLeft className="h-4 w-4" />
-            </Button>
-          ) : null}
-          {hasNext ? (
-            <Button
-              type="button"
-              variant="secondary"
-              size="icon"
-              className="absolute right-2 top-1/2 z-10 h-8 w-8 -translate-y-1/2 opacity-90 transition-none active:!-translate-y-1/2"
-              onClick={() => handleIndexChange(index + 1)}
-              aria-label="次の画像"
-            >
-              <ChevronRight className="h-4 w-4" />
-            </Button>
-          ) : null}
-          {isVideo ? (
-            <button
-              type="button"
-              className="relative block w-full"
-              aria-label={playing ? "動画を一時停止" : "動画を再生"}
-              onClick={handleVideoAreaClick}
-            >
-              <video
-                ref={videoRef}
+        <div className="flex w-full justify-center">
+          <div className="relative inline-block max-w-full overflow-hidden rounded border border-border bg-muted">
+            {hasPrev ? (
+              <Button
+                type="button"
+                variant="secondary"
+                size="icon"
+                className="absolute left-2 top-1/2 z-10 h-8 w-8 -translate-y-1/2 opacity-90 transition-none active:!-translate-y-1/2"
+                onClick={() => handleIndexChange(index - 1)}
+                aria-label="前の画像"
+              >
+                <ChevronLeft className="h-4 w-4" />
+              </Button>
+            ) : null}
+            {hasNext ? (
+              <Button
+                type="button"
+                variant="secondary"
+                size="icon"
+                className="absolute right-2 top-1/2 z-10 h-8 w-8 -translate-y-1/2 opacity-90 transition-none active:!-translate-y-1/2"
+                onClick={() => handleIndexChange(index + 1)}
+                aria-label="次の画像"
+              >
+                <ChevronRight className="h-4 w-4" />
+              </Button>
+            ) : null}
+            {isVideo ? (
+              <button
+                type="button"
+                className="relative block"
+                aria-label={playing ? "動画を一時停止" : "動画を再生"}
+                onClick={handleVideoAreaClick}
+              >
+                <video
+                  ref={videoRef}
+                  key={item.path}
+                  src={mediaUrl}
+                  preload="metadata"
+                  playsInline
+                  className="block h-auto max-h-[70vh] w-auto max-w-full"
+                  onLoadedMetadata={(e) => {
+                    const video = e.currentTarget;
+                    setSizeLabel(
+                      `${video.videoWidth} × ${video.videoHeight}px`,
+                    );
+                  }}
+                  onEnded={() => setPlaying(false)}
+                />
+                <MediaPlayOverlay visible={!playing} />
+              </button>
+            ) : (
+              /* eslint-disable-next-line @next/next/no-img-element */
+              <img
                 key={item.path}
                 src={mediaUrl}
-                preload="metadata"
-                playsInline
-                className="max-h-[70vh] w-full object-contain"
-                onLoadedMetadata={(e) => {
-                  const video = e.currentTarget;
-                  setSizeLabel(`${video.videoWidth} × ${video.videoHeight}px`);
+                alt={item.name}
+                className="block h-auto max-h-[70vh] w-auto max-w-full"
+                onLoad={(e) => {
+                  const img = e.currentTarget;
+                  setSizeLabel(`${img.naturalWidth} × ${img.naturalHeight}px`);
                 }}
-                onEnded={() => setPlaying(false)}
               />
-              <MediaPlayOverlay visible={!playing} />
-            </button>
-          ) : (
-            /* eslint-disable-next-line @next/next/no-img-element */
-            <img
-              key={item.path}
-              src={mediaUrl}
-              alt={item.name}
-              className="max-h-[70vh] w-full object-contain"
-              onLoad={(e) => {
-                const img = e.currentTarget;
-                setSizeLabel(`${img.naturalWidth} × ${img.naturalHeight}px`);
-              }}
-            />
-          )}
+            )}
+          </div>
         </div>
         <div className="flex items-center justify-between gap-3">
           <div className="flex min-w-0 flex-1 items-center gap-1.5 overflow-hidden text-xs text-muted-foreground">

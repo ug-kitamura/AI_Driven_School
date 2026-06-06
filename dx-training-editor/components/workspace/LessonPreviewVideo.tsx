@@ -4,8 +4,8 @@ import { useRef, useState } from "react";
 import { ImageOff } from "lucide-react";
 import { MediaPlayOverlay } from "@/components/workspace/MediaPlayOverlay";
 import {
-  isSafeImageLogicalPath,
-  normalizeImageLogicalPath,
+  resolveImageLogicalPathFromMarkdown,
+  resolveToAvailablePath,
   toImageApiUrl,
 } from "@/lib/image-path";
 
@@ -48,21 +48,22 @@ export function LessonPreviewVideo({
   const [playing, setPlaying] = useState(false);
   const [failed, setFailed] = useState(false);
 
-  const logicalPath = isSafeImageLogicalPath(src)
-    ? normalizeImageLogicalPath(src)
-    : null;
+  const logicalPath = resolveImageLogicalPathFromMarkdown(src);
+
+  const fetchPath =
+    logicalPath && availableImagePaths
+      ? (resolveToAvailablePath(logicalPath, availableImagePaths) ?? logicalPath)
+      : logicalPath;
 
   const isKnownMissing = Boolean(
-    logicalPath &&
-      availableImagePaths &&
-      !availableImagePaths.has(logicalPath),
+    logicalPath && availableImagePaths && !resolveToAvailablePath(logicalPath, availableImagePaths),
   );
 
-  const resolved = logicalPath
-    ? `${toImageApiUrl(logicalPath)}&v=${cacheRevision}`
+  const resolved = fetchPath
+    ? `${toImageApiUrl(fetchPath)}&v=${cacheRevision}`
     : null;
 
-  const label = logicalPath ?? resolved ?? "";
+  const label = logicalPath ?? src;
 
   if (isKnownMissing || failed) {
     return <MissingVideoPlaceholder label={label} alt={alt} />;

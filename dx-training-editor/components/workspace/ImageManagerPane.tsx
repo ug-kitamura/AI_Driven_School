@@ -986,9 +986,6 @@ export function ImageManagerPane({
                 <p className="mt-0.5 text-[10px] text-muted-foreground">
                   またはクリックして選択
                 </p>
-                <p className="mt-1 text-[10px] text-muted-foreground">
-                  MP4（3 MB 以下・10 秒以内推奨）もアップロードできます
-                </p>
               </div>
               <input
                 ref={fileInputRef}

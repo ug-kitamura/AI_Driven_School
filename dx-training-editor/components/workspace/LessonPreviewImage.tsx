@@ -5,8 +5,8 @@ import { ImageOff } from "lucide-react";
 import { LessonPreviewVideo } from "@/components/workspace/LessonPreviewVideo";
 import {
   isMp4Path,
-  isSafeImageLogicalPath,
-  normalizeImageLogicalPath,
+  resolveImageLogicalPathFromMarkdown,
+  resolveToAvailablePath,
   toImageApiUrl,
 } from "@/lib/image-path";
 
@@ -48,24 +48,29 @@ export function LessonPreviewImage({
   const [failed, setFailed] = useState(false);
 
   const logicalPath =
-    src && typeof src === "string" && isSafeImageLogicalPath(src)
-      ? normalizeImageLogicalPath(src)
+    src && typeof src === "string"
+      ? resolveImageLogicalPathFromMarkdown(src)
       : null;
+
+  const fetchPath =
+    logicalPath && availableImagePaths
+      ? (resolveToAvailablePath(logicalPath, availableImagePaths) ?? logicalPath)
+      : logicalPath;
 
   const isKnownMissing = Boolean(
     logicalPath &&
       availableImagePaths &&
-      !availableImagePaths.has(logicalPath),
+      !resolveToAvailablePath(logicalPath, availableImagePaths),
   );
 
   const resolved =
     src && typeof src === "string"
-      ? logicalPath
-        ? `${toImageApiUrl(logicalPath)}&v=${cacheRevision}`
+      ? fetchPath
+        ? `${toImageApiUrl(fetchPath)}&v=${cacheRevision}`
         : src
       : null;
 
-  const label = logicalPath ?? resolved ?? "";
+  const label = logicalPath ?? (typeof src === "string" ? src : "") ?? "";
 
   useEffect(() => {
     setFailed(false);
@@ -73,7 +78,7 @@ export function LessonPreviewImage({
 
   if (!src || typeof src !== "string") return null;
 
-  if (isMp4Path(src)) {
+  if (logicalPath && isMp4Path(logicalPath)) {
     return (
       <LessonPreviewVideo
         src={src}

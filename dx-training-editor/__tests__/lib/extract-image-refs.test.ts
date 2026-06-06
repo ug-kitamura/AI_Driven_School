@@ -53,6 +53,14 @@ describe("extractImageRefs", () => {
       "images/demo.mp4",
     ]);
   });
+
+  it("decodes percent-encoded paths in markdown", () => {
+    expect(
+      extractImageRefs(
+        "![demo](images/DX_Training_Editor_6%E6%9C%886%E6%97%A5_14_31.mp4)",
+      ),
+    ).toEqual(["images/DX_Training_Editor_6月6日_14_31.mp4"]);
+  });
 });
 
 describe("usedRowMatchesFilter", () => {

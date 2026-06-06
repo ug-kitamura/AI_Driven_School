@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  decodeImageMarkdownSrc,
   isAllowedUploadMime,
   isCanonicalImagePath,
   isMp4Path,
@@ -8,6 +9,8 @@ import {
   MAX_MP4_BYTES,
   normalizeImageLogicalPath,
   promoteTargetPath,
+  resolveImageLogicalPathFromMarkdown,
+  resolveToAvailablePath,
   sanitizeUploadFileName,
 } from "@/lib/image-path";
 
@@ -89,6 +92,46 @@ describe("isStagingImagePath", () => {
 describe("sanitizeUploadFileName", () => {
   it("uses basename only", () => {
     expect(sanitizeUploadFileName("../../evil.png")).toBe("evil.png");
+  });
+
+  it("replaces spaces and semicolons with underscores", () => {
+    expect(sanitizeUploadFileName("DX Training Editor; 6月6日 14 31.mp4")).toBe(
+      "DX_Training_Editor_6月6日_14_31.mp4",
+    );
+  });
+});
+
+describe("decodeImageMarkdownSrc", () => {
+  it("decodes percent-encoded Japanese paths", () => {
+    expect(
+      decodeImageMarkdownSrc(
+        "images/DX_Training_Editor_6%E6%9C%886%E6%97%A5_14_31.mp4",
+      ),
+    ).toBe("images/DX_Training_Editor_6月6日_14_31.mp4");
+  });
+});
+
+describe("resolveImageLogicalPathFromMarkdown", () => {
+  it("resolves encoded mp4 paths", () => {
+    expect(
+      resolveImageLogicalPathFromMarkdown(
+        "images/DX_Training_Editor_6%E6%9C%886%E6%97%A5_14_31.mp4",
+      ),
+    ).toBe("images/DX_Training_Editor_6月6日_14_31.mp4");
+  });
+});
+
+describe("resolveToAvailablePath", () => {
+  it("maps unsanitized markdown paths to sanitized files", () => {
+    const available = new Set([
+      "images/DX_Training_Editor_6月6日_14_31.mp4",
+    ]);
+    expect(
+      resolveToAvailablePath(
+        "images/DX Training Editor; 6月6日 14 31.mp4",
+        available,
+      ),
+    ).toBe("images/DX_Training_Editor_6月6日_14_31.mp4");
   });
 });
 

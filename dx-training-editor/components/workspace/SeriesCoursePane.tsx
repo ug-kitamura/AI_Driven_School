@@ -396,8 +396,8 @@ function SortableSeriesBlock({
               className={ADD_LIST_BUTTON_CLASS}
               onClick={() => openAddCourseDialog(seriesItem.id)}
             >
-              <Plus className="h-3 w-3" />
               コースを追加
+              <Plus className="h-3 w-3 shrink-0" />
             </Button>
           </div>
         )}
@@ -639,8 +639,8 @@ export function SeriesCoursePane({
             className={ADD_LIST_BUTTON_CLASS}
             onClick={openAddSeriesDialog}
           >
-            <Plus className="h-3 w-3" />
             シリーズを追加
+            <Plus className="h-3 w-3 shrink-0" />
           </Button>
         )}
       </SidebarFooter>

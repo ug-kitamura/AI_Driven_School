@@ -626,8 +626,8 @@ export function LessonListPane({
             setAddDialogOpen(true);
           }}
         >
-          <Plus className="h-3 w-3" />
           レッスンを追加
+          <Plus className="h-3 w-3 shrink-0" />
         </Button>
       </div>
 

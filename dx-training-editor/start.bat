@@ -1,10 +1,20 @@
 @echo off
 cd /d "%~dp0"
 
-echo [DX Training Editor] checking Playwright Chromium...
+if not exist node_modules (
+  echo [DX Training Editor] node_modules not found. Running npm install...
+  call npm install
+  if errorlevel 1 (
+    echo npm install failed. Please check Node.js installation.
+    pause
+    exit /b 1
+  )
+)
+
+echo [DX Training Editor] Checking Playwright Chromium...
 call npx playwright install chromium
 if errorlevel 1 (
-  echo failed to setup Playwright. please check Node.js and network.
+  echo Failed to install Playwright Chromium. Please check Node.js and network.
   pause
   exit /b 1
 )

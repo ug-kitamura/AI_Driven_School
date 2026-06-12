@@ -47,7 +47,9 @@ import {
 import { CrossSeriesCourseTreePicker } from "@/components/workspace/CrossSeriesCourseTreePicker";
 import {
   ADD_LIST_BUTTON_CLASS,
+  LIST_CHILD_LEFT_INSET_CLASS,
   LIST_ROW_X_INSET_CLASS,
+  PANE_LIST_CONTENT_X_INSET_CLASS,
   SORTABLE_POINTER_ACTIVATION,
 } from "@/components/workspace/constants";
 import { PaneWheelRoot } from "@/components/workspace/PaneWheelRoot";
@@ -573,22 +575,32 @@ export function LessonListPane({
         ) : null}
       </div>
 
-      {/* コース進捗（レッスン行と同じ px-2 で左右を揃える） */}
-      <div className="mb-2 shrink-0 px-2 pt-2">
-        <div className="mb-0.5 flex items-center justify-between text-[10px]">
-          <span className="text-muted-foreground">コース進捗</span>
-          <span className="font-medium text-primary">
-            {doneCount}/{course.lessons.length}
-          </span>
-        </div>
-        <Progress value={progress} className="h-1" />
-      </div>
-
-      {/* レッスン一覧 */}
+      {/* コース進捗・レッスン一覧（ペイン1と同じ px-2 → ml-3 pl-2 の二段インデント） */}
       <div
-        ref={lessonScrollRef}
-        className="flex min-h-0 flex-1 flex-col gap-1 overflow-y-auto overscroll-y-contain px-2 pb-2"
+        className={cn(
+          "flex min-h-0 flex-1 flex-col",
+          PANE_LIST_CONTENT_X_INSET_CLASS,
+        )}
       >
+        <div
+          className={cn("mb-2 shrink-0 pt-2", LIST_CHILD_LEFT_INSET_CLASS)}
+        >
+          <div className="mb-0.5 flex items-center justify-between text-[10px]">
+            <span className="text-muted-foreground">コース進捗</span>
+            <span className="font-medium text-primary">
+              {doneCount}/{course.lessons.length}
+            </span>
+          </div>
+          <Progress value={progress} className="h-1" />
+        </div>
+
+        <div
+          ref={lessonScrollRef}
+          className={cn(
+            "flex min-h-0 flex-1 flex-col gap-1 overflow-y-auto overscroll-y-contain pb-2",
+            LIST_CHILD_LEFT_INSET_CLASS,
+          )}
+        >
         <DndContext
           id="lesson-list-dnd"
           sensors={sensors}
@@ -630,6 +642,7 @@ export function LessonListPane({
           レッスンを追加
           <Plus className="h-3 w-3 shrink-0" />
         </Button>
+        </div>
       </div>
 
       {/* レッスン追加ダイアログ */}

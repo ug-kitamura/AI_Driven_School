@@ -51,7 +51,9 @@ import { PaneWheelRoot } from "@/components/workspace/PaneWheelRoot";
 import { WorkspaceTooltip } from "@/components/workspace/WorkspaceTooltip";
 import {
   ADD_LIST_BUTTON_CLASS,
+  LIST_CHILD_LEFT_INSET_CLASS,
   LIST_ROW_X_INSET_CLASS,
+  PANE_LIST_CONTENT_X_INSET_CLASS,
   SORTABLE_POINTER_ACTIVATION,
 } from "@/components/workspace/constants";
 import { Progress } from "@/components/ui/progress";
@@ -63,9 +65,6 @@ import {
 import { cn, computeStatus } from "@/lib/utils";
 import { STATUS_LABELS } from "@/lib/schema";
 import type { Series, Course } from "@/lib/schema";
-
-/** 子ブロック左のみインデント。右端はシリーズ行と揃える */
-const SERIES_CHILD_INSET = "ml-3 pl-2";
 
 type Props = {
   workspaceName: string;
@@ -355,7 +354,7 @@ function SortableSeriesBlock({
         </div>
 
         {isExpanded && (
-          <div className={cn("mb-2 sidebar-label", SERIES_CHILD_INSET)}>
+          <div className={cn("mb-2 sidebar-label", LIST_CHILD_LEFT_INSET_CLASS)}>
             <div className="mb-0.5 flex items-center justify-between text-[10px]">
               <span className="text-muted-foreground">シリーズ進捗</span>
               <span className="font-medium text-primary">
@@ -367,7 +366,7 @@ function SortableSeriesBlock({
         )}
 
         {isExpanded && (
-          <div className={cn("flex flex-col gap-1", SERIES_CHILD_INSET)}>
+          <div className={cn("flex flex-col gap-1", LIST_CHILD_LEFT_INSET_CLASS)}>
             <DndContext
               id={`series-course-dnd-${seriesItem.id}`}
               sensors={sensors}
@@ -568,7 +567,10 @@ export function SeriesCoursePane({
 
         <SidebarContent
           ref={seriesScrollRef}
-          className="overflow-y-auto overscroll-y-contain px-2 py-2"
+          className={cn(
+            "overflow-y-auto overscroll-y-contain py-2",
+            PANE_LIST_CONTENT_X_INSET_CLASS,
+          )}
         >
         {isCollapsed ? null : (
           <>

@@ -488,19 +488,17 @@ export function AgentChatPane({
   }, []);
 
   const sessionTitle = activeSession?.title ?? DEFAULT_SESSION_TITLE;
-  const paneBgClass = "bg-muted/40";
-  const elevatedSurfaceClass = "bg-secondary";
 
   return (
-    <div className={cn("flex h-full min-h-0 flex-col px-4", paneBgClass)}>
-      <div className={cn("relative z-10 shrink-0 py-2", paneBgClass)}>
+    <div className="agent-chat-pane flex h-full min-h-0 flex-col">
+      <div className="relative z-10 shrink-0 px-12 pt-3 pb-2">
         <div className="flex items-center gap-2">
         <div ref={historyRef} className="relative">
           <Button
             type="button"
             variant="secondary"
             size="sm"
-            className={cn("gap-1 border-0", elevatedSurfaceClass, "hover:bg-secondary/80")}
+            className="gap-1 border-0 bg-secondary hover:bg-secondary/80"
             onClick={() => setHistoryOpen((open) => !open)}
           >
             <History className="size-3" />
@@ -538,7 +536,7 @@ export function AgentChatPane({
           type="button"
           variant="secondary"
           size="sm"
-          className={cn("gap-1 border-0", elevatedSurfaceClass, "hover:bg-secondary/80")}
+          className="gap-1 border-0 bg-secondary hover:bg-secondary/80"
           onClick={handleNewSession}
         >
           <Plus className="size-3" />
@@ -547,21 +545,14 @@ export function AgentChatPane({
         </div>
         <div
           aria-hidden
-          className={cn(
-            "pointer-events-none absolute inset-x-0 -bottom-5 h-5 bg-gradient-to-b to-transparent",
-            "from-muted/40",
-          )}
+          className="pointer-events-none absolute inset-x-0 -bottom-5 h-5 bg-gradient-to-b from-[var(--agent-chat-pane-bg)] to-transparent"
         />
       </div>
 
-      <div
-        className={cn(
-          "workspace-scrollbar relative min-h-0 flex-1 overflow-y-auto overscroll-y-contain py-4",
-          paneBgClass,
-        )}
-      >
+      <div className="workspace-scrollbar relative min-h-0 flex-1 overflow-y-auto overscroll-y-contain">
+        <div className="px-12 py-4">
         {messages.length === 0 ? (
-          <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
+          <div className="flex h-full min-h-[12rem] items-center justify-center text-sm text-muted-foreground">
             / でスキルを選択し、メッセージを送信してください
           </div>
         ) : (
@@ -578,12 +569,7 @@ export function AgentChatPane({
               if (message.role === "user") {
                 return (
                   <div key={message.id} className="flex w-full justify-end">
-                    <div
-                      className={cn(
-                        "max-w-[min(70%,28rem)] rounded-2xl px-3 py-2 text-sm text-foreground",
-                        elevatedSurfaceClass,
-                      )}
-                    >
+                    <div className="max-w-[min(70%,28rem)] rounded-2xl bg-muted px-3 py-2 text-sm text-foreground">
                       <div className="whitespace-pre-wrap break-words">
                         {renderUserMessageContent(message.content)}
                       </div>
@@ -628,10 +614,11 @@ export function AgentChatPane({
             })}
           </div>
         )}
+        </div>
       </div>
 
       {error ? (
-        <div className="flex items-center justify-between gap-2 bg-destructive/10 px-3 py-2 text-xs text-destructive">
+        <div className="flex items-center justify-between gap-2 bg-destructive/10 px-12 py-2 text-xs text-destructive">
           <span>{error}</span>
           {retryPayload ? (
             <Button type="button" variant="ghost" size="sm" onClick={() => void handleRetry()}>
@@ -642,13 +629,10 @@ export function AgentChatPane({
         </div>
       ) : null}
 
-      <div className={cn("relative z-10 shrink-0", paneBgClass)}>
+      <div className="relative z-10 shrink-0 px-12">
         <div
           aria-hidden
-          className={cn(
-            "pointer-events-none absolute inset-x-0 -top-5 h-5 bg-gradient-to-t to-transparent",
-            "from-muted/40",
-          )}
+          className="pointer-events-none absolute inset-x-0 -top-5 h-5 bg-gradient-to-t from-[var(--agent-chat-pane-bg)] to-transparent"
         />
         <AgentChatInput
         value={input}

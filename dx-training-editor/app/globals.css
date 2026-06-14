@@ -249,6 +249,17 @@
   }
 }
 
+/* Pane3 Agent ビュー: 編集ビューと同じスクロールバー形状・位置、背景は極めて白に近いグレー */
+.agent-chat-pane {
+  --agent-chat-pane-bg: #fdfdfc;
+  background-color: var(--agent-chat-pane-bg);
+  --workspace-scrollbar-track: var(--agent-chat-pane-bg);
+}
+
+.dark .agent-chat-pane {
+  --agent-chat-pane-bg: var(--background);
+}
+
 /* Pane3・グローバル曼陀羅: ネイティブスクロールバー（ライト/ダークで形状同一） */
 .workspace-scrollbar,
 .lesson-content-editor .cm-scroller {

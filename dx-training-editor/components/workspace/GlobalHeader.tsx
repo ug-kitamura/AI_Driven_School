@@ -24,8 +24,6 @@ import {
   mandalaCurrentCourseStyleLine,
 } from "@/lib/mermaid-workspace-theme";
 
-// セーフな Mermaid ノード ID
-const safeId = (id: string) => `N_${id.replace(/[^a-zA-Z0-9]/g, "_")}`;
 const safeLabel = (s: string) => s.replace(/"/g, "'");
 
 function buildFullMandalaGraph(
@@ -35,14 +33,47 @@ function buildFullMandalaGraph(
   const lines = ["flowchart TD", "  classDef mandalaSeriesTitle font-weight:bold"];
   const nodeMap: Record<string, string> = {};
 
+  // コース ID → 衝突しない Mermaid ノード ID のマップを先に作る
+  // 日本語文字は全て "_" に変換すると衝突が起きるため、連番で一意性を保証する
+  const courseIdToNid = new Map<string, string>();
+  let nidCounter = 0;
+  const usedNids = new Set<string>();
+  const toNid = (rawId: string): string => {
+    if (courseIdToNid.has(rawId)) return courseIdToNid.get(rawId)!;
+    let candidate = `N_${rawId.replace(/[^a-zA-Z0-9]/g, "_")}`;
+    if (usedNids.has(candidate)) {
+      candidate = `NC${nidCounter++}`;
+    }
+    usedNids.add(candidate);
+    courseIdToNid.set(rawId, candidate);
+    return candidate;
+  };
+  // シリーズ ID も同じ仕組みで一意化
+  const seriesIdToSgId = new Map<string, string>();
+  const toSgId = (rawId: string): string => {
+    if (seriesIdToSgId.has(rawId)) return seriesIdToSgId.get(rawId)!;
+    let candidate = `SG_${rawId.replace(/[^a-zA-Z0-9]/g, "_")}`;
+    if (usedNids.has(candidate)) {
+      candidate = `SG${nidCounter++}`;
+    }
+    usedNids.add(candidate);
+    seriesIdToSgId.set(rawId, candidate);
+    return candidate;
+  };
+  // 全コース・シリーズを事前登録
+  series.forEach((s) => {
+    toSgId(s.id);
+    s.courses.forEach((c) => toNid(c.id));
+  });
+
   // シリーズごとにサブグラフとノード（丸みノード、方向は TB に統一）
   const currentNid: string[] = [];
   series.forEach((s) => {
-    const sgId = `SG${safeId(s.id)}`;
+    const sgId = toSgId(s.id);
     lines.push(`  subgraph ${sgId}["${safeLabel(s.name)}"]`);
     lines.push(`    direction TB`);
     s.courses.forEach((c) => {
-      const nid = safeId(c.id);
+      const nid = toNid(c.id);
       nodeMap[nid] = c.id;
       const isCurrent = c.id === selectedCourseId;
       const label = isCurrent ? `★ ${safeLabel(c.name)}` : safeLabel(c.name);
@@ -63,7 +94,7 @@ function buildFullMandalaGraph(
     for (let i = 1; i < s.courses.length; i++) {
       const prev = s.courses[i - 1];
       const curr = s.courses[i];
-      lines.push(`  ${safeId(prev.id)} --> ${safeId(curr.id)}`);
+      lines.push(`  ${toNid(prev.id)} --> ${toNid(curr.id)}`);
     }
   });
 
@@ -73,7 +104,7 @@ function buildFullMandalaGraph(
     const key = `${fromId}-->${toId}`;
     if (crossEdgeKeys.has(key)) return;
     crossEdgeKeys.add(key);
-    lines.push(`  ${safeId(fromId)} --> ${safeId(toId)}`);
+    lines.push(`  ${toNid(fromId)} --> ${toNid(toId)}`);
   };
   series.forEach((s) => {
     s.courses.forEach((c) => {
@@ -99,7 +130,7 @@ function buildFullMandalaGraph(
   // click ディレクティブ
   series.forEach((s) => {
     s.courses.forEach((c) => {
-      lines.push(`  click ${safeId(c.id)} call mandalaNav()`);
+      lines.push(`  click ${toNid(c.id)} call mandalaNav()`);
     });
   });
 

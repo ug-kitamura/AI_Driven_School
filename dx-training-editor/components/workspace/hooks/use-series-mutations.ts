@@ -2,6 +2,51 @@
 
 import { useCallback } from "react";
 import type { Course, Series } from "@/lib/schema";
+
+async function saveCourseMeta(
+  seriesName: string,
+  courseName: string,
+  meta: Pick<Course, "target_audience" | "prerequisites" | "next_courses">,
+): Promise<void> {
+  const res = await fetch("/api/content/save-course", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      series: seriesName,
+      course: courseName,
+      target_audience: meta.target_audience ?? "",
+      prerequisites: meta.prerequisites,
+      next_courses: meta.next_courses,
+    }),
+  });
+  if (!res.ok) throw new Error("コースメタ保存エラー");
+}
+
+async function saveSeriesOrder(seriesNames: string[]): Promise<void> {
+  const res = await fetch("/api/content/save-series-order", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ order: seriesNames }),
+  });
+  if (!res.ok) throw new Error("シリーズ順序保存エラー");
+}
+
+async function callContentApi(
+  endpoint: string,
+  body: Record<string, unknown>,
+): Promise<void> {
+  const res = await fetch(`/api/content/${endpoint}`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) {
+    const { error } = (await res.json().catch(() => ({ error: "APIエラー" }))) as {
+      error: string;
+    };
+    throw new Error(error);
+  }
+}
 import {
   applyCourseDeletion,
   applyCrossSeriesCourseMetaEdit,
@@ -20,21 +65,26 @@ export function useSeriesMutations(options: {
   selectedCourseId: string;
   selectedLessonId: string;
   setSelection: (selection: WorkspaceSelection) => void;
+  onSaveError?: (msg: string) => void;
 }) {
-  const { series, setSeries, selectedCourseId, selectedLessonId, setSelection } =
+  const { series, setSeries, selectedCourseId, selectedLessonId, setSelection, onSaveError } =
     options;
 
   const addSeries = useCallback(
     (name: string) => {
-      const newId = `series-${Date.now()}`;
+      const newId = `series-${name}`;
       setSeries((prev) => [...prev, { id: newId, name, courses: [] }]);
+      callContentApi("create", { type: "series", name }).catch((err: unknown) => {
+        onSaveError?.(`シリーズ追加エラー: ${String(err)}`);
+      });
       return newId;
     },
-    [setSeries],
+    [setSeries, onSaveError],
   );
 
   const deleteSeries = useCallback(
     (seriesId: string) => {
+      const target = series.find((s) => s.id === seriesId);
       const next = applySeriesDeletion(series, seriesId);
       const selection = resolveSelectionAfterDelete({
         prevSeries: series,
@@ -45,12 +95,19 @@ export function useSeriesMutations(options: {
       });
       setSeries(next);
       setSelection(selection);
+      if (target) {
+        callContentApi("delete", { type: "series", name: target.name }).catch(
+          (err: unknown) => onSaveError?.(`シリーズ削除エラー: ${String(err)}`),
+        );
+      }
     },
-    [series, selectedCourseId, selectedLessonId, setSeries, setSelection],
+    [series, selectedCourseId, selectedLessonId, setSeries, setSelection, onSaveError],
   );
 
   const deleteCourse = useCallback(
     (seriesId: string, courseId: string) => {
+      const targetSeries = series.find((s) => s.id === seriesId);
+      const targetCourse = targetSeries?.courses.find((c) => c.id === courseId);
       const next = applyCourseDeletion(series, seriesId, courseId);
       const selection = resolveSelectionAfterDelete({
         prevSeries: series,
@@ -61,13 +118,21 @@ export function useSeriesMutations(options: {
       });
       setSeries(next);
       setSelection(selection);
+      if (targetSeries && targetCourse) {
+        callContentApi("delete", {
+          type: "course",
+          series: targetSeries.name,
+          name: targetCourse.name,
+        }).catch((err: unknown) => onSaveError?.(`コース削除エラー: ${String(err)}`));
+      }
     },
-    [series, selectedCourseId, selectedLessonId, setSeries, setSelection],
+    [series, selectedCourseId, selectedLessonId, setSeries, setSelection, onSaveError],
   );
 
   const addCourse = useCallback(
     (seriesId: string, name: string) => {
-      const newId = `course-${Date.now()}`;
+      const targetSeries = series.find((s) => s.id === seriesId);
+      const newId = `course-${seriesId}-${name}`;
       setSeries((prev) =>
         prev.map((s) => {
           if (s.id !== seriesId) return s;
@@ -82,8 +147,15 @@ export function useSeriesMutations(options: {
           return { ...s, courses: [...s.courses, newCourse] };
         }),
       );
+      if (targetSeries) {
+        callContentApi("create", {
+          type: "course",
+          series: targetSeries.name,
+          name,
+        }).catch((err: unknown) => onSaveError?.(`コース追加エラー: ${String(err)}`));
+      }
     },
-    [setSeries],
+    [series, setSeries, onSaveError],
   );
 
   const reorderSeries = useCallback(
@@ -92,10 +164,13 @@ export function useSeriesMutations(options: {
         const next = [...prev];
         const [moved] = next.splice(fromIndex, 1);
         next.splice(toIndex, 0, moved);
+        saveSeriesOrder(next.map((s) => s.name)).catch((err: unknown) => {
+          onSaveError?.(`シリーズ順序保存エラー: ${String(err)}`);
+        });
         return next;
       });
     },
-    [setSeries],
+    [setSeries, onSaveError],
   );
 
   const reorderCourses = useCallback(
@@ -106,11 +181,18 @@ export function useSeriesMutations(options: {
           const courses = [...s.courses];
           const [moved] = courses.splice(fromIndex, 1);
           courses.splice(toIndex, 0, moved);
+          callContentApi("reorder", {
+            type: "course",
+            series: s.name,
+            newOrder: courses.map((c) => c.name),
+          }).catch((err: unknown) =>
+            onSaveError?.(`コース並び替えエラー: ${String(err)}`),
+          );
           return { ...s, courses };
         }),
       );
     },
-    [setSeries],
+    [setSeries, onSaveError],
   );
 
   const updateCourseMeta = useCallback(
@@ -138,7 +220,7 @@ export function useSeriesMutations(options: {
           crossPrerequisites,
           crossNextCourses,
         );
-        return synced.map((s) => ({
+        const next = synced.map((s) => ({
           ...s,
           courses: s.courses.map((c) => {
             if (c.id !== courseId) return c;
@@ -154,13 +236,28 @@ export function useSeriesMutations(options: {
             };
           }),
         }));
+        for (const s of next) {
+          const c = s.courses.find((co) => co.id === courseId);
+          if (c) {
+            saveCourseMeta(s.name, c.name, {
+              target_audience: c.target_audience,
+              prerequisites: c.prerequisites,
+              next_courses: c.next_courses,
+            }).catch((err: unknown) => {
+              onSaveError?.(`コースメタ保存エラー: ${String(err)}`);
+            });
+            break;
+          }
+        }
+        return next;
       });
     },
-    [setSeries],
+    [setSeries, onSaveError],
   );
 
   const updateSeriesName = useCallback(
     (seriesId: string, name: string) => {
+      const target = series.find((s) => s.id === seriesId);
       setSeries((prev) =>
         prev.map((s) => {
           if (s.id !== seriesId) return s;
@@ -180,8 +277,20 @@ export function useSeriesMutations(options: {
           };
         }),
       );
+      if (target) {
+        const newName = name.trim() || target.name;
+        if (newName !== target.name) {
+          callContentApi("rename", {
+            type: "series",
+            oldName: target.name,
+            newName,
+          }).catch((err: unknown) =>
+            onSaveError?.(`シリーズリネームエラー: ${String(err)}`),
+          );
+        }
+      }
     },
-    [setSeries],
+    [series, setSeries, onSaveError],
   );
 
   return {

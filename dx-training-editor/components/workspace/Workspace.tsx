@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useMemo, useEffect } from "react";
+import { useState, useCallback, useMemo, useEffect, useRef } from "react";
 import { SidebarInset, SidebarProvider, useSidebar } from "@/components/ui/sidebar";
 import { cn } from "@/lib/utils";
 import { GlobalHeader } from "@/components/workspace/GlobalHeader";
@@ -45,11 +45,13 @@ function Pane1ResizeHandle({
 
 type WorkspaceProps = {
   initialSeries: Series[];
+  contentsEmpty?: boolean;
   workspace: { name: string; icon: string };
 };
 
 export function Workspace({
   initialSeries,
+  contentsEmpty = false,
   workspace,
 }: WorkspaceProps) {
   const [series, setSeries] = useState<Series[]>(() =>
@@ -58,6 +60,14 @@ export function Workspace({
   const [pane4ManuallyClosed, setPane4ManuallyClosed] = useState(false);
   const [pane3Mode, setPane3Mode] = useState<Pane3Mode>("raw");
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [saveErrorMsg, setSaveErrorMsg] = useState<string | null>(null);
+  const saveErrorTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const handleSaveError = useCallback((msg: string) => {
+    setSaveErrorMsg(msg);
+    if (saveErrorTimer.current) clearTimeout(saveErrorTimer.current);
+    saveErrorTimer.current = setTimeout(() => setSaveErrorMsg(null), 5000);
+  }, []);
   const [editorCommentPrompt, setEditorCommentPrompt] = useState<string | null>(
     null,
   );
@@ -105,6 +115,7 @@ export function Workspace({
     selectedCourseId,
     selectedLessonId,
     setSelection,
+    onSaveError: handleSaveError,
   });
 
   const {
@@ -118,6 +129,7 @@ export function Workspace({
     setSeries,
     selectedLessonId,
     setSelectedLessonId,
+    onSaveError: handleSaveError,
   });
 
   const { availableImagePaths, imageAssetsRevision, notifyImageAssetsChanged } =
@@ -233,6 +245,19 @@ export function Workspace({
           currentPaneWidths={paneWidths}
           onApplyPaneWidths={applyPaneWidths}
         />
+        {contentsEmpty && (
+          <div className="flex items-center justify-center border-b bg-amber-50 px-4 py-2 text-sm text-amber-800 dark:bg-amber-950 dark:text-amber-200">
+            contents/ フォルダが空です。移行スクリプトを実行してください:{" "}
+            <code className="mx-1 rounded bg-amber-100 px-1 dark:bg-amber-900">
+              npx tsx scripts/migrate-content.ts
+            </code>
+          </div>
+        )}
+        {saveErrorMsg && (
+          <div className="flex items-center justify-center border-b bg-destructive/10 px-4 py-2 text-sm text-destructive">
+            {saveErrorMsg}
+          </div>
+        )}
         <div className="flex min-h-0 min-w-0 flex-1 overflow-hidden">
           <div
             className="flex h-full min-w-0 shrink-0 flex-col overflow-hidden"

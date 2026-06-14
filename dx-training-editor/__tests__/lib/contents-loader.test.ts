@@ -1,0 +1,114 @@
+import { describe, expect, it, beforeEach, afterEach } from "vitest";
+import fs from "node:fs";
+import path from "node:path";
+import os from "node:os";
+import { loadContentsFolder, contentsExists } from "@/lib/contents-loader";
+
+function writeFile(filePath: string, content: string) {
+  fs.mkdirSync(path.dirname(filePath), { recursive: true });
+  fs.writeFileSync(filePath, content, "utf-8");
+}
+
+describe("loadContentsFolder", () => {
+  let tmpDir: string;
+
+  beforeEach(() => {
+    tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "contents-loader-test-"));
+  });
+
+  afterEach(() => {
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+  });
+
+  it("returns empty array when contents/ does not exist", () => {
+    const result = loadContentsFolder(tmpDir);
+    expect(result).toEqual([]);
+  });
+
+  it("returns empty array when contents/ is empty", () => {
+    fs.mkdirSync(path.join(tmpDir, "contents"));
+    const result = loadContentsFolder(tmpDir);
+    expect(result).toEqual([]);
+  });
+
+  it("loads series, course and lessons from folder structure", () => {
+    const contentsDir = path.join(tmpDir, "contents");
+    const lessonContent = `---\nseries: テストシリーズ\ncourse: テストコース\nlesson: テストレッスン\nstatus: done\ndescription: テスト\ntags: [git]\nestimated_minutes: 10\nauthor: 田中\n---\n\n本文\n`;
+    writeFile(
+      path.join(contentsDir, "テストシリーズ", "01_テストコース", "01_テストレッスン.md"),
+      lessonContent,
+    );
+    writeFile(
+      path.join(contentsDir, "テストシリーズ", "01_テストコース", "_course.json"),
+      JSON.stringify({ target_audience: "初心者", prerequisites: [], next_courses: [] }),
+    );
+
+    const result = loadContentsFolder(tmpDir);
+    expect(result).toHaveLength(1);
+    expect(result[0].name).toBe("テストシリーズ");
+    expect(result[0].courses).toHaveLength(1);
+    expect(result[0].courses[0].name).toBe("テストコース");
+    expect(result[0].courses[0].target_audience).toBe("初心者");
+    expect(result[0].courses[0].lessons).toHaveLength(1);
+    expect(result[0].courses[0].lessons[0].lesson).toBe("テストレッスン");
+    expect(result[0].courses[0].lessons[0].status).toBe("done");
+    expect(result[0].courses[0].lessons[0].tags).toEqual(["git"]);
+  });
+
+  it("falls back to folder path when frontmatter is broken", () => {
+    const contentsDir = path.join(tmpDir, "contents");
+    writeFile(
+      path.join(contentsDir, "シリーズA", "01_コースA", "01_レッスンA.md"),
+      "フロントマターなし\n\n本文\n",
+    );
+
+    const result = loadContentsFolder(tmpDir);
+    expect(result[0].courses[0].lessons[0].lesson).toBe("レッスンA");
+    expect(result[0].courses[0].lessons[0].status).toBe("open");
+  });
+
+  it("respects _series-order.json for series ordering", () => {
+    const contentsDir = path.join(tmpDir, "contents");
+    writeFile(path.join(contentsDir, "シリーズB", ".keep"), "");
+    writeFile(path.join(contentsDir, "シリーズA", ".keep"), "");
+    writeFile(
+      path.join(contentsDir, "_series-order.json"),
+      JSON.stringify(["シリーズB", "シリーズA"]),
+    );
+
+    const result = loadContentsFolder(tmpDir);
+    expect(result[0].name).toBe("シリーズB");
+    expect(result[1].name).toBe("シリーズA");
+  });
+
+  it("sorts courses by numeric prefix", () => {
+    const contentsDir = path.join(tmpDir, "contents");
+    writeFile(path.join(contentsDir, "S", "02_コースB", "_course.json"), "{}");
+    writeFile(path.join(contentsDir, "S", "01_コースA", "_course.json"), "{}");
+
+    const result = loadContentsFolder(tmpDir);
+    expect(result[0].courses[0].name).toBe("コースA");
+    expect(result[0].courses[1].name).toBe("コースB");
+  });
+});
+
+describe("contentsExists", () => {
+  let tmpDir: string;
+
+  beforeEach(() => {
+    tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "contents-exists-test-"));
+  });
+
+  afterEach(() => {
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+  });
+
+  it("returns false when contents/ does not exist", () => {
+    expect(contentsExists(tmpDir)).toBe(false);
+  });
+
+  it("returns true when contents/ exists", () => {
+    fs.mkdirSync(path.join(tmpDir, "contents"));
+    expect(contentsExists(tmpDir)).toBe(true);
+  });
+});

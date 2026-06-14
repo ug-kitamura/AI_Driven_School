@@ -266,7 +266,7 @@ export function AgentChatInput({
   };
 
   return (
-    <div className="flex shrink-0 flex-col gap-2 bg-white p-3">
+    <div className="flex shrink-0 flex-col gap-2 py-3">
       {activeSkillId ? (
         <div className="flex items-center gap-2">
           <span className="rounded-full bg-primary/10 px-2 py-0.5 text-xs text-primary">

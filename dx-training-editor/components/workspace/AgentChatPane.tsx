@@ -45,6 +45,7 @@ import {
 import { getLessonBody } from "@/lib/lesson-frontmatter";
 import { loadWorkspaceSettings } from "@/lib/workspace-settings";
 import { WorkspaceTooltip } from "@/components/workspace/WorkspaceTooltip";
+import { cn } from "@/lib/utils";
 import type { Course, Lesson, Series } from "@/lib/schema";
 import type { SkillSummary } from "@/lib/agent/skill-loader";
 
@@ -487,17 +488,19 @@ export function AgentChatPane({
   }, []);
 
   const sessionTitle = activeSession?.title ?? DEFAULT_SESSION_TITLE;
+  const paneBgClass = "bg-muted/40";
+  const elevatedSurfaceClass = "bg-secondary";
 
   return (
-    <div className="flex h-full min-h-0 flex-col bg-white">
-      <div className="relative z-10 shrink-0 bg-white px-3 py-2">
+    <div className={cn("flex h-full min-h-0 flex-col px-4", paneBgClass)}>
+      <div className={cn("relative z-10 shrink-0 py-2", paneBgClass)}>
         <div className="flex items-center gap-2">
         <div ref={historyRef} className="relative">
           <Button
             type="button"
-            variant="outline"
+            variant="secondary"
             size="sm"
-            className="gap-1"
+            className={cn("gap-1 border-0", elevatedSurfaceClass, "hover:bg-secondary/80")}
             onClick={() => setHistoryOpen((open) => !open)}
           >
             <History className="size-3" />
@@ -531,18 +534,32 @@ export function AgentChatPane({
           {sessionTitle}
         </span>
 
-        <Button type="button" variant="outline" size="sm" className="gap-1" onClick={handleNewSession}>
+        <Button
+          type="button"
+          variant="secondary"
+          size="sm"
+          className={cn("gap-1 border-0", elevatedSurfaceClass, "hover:bg-secondary/80")}
+          onClick={handleNewSession}
+        >
           <Plus className="size-3" />
           新規
         </Button>
         </div>
         <div
           aria-hidden
-          className="pointer-events-none absolute inset-x-0 -bottom-5 h-5 bg-gradient-to-b from-white to-transparent"
+          className={cn(
+            "pointer-events-none absolute inset-x-0 -bottom-5 h-5 bg-gradient-to-b to-transparent",
+            "from-muted/40",
+          )}
         />
       </div>
 
-      <div className="workspace-scrollbar relative min-h-0 flex-1 overflow-y-auto overscroll-y-contain bg-white px-4 py-4">
+      <div
+        className={cn(
+          "workspace-scrollbar relative min-h-0 flex-1 overflow-y-auto overscroll-y-contain py-4",
+          paneBgClass,
+        )}
+      >
         {messages.length === 0 ? (
           <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
             / でスキルを選択し、メッセージを送信してください
@@ -561,7 +578,12 @@ export function AgentChatPane({
               if (message.role === "user") {
                 return (
                   <div key={message.id} className="flex w-full justify-end">
-                    <div className="max-w-[min(70%,28rem)] rounded-2xl bg-muted px-3 py-2 text-sm text-foreground">
+                    <div
+                      className={cn(
+                        "max-w-[min(70%,28rem)] rounded-2xl px-3 py-2 text-sm text-foreground",
+                        elevatedSurfaceClass,
+                      )}
+                    >
                       <div className="whitespace-pre-wrap break-words">
                         {renderUserMessageContent(message.content)}
                       </div>
@@ -620,10 +642,13 @@ export function AgentChatPane({
         </div>
       ) : null}
 
-      <div className="relative z-10 shrink-0 bg-white">
+      <div className={cn("relative z-10 shrink-0", paneBgClass)}>
         <div
           aria-hidden
-          className="pointer-events-none absolute inset-x-0 -top-5 h-5 bg-gradient-to-t from-white to-transparent"
+          className={cn(
+            "pointer-events-none absolute inset-x-0 -top-5 h-5 bg-gradient-to-t to-transparent",
+            "from-muted/40",
+          )}
         />
         <AgentChatInput
         value={input}

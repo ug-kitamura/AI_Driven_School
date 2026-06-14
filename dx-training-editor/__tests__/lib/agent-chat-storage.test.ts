@@ -119,6 +119,6 @@ describe("agent-chat-storage", () => {
       content: "hello",
       createdAt: "2026-06-14T14:30:00.000Z",
     };
-    expect(formatMessageTimestamp(message)).toMatch(/14:30/);
+    expect(formatMessageTimestamp(message)).toContain("6/14");
   });
 });

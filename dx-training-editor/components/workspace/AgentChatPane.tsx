@@ -498,7 +498,7 @@ export function AgentChatPane({
             type="button"
             variant="secondary"
             size="sm"
-            className="gap-1 border-0 bg-secondary hover:bg-secondary/80"
+            className="gap-1 border-0 bg-muted text-foreground hover:bg-muted/80 dark:bg-secondary dark:text-secondary-foreground dark:hover:bg-secondary/80"
             onClick={() => setHistoryOpen((open) => !open)}
           >
             <History className="size-3" />
@@ -536,7 +536,7 @@ export function AgentChatPane({
           type="button"
           variant="secondary"
           size="sm"
-          className="gap-1 border-0 bg-secondary hover:bg-secondary/80"
+          className="gap-1 border-0 bg-muted text-foreground hover:bg-muted/80 dark:bg-secondary dark:text-secondary-foreground dark:hover:bg-secondary/80"
           onClick={handleNewSession}
         >
           <Plus className="size-3" />

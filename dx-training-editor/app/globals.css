@@ -257,7 +257,7 @@
 }
 
 .dark .agent-chat-pane {
-  --agent-chat-pane-bg: var(--background);
+  --agent-chat-pane-bg: #1e1e1e;
 }
 
 /* Pane3・グローバル曼陀羅: ネイティブスクロールバー（ライト/ダークで形状同一） */

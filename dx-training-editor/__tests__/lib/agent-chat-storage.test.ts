@@ -10,6 +10,7 @@ import {
   enforceSessionLimit,
   ensureAgentChatStorage,
   exportSessionAsMarkdown,
+  formatMessageTimestamp,
   loadAgentChatStorage,
   MAX_AGENT_CHAT_SESSIONS,
   saveAgentChatStorage,
@@ -109,5 +110,15 @@ describe("agent-chat-storage", () => {
     });
     expect(saveAgentChatStorage(createInitialStorage())).toBe(false);
     expect(localStorage.getItem(AGENT_CHAT_STORAGE_KEY)).toBeNull();
+  });
+
+  it("formats message timestamp from createdAt", () => {
+    const message = {
+      id: "1",
+      role: "user" as const,
+      content: "hello",
+      createdAt: "2026-06-14T14:30:00.000Z",
+    };
+    expect(formatMessageTimestamp(message)).toMatch(/14:30/);
   });
 });

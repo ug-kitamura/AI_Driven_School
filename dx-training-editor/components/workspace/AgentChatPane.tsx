@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Check, ChevronDown, Copy, FileDown, History, Plus, RotateCcw } from "lucide-react";
+import { Check, ChevronDown, Copy, History, Plus, RotateCcw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   AlertDialog,
@@ -32,6 +32,7 @@ import {
   deriveSessionTitle,
   downloadSessionMarkdown,
   ensureAgentChatStorage,
+  formatMessageTimestamp,
   formatSessionUpdatedAt,
   getActiveSession,
   listSessionsSorted,
@@ -43,7 +44,7 @@ import {
 } from "@/lib/agent-chat-storage";
 import { getLessonBody } from "@/lib/lesson-frontmatter";
 import { loadWorkspaceSettings } from "@/lib/workspace-settings";
-import { cn } from "@/lib/utils";
+import { WorkspaceTooltip } from "@/components/workspace/WorkspaceTooltip";
 import type { Course, Lesson, Series } from "@/lib/schema";
 import type { SkillSummary } from "@/lib/agent/skill-loader";
 
@@ -52,7 +53,6 @@ type Props = {
   lesson: Lesson | undefined;
   course: Course | undefined;
   currentLessonPath: string | null;
-  onInsertMarkdown: (markdown: string) => void;
   onOpenSettings: () => void;
 };
 
@@ -87,7 +87,6 @@ export function AgentChatPane({
   lesson,
   course,
   currentLessonPath,
-  onInsertMarkdown,
   onOpenSettings,
 }: Props) {
   const [initialAgentState] = useState(readInitialAgentState);
@@ -280,7 +279,12 @@ export function AgentChatPane({
       setMessages((prev) => [
         ...prev,
         options.userMessage,
-        { id: assistantId, role: "assistant", content: "" },
+        {
+          id: assistantId,
+          role: "assistant",
+          content: "",
+          createdAt: new Date().toISOString(),
+        },
       ]);
       setIsStreaming(true);
       setStreamingAssistantId(assistantId);
@@ -384,6 +388,7 @@ export function AgentChatPane({
       id: createMessageId(),
       role: "user",
       content: trimmed,
+      createdAt: new Date().toISOString(),
     };
     setInput("");
     await invokeSkill({
@@ -484,8 +489,9 @@ export function AgentChatPane({
   const sessionTitle = activeSession?.title ?? DEFAULT_SESSION_TITLE;
 
   return (
-    <div className="flex h-full min-h-0 flex-col bg-background">
-      <div className="flex shrink-0 items-center gap-2 border-b border-border px-3 py-2">
+    <div className="flex h-full min-h-0 flex-col bg-white">
+      <div className="relative z-10 shrink-0 bg-white px-3 py-2">
+        <div className="flex items-center gap-2">
         <div ref={historyRef} className="relative">
           <Button
             type="button"
@@ -529,15 +535,20 @@ export function AgentChatPane({
           <Plus className="size-3" />
           新規
         </Button>
+        </div>
+        <div
+          aria-hidden
+          className="pointer-events-none absolute inset-x-0 -bottom-5 h-5 bg-gradient-to-b from-white to-transparent"
+        />
       </div>
 
-      <div className="workspace-scrollbar min-h-0 flex-1 overflow-y-auto overscroll-y-contain px-4 py-4">
+      <div className="workspace-scrollbar relative min-h-0 flex-1 overflow-y-auto overscroll-y-contain bg-white px-4 py-4">
         {messages.length === 0 ? (
           <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
             / でスキルを選択し、メッセージを送信してください
           </div>
         ) : (
-          <div className="flex flex-col gap-4">
+          <div className="flex flex-col gap-6">
             {messages.map((message) => {
               const isStreamingMessage =
                 isStreaming && message.id === streamingAssistantId;
@@ -545,55 +556,51 @@ export function AgentChatPane({
                 message.role === "assistant" &&
                 !isStreamingMessage &&
                 Boolean(message.content);
+              const copied = copiedMessageId === message.id;
+
+              if (message.role === "user") {
+                return (
+                  <div key={message.id} className="flex w-full justify-end">
+                    <div className="max-w-[min(70%,28rem)] rounded-2xl bg-muted px-3 py-2 text-sm text-foreground">
+                      <div className="whitespace-pre-wrap break-words">
+                        {renderUserMessageContent(message.content)}
+                      </div>
+                    </div>
+                  </div>
+                );
+              }
 
               return (
-                <div
-                  key={message.id}
-                  className={cn(
-                    "flex max-w-[85%] flex-col gap-2 text-sm",
-                    message.role === "user"
-                      ? "ml-auto rounded-2xl bg-primary px-3 py-2 text-primary-foreground"
-                      : "mr-auto rounded-2xl border border-border bg-card px-3 py-2",
-                  )}
-                >
-                  {message.role === "user" ? (
-                    <div className="whitespace-pre-wrap break-words">
-                      {renderUserMessageContent(message.content)}
-                    </div>
-                  ) : (
-                    <div className="flex flex-col gap-2">
-                      <pre className="whitespace-pre-wrap break-words font-sans text-sm">
-                        {message.content || "..."}
-                      </pre>
-                      {showActions ? (
-                        <div className="flex flex-wrap gap-2">
+                <div key={message.id} className="flex w-full flex-col gap-2 text-sm">
+                  <pre className="whitespace-pre-wrap break-words font-sans text-sm">
+                    {message.content || "..."}
+                  </pre>
+                  {showActions ? (
+                    <div className="flex items-center gap-2">
+                      <WorkspaceTooltip
+                        label={copied ? "コピー済み" : "コピー"}
+                        render={
                           <Button
                             type="button"
-                            variant="outline"
-                            size="sm"
+                            variant="ghost"
+                            size="icon"
+                            className="size-7"
+                            aria-label={copied ? "コピー済み" : "コピー"}
                             onClick={() => void handleCopy(message.id, message.content)}
                           >
-                            {copiedMessageId === message.id ? (
-                              <Check className="size-3" />
+                            {copied ? (
+                              <Check className="size-3.5" />
                             ) : (
-                              <Copy className="size-3" />
+                              <Copy className="size-3.5" />
                             )}
-                            {copiedMessageId === message.id ? "コピー済み" : "コピー"}
                           </Button>
-                          <Button
-                            type="button"
-                            variant="outline"
-                            size="sm"
-                            disabled={!lesson}
-                            onClick={() => onInsertMarkdown(message.content)}
-                          >
-                            <FileDown className="size-3" />
-                            エディタに挿入
-                          </Button>
-                        </div>
-                      ) : null}
+                        }
+                      />
+                      <span className="text-xs text-muted-foreground">
+                        {formatMessageTimestamp(message)}
+                      </span>
                     </div>
-                  )}
+                  ) : null}
                 </div>
               );
             })}
@@ -602,7 +609,7 @@ export function AgentChatPane({
       </div>
 
       {error ? (
-        <div className="flex items-center justify-between gap-2 border-t border-destructive/20 bg-destructive/10 px-3 py-2 text-xs text-destructive">
+        <div className="flex items-center justify-between gap-2 bg-destructive/10 px-3 py-2 text-xs text-destructive">
           <span>{error}</span>
           {retryPayload ? (
             <Button type="button" variant="ghost" size="sm" onClick={() => void handleRetry()}>
@@ -613,7 +620,12 @@ export function AgentChatPane({
         </div>
       ) : null}
 
-      <AgentChatInput
+      <div className="relative z-10 shrink-0 bg-white">
+        <div
+          aria-hidden
+          className="pointer-events-none absolute inset-x-0 -top-5 h-5 bg-gradient-to-t from-white to-transparent"
+        />
+        <AgentChatInput
         value={input}
         onChange={setInput}
         onSend={() => void handleSend()}
@@ -628,7 +640,8 @@ export function AgentChatPane({
         onLoadContentFiles={loadContentFiles}
         onBuiltinCommand={handleBuiltinCommand}
         createDraftDisabled={!lesson}
-      />
+        />
+      </div>
 
       <AlertDialog open={clearDialogOpen} onOpenChange={setClearDialogOpen}>
         <AlertDialogContent>

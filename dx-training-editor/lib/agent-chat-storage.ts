@@ -2,6 +2,7 @@ export type AgentChatMessage = {
   id: string;
   role: "user" | "assistant";
   content: string;
+  createdAt?: string;
 };
 
 export type AgentChatSession = {
@@ -176,6 +177,18 @@ export function formatSessionUpdatedAt(iso: string): string {
   } catch {
     return iso;
   }
+}
+
+export function formatMessageTimestamp(message: AgentChatMessage): string {
+  const iso = message.createdAt ?? messageTimestampFromId(message.id);
+  if (!iso) return "";
+  return formatSessionUpdatedAt(iso);
+}
+
+function messageTimestampFromId(id: string): string | null {
+  const ms = Number.parseInt(id.split("-")[0] ?? "", 10);
+  if (Number.isNaN(ms)) return null;
+  return new Date(ms).toISOString();
 }
 
 export function exportSessionAsMarkdown(session: AgentChatSession): string {

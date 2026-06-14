@@ -282,7 +282,6 @@ export function MarkdownEditorPane({
             lesson={lesson}
             course={course}
             currentLessonPath={currentLessonPath}
-            onInsertMarkdown={onInsertAgentMarkdown}
             onOpenSettings={onOpenSettings}
           />
         ) : null}

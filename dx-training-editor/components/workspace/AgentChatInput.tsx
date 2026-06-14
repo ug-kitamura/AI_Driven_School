@@ -266,7 +266,7 @@ export function AgentChatInput({
   };
 
   return (
-    <div className="flex shrink-0 flex-col gap-2 border-t border-border bg-card p-3">
+    <div className="flex shrink-0 flex-col gap-2 bg-white p-3">
       {activeSkillId ? (
         <div className="flex items-center gap-2">
           <span className="rounded-full bg-primary/10 px-2 py-0.5 text-xs text-primary">
@@ -338,7 +338,7 @@ export function AgentChatInput({
           rows={3}
           placeholder="メッセージを入力（/ でスキル、@ でファイル参照）"
           disabled={disabled || isLoading}
-          className="w-full resize-y rounded-lg border border-border bg-background px-3 pb-10 pt-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+          className="w-full resize-y rounded-lg border border-border bg-white px-3 pb-10 pt-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary"
         />
 
         <div className="pointer-events-none absolute inset-x-0 bottom-0 flex items-center justify-between px-2 pb-2">
@@ -383,7 +383,7 @@ export function renderUserMessageContent(content: string) {
       return (
         <span
           key={`${part}-${index}`}
-          className="mx-0.5 inline-flex rounded bg-primary-foreground/20 px-1.5 py-0.5 text-xs"
+          className="mx-0.5 inline-flex rounded border border-border bg-background px-1.5 py-0.5 text-xs text-foreground"
         >
           {fileName}
         </span>

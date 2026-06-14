@@ -19,6 +19,18 @@ import {
 } from "@/lib/lesson-frontmatter-highlight";
 import { clampEditorFontSizePx } from "@/lib/workspace-settings";
 
+/** Pane3 編集ビュー: テキスト選択の背景・文字色（VS Code 既定 #add6ff を上書き） */
+const LESSON_EDITOR_SELECTION_BG = "#3367d1";
+const LESSON_EDITOR_SELECTION_FG = "#ffffff";
+
+const lessonEditorSelectionTheme = EditorView.theme({
+  "&.cm-focused > .cm-scroller > .cm-selectionLayer .cm-selectionBackground, &.cm-focused .cm-selectionBackground, .cm-selectionLayer .cm-selectionBackground, .cm-content ::selection, .cm-line::selection":
+    {
+      backgroundColor: `${LESSON_EDITOR_SELECTION_BG} !important`,
+      color: `${LESSON_EDITOR_SELECTION_FG} !important`,
+    },
+});
+
 function editorLineHeightPx(fontSizePx: number): number {
   return Math.round(fontSizePx * 1.375);
 }
@@ -120,6 +132,7 @@ const lessonVscodeLight = vscodeLightInit({
     lineHighlight: "transparent",
     gutterForeground: LESSON_LINE_NUMBER_LIGHT,
     gutterActiveForeground: "",
+    selection: LESSON_EDITOR_SELECTION_BG,
   },
 });
 
@@ -131,8 +144,10 @@ const lessonVscodeDark = vscodeDarkInit({
     gutterForeground: LESSON_LINE_NUMBER_DARK,
     gutterBackground: "#1e1e1e",
     gutterActiveForeground: "#c6c6c6",
+    selection: LESSON_EDITOR_SELECTION_BG,
   },
 });
+
 
 const lessonMarkdownFold = foldService.of(
   (state: EditorState, lineStart: number) => {
@@ -195,6 +210,7 @@ export function buildLessonEditorExtensions(
     frontmatterEditorTheme,
     ...activeLineRowHighlight(),
     createLessonEditorLayout(size, lineNumberColor, isDark),
+    lessonEditorSelectionTheme,
   ];
   if (options?.onFontSizeChange) {
     extensions.push(

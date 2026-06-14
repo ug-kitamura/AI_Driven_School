@@ -22,7 +22,7 @@ import {
 } from "@/lib/workspace-settings";
 
 export type LessonContentEditorHandle = {
-  insertAtCursor: (markdown: string) => void;
+  insertAtCursor: (markdown: string, options?: { focus?: boolean }) => void;
   getScrollElement: () => HTMLElement | null;
   getCursorOffset: () => number;
 };
@@ -98,17 +98,25 @@ export const LessonContentEditor = forwardRef<
   useImperativeHandle(
     ref,
     () => ({
-      insertAtCursor(markdown: string) {
+      insertAtCursor(markdown: string, options?: { focus?: boolean }) {
         const view = viewRef.current;
-        if (!view) return;
-        const { from, to } = view.state.selection.main;
+        if (!view || !markdown) return;
+        const doc = view.state.doc;
+        const sel = view.state.selection.main;
+        let from = Math.min(sel.from, sel.to);
+        let to = Math.max(sel.from, sel.to);
+        from = Math.max(0, Math.min(from, doc.length));
+        to = Math.max(from, Math.min(to, doc.length));
+        const cursor = from + markdown.length;
         view.dispatch({
           changes: { from, to, insert: markdown },
-          selection: { anchor: from + markdown.length },
+          selection: { anchor: cursor, head: cursor },
           scrollIntoView: true,
         });
         onChange(view.state.doc.toString());
-        view.focus();
+        if (options?.focus !== false) {
+          view.focus();
+        }
       },
       getScrollElement() {
         return viewRef.current?.scrollDOM ?? null;
@@ -139,8 +147,9 @@ export const LessonContentEditor = forwardRef<
         foldGutter: false,
         highlightActiveLine: false,
         highlightActiveLineGutter: false,
-        highlightSelectionMatches: false,
-        autocompletion: false,
+          highlightSelectionMatches: false,
+          autocompletion: false,
+          drawSelection: false,
       }}
       spellCheck={false}
       placeholder="フロントマターとマークダウン本文..."

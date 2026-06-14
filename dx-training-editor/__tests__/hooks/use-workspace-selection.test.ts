@@ -1,5 +1,5 @@
 import { act, renderHook } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it } from "vitest";
 import { useWorkspaceSelection } from "@/components/workspace/hooks/use-workspace-selection";
 import type { Series } from "@/lib/schema";
 
@@ -54,6 +54,10 @@ const series: Series[] = [
 ];
 
 describe("useWorkspaceSelection", () => {
+  beforeEach(() => {
+    localStorage.clear();
+  });
+
   it("selectCourse picks first lesson in course", () => {
     const { result } = renderHook(() =>
       useWorkspaceSelection({

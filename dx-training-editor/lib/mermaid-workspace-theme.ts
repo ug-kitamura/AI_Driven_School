@@ -22,7 +22,7 @@ const FLOWCHART_LAYOUT_GLOBAL = {
   useMaxWidth: false,
   subGraphTitleMargin: {
     top: 8,
-    bottom: 8,
+    bottom: 20,
   },
 } as const;
 

@@ -1,8 +1,12 @@
 "use client";
 
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { Course, Lesson, Series } from "@/lib/schema";
-import type { WorkspaceSelection } from "@/lib/workspace-selection";
+import {
+  resolveInitialSelection,
+  saveStoredSelection,
+  type WorkspaceSelection,
+} from "@/lib/workspace-selection";
 
 export function useWorkspaceSelection(options: {
   series: Series[];
@@ -10,9 +14,32 @@ export function useWorkspaceSelection(options: {
   initialLessonId: string;
 }) {
   const { series, initialCourseId, initialLessonId } = options;
+  const fallback = useMemo(
+    (): WorkspaceSelection => ({
+      courseId: initialCourseId,
+      lessonId: initialLessonId,
+    }),
+    [initialCourseId, initialLessonId],
+  );
 
   const [selectedCourseId, setSelectedCourseId] = useState(initialCourseId);
   const [selectedLessonId, setSelectedLessonId] = useState(initialLessonId);
+  const skipPersistRef = useRef(true);
+
+  useEffect(() => {
+    const resolved = resolveInitialSelection(series, fallback);
+    setSelectedCourseId(resolved.courseId);
+    setSelectedLessonId(resolved.lessonId);
+    skipPersistRef.current = false;
+  }, [series, fallback]);
+
+  useEffect(() => {
+    if (skipPersistRef.current || !selectedCourseId) return;
+    saveStoredSelection({
+      courseId: selectedCourseId,
+      lessonId: selectedLessonId,
+    });
+  }, [selectedCourseId, selectedLessonId]);
 
   const selectedCourse = useMemo((): Course | undefined => {
     for (const s of series) {

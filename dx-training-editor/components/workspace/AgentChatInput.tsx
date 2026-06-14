@@ -9,6 +9,7 @@ import {
   filterBuiltinCommands,
   filterContentFiles,
   filterSkills,
+  orderSlashSuggestionItems,
   type AgentBuiltinCommand,
   type AgentFileOption,
 } from "@/lib/agent-chat-suggestions";
@@ -72,6 +73,14 @@ function detectSuggestion(value: string, cursor: number): SuggestionState | null
   return null;
 }
 
+const SUGGESTION_VISIBLE_COUNT = 5;
+const SUGGESTION_ITEM_HEIGHT_CLASS = "h-14";
+
+function clampHighlightIndex(index: number, itemCount: number): number {
+  if (itemCount <= 0) return 0;
+  return Math.max(0, Math.min(index, itemCount - 1));
+}
+
 export function AgentChatInput({
   value,
   onChange,
@@ -89,6 +98,7 @@ export function AgentChatInput({
   createDraftDisabled = false,
 }: Props) {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const suggestionListRef = useRef<HTMLDivElement>(null);
   const [suggestion, setSuggestion] = useState<SuggestionState | null>(null);
   const [contentFiles, setContentFiles] = useState<AgentFileOption[]>([]);
   const [filesLoading, setFilesLoading] = useState(false);
@@ -111,19 +121,22 @@ export function AgentChatInput({
 
   const visibleItems: SuggestionItem[] = useMemo(() => {
     if (suggestion?.kind === "skill") {
-      const commandItems = filteredCommands.map((command) => ({
-        kind: "command" as const,
-        key: command.id,
-        primary: command.name,
-        secondary: command.description,
-      }));
-      const skillItems = filteredSkills.map((skill) => ({
-        kind: "skill" as const,
-        key: skill.id,
-        primary: skill.name,
-        secondary: skill.description,
-      }));
-      return [...commandItems, ...skillItems];
+      return orderSlashSuggestionItems(filteredSkills, filteredCommands).map(
+        (entry) =>
+          entry.kind === "command"
+            ? {
+                kind: "command" as const,
+                key: entry.item.id,
+                primary: entry.item.name,
+                secondary: entry.item.description,
+              }
+            : {
+                kind: "skill" as const,
+                key: entry.item.id,
+                primary: entry.item.name,
+                secondary: entry.item.description,
+              },
+      );
     }
     return visibleFileOptions.map((file) => ({
       kind: "file" as const,
@@ -132,6 +145,22 @@ export function AgentChatInput({
       secondary: file.path,
     }));
   }, [filteredCommands, filteredSkills, suggestion?.kind, visibleFileOptions]);
+
+  const activeHighlightIndex = clampHighlightIndex(highlightIndex, visibleItems.length);
+
+  useEffect(() => {
+    setHighlightIndex((index) => clampHighlightIndex(index, visibleItems.length));
+  }, [visibleItems.length]);
+
+  useEffect(() => {
+    if (!suggestion || visibleItems.length === 0) return;
+    const list = suggestionListRef.current;
+    if (!list) return;
+    const item = list.querySelector<HTMLElement>(
+      `[data-suggestion-index="${activeHighlightIndex}"]`,
+    );
+    item?.scrollIntoView({ block: "nearest" });
+  }, [activeHighlightIndex, suggestion, visibleItems.length]);
 
   useEffect(() => {
     if (suggestion?.kind !== "file") return;
@@ -164,11 +193,21 @@ export function AgentChatInput({
     const textarea = textareaRef.current;
     if (!textarea) {
       setSuggestion(null);
+      setHighlightIndex(0);
       return;
     }
     const cursor = textarea.selectionStart ?? textarea.value.length;
-    setSuggestion(detectSuggestion(textarea.value, cursor));
-    setHighlightIndex(0);
+    const next = detectSuggestion(textarea.value, cursor);
+    setSuggestion((prev) => {
+      const unchanged =
+        prev?.kind === next?.kind &&
+        prev?.query === next?.query &&
+        prev?.start === next?.start;
+      if (!unchanged) {
+        setHighlightIndex(0);
+      }
+      return next;
+    });
   }, []);
 
   const handleInputChange = (event: React.ChangeEvent<HTMLTextAreaElement>) => {
@@ -229,19 +268,21 @@ export function AgentChatInput({
       if (visibleItems.length > 0) {
         if (event.key === "ArrowDown") {
           event.preventDefault();
-          setHighlightIndex((index) => (index + 1) % visibleItems.length);
+          setHighlightIndex((index) =>
+            clampHighlightIndex(index + 1, visibleItems.length),
+          );
           return;
         }
         if (event.key === "ArrowUp") {
           event.preventDefault();
-          setHighlightIndex(
-            (index) => (index - 1 + visibleItems.length) % visibleItems.length,
+          setHighlightIndex((index) =>
+            clampHighlightIndex(index - 1, visibleItems.length),
           );
           return;
         }
         if (event.key === "Enter" && !event.shiftKey) {
           event.preventDefault();
-          const item = visibleItems[highlightIndex % visibleItems.length];
+          const item = visibleItems[activeHighlightIndex];
           if (item.kind === "skill") {
             applySkillSelection(item.key);
           } else if (item.kind === "command") {
@@ -287,7 +328,11 @@ export function AgentChatInput({
 
       <div className="relative">
         {suggestion ? (
-          <div className="absolute inset-x-0 bottom-full z-20 mb-1 max-h-48 overflow-y-auto rounded-md border border-border bg-popover shadow-md">
+          <div
+            ref={suggestionListRef}
+            className="absolute inset-x-0 bottom-full z-20 mb-1 overflow-y-auto overscroll-y-contain rounded-md border border-border bg-popover shadow-md"
+            style={{ maxHeight: `calc(${SUGGESTION_VISIBLE_COUNT} * 3.5rem)` }}
+          >
             {filesLoading || visibleItems.length > 0 ? (
               filesLoading ? (
                 <div className="px-3 py-2 text-xs text-muted-foreground">
@@ -298,11 +343,14 @@ export function AgentChatInput({
                   <button
                     key={`${item.kind}-${item.key}`}
                     type="button"
+                    data-suggestion-index={index}
                     className={cn(
-                      "flex w-full flex-col gap-0.5 px-3 py-2 text-left text-xs",
-                      index === highlightIndex ? "bg-muted" : "hover:bg-muted/60",
+                      "flex w-full shrink-0 flex-col justify-center gap-0.5 px-3 text-left text-xs",
+                      SUGGESTION_ITEM_HEIGHT_CLASS,
+                      index === activeHighlightIndex ? "bg-muted" : "hover:bg-muted/60",
                     )}
                     onMouseDown={(event) => event.preventDefault()}
+                    onMouseEnter={() => setHighlightIndex(index)}
                     onClick={() => {
                       if (item.kind === "skill") {
                         applySkillSelection(item.key);
@@ -333,7 +381,7 @@ export function AgentChatInput({
           value={value}
           onChange={handleInputChange}
           onClick={updateSuggestionFromCursor}
-          onKeyUp={updateSuggestionFromCursor}
+          onSelect={updateSuggestionFromCursor}
           onKeyDown={handleKeyDown}
           rows={3}
           placeholder="メッセージを入力（/ でスキル、@ でファイル参照）"

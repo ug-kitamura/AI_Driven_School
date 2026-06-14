@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Check, ChevronDown, Copy, History, Plus, RotateCcw } from "lucide-react";
+import { Check, ChevronDown, Copy, History, Plus, RotateCcw, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   AlertDialog,
@@ -107,7 +107,7 @@ export function AgentChatPane({
   const [error, setError] = useState<string | null>(null);
   const [modelLabel, setModelLabel] = useState<string | null>(null);
   const [historyOpen, setHistoryOpen] = useState(false);
-  const [clearDialogOpen, setClearDialogOpen] = useState(false);
+  const [deleteSessionTargetId, setDeleteSessionTargetId] = useState<string | null>(null);
   const [copiedMessageId, setCopiedMessageId] = useState<string | null>(null);
   const [retryPayload, setRetryPayload] = useState<{
     userMessage: AgentChatMessage;
@@ -451,19 +451,28 @@ export function AgentChatPane({
     setHistoryOpen(false);
   }, [activeSkillId, applySessionState, chatStorage, input, messages, persistSession]);
 
-  const handleDeleteCurrentSession = useCallback(() => {
-    if (!chatStorage) return;
-    const next = deleteSession(chatStorage, chatStorage.activeSessionId);
-    saveAgentChatStorage(next);
-    setChatStorage(next);
-    applySessionState(next.activeSessionId, next);
-    setClearDialogOpen(false);
-  }, [applySessionState, chatStorage]);
+  const handleDeleteSession = useCallback(
+    (sessionId: string) => {
+      if (!chatStorage) return;
+      const wasActive = sessionId === chatStorage.activeSessionId;
+      const next = deleteSession(chatStorage, sessionId);
+      saveAgentChatStorage(next);
+      setChatStorage(next);
+      if (wasActive) {
+        applySessionState(next.activeSessionId, next);
+      }
+      setDeleteSessionTargetId(null);
+      setHistoryOpen(false);
+    },
+    [applySessionState, chatStorage],
+  );
 
   const handleBuiltinCommand = useCallback(
     (command: "clear" | "export") => {
       if (command === "clear") {
-        setClearDialogOpen(true);
+        if (chatStorage) {
+          setDeleteSessionTargetId(chatStorage.activeSessionId);
+        }
         return;
       }
       if (activeSession) {
@@ -474,7 +483,15 @@ export function AgentChatPane({
         });
       }
     },
-    [activeSession, activeSkillId, messages],
+    [activeSession, activeSkillId, chatStorage, messages],
+  );
+
+  const deleteSessionTarget = useMemo(
+    () =>
+      deleteSessionTargetId
+        ? sortedSessions.find((session) => session.id === deleteSessionTargetId)
+        : undefined,
+    [deleteSessionTargetId, sortedSessions],
   );
 
   const handleCopy = useCallback(async (messageId: string, content: string) => {
@@ -491,7 +508,7 @@ export function AgentChatPane({
 
   return (
     <div className="agent-chat-pane flex h-full min-h-0 flex-col">
-      <div className="relative z-10 shrink-0 px-12 pt-3 pb-2">
+      <div className="relative z-10 shrink-0 px-3 pt-3 pb-2">
         <div className="flex items-center gap-2">
         <div ref={historyRef} className="relative">
           <Button
@@ -508,21 +525,49 @@ export function AgentChatPane({
           {historyOpen ? (
             <div className="absolute left-0 top-full z-30 mt-1 max-h-64 w-72 overflow-y-auto rounded-md border border-border bg-popover shadow-md">
               {sortedSessions.map((session) => (
-                <button
+                <div
                   key={session.id}
-                  type="button"
                   className={cn(
-                    "flex w-full flex-col gap-0.5 border-b border-border px-3 py-2 text-left text-xs last:border-b-0 hover:bg-muted/60",
+                    "flex flex-col gap-0.5 border-b border-border px-3 py-2 text-left text-xs last:border-b-0 hover:bg-muted/60",
                     session.id === chatStorage?.activeSessionId && "bg-muted",
                   )}
-                  onClick={() => handleSwitchSession(session.id)}
                 >
-                  <span className="font-medium text-foreground">{session.title}</span>
-                  <span className="text-muted-foreground">
-                    {session.activeSkillId ?? "スキル未選択"} · {session.messages.length} 件 ·{" "}
-                    {formatSessionUpdatedAt(session.updatedAt)}
-                  </span>
-                </button>
+                  <button
+                    type="button"
+                    className="w-full truncate text-left font-medium text-foreground"
+                    onClick={() => handleSwitchSession(session.id)}
+                  >
+                    {session.title}
+                  </button>
+                  <div className="flex items-center gap-1">
+                    <button
+                      type="button"
+                      className="min-w-0 flex-1 truncate text-left text-muted-foreground"
+                      onClick={() => handleSwitchSession(session.id)}
+                    >
+                      {session.activeSkillId ?? "スキル未選択"} · {session.messages.length} 件 ·{" "}
+                      {formatSessionUpdatedAt(session.updatedAt)}
+                    </button>
+                    <WorkspaceTooltip
+                      label="会話を削除"
+                      render={
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          className="size-6 shrink-0 text-muted-foreground hover:text-destructive"
+                          aria-label="会話を削除"
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            setDeleteSessionTargetId(session.id);
+                          }}
+                        >
+                          <Trash2 className="size-3" />
+                        </Button>
+                      }
+                    />
+                  </div>
+                </div>
               ))}
             </div>
           ) : null}
@@ -652,17 +697,30 @@ export function AgentChatPane({
         />
       </div>
 
-      <AlertDialog open={clearDialogOpen} onOpenChange={setClearDialogOpen}>
+      <AlertDialog
+        open={deleteSessionTargetId !== null}
+        onOpenChange={(open) => {
+          if (!open) setDeleteSessionTargetId(null);
+        }}
+      >
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>会話を削除しますか？</AlertDialogTitle>
             <AlertDialogDescription>
-              現在のセッションは履歴から削除されます。この操作は取り消せません。
+              {deleteSessionTarget
+                ? `「${deleteSessionTarget.title}」を履歴から削除します。この操作は取り消せません。`
+                : "この会話を履歴から削除します。この操作は取り消せません。"}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>キャンセル</AlertDialogCancel>
-            <AlertDialogAction onClick={handleDeleteCurrentSession}>
+            <AlertDialogAction
+              onClick={() => {
+                if (deleteSessionTargetId) {
+                  handleDeleteSession(deleteSessionTargetId);
+                }
+              }}
+            >
               削除
             </AlertDialogAction>
           </AlertDialogFooter>

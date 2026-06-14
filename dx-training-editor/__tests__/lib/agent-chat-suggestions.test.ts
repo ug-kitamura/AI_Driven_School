@@ -3,6 +3,7 @@ import {
   filterBuiltinCommands,
   filterContentFiles,
   filterSkills,
+  orderSlashSuggestionItems,
 } from "@/lib/agent-chat-suggestions";
 import type { SkillSummary } from "@/lib/agent/skill-loader";
 
@@ -37,6 +38,13 @@ describe("filterSkills", () => {
       "create-structure",
     ]);
   });
+
+  it("sorts skills alphabetically by id", () => {
+    expect(filterSkills([skills[1], skills[0]], "", false).map((skill) => skill.id)).toEqual([
+      "create-draft",
+      "create-structure",
+    ]);
+  });
 });
 
 describe("filterContentFiles", () => {
@@ -61,5 +69,19 @@ describe("filterBuiltinCommands", () => {
 
   it("filters commands by name substring", () => {
     expect(filterBuiltinCommands("export").map((command) => command.id)).toEqual(["export"]);
+  });
+});
+
+describe("orderSlashSuggestionItems", () => {
+  it("lists .claude/skills skills before builtin commands", () => {
+    const ordered = orderSlashSuggestionItems(skills, filterBuiltinCommands(""));
+    expect(ordered.map((entry) => (entry.kind === "skill" ? entry.item.id : entry.item.id))).toEqual([
+      "create-draft",
+      "create-structure",
+      "clear",
+      "export",
+    ]);
+    expect(ordered.slice(0, 2).every((entry) => entry.kind === "skill")).toBe(true);
+    expect(ordered.slice(2).every((entry) => entry.kind === "command")).toBe(true);
   });
 });

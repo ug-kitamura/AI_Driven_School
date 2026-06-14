@@ -41,12 +41,27 @@ export function filterSkills(
   createDraftDisabled: boolean,
 ): SkillSummary[] {
   const normalized = query.trim().toLowerCase();
-  return skills.filter((skill) => {
-    if (skill.id === "create-draft" && createDraftDisabled) return false;
-    if (!normalized) return true;
-    const haystack = `${skill.id} ${skill.name} ${skill.description}`.toLowerCase();
-    return haystack.includes(normalized);
-  });
+  return skills
+    .filter((skill) => {
+      if (skill.id === "create-draft" && createDraftDisabled) return false;
+      if (!normalized) return true;
+      const haystack = `${skill.id} ${skill.name} ${skill.description}`.toLowerCase();
+      return haystack.includes(normalized);
+    })
+    .sort((a, b) => a.id.localeCompare(b.id));
+}
+
+export function orderSlashSuggestionItems<
+  TSkill extends { id: string },
+  TCommand extends { id: string },
+>(skills: TSkill[], commands: TCommand[]): Array<
+  | { kind: "skill"; item: TSkill }
+  | { kind: "command"; item: TCommand }
+> {
+  return [
+    ...skills.map((item) => ({ kind: "skill" as const, item })),
+    ...commands.map((item) => ({ kind: "command" as const, item })),
+  ];
 }
 
 export function filterContentFiles(

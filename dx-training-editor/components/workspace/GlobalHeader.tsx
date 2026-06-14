@@ -33,38 +33,17 @@ function buildFullMandalaGraph(
   const lines = ["flowchart TD", "  classDef mandalaSeriesTitle font-weight:bold"];
   const nodeMap: Record<string, string> = {};
 
-  // コース ID → 衝突しない Mermaid ノード ID のマップを先に作る
-  // 日本語文字は全て "_" に変換すると衝突が起きるため、連番で一意性を保証する
-  const courseIdToNid = new Map<string, string>();
-  let nidCounter = 0;
-  const usedNids = new Set<string>();
-  const toNid = (rawId: string): string => {
-    if (courseIdToNid.has(rawId)) return courseIdToNid.get(rawId)!;
-    let candidate = `N_${rawId.replace(/[^a-zA-Z0-9]/g, "_")}`;
-    if (usedNids.has(candidate)) {
-      candidate = `NC${nidCounter++}`;
-    }
-    usedNids.add(candidate);
-    courseIdToNid.set(rawId, candidate);
-    return candidate;
-  };
-  // シリーズ ID も同じ仕組みで一意化
-  const seriesIdToSgId = new Map<string, string>();
-  const toSgId = (rawId: string): string => {
-    if (seriesIdToSgId.has(rawId)) return seriesIdToSgId.get(rawId)!;
-    let candidate = `SG_${rawId.replace(/[^a-zA-Z0-9]/g, "_")}`;
-    if (usedNids.has(candidate)) {
-      candidate = `SG${nidCounter++}`;
-    }
-    usedNids.add(candidate);
-    seriesIdToSgId.set(rawId, candidate);
-    return candidate;
-  };
-  // 全コース・シリーズを事前登録
-  series.forEach((s) => {
-    toSgId(s.id);
-    s.courses.forEach((c) => toNid(c.id));
-  });
+  // Mermaid ノード ID は英数字のみ有効。日本語 ID を直接使えないため
+  // 全コース・シリーズを連番で割り当て、nodeMap で逆引きする
+  let idCounter = 0;
+  const courseIdToNid = new Map<string, string>(
+    series.flatMap((s) => s.courses.map((c) => [c.id, `C${idCounter++}`] as [string, string])),
+  );
+  const seriesIdToSgId = new Map<string, string>(
+    series.map((s) => [s.id, `SG${idCounter++}`] as [string, string]),
+  );
+  const toNid = (id: string) => courseIdToNid.get(id) ?? `C${id}`;
+  const toSgId = (id: string) => seriesIdToSgId.get(id) ?? `SG${id}`;
 
   // シリーズごとにサブグラフとノード（丸みノード、方向は TB に統一）
   const currentNid: string[] = [];

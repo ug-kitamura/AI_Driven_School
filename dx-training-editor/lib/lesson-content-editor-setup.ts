@@ -134,6 +134,7 @@ const lessonVscodeDark = vscodeDarkInit({
   },
 });
 
+
 const lessonMarkdownFold = foldService.of(
   (state: EditorState, lineStart: number) => {
     const lineIndex = state.doc.lineAt(lineStart).number - 1;

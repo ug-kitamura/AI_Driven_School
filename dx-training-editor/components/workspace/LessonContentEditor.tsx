@@ -139,8 +139,9 @@ export const LessonContentEditor = forwardRef<
         foldGutter: false,
         highlightActiveLine: false,
         highlightActiveLineGutter: false,
-        highlightSelectionMatches: false,
-        autocompletion: false,
+          highlightSelectionMatches: false,
+          autocompletion: false,
+          drawSelection: false,
       }}
       spellCheck={false}
       placeholder="フロントマターとマークダウン本文..."

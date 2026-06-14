@@ -549,3 +549,14 @@ html.dark .lesson-content-editor .cm-foldGutter.lesson-fold-gutter span.lesson-f
   white-space: pre-wrap;
   word-break: break-word;
 }
+
+/* 編集ビュー テキスト選択: 青背景（.cm-selectionBackground）・白テキスト
+   背景は lesson-content-editor-setup.ts の EditorView.theme で制御 */
+.lesson-content-editor ::selection {
+  color: #ffffff !important;
+  background-color: #3367d1 !important;
+}
+.lesson-content-editor ::-moz-selection {
+  color: #ffffff !important;
+  background-color: #3367d1 !important;
+}

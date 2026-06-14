@@ -6,6 +6,62 @@ export type WorkspaceSelection = {
   lessonId: string;
 };
 
+const SELECTION_STORAGE_KEY = "dx-training-editor-selection";
+
+export function loadStoredSelection(): WorkspaceSelection | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = localStorage.getItem(SELECTION_STORAGE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as {
+      courseId?: unknown;
+      lessonId?: unknown;
+    };
+    if (typeof parsed.courseId !== "string" || !parsed.courseId) return null;
+    return {
+      courseId: parsed.courseId,
+      lessonId: typeof parsed.lessonId === "string" ? parsed.lessonId : "",
+    };
+  } catch {
+    return null;
+  }
+}
+
+export function saveStoredSelection(selection: WorkspaceSelection): void {
+  if (typeof window === "undefined" || !selection.courseId) return;
+  try {
+    localStorage.setItem(SELECTION_STORAGE_KEY, JSON.stringify(selection));
+  } catch {
+    /* ignore quota */
+  }
+}
+
+/** リロード時に localStorage の選択を series 上で検証して復元する */
+export function resolveInitialSelection(
+  series: Series[],
+  fallback: WorkspaceSelection,
+): WorkspaceSelection {
+  const stored = loadStoredSelection();
+  if (!stored) return fallback;
+
+  if (stored.lessonId) {
+    const course = findCourseContainingLesson(series, stored.lessonId);
+    if (course) {
+      return { courseId: course.id, lessonId: stored.lessonId };
+    }
+  }
+
+  const course = findCourseById(series, stored.courseId);
+  if (course) {
+    return {
+      courseId: course.id,
+      lessonId: course.lessons[0]?.id ?? "",
+    };
+  }
+
+  return fallback;
+}
+
 export type DeleteTarget =
   | { kind: "series"; seriesId: string }
   | { kind: "course"; courseId: string };

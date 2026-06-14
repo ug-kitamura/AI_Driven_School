@@ -1,7 +1,9 @@
-import { describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it } from "vitest";
 import {
   resolveSelectionAfterContentReload,
   resolveSelectionAfterDelete,
+  resolveInitialSelection,
+  saveStoredSelection,
 } from "@/lib/workspace-selection";
 import type { Course, Lesson, Series } from "@/lib/schema";
 
@@ -172,5 +174,48 @@ describe("resolveSelectionAfterContentReload", () => {
       courseId: "course-A-コース",
       lessonId: "lesson-A-コース-新名",
     });
+  });
+});
+
+describe("resolveInitialSelection", () => {
+  const series: Series[] = [
+    makeSeries("s1", [
+      course("c1", {
+        name: "Course 1",
+        lessons: [lesson("l1"), lesson("l2")],
+      }),
+      course("c2", { name: "Course 2", lessons: [lesson("l3")] }),
+    ]),
+  ];
+
+  const fallback = { courseId: "c1", lessonId: "l1" };
+
+  beforeEach(() => {
+    localStorage.clear();
+  });
+
+  it("returns fallback when nothing is stored", () => {
+    expect(resolveInitialSelection(series, fallback)).toEqual(fallback);
+  });
+
+  it("restores stored lesson selection", () => {
+    saveStoredSelection({ courseId: "c1", lessonId: "l2" });
+    expect(resolveInitialSelection(series, fallback)).toEqual({
+      courseId: "c1",
+      lessonId: "l2",
+    });
+  });
+
+  it("falls back to first lesson when stored lesson is missing", () => {
+    saveStoredSelection({ courseId: "c1", lessonId: "missing" });
+    expect(resolveInitialSelection(series, fallback)).toEqual({
+      courseId: "c1",
+      lessonId: "l1",
+    });
+  });
+
+  it("returns fallback when stored course is missing", () => {
+    saveStoredSelection({ courseId: "missing", lessonId: "l1" });
+    expect(resolveInitialSelection(series, fallback)).toEqual(fallback);
   });
 });

@@ -508,7 +508,7 @@ export function AgentChatPane({
 
   return (
     <div className="agent-chat-pane flex h-full min-h-0 flex-col">
-      <div className="relative z-10 shrink-0 px-3 pt-3 pb-2">
+      <div className="relative z-10 shrink-0 bg-[var(--agent-chat-pane-bg)] px-3 pt-3 pb-2">
         <div className="flex items-center gap-2">
         <div ref={historyRef} className="relative">
           <Button
@@ -588,14 +588,11 @@ export function AgentChatPane({
           新規
         </Button>
         </div>
-        <div
-          aria-hidden
-          className="pointer-events-none absolute inset-x-0 -bottom-5 h-5 bg-gradient-to-b from-[var(--agent-chat-pane-bg)] to-transparent"
-        />
       </div>
 
-      <div className="workspace-scrollbar relative min-h-0 flex-1 overflow-y-auto overscroll-y-contain">
-        <div className="px-12 py-4">
+      <div className="relative min-h-0 flex-1">
+        <div className="workspace-scrollbar h-full min-h-0 overflow-y-auto overscroll-y-contain">
+          <div className="px-12 py-4">
         {messages.length === 0 ? (
           <div className="flex h-full min-h-[12rem] items-center justify-center text-sm text-muted-foreground">
             / でスキルを選択し、メッセージを送信してください
@@ -659,7 +656,10 @@ export function AgentChatPane({
             })}
           </div>
         )}
+          </div>
         </div>
+        <div aria-hidden className="agent-chat-pane__scroll-fade agent-chat-pane__scroll-fade-top" />
+        <div aria-hidden className="agent-chat-pane__scroll-fade agent-chat-pane__scroll-fade-bottom" />
       </div>
 
       {error ? (
@@ -674,11 +674,7 @@ export function AgentChatPane({
         </div>
       ) : null}
 
-      <div className="relative z-10 shrink-0 px-12">
-        <div
-          aria-hidden
-          className="pointer-events-none absolute inset-x-0 -top-5 h-5 bg-gradient-to-t from-[var(--agent-chat-pane-bg)] to-transparent"
-        />
+      <div className="relative z-10 shrink-0 bg-[var(--agent-chat-pane-bg)] px-12">
         <AgentChatInput
         value={input}
         onChange={setInput}

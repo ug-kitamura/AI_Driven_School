@@ -260,6 +260,25 @@
   --agent-chat-pane-bg: #1e1e1e;
 }
 
+.agent-chat-pane__scroll-fade {
+  pointer-events: none;
+  position: absolute;
+  left: 0;
+  right: 0;
+  z-index: 10;
+  height: 1.25rem;
+}
+
+.agent-chat-pane__scroll-fade-top {
+  top: 0;
+  background: linear-gradient(to bottom, var(--agent-chat-pane-bg), transparent);
+}
+
+.agent-chat-pane__scroll-fade-bottom {
+  bottom: 0;
+  background: linear-gradient(to top, var(--agent-chat-pane-bg), transparent);
+}
+
 /* Pane3・グローバル曼陀羅: ネイティブスクロールバー（ライト/ダークで形状同一） */
 .workspace-scrollbar,
 .lesson-content-editor .cm-scroller {

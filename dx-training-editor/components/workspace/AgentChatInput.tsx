@@ -1,15 +1,19 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Loader2, Send, X } from "lucide-react";
+import { ArrowUp, Square, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import type { SkillSummary } from "@/lib/agent/skill-loader";
+import {
+  filterBuiltinCommands,
+  filterContentFiles,
+  filterSkills,
+  type AgentBuiltinCommand,
+  type AgentFileOption,
+} from "@/lib/agent-chat-suggestions";
 
-export type AgentFileOption = {
-  path: string;
-  name: string;
-};
+export type { AgentFileOption };
 
 type SuggestionKind = "skill" | "file";
 
@@ -19,17 +23,27 @@ type SuggestionState = {
   start: number;
 };
 
+type SuggestionItem = {
+  kind: "command" | "skill" | "file";
+  key: string;
+  primary: string;
+  secondary: string;
+};
+
 type Props = {
   value: string;
   onChange: (value: string) => void;
   onSend: () => void;
+  onStop?: () => void;
   disabled?: boolean;
   isLoading?: boolean;
+  modelLabel?: string | null;
   skills: SkillSummary[];
   activeSkillId: string | null;
   activeSkillName: string | null;
   onActiveSkillChange: (skillId: string | null) => void;
   onLoadContentFiles: () => Promise<AgentFileOption[]>;
+  onBuiltinCommand?: (command: AgentBuiltinCommand["id"]) => void;
   createDraftDisabled?: boolean;
 };
 
@@ -62,13 +76,16 @@ export function AgentChatInput({
   value,
   onChange,
   onSend,
+  onStop,
   disabled = false,
   isLoading = false,
+  modelLabel = null,
   skills,
   activeSkillId,
   activeSkillName,
   onActiveSkillChange,
   onLoadContentFiles,
+  onBuiltinCommand,
   createDraftDisabled = false,
 }: Props) {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -78,43 +95,43 @@ export function AgentChatInput({
   const [highlightIndex, setHighlightIndex] = useState(0);
 
   const filteredSkills = useMemo(() => {
-    const query = suggestion?.kind === "skill" ? suggestion.query.toLowerCase() : "";
-    return skills.filter((skill) => {
-      if (query && !skill.id.toLowerCase().startsWith(query)) return false;
-      if (skill.id === "create-draft" && createDraftDisabled) return false;
-      return true;
-    });
+    const query = suggestion?.kind === "skill" ? suggestion.query : "";
+    return filterSkills(skills, query, createDraftDisabled);
   }, [skills, suggestion, createDraftDisabled]);
+
+  const filteredCommands = useMemo(() => {
+    if (suggestion?.kind !== "skill") return [];
+    return filterBuiltinCommands(suggestion.query);
+  }, [suggestion]);
 
   const visibleFileOptions = useMemo(() => {
     if (suggestion?.kind !== "file") return [];
-    const query = suggestion.query.toLowerCase();
-    if (!query) return contentFiles;
-    return contentFiles.filter((file) => file.path.toLowerCase().includes(query));
+    return filterContentFiles(contentFiles, suggestion.query);
   }, [contentFiles, suggestion]);
 
-  const visibleItems =
-    suggestion?.kind === "skill"
-      ? filteredSkills.map((skill) => ({
-          key: skill.id,
-          primary: skill.name,
-          secondary: skill.description,
-          disabled: false,
-        }))
-      : visibleFileOptions.map((file) => ({
-          key: file.path,
-          primary: file.name,
-          secondary: file.path,
-          disabled: false,
-        }));
-
-  useEffect(() => {
-    setHighlightIndex(0);
-  }, [suggestion?.kind, suggestion?.query, visibleItems.length]);
-
-  useEffect(() => {
-    if (!value) setSuggestion(null);
-  }, [value]);
+  const visibleItems: SuggestionItem[] = useMemo(() => {
+    if (suggestion?.kind === "skill") {
+      const commandItems = filteredCommands.map((command) => ({
+        kind: "command" as const,
+        key: command.id,
+        primary: command.name,
+        secondary: command.description,
+      }));
+      const skillItems = filteredSkills.map((skill) => ({
+        kind: "skill" as const,
+        key: skill.id,
+        primary: skill.name,
+        secondary: skill.description,
+      }));
+      return [...commandItems, ...skillItems];
+    }
+    return visibleFileOptions.map((file) => ({
+      kind: "file" as const,
+      key: file.path,
+      primary: file.name,
+      secondary: file.path,
+    }));
+  }, [filteredCommands, filteredSkills, suggestion?.kind, visibleFileOptions]);
 
   useEffect(() => {
     if (suggestion?.kind !== "file") return;
@@ -141,7 +158,7 @@ export function AgentChatInput({
         : suggestion.query
           ? "一致するファイルがありません"
           : "contents/ 内に .md ファイルがありません"
-      : "一致するスキルがありません";
+      : "一致するスキルまたはコマンドがありません";
 
   const updateSuggestionFromCursor = useCallback(() => {
     const textarea = textareaRef.current;
@@ -151,27 +168,41 @@ export function AgentChatInput({
     }
     const cursor = textarea.selectionStart ?? textarea.value.length;
     setSuggestion(detectSuggestion(textarea.value, cursor));
+    setHighlightIndex(0);
   }, []);
 
   const handleInputChange = (event: React.ChangeEvent<HTMLTextAreaElement>) => {
     const next = event.target.value;
     const cursor = event.target.selectionStart ?? next.length;
     onChange(next);
-    setSuggestion(detectSuggestion(next, cursor));
+    setSuggestion(next ? detectSuggestion(next, cursor) : null);
+    setHighlightIndex(0);
   };
+
+  const clearSlashToken = useCallback(() => {
+    const textarea = textareaRef.current;
+    if (!textarea || !suggestion || suggestion.kind !== "skill") return;
+    const before = value.slice(0, suggestion.start);
+    const after = value.slice(textarea.selectionStart);
+    onChange(`${before}${after}`.replace(/^\n/, ""));
+    setSuggestion(null);
+    requestAnimationFrame(() => textarea.focus());
+  }, [onChange, suggestion, value]);
 
   const applySkillSelection = useCallback(
     (skillId: string) => {
-      const textarea = textareaRef.current;
-      if (!textarea || !suggestion || suggestion.kind !== "skill") return;
-      const before = value.slice(0, suggestion.start);
-      const after = value.slice(textarea.selectionStart);
-      onChange(`${before}${after}`.replace(/^\n/, ""));
+      clearSlashToken();
       onActiveSkillChange(skillId);
-      setSuggestion(null);
-      requestAnimationFrame(() => textarea.focus());
     },
-    [onActiveSkillChange, onChange, suggestion, value],
+    [clearSlashToken, onActiveSkillChange],
+  );
+
+  const applyCommandSelection = useCallback(
+    (commandId: AgentBuiltinCommand["id"]) => {
+      clearSlashToken();
+      onBuiltinCommand?.(commandId);
+    },
+    [clearSlashToken, onBuiltinCommand],
   );
 
   const applyFileSelection = useCallback(
@@ -210,9 +241,11 @@ export function AgentChatInput({
         }
         if (event.key === "Enter" && !event.shiftKey) {
           event.preventDefault();
-          const item = visibleItems[highlightIndex];
-          if (suggestion.kind === "skill") {
+          const item = visibleItems[highlightIndex % visibleItems.length];
+          if (item.kind === "skill") {
             applySkillSelection(item.key);
+          } else if (item.kind === "command") {
+            applyCommandSelection(item.key as AgentBuiltinCommand["id"]);
           } else {
             applyFileSelection(item.key);
           }
@@ -261,27 +294,31 @@ export function AgentChatInput({
                   {suggestionEmptyMessage}
                 </div>
               ) : (
-              visibleItems.map((item, index) => (
-                <button
-                  key={item.key}
-                  type="button"
-                  className={cn(
-                    "flex w-full flex-col gap-0.5 px-3 py-2 text-left text-xs",
-                    index === highlightIndex ? "bg-muted" : "hover:bg-muted/60",
-                  )}
-                  onMouseDown={(event) => event.preventDefault()}
-                  onClick={() => {
-                    if (suggestion.kind === "skill") {
-                      applySkillSelection(item.key);
-                    } else {
-                      applyFileSelection(item.key);
-                    }
-                  }}
-                >
-                  <span className="font-medium text-foreground">{item.primary}</span>
-                  <span className="truncate text-muted-foreground">{item.secondary}</span>
-                </button>
-              ))
+                visibleItems.map((item, index) => (
+                  <button
+                    key={`${item.kind}-${item.key}`}
+                    type="button"
+                    className={cn(
+                      "flex w-full flex-col gap-0.5 px-3 py-2 text-left text-xs",
+                      index === highlightIndex ? "bg-muted" : "hover:bg-muted/60",
+                    )}
+                    onMouseDown={(event) => event.preventDefault()}
+                    onClick={() => {
+                      if (item.kind === "skill") {
+                        applySkillSelection(item.key);
+                      } else if (item.kind === "command") {
+                        applyCommandSelection(item.key as AgentBuiltinCommand["id"]);
+                      } else {
+                        applyFileSelection(item.key);
+                      }
+                    }}
+                  >
+                    <span className="font-medium text-foreground">
+                      {item.kind === "command" ? `/${item.key}` : item.primary}
+                    </span>
+                    <span className="truncate text-muted-foreground">{item.secondary}</span>
+                  </button>
+                ))
               )
             ) : (
               <div className="px-3 py-2 text-xs text-muted-foreground">
@@ -301,26 +338,38 @@ export function AgentChatInput({
           rows={3}
           placeholder="メッセージを入力（/ でスキル、@ でファイル参照）"
           disabled={disabled || isLoading}
-          className="w-full resize-y rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+          className="w-full resize-y rounded-lg border border-border bg-background px-3 pb-10 pt-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary"
         />
-      </div>
 
-      <div className="flex items-center justify-end gap-2">
-        {isLoading ? (
-          <span className="flex items-center gap-1 text-xs text-muted-foreground">
-            <Loader2 className="size-3 animate-spin" />
-            生成中...
+        <div className="pointer-events-none absolute inset-x-0 bottom-0 flex items-center justify-between px-2 pb-2">
+          <span className="truncate text-[10px] text-muted-foreground">
+            {modelLabel ?? ""}
           </span>
-        ) : null}
-        <Button
-          type="button"
-          size="sm"
-          disabled={disabled || isLoading || !value.trim()}
-          onClick={onSend}
-        >
-          <Send className="size-3" />
-          送信
-        </Button>
+          <div className="pointer-events-auto flex items-center gap-1">
+            {isLoading ? (
+              <Button
+                type="button"
+                variant="outline"
+                size="icon"
+                className="size-8 shrink-0"
+                aria-label="生成を停止"
+                onClick={onStop}
+              >
+                <Square className="size-3.5 fill-current" />
+              </Button>
+            ) : null}
+            <Button
+              type="button"
+              size="icon"
+              className="size-8 shrink-0 rounded-full"
+              disabled={disabled || isLoading || !value.trim()}
+              aria-label="送信"
+              onClick={onSend}
+            >
+              <ArrowUp className="size-4" />
+            </Button>
+          </div>
+        </div>
       </div>
     </div>
   );
@@ -334,7 +383,7 @@ export function renderUserMessageContent(content: string) {
       return (
         <span
           key={`${part}-${index}`}
-          className="mx-0.5 inline-flex rounded bg-primary/10 px-1.5 py-0.5 text-xs text-primary"
+          className="mx-0.5 inline-flex rounded bg-primary-foreground/20 px-1.5 py-0.5 text-xs"
         >
           {fileName}
         </span>

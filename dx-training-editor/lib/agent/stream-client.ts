@@ -6,6 +6,7 @@
 export async function consumeAnthropicStream(
   response: Response,
   onDelta: (text: string) => void,
+  signal?: AbortSignal,
 ): Promise<void> {
   if (!response.body) {
     throw new Error("empty response body");
@@ -15,37 +16,54 @@ export async function consumeAnthropicStream(
   const decoder = new TextDecoder();
   let buffer = "";
 
-  while (true) {
-    const { done, value } = await reader.read();
-    if (done) break;
-    buffer += decoder.decode(value, { stream: true });
+  const throwIfAborted = () => {
+    if (signal?.aborted) {
+      void reader.cancel();
+      throw new DOMException("Aborted", "AbortError");
+    }
+  };
 
-    const chunks = buffer.split("\n\n");
-    buffer = chunks.pop() ?? "";
+  try {
+    while (true) {
+      throwIfAborted();
+      const { done, value } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
 
-    for (const chunk of chunks) {
-      const dataLine = chunk
-        .split("\n")
-        .find((line) => line.startsWith("data: "));
-      if (!dataLine) continue;
-      const payload = dataLine.slice("data: ".length).trim();
-      if (!payload || payload === "[DONE]") continue;
+      const chunks = buffer.split("\n\n");
+      buffer = chunks.pop() ?? "";
 
-      try {
-        const event = JSON.parse(payload) as {
-          type?: string;
-          delta?: { type?: string; text?: string };
-        };
-        if (
-          event.type === "content_block_delta" &&
-          event.delta?.type === "text_delta" &&
-          event.delta.text
-        ) {
-          onDelta(event.delta.text);
+      for (const chunk of chunks) {
+        throwIfAborted();
+        const dataLine = chunk
+          .split("\n")
+          .find((line) => line.startsWith("data: "));
+        if (!dataLine) continue;
+        const payload = dataLine.slice("data: ".length).trim();
+        if (!payload || payload === "[DONE]") continue;
+
+        try {
+          const event = JSON.parse(payload) as {
+            type?: string;
+            delta?: { type?: string; text?: string };
+          };
+          if (
+            event.type === "content_block_delta" &&
+            event.delta?.type === "text_delta" &&
+            event.delta.text
+          ) {
+            onDelta(event.delta.text);
+          }
+        } catch {
+          // ignore malformed events
         }
-      } catch {
-        // ignore malformed events
       }
     }
+  } catch (error) {
+    if (signal?.aborted) {
+      await reader.cancel().catch(() => undefined);
+      throw new DOMException("Aborted", "AbortError");
+    }
+    throw error;
   }
 }

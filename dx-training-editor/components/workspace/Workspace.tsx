@@ -24,8 +24,10 @@ import {
 } from "@/lib/lesson-frontmatter";
 import { collectAllLessonTags } from "@/lib/lesson-tags";
 import { htmlCommentInnerTextAtOffset } from "@/lib/html-comment-at-cursor";
+import { useRecentLessonFiles } from "@/lib/agent/recent-files";
+import { matchLessonContentPath } from "@/lib/agent/invoke-context";
 
-export type Pane3Mode = "inline" | "raw" | "diff";
+export type Pane3Mode = "inline" | "raw" | "diff" | "agent";
 
 function Pane1ResizeHandle({
   className,
@@ -78,6 +80,8 @@ export function Workspace({
   const [insertCallback, setInsertCallback] = useState<
     ((markdown: string) => void) | null
   >(null);
+  const [currentLessonPath, setCurrentLessonPath] = useState<string | null>(null);
+  const { recentFiles, recordRecentFile } = useRecentLessonFiles();
 
   const { paneWidths, isResizing, resizeHandleProps, applyPaneWidths } =
     useWorkspacePaneWidths();
@@ -167,12 +171,20 @@ export function Workspace({
 
   const insertImageMarkdown = useCallback(
     (markdown: string): boolean => {
-      if (pane3Mode !== "raw") return false;
+      if (pane3Mode !== "raw" && pane3Mode !== "agent") return false;
       if (!insertCallback) return false;
       insertCallback(markdown);
       return true;
     },
     [pane3Mode, insertCallback],
+  );
+
+  const insertAgentMarkdown = useCallback(
+    (markdown: string) => {
+      if (!insertCallback) return;
+      insertCallback(markdown);
+    },
+    [insertCallback],
   );
 
   const handleEditorCursorChange = useCallback(
@@ -196,6 +208,41 @@ export function Workspace({
       setEditorCursorOffset(null);
     }
   }, [pane3Mode, selectedLesson?.id]);
+
+  useEffect(() => {
+    if (!selectedLesson) {
+      setCurrentLessonPath(null);
+      return;
+    }
+
+    let cancelled = false;
+    void (async () => {
+      try {
+        const res = await fetch(
+          `/api/agent/files?q=${encodeURIComponent(selectedLesson.lesson)}`,
+        );
+        const data = (await res.json()) as {
+          files?: Array<{ path: string; name: string }>;
+        };
+        if (cancelled) return;
+        const resolved = matchLessonContentPath(data.files ?? [], selectedLesson);
+        setCurrentLessonPath(resolved);
+        if (resolved) recordRecentFile(resolved);
+      } catch {
+        if (!cancelled) setCurrentLessonPath(null);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    selectedLesson?.id,
+    selectedLesson?.series,
+    selectedLesson?.course,
+    selectedLesson?.lesson,
+    recordRecentFile,
+  ]);
 
   const pane4Open = !pane4ManuallyClosed;
 
@@ -298,12 +345,18 @@ export function Workspace({
           <div className="flex h-full min-w-0 flex-1 flex-col overflow-hidden">
             <MarkdownEditorPane
               lesson={selectedLesson}
+              series={series}
+              course={selectedCourse}
               mode={pane3Mode}
               onModeChange={setPane3Mode}
               onUpdateContent={updateLessonContent}
               onUpdateLessonMeta={updateLessonMeta}
               onRegisterInsertCallback={registerInsertCallback}
               onEditorCursorChange={handleEditorCursorChange}
+              onInsertAgentMarkdown={insertAgentMarkdown}
+              onOpenSettings={() => setSettingsOpen(true)}
+              currentLessonPath={currentLessonPath}
+              recentFiles={recentFiles}
               tagSuggestions={tagSuggestions}
               availableImagePaths={availableImagePaths}
               imageAssetsRevision={imageAssetsRevision}

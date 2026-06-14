@@ -3,7 +3,6 @@ import path from "node:path";
 import { CONTENTS_DIR_NAME, getContentsDir } from "@/lib/contents-loader";
 
 export const ALLOWED_PREFIX = `${CONTENTS_DIR_NAME}/`;
-export const MAX_FILE_SEARCH_RESULTS = 50;
 
 const ATTACHMENT_TOKEN_RE = /@((?:contents\/)[^\s@]+)/g;
 
@@ -87,14 +86,10 @@ export function enrichUserMessageWithAttachments(
   return `${message}\n\n${blocks.join("\n\n")}`;
 }
 
-export function listContentMarkdownFiles(
-  projectRoot: string,
-  basenamePrefix?: string,
-): ContentFileRef[] {
+export function listContentMarkdownFiles(projectRoot: string): ContentFileRef[] {
   const contentsDir = getContentsDir(projectRoot);
   if (!fs.existsSync(contentsDir)) return [];
 
-  const prefix = basenamePrefix?.trim().toLowerCase() ?? "";
   const results: ContentFileRef[] = [];
 
   function walk(dir: string) {
@@ -105,15 +100,24 @@ export function listContentMarkdownFiles(
         continue;
       }
       if (!entry.isFile() || !entry.name.endsWith(".md")) continue;
-      const basename = entry.name;
-      if (prefix && !basename.toLowerCase().startsWith(prefix)) continue;
       const relativePath = path.relative(projectRoot, absolute).replace(/\\/g, "/");
       if (!isAllowedContentMdPath(relativePath)) continue;
-      results.push({ path: relativePath, name: basename });
-      if (results.length >= MAX_FILE_SEARCH_RESULTS) return;
+      results.push({ path: relativePath, name: entry.name });
     }
   }
 
   walk(contentsDir);
   return results.sort((a, b) => a.path.localeCompare(b.path));
+}
+
+/** 選択中レッスンを先頭、残りは path のアルファベット順 */
+export function orderContentFilesForPicker(
+  files: ContentFileRef[],
+  currentPath?: string | null,
+): ContentFileRef[] {
+  const normalizedCurrent = currentPath?.replace(/\\/g, "/");
+  if (!normalizedCurrent) return files;
+  const current = files.find((file) => file.path === normalizedCurrent);
+  if (!current) return files;
+  return [current, ...files.filter((file) => file.path !== normalizedCurrent)];
 }

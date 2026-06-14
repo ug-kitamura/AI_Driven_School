@@ -5,6 +5,8 @@ import os from "node:os";
 import {
   extractAttachmentTokens,
   isAllowedContentMdPath,
+  listContentMarkdownFiles,
+  orderContentFilesForPicker,
   readAttachmentContents,
   resolveAllowedContentPath,
 } from "@/lib/agent/file-attachments";
@@ -52,5 +54,28 @@ describe("file-attachments", () => {
     writeFile(path.join(tmpDir, relative), "# Lesson");
     const result = readAttachmentContents(tmpDir, relative);
     expect(result).toEqual({ path: relative, content: "# Lesson" });
+  });
+
+  it("lists all markdown files under contents/", () => {
+    writeFile(path.join(tmpDir, "contents/b/second.md"), "# B");
+    writeFile(path.join(tmpDir, "contents/a/first.md"), "# A");
+    const files = listContentMarkdownFiles(tmpDir);
+    expect(files.map((file) => file.path)).toEqual([
+      "contents/a/first.md",
+      "contents/b/second.md",
+    ]);
+  });
+
+  it("puts current lesson first and keeps path order for the rest", () => {
+    const files = [
+      { path: "contents/a/one.md", name: "one.md" },
+      { path: "contents/b/two.md", name: "two.md" },
+      { path: "contents/c/three.md", name: "three.md" },
+    ];
+    expect(orderContentFilesForPicker(files, "contents/b/two.md")).toEqual([
+      { path: "contents/b/two.md", name: "two.md" },
+      { path: "contents/a/one.md", name: "one.md" },
+      { path: "contents/c/three.md", name: "three.md" },
+    ]);
   });
 });

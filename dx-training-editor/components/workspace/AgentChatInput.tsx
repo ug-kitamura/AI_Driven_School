@@ -29,29 +29,29 @@ type Props = {
   activeSkillId: string | null;
   activeSkillName: string | null;
   onActiveSkillChange: (skillId: string | null) => void;
-  currentLessonPath: string | null;
-  recentFiles: AgentFileOption[];
-  onSearchFiles: (query: string) => Promise<AgentFileOption[]>;
+  onLoadContentFiles: () => Promise<AgentFileOption[]>;
   createDraftDisabled?: boolean;
 };
 
 function detectSuggestion(value: string, cursor: number): SuggestionState | null {
   const beforeCursor = value.slice(0, cursor);
-  const atMatch = /(^|\s)@([^\s@]*)$/.exec(beforeCursor);
+  const atMatch = /@([^\s@]*)$/.exec(beforeCursor);
   if (atMatch) {
+    const query = atMatch[1] ?? "";
     return {
       kind: "file",
-      query: atMatch[2] ?? "",
-      start: beforeCursor.length - (atMatch[2]?.length ?? 0) - 1,
+      query,
+      start: beforeCursor.length - query.length - 1,
     };
   }
 
   const slashMatch = /(^|\n)\/([^\s/]*)$/.exec(beforeCursor);
   if (slashMatch) {
+    const query = slashMatch[2] ?? "";
     return {
       kind: "skill",
-      query: slashMatch[2] ?? "",
-      start: beforeCursor.length - (slashMatch[2]?.length ?? 0) - 1,
+      query,
+      start: beforeCursor.length - query.length - 1,
     };
   }
 
@@ -68,14 +68,13 @@ export function AgentChatInput({
   activeSkillId,
   activeSkillName,
   onActiveSkillChange,
-  currentLessonPath,
-  recentFiles,
-  onSearchFiles,
+  onLoadContentFiles,
   createDraftDisabled = false,
 }: Props) {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const [suggestion, setSuggestion] = useState<SuggestionState | null>(null);
-  const [fileResults, setFileResults] = useState<AgentFileOption[]>([]);
+  const [contentFiles, setContentFiles] = useState<AgentFileOption[]>([]);
+  const [filesLoading, setFilesLoading] = useState(false);
   const [highlightIndex, setHighlightIndex] = useState(0);
 
   const filteredSkills = useMemo(() => {
@@ -87,23 +86,12 @@ export function AgentChatInput({
     });
   }, [skills, suggestion, createDraftDisabled]);
 
-  const defaultFileOptions = useMemo(() => {
-    const options: AgentFileOption[] = [];
-    if (currentLessonPath) {
-      options.push({
-        path: currentLessonPath,
-        name: currentLessonPath.split("/").pop() ?? currentLessonPath,
-      });
-    }
-    for (const file of recentFiles) {
-      if (file.path === currentLessonPath) continue;
-      options.push(file);
-    }
-    return options;
-  }, [currentLessonPath, recentFiles]);
-
-  const visibleFileOptions =
-    suggestion?.kind === "file" && suggestion.query ? fileResults : defaultFileOptions;
+  const visibleFileOptions = useMemo(() => {
+    if (suggestion?.kind !== "file") return [];
+    const query = suggestion.query.toLowerCase();
+    if (!query) return contentFiles;
+    return contentFiles.filter((file) => file.path.toLowerCase().includes(query));
+  }, [contentFiles, suggestion]);
 
   const visibleItems =
     suggestion?.kind === "skill"
@@ -125,19 +113,35 @@ export function AgentChatInput({
   }, [suggestion?.kind, suggestion?.query, visibleItems.length]);
 
   useEffect(() => {
-    if (suggestion?.kind !== "file" || !suggestion.query.trim()) {
-      setFileResults([]);
-      return;
-    }
+    if (!value) setSuggestion(null);
+  }, [value]);
+
+  useEffect(() => {
+    if (suggestion?.kind !== "file") return;
 
     let cancelled = false;
-    void onSearchFiles(suggestion.query).then((files) => {
-      if (!cancelled) setFileResults(files);
-    });
+    setFilesLoading(true);
+    void onLoadContentFiles()
+      .then((files) => {
+        if (!cancelled) setContentFiles(files);
+      })
+      .finally(() => {
+        if (!cancelled) setFilesLoading(false);
+      });
+
     return () => {
       cancelled = true;
     };
-  }, [suggestion, onSearchFiles]);
+  }, [suggestion?.kind, onLoadContentFiles]);
+
+  const suggestionEmptyMessage =
+    suggestion?.kind === "file"
+      ? filesLoading
+        ? "ファイル一覧を読み込み中..."
+        : suggestion.query
+          ? "一致するファイルがありません"
+          : "contents/ 内に .md ファイルがありません"
+      : "一致するスキルがありません";
 
   const updateSuggestionFromCursor = useCallback(() => {
     const textarea = textareaRef.current;
@@ -145,8 +149,16 @@ export function AgentChatInput({
       setSuggestion(null);
       return;
     }
-    setSuggestion(detectSuggestion(value, textarea.selectionStart));
-  }, [value]);
+    const cursor = textarea.selectionStart ?? textarea.value.length;
+    setSuggestion(detectSuggestion(textarea.value, cursor));
+  }, []);
+
+  const handleInputChange = (event: React.ChangeEvent<HTMLTextAreaElement>) => {
+    const next = event.target.value;
+    const cursor = event.target.selectionStart ?? next.length;
+    onChange(next);
+    setSuggestion(detectSuggestion(next, cursor));
+  };
 
   const applySkillSelection = useCallback(
     (skillId: string) => {
@@ -182,28 +194,30 @@ export function AgentChatInput({
   );
 
   const handleKeyDown = (event: React.KeyboardEvent<HTMLTextAreaElement>) => {
-    if (suggestion && visibleItems.length > 0) {
-      if (event.key === "ArrowDown") {
-        event.preventDefault();
-        setHighlightIndex((index) => (index + 1) % visibleItems.length);
-        return;
-      }
-      if (event.key === "ArrowUp") {
-        event.preventDefault();
-        setHighlightIndex(
-          (index) => (index - 1 + visibleItems.length) % visibleItems.length,
-        );
-        return;
-      }
-      if (event.key === "Enter" && !event.shiftKey) {
-        event.preventDefault();
-        const item = visibleItems[highlightIndex];
-        if (suggestion.kind === "skill") {
-          applySkillSelection(item.key);
-        } else {
-          applyFileSelection(item.key);
+    if (suggestion) {
+      if (visibleItems.length > 0) {
+        if (event.key === "ArrowDown") {
+          event.preventDefault();
+          setHighlightIndex((index) => (index + 1) % visibleItems.length);
+          return;
         }
-        return;
+        if (event.key === "ArrowUp") {
+          event.preventDefault();
+          setHighlightIndex(
+            (index) => (index - 1 + visibleItems.length) % visibleItems.length,
+          );
+          return;
+        }
+        if (event.key === "Enter" && !event.shiftKey) {
+          event.preventDefault();
+          const item = visibleItems[highlightIndex];
+          if (suggestion.kind === "skill") {
+            applySkillSelection(item.key);
+          } else {
+            applyFileSelection(item.key);
+          }
+          return;
+        }
       }
       if (event.key === "Escape") {
         event.preventDefault();
@@ -239,39 +253,48 @@ export function AgentChatInput({
       ) : null}
 
       <div className="relative">
-        {suggestion && visibleItems.length > 0 ? (
+        {suggestion ? (
           <div className="absolute inset-x-0 bottom-full z-20 mb-1 max-h-48 overflow-y-auto rounded-md border border-border bg-popover shadow-md">
-            {visibleItems.map((item, index) => (
-              <button
-                key={item.key}
-                type="button"
-                className={cn(
-                  "flex w-full flex-col gap-0.5 px-3 py-2 text-left text-xs",
-                  index === highlightIndex ? "bg-muted" : "hover:bg-muted/60",
-                )}
-                onMouseDown={(event) => event.preventDefault()}
-                onClick={() => {
-                  if (suggestion.kind === "skill") {
-                    applySkillSelection(item.key);
-                  } else {
-                    applyFileSelection(item.key);
-                  }
-                }}
-              >
-                <span className="font-medium text-foreground">{item.primary}</span>
-                <span className="truncate text-muted-foreground">{item.secondary}</span>
-              </button>
-            ))}
+            {filesLoading || visibleItems.length > 0 ? (
+              filesLoading ? (
+                <div className="px-3 py-2 text-xs text-muted-foreground">
+                  {suggestionEmptyMessage}
+                </div>
+              ) : (
+              visibleItems.map((item, index) => (
+                <button
+                  key={item.key}
+                  type="button"
+                  className={cn(
+                    "flex w-full flex-col gap-0.5 px-3 py-2 text-left text-xs",
+                    index === highlightIndex ? "bg-muted" : "hover:bg-muted/60",
+                  )}
+                  onMouseDown={(event) => event.preventDefault()}
+                  onClick={() => {
+                    if (suggestion.kind === "skill") {
+                      applySkillSelection(item.key);
+                    } else {
+                      applyFileSelection(item.key);
+                    }
+                  }}
+                >
+                  <span className="font-medium text-foreground">{item.primary}</span>
+                  <span className="truncate text-muted-foreground">{item.secondary}</span>
+                </button>
+              ))
+              )
+            ) : (
+              <div className="px-3 py-2 text-xs text-muted-foreground">
+                {suggestionEmptyMessage}
+              </div>
+            )}
           </div>
         ) : null}
 
         <textarea
           ref={textareaRef}
           value={value}
-          onChange={(event) => {
-            onChange(event.target.value);
-            requestAnimationFrame(updateSuggestionFromCursor);
-          }}
+          onChange={handleInputChange}
           onClick={updateSuggestionFromCursor}
           onKeyUp={updateSuggestionFromCursor}
           onKeyDown={handleKeyDown}

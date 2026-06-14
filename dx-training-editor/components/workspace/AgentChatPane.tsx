@@ -31,7 +31,6 @@ type Props = {
   lesson: Lesson | undefined;
   course: Course | undefined;
   currentLessonPath: string | null;
-  recentFiles: string[];
   onInsertMarkdown: (markdown: string) => void;
   onOpenSettings: () => void;
 };
@@ -45,7 +44,6 @@ export function AgentChatPane({
   lesson,
   course,
   currentLessonPath,
-  recentFiles,
   onInsertMarkdown,
   onOpenSettings,
 }: Props) {
@@ -76,14 +74,14 @@ export function AgentChatPane({
     [skills, activeSkillId],
   );
 
-  const recentFileOptions = useMemo<AgentFileOption[]>(
-    () =>
-      recentFiles.map((path) => ({
-        path,
-        name: path.split("/").pop() ?? path,
-      })),
-    [recentFiles],
-  );
+  const loadContentFiles = useCallback(async () => {
+    const params = currentLessonPath
+      ? `?current=${encodeURIComponent(currentLessonPath)}`
+      : "";
+    const res = await fetch(`/api/agent/files${params}`);
+    const data = (await res.json()) as { files?: AgentFileOption[] };
+    return data.files ?? [];
+  }, [currentLessonPath]);
 
   const buildVariables = useCallback(
     (skillId: string): Record<string, string> | { error: string } => {
@@ -226,12 +224,6 @@ export function AgentChatPane({
     });
   }, [activeSkillId, invokeSkill, isStreaming, retryPayload]);
 
-  const searchFiles = useCallback(async (query: string) => {
-    const res = await fetch(`/api/agent/files?q=${encodeURIComponent(query)}`);
-    const data = (await res.json()) as { files?: AgentFileOption[] };
-    return data.files ?? [];
-  }, []);
-
   return (
     <div className="flex h-full min-h-0 flex-col bg-background">
       <div className="workspace-scrollbar min-h-0 flex-1 overflow-y-auto overscroll-y-contain px-4 py-4">
@@ -305,9 +297,7 @@ export function AgentChatPane({
         activeSkillId={activeSkillId}
         activeSkillName={activeSkill?.name ?? null}
         onActiveSkillChange={setActiveSkillId}
-        currentLessonPath={currentLessonPath}
-        recentFiles={recentFileOptions}
-        onSearchFiles={searchFiles}
+        onLoadContentFiles={loadContentFiles}
         createDraftDisabled={!lesson}
       />
     </div>

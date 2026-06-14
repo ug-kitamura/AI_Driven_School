@@ -51,7 +51,6 @@ type Props = {
   onInsertAgentMarkdown: (markdown: string) => void;
   onOpenSettings: () => void;
   currentLessonPath: string | null;
-  recentFiles: string[];
   tagSuggestions?: readonly string[];
   availableImagePaths?: ReadonlySet<string> | null;
   imageAssetsRevision?: number;
@@ -90,7 +89,6 @@ export function MarkdownEditorPane({
   onInsertAgentMarkdown,
   onOpenSettings,
   currentLessonPath,
-  recentFiles,
   tagSuggestions = [],
   availableImagePaths = null,
   imageAssetsRevision = 0,
@@ -284,7 +282,6 @@ export function MarkdownEditorPane({
             lesson={lesson}
             course={course}
             currentLessonPath={currentLessonPath}
-            recentFiles={recentFiles}
             onInsertMarkdown={onInsertAgentMarkdown}
             onOpenSettings={onOpenSettings}
           />

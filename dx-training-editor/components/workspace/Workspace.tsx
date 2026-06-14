@@ -24,7 +24,6 @@ import {
 } from "@/lib/lesson-frontmatter";
 import { collectAllLessonTags } from "@/lib/lesson-tags";
 import { htmlCommentInnerTextAtOffset } from "@/lib/html-comment-at-cursor";
-import { useRecentLessonFiles } from "@/lib/agent/recent-files";
 import { matchLessonContentPath } from "@/lib/agent/invoke-context";
 
 export type Pane3Mode = "inline" | "raw" | "diff" | "agent";
@@ -81,7 +80,6 @@ export function Workspace({
     ((markdown: string) => void) | null
   >(null);
   const [currentLessonPath, setCurrentLessonPath] = useState<string | null>(null);
-  const { recentFiles, recordRecentFile } = useRecentLessonFiles();
 
   const { paneWidths, isResizing, resizeHandleProps, applyPaneWidths } =
     useWorkspacePaneWidths();
@@ -227,7 +225,6 @@ export function Workspace({
         if (cancelled) return;
         const resolved = matchLessonContentPath(data.files ?? [], selectedLesson);
         setCurrentLessonPath(resolved);
-        if (resolved) recordRecentFile(resolved);
       } catch {
         if (!cancelled) setCurrentLessonPath(null);
       }
@@ -241,7 +238,6 @@ export function Workspace({
     selectedLesson?.series,
     selectedLesson?.course,
     selectedLesson?.lesson,
-    recordRecentFile,
   ]);
 
   const pane4Open = !pane4ManuallyClosed;
@@ -356,7 +352,6 @@ export function Workspace({
               onInsertAgentMarkdown={insertAgentMarkdown}
               onOpenSettings={() => setSettingsOpen(true)}
               currentLessonPath={currentLessonPath}
-              recentFiles={recentFiles}
               tagSuggestions={tagSuggestions}
               availableImagePaths={availableImagePaths}
               imageAssetsRevision={imageAssetsRevision}

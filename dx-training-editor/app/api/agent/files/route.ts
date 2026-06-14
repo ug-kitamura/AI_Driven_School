@@ -1,13 +1,15 @@
-import { listContentMarkdownFiles } from "@/lib/agent/file-attachments";
+import {
+  listContentMarkdownFiles,
+  orderContentFilesForPicker,
+} from "@/lib/agent/file-attachments";
 
 export async function GET(req: Request) {
   const url = new URL(req.url);
-  const q = url.searchParams.get("q")?.trim();
-  if (!q) {
-    return Response.json({ files: [] });
-  }
-
+  const current = url.searchParams.get("current")?.trim() || undefined;
   const projectRoot = process.cwd();
-  const files = listContentMarkdownFiles(projectRoot, q);
+  const files = orderContentFilesForPicker(
+    listContentMarkdownFiles(projectRoot),
+    current,
+  );
   return Response.json({ files });
 }

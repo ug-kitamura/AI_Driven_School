@@ -1,6 +1,6 @@
 import { z } from "zod";
 import fs from "node:fs";
-import { resolveLessonFilePath } from "@/lib/contents-loader";
+import { resolveOrCreateLessonFilePath } from "@/lib/contents-loader";
 
 const schema = z.object({
   series: z.string().min(1),
@@ -26,11 +26,16 @@ export async function POST(req: Request) {
   }
 
   const { series, course, lesson, content } = parsed.data;
-  const filePath = resolveLessonFilePath(process.cwd(), series, course, lesson);
+  const filePath = resolveOrCreateLessonFilePath(
+    process.cwd(),
+    series,
+    course,
+    lesson,
+  );
 
   if (!filePath) {
     return Response.json(
-      { error: `レッスンファイルが見つかりません: ${series}/${course}/${lesson}` },
+      { error: `レッスンファイルを作成できません: ${series}/${course}/${lesson}` },
       { status: 404 },
     );
   }

@@ -6,19 +6,32 @@ import {
   normalizeAllLessonsInSeries,
 } from "@/lib/lesson-frontmatter";
 import { normalizeSeriesCourseMeta } from "@/lib/course-flow";
+import {
+  resolveSelectionAfterContentReload,
+  type WorkspaceSelection,
+} from "@/lib/workspace-selection";
 
 const POLL_INTERVAL_MS = 3000;
 
 export function useContentSync(options: {
   /** 現在の series state（編集中レッスン content を保護するために使用） */
   series: Series[];
+  selectedCourseId: string;
   selectedLessonId: string;
   onSeriesLoaded: (newSeries: Series[]) => void;
+  onSelectionChange: (selection: WorkspaceSelection) => void;
 }) {
-  const { series, selectedLessonId, onSeriesLoaded } = options;
+  const {
+    series,
+    selectedCourseId,
+    selectedLessonId,
+    onSeriesLoaded,
+    onSelectionChange,
+  } = options;
 
-  const lastMtimeRef = useRef<number>(0);
+  const lastFingerprintRef = useRef("");
   const seriesRef = useRef(series);
+  const selectedCourseIdRef = useRef(selectedCourseId);
   const selectedLessonIdRef = useRef(selectedLessonId);
   const pendingSaveRef = useRef(false);
 
@@ -27,10 +40,14 @@ export function useContentSync(options: {
   }, [series]);
 
   useEffect(() => {
+    selectedCourseIdRef.current = selectedCourseId;
+  }, [selectedCourseId]);
+
+  useEffect(() => {
     selectedLessonIdRef.current = selectedLessonId;
   }, [selectedLessonId]);
 
-  /** pendingSave フラグを立てる（debounce timer 開始時に呼ぶ） */
+  /** デバウンス保存中のみ true。外部変更の取り込みを妨げないよう限定して使う */
   const setPendingSave = useCallback((pending: boolean) => {
     pendingSaveRef.current = pending;
   }, []);
@@ -39,47 +56,65 @@ export function useContentSync(options: {
     let cancelled = false;
 
     async function fetchAndMerge() {
-      if (pendingSaveRef.current) return;
-
       try {
-        const [mtimeRes] = await Promise.all([
-          fetch("/api/content/mtime", { cache: "no-store" }),
-        ]);
+        const mtimeRes = await fetch("/api/content/mtime", { cache: "no-store" });
         if (!mtimeRes.ok || cancelled) return;
-        const { mtime } = (await mtimeRes.json()) as { mtime: number };
+        const { fingerprint } = (await mtimeRes.json()) as {
+          mtime: number;
+          fingerprint: string;
+        };
 
-        if (lastMtimeRef.current === 0) {
-          lastMtimeRef.current = mtime;
+        if (lastFingerprintRef.current === "") {
+          lastFingerprintRef.current = fingerprint;
           return;
         }
-        if (mtime <= lastMtimeRef.current) return;
-        lastMtimeRef.current = mtime;
+        if (fingerprint === lastFingerprintRef.current) return;
+        lastFingerprintRef.current = fingerprint;
 
         const dataRes = await fetch("/api/content/load", { cache: "no-store" });
         if (!dataRes.ok || cancelled) return;
         const freshSeries = (await dataRes.json()) as Series[];
 
-        // 編集中レッスンの content だけ保護してマージ
-        const currentLessonId = selectedLessonIdRef.current;
-        const currentLesson = currentLessonId
-          ? findLessonById(seriesRef.current, currentLessonId)
-          : null;
-
-        const merged = normalizeAllLessonsInSeries(
+        const normalized = normalizeAllLessonsInSeries(
           normalizeSeriesCourseMeta(freshSeries),
-        ).map((s) => ({
+        );
+
+        const currentSelection: WorkspaceSelection = {
+          courseId: selectedCourseIdRef.current,
+          lessonId: selectedLessonIdRef.current,
+        };
+        const nextSelection = resolveSelectionAfterContentReload(
+          seriesRef.current,
+          normalized,
+          currentSelection,
+        );
+
+        const preserveEditor =
+          pendingSaveRef.current && selectedLessonIdRef.current;
+        const editingLesson = preserveEditor
+          ? findLessonById(seriesRef.current, selectedLessonIdRef.current)
+          : null;
+        const preserveLessonId = editingLesson ? nextSelection.lessonId : "";
+
+        const merged = normalized.map((s) => ({
           ...s,
           courses: s.courses.map((c) => ({
             ...c,
             lessons: c.lessons.map((l) => {
-              if (currentLesson && l.id === currentLessonId) {
-                return { ...l, content: currentLesson.content };
+              if (editingLesson && preserveLessonId && l.id === preserveLessonId) {
+                return { ...l, content: editingLesson.content };
               }
               return l;
             }),
           })),
         }));
 
+        if (
+          nextSelection.courseId !== currentSelection.courseId ||
+          nextSelection.lessonId !== currentSelection.lessonId
+        ) {
+          onSelectionChange(nextSelection);
+        }
         onSeriesLoaded(merged);
       } catch {
         /* ネットワークエラーは無視 */
@@ -94,7 +129,7 @@ export function useContentSync(options: {
       cancelled = true;
       clearInterval(timer);
     };
-  }, [onSeriesLoaded]);
+  }, [onSeriesLoaded, onSelectionChange]);
 
   return { setPendingSave };
 }

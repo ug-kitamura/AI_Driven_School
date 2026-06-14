@@ -58,6 +58,7 @@ export function useLessonMutations(options: {
   selectedCourseId: string;
   selectedLessonId: string;
   setSelection: (selection: WorkspaceSelection) => void;
+  setPendingSave?: (pending: boolean) => void;
   onSaveError?: (msg: string) => void;
 }) {
   const {
@@ -66,6 +67,7 @@ export function useLessonMutations(options: {
     selectedCourseId,
     selectedLessonId,
     setSelection,
+    setPendingSave,
     onSaveError,
   } = options;
   const debounceTimers = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
@@ -162,8 +164,14 @@ export function useLessonMutations(options: {
       const existing = debounceTimers.current.get(lessonId);
       if (existing) clearTimeout(existing);
 
+      setPendingSave?.(true);
+
       const timer = setTimeout(() => {
         debounceTimers.current.delete(lessonId);
+
+        const finishSave = () => {
+          setPendingSave?.(false);
+        };
 
         const rename = pendingRename.current;
         if (rename) {
@@ -183,26 +191,29 @@ export function useLessonMutations(options: {
               .then(() => saveLessonToFs(rename.series, rename.course, latestNewName, content))
               .catch((err: unknown) => {
                 onSaveError?.(`レッスンリネームエラー: ${String(err)}`);
-              });
+              })
+              .finally(finishSave);
           } else {
             // 元の名前に戻った場合は通常保存
-            saveLessonToFs(rename.series, rename.course, rename.oldName, content).catch(
-              (err: unknown) => {
+            saveLessonToFs(rename.series, rename.course, rename.oldName, content)
+              .catch((err: unknown) => {
                 onSaveError?.(`レッスン保存エラー: ${String(err)}`);
-              },
-            );
+              })
+              .finally(finishSave);
           }
         } else {
           // 通常保存（ファイル名はディスク上の名前のまま）
-          saveLessonToFs(seriesName, courseName, diskLessonName, content).catch((err: unknown) => {
-            onSaveError?.(`レッスン保存エラー: ${String(err)}`);
-          });
+          saveLessonToFs(seriesName, courseName, diskLessonName, content)
+            .catch((err: unknown) => {
+              onSaveError?.(`レッスン保存エラー: ${String(err)}`);
+            })
+            .finally(finishSave);
         }
       }, AUTOSAVE_DEBOUNCE_MS);
 
       debounceTimers.current.set(lessonId, timer);
     },
-    [series, mapLessonById, setSeries, selectedCourseId, setSelection, onSaveError],
+    [series, mapLessonById, setSeries, selectedCourseId, setSelection, setPendingSave, onSaveError],
   );
 
   const updateLessonMeta = useCallback(
@@ -214,6 +225,7 @@ export function useLessonMutations(options: {
         course: string;
         newId: string;
       } | null = null;
+      let updatedLesson: Lesson | null = null;
 
       const next = series.map((s) => ({
         ...s,
@@ -236,14 +248,28 @@ export function useLessonMutations(options: {
                 course: updated.course,
                 newId,
               };
-              return { ...updated, id: newId };
+              updatedLesson = { ...updated, id: newId };
+              return updatedLesson;
             }
+            updatedLesson = updated;
             return updated;
           }),
         })),
       }));
 
+      if (!updatedLesson) return;
+
       setSeries(next);
+
+      const persistMeta = () =>
+        saveLessonToFs(
+          updatedLesson!.series,
+          updatedLesson!.course,
+          updatedLesson!.lesson,
+          updatedLesson!.content,
+        ).catch((err: unknown) => {
+          onSaveError?.(`レッスン保存エラー: ${String(err)}`);
+        });
 
       if (rename) {
         const { oldName, newName, series: seriesName, course: courseName, newId } =
@@ -260,9 +286,13 @@ export function useLessonMutations(options: {
           course: courseName,
           oldName,
           newName,
-        }).catch((err: unknown) => {
-          onSaveError?.(`レッスンリネームエラー: ${String(err)}`);
-        });
+        })
+          .then(persistMeta)
+          .catch((err: unknown) => {
+            onSaveError?.(`レッスンリネームエラー: ${String(err)}`);
+          });
+      } else {
+        persistMeta();
       }
     },
     [series, selectedCourseId, setSeries, setSelection, onSaveError],
@@ -279,47 +309,59 @@ export function useLessonMutations(options: {
     (courseId: string, lessonName: string) => {
       let seriesName = "";
       let courseName = "";
-      const newId = `lesson-${Date.now()}`;
+      for (const s of series) {
+        const c = s.courses.find((co) => co.id === courseId);
+        if (c) {
+          seriesName = s.name;
+          courseName = c.name;
+          break;
+        }
+      }
+      if (!seriesName || !courseName) return;
+
+      const meta = normalizeLessonMeta(
+        {
+          lesson: lessonName,
+          status: "open",
+          description: "",
+          tags: [],
+          estimated_minutes: 0,
+          author: "",
+        },
+        { seriesName, courseName },
+      );
+      const newLesson: Lesson = {
+        id: buildLessonId(seriesName, courseName, lessonName),
+        ...meta,
+        content: createLessonContentTemplate(meta),
+      };
+
       setSeries((prev) =>
         prev.map((s) => ({
           ...s,
-          courses: s.courses.map((c) => {
-            if (c.id !== courseId) return c;
-            seriesName = s.name;
-            courseName = c.name;
-            const meta = normalizeLessonMeta(
-              {
-                lesson: lessonName,
-                status: "open",
-                description: "",
-                tags: [],
-                estimated_minutes: 0,
-                author: "",
-              },
-              { seriesName: s.name, courseName: c.name },
-            );
-            const newLesson: Lesson = {
-              id: newId,
-              ...meta,
-              content: createLessonContentTemplate(meta),
-            };
-            return { ...c, lessons: [...c.lessons, newLesson] };
-          }),
+          courses: s.courses.map((c) =>
+            c.id === courseId
+              ? { ...c, lessons: [...c.lessons, newLesson] }
+              : c,
+          ),
         })),
       );
-      setSelection({ courseId, lessonId: newId });
-      if (seriesName && courseName) {
-        callContentApi("create", {
-          type: "lesson",
-          series: seriesName,
-          course: courseName,
-          name: lessonName,
-        }).catch((err: unknown) => {
+      setSelection({ courseId, lessonId: newLesson.id });
+      setPendingSave?.(true);
+      saveLessonToFs(
+        seriesName,
+        courseName,
+        newLesson.lesson,
+        newLesson.content,
+      )
+        .catch((err: unknown) => {
           onSaveError?.(`レッスン追加エラー: ${String(err)}`);
+        })
+        .finally(() => {
+          setPendingSave?.(false);
         });
-      }
     },
-    [setSeries, setSelection, onSaveError],
+    [series, setSeries, setSelection, setPendingSave, onSaveError],
   );
 
   const deleteLesson = useCallback(

@@ -56,9 +56,38 @@ export function resolveLessonFilePath(
   if (!courseDir) return null;
   const lessonFiles = fs
     .readdirSync(courseDir)
-    .filter((f) => f.endsWith(".md") && stripPrefix(f) === lessonName);
+    .filter((f) => f.endsWith(".md") && stripPrefix(f) === lessonName)
+    .sort(numericPrefixSort);
   if (lessonFiles.length === 0) return null;
-  return path.join(courseDir, lessonFiles[0]);
+  return path.join(courseDir, lessonFiles[lessonFiles.length - 1]);
+}
+
+/** レッスンファイルのパスを返す。存在しなければ採番して新規パスを返す */
+export function resolveOrCreateLessonFilePath(
+  projectRoot: string,
+  seriesName: string,
+  courseName: string,
+  lessonName: string,
+): string | null {
+  const existing = resolveLessonFilePath(
+    projectRoot,
+    seriesName,
+    courseName,
+    lessonName,
+  );
+  if (existing) return existing;
+
+  const contentsDir = getContentsDir(projectRoot);
+  const seriesDir = findSeriesDir(contentsDir, seriesName);
+  if (!seriesDir) return null;
+  const courseDir = findCourseDir(seriesDir, courseName);
+  if (!courseDir) return null;
+
+  const existingLessons = fs
+    .readdirSync(courseDir)
+    .filter((f) => f.endsWith(".md")).length;
+  const lessonFileName = `${withPrefix(existingLessons, lessonName)}.md`;
+  return path.join(courseDir, lessonFileName);
 }
 
 /** contents/ 以下の全ファイル・フォルダの最新 mtime（ミリ秒）を返す */
@@ -86,6 +115,40 @@ export function getContentsLatestMtime(projectRoot: string): number {
   }
   scan(contentsDir);
   return latest;
+}
+
+/**
+ * contents/ ツリーのスナップショット指紋。
+ * リネームは mtime が変わらないことがあるため、パス一覧で変化を検知する。
+ */
+export function getContentsFingerprint(projectRoot: string): string {
+  const contentsDir = getContentsDir(projectRoot);
+  if (!fs.existsSync(contentsDir)) return "";
+  const lines: string[] = [];
+
+  function walk(dir: string, rel: string) {
+    let entries: fs.Dirent[];
+    try {
+      entries = fs.readdirSync(dir, { withFileTypes: true });
+    } catch {
+      return;
+    }
+    entries.sort((a, b) => a.name.localeCompare(b.name));
+    for (const e of entries) {
+      const childRel = rel ? `${rel}/${e.name}` : e.name;
+      const childPath = path.join(dir, e.name);
+      try {
+        const stat = fs.statSync(childPath);
+        lines.push(`${childRel}\t${stat.size}\t${stat.mtimeMs}`);
+        if (e.isDirectory()) walk(childPath, childRel);
+      } catch {
+        /* ignore */
+      }
+    }
+  }
+
+  walk(contentsDir, "");
+  return lines.join("\n");
 }
 
 /**
@@ -229,11 +292,13 @@ export function loadContentsFolder(projectRoot: string): Series[] {
         const lessonFilePath = path.join(courseDir, lessonFileName);
         const lessonName = stripPrefix(lessonFileName);
         const lessonId = `lesson-${seriesName}-${courseName}-${lessonName}`;
-        const content = fs.readFileSync(lessonFilePath, "utf-8");
+        let content = fs.readFileSync(lessonFilePath, "utf-8");
 
         const { meta } = parseLessonDocument(content);
+        const metaWithoutLesson = { ...meta };
+        delete metaWithoutLesson.lesson;
         const normalized = normalizeLessonMeta(
-          meta,
+          metaWithoutLesson,
           { seriesName, courseName },
           {
             lesson: lessonName,
@@ -247,10 +312,15 @@ export function loadContentsFolder(projectRoot: string): Series[] {
           },
         );
 
+        if (!content.trim()) {
+          content = createLessonContentTemplate(normalized);
+          fs.writeFileSync(lessonFilePath, content, "utf-8");
+        }
+
         lessons.push({
           id: lessonId,
           ...normalized,
-          content: content || createLessonContentTemplate(normalized),
+          content,
         });
       }
 

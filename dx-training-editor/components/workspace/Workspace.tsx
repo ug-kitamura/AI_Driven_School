@@ -118,6 +118,21 @@ export function Workspace({
     onSaveError: handleSaveError,
   });
 
+  const handleSeriesLoaded = useCallback(
+    (newSeries: Series[]) => {
+      setSeries(newSeries);
+    },
+    [setSeries],
+  );
+
+  const { setPendingSave } = useContentSync({
+    series,
+    selectedCourseId,
+    selectedLessonId,
+    onSeriesLoaded: handleSeriesLoaded,
+    onSelectionChange: setSelection,
+  });
+
   const {
     addLesson,
     deleteLesson,
@@ -131,24 +146,12 @@ export function Workspace({
     selectedCourseId,
     selectedLessonId,
     setSelection,
+    setPendingSave,
     onSaveError: handleSaveError,
   });
 
   const { availableImagePaths, imageAssetsRevision, notifyImageAssetsChanged } =
     useWorkspaceImageAssets();
-
-  const handleSeriesLoaded = useCallback(
-    (newSeries: Series[]) => {
-      setSeries(newSeries);
-    },
-    [setSeries],
-  );
-
-  useContentSync({
-    series,
-    selectedLessonId,
-    onSeriesLoaded: handleSeriesLoaded,
-  });
 
   const tagSuggestions = useMemo(
     () => collectAllLessonTags(series),

@@ -2,7 +2,7 @@ import { describe, expect, it, beforeEach, afterEach } from "vitest";
 import fs from "node:fs";
 import path from "node:path";
 import os from "node:os";
-import { loadContentsFolder, contentsExists } from "@/lib/contents-loader";
+import { loadContentsFolder, contentsExists, getContentsFingerprint } from "@/lib/contents-loader";
 
 function writeFile(filePath: string, content: string) {
   fs.mkdirSync(path.dirname(filePath), { recursive: true });
@@ -67,6 +67,35 @@ describe("loadContentsFolder", () => {
     expect(result[0].courses[0].lessons[0].status).toBe("open");
   });
 
+  it("writes template to disk when lesson file is empty", () => {
+    const contentsDir = path.join(tmpDir, "contents");
+    writeFile(path.join(contentsDir, "シリーズA", "01_コースA", "01_空.md"), "");
+
+    loadContentsFolder(tmpDir);
+
+    const onDisk = fs.readFileSync(
+      path.join(contentsDir, "シリーズA", "01_コースA", "01_空.md"),
+      "utf-8",
+    );
+    expect(onDisk.trimStart().startsWith("---")).toBe(true);
+    expect(onDisk).toContain("# 空");
+  });
+
+  it("prefers filename over stale frontmatter lesson name", () => {
+    const contentsDir = path.join(tmpDir, "contents");
+    const lessonContent = `---\nseries: シリーズA\ncourse: コースA\nlesson: 古い名前\nstatus: open\ndescription: ""\ntags: []\nestimated_minutes: 0\nauthor: ""\n---\n\n本文\n`;
+    writeFile(
+      path.join(contentsDir, "シリーズA", "01_コースA", "01_新しい名前.md"),
+      lessonContent,
+    );
+
+    const result = loadContentsFolder(tmpDir);
+    expect(result[0].courses[0].lessons[0].lesson).toBe("新しい名前");
+    expect(result[0].courses[0].lessons[0].id).toBe(
+      "lesson-シリーズA-コースA-新しい名前",
+    );
+  });
+
   it("respects numeric prefixes for series ordering", () => {
     const contentsDir = path.join(tmpDir, "contents");
     writeFile(path.join(contentsDir, "02_シリーズB", ".keep"), "");
@@ -85,6 +114,26 @@ describe("loadContentsFolder", () => {
     const result = loadContentsFolder(tmpDir);
     expect(result[0].courses[0].name).toBe("コースA");
     expect(result[0].courses[1].name).toBe("コースB");
+  });
+
+  it("detects external lesson file rename via fingerprint", () => {
+    const contentsDir = path.join(tmpDir, "contents");
+    const lessonPath = path.join(
+      contentsDir,
+      "シリーズA",
+      "01_コースA",
+      "01_旧レッスン.md",
+    );
+    writeFile(lessonPath, "# old\n");
+
+    const before = getContentsFingerprint(tmpDir);
+    fs.renameSync(lessonPath, lessonPath.replace("旧レッスン", "新レッスン"));
+    const after = getContentsFingerprint(tmpDir);
+
+    expect(before).not.toBe(after);
+
+    const result = loadContentsFolder(tmpDir);
+    expect(result[0].courses[0].lessons[0].lesson).toBe("新レッスン");
   });
 });
 

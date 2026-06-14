@@ -1,6 +1,9 @@
-import { getContentsLatestMtime } from "@/lib/contents-loader";
+import { getContentsFingerprint, getContentsLatestMtime } from "@/lib/contents-loader";
 
 export async function GET() {
-  const mtime = getContentsLatestMtime(process.cwd());
-  return Response.json({ mtime });
+  const cwd = process.cwd();
+  return Response.json({
+    mtime: getContentsLatestMtime(cwd),
+    fingerprint: getContentsFingerprint(cwd),
+  });
 }

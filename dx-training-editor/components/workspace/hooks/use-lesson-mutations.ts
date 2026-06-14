@@ -2,6 +2,8 @@
 
 import { useCallback, useRef } from "react";
 import type { Lesson, Series } from "@/lib/schema";
+import { buildLessonId } from "@/lib/content-ids";
+import { remapSelection } from "@/lib/content-rename";
 import {
   applyLessonContentEdit,
   createLessonContentTemplate,
@@ -10,6 +12,7 @@ import {
   patchLessonMeta,
   type LessonMetaFields,
 } from "@/lib/lesson-frontmatter";
+import type { WorkspaceSelection } from "@/lib/workspace-selection";
 
 const AUTOSAVE_DEBOUNCE_MS = 800;
 
@@ -52,11 +55,19 @@ async function saveLessonToFs(
 export function useLessonMutations(options: {
   series: Series[];
   setSeries: React.Dispatch<React.SetStateAction<Series[]>>;
+  selectedCourseId: string;
   selectedLessonId: string;
-  setSelectedLessonId: (lessonId: string) => void;
+  setSelection: (selection: WorkspaceSelection) => void;
   onSaveError?: (msg: string) => void;
 }) {
-  const { series, setSeries, selectedLessonId, setSelectedLessonId, onSaveError } = options;
+  const {
+    series,
+    setSeries,
+    selectedCourseId,
+    selectedLessonId,
+    setSelection,
+    onSaveError,
+  } = options;
   const debounceTimers = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
   /**
    * エディタでフロントマターの lesson 名を直接変更した場合に使う。
@@ -129,7 +140,7 @@ export function useLessonMutations(options: {
           pendingRename.current = { series: seriesName, course: courseName, oldName: diskLessonName };
         }
         // lessonId を新名ベースに即座に更新
-        const newId = `lesson-${seriesName}-${courseName}-${newLessonName}`;
+        const newId = buildLessonId(seriesName, courseName, newLessonName);
         setSeries((prev) =>
           prev.map((s) => ({
             ...s,
@@ -139,7 +150,12 @@ export function useLessonMutations(options: {
             })),
           })),
         );
-        setSelectedLessonId(newId);
+        setSelection(
+          remapSelection(
+            { courseId: selectedCourseId, lessonId },
+            { courseIds: new Map(), lessonIds: new Map([[lessonId, newId]]) },
+          ),
+        );
       }
 
       // デバウンスキーは元の lessonId（変更前）で管理する
@@ -186,56 +202,70 @@ export function useLessonMutations(options: {
 
       debounceTimers.current.set(lessonId, timer);
     },
-    [series, mapLessonById, setSeries, setSelectedLessonId, onSaveError],
+    [series, mapLessonById, setSeries, selectedCourseId, setSelection, onSaveError],
   );
 
   const updateLessonMeta = useCallback(
     (lessonId: string, meta: Partial<LessonMetaFields>) => {
-      let oldLessonName = "";
-      let newLessonName = "";
-      let seriesName = "";
-      let courseName = "";
+      let rename: {
+        oldName: string;
+        newName: string;
+        series: string;
+        course: string;
+        newId: string;
+      } | null = null;
 
-      mapLessonById(lessonId, (lesson, ctx) => {
-        const updated = patchLessonMeta(lesson, ctx, meta);
-        if (meta.lesson !== undefined && lesson.lesson !== meta.lesson) {
-          oldLessonName = lesson.lesson;
-          newLessonName = updated.lesson;
-          seriesName = updated.series;
-          courseName = updated.course;
-        }
-        return updated;
-      });
+      const next = series.map((s) => ({
+        ...s,
+        courses: s.courses.map((c) => ({
+          ...c,
+          lessons: c.lessons.map((l) => {
+            if (l.id !== lessonId) return l;
+            const ctx = { seriesName: s.name, courseName: c.name };
+            const updated = patchLessonMeta(l, ctx, meta);
+            if (meta.lesson !== undefined && l.lesson !== updated.lesson) {
+              const newId = buildLessonId(
+                updated.series,
+                updated.course,
+                updated.lesson,
+              );
+              rename = {
+                oldName: l.lesson,
+                newName: updated.lesson,
+                series: updated.series,
+                course: updated.course,
+                newId,
+              };
+              return { ...updated, id: newId };
+            }
+            return updated;
+          }),
+        })),
+      }));
 
-      if (oldLessonName && newLessonName && oldLessonName !== newLessonName) {
-        const newId = `lesson-${seriesName}-${courseName}-${newLessonName}`;
+      setSeries(next);
 
-        // state のレッスン ID を新しい名前ベースの ID に差し替える
-        setSeries((prev) =>
-          prev.map((s) => ({
-            ...s,
-            courses: s.courses.map((c) => ({
-              ...c,
-              lessons: c.lessons.map((l) =>
-                l.id === lessonId ? { ...l, id: newId } : l,
-              ),
-            })),
-          })),
+      if (rename) {
+        const { oldName, newName, series: seriesName, course: courseName, newId } =
+          rename;
+        setSelection(
+          remapSelection(
+            { courseId: selectedCourseId, lessonId },
+            { courseIds: new Map(), lessonIds: new Map([[lessonId, newId]]) },
+          ),
         );
-        setSelectedLessonId(newId);
-
         callContentApi("rename", {
           type: "lesson",
           series: seriesName,
           course: courseName,
-          oldName: oldLessonName,
-          newName: newLessonName,
+          oldName,
+          newName,
         }).catch((err: unknown) => {
           onSaveError?.(`レッスンリネームエラー: ${String(err)}`);
         });
       }
     },
-    [mapLessonById, setSeries, setSelectedLessonId, onSaveError],
+    [series, selectedCourseId, setSeries, setSelection, onSaveError],
   );
 
   const updateLessonStatus = useCallback(
@@ -277,7 +307,7 @@ export function useLessonMutations(options: {
           }),
         })),
       );
-      setSelectedLessonId(newId);
+      setSelection({ courseId, lessonId: newId });
       if (seriesName && courseName) {
         callContentApi("create", {
           type: "lesson",
@@ -289,7 +319,7 @@ export function useLessonMutations(options: {
         });
       }
     },
-    [setSeries, setSelectedLessonId, onSaveError],
+    [setSeries, setSelection, onSaveError],
   );
 
   const deleteLesson = useCallback(
@@ -312,7 +342,9 @@ export function useLessonMutations(options: {
           }),
         })),
       );
-      if (selectedLessonId === lessonId) setSelectedLessonId("");
+      if (selectedLessonId === lessonId) {
+        setSelection({ courseId: selectedCourseId, lessonId: "" });
+      }
       if (seriesName && courseName && lessonName) {
         callContentApi("delete", {
           type: "lesson",
@@ -324,7 +356,7 @@ export function useLessonMutations(options: {
         });
       }
     },
-    [setSeries, selectedLessonId, setSelectedLessonId, onSaveError],
+    [setSeries, selectedCourseId, selectedLessonId, setSelection, onSaveError],
   );
 
   const reorderLessons = useCallback(

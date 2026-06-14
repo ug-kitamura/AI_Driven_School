@@ -48,6 +48,11 @@ async function callContentApi(
   }
 }
 import {
+  applySeriesRename,
+  remapCourseAndLessonIds,
+  remapSelection,
+} from "@/lib/content-rename";
+import {
   applyCourseDeletion,
   applyCrossSeriesCourseMetaEdit,
   applySeriesDeletion,
@@ -203,94 +208,137 @@ export function useSeriesMutations(options: {
         "name" | "target_audience" | "prerequisites" | "next_courses"
       >,
     ) => {
-      setSeries((prev) => {
-        const crossPrerequisites = filterCrossSeriesIds(
-          prev,
-          courseId,
-          meta.prerequisites ?? [],
-        );
-        const crossNextCourses = filterCrossSeriesIds(
-          prev,
-          courseId,
-          meta.next_courses ?? [],
-        );
-        const synced = applyCrossSeriesCourseMetaEdit(
-          prev,
-          courseId,
-          crossPrerequisites,
-          crossNextCourses,
-        );
-        const next = synced.map((s) => ({
-          ...s,
-          courses: s.courses.map((c) => {
-            if (c.id !== courseId) return c;
-            const newName = meta.name?.trim() || c.name;
-            const ctx = { seriesName: s.name, courseName: newName };
-            return {
-              ...c,
-              name: newName,
-              target_audience: meta.target_audience,
-              lessons: c.lessons.map((l) =>
-                reconcileLesson({ ...l, course: newName }, ctx),
-              ),
-            };
-          }),
-        }));
-        for (const s of next) {
-          const c = s.courses.find((co) => co.id === courseId);
-          if (c) {
-            saveCourseMeta(s.name, c.name, {
-              target_audience: c.target_audience,
-              prerequisites: c.prerequisites,
-              next_courses: c.next_courses,
-            }).catch((err: unknown) => {
-              onSaveError?.(`コースメタ保存エラー: ${String(err)}`);
-            });
-            break;
-          }
+      let oldCourseName: string | undefined;
+      let seriesName: string | undefined;
+      for (const s of series) {
+        const c = s.courses.find((co) => co.id === courseId);
+        if (c) {
+          oldCourseName = c.name;
+          seriesName = s.name;
+          break;
         }
-        return next;
-      });
+      }
+      if (!seriesName) return;
+
+      const crossPrerequisites = filterCrossSeriesIds(
+        series,
+        courseId,
+        meta.prerequisites ?? [],
+      );
+      const crossNextCourses = filterCrossSeriesIds(
+        series,
+        courseId,
+        meta.next_courses ?? [],
+      );
+      const synced = applyCrossSeriesCourseMetaEdit(
+        series,
+        courseId,
+        crossPrerequisites,
+        crossNextCourses,
+      );
+      const next = synced.map((s) => ({
+        ...s,
+        courses: s.courses.map((c) => {
+          if (c.id !== courseId) return c;
+          const newName = meta.name?.trim() || c.name;
+          const ctx = { seriesName: s.name, courseName: newName };
+          return {
+            ...c,
+            name: newName,
+            target_audience: meta.target_audience,
+            lessons: c.lessons.map((l) =>
+              reconcileLesson({ ...l, course: newName }, ctx),
+            ),
+          };
+        }),
+      }));
+
+      const updatedBeforeRemap = next
+        .flatMap((s) => s.courses)
+        .find((c) => c.id === courseId);
+      if (!updatedBeforeRemap) return;
+
+      let finalSeries = next;
+      let newCourseId = courseId;
+      if (oldCourseName && oldCourseName !== updatedBeforeRemap.name) {
+        const remapped = remapCourseAndLessonIds(
+          next,
+          courseId,
+          seriesName,
+          updatedBeforeRemap.name,
+        );
+        finalSeries = remapped.series;
+        newCourseId = remapped.remap.courseIds.get(courseId) ?? courseId;
+        setSelection(
+          remapSelection(
+            { courseId: selectedCourseId, lessonId: selectedLessonId },
+            remapped.remap,
+          ),
+        );
+      }
+
+      setSeries(finalSeries);
+
+      const updatedCourse = finalSeries
+        .flatMap((s) => s.courses)
+        .find((c) => c.id === newCourseId);
+      if (!updatedCourse) return;
+
+      const metaPayload = {
+        target_audience: updatedCourse.target_audience,
+        prerequisites: updatedCourse.prerequisites,
+        next_courses: updatedCourse.next_courses,
+      };
+      const persistMeta = () =>
+        saveCourseMeta(seriesName, updatedCourse.name, metaPayload).catch(
+          (err: unknown) => {
+            onSaveError?.(`コースメタ保存エラー: ${String(err)}`);
+          },
+        );
+
+      if (oldCourseName && oldCourseName !== updatedCourse.name) {
+        callContentApi("rename", {
+          type: "course",
+          series: seriesName,
+          oldName: oldCourseName,
+          newName: updatedCourse.name,
+        })
+          .then(persistMeta)
+          .catch((err: unknown) =>
+            onSaveError?.(`コースリネームエラー: ${String(err)}`),
+          );
+      } else {
+        persistMeta();
+      }
     },
-    [setSeries, onSaveError],
+    [series, selectedCourseId, selectedLessonId, setSeries, setSelection, onSaveError],
   );
 
   const updateSeriesName = useCallback(
     (seriesId: string, name: string) => {
       const target = series.find((s) => s.id === seriesId);
-      setSeries((prev) =>
-        prev.map((s) => {
-          if (s.id !== seriesId) return s;
-          const newName = name.trim() || s.name;
-          return {
-            ...s,
-            name: newName,
-            courses: s.courses.map((c) => ({
-              ...c,
-              lessons: c.lessons.map((l) =>
-                reconcileLesson(
-                  { ...l, series: newName },
-                  { seriesName: newName, courseName: c.name },
-                ),
-              ),
-            })),
-          };
-        }),
+      if (!target) return;
+      const newName = name.trim() || target.name;
+      if (newName === target.name) return;
+
+      const { series: next, remap } = applySeriesRename(series, seriesId, newName);
+      setSeries(next);
+      setSelection(
+        remapSelection(
+          { courseId: selectedCourseId, lessonId: selectedLessonId },
+          remap,
+        ),
       );
-      if (target) {
-        const newName = name.trim() || target.name;
-        if (newName !== target.name) {
-          callContentApi("rename", {
-            type: "series",
-            oldName: target.name,
-            newName,
-          }).catch((err: unknown) =>
-            onSaveError?.(`シリーズリネームエラー: ${String(err)}`),
-          );
-        }
-      }
+
+      callContentApi("rename", {
+        type: "series",
+        oldName: target.name,
+        newName,
+      }).catch((err: unknown) =>
+        onSaveError?.(`シリーズリネームエラー: ${String(err)}`),
+      );
     },
-    [series, setSeries, onSaveError],
+    [series, selectedCourseId, selectedLessonId, setSeries, setSelection, onSaveError],
   );
 
   return {

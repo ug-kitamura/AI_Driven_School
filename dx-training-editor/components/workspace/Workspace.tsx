@@ -94,7 +94,6 @@ export function Workspace({
     selectCourse,
     selectLesson,
     setSelection,
-    setSelectedLessonId,
   } = useWorkspaceSelection({
     series,
     initialCourseId: firstCourseId,
@@ -129,8 +128,9 @@ export function Workspace({
   } = useLessonMutations({
     series,
     setSeries,
+    selectedCourseId,
     selectedLessonId,
-    setSelectedLessonId,
+    setSelection,
     onSaveError: handleSaveError,
   });
 

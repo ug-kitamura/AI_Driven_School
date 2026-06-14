@@ -67,18 +67,14 @@ describe("loadContentsFolder", () => {
     expect(result[0].courses[0].lessons[0].status).toBe("open");
   });
 
-  it("respects _series-order.json for series ordering", () => {
+  it("respects numeric prefixes for series ordering", () => {
     const contentsDir = path.join(tmpDir, "contents");
-    writeFile(path.join(contentsDir, "シリーズB", ".keep"), "");
-    writeFile(path.join(contentsDir, "シリーズA", ".keep"), "");
-    writeFile(
-      path.join(contentsDir, "_series-order.json"),
-      JSON.stringify(["シリーズB", "シリーズA"]),
-    );
+    writeFile(path.join(contentsDir, "02_シリーズB", ".keep"), "");
+    writeFile(path.join(contentsDir, "01_シリーズA", ".keep"), "");
 
     const result = loadContentsFolder(tmpDir);
-    expect(result[0].name).toBe("シリーズB");
-    expect(result[1].name).toBe("シリーズA");
+    expect(result[0].name).toBe("シリーズA");
+    expect(result[1].name).toBe("シリーズB");
   });
 
   it("sorts courses by numeric prefix", () => {

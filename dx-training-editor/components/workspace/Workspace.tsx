@@ -16,6 +16,7 @@ import { useLessonMutations } from "@/components/workspace/hooks/use-lesson-muta
 import { useSeriesMutations } from "@/components/workspace/hooks/use-series-mutations";
 import { useWorkspaceImageAssets } from "@/components/workspace/hooks/use-workspace-image-assets";
 import { useWorkspaceSelection } from "@/components/workspace/hooks/use-workspace-selection";
+import { useContentSync } from "@/components/workspace/hooks/use-content-sync";
 import type { Series } from "@/lib/schema";
 import { normalizeSeriesCourseMeta } from "@/lib/course-flow";
 import {
@@ -126,6 +127,7 @@ export function Workspace({
     updateLessonMeta,
     updateLessonStatus,
   } = useLessonMutations({
+    series,
     setSeries,
     selectedLessonId,
     setSelectedLessonId,
@@ -134,6 +136,19 @@ export function Workspace({
 
   const { availableImagePaths, imageAssetsRevision, notifyImageAssetsChanged } =
     useWorkspaceImageAssets();
+
+  const handleSeriesLoaded = useCallback(
+    (newSeries: Series[]) => {
+      setSeries(newSeries);
+    },
+    [setSeries],
+  );
+
+  useContentSync({
+    series,
+    selectedLessonId,
+    onSeriesLoaded: handleSeriesLoaded,
+  });
 
   const tagSuggestions = useMemo(
     () => collectAllLessonTags(series),

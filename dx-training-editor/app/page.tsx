@@ -1,6 +1,6 @@
 import { Workspace } from "@/components/workspace/Workspace";
 import workspaceData from "@/data/workspace.json";
-import { loadContentsFolder } from "@/lib/contents-loader";
+import { normalizeContentsFolder, loadContentsFolder } from "@/lib/contents-loader";
 import { workspaceSchema } from "@/lib/schema";
 
 export default function Page() {
@@ -11,6 +11,7 @@ export default function Page() {
     );
   }
 
+  normalizeContentsFolder(process.cwd());
   const seriesList = loadContentsFolder(process.cwd());
 
   return (

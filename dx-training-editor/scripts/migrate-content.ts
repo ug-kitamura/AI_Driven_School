@@ -81,10 +81,11 @@ async function main() {
   const raw = fs.readFileSync(CONTENT_JSON, "utf-8");
   const seriesList = JSON.parse(raw) as SeriesData[];
 
-  const seriesOrder: string[] = [];
+  const seriesOrder: string[] = []; // 互換用（未使用）
 
-  for (const series of seriesList) {
-    const seriesDirName = sanitizeFilename(series.name);
+  for (let si = 0; si < seriesList.length; si++) {
+    const series = seriesList[si];
+    const seriesDirName = withPrefix(si, series.name);
     const seriesDir = path.join(CONTENTS_DIR, seriesDirName);
     fs.mkdirSync(seriesDir, { recursive: true });
     seriesOrder.push(series.name);
@@ -101,7 +102,7 @@ async function main() {
         next_courses: course.next_courses ?? [],
       };
       fs.writeFileSync(
-        path.join(courseDir, "_course.json"),
+        path.join(courseDir, ".meta.json"),
         JSON.stringify(courseJson, null, 2),
         "utf-8",
       );
@@ -121,12 +122,6 @@ async function main() {
       );
     }
   }
-
-  fs.writeFileSync(
-    path.join(CONTENTS_DIR, "_series-order.json"),
-    JSON.stringify(seriesOrder, null, 2),
-    "utf-8",
-  );
 
   console.log(
     `\n移行完了: ${seriesList.length} シリーズ → contents/ フォルダを生成しました`,

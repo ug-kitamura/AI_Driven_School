@@ -1,8 +1,7 @@
 import { z } from "zod";
 import fs from "node:fs";
 import path from "node:path";
-import { getContentsDir } from "@/lib/contents-loader";
-import { sanitizeFilename, stripPrefix } from "@/lib/content-filename";
+import { getContentsDir, findSeriesDir, findCourseDir } from "@/lib/contents-loader";
 
 const schema = z.object({
   series: z.string().min(1),
@@ -30,22 +29,15 @@ export async function POST(req: Request) {
 
   const { series, course, target_audience, prerequisites, next_courses } = parsed.data;
   const contentsDir = getContentsDir(process.cwd());
-  const seriesDir = path.join(contentsDir, sanitizeFilename(series));
-
-  if (!fs.existsSync(seriesDir)) {
+  const seriesDir = findSeriesDir(contentsDir, series);
+  if (!seriesDir) {
     return Response.json({ error: `シリーズフォルダが見つかりません: ${series}` }, { status: 404 });
   }
-
-  const courseDirs = fs
-    .readdirSync(seriesDir, { withFileTypes: true })
-    .filter((e) => e.isDirectory() && stripPrefix(e.name) === course);
-
-  if (courseDirs.length === 0) {
+  const courseDir = findCourseDir(seriesDir, course);
+  if (!courseDir) {
     return Response.json({ error: `コースフォルダが見つかりません: ${course}` }, { status: 404 });
   }
-
-  const courseDir = path.join(seriesDir, courseDirs[0].name);
-  const metaPath = path.join(courseDir, "_course.json");
+  const metaPath = path.join(courseDir, ".meta.json");
 
   try {
     fs.writeFileSync(

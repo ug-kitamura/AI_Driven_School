@@ -1,8 +1,8 @@
 import { z } from "zod";
 import fs from "node:fs";
 import path from "node:path";
-import { getContentsDir } from "@/lib/contents-loader";
-import { sanitizeFilename, stripPrefix, withPrefix } from "@/lib/content-filename";
+import { getContentsDir, findSeriesDir, findCourseDir } from "@/lib/contents-loader";
+import { withPrefix } from "@/lib/content-filename";
 import { createLessonContentTemplate, normalizeLessonMeta } from "@/lib/lesson-frontmatter";
 
 const schema = z.discriminatedUnion("type", [
@@ -42,33 +42,28 @@ export async function POST(req: Request) {
   const contentsDir = getContentsDir(process.cwd());
 
   if (parsed.data.type === "series") {
-    const dirName = sanitizeFilename(parsed.data.name);
+    fs.mkdirSync(contentsDir, { recursive: true });
+    const existingCount = fs
+      .readdirSync(contentsDir, { withFileTypes: true })
+      .filter((e) => e.isDirectory()).length;
+    const dirName = withPrefix(existingCount, parsed.data.name);
     fs.mkdirSync(path.join(contentsDir, dirName), { recursive: true });
-
-    const orderFile = path.join(contentsDir, "_series-order.json");
-    const order: string[] = fs.existsSync(orderFile)
-      ? (JSON.parse(fs.readFileSync(orderFile, "utf-8")) as string[])
-      : [];
-    order.push(parsed.data.name);
-    fs.writeFileSync(orderFile, JSON.stringify(order, null, 2), "utf-8");
-
-    return Response.json({ ok: true });
+    return Response.json({ ok: true, dirName });
   }
 
   if (parsed.data.type === "course") {
-    const seriesDir = path.join(contentsDir, sanitizeFilename(parsed.data.series));
-    if (!fs.existsSync(seriesDir)) {
+    const seriesDir = findSeriesDir(contentsDir, parsed.data.series);
+    if (!seriesDir) {
       return Response.json({ error: `シリーズフォルダが見つかりません` }, { status: 404 });
     }
     const existingCourses = fs
       .readdirSync(seriesDir, { withFileTypes: true })
-      .filter((e) => e.isDirectory())
-      .length;
+      .filter((e) => e.isDirectory()).length;
     const courseDirName = withPrefix(existingCourses, parsed.data.name);
     const courseDir = path.join(seriesDir, courseDirName);
     fs.mkdirSync(courseDir, { recursive: true });
     fs.writeFileSync(
-      path.join(courseDir, "_course.json"),
+      path.join(courseDir, ".meta.json"),
       JSON.stringify({ target_audience: "", prerequisites: [], next_courses: [] }, null, 2),
       "utf-8",
     );
@@ -77,18 +72,17 @@ export async function POST(req: Request) {
 
   // lesson
   const lessonData = parsed.data as { type: "lesson"; series: string; course: string; name: string };
-  const seriesDir = path.join(contentsDir, sanitizeFilename(lessonData.series));
-  const courseDirs = fs
-    .readdirSync(seriesDir, { withFileTypes: true })
-    .filter((e) => e.isDirectory() && stripPrefix(e.name) === lessonData.course);
-  if (courseDirs.length === 0) {
+  const seriesDir = findSeriesDir(contentsDir, lessonData.series);
+  if (!seriesDir) {
+    return Response.json({ error: `シリーズフォルダが見つかりません` }, { status: 404 });
+  }
+  const courseDir = findCourseDir(seriesDir, lessonData.course);
+  if (!courseDir) {
     return Response.json({ error: `コースフォルダが見つかりません` }, { status: 404 });
   }
-  const courseDir = path.join(seriesDir, courseDirs[0].name);
   const existingLessons = fs
     .readdirSync(courseDir)
-    .filter((f) => f.endsWith(".md"))
-    .length;
+    .filter((f) => f.endsWith(".md")).length;
   const lessonFileName = `${withPrefix(existingLessons, lessonData.name)}.md`;
   const meta = normalizeLessonMeta(
     { lesson: lessonData.name, status: "open" },

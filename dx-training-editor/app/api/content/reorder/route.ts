@@ -1,7 +1,7 @@
 import { z } from "zod";
 import fs from "node:fs";
 import path from "node:path";
-import { getContentsDir } from "@/lib/contents-loader";
+import { getContentsDir, findSeriesDir, findCourseDir } from "@/lib/contents-loader";
 import { sanitizeFilename, stripPrefix } from "@/lib/content-filename";
 
 const schema = z.discriminatedUnion("type", [
@@ -39,8 +39,8 @@ export async function POST(req: Request) {
   const contentsDir = getContentsDir(process.cwd());
 
   if (parsed.data.type === "course") {
-    const seriesDir = path.join(contentsDir, sanitizeFilename(parsed.data.series));
-    if (!fs.existsSync(seriesDir)) {
+    const seriesDir = findSeriesDir(contentsDir, parsed.data.series);
+    if (!seriesDir) {
       return Response.json({ error: "シリーズフォルダが見つかりません" }, { status: 404 });
     }
     const oldDirs = fs
@@ -93,14 +93,14 @@ export async function POST(req: Request) {
     course: string;
     newOrder: string[];
   };
-  const seriesDir = path.join(contentsDir, sanitizeFilename(lessonData.series));
-  const courseDirs = fs
-    .readdirSync(seriesDir, { withFileTypes: true })
-    .filter((e) => e.isDirectory() && stripPrefix(e.name) === lessonData.course);
-  if (courseDirs.length === 0) {
+  const lessonSeriesDir = findSeriesDir(contentsDir, lessonData.series);
+  if (!lessonSeriesDir) {
+    return Response.json({ error: "シリーズフォルダが見つかりません" }, { status: 404 });
+  }
+  const courseDir = findCourseDir(lessonSeriesDir, lessonData.course);
+  if (!courseDir) {
     return Response.json({ error: "コースフォルダが見つかりません" }, { status: 404 });
   }
-  const courseDir = path.join(seriesDir, courseDirs[0].name);
   const oldFiles = fs.readdirSync(courseDir).filter((f) => f.endsWith(".md"));
   const oldByName = new Map(oldFiles.map((f) => [stripPrefix(f), f]));
   const renames: Array<{ from: string; tmp: string; to: string }> = [];

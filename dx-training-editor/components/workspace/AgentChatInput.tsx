@@ -362,7 +362,7 @@ export function AgentChatInput({
                     }}
                   >
                     <span className="font-medium text-foreground">
-                      {item.kind === "command" ? `/${item.key}` : item.primary}
+                      {item.kind === "file" ? item.primary : `/${item.key}`}
                     </span>
                     <span className="truncate text-muted-foreground">{item.secondary}</span>
                   </button>

@@ -22,6 +22,20 @@ async function saveCourseMeta(
   if (!res.ok) throw new Error("コースメタ保存エラー");
 }
 
+async function persistCourseMetas(
+  items: ReturnType<typeof listCoursesNeedingMetaPersist>,
+): Promise<void> {
+  await Promise.all(
+    items.map(({ seriesName, course }) =>
+      saveCourseMeta(seriesName, course.name, {
+        target: course.target,
+        cross_series_prev: course.cross_series_prev,
+        cross_series_next: course.cross_series_next,
+      }),
+    ),
+  );
+}
+
 async function saveSeriesOrder(seriesNames: string[]): Promise<void> {
   const res = await fetch("/api/content/save-series-order", {
     method: "POST",
@@ -58,6 +72,7 @@ import {
   applyCrossSeriesCourseMetaEdit,
   applySeriesDeletion,
   filterCrossSeriesIds,
+  listCoursesNeedingMetaPersist,
 } from "@/lib/course-flow";
 import { reconcileLesson } from "@/lib/lesson-frontmatter";
 import {
@@ -286,17 +301,15 @@ export function useSeriesMutations(options: {
         .find((c) => c.id === newCourseId);
       if (!updatedCourse) return;
 
-      const metaPayload = {
-        target: updatedCourse.target,
-        cross_series_prev: updatedCourse.cross_series_prev,
-        cross_series_next: updatedCourse.cross_series_next,
-      };
-      const persistMeta = () =>
-        saveCourseMeta(seriesName, updatedCourse.name, metaPayload).catch(
-          (err: unknown) => {
-            onSaveError?.(`コースメタ保存エラー: ${String(err)}`);
-          },
-        );
+      const toPersist = listCoursesNeedingMetaPersist(
+        series,
+        finalSeries,
+        newCourseId,
+      );
+      const persistAll = () =>
+        persistCourseMetas(toPersist).catch((err: unknown) => {
+          onSaveError?.(`コースメタ保存エラー: ${String(err)}`);
+        });
 
       if (oldCourseName && oldCourseName !== updatedCourse.name) {
         callContentApi("rename", {
@@ -305,12 +318,12 @@ export function useSeriesMutations(options: {
           oldName: oldCourseName,
           newName: updatedCourse.name,
         })
-          .then(persistMeta)
+          .then(persistAll)
           .catch((err: unknown) =>
             onSaveError?.(`コースリネームエラー: ${String(err)}`),
           );
       } else {
-        persistMeta();
+        persistAll();
       }
     },
     [series, selectedCourseId, selectedLessonId, setSeries, setSelection, onSaveError],

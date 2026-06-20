@@ -580,3 +580,42 @@ export function wouldCourseMetaEditCreateCycle(
 
   return linksChanged;
 }
+
+export type CourseMetaPersistTarget = {
+  seriesName: string;
+  course: Course;
+};
+
+/** 別シリーズリンク同期後に .meta.json へ書き戻す必要があるコースを列挙する */
+export function listCoursesNeedingMetaPersist(
+  before: Series[],
+  after: Series[],
+  editedCourseId: string,
+): CourseMetaPersistTarget[] {
+  const out: CourseMetaPersistTarget[] = [];
+  for (const s of after) {
+    const oldS = before.find((x) => x.id === s.id);
+    if (!oldS) continue;
+    for (const c of s.courses) {
+      const oldC = oldS.courses.find((x) => x.id === c.id);
+      if (!oldC) continue;
+      const linksChanged =
+        !sameCourseIdList(oldC.cross_series_prev, c.cross_series_prev) ||
+        !sameCourseIdList(oldC.cross_series_next, c.cross_series_next);
+      const isEdited = c.id === editedCourseId;
+      const editedMetaChanged =
+        isEdited &&
+        (oldC.name !== c.name ||
+          oldC.target !== c.target ||
+          linksChanged);
+      if (linksChanged || editedMetaChanged) {
+        out.push({ seriesName: s.name, course: c });
+      }
+    }
+  }
+  return out;
+}
+
+function sameCourseIdList(a: string[], b: string[]): boolean {
+  return a.length === b.length && a.every((id, i) => id === b[i]);
+}

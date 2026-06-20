@@ -5,6 +5,7 @@ import {
   applySeriesDeletion,
   buildCourseNeighbors,
   hasCourseFlowCycle,
+  listCoursesNeedingMetaPersist,
   normalizeSeriesCourseMeta,
   resolveCourseRefs,
   wouldCourseMetaEditCreateCycle,
@@ -169,6 +170,20 @@ describe("normalizeSeriesCourseMeta", () => {
 
     expect(getCourse(result, "a1").cross_series_next).toEqual([]);
     expect(getCourse(result, "a2").cross_series_prev).toEqual([]);
+  });
+});
+
+describe("listCoursesNeedingMetaPersist", () => {
+  it("includes mirror targets when cross-series links are synced", () => {
+    const before = [
+      series("sa", [course("a1", { cross_series_next: [] })]),
+      series("sb", [course("b1", { cross_series_prev: [] })]),
+    ];
+    const after = applyCrossSeriesCourseMetaEdit(before, "a1", [], ["b1"]);
+
+    const targets = listCoursesNeedingMetaPersist(before, after, "a1");
+    expect(targets.map((t) => t.course.id).sort()).toEqual(["a1", "b1"]);
+    expect(getCourse(after, "b1").cross_series_prev).toEqual(["a1"]);
   });
 });
 

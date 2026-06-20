@@ -1,7 +1,11 @@
 import { z } from "zod";
-import fs from "node:fs";
-import path from "node:path";
-import { getContentsDir, findSeriesDir, findCourseDir } from "@/lib/contents-loader";
+import {
+  getContentsDir,
+  findSeriesDir,
+  findCourseDir,
+  readMetaJson,
+  writeMetaJson,
+} from "@/lib/contents-loader";
 
 const schema = z.object({
   series: z.string().min(1),
@@ -37,14 +41,10 @@ export async function POST(req: Request) {
   if (!courseDir) {
     return Response.json({ error: `コースフォルダが見つかりません: ${course}` }, { status: 404 });
   }
-  const metaPath = path.join(courseDir, ".meta.json");
 
   try {
-    fs.writeFileSync(
-      metaPath,
-      JSON.stringify({ target_audience, prerequisites, next_courses }, null, 2),
-      "utf-8",
-    );
+    const existing = readMetaJson(courseDir);
+    writeMetaJson(courseDir, { ...existing, target_audience, prerequisites, next_courses });
     return Response.json({ ok: true });
   } catch (err) {
     return Response.json({ error: String(err) }, { status: 500 });

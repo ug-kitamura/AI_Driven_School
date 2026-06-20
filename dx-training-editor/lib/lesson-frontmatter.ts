@@ -40,6 +40,14 @@ export function parseLessonDocument(content: string | undefined | null): {
   return { meta: parseYamlBlock(match[1]), body: match[2] };
 }
 
+/** 本文先頭の文字オフセット。フロントマターが無ければ 0 */
+export function getLessonBodyStartOffset(content: string | undefined | null): number {
+  const text = content ?? "";
+  const match = text.match(FRONTMATTER_RE);
+  if (!match) return 0;
+  return text.length - match[2].length;
+}
+
 function parseYamlBlock(yaml: string): Partial<LessonMetaFields> {
   const meta: Partial<LessonMetaFields> = {};
   for (const line of yaml.split("\n")) {

@@ -13,6 +13,7 @@ import CodeMirror from "@uiw/react-codemirror";
 import { EditorView } from "@codemirror/view";
 import { cn } from "@/lib/utils";
 import { buildLessonEditorExtensions } from "@/lib/lesson-content-editor-setup";
+import { getLessonBodyStartOffset } from "@/lib/lesson-frontmatter";
 import { useResolvedDarkMode } from "@/lib/use-resolved-dark-mode";
 import {
   clampEditorFontSizePx,
@@ -102,10 +103,12 @@ export const LessonContentEditor = forwardRef<
         const view = viewRef.current;
         if (!view || !markdown) return;
         const doc = view.state.doc;
+        const docText = doc.toString();
+        const bodyStart = getLessonBodyStartOffset(docText);
         const sel = view.state.selection.main;
         let from = Math.min(sel.from, sel.to);
         let to = Math.max(sel.from, sel.to);
-        from = Math.max(0, Math.min(from, doc.length));
+        from = Math.max(bodyStart, Math.min(from, doc.length));
         to = Math.max(from, Math.min(to, doc.length));
         const cursor = from + markdown.length;
         view.dispatch({

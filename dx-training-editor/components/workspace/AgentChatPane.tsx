@@ -231,8 +231,8 @@ export function AgentChatPane({
           courseMeta: {
             name: course?.name ?? lesson.course,
             target: course?.target ?? "",
-            prerequisites: course?.prerequisites ?? [],
-            next_courses: course?.next_courses ?? [],
+            cross_series_prev: course?.cross_series_prev ?? [],
+            cross_series_next: course?.cross_series_next ?? [],
           },
         });
       }

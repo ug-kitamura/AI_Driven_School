@@ -38,10 +38,10 @@ export const courseSchema = z.object({
   id: z.string(),
   name: z.string(),
   target: z.string().optional(),
-  /** 別シリーズのコース ID のみ。シリーズ内の前後は series.courses[] の順序で表す */
-  prerequisites: z.array(z.string()).default([]),
-  /** 別シリーズのコース ID のみ。シリーズ内の前後は series.courses[] の順序で表す */
-  next_courses: z.array(z.string()).default([]),
+  /** 別シリーズの前コース ID のみ。同シリーズ内の前後は series.courses[] の順序で表す */
+  cross_series_prev: z.array(z.string()).default([]),
+  /** 別シリーズの次コース ID のみ。同シリーズ内の前後は series.courses[] の順序で表す */
+  cross_series_next: z.array(z.string()).default([]),
   lessons: z.array(lessonSchema),
 });
 export type Course = z.infer<typeof courseSchema>;

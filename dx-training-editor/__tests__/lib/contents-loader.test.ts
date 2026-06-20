@@ -49,7 +49,7 @@ describe("loadContentsFolder", () => {
     );
     writeJson(
       path.join(contentsDir, "テストシリーズ", "テストコース", ".meta.json"),
-      { order: ["テストレッスン"], target: "初心者", prerequisites: [], next_courses: [] },
+      { order: ["テストレッスン"], target: "初心者", cross_series_prev: [], cross_series_next: [] },
     );
     writeJson(path.join(contentsDir, "テストシリーズ", ".meta.json"), { order: ["テストコース"] });
     writeJson(path.join(contentsDir, ".meta.json"), { order: ["テストシリーズ"] });
@@ -108,6 +108,51 @@ describe("loadContentsFolder", () => {
     expect(result[0].courses[0].lessons[0].id).toBe(
       "lesson-シリーズA-コースA-新しい名前",
     );
+  });
+
+  it("reads stable ids from .meta.json when present", () => {
+    const contentsDir = path.join(tmpDir, "contents");
+    writeFile(path.join(contentsDir, "テストシリーズ", "テストコース", "L.md"), "# L\n");
+    writeJson(path.join(contentsDir, "テストシリーズ", "テストコース", ".meta.json"), {
+      id: "crs-test-course-abc123",
+      order: ["L"],
+      cross_series_prev: [],
+      cross_series_next: [],
+    });
+    writeJson(path.join(contentsDir, "テストシリーズ", ".meta.json"), {
+      id: "srs-test-series-def456",
+      order: ["テストコース"],
+    });
+    writeJson(path.join(contentsDir, ".meta.json"), { order: ["テストシリーズ"] });
+
+    const result = loadContentsFolder(tmpDir);
+    expect(result[0].id).toBe("srs-test-series-def456");
+    expect(result[0].courses[0].id).toBe("crs-test-course-abc123");
+  });
+
+  it("generates and persists stable ids when missing from .meta.json", () => {
+    const contentsDir = path.join(tmpDir, "contents");
+    writeFile(path.join(contentsDir, "S", "C", "L.md"), "# L\n");
+    writeJson(path.join(contentsDir, "S", "C", ".meta.json"), {
+      order: ["L"],
+      cross_series_prev: [],
+      cross_series_next: [],
+    });
+    writeJson(path.join(contentsDir, "S", ".meta.json"), { order: ["C"] });
+    writeJson(path.join(contentsDir, ".meta.json"), { order: ["S"] });
+
+    const result = loadContentsFolder(tmpDir);
+    expect(result[0].id).toMatch(/^srs-/);
+    expect(result[0].courses[0].id).toMatch(/^crs-/);
+
+    const seriesMeta = JSON.parse(
+      fs.readFileSync(path.join(contentsDir, "S", ".meta.json"), "utf-8"),
+    ) as { id: string };
+    const courseMeta = JSON.parse(
+      fs.readFileSync(path.join(contentsDir, "S", "C", ".meta.json"), "utf-8"),
+    ) as { id: string };
+    expect(seriesMeta.id).toBe(result[0].id);
+    expect(courseMeta.id).toBe(result[0].courses[0].id);
   });
 
   it("respects .meta.json order for series", () => {

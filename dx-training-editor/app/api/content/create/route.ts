@@ -9,17 +9,20 @@ import {
   writeMetaJson,
 } from "@/lib/contents-loader";
 import { sanitizeFilename } from "@/lib/content-filename";
+import { generateCourseId, generateSeriesId, readStoredId } from "@/lib/content-ids";
 import { createLessonContentTemplate, normalizeLessonMeta } from "@/lib/lesson-frontmatter";
 
 const schema = z.discriminatedUnion("type", [
   z.object({
     type: z.literal("series"),
     name: z.string().min(1),
+    id: z.string().optional(),
   }),
   z.object({
     type: z.literal("course"),
     series: z.string().min(1),
     name: z.string().min(1),
+    id: z.string().optional(),
   }),
   z.object({
     type: z.literal("lesson"),
@@ -52,12 +55,15 @@ export async function POST(req: Request) {
     const dirName = sanitizeFilename(parsed.data.name);
     fs.mkdirSync(path.join(contentsDir, dirName), { recursive: true });
 
+    const seriesId = parsed.data.id ?? generateSeriesId(dirName);
+    writeMetaJson(path.join(contentsDir, dirName), { id: seriesId, order: [] });
+
     // contents/.meta.json の order 末尾に追記
     const meta = readMetaJson(contentsDir);
     const order = Array.isArray(meta.order) ? (meta.order as string[]) : [];
     writeMetaJson(contentsDir, { ...meta, order: [...order, dirName] });
 
-    return Response.json({ ok: true, dirName });
+    return Response.json({ ok: true, dirName, id: seriesId });
   }
 
   if (parsed.data.type === "course") {
@@ -68,14 +74,24 @@ export async function POST(req: Request) {
     const courseDirName = sanitizeFilename(parsed.data.name);
     const courseDir = path.join(seriesDir, courseDirName);
     fs.mkdirSync(courseDir, { recursive: true });
-    writeMetaJson(courseDir, { order: [], target: "", prerequisites: [], next_courses: [] });
+    const courseId = parsed.data.id ?? generateCourseId(courseDirName);
+    writeMetaJson(courseDir, {
+      id: courseId,
+      order: [],
+      target: "",
+      cross_series_prev: [],
+      cross_series_next: [],
+    });
 
-    // series/.meta.json の order 末尾に追記
     const seriesMeta = readMetaJson(seriesDir);
     const courseOrder = Array.isArray(seriesMeta.order) ? (seriesMeta.order as string[]) : [];
-    writeMetaJson(seriesDir, { ...seriesMeta, order: [...courseOrder, courseDirName] });
+    writeMetaJson(seriesDir, {
+      ...seriesMeta,
+      id: readStoredId(seriesMeta) ?? generateSeriesId(parsed.data.series),
+      order: [...courseOrder, courseDirName],
+    });
 
-    return Response.json({ ok: true, dirName: courseDirName });
+    return Response.json({ ok: true, dirName: courseDirName, id: courseId });
   }
 
   // lesson

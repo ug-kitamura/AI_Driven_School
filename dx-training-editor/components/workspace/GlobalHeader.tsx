@@ -77,7 +77,7 @@ function buildFullMandalaGraph(
     }
   });
 
-  // 別シリーズ: prerequisites と next_courses（同一 from→to は1本にまとめる）
+  // 別シリーズ: cross_series_prev と cross_series_next（同一 from→to は1本にまとめる）
   const crossEdgeKeys = new Set<string>();
   const addCrossEdge = (fromId: string, toId: string) => {
     const key = `${fromId}-->${toId}`;
@@ -87,7 +87,7 @@ function buildFullMandalaGraph(
   };
   series.forEach((s) => {
     s.courses.forEach((c) => {
-      c.prerequisites.forEach((prevId) => {
+      c.cross_series_prev.forEach((prevId) => {
         if (
           findSeriesContainingCourse(series, prevId) &&
           isCrossSeriesLink(series, c.id, prevId)
@@ -95,7 +95,7 @@ function buildFullMandalaGraph(
           addCrossEdge(prevId, c.id);
         }
       });
-      c.next_courses.forEach((nextId) => {
+      c.cross_series_next.forEach((nextId) => {
         if (
           findSeriesContainingCourse(series, nextId) &&
           isCrossSeriesLink(series, c.id, nextId)

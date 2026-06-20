@@ -31,8 +31,8 @@ function course(id: string, overrides: Partial<Course> = {}): Course {
     id,
     name: id,
     target: "",
-    prerequisites: [],
-    next_courses: [],
+    cross_series_prev: [],
+    cross_series_next: [],
     lessons: [],
     ...overrides,
   };

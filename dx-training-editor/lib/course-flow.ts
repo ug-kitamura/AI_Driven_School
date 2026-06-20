@@ -1,6 +1,6 @@
 /**
  * コースの受講順・前提/続きリンクのドメインロジック。
- * シリーズ内順序は series.courses[] のみ。prerequisites / next_courses は別シリーズ ID のみ。
+ * シリーズ内順序は series.courses[] のみ。cross_series_prev / cross_series_next は別シリーズ ID のみ。
  */
 
 import type { Series, Course } from "@/lib/schema";
@@ -10,6 +10,13 @@ export type CourseRef = { id: string; name: string };
 export type IntraSeriesNeighbors = {
   prev: CourseRef | null;
   next: CourseRef | null;
+};
+
+export type CourseNeighbors = {
+  intraPrev: CourseRef | null;
+  intraNext: CourseRef | null;
+  crossPrevs: CourseRef[];
+  crossNexts: CourseRef[];
 };
 
 export type MiniMandalaGraphInput = {
@@ -95,19 +102,43 @@ export function resolveCourseRefs(
   return refs;
 }
 
+/** 同シリーズ前後 + 別シリーズリンクを統合して返す（曼陀羅共通） */
+export function buildCourseNeighbors(
+  allSeries: Series[],
+  course: Course,
+): CourseNeighbors {
+  const { prev, next } = getIntraSeriesNeighbors(allSeries, course.id);
+  const crossPrevIds = filterCrossSeriesIds(
+    allSeries,
+    course.id,
+    course.cross_series_prev,
+  );
+  const crossNextIds = filterCrossSeriesIds(
+    allSeries,
+    course.id,
+    course.cross_series_next,
+  );
+  return {
+    intraPrev: prev,
+    intraNext: next,
+    crossPrevs: resolveCourseRefs(allSeries, crossPrevIds),
+    crossNexts: resolveCourseRefs(allSeries, crossNextIds),
+  };
+}
+
 function existingCourseIds(allSeries: Series[]): Set<string> {
   return new Set(allSeries.flatMap((s) => s.courses.map((c) => c.id)));
 }
 
-/** prerequisites / next_courses から存在しないコース ID を除去する */
+/** cross_series_prev / cross_series_next から存在しないコース ID を除去する */
 export function stripDanglingCourseLinks(allSeries: Series[]): Series[] {
   const ids = existingCourseIds(allSeries);
   return allSeries.map((s) => ({
     ...s,
     courses: s.courses.map((c) => ({
       ...c,
-      prerequisites: c.prerequisites.filter((id) => ids.has(id)),
-      next_courses: c.next_courses.filter((id) => ids.has(id)),
+      cross_series_prev: c.cross_series_prev.filter((id) => ids.has(id)),
+      cross_series_next: c.cross_series_next.filter((id) => ids.has(id)),
     })),
   }));
 }
@@ -143,15 +174,15 @@ export function normalizeCourseMeta(
 ): Course {
   return {
     ...course,
-    prerequisites: filterCrossSeriesIds(
+    cross_series_prev: filterCrossSeriesIds(
       allSeries,
       courseId,
-      course.prerequisites,
+      course.cross_series_prev,
     ),
-    next_courses: filterCrossSeriesIds(
+    cross_series_next: filterCrossSeriesIds(
       allSeries,
       courseId,
-      course.next_courses,
+      course.cross_series_next,
     ),
   };
 }
@@ -194,27 +225,17 @@ export function buildMiniMandalaGraphInput(
   allSeries: Series[],
   course: Course,
 ): MiniMandalaGraphInput {
-  const { prev, next } = getIntraSeriesNeighbors(allSeries, course.id);
-  const crossPrereqIds = filterCrossSeriesIds(
-    allSeries,
-    course.id,
-    course.prerequisites,
-  );
-  const crossNextIds = filterCrossSeriesIds(
-    allSeries,
-    course.id,
-    course.next_courses,
-  );
+  const neighbors = buildCourseNeighbors(allSeries, course);
   return {
     current: { id: course.id, name: course.name },
-    intraPrev: prev,
-    intraNext: next,
-    crossPrereqs: resolveCourseRefs(allSeries, crossPrereqIds),
-    crossNexts: resolveCourseRefs(allSeries, crossNextIds),
+    intraPrev: neighbors.intraPrev,
+    intraNext: neighbors.intraNext,
+    crossPrereqs: neighbors.crossPrevs,
+    crossNexts: neighbors.crossNexts,
   };
 }
 
-/** next_courses が別シリーズ先か */
+/** cross_series_next が別シリーズ先か */
 export function isCrossSeriesLink(
   allSeries: Series[],
   fromCourseId: string,
@@ -236,8 +257,8 @@ function cloneSeriesLinkArrays(allSeries: Series[]): Series[] {
     ...s,
     courses: s.courses.map((c) => ({
       ...c,
-      prerequisites: [...c.prerequisites],
-      next_courses: [...c.next_courses],
+      cross_series_prev: [...c.cross_series_prev],
+      cross_series_next: [...c.cross_series_next],
     })),
   }));
 }
@@ -262,25 +283,25 @@ function courseIdsInSameSeries(
   return new Set(parent.courses.map((c) => c.id));
 }
 
-function removeFromPrerequisites(
+function removeFromCrossSeriesPrev(
   allSeries: Series[],
   targetCourseId: string,
   sourceCourseId: string,
 ): Series[] {
   return updateCourseById(allSeries, targetCourseId, (c) => ({
     ...c,
-    prerequisites: c.prerequisites.filter((id) => id !== sourceCourseId),
+    cross_series_prev: c.cross_series_prev.filter((id) => id !== sourceCourseId),
   }));
 }
 
-function removeFromNextCourses(
+function removeFromCrossSeriesNext(
   allSeries: Series[],
   sourceCourseId: string,
   targetCourseId: string,
 ): Series[] {
   return updateCourseById(allSeries, sourceCourseId, (c) => ({
     ...c,
-    next_courses: c.next_courses.filter((id) => id !== targetCourseId),
+    cross_series_next: c.cross_series_next.filter((id) => id !== targetCourseId),
   }));
 }
 
@@ -298,15 +319,15 @@ function removeOtherNextInTargetSeries(
   if (!source) return allSeries;
 
   let series = allSeries;
-  for (const otherTargetId of source.next_courses) {
+  for (const otherTargetId of source.cross_series_next) {
     if (otherTargetId !== targetCourseId && targetSeriesIds.has(otherTargetId)) {
-      series = removeFromPrerequisites(series, otherTargetId, sourceCourseId);
+      series = removeFromCrossSeriesPrev(series, otherTargetId, sourceCourseId);
     }
   }
 
   return updateCourseById(series, sourceCourseId, (c) => ({
     ...c,
-    next_courses: c.next_courses.filter(
+    cross_series_next: c.cross_series_next.filter(
       (id) => id === targetCourseId || !targetSeriesIds.has(id),
     ),
   }));
@@ -328,23 +349,23 @@ function establishOutgoingLink(
     if (c.id === sourceCourseId) continue;
     series = updateCourseById(series, c.id, (course) => ({
       ...course,
-      next_courses: course.next_courses.filter((id) => id !== targetCourseId),
+      cross_series_next: course.cross_series_next.filter((id) => id !== targetCourseId),
     }));
   }
 
   series = updateCourseById(series, targetCourseId, (c) => {
-    const prereqs = c.prerequisites.filter((id) => !sameSeriesIds.has(id));
-    if (!prereqs.includes(sourceCourseId)) {
-      prereqs.push(sourceCourseId);
+    const prevs = c.cross_series_prev.filter((id) => !sameSeriesIds.has(id));
+    if (!prevs.includes(sourceCourseId)) {
+      prevs.push(sourceCourseId);
     }
-    return { ...c, prerequisites: prereqs };
+    return { ...c, cross_series_prev: prevs };
   });
 
   series = updateCourseById(series, sourceCourseId, (c) => ({
     ...c,
-    next_courses: c.next_courses.includes(targetCourseId)
-      ? c.next_courses
-      : [...c.next_courses, targetCourseId],
+    cross_series_next: c.cross_series_next.includes(targetCourseId)
+      ? c.cross_series_next
+      : [...c.cross_series_next, targetCourseId],
   }));
 
   return removeOtherNextInTargetSeries(series, sourceCourseId, targetCourseId);
@@ -366,23 +387,23 @@ function establishIncomingLink(
     if (c.id === sourceCourseId) continue;
     series = updateCourseById(series, c.id, (course) => ({
       ...course,
-      next_courses: course.next_courses.filter((id) => id !== targetCourseId),
+      cross_series_next: course.cross_series_next.filter((id) => id !== targetCourseId),
     }));
   }
 
   series = updateCourseById(series, sourceCourseId, (c) => ({
     ...c,
-    next_courses: c.next_courses.includes(targetCourseId)
-      ? c.next_courses
-      : [...c.next_courses, targetCourseId],
+    cross_series_next: c.cross_series_next.includes(targetCourseId)
+      ? c.cross_series_next
+      : [...c.cross_series_next, targetCourseId],
   }));
 
   series = updateCourseById(series, targetCourseId, (c) => {
-    const prereqs = c.prerequisites.filter((id) => !sameSeriesIds.has(id));
-    if (!prereqs.includes(sourceCourseId)) {
-      prereqs.push(sourceCourseId);
+    const prevs = c.cross_series_prev.filter((id) => !sameSeriesIds.has(id));
+    if (!prevs.includes(sourceCourseId)) {
+      prevs.push(sourceCourseId);
     }
-    return { ...c, prerequisites: prereqs };
+    return { ...c, cross_series_prev: prevs };
   });
 
   series = removeOtherNextInTargetSeries(series, sourceCourseId, targetCourseId);
@@ -392,53 +413,53 @@ function establishIncomingLink(
 
 /**
  * コースメタ保存時に別シリーズリンクを双方向同期する。
- * 編集コースの cross prerequisites / next_courses を正とし、ミラー・排他を伝播する。
+ * 編集コースの cross_series_prev / cross_series_next を正とし、ミラー・排他を伝播する。
  */
 export function applyCrossSeriesCourseMetaEdit(
   allSeries: Series[],
   editedCourseId: string,
-  crossPrerequisites: string[],
-  crossNextCourses: string[],
+  crossSeriesPrev: string[],
+  crossSeriesNext: string[],
 ): Series[] {
   const edited = findCourse(allSeries, editedCourseId);
   if (!edited) return allSeries;
 
-  const oldPrerequisites = filterCrossSeriesIds(
+  const oldCrossSeriesPrev = filterCrossSeriesIds(
     allSeries,
     editedCourseId,
-    edited.prerequisites,
+    edited.cross_series_prev,
   );
-  const oldNextCourses = filterCrossSeriesIds(
+  const oldCrossSeriesNext = filterCrossSeriesIds(
     allSeries,
     editedCourseId,
-    edited.next_courses,
+    edited.cross_series_next,
   );
 
   let series = cloneSeriesLinkArrays(allSeries);
 
   series = updateCourseById(series, editedCourseId, (c) => ({
     ...c,
-    prerequisites: [...crossPrerequisites],
-    next_courses: [...crossNextCourses],
+    cross_series_prev: [...crossSeriesPrev],
+    cross_series_next: [...crossSeriesNext],
   }));
 
-  for (const targetId of oldNextCourses) {
-    if (!crossNextCourses.includes(targetId)) {
-      series = removeFromPrerequisites(series, targetId, editedCourseId);
+  for (const targetId of oldCrossSeriesNext) {
+    if (!crossSeriesNext.includes(targetId)) {
+      series = removeFromCrossSeriesPrev(series, targetId, editedCourseId);
     }
   }
 
-  for (const sourceId of oldPrerequisites) {
-    if (!crossPrerequisites.includes(sourceId)) {
-      series = removeFromNextCourses(series, sourceId, editedCourseId);
+  for (const sourceId of oldCrossSeriesPrev) {
+    if (!crossSeriesPrev.includes(sourceId)) {
+      series = removeFromCrossSeriesNext(series, sourceId, editedCourseId);
     }
   }
 
-  for (const targetId of crossNextCourses) {
+  for (const targetId of crossSeriesNext) {
     series = establishOutgoingLink(series, editedCourseId, targetId);
   }
 
-  for (const sourceId of crossPrerequisites) {
+  for (const sourceId of crossSeriesPrev) {
     series = establishIncomingLink(series, sourceId, editedCourseId);
   }
 
@@ -470,7 +491,7 @@ export function buildCourseFlowAdjacency(
   const ids = existingCourseIds(allSeries);
   for (const s of allSeries) {
     for (const c of s.courses) {
-      for (const prevId of c.prerequisites) {
+      for (const prevId of c.cross_series_prev) {
         if (
           ids.has(prevId) &&
           isCrossSeriesLink(allSeries, c.id, prevId)
@@ -478,7 +499,7 @@ export function buildCourseFlowAdjacency(
           addEdge(prevId, c.id);
         }
       }
-      for (const nextId of c.next_courses) {
+      for (const nextId of c.cross_series_next) {
         if (
           ids.has(nextId) &&
           isCrossSeriesLink(allSeries, c.id, nextId)
@@ -524,8 +545,8 @@ export function hasCourseFlowCycle(allSeries: Series[]): boolean {
 export function wouldCourseMetaEditCreateCycle(
   allSeries: Series[],
   editedCourseId: string,
-  crossPrerequisites: string[],
-  crossNextCourses: string[],
+  crossSeriesPrev: string[],
+  crossSeriesNext: string[],
 ): boolean {
   const edited = findCourse(allSeries, editedCourseId);
   if (!edited) return false;
@@ -533,29 +554,29 @@ export function wouldCourseMetaEditCreateCycle(
   const preview = applyCrossSeriesCourseMetaEdit(
     allSeries,
     editedCourseId,
-    crossPrerequisites,
-    crossNextCourses,
+    crossSeriesPrev,
+    crossSeriesNext,
   );
   if (!hasCourseFlowCycle(preview)) return false;
 
   if (!hasCourseFlowCycle(allSeries)) return true;
 
-  const oldPrerequisites = filterCrossSeriesIds(
+  const oldCrossSeriesPrev = filterCrossSeriesIds(
     allSeries,
     editedCourseId,
-    edited.prerequisites,
+    edited.cross_series_prev,
   );
-  const oldNextCourses = filterCrossSeriesIds(
+  const oldCrossSeriesNext = filterCrossSeriesIds(
     allSeries,
     editedCourseId,
-    edited.next_courses,
+    edited.cross_series_next,
   );
   const sameIds = (a: string[], b: string[]) =>
     a.length === b.length && a.every((id, i) => id === b[i]);
 
   const linksChanged =
-    !sameIds(oldPrerequisites, crossPrerequisites) ||
-    !sameIds(oldNextCourses, crossNextCourses);
+    !sameIds(oldCrossSeriesPrev, crossSeriesPrev) ||
+    !sameIds(oldCrossSeriesNext, crossSeriesNext);
 
   return linksChanged;
 }

@@ -83,7 +83,7 @@ type Props = {
     courseId: string,
     meta: Pick<
       Course,
-      "name" | "target" | "prerequisites" | "next_courses"
+      "name" | "target" | "cross_series_prev" | "cross_series_next"
     >,
   ) => void;
   onUpdateLessonStatus: (lessonId: string, status: Lesson["status"]) => void;
@@ -291,13 +291,13 @@ export function LessonListPane({
   const [editMeta, setEditMeta] = useState<{
     name: string;
     target: string;
-    crossPrerequisites: string[];
-    crossNextCourses: string[];
+    crossSeriesPrev: string[];
+    crossSeriesNext: string[];
   }>({
     name: "",
     target: "",
-    crossPrerequisites: [],
-    crossNextCourses: [],
+    crossSeriesPrev: [],
+    crossSeriesNext: [],
   });
 
   const miniGraphInput = useMemo(
@@ -480,15 +480,15 @@ export function LessonListPane({
               setEditMeta({
                 name: course.name,
                 target: course.target ?? "",
-                crossPrerequisites: filterCrossSeriesIds(
+                crossSeriesPrev: filterCrossSeriesIds(
                   series,
                   course.id,
-                  course.prerequisites,
+                  course.cross_series_prev,
                 ),
-                crossNextCourses: filterCrossSeriesIds(
+                crossSeriesNext: filterCrossSeriesIds(
                   series,
                   course.id,
-                  course.next_courses,
+                  course.cross_series_next,
                 ),
               });
               setMetaCycleWarning(false);
@@ -741,10 +741,10 @@ export function LessonListPane({
               <Label>前のコース（別シリーズ）</Label>
               <CrossSeriesCourseTreePicker
                 candidates={crossSeriesCandidates}
-                selectedIds={editMeta.crossPrerequisites}
+                selectedIds={editMeta.crossSeriesPrev}
                 onChange={(ids) => {
                   setMetaCycleWarning(false);
-                  setEditMeta((prev) => ({ ...prev, crossPrerequisites: ids }));
+                  setEditMeta((prev) => ({ ...prev, crossSeriesPrev: ids }));
                 }}
               />
             </MetaDialogField>
@@ -752,10 +752,10 @@ export function LessonListPane({
               <Label>次のコース（別シリーズ）</Label>
               <CrossSeriesCourseTreePicker
                 candidates={crossSeriesCandidates}
-                selectedIds={editMeta.crossNextCourses}
+                selectedIds={editMeta.crossSeriesNext}
                 onChange={(ids) => {
                   setMetaCycleWarning(false);
-                  setEditMeta((prev) => ({ ...prev, crossNextCourses: ids }));
+                  setEditMeta((prev) => ({ ...prev, crossSeriesNext: ids }));
                 }}
               />
             </MetaDialogField>
@@ -778,22 +778,22 @@ export function LessonListPane({
             <Button
               onClick={() => {
                 if (!course) return;
-                const crossPrerequisites = filterCrossSeriesIds(
+                const crossSeriesPrev = filterCrossSeriesIds(
                   series,
                   course.id,
-                  editMeta.crossPrerequisites,
+                  editMeta.crossSeriesPrev,
                 );
-                const crossNextCourses = filterCrossSeriesIds(
+                const crossSeriesNext = filterCrossSeriesIds(
                   series,
                   course.id,
-                  editMeta.crossNextCourses,
+                  editMeta.crossSeriesNext,
                 );
                 if (
                   wouldCourseMetaEditCreateCycle(
                     series,
                     course.id,
-                    crossPrerequisites,
-                    crossNextCourses,
+                    crossSeriesPrev,
+                    crossSeriesNext,
                   )
                 ) {
                   setMetaCycleWarning(true);
@@ -802,8 +802,8 @@ export function LessonListPane({
                 onUpdateCourseMeta(course.id, {
                   name: editMeta.name.trim() || course.name,
                   target: editMeta.target || undefined,
-                  prerequisites: crossPrerequisites,
-                  next_courses: crossNextCourses,
+                  cross_series_prev: crossSeriesPrev,
+                  cross_series_next: crossSeriesNext,
                 });
                 setMetaDialogOpen(false);
               }}

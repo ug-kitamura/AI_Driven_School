@@ -6,7 +6,7 @@ import type { Course, Series } from "@/lib/schema";
 async function saveCourseMeta(
   seriesName: string,
   courseName: string,
-  meta: Pick<Course, "target" | "prerequisites" | "next_courses">,
+  meta: Pick<Course, "target" | "cross_series_prev" | "cross_series_next">,
 ): Promise<void> {
   const res = await fetch("/api/content/save-course", {
     method: "POST",
@@ -15,8 +15,8 @@ async function saveCourseMeta(
       series: seriesName,
       course: courseName,
       target: meta.target ?? "",
-      prerequisites: meta.prerequisites,
-      next_courses: meta.next_courses,
+      cross_series_prev: meta.cross_series_prev,
+      cross_series_next: meta.cross_series_next,
     }),
   });
   if (!res.ok) throw new Error("コースメタ保存エラー");
@@ -52,6 +52,7 @@ import {
   remapCourseAndLessonIds,
   remapSelection,
 } from "@/lib/content-rename";
+import { generateSeriesId, generateCourseId } from "@/lib/content-ids";
 import {
   applyCourseDeletion,
   applyCrossSeriesCourseMetaEdit,
@@ -77,9 +78,9 @@ export function useSeriesMutations(options: {
 
   const addSeries = useCallback(
     (name: string) => {
-      const newId = `series-${name}`;
+      const newId = generateSeriesId(name);
       setSeries((prev) => [...prev, { id: newId, name, courses: [] }]);
-      callContentApi("create", { type: "series", name }).catch((err: unknown) => {
+      callContentApi("create", { type: "series", name, id: newId }).catch((err: unknown) => {
         onSaveError?.(`シリーズ追加エラー: ${String(err)}`);
       });
       return newId;
@@ -137,7 +138,7 @@ export function useSeriesMutations(options: {
   const addCourse = useCallback(
     (seriesId: string, name: string) => {
       const targetSeries = series.find((s) => s.id === seriesId);
-      const newId = `course-${seriesId}-${name}`;
+      const newId = generateCourseId(name);
       setSeries((prev) =>
         prev.map((s) => {
           if (s.id !== seriesId) return s;
@@ -145,8 +146,8 @@ export function useSeriesMutations(options: {
             id: newId,
             name,
             target: "",
-            prerequisites: [],
-            next_courses: [],
+            cross_series_prev: [],
+            cross_series_next: [],
             lessons: [],
           };
           return { ...s, courses: [...s.courses, newCourse] };
@@ -157,6 +158,7 @@ export function useSeriesMutations(options: {
           type: "course",
           series: targetSeries.name,
           name,
+          id: newId,
         }).catch((err: unknown) => onSaveError?.(`コース追加エラー: ${String(err)}`));
       }
     },
@@ -205,7 +207,7 @@ export function useSeriesMutations(options: {
       courseId: string,
       meta: Pick<
         Course,
-        "name" | "target" | "prerequisites" | "next_courses"
+        "name" | "target" | "cross_series_prev" | "cross_series_next"
       >,
     ) => {
       let oldCourseName: string | undefined;
@@ -220,21 +222,21 @@ export function useSeriesMutations(options: {
       }
       if (!seriesName) return;
 
-      const crossPrerequisites = filterCrossSeriesIds(
+      const crossSeriesPrev = filterCrossSeriesIds(
         series,
         courseId,
-        meta.prerequisites ?? [],
+        meta.cross_series_prev ?? [],
       );
-      const crossNextCourses = filterCrossSeriesIds(
+      const crossSeriesNext = filterCrossSeriesIds(
         series,
         courseId,
-        meta.next_courses ?? [],
+        meta.cross_series_next ?? [],
       );
       const synced = applyCrossSeriesCourseMetaEdit(
         series,
         courseId,
-        crossPrerequisites,
-        crossNextCourses,
+        crossSeriesPrev,
+        crossSeriesNext,
       );
       const next = synced.map((s) => ({
         ...s,
@@ -286,8 +288,8 @@ export function useSeriesMutations(options: {
 
       const metaPayload = {
         target: updatedCourse.target,
-        prerequisites: updatedCourse.prerequisites,
-        next_courses: updatedCourse.next_courses,
+        cross_series_prev: updatedCourse.cross_series_prev,
+        cross_series_next: updatedCourse.cross_series_next,
       };
       const persistMeta = () =>
         saveCourseMeta(seriesName, updatedCourse.name, metaPayload).catch(

@@ -12,8 +12,8 @@ const series: Series[] = [
         id: "c1",
         name: "Course 1",
         target: "",
-        prerequisites: [],
-        next_courses: [],
+        cross_series_prev: [],
+        cross_series_next: [],
         lessons: [
           {
             id: "l1",
@@ -45,8 +45,8 @@ const series: Series[] = [
         id: "c2",
         name: "Course 2",
         target: "",
-        prerequisites: [],
-        next_courses: [],
+        cross_series_prev: [],
+        cross_series_next: [],
         lessons: [],
       },
     ],

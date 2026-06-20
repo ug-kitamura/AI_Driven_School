@@ -2,6 +2,12 @@ import fs from "node:fs";
 import path from "node:path";
 import { sanitizeFilename } from "@/lib/content-filename";
 import {
+  generateCourseId,
+  generateSeriesId,
+  readStoredId,
+  buildLessonId,
+} from "@/lib/content-ids";
+import {
   parseLessonDocument,
   normalizeLessonMeta,
   createLessonContentTemplate,
@@ -216,8 +222,8 @@ export function reconcileOrderFiles(projectRoot: string): void {
         writeMetaJson(courseDir, {
           order: [...actualLessons].sort(),
           target: "",
-          prerequisites: [],
-          next_courses: [],
+          cross_series_prev: [],
+          cross_series_next: [],
         });
       }
     }
@@ -244,12 +250,20 @@ export function loadContentsFolder(projectRoot: string): Series[] {
 
   const result: Series[] = [];
 
+  const usedIds = new Set<string>();
+
   for (const seriesDirName of effectiveSeries) {
     const seriesDir = path.join(contentsDir, seriesDirName);
     const seriesName = seriesDirName;
-    const seriesId = `series-${seriesName}`;
-
     const seriesMeta = readMetaJson(seriesDir);
+    let seriesId = readStoredId(seriesMeta);
+    if (!seriesId) {
+      seriesId = generateSeriesId(seriesName, usedIds);
+      writeMetaJson(seriesDir, { ...seriesMeta, id: seriesId });
+    } else {
+      usedIds.add(seriesId);
+    }
+
     const courseOrder = Array.isArray(seriesMeta.order) ? (seriesMeta.order as string[]) : [];
 
     const actualCourseDirs = fs
@@ -267,7 +281,14 @@ export function loadContentsFolder(projectRoot: string): Series[] {
     for (const courseDirName of effectiveCourses) {
       const courseDir = path.join(seriesDir, courseDirName);
       const courseName = courseDirName;
-      const courseId = `course-${seriesName}-${courseName}`;
+      const courseMetaRaw = readMetaJson(courseDir);
+      let courseId = readStoredId(courseMetaRaw);
+      if (!courseId) {
+        courseId = generateCourseId(courseName, usedIds);
+        writeMetaJson(courseDir, { ...courseMetaRaw, id: courseId });
+      } else {
+        usedIds.add(courseId);
+      }
       const courseMeta = loadCourseMeta(courseDir);
 
       const actualLessonFiles = fs
@@ -310,7 +331,7 @@ export function loadContentsFolder(projectRoot: string): Series[] {
         }
 
         lessons.push({
-          id: `lesson-${seriesName}-${courseName}-${lessonName}`,
+          id: buildLessonId(seriesName, courseName, lessonName),
           ...normalized,
           content,
         });
@@ -320,8 +341,8 @@ export function loadContentsFolder(projectRoot: string): Series[] {
         id: courseId,
         name: courseName,
         target: courseMeta.target,
-        prerequisites: courseMeta.prerequisites,
-        next_courses: courseMeta.next_courses,
+        cross_series_prev: courseMeta.cross_series_prev,
+        cross_series_next: courseMeta.cross_series_next,
         lessons,
       });
     }
@@ -334,8 +355,8 @@ export function loadContentsFolder(projectRoot: string): Series[] {
 
 function loadCourseMeta(courseDir: string): {
   target: string;
-  prerequisites: string[];
-  next_courses: string[];
+  cross_series_prev: string[];
+  cross_series_next: string[];
   order: string[];
 } {
   const meta = readMetaJson(courseDir);
@@ -348,8 +369,16 @@ function loadCourseMeta(courseDir: string): {
         const raw = JSON.parse(fs.readFileSync(legacy, "utf-8")) as Record<string, unknown>;
         return {
           target: typeof raw.target === "string" ? raw.target : (typeof raw.target_audience === "string" ? raw.target_audience : ""),
-          prerequisites: Array.isArray(raw.prerequisites) ? (raw.prerequisites as string[]) : [],
-          next_courses: Array.isArray(raw.next_courses) ? (raw.next_courses as string[]) : [],
+          cross_series_prev: Array.isArray(raw.cross_series_prev)
+            ? (raw.cross_series_prev as string[])
+            : Array.isArray(raw.prerequisites)
+              ? (raw.prerequisites as string[])
+              : [],
+          cross_series_next: Array.isArray(raw.cross_series_next)
+            ? (raw.cross_series_next as string[])
+            : Array.isArray(raw.next_courses)
+              ? (raw.next_courses as string[])
+              : [],
           order: [],
         };
       } catch {
@@ -360,8 +389,8 @@ function loadCourseMeta(courseDir: string): {
 
   return {
     target: typeof meta.target === "string" ? meta.target : (typeof meta.target_audience === "string" ? meta.target_audience : ""),
-    prerequisites: Array.isArray(meta.prerequisites) ? (meta.prerequisites as string[]) : [],
-    next_courses: Array.isArray(meta.next_courses) ? (meta.next_courses as string[]) : [],
+    cross_series_prev: Array.isArray(meta.cross_series_prev) ? (meta.cross_series_prev as string[]) : [],
+    cross_series_next: Array.isArray(meta.cross_series_next) ? (meta.cross_series_next as string[]) : [],
     order: Array.isArray(meta.order) ? (meta.order as string[]) : [],
   };
 }

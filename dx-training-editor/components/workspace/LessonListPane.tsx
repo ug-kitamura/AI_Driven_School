@@ -376,23 +376,68 @@ export function LessonListPane({
   const modalSvgRef = useRef<HTMLDivElement>(null);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const modalBndRef = useRef<((el: Element) => void) | null>(null);
+  const suppressMermaidModalCloseRef = useRef(false);
+
+  const handleMermaidModalOpenChange = useCallback(
+    (
+      open: boolean,
+      eventDetails?: {
+        cancel?: () => void;
+      },
+    ) => {
+      if (!open && suppressMermaidModalCloseRef.current) {
+        eventDetails?.cancel?.();
+        return;
+      }
+      setMermaidModalOpen(open);
+    },
+    [],
+  );
 
   // グローバルコールバック登録（ミニグラフ専用）
   const stableSelectCourse = useCallback(onSelectCourse, [onSelectCourse]);
-  useEffect(() => {
-    (window as unknown as Record<string, unknown>)["miniGraphNav"] = (nodeId: string) => {
+  const navigateFromMiniMandala = useCallback(
+    (nodeId: string) => {
       const w = window as unknown as Record<string, unknown>;
       const map = w["miniGraphNodeMap"] as Record<string, string> | undefined;
-      const courseId = map?.[nodeId] ?? nodeId.replace(/^M_/, "").replace(/_/g, "-");
+      const courseId =
+        map?.[nodeId] ?? nodeId.replace(/^M_/, "").replace(/_/g, "-");
+      suppressMermaidModalCloseRef.current = true;
       stableSelectCourse(courseId);
-      setMermaidModalOpen(false);
-    };
+      window.setTimeout(() => {
+        suppressMermaidModalCloseRef.current = false;
+      }, 300);
+    },
+    [stableSelectCourse],
+  );
+  useEffect(() => {
+    (window as unknown as Record<string, unknown>)["miniGraphNav"] =
+      navigateFromMiniMandala;
     return () => {
       const w = window as unknown as Record<string, unknown>;
       delete w["miniGraphNav"];
       delete w["miniGraphNodeMap"];
     };
-  }, [stableSelectCourse]);
+  }, [navigateFromMiniMandala]);
+
+  const handleMiniMandalaGraphClick = useCallback(
+    (e: React.MouseEvent<HTMLDivElement>) => {
+      e.stopPropagation();
+      for (const el of e.nativeEvent.composedPath()) {
+        const svgG = el as Element;
+        if (svgG.tagName === "g" && (svgG as SVGGElement).id) {
+          const match = (svgG as SVGGElement).id.match(
+            /-flowchart-(M_[^-]+|CURRENT)-/,
+          );
+          if (match) {
+            navigateFromMiniMandala(match[1]);
+            return;
+          }
+        }
+      }
+    },
+    [navigateFromMiniMandala],
+  );
 
   // モーダルが開いたときだけレンダリング（GlobalHeader と同じ lazy パターン）
   useEffect(() => {
@@ -448,11 +493,42 @@ export function LessonListPane({
     }
   };
 
+  const miniMandalaDialog = (
+    <Dialog open={mermaidModalOpen} onOpenChange={handleMermaidModalOpenChange}>
+      <DialogContent className="max-w-2xl">
+        <DialogHeader>
+          <DialogTitle>ミニ曼陀羅</DialogTitle>
+        </DialogHeader>
+        {modalSvg ? (
+          <div className="flex justify-center overflow-auto rounded bg-card p-4">
+            <div
+              ref={modalSvgRef}
+              className="mini-mandala-graph w-fit"
+              dangerouslySetInnerHTML={{ __html: modalSvg }}
+              onClick={handleMiniMandalaGraphClick}
+              onPointerDown={(e) => e.stopPropagation()}
+            />
+          </div>
+        ) : (
+          <div className="flex h-40 items-center justify-center text-muted-foreground text-sm">
+            グラフを生成中...
+          </div>
+        )}
+        <p className="pt-1 text-left text-[11px] text-muted-foreground">
+          ★ = 現在選択中のコース　　ノードをクリックするとそのコースに移動します
+        </p>
+      </DialogContent>
+    </Dialog>
+  );
+
   if (!course) {
     return (
-      <div className="flex h-full w-full items-center justify-center bg-card text-muted-foreground text-sm">
-        コースを選択してください
-      </div>
+      <>
+        <div className="flex h-full w-full items-center justify-center bg-card text-muted-foreground text-sm">
+          コースを選択してください
+        </div>
+        {miniMandalaDialog}
+      </>
     );
   }
 
@@ -464,6 +540,7 @@ export function LessonListPane({
       : 0;
 
   return (
+    <>
     <PaneWheelRoot scrollRef={lessonScrollRef} className="min-w-0 bg-card">
       {/* コースメタ情報エリア */}
       <div className="min-w-0 shrink-0 border-b border-border bg-muted/40 px-3 py-2">
@@ -532,45 +609,6 @@ export function LessonListPane({
                 {thumbnailError ? "グラフを表示できません（クリックで拡大）" : "グラフを生成中..."}
               </button>
             )}
-            <Dialog open={mermaidModalOpen} onOpenChange={setMermaidModalOpen}>
-              <DialogContent className="max-w-2xl">
-                <DialogHeader>
-                  <DialogTitle>ミニ曼陀羅</DialogTitle>
-                </DialogHeader>
-                {modalSvg ? (
-                  <div className="flex justify-center overflow-auto rounded bg-card p-4">
-                    <div
-                      ref={modalSvgRef}
-                      className="mini-mandala-graph w-fit"
-                      dangerouslySetInnerHTML={{ __html: modalSvg }}
-                    onClick={(e) => {
-                      // composedPath で SVG/foreignObject 境界を越えて g 要素を探索
-                      for (const el of e.nativeEvent.composedPath()) {
-                        const svgG = el as Element;
-                        if (svgG.tagName === "g" && (svgG as SVGGElement).id) {
-                          const match = (svgG as SVGGElement).id.match(
-                            /-flowchart-(M_[^-]+|CURRENT)-/,
-                          );
-                          if (match) {
-                            const nav = (window as unknown as Record<string, unknown>)["miniGraphNav"] as ((id: string) => void) | undefined;
-                            nav?.(match[1]);
-                            return;
-                          }
-                        }
-                      }
-                    }}
-                    />
-                  </div>
-                ) : (
-                  <div className="flex h-40 items-center justify-center text-muted-foreground text-sm">
-                    グラフを生成中...
-                  </div>
-                )}
-                <p className="text-[11px] text-muted-foreground text-left pt-1">
-                  ★ = 現在選択中のコース　　ノードをクリックするとそのコースに移動します
-                </p>
-              </DialogContent>
-            </Dialog>
           </>
         ) : null}
       </div>
@@ -814,5 +852,7 @@ export function LessonListPane({
         </DialogContent>
       </Dialog>
     </PaneWheelRoot>
+    {miniMandalaDialog}
+    </>
   );
 }

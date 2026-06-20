@@ -20,6 +20,10 @@ import { useContentSync } from "@/components/workspace/hooks/use-content-sync";
 import type { Series } from "@/lib/schema";
 import { normalizeSeriesCourseMeta } from "@/lib/course-flow";
 import {
+  loadWorkspaceSettings,
+  type DisplayLanguage,
+} from "@/lib/workspace-settings";
+import {
   normalizeAllLessonsInSeries,
 } from "@/lib/lesson-frontmatter";
 import { collectAllLessonTags } from "@/lib/lesson-tags";
@@ -62,6 +66,9 @@ export function Workspace({
   const [pane4ManuallyClosed, setPane4ManuallyClosed] = useState(false);
   const [pane3Mode, setPane3Mode] = useState<Pane3Mode>("raw");
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [displayLanguage, setDisplayLanguage] = useState<DisplayLanguage>(
+    () => loadWorkspaceSettings().displayLanguage,
+  );
   const [saveErrorMsg, setSaveErrorMsg] = useState<string | null>(null);
   const saveErrorTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -283,6 +290,7 @@ export function Workspace({
           onDeleteSeries={deleteSeries}
           onDeleteCourse={deleteCourse}
           onUpdateSeriesName={updateSeriesName}
+          displayLanguage={displayLanguage}
         />
         <Pane1ResizeHandle
           {...resizeHandleProps("pane1")}
@@ -299,12 +307,14 @@ export function Workspace({
           selectedCourseId={selectedCourseId}
           onSelectCourse={selectCourse}
           onOpenSettings={() => setSettingsOpen(true)}
+          displayLanguage={displayLanguage}
         />
         <WorkspaceSettingsDialog
           open={settingsOpen}
           onOpenChange={setSettingsOpen}
           currentPaneWidths={paneWidths}
           onApplyPaneWidths={applyPaneWidths}
+          onDisplayLanguageChange={setDisplayLanguage}
         />
         {contentsEmpty && (
           <div className="flex items-center justify-center border-b bg-amber-50 px-4 py-2 text-sm text-amber-800 dark:bg-amber-950 dark:text-amber-200">
@@ -335,6 +345,7 @@ export function Workspace({
               onReorderLessons={reorderLessons}
               onUpdateCourseMeta={updateCourseMeta}
               onUpdateLessonStatus={updateLessonStatus}
+              displayLanguage={displayLanguage}
             />
           </div>
           <PaneResizeHandle {...resizeHandleProps("pane2")} />
@@ -355,6 +366,7 @@ export function Workspace({
               tagSuggestions={tagSuggestions}
               availableImagePaths={availableImagePaths}
               imageAssetsRevision={imageAssetsRevision}
+              displayLanguage={displayLanguage}
             />
           </div>
           {pane4Open ? (

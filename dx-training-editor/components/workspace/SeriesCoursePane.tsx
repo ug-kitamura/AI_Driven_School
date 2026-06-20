@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import {
   GraduationCap,
   ChevronDown,
@@ -64,7 +64,9 @@ import {
 } from "@/components/workspace/metaDialogLayout";
 import { cn, computeStatus } from "@/lib/utils";
 import { STATUS_LABELS } from "@/lib/schema";
+import { isValidSlug } from "@/lib/content-filename";
 import type { Series, Course } from "@/lib/schema";
+import type { DisplayLanguage } from "@/lib/workspace-settings";
 
 type Props = {
   workspaceName: string;
@@ -73,12 +75,26 @@ type Props = {
   onSelectCourse: (courseId: string) => void;
   onReorderSeries: (fromIndex: number, toIndex: number) => void;
   onReorderCourses: (seriesId: string, fromIndex: number, toIndex: number) => void;
-  onAddSeries: (name: string) => string;
-  onAddCourse: (seriesId: string, name: string) => void;
+  onAddSeries: (titleJa: string, slug: string) => string;
+  onAddCourse: (seriesId: string, titleJa: string, slug: string) => void;
   onDeleteSeries: (seriesId: string) => void;
   onDeleteCourse: (seriesId: string, courseId: string) => void;
   onUpdateSeriesName: (seriesId: string, name: string) => void;
+  displayLanguage?: DisplayLanguage;
 };
+
+/** title.en があれば英語表示、なければ title.ja にフォールバックして未翻訳フラグを返す */
+function resolveTitle(
+  nameJa: string,
+  titleEn: string | null | undefined,
+  lang: DisplayLanguage,
+): { label: string; needsTranslation: boolean } {
+  if (lang === "en") {
+    if (titleEn) return { label: titleEn, needsTranslation: false };
+    return { label: nameJa, needsTranslation: true };
+  }
+  return { label: nameJa, needsTranslation: false };
+}
 
 const STATUS_ICON = {
   done: <CircleCheck className="h-3.5 w-3.5 text-[--status-done]" />,
@@ -91,11 +107,13 @@ function SortableCourseRow({
   isSelected,
   onSelect,
   onDelete,
+  displayLanguage = "ja",
 }: {
   course: Course;
   isSelected: boolean;
   onSelect: () => void;
   onDelete: () => void;
+  displayLanguage?: DisplayLanguage;
 }) {
   const {
     attributes,
@@ -117,6 +135,7 @@ function SortableCourseRow({
   };
 
   const courseStatus = computeStatus(course.lessons.map((l) => l.status));
+  const { label: courseLabel, needsTranslation } = resolveTitle(course.name, course.titleEn, displayLanguage);
 
   const handleDeleteClick = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -147,7 +166,12 @@ function SortableCourseRow({
           }}
           className="flex-1 truncate text-left sidebar-label group-hover/course-row:cursor-grab active:cursor-grabbing"
         >
-          {course.name}
+          {courseLabel}
+          {needsTranslation && (
+            <span className="ml-1 rounded bg-amber-100 px-1 text-[9px] text-amber-700 dark:bg-amber-900 dark:text-amber-300">
+              要翻訳
+            </span>
+          )}
         </span>
 
         <WorkspaceTooltip
@@ -232,6 +256,7 @@ function SortableSeriesBlock({
   onReorderCourses,
   openAddCourseDialog,
   sensors,
+  displayLanguage = "ja",
 }: {
   seriesItem: Series;
   isExpanded: boolean;
@@ -244,6 +269,7 @@ function SortableSeriesBlock({
   onReorderCourses: (seriesId: string, from: number, to: number) => void;
   openAddCourseDialog: (seriesId: string) => void;
   sensors: ReturnType<typeof useSensors>;
+  displayLanguage?: DisplayLanguage;
 }) {
   const {
     attributes,
@@ -286,6 +312,11 @@ function SortableSeriesBlock({
   ).length;
   const seriesProgress =
     totalCourses > 0 ? Math.round((doneCourses / totalCourses) * 100) : 0;
+  const { label: seriesLabel, needsTranslation: seriesNeedsTranslation } = resolveTitle(
+    seriesItem.name,
+    seriesItem.titleEn,
+    displayLanguage,
+  );
 
   return (
     <>
@@ -317,7 +348,12 @@ function SortableSeriesBlock({
             {...listeners}
             className="min-w-0 flex-1 truncate rounded px-1 py-1.5 text-xs font-bold text-foreground transition-colors group-hover/series:cursor-grab group-hover/series:bg-muted/60 group-hover/series:text-primary active:cursor-grabbing sidebar-label"
           >
-            {seriesItem.name}
+            {seriesLabel}
+            {seriesNeedsTranslation && (
+              <span className="ml-1 rounded bg-amber-100 px-1 text-[9px] font-normal text-amber-700 dark:bg-amber-900 dark:text-amber-300">
+                要翻訳
+              </span>
+            )}
           </span>
           <div className="flex shrink-0 items-center sidebar-label">
             <WorkspaceTooltip
@@ -385,6 +421,7 @@ function SortableSeriesBlock({
                       isSelected={c.id === selectedCourseId}
                       onSelect={() => onSelectCourse(c.id)}
                       onDelete={() => onDeleteCourse(seriesItem.id, c.id)}
+                      displayLanguage={displayLanguage}
                     />
                   ))}
                 </div>
@@ -458,6 +495,7 @@ export function SeriesCoursePane({
   onDeleteSeries,
   onDeleteCourse,
   onUpdateSeriesName,
+  displayLanguage = "ja",
 }: Props) {
   const [expandedSeriesIds, setExpandedSeriesIds] = useState<Set<string>>(
     () => new Set(series.map((s) => s.id)),
@@ -466,25 +504,58 @@ export function SeriesCoursePane({
   const { state: sidebarState } = useSidebar();
   const isCollapsed = sidebarState === "collapsed";
 
+  // ===== シリーズ追加ダイアログ state =====
   const [addSeriesOpen, setAddSeriesOpen] = useState(false);
-  const [newSeriesName, setNewSeriesName] = useState("");
+  const [newSeriesTitleJa, setNewSeriesTitleJa] = useState("");
+  const [newSeriesSlug, setNewSeriesSlug] = useState("");
+  const [newSeriesSlugError, setNewSeriesSlugError] = useState("");
+  const [newSeriesSlugLoading, setNewSeriesSlugLoading] = useState(false);
 
+  // ===== シリーズ編集ダイアログ state =====
   const [editSeriesOpen, setEditSeriesOpen] = useState(false);
   const [editSeriesId, setEditSeriesId] = useState("");
   const [editSeriesName, setEditSeriesName] = useState("");
 
+  // ===== コース追加ダイアログ state =====
   const [addCourseOpen, setAddCourseOpen] = useState(false);
   const [addCourseSeriesId, setAddCourseSeriesId] = useState("");
-  const [newCourseName, setNewCourseName] = useState("");
+  const [newCourseTitleJa, setNewCourseTitleJa] = useState("");
+  const [newCourseSlug, setNewCourseSlug] = useState("");
+  const [newCourseSlugError, setNewCourseSlugError] = useState("");
+  const [newCourseSlugLoading, setNewCourseSlugLoading] = useState(false);
+
+  const slugSuggestTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const suggestSlug = useCallback(async (title: string, setSlug: (s: string) => void, setLoading: (b: boolean) => void) => {
+    if (!title.trim()) return;
+    setLoading(true);
+    try {
+      const res = await fetch("/api/content/suggest-slug", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ title }),
+      });
+      if (res.ok) {
+        const { slug } = (await res.json()) as { slug: string };
+        setSlug(slug);
+      }
+    } catch { /* ignore */ } finally {
+      setLoading(false);
+    }
+  }, []);
 
   const openAddSeriesDialog = () => {
-    setNewSeriesName("");
+    setNewSeriesTitleJa("");
+    setNewSeriesSlug("");
+    setNewSeriesSlugError("");
     setAddSeriesOpen(true);
   };
 
   const openAddCourseDialog = (seriesId: string) => {
     setAddCourseSeriesId(seriesId);
-    setNewCourseName("");
+    setNewCourseTitleJa("");
+    setNewCourseSlug("");
+    setNewCourseSlugError("");
     setAddCourseOpen(true);
   };
 
@@ -500,9 +571,54 @@ export function SeriesCoursePane({
     setExpandedSeriesIds((prev) => new Set([...prev, id]));
   };
 
-  const handleAddSeries = (name: string) => {
-    const newId = onAddSeries(name);
+  const handleAddSeries = (titleJa: string, slug: string) => {
+    const newId = onAddSeries(titleJa, slug);
     expandSeries(newId);
+  };
+
+  // シリーズ追加: タイトル入力後 600ms でスラッグ提案
+  useEffect(() => {
+    if (!addSeriesOpen) return;
+    if (slugSuggestTimerRef.current) clearTimeout(slugSuggestTimerRef.current);
+    if (!newSeriesTitleJa.trim()) { setNewSeriesSlug(""); return; }
+    slugSuggestTimerRef.current = setTimeout(() => {
+      void suggestSlug(newSeriesTitleJa, setNewSeriesSlug, setNewSeriesSlugLoading);
+    }, 600);
+    return () => {
+      if (slugSuggestTimerRef.current) clearTimeout(slugSuggestTimerRef.current);
+    };
+  }, [newSeriesTitleJa, addSeriesOpen, suggestSlug]);
+
+  // コース追加: タイトル入力後 600ms でスラッグ提案
+  useEffect(() => {
+    if (!addCourseOpen) return;
+    if (slugSuggestTimerRef.current) clearTimeout(slugSuggestTimerRef.current);
+    if (!newCourseTitleJa.trim()) { setNewCourseSlug(""); return; }
+    slugSuggestTimerRef.current = setTimeout(() => {
+      void suggestSlug(newCourseTitleJa, setNewCourseSlug, setNewCourseSlugLoading);
+    }, 600);
+    return () => {
+      if (slugSuggestTimerRef.current) clearTimeout(slugSuggestTimerRef.current);
+    };
+  }, [newCourseTitleJa, addCourseOpen, suggestSlug]);
+
+  const validateSeriesSlug = (slug: string) => {
+    if (!slug) { setNewSeriesSlugError("スラッグを入力してください"); return false; }
+    if (!isValidSlug(slug)) { setNewSeriesSlugError("英小文字・数字・ハイフンのみ（最大 50 文字）"); return false; }
+    const exists = series.some((s) => (s.slug ?? s.name) === slug);
+    if (exists) { setNewSeriesSlugError(`'${slug}' はすでに使われています`); return false; }
+    setNewSeriesSlugError("");
+    return true;
+  };
+
+  const validateCourseSlug = (slug: string) => {
+    if (!slug) { setNewCourseSlugError("スラッグを入力してください"); return false; }
+    if (!isValidSlug(slug)) { setNewCourseSlugError("英小文字・数字・ハイフンのみ（最大 50 文字）"); return false; }
+    const parentSeries = series.find((s) => s.id === addCourseSeriesId);
+    const exists = parentSeries?.courses.some((c) => (c.slug ?? c.name) === slug);
+    if (exists) { setNewCourseSlugError(`'${slug}' はすでに使われています`); return false; }
+    setNewCourseSlugError("");
+    return true;
   };
 
   const handleDeleteSeries = (seriesId: string) => {
@@ -606,6 +722,7 @@ export function SeriesCoursePane({
                         onReorderCourses={onReorderCourses}
                         openAddCourseDialog={openAddCourseDialog}
                         sensors={sensors}
+                        displayLanguage={displayLanguage}
                       />
                     ))}
                   </div>
@@ -656,21 +773,36 @@ export function SeriesCoursePane({
           </DialogHeader>
           <div className={META_DIALOG_FORM}>
             <MetaDialogField>
-              <Label htmlFor="series-name">シリーズ名</Label>
+              <Label htmlFor="series-title-ja">表示名（日本語）</Label>
               <Input
-                id="series-name"
-                value={newSeriesName}
-                onChange={(e) => setNewSeriesName(e.target.value)}
+                id="series-title-ja"
+                value={newSeriesTitleJa}
+                onChange={(e) => setNewSeriesTitleJa(e.target.value)}
                 placeholder="例: GitHub Actions 完全マスターシリーズ"
                 className={META_DIALOG_CONTROL}
                 autoFocus
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" && newSeriesName.trim()) {
-                    handleAddSeries(newSeriesName.trim());
-                    setAddSeriesOpen(false);
-                  }
-                }}
               />
+            </MetaDialogField>
+            <MetaDialogField>
+              <Label htmlFor="series-slug">
+                スラッグ
+                {newSeriesSlugLoading && (
+                  <span className="ml-2 text-[10px] text-muted-foreground">AI 生成中...</span>
+                )}
+              </Label>
+              <Input
+                id="series-slug"
+                value={newSeriesSlug}
+                onChange={(e) => {
+                  setNewSeriesSlug(e.target.value);
+                  setNewSeriesSlugError("");
+                }}
+                placeholder="例: github-actions-series"
+                className={META_DIALOG_CONTROL}
+              />
+              {newSeriesSlugError && (
+                <p className="text-xs text-destructive">{newSeriesSlugError}</p>
+              )}
             </MetaDialogField>
           </div>
           <DialogFooter>
@@ -679,12 +811,12 @@ export function SeriesCoursePane({
             </Button>
             <Button
               onClick={() => {
-                if (newSeriesName.trim()) {
-                  handleAddSeries(newSeriesName.trim());
+                if (newSeriesTitleJa.trim() && validateSeriesSlug(newSeriesSlug)) {
+                  handleAddSeries(newSeriesTitleJa.trim(), newSeriesSlug);
                   setAddSeriesOpen(false);
                 }
               }}
-              disabled={!newSeriesName.trim()}
+              disabled={!newSeriesTitleJa.trim() || !newSeriesSlug}
             >
               追加
             </Button>
@@ -699,21 +831,36 @@ export function SeriesCoursePane({
           </DialogHeader>
           <div className={META_DIALOG_FORM}>
             <MetaDialogField>
-              <Label htmlFor="course-name">コース名</Label>
+              <Label htmlFor="course-title-ja">表示名（日本語）</Label>
               <Input
-                id="course-name"
-                value={newCourseName}
-                onChange={(e) => setNewCourseName(e.target.value)}
+                id="course-title-ja"
+                value={newCourseTitleJa}
+                onChange={(e) => setNewCourseTitleJa(e.target.value)}
                 placeholder="例: Git 環境構築コース"
                 className={META_DIALOG_CONTROL}
                 autoFocus
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" && newCourseName.trim()) {
-                    onAddCourse(addCourseSeriesId, newCourseName.trim());
-                    setAddCourseOpen(false);
-                  }
-                }}
               />
+            </MetaDialogField>
+            <MetaDialogField>
+              <Label htmlFor="course-slug">
+                スラッグ
+                {newCourseSlugLoading && (
+                  <span className="ml-2 text-[10px] text-muted-foreground">AI 生成中...</span>
+                )}
+              </Label>
+              <Input
+                id="course-slug"
+                value={newCourseSlug}
+                onChange={(e) => {
+                  setNewCourseSlug(e.target.value);
+                  setNewCourseSlugError("");
+                }}
+                placeholder="例: git-setup-course"
+                className={META_DIALOG_CONTROL}
+              />
+              {newCourseSlugError && (
+                <p className="text-xs text-destructive">{newCourseSlugError}</p>
+              )}
             </MetaDialogField>
           </div>
           <DialogFooter>
@@ -722,12 +869,12 @@ export function SeriesCoursePane({
             </Button>
             <Button
               onClick={() => {
-                if (newCourseName.trim()) {
-                  onAddCourse(addCourseSeriesId, newCourseName.trim());
+                if (newCourseTitleJa.trim() && validateCourseSlug(newCourseSlug)) {
+                  onAddCourse(addCourseSeriesId, newCourseTitleJa.trim(), newCourseSlug);
                   setAddCourseOpen(false);
                 }
               }}
-              disabled={!newCourseName.trim()}
+              disabled={!newCourseTitleJa.trim() || !newCourseSlug}
             >
               追加
             </Button>
@@ -737,12 +884,12 @@ export function SeriesCoursePane({
 
       <Dialog open={editSeriesOpen} onOpenChange={setEditSeriesOpen}>
         <DialogContent>
-          <DialogHeader className="sr-only">
+          <DialogHeader>
             <DialogTitle>シリーズ名を編集</DialogTitle>
           </DialogHeader>
           <div className={META_DIALOG_FORM}>
             <MetaDialogField>
-              <Label htmlFor="edit-series-name">シリーズ名</Label>
+              <Label htmlFor="edit-series-name">表示名（日本語）</Label>
               <Input
                 id="edit-series-name"
                 value={editSeriesName}
@@ -760,6 +907,17 @@ export function SeriesCoursePane({
                 }}
               />
             </MetaDialogField>
+            <p className="text-[11px] text-muted-foreground">
+              フォルダ名（スラッグ）は変更されません。スラッグを変更するには「スラッグ変更」を使用してください。
+            </p>
+            {(() => {
+              const s = series.find((s) => s.id === editSeriesId);
+              return s?.titleEn ? (
+                <p className="text-[11px] text-amber-600 dark:text-amber-400">
+                  英語タイトル（{s.titleEn}）は手動で更新が必要な場合があります。
+                </p>
+              ) : null;
+            })()}
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setEditSeriesOpen(false)}>

@@ -1,5 +1,6 @@
 import type { Lesson } from "@/lib/schema";
 
+/** @deprecated スラッグベース移行後は数値プレフィックスは不要。後方互換のために残す。 */
 export function stripNumericPrefix(value: string): string {
   return value.replace(/^\d+_/, "");
 }
@@ -11,6 +12,7 @@ export function matchLessonContentPath(
   for (const file of files) {
     const parts = file.path.split("/");
     if (parts.length < 4 || parts[0] !== "contents") continue;
+    // スラッグ形式: 数値プレフィックスなし（後方互換のため stripNumericPrefix も維持）
     const fileLesson = stripNumericPrefix(parts[parts.length - 1].replace(/\.md$/, ""));
     const coursePart = stripNumericPrefix(parts[parts.length - 2]);
     const seriesPart = stripNumericPrefix(parts[parts.length - 3]);

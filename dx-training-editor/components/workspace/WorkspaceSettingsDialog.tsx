@@ -33,6 +33,7 @@ import {
   clampEditorFontSizePx,
   loadWorkspaceSettings,
   saveWorkspaceSettings,
+  type DisplayLanguage,
   type ThemeMode,
   type WorkspaceSettings,
 } from "@/lib/workspace-settings";
@@ -42,6 +43,7 @@ type Props = {
   onOpenChange: (open: boolean) => void;
   currentPaneWidths: WorkspacePaneWidths;
   onApplyPaneWidths: (widths: WorkspacePaneWidths) => void;
+  onDisplayLanguageChange?: (lang: DisplayLanguage) => void;
 };
 
 function ApiKeyField({
@@ -109,6 +111,7 @@ function SettingsForm({
   onOpenChange,
   currentPaneWidths,
   onApplyPaneWidths,
+  onDisplayLanguageChange,
   onSaved,
 }: SettingsFormProps) {
   const initial = loadWorkspaceSettings();
@@ -132,6 +135,7 @@ function SettingsForm({
     };
     saveWorkspaceSettings(next);
     applyThemeToDocument(next.theme);
+    onDisplayLanguageChange?.(next.displayLanguage);
     onSaved();
     onOpenChange(false);
   };
@@ -152,6 +156,32 @@ function SettingsForm({
         <DialogTitle>設定</DialogTitle>
       </DialogHeader>
       <div className={META_DIALOG_STACK}>
+        <section className="flex flex-col gap-3">
+          <h3 className="text-sm font-semibold text-foreground">表示言語</h3>
+          <MetaDialogField>
+            <div className="flex flex-wrap gap-2">
+              {(
+                [
+                  ["ja", "日本語"],
+                  ["en", "English"],
+                ] as const
+              ).map(([value, label]) => (
+                <Button
+                  key={value}
+                  type="button"
+                  size="sm"
+                  variant={draft.displayLanguage === value ? "default" : "outline"}
+                  onClick={() =>
+                    setDraft((prev) => ({ ...prev, displayLanguage: value as DisplayLanguage }))
+                  }
+                >
+                  {label}
+                </Button>
+              ))}
+            </div>
+          </MetaDialogField>
+        </section>
+
         <section className="flex flex-col gap-3">
           <h3 className="text-sm font-semibold text-foreground">テーマ</h3>
           <MetaDialogField>
@@ -303,6 +333,7 @@ export function WorkspaceSettingsDialog({
   onOpenChange,
   currentPaneWidths,
   onApplyPaneWidths,
+  onDisplayLanguageChange,
 }: Props) {
   const paneWidthsAtOpenRef = useRef<WorkspacePaneWidths>(currentPaneWidths);
   const fontSizeAtOpenRef = useRef(EDITOR_FONT_SIZE_DEFAULT);
@@ -335,6 +366,7 @@ export function WorkspaceSettingsDialog({
           onOpenChange={handleOpenChange}
           currentPaneWidths={currentPaneWidths}
           onApplyPaneWidths={onApplyPaneWidths}
+          onDisplayLanguageChange={onDisplayLanguageChange}
           onSaved={() => {
             savedRef.current = true;
           }}

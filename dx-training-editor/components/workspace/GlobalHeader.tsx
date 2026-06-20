@@ -18,6 +18,7 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import type { Series } from "@/lib/schema";
+import type { DisplayLanguage } from "@/lib/workspace-settings";
 import { findSeriesContainingCourse, isCrossSeriesLink } from "@/lib/course-flow";
 import {
   getMermaidWorkspaceConfig,
@@ -29,9 +30,15 @@ const safeLabel = (s: string) => s.replace(/"/g, "'");
 function buildFullMandalaGraph(
   series: Series[],
   selectedCourseId: string,
+  displayLanguage: DisplayLanguage = "ja",
 ): { def: string; nodeMap: Record<string, string> } {
   const lines = ["flowchart TD", "  classDef mandalaSeriesTitle font-weight:bold"];
   const nodeMap: Record<string, string> = {};
+
+  const resolveSeriesTitle = (s: Series) =>
+    displayLanguage === "en" && s.titleEn ? s.titleEn : s.name;
+  const resolveCourseTitle = (c: { name: string; titleEn?: string | null }) =>
+    displayLanguage === "en" && c.titleEn ? c.titleEn : c.name;
 
   // Mermaid ノード ID は英数字のみ有効。日本語 ID を直接使えないため
   // 全コース・シリーズを連番で割り当て、nodeMap で逆引きする
@@ -49,13 +56,13 @@ function buildFullMandalaGraph(
   const currentNid: string[] = [];
   series.forEach((s) => {
     const sgId = toSgId(s.id);
-    lines.push(`  subgraph ${sgId}["${safeLabel(s.name)}"]`);
+    lines.push(`  subgraph ${sgId}["${safeLabel(resolveSeriesTitle(s))}"]`);
     lines.push(`    direction TB`);
     s.courses.forEach((c) => {
       const nid = toNid(c.id);
       nodeMap[nid] = c.id;
       const isCurrent = c.id === selectedCourseId;
-      const label = isCurrent ? `★ ${safeLabel(c.name)}` : safeLabel(c.name);
+      const label = isCurrent ? `★ ${safeLabel(resolveCourseTitle(c))}` : safeLabel(resolveCourseTitle(c));
       lines.push(`    ${nid}("${label}")`);
       if (isCurrent) currentNid.push(nid);
     });
@@ -124,6 +131,7 @@ type GlobalHeaderProps = {
   selectedCourseId?: string;
   onSelectCourse?: (courseId: string) => void;
   onOpenSettings?: () => void;
+  displayLanguage?: DisplayLanguage;
 };
 
 export function GlobalHeader({
@@ -134,6 +142,7 @@ export function GlobalHeader({
   selectedCourseId = "",
   onSelectCourse,
   onOpenSettings,
+  displayLanguage = "ja",
 }: GlobalHeaderProps) {
   const [mandalaOpen, setMandalaOpen] = useState(false);
   const [mandalaSvg, setMandalaSvg] = useState("");
@@ -175,7 +184,7 @@ export function GlobalHeader({
   // モーダルを開いたときに Mermaid レンダリング
   useEffect(() => {
     if (!mandalaOpen || series.length === 0) return;
-    const { def, nodeMap } = buildFullMandalaGraph(series, selectedCourseId);
+    const { def, nodeMap } = buildFullMandalaGraph(series, selectedCourseId, displayLanguage);
     // nodeId → courseId マップを window に登録
     (window as unknown as Record<string, unknown>)["mandalaNodeMap"] = nodeMap;
     setMandalaDebug(def);
@@ -253,7 +262,9 @@ export function GlobalHeader({
         onClick={() => setMandalaOpen(true)}
       >
         <Network className="h-4 w-4" />
-        <span className="hidden sm:inline">DXトレーニング曼陀羅</span>
+        <span className="hidden sm:inline">
+          {displayLanguage === "en" ? "DX Training Map" : "DXトレーニング曼陀羅"}
+        </span>
       </Button>
 
       <Button
@@ -270,7 +281,9 @@ export function GlobalHeader({
       <Dialog open={mandalaOpen} onOpenChange={setMandalaOpen}>
         <DialogContent className="max-w-5xl max-h-[90vh] flex flex-col">
           <DialogHeader>
-            <DialogTitle>DXトレーニング曼陀羅</DialogTitle>
+            <DialogTitle>
+            {displayLanguage === "en" ? "DX Training Map" : "DXトレーニング曼陀羅"}
+          </DialogTitle>
           </DialogHeader>
           <div className="workspace-scrollbar flex flex-1 justify-center overflow-auto rounded bg-card p-3 min-h-0">
             {mandalaSvg ? (
@@ -300,7 +313,9 @@ export function GlobalHeader({
             )}
           </div>
           <p className="text-[11px] text-muted-foreground text-left pt-1">
-            ★ = 現在選択中のコース　　ノードをクリックするとそのコースに移動します
+            {displayLanguage === "en"
+              ? "★ = Currently selected course   Click a node to navigate"
+              : "★ = 現在選択中のコース　　ノードをクリックするとそのコースに移動します"}
           </p>
         </DialogContent>
       </Dialog>

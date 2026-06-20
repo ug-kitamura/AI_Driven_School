@@ -11,7 +11,7 @@ import {
   type WorkspaceSelection,
 } from "@/lib/workspace-selection";
 
-const POLL_INTERVAL_MS = 3000;
+const POLL_INTERVAL_MS = 10000;
 
 export function useContentSync(options: {
   /** 現在の series state（編集中レッスン content を保護するために使用） */

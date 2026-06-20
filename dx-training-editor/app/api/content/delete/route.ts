@@ -2,44 +2,37 @@ import { z } from "zod";
 import fs from "node:fs";
 import path from "node:path";
 import { getContentsDir, findSeriesDir, findCourseDir } from "@/lib/contents-loader";
-import { sanitizeFilename, stripPrefix } from "@/lib/content-filename";
 
 const schema = z.discriminatedUnion("type", [
   z.object({
     type: z.literal("series"),
-    name: z.string().min(1),
+    slug: z.string().min(1),
   }),
   z.object({
     type: z.literal("course"),
     series: z.string().min(1),
-    name: z.string().min(1),
+    slug: z.string().min(1),
   }),
   z.object({
     type: z.literal("lesson"),
     series: z.string().min(1),
     course: z.string().min(1),
-    name: z.string().min(1),
+    slug: z.string().min(1),
   }),
 ]);
 
-function renumberItems(dir: string, ext: "" | ".md") {
-  const entries = fs
-    .readdirSync(dir, { withFileTypes: true })
-    .filter((e) => ext === "" ? e.isDirectory() : e.name.endsWith(".md"))
-    .map((e) => e.name)
-    .sort((a, b) => {
-      const na = parseInt(a.match(/^(\d+)/)?.[1] ?? "0", 10);
-      const nb = parseInt(b.match(/^(\d+)/)?.[1] ?? "0", 10);
-      return na - nb;
-    });
+function readOrderJson(filePath: string): string[] {
+  if (!fs.existsSync(filePath)) return [];
+  try {
+    return JSON.parse(fs.readFileSync(filePath, "utf-8")) as string[];
+  } catch {
+    return [];
+  }
+}
 
-  entries.forEach((oldName, i) => {
-    const displayName = ext === "" ? stripPrefix(oldName) : stripPrefix(oldName);
-    const newName = `${String(i + 1).padStart(2, "0")}_${displayName}${ext}`;
-    if (oldName !== newName) {
-      fs.renameSync(path.join(dir, oldName), path.join(dir, newName));
-    }
-  });
+function removeFromOrderJson(filePath: string, slug: string): void {
+  const order = readOrderJson(filePath).filter((s) => s !== slug);
+  fs.writeFileSync(filePath, JSON.stringify(order, null, 2), "utf-8");
 }
 
 export async function POST(req: Request) {
@@ -61,48 +54,51 @@ export async function POST(req: Request) {
   const contentsDir = getContentsDir(process.cwd());
 
   if (parsed.data.type === "series") {
-    const seriesDir = findSeriesDir(contentsDir, parsed.data.name);
-    if (!seriesDir) {
+    const { slug } = parsed.data;
+    const seriesDir = path.join(contentsDir, slug);
+    if (!fs.existsSync(seriesDir)) {
       return Response.json({ error: "シリーズフォルダが見つかりません" }, { status: 404 });
     }
     fs.rmSync(seriesDir, { recursive: true, force: true });
-    // シリーズ削除後に残りフォルダのプレフィックスを振り直す
-    renumberItems(contentsDir, "");
+    removeFromOrderJson(path.join(contentsDir, "_series-order.json"), slug);
     return Response.json({ ok: true });
   }
 
   if (parsed.data.type === "course") {
-    const seriesDirForCourse = findSeriesDir(contentsDir, parsed.data.series);
-    if (!seriesDirForCourse) {
+    const { series: seriesSlug, slug } = parsed.data;
+    const seriesDir = findSeriesDir(contentsDir, seriesSlug);
+    if (!seriesDir) {
       return Response.json({ error: "シリーズフォルダが見つかりません" }, { status: 404 });
     }
-    const courseDir = findCourseDir(seriesDirForCourse, parsed.data.name);
-    if (!courseDir) {
+    const courseDir = path.join(seriesDir, slug);
+    if (!fs.existsSync(courseDir)) {
       return Response.json({ error: "コースフォルダが見つかりません" }, { status: 404 });
     }
     fs.rmSync(courseDir, { recursive: true, force: true });
-    renumberItems(seriesDirForCourse, "");
+    removeFromOrderJson(path.join(seriesDir, "_course-order.json"), slug);
     return Response.json({ ok: true });
   }
 
   // lesson
-  const lessonData = parsed.data as { type: "lesson"; series: string; course: string; name: string };
-  const lessonSeriesDir = findSeriesDir(contentsDir, lessonData.series);
-  if (!lessonSeriesDir) {
+  const { series: seriesSlug, course: courseSlug, slug } = parsed.data as {
+    type: "lesson"; series: string; course: string; slug: string;
+  };
+  const seriesDir = findSeriesDir(contentsDir, seriesSlug);
+  if (!seriesDir) {
     return Response.json({ error: "シリーズフォルダが見つかりません" }, { status: 404 });
   }
-  const lessonCourseDir = findCourseDir(lessonSeriesDir, lessonData.course);
-  if (!lessonCourseDir) {
+  const courseDir = findCourseDir(seriesDir, courseSlug);
+  if (!courseDir) {
     return Response.json({ error: "コースフォルダが見つかりません" }, { status: 404 });
   }
-  const courseDir = lessonCourseDir;
-  const lessonFiles = fs
-    .readdirSync(courseDir)
-    .filter((f) => f.endsWith(".md") && stripPrefix(f) === lessonData.name);
-  if (lessonFiles.length === 0) {
+  const lessonFilePath = path.join(courseDir, `${slug}.md`);
+  if (!fs.existsSync(lessonFilePath)) {
     return Response.json({ error: "レッスンファイルが見つかりません" }, { status: 404 });
   }
-  fs.unlinkSync(path.join(courseDir, lessonFiles[0]));
-  renumberItems(courseDir, ".md");
+  fs.unlinkSync(lessonFilePath);
+  // 英語版も存在すれば削除
+  const enFilePath = path.join(courseDir, `${slug}.en.md`);
+  if (fs.existsSync(enFilePath)) fs.unlinkSync(enFilePath);
+  removeFromOrderJson(path.join(courseDir, "_lesson-order.json"), slug);
   return Response.json({ ok: true });
 }

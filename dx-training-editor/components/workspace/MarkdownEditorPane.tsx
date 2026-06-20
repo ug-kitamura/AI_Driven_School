@@ -6,7 +6,7 @@ import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import rehypeHighlight from "rehype-highlight";
 import "highlight.js/styles/github.min.css";
-import { GitCompare, Code, Eye, Edit3, Bot } from "lucide-react";
+import { GitCompare, Code, Eye, Edit3, Bot, AlertTriangle, Languages } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { getLessonBody, type LessonMetaFields } from "@/lib/lesson-frontmatter";
@@ -18,6 +18,7 @@ import { PaneWheelRoot } from "@/components/workspace/PaneWheelRoot";
 import type { LessonContentEditorHandle } from "@/components/workspace/LessonContentEditor";
 import type { Course, Lesson, Series } from "@/lib/schema";
 import type { Pane3Mode } from "@/components/workspace/Workspace";
+import type { DisplayLanguage } from "@/lib/workspace-settings";
 import { createLessonPreviewMarkdownComponents } from "@/lib/lesson-preview-markdown";
 
 const LessonContentEditor = dynamic(
@@ -34,6 +35,13 @@ const LessonContentEditor = dynamic(
     ),
   },
 );
+
+type EnState =
+  | { status: "idle" }
+  | { status: "loading" }
+  | { status: "missing" }
+  | { status: "stale"; content: string; jaCurrentHash: string }
+  | { status: "ok"; content: string };
 
 type Props = {
   lesson: Lesson | undefined;
@@ -54,6 +62,7 @@ type Props = {
   tagSuggestions?: readonly string[];
   availableImagePaths?: ReadonlySet<string> | null;
   imageAssetsRevision?: number;
+  displayLanguage?: DisplayLanguage;
 };
 
 const MODE_TABS: Array<{ value: Pane3Mode; label: string; icon: React.ReactNode }> =
@@ -92,12 +101,15 @@ export function MarkdownEditorPane({
   tagSuggestions = [],
   availableImagePaths = null,
   imageAssetsRevision = 0,
+  displayLanguage = "ja",
 }: Props) {
   const editorRef = useRef<LessonContentEditorHandle>(null);
   const paneScrollRef = useRef<HTMLElement | null>(null);
   const lastCursorOffsetRef = useRef(0);
   const [diffState, setDiffState] = useState<DiffState>({ status: "idle" });
   const [metaDialogOpen, setMetaDialogOpen] = useState(false);
+  const [enState, setEnState] = useState<EnState>({ status: "idle" });
+  const [savingEn, setSavingEn] = useState(false);
 
   const previewBody = useMemo(
     () => (lesson ? stripHtmlComments(getLessonBody(lesson)) : ""),
@@ -150,6 +162,65 @@ export function MarkdownEditorPane({
   useEffect(() => {
     lastCursorOffsetRef.current = 0;
   }, [lesson?.id]);
+
+  // 英語版コンテンツ読み込み
+  useEffect(() => {
+    if (displayLanguage !== "en" || !lesson) {
+      setEnState({ status: "idle" });
+      return;
+    }
+    const seriesSlug = lesson.series;
+    const courseSlug = lesson.course;
+    const lessonSlug = lesson.slug ?? lesson.lesson;
+    setEnState({ status: "loading" });
+    fetch("/api/content/load-en", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ series: seriesSlug, course: courseSlug, lesson: lessonSlug }),
+    })
+      .then(async (res) => {
+        if (!res.ok) { setEnState({ status: "missing" }); return; }
+        const data = await res.json() as {
+          exists: boolean;
+          content?: string;
+          isStale?: boolean;
+          jaCurrentHash?: string;
+        };
+        if (!data.exists) {
+          setEnState({ status: "missing" });
+        } else if (data.isStale) {
+          setEnState({ status: "stale", content: data.content ?? "", jaCurrentHash: data.jaCurrentHash ?? "" });
+        } else {
+          setEnState({ status: "ok", content: data.content ?? "" });
+        }
+      })
+      .catch(() => setEnState({ status: "missing" }));
+  }, [displayLanguage, lesson?.id, lesson?.series, lesson?.course, lesson?.slug, lesson?.lesson]);
+
+  const handleSaveEnContent = useCallback(
+    (content: string) => {
+      if (!lesson) return;
+      setSavingEn(true);
+      fetch("/api/content/save-en", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          series: lesson.series,
+          course: lesson.course,
+          lesson: lesson.slug ?? lesson.lesson,
+          content,
+        }),
+      })
+        .then(async (res) => {
+          if (res.ok) {
+            setEnState({ status: "ok", content });
+          }
+        })
+        .catch(() => {})
+        .finally(() => setSavingEn(false));
+    },
+    [lesson],
+  );
 
   const handleScrollElementReady = useCallback((element: HTMLElement | null) => {
     paneScrollRef.current = element;
@@ -262,70 +333,129 @@ export function MarkdownEditorPane({
         </div>
       </div>
 
-      <div className="min-h-0 flex-1 overflow-hidden">
-        {mode === "raw" && lesson ? (
-          <div className="flex h-full min-h-0 min-w-0 bg-background">
-            <LessonContentEditor
-              ref={editorRef}
-              lessonId={lesson.id}
-              value={editContent}
-              onChange={(content) => onUpdateContent(lesson.id, content)}
-              onScrollElementReady={handleScrollElementReady}
-              onCursorChange={handleLocalCursorChange}
-            />
-          </div>
-        ) : null}
-
-        {mode === "agent" ? (
-          <AgentChatPane
-            series={series}
-            lesson={lesson}
-            course={course}
-            currentLessonPath={currentLessonPath}
-            onOpenSettings={onOpenSettings}
-          />
-        ) : null}
-
-        {mode === "inline" && lesson ? (
-          <div
-            ref={(el) => {
-              paneScrollRef.current = el;
-            }}
-            className="workspace-scrollbar h-full overflow-y-auto overscroll-y-contain px-6 py-5"
-          >
-            <div className={LESSON_PREVIEW_CLASS}>
-              <ReactMarkdown
-                key={`${lesson.id}-${imageAssetsRevision}`}
-                remarkPlugins={[remarkGfm]}
-                rehypePlugins={[rehypeHighlight]}
-                components={previewMarkdownComponents}
-              >
-                {previewBody}
-              </ReactMarkdown>
+      <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+        {/* 英語版: displayLanguage=en かつ diff/agent 以外のモード */}
+        {displayLanguage === "en" && lesson && mode !== "diff" && mode !== "agent" ? (
+          <div className="flex min-h-0 flex-1 flex-col">
+            {enState.status === "stale" && (
+              <div className="flex shrink-0 items-center gap-2 border-b border-amber-300 bg-amber-50 px-3 py-2 dark:border-amber-700 dark:bg-amber-950">
+                <AlertTriangle className="size-4 shrink-0 text-amber-600 dark:text-amber-400" />
+                <span className="flex-1 text-xs text-amber-700 dark:text-amber-300">
+                  日本語原文が更新されています。英語版が古い可能性があります。
+                </span>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="h-6 px-2 text-xs"
+                  disabled={savingEn}
+                  onClick={() => handleSaveEnContent(enState.content)}
+                >
+                  {savingEn ? "保存中..." : "ハッシュを更新"}
+                </Button>
+              </div>
+            )}
+            <div className="workspace-scrollbar min-h-0 flex-1 overflow-y-auto overscroll-y-contain px-6 py-5">
+              {enState.status === "loading" ? (
+                <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
+                  英語版を読み込み中...
+                </div>
+              ) : enState.status === "missing" ? (
+                <div className="flex h-full flex-col items-center justify-center gap-3 text-muted-foreground">
+                  <Languages className="size-10 opacity-40" />
+                  <p className="text-sm">英語版がまだ作成されていません</p>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    disabled={savingEn}
+                    onClick={() => handleSaveEnContent("")}
+                  >
+                    {savingEn ? "作成中..." : "英語版を作成（空ファイル）"}
+                  </Button>
+                </div>
+              ) : (enState.status === "ok" || enState.status === "stale") ? (
+                <div className={LESSON_PREVIEW_CLASS}>
+                  <ReactMarkdown
+                    key={`${lesson.id}-en`}
+                    remarkPlugins={[remarkGfm]}
+                    rehypePlugins={[rehypeHighlight]}
+                    components={previewMarkdownComponents}
+                  >
+                    {(enState as { content: string }).content}
+                  </ReactMarkdown>
+                </div>
+              ) : null}
             </div>
           </div>
         ) : null}
 
-        {mode === "diff" && lesson ? (
-          <div
-            ref={(el) => {
-              paneScrollRef.current = el;
-            }}
-            className="workspace-scrollbar h-full overflow-y-auto overscroll-y-contain"
-          >
-            {diffState.status === "loading" ? (
-              <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
-                差分を取得中...
+        {/* 日本語: displayLanguage=ja または diff/agent モード */}
+        {(displayLanguage !== "en" || mode === "diff" || mode === "agent") && (
+          <>
+            {mode === "raw" && lesson ? (
+              <div className="flex h-full min-h-0 min-w-0 bg-background">
+                <LessonContentEditor
+                  ref={editorRef}
+                  lessonId={lesson.id}
+                  value={editContent}
+                  onChange={(content) => onUpdateContent(lesson.id, content)}
+                  onScrollElementReady={handleScrollElementReady}
+                  onCursorChange={handleLocalCursorChange}
+                />
               </div>
-            ) : diffState.status === "error" ? (
-              <div className="flex h-full items-center justify-center px-4 text-sm text-destructive">
-                {diffState.message}
-              </div>
-            ) : diffState.status === "ready" ? (
-              <LessonDiffView diff={diffState.diff} />
             ) : null}
-          </div>
-        ) : null}
+
+            {mode === "agent" ? (
+              <AgentChatPane
+                series={series}
+                lesson={lesson}
+                course={course}
+                currentLessonPath={currentLessonPath}
+                onOpenSettings={onOpenSettings}
+              />
+            ) : null}
+
+            {mode === "inline" && lesson ? (
+              <div
+                ref={(el) => {
+                  paneScrollRef.current = el;
+                }}
+                className="workspace-scrollbar h-full overflow-y-auto overscroll-y-contain px-6 py-5"
+              >
+                <div className={LESSON_PREVIEW_CLASS}>
+                  <ReactMarkdown
+                    key={`${lesson.id}-${imageAssetsRevision}`}
+                    remarkPlugins={[remarkGfm]}
+                    rehypePlugins={[rehypeHighlight]}
+                    components={previewMarkdownComponents}
+                  >
+                    {previewBody}
+                  </ReactMarkdown>
+                </div>
+              </div>
+            ) : null}
+
+            {mode === "diff" && lesson ? (
+              <div
+                ref={(el) => {
+                  paneScrollRef.current = el;
+                }}
+                className="workspace-scrollbar h-full overflow-y-auto overscroll-y-contain"
+              >
+                {diffState.status === "loading" ? (
+                  <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
+                    差分を取得中...
+                  </div>
+                ) : diffState.status === "error" ? (
+                  <div className="flex h-full items-center justify-center px-4 text-sm text-destructive">
+                    {diffState.message}
+                  </div>
+                ) : diffState.status === "ready" ? (
+                  <LessonDiffView diff={diffState.diff} />
+                ) : null}
+              </div>
+            ) : null}
+          </>
+        )}
       </div>
 
       {lesson ? (

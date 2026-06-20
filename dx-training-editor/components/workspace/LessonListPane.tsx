@@ -61,6 +61,8 @@ import {
   scaleMiniMandalaThumbnailSvg,
 } from "@/lib/mermaid-workspace-theme";
 import type { Series, Course, Lesson } from "@/lib/schema";
+import type { DisplayLanguage } from "@/lib/workspace-settings";
+import { isValidSlug } from "@/lib/content-filename";
 import {
   buildMiniMandalaGraphInput,
   filterCrossSeriesIds,
@@ -76,7 +78,7 @@ type Props = {
   selectedLessonId: string;
   onSelectLesson: (lessonId: string) => void;
   onSelectCourse: (courseId: string) => void;
-  onAddLesson: (courseId: string, lessonName: string) => void;
+  onAddLesson: (courseId: string, lessonSlug: string, titleJa?: string) => void;
   onDeleteLesson: (courseId: string, lessonId: string) => void;
   onReorderLessons: (courseId: string, from: number, to: number) => void;
   onUpdateCourseMeta: (
@@ -87,6 +89,7 @@ type Props = {
     >,
   ) => void;
   onUpdateLessonStatus: (lessonId: string, status: Lesson["status"]) => void;
+  displayLanguage?: DisplayLanguage;
 };
 
 const STATUS_ICON: Record<
@@ -282,10 +285,15 @@ export function LessonListPane({
   onReorderLessons,
   onUpdateCourseMeta,
   onUpdateLessonStatus,
+  displayLanguage = "ja",
 }: Props) {
   const lessonScrollRef = useRef<HTMLDivElement>(null);
   const [addDialogOpen, setAddDialogOpen] = useState(false);
-  const [newLessonName, setNewLessonName] = useState("");
+  const [newLessonTitleJa, setNewLessonTitleJa] = useState("");
+  const [newLessonSlug, setNewLessonSlug] = useState("");
+  const [newLessonSlugError, setNewLessonSlugError] = useState("");
+  const [newLessonSlugLoading, setNewLessonSlugLoading] = useState(false);
+  const lessonSlugTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [metaDialogOpen, setMetaDialogOpen] = useState(false);
   const [metaCycleWarning, setMetaCycleWarning] = useState(false);
   const [editMeta, setEditMeta] = useState<{
@@ -469,7 +477,14 @@ export function LessonListPane({
       <div className="min-w-0 shrink-0 border-b border-border bg-muted/40 px-3 py-2">
         <div className="mb-2 flex items-center gap-1">
           <span className="flex-1 truncate text-xs font-bold text-foreground">
-            {course.name}
+            {displayLanguage === "en" && course.titleEn
+              ? course.titleEn
+              : course.name}
+            {displayLanguage === "en" && !course.titleEn && (
+              <span className="ml-1 rounded bg-muted px-1 py-0.5 text-[9px] text-muted-foreground">
+                要翻訳
+              </span>
+            )}
           </span>
           <Button
             variant="ghost"
@@ -635,7 +650,9 @@ export function LessonListPane({
           size="sm"
           className={ADD_LIST_BUTTON_CLASS}
           onClick={() => {
-            setNewLessonName("");
+            setNewLessonTitleJa("");
+            setNewLessonSlug("");
+            setNewLessonSlugError("");
             setAddDialogOpen(true);
           }}
         >
@@ -653,20 +670,58 @@ export function LessonListPane({
           </DialogHeader>
           <div className={META_DIALOG_FORM}>
             <MetaDialogField>
-              <Label htmlFor="lesson-name">レッスン名</Label>
+              <Label htmlFor="lesson-title-ja">表示名（日本語）</Label>
               <Input
-                id="lesson-name"
-                value={newLessonName}
-                onChange={(e) => setNewLessonName(e.target.value)}
-                placeholder="例: Gitのインストール手順"
-                className={META_DIALOG_CONTROL}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" && newLessonName.trim()) {
-                    onAddLesson(course.id, newLessonName.trim());
-                    setAddDialogOpen(false);
+                id="lesson-title-ja"
+                value={newLessonTitleJa}
+                onChange={(e) => {
+                  setNewLessonTitleJa(e.target.value);
+                  // 600ms デバウンスでスラッグ提案
+                  if (lessonSlugTimerRef.current) clearTimeout(lessonSlugTimerRef.current);
+                  if (e.target.value.trim()) {
+                    setNewLessonSlugLoading(true);
+                    lessonSlugTimerRef.current = setTimeout(() => {
+                      fetch("/api/content/suggest-slug", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ title: e.target.value }),
+                      })
+                        .then(async (res) => {
+                          if (res.ok) {
+                            const { slug } = (await res.json()) as { slug: string };
+                            setNewLessonSlug(slug);
+                          }
+                        })
+                        .catch(() => {})
+                        .finally(() => setNewLessonSlugLoading(false));
+                    }, 600);
                   }
                 }}
+                placeholder="例: Gitのインストール手順"
+                className={META_DIALOG_CONTROL}
+                autoFocus
               />
+            </MetaDialogField>
+            <MetaDialogField>
+              <Label htmlFor="lesson-slug">
+                スラッグ
+                {newLessonSlugLoading && (
+                  <span className="ml-2 text-[10px] text-muted-foreground">AI 生成中...</span>
+                )}
+              </Label>
+              <Input
+                id="lesson-slug"
+                value={newLessonSlug}
+                onChange={(e) => {
+                  setNewLessonSlug(e.target.value);
+                  setNewLessonSlugError("");
+                }}
+                placeholder="例: git-install"
+                className={META_DIALOG_CONTROL}
+              />
+              {newLessonSlugError && (
+                <p className="text-xs text-destructive">{newLessonSlugError}</p>
+              )}
             </MetaDialogField>
           </div>
           <DialogFooter>
@@ -675,11 +730,19 @@ export function LessonListPane({
             </Button>
             <Button
               onClick={() => {
-                if (newLessonName.trim()) {
-                  onAddLesson(course.id, newLessonName.trim());
-                  setAddDialogOpen(false);
+                if (!isValidSlug(newLessonSlug)) {
+                  setNewLessonSlugError("英小文字・数字・ハイフンのみ（最大 50 文字）");
+                  return;
                 }
+                const exists = course.lessons.some((l) => (l.slug ?? l.lesson) === newLessonSlug);
+                if (exists) {
+                  setNewLessonSlugError(`'${newLessonSlug}' はすでに使われています`);
+                  return;
+                }
+                onAddLesson(course.id, newLessonSlug, newLessonTitleJa.trim() || newLessonSlug);
+                setAddDialogOpen(false);
               }}
+              disabled={!newLessonSlug}
             >
               追加
             </Button>
@@ -701,7 +764,7 @@ export function LessonListPane({
           </DialogHeader>
           <div className={cn(META_DIALOG_GRID, META_DIALOG_FORM)}>
             <MetaDialogField className="col-span-2">
-              <Label htmlFor="course-meta-name">コース名</Label>
+              <Label htmlFor="course-meta-name">コース名（日本語）</Label>
               <Input
                 id="course-meta-name"
                 value={editMeta.name}
@@ -710,6 +773,14 @@ export function LessonListPane({
                 }
                 className={META_DIALOG_CONTROL}
               />
+              <p className="text-[11px] text-muted-foreground">
+                フォルダ名（スラッグ）は変更されません。
+              </p>
+              {course.titleEn && (
+                <p className="text-[11px] text-amber-600 dark:text-amber-400">
+                  英語タイトル（{course.titleEn}）は手動で更新が必要な場合があります。
+                </p>
+              )}
             </MetaDialogField>
             <MetaDialogField className="col-span-2">
               <Label>受講対象者</Label>

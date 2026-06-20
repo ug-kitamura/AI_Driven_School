@@ -1,12 +1,11 @@
 import fs from "node:fs";
 import path from "node:path";
-import { sanitizeFilename, stripPrefix, withPrefix } from "@/lib/content-filename";
 import {
   parseLessonDocument,
   normalizeLessonMeta,
   createLessonContentTemplate,
 } from "@/lib/lesson-frontmatter";
-import type { Course, Lesson, Series } from "@/lib/schema";
+import type { ContentMeta, Course, Lesson, MandalaData, Series } from "@/lib/schema";
 
 export const CONTENTS_DIR_NAME = "contents";
 
@@ -18,77 +17,477 @@ export function contentsExists(projectRoot: string): boolean {
   return fs.existsSync(getContentsDir(projectRoot));
 }
 
+// ===== _meta.json 読み書き =====
+
+/** `_meta.json` を読み込む。存在しない場合は null を返す */
+export function loadMeta(dir: string): ContentMeta | null {
+  const metaPath = path.join(dir, "_meta.json");
+  if (!fs.existsSync(metaPath)) return null;
+  try {
+    const raw = JSON.parse(fs.readFileSync(metaPath, "utf-8")) as Partial<ContentMeta>;
+    const titleJa =
+      typeof raw.title?.ja === "string" ? raw.title.ja : path.basename(dir);
+    return {
+      title: {
+        ja: titleJa,
+        en: typeof raw.title?.en === "string" ? raw.title.en : null,
+      },
+      target_audience: {
+        ja:
+          typeof raw.target_audience?.ja === "string"
+            ? raw.target_audience.ja
+            : undefined,
+        en:
+          typeof raw.target_audience?.en === "string"
+            ? raw.target_audience.en
+            : null,
+      },
+    };
+  } catch {
+    return null;
+  }
+}
+
+/** `_meta.json` を書き込む */
+export function saveMeta(dir: string, meta: ContentMeta): void {
+  fs.writeFileSync(
+    path.join(dir, "_meta.json"),
+    JSON.stringify(meta, null, 2),
+    "utf-8",
+  );
+}
+
+// ===== _mandala.json 読み書き =====
+
+/** `_mandala.json` を読み込む。存在しない場合はデフォルト値を返す */
+export function loadMandala(dir: string): MandalaData {
+  const mandalaPath = path.join(dir, "_mandala.json");
+  if (!fs.existsSync(mandalaPath)) return { prerequisites: [], next_courses: [] };
+  try {
+    const raw = JSON.parse(fs.readFileSync(mandalaPath, "utf-8")) as Partial<MandalaData>;
+    return {
+      prerequisites: Array.isArray(raw.prerequisites) ? raw.prerequisites : [],
+      next_courses: Array.isArray(raw.next_courses) ? raw.next_courses : [],
+    };
+  } catch {
+    return { prerequisites: [], next_courses: [] };
+  }
+}
+
+/** `_mandala.json` を書き込む */
+export function saveMandala(dir: string, data: MandalaData): void {
+  fs.writeFileSync(
+    path.join(dir, "_mandala.json"),
+    JSON.stringify(data, null, 2),
+    "utf-8",
+  );
+}
+
+// ===== 順序 JSON 読み書き =====
+
+function readOrderJson(filePath: string): string[] {
+  if (!fs.existsSync(filePath)) return [];
+  try {
+    const raw = JSON.parse(fs.readFileSync(filePath, "utf-8")) as unknown;
+    return Array.isArray(raw) ? (raw as string[]) : [];
+  } catch {
+    return [];
+  }
+}
+
+function writeOrderJson(filePath: string, order: string[]): void {
+  fs.writeFileSync(filePath, JSON.stringify(order, null, 2), "utf-8");
+}
+
+// ===== スラッグ直接一致による検索 =====
+
 /**
- * シリーズ表示名に一致するフォルダの絶対パスを返す（数値プレフィックスを無視）。
+ * スラッグに一致するシリーズフォルダの絶対パスを返す。
  * 見つからない場合は null を返す。
  */
-export function findSeriesDir(contentsDir: string, seriesName: string): string | null {
-  if (!fs.existsSync(contentsDir)) return null;
-  const entries = fs
-    .readdirSync(contentsDir, { withFileTypes: true })
-    .filter((e) => e.isDirectory() && stripPrefix(e.name) === seriesName);
-  return entries.length > 0 ? path.join(contentsDir, entries[0].name) : null;
+export function findSeriesDir(contentsDir: string, slug: string): string | null {
+  const candidate = path.join(contentsDir, slug);
+  if (fs.existsSync(candidate) && fs.statSync(candidate).isDirectory()) {
+    return candidate;
+  }
+  return null;
 }
 
 /**
- * コース表示名に一致するフォルダの絶対パスを返す（数値プレフィックスを無視）。
+ * スラッグに一致するコースフォルダの絶対パスを返す。
  * 見つからない場合は null を返す。
  */
-export function findCourseDir(seriesDir: string, courseName: string): string | null {
-  if (!fs.existsSync(seriesDir)) return null;
-  const entries = fs
-    .readdirSync(seriesDir, { withFileTypes: true })
-    .filter((e) => e.isDirectory() && stripPrefix(e.name) === courseName);
-  return entries.length > 0 ? path.join(seriesDir, entries[0].name) : null;
+export function findCourseDir(seriesDir: string, slug: string): string | null {
+  const candidate = path.join(seriesDir, slug);
+  if (fs.existsSync(candidate) && fs.statSync(candidate).isDirectory()) {
+    return candidate;
+  }
+  return null;
 }
 
-/** series/course/lesson の表示名からファイルシステム上の実パスを検索して返す */
+/** series/course/lesson のスラッグからファイルシステム上の実パスを返す */
 export function resolveLessonFilePath(
   projectRoot: string,
-  seriesName: string,
-  courseName: string,
-  lessonName: string,
+  seriesSlug: string,
+  courseSlug: string,
+  lessonSlug: string,
 ): string | null {
   const contentsDir = getContentsDir(projectRoot);
-  const seriesDir = findSeriesDir(contentsDir, seriesName);
+  const seriesDir = findSeriesDir(contentsDir, seriesSlug);
   if (!seriesDir) return null;
-  const courseDir = findCourseDir(seriesDir, courseName);
+  const courseDir = findCourseDir(seriesDir, courseSlug);
   if (!courseDir) return null;
-  const lessonFiles = fs
-    .readdirSync(courseDir)
-    .filter((f) => f.endsWith(".md") && stripPrefix(f) === lessonName)
-    .sort(numericPrefixSort);
-  if (lessonFiles.length === 0) return null;
-  return path.join(courseDir, lessonFiles[lessonFiles.length - 1]);
+  const lessonPath = path.join(courseDir, `${lessonSlug}.md`);
+  return fs.existsSync(lessonPath) ? lessonPath : null;
 }
 
-/** レッスンファイルのパスを返す。存在しなければ採番して新規パスを返す */
+/** レッスンファイルのパスを返す。存在しなければ新規パスを返す */
 export function resolveOrCreateLessonFilePath(
   projectRoot: string,
-  seriesName: string,
-  courseName: string,
-  lessonName: string,
+  seriesSlug: string,
+  courseSlug: string,
+  lessonSlug: string,
 ): string | null {
-  const existing = resolveLessonFilePath(
-    projectRoot,
-    seriesName,
-    courseName,
-    lessonName,
-  );
+  const existing = resolveLessonFilePath(projectRoot, seriesSlug, courseSlug, lessonSlug);
   if (existing) return existing;
 
   const contentsDir = getContentsDir(projectRoot);
-  const seriesDir = findSeriesDir(contentsDir, seriesName);
+  const seriesDir = findSeriesDir(contentsDir, seriesSlug);
   if (!seriesDir) return null;
-  const courseDir = findCourseDir(seriesDir, courseName);
+  const courseDir = findCourseDir(seriesDir, courseSlug);
   if (!courseDir) return null;
-
-  const existingLessons = fs
-    .readdirSync(courseDir)
-    .filter((f) => f.endsWith(".md")).length;
-  const lessonFileName = `${withPrefix(existingLessons, lessonName)}.md`;
-  return path.join(courseDir, lessonFileName);
+  return path.join(courseDir, `${lessonSlug}.md`);
 }
+
+// ===== contents フォルダ正規化 =====
+
+/**
+ * contents/ フォルダを正規化する（副作用あり）。
+ * リネームは一切行わず、欠けている JSON ファイルを生成するだけ。
+ */
+export function normalizeContentsFolder(projectRoot: string): void {
+  const contentsDir = getContentsDir(projectRoot);
+  if (!fs.existsSync(contentsDir)) return;
+
+  const seriesDirs = fs
+    .readdirSync(contentsDir, { withFileTypes: true })
+    .filter((e) => e.isDirectory() && !e.name.startsWith("_") && !e.name.startsWith("."))
+    .map((e) => e.name)
+    .sort();
+
+  // _series-order.json が欠けていれば生成
+  const seriesOrderPath = path.join(contentsDir, "_series-order.json");
+  if (!fs.existsSync(seriesOrderPath)) {
+    writeOrderJson(seriesOrderPath, seriesDirs);
+  } else {
+    // 順序 JSON に含まれないフォルダを末尾に追記
+    const existing = readOrderJson(seriesOrderPath);
+    const missing = seriesDirs.filter((d) => !existing.includes(d));
+    if (missing.length > 0) {
+      writeOrderJson(seriesOrderPath, [...existing, ...missing]);
+    }
+  }
+
+  for (const seriesDirName of seriesDirs) {
+    const seriesDir = path.join(contentsDir, seriesDirName);
+
+    // _meta.json が欠けていれば生成
+    if (!fs.existsSync(path.join(seriesDir, "_meta.json"))) {
+      try {
+        saveMeta(seriesDir, {
+          title: { ja: seriesDirName, en: null },
+          target_audience: { ja: "", en: null },
+        });
+      } catch { /* ignore */ }
+    }
+
+    const courseDirs = fs
+      .readdirSync(seriesDir, { withFileTypes: true })
+      .filter((e) => e.isDirectory() && !e.name.startsWith("_") && !e.name.startsWith("."))
+      .map((e) => e.name)
+      .sort();
+
+    // _course-order.json が欠けていれば生成
+    const courseOrderPath = path.join(seriesDir, "_course-order.json");
+    if (!fs.existsSync(courseOrderPath)) {
+      writeOrderJson(courseOrderPath, courseDirs);
+    } else {
+      const existing = readOrderJson(courseOrderPath);
+      const missing = courseDirs.filter((d) => !existing.includes(d));
+      if (missing.length > 0) {
+        writeOrderJson(courseOrderPath, [...existing, ...missing]);
+      }
+    }
+
+    for (const courseDirName of courseDirs) {
+      const courseDir = path.join(seriesDir, courseDirName);
+
+      // _meta.json が欠けていれば生成
+      if (!fs.existsSync(path.join(courseDir, "_meta.json"))) {
+        try {
+          saveMeta(courseDir, {
+            title: { ja: courseDirName, en: null },
+            target_audience: { ja: "", en: null },
+          });
+        } catch { /* ignore */ }
+      }
+
+      // _mandala.json が欠けていれば生成
+      if (!fs.existsSync(path.join(courseDir, "_mandala.json"))) {
+        try {
+          saveMandala(courseDir, { prerequisites: [], next_courses: [] });
+        } catch { /* ignore */ }
+      }
+
+      // レッスン（拡張子 .md、.en.md 以外）
+      const lessonFiles = fs
+        .readdirSync(courseDir)
+        .filter((f) => f.endsWith(".md") && !f.endsWith(".en.md"))
+        .map((f) => f.replace(/\.md$/, ""))
+        .sort();
+
+      const lessonOrderPath = path.join(courseDir, "_lesson-order.json");
+      if (!fs.existsSync(lessonOrderPath)) {
+        writeOrderJson(lessonOrderPath, lessonFiles);
+      } else {
+        const existing = readOrderJson(lessonOrderPath);
+        const missing = lessonFiles.filter((l) => !existing.includes(l));
+        if (missing.length > 0) {
+          writeOrderJson(lessonOrderPath, [...existing, ...missing]);
+        }
+      }
+    }
+  }
+}
+
+// ===== メインローダー =====
+
+/** `contents/` フォルダを走査して `Series[]` を構築する */
+export function loadContentsFolder(projectRoot: string): Series[] {
+  const contentsDir = getContentsDir(projectRoot);
+  if (!fs.existsSync(contentsDir)) return [];
+
+  // _series-order.json を読んで順序を決定
+  const seriesOrder = readOrderJson(path.join(contentsDir, "_series-order.json"));
+  const allSeriesDirs = new Set(
+    fs
+      .readdirSync(contentsDir, { withFileTypes: true })
+      .filter((e) => e.isDirectory() && !e.name.startsWith("_") && !e.name.startsWith("."))
+      .map((e) => e.name),
+  );
+
+  // 順序 JSON に含まれているが実際に存在するもの + JSON に含まれていないものを末尾に
+  const orderedSeries = [
+    ...seriesOrder.filter((s) => allSeriesDirs.has(s)),
+    ...[...allSeriesDirs].filter((s) => !seriesOrder.includes(s)).sort(),
+  ];
+
+  // コース ID → コーススラッグ のマップ（後で prerequisites 解決に使う）
+  // courseId = `course-${seriesSlug}-${courseSlug}`
+  const slugToCourseId = new Map<string, string[]>(); // courseSlug → [courseId, ...]
+
+  // 第 1 パス: 全 Series/Course を読み込み（prerequisites は slug のまま）
+  const rawSeries: Array<{ series: Series; slugRefs: { courseId: string; prereqs: string[]; nexts: string[] }[] }> = [];
+
+  for (const seriesSlug of orderedSeries) {
+    const seriesDir = path.join(contentsDir, seriesSlug);
+    if (!fs.existsSync(seriesDir)) continue;
+
+    const seriesMeta = loadMeta(seriesDir);
+    const seriesName = seriesMeta?.title.ja ?? seriesSlug;
+    const seriesTitleEn = seriesMeta?.title.en ?? null;
+    const seriesId = `series-${seriesSlug}`;
+
+    const courseOrder = readOrderJson(path.join(seriesDir, "_course-order.json"));
+    const allCourseDirs = new Set(
+      fs
+        .readdirSync(seriesDir, { withFileTypes: true })
+        .filter((e) => e.isDirectory() && !e.name.startsWith("_") && !e.name.startsWith("."))
+        .map((e) => e.name),
+    );
+
+    const orderedCourses = [
+      ...courseOrder.filter((c) => allCourseDirs.has(c)),
+      ...[...allCourseDirs].filter((c) => !courseOrder.includes(c)).sort(),
+    ];
+
+    const courses: Course[] = [];
+    const slugRefs: { courseId: string; prereqs: string[]; nexts: string[] }[] = [];
+
+    for (const courseSlug of orderedCourses) {
+      const courseDir = path.join(seriesDir, courseSlug);
+      if (!fs.existsSync(courseDir)) continue;
+
+      const courseMeta = loadMeta(courseDir);
+      const courseName = courseMeta?.title.ja ?? courseSlug;
+      const courseTitleEn = courseMeta?.title.en ?? null;
+      const targetAudienceJa = courseMeta?.target_audience?.ja ?? "";
+      const targetAudienceEn = courseMeta?.target_audience?.en ?? null;
+      const courseId = `course-${seriesSlug}-${courseSlug}`;
+
+      const mandala = loadMandala(courseDir);
+
+      // スラッグ → courseId マップ構築
+      if (!slugToCourseId.has(courseSlug)) {
+        slugToCourseId.set(courseSlug, []);
+      }
+      slugToCourseId.get(courseSlug)!.push(courseId);
+
+      slugRefs.push({
+        courseId,
+        prereqs: mandala.prerequisites,
+        nexts: mandala.next_courses,
+      });
+
+      // レッスン読み込み
+      const lessonOrder = readOrderJson(path.join(courseDir, "_lesson-order.json"));
+      const allLessonFiles = new Set(
+        fs
+          .readdirSync(courseDir)
+          .filter((f) => f.endsWith(".md") && !f.endsWith(".en.md"))
+          .map((f) => f.replace(/\.md$/, "")),
+      );
+
+      const orderedLessons = [
+        ...lessonOrder.filter((l) => allLessonFiles.has(l)),
+        ...[...allLessonFiles].filter((l) => !lessonOrder.includes(l)).sort(),
+      ];
+
+      const lessons: Lesson[] = [];
+
+      for (const lessonSlug of orderedLessons) {
+        const lessonFilePath = path.join(courseDir, `${lessonSlug}.md`);
+        if (!fs.existsSync(lessonFilePath)) continue;
+        const lessonId = `lesson-${seriesSlug}-${courseSlug}-${lessonSlug}`;
+
+        let content = fs.readFileSync(lessonFilePath, "utf-8");
+
+        const { meta } = parseLessonDocument(content);
+        const metaWithoutLesson = { ...meta };
+        delete metaWithoutLesson.lesson;
+        const normalized = normalizeLessonMeta(
+          metaWithoutLesson,
+          { seriesName: seriesSlug, courseName: courseSlug },
+          {
+            lesson: lessonSlug,
+            series: seriesSlug,
+            course: courseSlug,
+            status: "open",
+            description: "",
+            tags: [],
+            estimated_minutes: 0,
+            author: "",
+          },
+        );
+
+        if (!content.trim()) {
+          content = createLessonContentTemplate(normalized);
+          fs.writeFileSync(lessonFilePath, content, "utf-8");
+        }
+
+        lessons.push({
+          id: lessonId,
+          slug: lessonSlug,
+          ...normalized,
+          content,
+        });
+      }
+
+      courses.push({
+        id: courseId,
+        slug: courseSlug,
+        name: courseName,
+        titleEn: courseTitleEn,
+        target_audience: targetAudienceJa,
+        targetAudienceEn: targetAudienceEn,
+        prerequisites: [],
+        next_courses: [],
+        lessons,
+      });
+    }
+
+    rawSeries.push({
+      series: {
+        id: seriesId,
+        slug: seriesSlug,
+        name: seriesName,
+        titleEn: seriesTitleEn,
+        courses,
+      },
+      slugRefs,
+    });
+  }
+
+  // 第 2 パス: prerequisites/next_courses のスラッグ → courseId 解決
+  const courseIdMap = new Map<string, string>(); // courseId → courseId (identity)
+  for (const { series } of rawSeries) {
+    for (const course of series.courses) {
+      courseIdMap.set(course.id, course.id);
+    }
+  }
+
+  function resolveSlugToId(courseSlug: string, selfCourseId: string): string {
+    const ids = slugToCourseId.get(courseSlug);
+    if (!ids || ids.length === 0) return "";
+    // 自分自身を除いた最初のものを返す（クロスシリーズ参照）
+    const crossSeries = ids.filter((id) => id !== selfCourseId);
+    return crossSeries[0] ?? ids[0];
+  }
+
+  const result: Series[] = rawSeries.map(({ series, slugRefs }) => ({
+    ...series,
+    courses: series.courses.map((course) => {
+      const ref = slugRefs.find((r) => r.courseId === course.id);
+      if (!ref) return course;
+      return {
+        ...course,
+        prerequisites: ref.prereqs
+          .map((slug) => resolveSlugToId(slug, course.id))
+          .filter(Boolean),
+        next_courses: ref.nexts
+          .map((slug) => resolveSlugToId(slug, course.id))
+          .filter(Boolean),
+      };
+    }),
+  }));
+
+  return result;
+}
+
+// ===== コース ID → スラッグ 変換ヘルパー =====
+
+/** コース ID からコーススラッグを抽出する（`course-{seriesSlug}-{courseSlug}` 形式） */
+export function courseIdToSlugs(courseId: string): { seriesSlug: string; courseSlug: string } | null {
+  const match = courseId.match(/^course-([^-]+(?:-[^-]+)*?)-([^-]+)$/);
+  if (!match) {
+    // より確実な方法: "course-" を除去して残りを二分割
+    const withoutPrefix = courseId.replace(/^course-/, "");
+    // 最後の "-" で分割
+    const lastDash = withoutPrefix.lastIndexOf("-");
+    if (lastDash === -1) return null;
+    return {
+      seriesSlug: withoutPrefix.slice(0, lastDash),
+      courseSlug: withoutPrefix.slice(lastDash + 1),
+    };
+  }
+  return { seriesSlug: match[1], courseSlug: match[2] };
+}
+
+/**
+ * Series[] からコース ID をスラッグに逆引きするマップを構築する。
+ * `_mandala.json` への保存時に使用する。
+ */
+export function buildCourseIdToSlugMap(series: Series[]): Map<string, string> {
+  const map = new Map<string, string>();
+  for (const s of series) {
+    for (const c of s.courses) {
+      if (c.slug) map.set(c.id, c.slug);
+    }
+  }
+  return map;
+}
+
+// ===== mtime / fingerprint =====
 
 /** contents/ 以下の全ファイル・フォルダの最新 mtime（ミリ秒）を返す */
 export function getContentsLatestMtime(projectRoot: string): number {
@@ -119,7 +518,7 @@ export function getContentsLatestMtime(projectRoot: string): number {
 
 /**
  * contents/ ツリーのスナップショット指紋。
- * リネームは mtime が変わらないことがあるため、パス一覧で変化を検知する。
+ * パス一覧で変化を検知する。
  */
 export function getContentsFingerprint(projectRoot: string): string {
   const contentsDir = getContentsDir(projectRoot);
@@ -149,228 +548,4 @@ export function getContentsFingerprint(projectRoot: string): string {
 
   walk(contentsDir, "");
   return lines.join("\n");
-}
-
-/**
- * contents/ フォルダを正規化する（副作用あり）。
- * - 数値プレフィックスがないシリーズ/コース/レッスンには自動採番する
- * - コースフォルダに .meta.json がない場合は空ファイルを生成する
- * ロード前に呼ぶことで「直接追加されたフォルダ/ファイル」を即座にアプリに反映できる。
- */
-export function normalizeContentsFolder(projectRoot: string): void {
-  const contentsDir = getContentsDir(projectRoot);
-  if (!fs.existsSync(contentsDir)) return;
-
-  const seriesDirs = fs
-    .readdirSync(contentsDir, { withFileTypes: true })
-    .filter((e) => e.isDirectory())
-    .map((e) => e.name)
-    .sort(numericPrefixSort);
-
-  // シリーズ採番
-  for (let si = 0; si < seriesDirs.length; si++) {
-    const oldName = seriesDirs[si];
-    const displayName = stripPrefix(oldName);
-    const expectedName = withPrefix(si, displayName);
-    if (oldName !== expectedName) {
-      try {
-        fs.renameSync(
-          path.join(contentsDir, oldName),
-          path.join(contentsDir, expectedName),
-        );
-        seriesDirs[si] = expectedName;
-      } catch {
-        /* ignore */
-      }
-    }
-
-    const seriesDir = path.join(contentsDir, seriesDirs[si]);
-    const courseDirs = fs
-      .readdirSync(seriesDir, { withFileTypes: true })
-      .filter((e) => e.isDirectory())
-      .map((e) => e.name)
-      .sort(numericPrefixSort);
-
-    // コース採番
-    for (let ci = 0; ci < courseDirs.length; ci++) {
-      const oldCourseName = courseDirs[ci];
-      const courseDisplayName = stripPrefix(oldCourseName);
-      const expectedCourseName = withPrefix(ci, courseDisplayName);
-      if (oldCourseName !== expectedCourseName) {
-        try {
-          fs.renameSync(
-            path.join(seriesDir, oldCourseName),
-            path.join(seriesDir, expectedCourseName),
-          );
-          courseDirs[ci] = expectedCourseName;
-        } catch {
-          /* ignore */
-        }
-      }
-
-      const courseDir = path.join(seriesDir, courseDirs[ci]);
-
-      // .meta.json が存在しない場合は作成
-      const metaPath = path.join(courseDir, ".meta.json");
-      if (!fs.existsSync(metaPath)) {
-        try {
-          fs.writeFileSync(
-            metaPath,
-            JSON.stringify({ target_audience: "", prerequisites: [], next_courses: [] }, null, 2),
-            "utf-8",
-          );
-        } catch {
-          /* ignore */
-        }
-      }
-
-      // レッスン採番
-      const lessonFiles = fs
-        .readdirSync(courseDir)
-        .filter((f) => f.endsWith(".md"))
-        .sort(numericPrefixSort);
-
-      for (let li = 0; li < lessonFiles.length; li++) {
-        const oldLessonName = lessonFiles[li];
-        const lessonDisplayName = stripPrefix(oldLessonName);
-        const expectedLessonName = `${withPrefix(li, lessonDisplayName)}.md`;
-        if (oldLessonName !== expectedLessonName) {
-          try {
-            fs.renameSync(
-              path.join(courseDir, oldLessonName),
-              path.join(courseDir, expectedLessonName),
-            );
-          } catch {
-            /* ignore */
-          }
-        }
-      }
-    }
-  }
-}
-
-/** `contents/` フォルダを走査して `Series[]` を構築する */
-export function loadContentsFolder(projectRoot: string): Series[] {
-  const contentsDir = getContentsDir(projectRoot);
-  if (!fs.existsSync(contentsDir)) return [];
-
-  const seriesDirs = fs
-    .readdirSync(contentsDir, { withFileTypes: true })
-    .filter((e) => e.isDirectory())
-    .map((e) => e.name)
-    .sort(numericPrefixSort);
-
-  const result: Series[] = [];
-
-  for (const seriesDirName of seriesDirs) {
-    const seriesDir = path.join(contentsDir, seriesDirName);
-    const seriesName = stripPrefix(seriesDirName);
-    const seriesId = `series-${seriesName}`;
-
-    const courseDirs = fs
-      .readdirSync(seriesDir, { withFileTypes: true })
-      .filter((e) => e.isDirectory())
-      .map((e) => e.name)
-      .sort(numericPrefixSort);
-
-    const courses: Course[] = [];
-
-    for (const courseDirName of courseDirs) {
-      const courseDir = path.join(seriesDir, courseDirName);
-      const courseName = stripPrefix(courseDirName);
-      const courseId = `course-${seriesName}-${courseName}`;
-      const courseMeta = loadCourseMeta(courseDir);
-
-      const lessonFiles = fs
-        .readdirSync(courseDir)
-        .filter((f) => f.endsWith(".md"))
-        .sort(numericPrefixSort);
-
-      const lessons: Lesson[] = [];
-
-      for (const lessonFileName of lessonFiles) {
-        const lessonFilePath = path.join(courseDir, lessonFileName);
-        const lessonName = stripPrefix(lessonFileName);
-        const lessonId = `lesson-${seriesName}-${courseName}-${lessonName}`;
-        let content = fs.readFileSync(lessonFilePath, "utf-8");
-
-        const { meta } = parseLessonDocument(content);
-        const metaWithoutLesson = { ...meta };
-        delete metaWithoutLesson.lesson;
-        const normalized = normalizeLessonMeta(
-          metaWithoutLesson,
-          { seriesName, courseName },
-          {
-            lesson: lessonName,
-            series: seriesName,
-            course: courseName,
-            status: "open",
-            description: "",
-            tags: [],
-            estimated_minutes: 0,
-            author: "",
-          },
-        );
-
-        if (!content.trim()) {
-          content = createLessonContentTemplate(normalized);
-          fs.writeFileSync(lessonFilePath, content, "utf-8");
-        }
-
-        lessons.push({
-          id: lessonId,
-          ...normalized,
-          content,
-        });
-      }
-
-      courses.push({
-        id: courseId,
-        name: courseName,
-        target_audience: courseMeta.target_audience,
-        prerequisites: courseMeta.prerequisites,
-        next_courses: courseMeta.next_courses,
-        lessons,
-      });
-    }
-
-    result.push({ id: seriesId, name: seriesName, courses });
-  }
-
-  return result;
-}
-
-function loadCourseMeta(courseDir: string): {
-  target_audience: string;
-  prerequisites: string[];
-  next_courses: string[];
-} {
-  // .meta.json を優先、旧形式 _course.json もフォールバックとして読む
-  const candidates = [".meta.json", "_course.json"];
-  for (const name of candidates) {
-    const metaFile = path.join(courseDir, name);
-    if (!fs.existsSync(metaFile)) continue;
-    try {
-      const raw = JSON.parse(fs.readFileSync(metaFile, "utf-8")) as {
-        target_audience?: string;
-        prerequisites?: string[];
-        next_courses?: string[];
-      };
-      return {
-        target_audience: raw.target_audience ?? "",
-        prerequisites: raw.prerequisites ?? [],
-        next_courses: raw.next_courses ?? [],
-      };
-    } catch {
-      /* try next */
-    }
-  }
-  return { target_audience: "", prerequisites: [], next_courses: [] };
-}
-
-function numericPrefixSort(a: string, b: string): number {
-  const na = parseInt(a.match(/^(\d+)/)?.[1] ?? "0", 10);
-  const nb = parseInt(b.match(/^(\d+)/)?.[1] ?? "0", 10);
-  if (na !== nb) return na - nb;
-  return a.localeCompare(b);
 }

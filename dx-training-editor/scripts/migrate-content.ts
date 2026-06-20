@@ -1,135 +1,299 @@
 /**
- * data/content.json → contents/ フォルダ構成への移行スクリプト
- * 実行: npx ts-node scripts/migrate-content.ts
+ * contents/ フォルダを数値プレフィックス形式からスラッグベース形式へ移行するスクリプト
+ * 冪等: 既にスラッグ形式のフォルダはスキップ
+ *
+ * 実行: npx tsx scripts/migrate-content.ts
  */
 import fs from "node:fs";
 import path from "node:path";
-import readline from "node:readline";
-
-function sanitizeFilename(name: string): string {
-  return name.replace(/[/\\:*?"<>|]/g, "_").trim();
-}
-function withPrefix(index: number, name: string): string {
-  return `${String(index + 1).padStart(2, "0")}_${sanitizeFilename(name)}`;
-}
 
 const ROOT = path.resolve(__dirname, "..");
-const CONTENT_JSON = path.join(ROOT, "data", "content.json");
 const CONTENTS_DIR = path.join(ROOT, "contents");
 
-function ask(question: string): Promise<string> {
-  const rl = readline.createInterface({
-    input: process.stdin,
-    output: process.stdout,
-  });
-  return new Promise((resolve) => {
-    rl.question(question, (answer) => {
-      rl.close();
-      resolve(answer);
-    });
-  });
+// ===== ユーティリティ =====
+
+function stripNumericPrefix(name: string): string {
+  return name.replace(/^\d+_/, "").replace(/\.md$/, "");
 }
 
-interface LessonData {
-  id: string;
-  series: string;
-  course: string;
-  lesson: string;
-  status: string;
-  description: string;
-  tags: string[];
-  estimated_minutes: number;
-  author: string;
-  content: string;
+function slugify(text: string): string {
+  return text
+    .toLowerCase()
+    .replace(/[^\x00-\x7F]/g, " ")
+    .replace(/[^a-z0-9\s-]/g, " ")
+    .trim()
+    .replace(/[\s_]+/g, "-")
+    .replace(/-+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 50)
+    .replace(/-+$/, "");
 }
 
-interface CourseData {
-  id: string;
-  name: string;
-  target_audience?: string;
-  prerequisites: string[];
-  next_courses: string[];
-  lessons: LessonData[];
+function isValidSlug(s: string): boolean {
+  if (!s || s.length > 50) return false;
+  if (!/^[a-z0-9-]+$/.test(s)) return false;
+  if (s.startsWith("-") || s.endsWith("-")) return false;
+  if (s.includes("--")) return false;
+  return true;
 }
 
-interface SeriesData {
-  id: string;
-  name: string;
-  courses: CourseData[];
+/** 既存スラッグリストで重複しない名前を生成する */
+function uniqueSlug(base: string, usedSlugs: Set<string>): string {
+  if (!usedSlugs.has(base)) return base;
+  for (let i = 2; i < 1000; i++) {
+    const candidate = `${base}-${i}`;
+    if (!usedSlugs.has(candidate)) return candidate;
+  }
+  throw new Error(`スラッグの一意化に失敗しました: ${base}`);
 }
 
-async function main() {
-  if (!fs.existsSync(CONTENT_JSON)) {
-    console.error(`エラー: ${CONTENT_JSON} が見つかりません`);
+function writeJsonIfNotExists(filePath: string, data: unknown): void {
+  if (!fs.existsSync(filePath)) {
+    fs.writeFileSync(filePath, JSON.stringify(data, null, 2) + "\n", "utf-8");
+    console.log(`    作成: ${path.relative(ROOT, filePath)}`);
+  }
+}
+
+function writeJson(filePath: string, data: unknown): void {
+  fs.writeFileSync(filePath, JSON.stringify(data, null, 2) + "\n", "utf-8");
+}
+
+// ===== エントリーポイント =====
+
+function main() {
+  if (!fs.existsSync(CONTENTS_DIR)) {
+    console.error(`エラー: ${CONTENTS_DIR} が見つかりません`);
     process.exit(1);
   }
 
-  if (fs.existsSync(CONTENTS_DIR)) {
-    const answer = await ask(
-      `contents/ フォルダがすでに存在します。上書きしますか？ (y/N): `,
-    );
-    if (answer.toLowerCase() !== "y") {
-      console.log("キャンセルしました");
-      process.exit(0);
+  const seriesEntries = fs
+    .readdirSync(CONTENTS_DIR, { withFileTypes: true })
+    .filter((e) => e.isDirectory() && !e.name.startsWith("_") && !e.name.startsWith("."))
+    .sort((a, b) => a.name.localeCompare(b.name, "ja"));
+
+  const seriesOrderPath = path.join(CONTENTS_DIR, "_series-order.json");
+  const existingSeriesOrder: string[] = fs.existsSync(seriesOrderPath)
+    ? (JSON.parse(fs.readFileSync(seriesOrderPath, "utf-8")) as string[])
+    : [];
+
+  const usedSeriesSlugs = new Set<string>(existingSeriesOrder);
+  const newSeriesOrder: string[] = [...existingSeriesOrder];
+
+  let seriesMigrated = 0;
+  let coursesMigrated = 0;
+  let lessonsMigrated = 0;
+
+  for (const seriesEntry of seriesEntries) {
+    const oldSeriesDirName = seriesEntry.name;
+    const oldSeriesDir = path.join(CONTENTS_DIR, oldSeriesDirName);
+
+    // シリーズのスラッグ決定
+    const seriesTitleJa = stripNumericPrefix(oldSeriesDirName);
+    let seriesSlug: string;
+
+    if (isValidSlug(oldSeriesDirName)) {
+      // 既にスラッグ形式
+      seriesSlug = oldSeriesDirName;
+    } else {
+      seriesSlug = slugify(seriesTitleJa) || uniqueSlug("series", usedSeriesSlugs);
+      seriesSlug = uniqueSlug(seriesSlug, usedSeriesSlugs);
     }
-    fs.rmSync(CONTENTS_DIR, { recursive: true, force: true });
-    console.log("既存の contents/ を削除しました");
-  }
 
-  fs.mkdirSync(CONTENTS_DIR, { recursive: true });
+    // フォルダのリネーム（必要な場合）
+    const newSeriesDir = path.join(CONTENTS_DIR, seriesSlug);
+    if (oldSeriesDir !== newSeriesDir) {
+      if (fs.existsSync(newSeriesDir)) {
+        console.warn(`  警告: ${seriesSlug} はすでに存在します。スキップ。`);
+        continue;
+      }
+      fs.renameSync(oldSeriesDir, newSeriesDir);
+      console.log(`  シリーズ: ${oldSeriesDirName} → ${seriesSlug}/`);
+    } else {
+      console.log(`  シリーズ: ${seriesSlug}/ (変更なし)`);
+    }
 
-  const raw = fs.readFileSync(CONTENT_JSON, "utf-8");
-  const seriesList = JSON.parse(raw) as SeriesData[];
+    usedSeriesSlugs.add(seriesSlug);
+    if (!newSeriesOrder.includes(seriesSlug)) {
+      newSeriesOrder.push(seriesSlug);
+    }
 
-  const seriesOrder: string[] = []; // 互換用（未使用）
+    // _meta.json 作成（存在しない場合）
+    const seriesMetaPath = path.join(newSeriesDir, "_meta.json");
+    writeJsonIfNotExists(seriesMetaPath, { title: { ja: seriesTitleJa } });
 
-  for (let si = 0; si < seriesList.length; si++) {
-    const series = seriesList[si];
-    const seriesDirName = withPrefix(si, series.name);
-    const seriesDir = path.join(CONTENTS_DIR, seriesDirName);
-    fs.mkdirSync(seriesDir, { recursive: true });
-    seriesOrder.push(series.name);
+    // コースフォルダの処理
+    const courseEntries = fs
+      .readdirSync(newSeriesDir, { withFileTypes: true })
+      .filter(
+        (e) =>
+          e.isDirectory() && !e.name.startsWith("_") && !e.name.startsWith("."),
+      )
+      .sort((a, b) => a.name.localeCompare(b.name, "ja"));
 
-    for (let ci = 0; ci < series.courses.length; ci++) {
-      const course = series.courses[ci];
-      const courseDirName = withPrefix(ci, course.name);
-      const courseDir = path.join(seriesDir, courseDirName);
-      fs.mkdirSync(courseDir, { recursive: true });
+    const courseOrderPath = path.join(newSeriesDir, "_course-order.json");
+    const existingCourseOrder: string[] = fs.existsSync(courseOrderPath)
+      ? (JSON.parse(fs.readFileSync(courseOrderPath, "utf-8")) as string[])
+      : [];
+    const usedCourseSlugs = new Set<string>(existingCourseOrder);
+    const newCourseOrder: string[] = [...existingCourseOrder];
 
-      const courseJson = {
-        target_audience: course.target_audience ?? "",
-        prerequisites: course.prerequisites ?? [],
-        next_courses: course.next_courses ?? [],
-      };
-      fs.writeFileSync(
-        path.join(courseDir, ".meta.json"),
-        JSON.stringify(courseJson, null, 2),
-        "utf-8",
-      );
+    for (const courseEntry of courseEntries) {
+      const oldCourseDirName = courseEntry.name;
+      const oldCourseDir = path.join(newSeriesDir, oldCourseDirName);
 
-      for (let li = 0; li < course.lessons.length; li++) {
-        const lesson = course.lessons[li];
-        const lessonFileName = `${withPrefix(li, lesson.lesson)}.md`;
-        fs.writeFileSync(
-          path.join(courseDir, lessonFileName),
-          lesson.content,
-          "utf-8",
-        );
+      const courseTitleJa = stripNumericPrefix(oldCourseDirName);
+      let courseSlug: string;
+
+      if (isValidSlug(oldCourseDirName)) {
+        courseSlug = oldCourseDirName;
+      } else {
+        courseSlug = slugify(courseTitleJa) || uniqueSlug("course", usedCourseSlugs);
+        courseSlug = uniqueSlug(courseSlug, usedCourseSlugs);
       }
 
-      console.log(
-        `  ✓ ${series.name} / ${course.name} (${course.lessons.length} レッスン)`,
-      );
+      const newCourseDir = path.join(newSeriesDir, courseSlug);
+      if (oldCourseDir !== newCourseDir) {
+        if (fs.existsSync(newCourseDir)) {
+          console.warn(`    警告: ${courseSlug} はすでに存在します。スキップ。`);
+          continue;
+        }
+        fs.renameSync(oldCourseDir, newCourseDir);
+        console.log(`    コース: ${oldCourseDirName} → ${courseSlug}/`);
+        coursesMigrated++;
+      }
+
+      usedCourseSlugs.add(courseSlug);
+      if (!newCourseOrder.includes(courseSlug)) {
+        newCourseOrder.push(courseSlug);
+      }
+
+      // _meta.json 作成（存在しない場合）
+      const courseMetaPath = path.join(newCourseDir, "_meta.json");
+      if (!fs.existsSync(courseMetaPath)) {
+        // 旧 .meta.json を読み込んで target_audience を移行
+        const oldMetaPath = path.join(newCourseDir, ".meta.json");
+        let targetAudience = "";
+        if (fs.existsSync(oldMetaPath)) {
+          try {
+            const old = JSON.parse(fs.readFileSync(oldMetaPath, "utf-8")) as {
+              target_audience?: string;
+            };
+            targetAudience = old.target_audience ?? "";
+          } catch {
+            // ignore
+          }
+        }
+        writeJsonIfNotExists(courseMetaPath, {
+          title: { ja: courseTitleJa },
+          ...(targetAudience ? { target_audience: { ja: targetAudience } } : {}),
+        });
+      }
+
+      // _mandala.json 作成（存在しない場合）
+      const mandalaPath = path.join(newCourseDir, "_mandala.json");
+      if (!fs.existsSync(mandalaPath)) {
+        const oldMetaPath = path.join(newCourseDir, ".meta.json");
+        let prerequisites: string[] = [];
+        let nextCourses: string[] = [];
+        if (fs.existsSync(oldMetaPath)) {
+          try {
+            const old = JSON.parse(fs.readFileSync(oldMetaPath, "utf-8")) as {
+              prerequisites?: string[];
+              next_courses?: string[];
+            };
+            prerequisites = old.prerequisites ?? [];
+            nextCourses = old.next_courses ?? [];
+          } catch {
+            // ignore
+          }
+        }
+        writeJsonIfNotExists(mandalaPath, {
+          prerequisites,
+          next_courses: nextCourses,
+        });
+      }
+
+      // レッスンファイルの処理
+      const lessonFiles = fs
+        .readdirSync(newCourseDir)
+        .filter(
+          (f) =>
+            f.endsWith(".md") &&
+            !f.endsWith(".en.md") &&
+            !f.startsWith("_") &&
+            !f.startsWith("."),
+        )
+        .sort((a, b) => a.localeCompare(b, "ja"));
+
+      const lessonOrderPath = path.join(newCourseDir, "_lesson-order.json");
+      const existingLessonOrder: string[] = fs.existsSync(lessonOrderPath)
+        ? (JSON.parse(fs.readFileSync(lessonOrderPath, "utf-8")) as string[])
+        : [];
+      const usedLessonSlugs = new Set<string>(existingLessonOrder);
+      const newLessonOrder: string[] = [...existingLessonOrder];
+
+      for (const lessonFile of lessonFiles) {
+        const lessonName = stripNumericPrefix(lessonFile);
+        let lessonSlug: string;
+
+        const baseName = lessonFile.replace(/\.md$/, "");
+        if (isValidSlug(baseName)) {
+          lessonSlug = baseName;
+        } else {
+          lessonSlug = slugify(lessonName) || uniqueSlug("lesson", usedLessonSlugs);
+          lessonSlug = uniqueSlug(lessonSlug, usedLessonSlugs);
+        }
+
+        const oldLessonPath = path.join(newCourseDir, lessonFile);
+        const newLessonPath = path.join(newCourseDir, `${lessonSlug}.md`);
+
+        if (oldLessonPath !== newLessonPath) {
+          if (!fs.existsSync(newLessonPath)) {
+            fs.renameSync(oldLessonPath, newLessonPath);
+            console.log(`      レッスン: ${lessonFile} → ${lessonSlug}.md`);
+            lessonsMigrated++;
+          }
+        }
+
+        usedLessonSlugs.add(lessonSlug);
+        if (!newLessonOrder.includes(lessonSlug)) {
+          newLessonOrder.push(lessonSlug);
+        }
+      }
+
+      // _lesson-order.json を書き込み（変更があった場合）
+      const lessonOrderChanged =
+        JSON.stringify(newLessonOrder) !== JSON.stringify(existingLessonOrder);
+      if (lessonOrderChanged || !fs.existsSync(lessonOrderPath)) {
+        writeJson(lessonOrderPath, newLessonOrder);
+        console.log(`      _lesson-order.json 更新 (${newLessonOrder.length} 件)`);
+      }
     }
+
+    // _course-order.json を書き込み
+    const courseOrderChanged =
+      JSON.stringify(newCourseOrder) !== JSON.stringify(existingCourseOrder);
+    if (courseOrderChanged || !fs.existsSync(courseOrderPath)) {
+      writeJson(courseOrderPath, newCourseOrder);
+      console.log(`    _course-order.json 更新 (${newCourseOrder.length} 件)`);
+    }
+
+    seriesMigrated++;
+  }
+
+  // _series-order.json を書き込み
+  const seriesOrderChanged =
+    JSON.stringify(newSeriesOrder) !== JSON.stringify(existingSeriesOrder);
+  if (seriesOrderChanged || !fs.existsSync(seriesOrderPath)) {
+    writeJson(seriesOrderPath, newSeriesOrder);
+    console.log(`\n_series-order.json 更新 (${newSeriesOrder.length} 件)`);
   }
 
   console.log(
-    `\n移行完了: ${seriesList.length} シリーズ → contents/ フォルダを生成しました`,
+    `\n移行完了: ${seriesMigrated} シリーズ, ${coursesMigrated} コース, ${lessonsMigrated} レッスン を変換`,
   );
-  console.log("data/content.json はバックアップとして残してあります");
+  console.log("スラッグ変換できなかった名前は元のフォルダ名がそのまま使われています。");
+  console.log("曼陀羅の prerequisites/next_courses は手動でスラッグに更新が必要な場合があります。");
 }
 
-main().catch((err) => {
-  console.error("エラー:", err);
-  process.exit(1);
-});
+main();

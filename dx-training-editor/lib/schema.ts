@@ -16,10 +16,36 @@ export const STATUS_LABELS: Record<LessonStatus, string> = {
   done: "完成",
 };
 
+// ===== _meta.json スキーマ =====
+
+export const contentMetaSchema = z.object({
+  title: z.object({
+    ja: z.string(),
+    en: z.string().nullish(),
+  }),
+  target_audience: z
+    .object({
+      ja: z.string().optional(),
+      en: z.string().nullish(),
+    })
+    .optional(),
+});
+export type ContentMeta = z.infer<typeof contentMetaSchema>;
+
+// ===== _mandala.json スキーマ =====
+
+export const mandalaDataSchema = z.object({
+  prerequisites: z.array(z.string()).default([]),
+  next_courses: z.array(z.string()).default([]),
+});
+export type MandalaData = z.infer<typeof mandalaDataSchema>;
+
 // ===== レッスン（葉ノード）=====
 
 export const lessonSchema = z.object({
   id: z.string(),
+  /** スラッグ（ファイル名 `.md` 除く） */
+  slug: z.string().optional(),
   series: z.string(),
   course: z.string(),
   lesson: z.string(),
@@ -36,8 +62,14 @@ export type Lesson = z.infer<typeof lessonSchema>;
 
 export const courseSchema = z.object({
   id: z.string(),
+  /** フォルダ名（ASCII kebab-case スラッグ） */
+  slug: z.string().optional(),
+  /** 表示名（_meta.json title.ja。未設定時はスラッグ） */
   name: z.string(),
+  /** 英語表示名（_meta.json title.en） */
+  titleEn: z.string().nullish(),
   target_audience: z.string().optional(),
+  targetAudienceEn: z.string().nullish(),
   /** 別シリーズのコース ID のみ。シリーズ内の前後は series.courses[] の順序で表す */
   prerequisites: z.array(z.string()).default([]),
   /** 別シリーズのコース ID のみ。シリーズ内の前後は series.courses[] の順序で表す */
@@ -50,7 +82,12 @@ export type Course = z.infer<typeof courseSchema>;
 
 export const seriesSchema = z.object({
   id: z.string(),
+  /** フォルダ名（ASCII kebab-case スラッグ） */
+  slug: z.string().optional(),
+  /** 表示名（_meta.json title.ja。未設定時はスラッグ） */
   name: z.string(),
+  /** 英語表示名（_meta.json title.en） */
+  titleEn: z.string().nullish(),
   courses: z.array(courseSchema),
 });
 export type Series = z.infer<typeof seriesSchema>;

@@ -118,15 +118,15 @@ export function useLessonMutations(options: {
           for (const l of c.lessons) {
             if (l.id === lessonId) {
               diskLesson = l;
-              seriesName = s.name;
-              courseName = c.name;
+              seriesName = s.slug ?? s.name;
+              courseName = c.slug ?? c.name;
             }
           }
         }
       }
       if (!diskLesson) return;
 
-      const diskLessonName = diskLesson.lesson; // ディスク上のファイル名（編集前）
+      const diskLessonName = diskLesson.slug ?? diskLesson.lesson; // ディスク上のスラッグ（編集前）
 
       // フロントマターから新しいレッスン名を取得
       const { meta } = parseLessonDocument(content);
@@ -233,7 +233,7 @@ export function useLessonMutations(options: {
           ...c,
           lessons: c.lessons.map((l) => {
             if (l.id !== lessonId) return l;
-            const ctx = { seriesName: s.name, courseName: c.name };
+            const ctx = { seriesName: s.slug ?? s.name, courseName: c.slug ?? c.name };
             const updated = patchLessonMeta(l, ctx, meta);
             if (meta.lesson !== undefined && l.lesson !== updated.lesson) {
               const newId = buildLessonId(
@@ -306,32 +306,34 @@ export function useLessonMutations(options: {
   );
 
   const addLesson = useCallback(
-    (courseId: string, lessonName: string) => {
-      let seriesName = "";
-      let courseName = "";
+    (courseId: string, lessonSlug: string, titleJa?: string) => {
+      let seriesSlug = "";
+      let courseSlug = "";
       for (const s of series) {
         const c = s.courses.find((co) => co.id === courseId);
         if (c) {
-          seriesName = s.name;
-          courseName = c.name;
+          seriesSlug = s.slug ?? s.name;
+          courseSlug = c.slug ?? c.name;
           break;
         }
       }
-      if (!seriesName || !courseName) return;
+      if (!seriesSlug || !courseSlug) return;
 
+      const lessonName = titleJa ?? lessonSlug;
       const meta = normalizeLessonMeta(
         {
-          lesson: lessonName,
+          lesson: lessonSlug,
           status: "open",
           description: "",
           tags: [],
           estimated_minutes: 0,
           author: "",
         },
-        { seriesName, courseName },
+        { seriesName: seriesSlug, courseName: courseSlug },
       );
       const newLesson: Lesson = {
-        id: buildLessonId(seriesName, courseName, lessonName),
+        id: buildLessonId(seriesSlug, courseSlug, lessonSlug),
+        slug: lessonSlug,
         ...meta,
         content: createLessonContentTemplate(meta),
       };
@@ -348,12 +350,23 @@ export function useLessonMutations(options: {
       );
       setSelection({ courseId, lessonId: newLesson.id });
       setPendingSave?.(true);
-      saveLessonToFs(
-        seriesName,
-        courseName,
-        newLesson.lesson,
-        newLesson.content,
-      )
+      // API 経由でファイル作成（slug ベース）
+      fetch("/api/content/create", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          type: "lesson",
+          series: seriesSlug,
+          course: courseSlug,
+          slug: lessonSlug,
+          titleJa: lessonName,
+        }),
+      })
+        .then(async (res) => {
+          if (!res.ok) throw new Error("レッスン作成エラー");
+          // テンプレートの内容を保存
+          return saveLessonToFs(seriesSlug, courseSlug, lessonSlug, newLesson.content);
+        })
         .catch((err: unknown) => {
           onSaveError?.(`レッスン追加エラー: ${String(err)}`);
         })
@@ -366,9 +379,9 @@ export function useLessonMutations(options: {
 
   const deleteLesson = useCallback(
     (courseId: string, lessonId: string) => {
-      let seriesName = "";
-      let courseName = "";
-      let lessonName = "";
+      let seriesSlug = "";
+      let courseSlug = "";
+      let lessonSlug = "";
       setSeries((prev) =>
         prev.map((s) => ({
           ...s,
@@ -376,9 +389,9 @@ export function useLessonMutations(options: {
             if (c.id !== courseId) return c;
             const target = c.lessons.find((l) => l.id === lessonId);
             if (target) {
-              seriesName = s.name;
-              courseName = c.name;
-              lessonName = target.lesson;
+              seriesSlug = s.slug ?? s.name;
+              courseSlug = c.slug ?? c.name;
+              lessonSlug = target.slug ?? target.lesson;
             }
             return { ...c, lessons: c.lessons.filter((l) => l.id !== lessonId) };
           }),
@@ -387,12 +400,12 @@ export function useLessonMutations(options: {
       if (selectedLessonId === lessonId) {
         setSelection({ courseId: selectedCourseId, lessonId: "" });
       }
-      if (seriesName && courseName && lessonName) {
+      if (seriesSlug && courseSlug && lessonSlug) {
         callContentApi("delete", {
           type: "lesson",
-          series: seriesName,
-          course: courseName,
-          name: lessonName,
+          series: seriesSlug,
+          course: courseSlug,
+          slug: lessonSlug,
         }).catch((err: unknown) => {
           onSaveError?.(`レッスン削除エラー: ${String(err)}`);
         });
@@ -413,9 +426,9 @@ export function useLessonMutations(options: {
             lessons.splice(toIndex, 0, moved);
             callContentApi("reorder", {
               type: "lesson",
-              series: s.name,
-              course: c.name,
-              newOrder: lessons.map((l) => l.lesson),
+              series: s.slug ?? s.name,
+              course: c.slug ?? c.name,
+              newOrder: lessons.map((l) => l.slug ?? l.lesson),
             }).catch((err: unknown) => {
               onSaveError?.(`レッスン並び替えエラー: ${String(err)}`);
             });

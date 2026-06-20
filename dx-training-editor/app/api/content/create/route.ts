@@ -1,27 +1,54 @@
 import { z } from "zod";
 import fs from "node:fs";
 import path from "node:path";
-import { getContentsDir, findSeriesDir, findCourseDir } from "@/lib/contents-loader";
-import { withPrefix } from "@/lib/content-filename";
+import {
+  getContentsDir,
+  findSeriesDir,
+  findCourseDir,
+  loadMeta,
+  saveMeta,
+  saveMandala,
+} from "@/lib/contents-loader";
+import { isValidSlug } from "@/lib/content-filename";
 import { createLessonContentTemplate, normalizeLessonMeta } from "@/lib/lesson-frontmatter";
 
 const schema = z.discriminatedUnion("type", [
   z.object({
     type: z.literal("series"),
-    name: z.string().min(1),
+    slug: z.string().min(1),
+    titleJa: z.string().min(1),
   }),
   z.object({
     type: z.literal("course"),
     series: z.string().min(1),
-    name: z.string().min(1),
+    slug: z.string().min(1),
+    titleJa: z.string().min(1),
   }),
   z.object({
     type: z.literal("lesson"),
     series: z.string().min(1),
     course: z.string().min(1),
-    name: z.string().min(1),
+    slug: z.string().min(1),
+    titleJa: z.string().min(1),
   }),
 ]);
+
+function readOrderJson(filePath: string): string[] {
+  if (!fs.existsSync(filePath)) return [];
+  try {
+    return JSON.parse(fs.readFileSync(filePath, "utf-8")) as string[];
+  } catch {
+    return [];
+  }
+}
+
+function appendToOrderJson(filePath: string, slug: string): void {
+  const order = readOrderJson(filePath);
+  if (!order.includes(slug)) {
+    order.push(slug);
+    fs.writeFileSync(filePath, JSON.stringify(order, null, 2), "utf-8");
+  }
+}
 
 export async function POST(req: Request) {
   let body: unknown;
@@ -42,56 +69,64 @@ export async function POST(req: Request) {
   const contentsDir = getContentsDir(process.cwd());
 
   if (parsed.data.type === "series") {
-    fs.mkdirSync(contentsDir, { recursive: true });
-    const existingCount = fs
-      .readdirSync(contentsDir, { withFileTypes: true })
-      .filter((e) => e.isDirectory()).length;
-    const dirName = withPrefix(existingCount, parsed.data.name);
-    fs.mkdirSync(path.join(contentsDir, dirName), { recursive: true });
-    return Response.json({ ok: true, dirName });
+    const { slug, titleJa } = parsed.data;
+    if (!isValidSlug(slug)) {
+      return Response.json({ error: `スラッグ '${slug}' が不正です（英小文字・数字・ハイフンのみ、最大 50 文字）` }, { status: 400 });
+    }
+    const targetDir = path.join(contentsDir, slug);
+    if (fs.existsSync(targetDir)) {
+      return Response.json({ error: `スラッグ '${slug}' はすでに使われています` }, { status: 409 });
+    }
+    fs.mkdirSync(targetDir, { recursive: true });
+    saveMeta(targetDir, { title: { ja: titleJa, en: null }, target_audience: { ja: "", en: null } });
+    appendToOrderJson(path.join(contentsDir, "_series-order.json"), slug);
+    return Response.json({ ok: true, slug });
   }
 
   if (parsed.data.type === "course") {
-    const seriesDir = findSeriesDir(contentsDir, parsed.data.series);
-    if (!seriesDir) {
-      return Response.json({ error: `シリーズフォルダが見つかりません` }, { status: 404 });
+    const { series: seriesSlug, slug, titleJa } = parsed.data;
+    if (!isValidSlug(slug)) {
+      return Response.json({ error: `スラッグ '${slug}' が不正です` }, { status: 400 });
     }
-    const existingCourses = fs
-      .readdirSync(seriesDir, { withFileTypes: true })
-      .filter((e) => e.isDirectory()).length;
-    const courseDirName = withPrefix(existingCourses, parsed.data.name);
-    const courseDir = path.join(seriesDir, courseDirName);
-    fs.mkdirSync(courseDir, { recursive: true });
-    fs.writeFileSync(
-      path.join(courseDir, ".meta.json"),
-      JSON.stringify({ target_audience: "", prerequisites: [], next_courses: [] }, null, 2),
-      "utf-8",
-    );
-    return Response.json({ ok: true, dirName: courseDirName });
+    const seriesDir = findSeriesDir(contentsDir, seriesSlug);
+    if (!seriesDir) {
+      return Response.json({ error: "シリーズフォルダが見つかりません" }, { status: 404 });
+    }
+    const targetDir = path.join(seriesDir, slug);
+    if (fs.existsSync(targetDir)) {
+      return Response.json({ error: `スラッグ '${slug}' はすでに使われています` }, { status: 409 });
+    }
+    fs.mkdirSync(targetDir, { recursive: true });
+    saveMeta(targetDir, { title: { ja: titleJa, en: null }, target_audience: { ja: "", en: null } });
+    saveMandala(targetDir, { prerequisites: [], next_courses: [] });
+    appendToOrderJson(path.join(seriesDir, "_course-order.json"), slug);
+    return Response.json({ ok: true, slug });
   }
 
   // lesson
-  const lessonData = parsed.data as { type: "lesson"; series: string; course: string; name: string };
-  const seriesDir = findSeriesDir(contentsDir, lessonData.series);
+  const { series: seriesSlug, course: courseSlug, slug, titleJa } = parsed.data as {
+    type: "lesson"; series: string; course: string; slug: string; titleJa: string;
+  };
+  if (!isValidSlug(slug)) {
+    return Response.json({ error: `スラッグ '${slug}' が不正です` }, { status: 400 });
+  }
+  const seriesDir = findSeriesDir(contentsDir, seriesSlug);
   if (!seriesDir) {
-    return Response.json({ error: `シリーズフォルダが見つかりません` }, { status: 404 });
+    return Response.json({ error: "シリーズフォルダが見つかりません" }, { status: 404 });
   }
-  const courseDir = findCourseDir(seriesDir, lessonData.course);
+  const courseDir = findCourseDir(seriesDir, courseSlug);
   if (!courseDir) {
-    return Response.json({ error: `コースフォルダが見つかりません` }, { status: 404 });
+    return Response.json({ error: "コースフォルダが見つかりません" }, { status: 404 });
   }
-  const existingLessons = fs
-    .readdirSync(courseDir)
-    .filter((f) => f.endsWith(".md")).length;
-  const lessonFileName = `${withPrefix(existingLessons, lessonData.name)}.md`;
+  const lessonFilePath = path.join(courseDir, `${slug}.md`);
+  if (fs.existsSync(lessonFilePath)) {
+    return Response.json({ error: `スラッグ '${slug}' はすでに使われています` }, { status: 409 });
+  }
   const meta = normalizeLessonMeta(
-    { lesson: lessonData.name, status: "open" },
-    { seriesName: lessonData.series, courseName: lessonData.course },
+    { lesson: slug, status: "open" },
+    { seriesName: seriesSlug, courseName: courseSlug },
   );
-  fs.writeFileSync(
-    path.join(courseDir, lessonFileName),
-    createLessonContentTemplate(meta),
-    "utf-8",
-  );
-  return Response.json({ ok: true, fileName: lessonFileName });
+  fs.writeFileSync(lessonFilePath, createLessonContentTemplate(meta), "utf-8");
+  appendToOrderJson(path.join(courseDir, "_lesson-order.json"), slug);
+  return Response.json({ ok: true, slug });
 }

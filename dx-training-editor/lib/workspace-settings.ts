@@ -5,6 +5,7 @@ import {
 } from "@/components/workspace/pane-layout";
 
 export type ThemeMode = "light" | "dark" | "system";
+export type DisplayLanguage = "ja" | "en";
 
 export const EDITOR_FONT_SIZE_DEFAULT = 14;
 export const EDITOR_FONT_SIZE_MIN = 8;
@@ -18,6 +19,7 @@ export type WorkspaceSettings = {
   theme: ThemeMode;
   paneDefaults: WorkspacePaneWidths;
   editorFontSizePx: number;
+  displayLanguage: DisplayLanguage;
 };
 
 export function clampEditorFontSizePx(value: number): number {
@@ -34,6 +36,7 @@ export const DEFAULT_WORKSPACE_SETTINGS: WorkspaceSettings = {
   theme: "light",
   paneDefaults: { ...PANE_WIDTH_DEFAULTS },
   editorFontSizePx: EDITOR_FONT_SIZE_DEFAULT,
+  displayLanguage: "ja",
 };
 
 function normalizePaneDefaults(
@@ -69,6 +72,10 @@ export function loadWorkspaceSettings(): WorkspaceSettings {
           ? parsed.editorFontSizePx
           : EDITOR_FONT_SIZE_DEFAULT,
       ),
+      displayLanguage:
+        parsed.displayLanguage === "en" || parsed.displayLanguage === "ja"
+          ? parsed.displayLanguage
+          : DEFAULT_WORKSPACE_SETTINGS.displayLanguage,
     };
   } catch {
     return { ...DEFAULT_WORKSPACE_SETTINGS };

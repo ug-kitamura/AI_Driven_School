@@ -4,16 +4,16 @@ import { useCallback } from "react";
 import type { Course, Series } from "@/lib/schema";
 
 async function saveCourseMeta(
-  seriesName: string,
-  courseName: string,
+  seriesSlug: string,
+  courseSlug: string,
   meta: Pick<Course, "target_audience" | "prerequisites" | "next_courses">,
 ): Promise<void> {
   const res = await fetch("/api/content/save-course", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
-      series: seriesName,
-      course: courseName,
+      series: seriesSlug,
+      course: courseSlug,
       target_audience: meta.target_audience ?? "",
       prerequisites: meta.prerequisites,
       next_courses: meta.next_courses,
@@ -22,11 +22,11 @@ async function saveCourseMeta(
   if (!res.ok) throw new Error("コースメタ保存エラー");
 }
 
-async function saveSeriesOrder(seriesNames: string[]): Promise<void> {
+async function saveSeriesOrder(seriesSlugs: string[]): Promise<void> {
   const res = await fetch("/api/content/save-series-order", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ order: seriesNames }),
+    body: JSON.stringify({ order: seriesSlugs }),
   });
   if (!res.ok) throw new Error("シリーズ順序保存エラー");
 }
@@ -76,10 +76,13 @@ export function useSeriesMutations(options: {
     options;
 
   const addSeries = useCallback(
-    (name: string) => {
-      const newId = `series-${name}`;
-      setSeries((prev) => [...prev, { id: newId, name, courses: [] }]);
-      callContentApi("create", { type: "series", name }).catch((err: unknown) => {
+    (titleJa: string, slug: string) => {
+      const newId = `series-${slug}`;
+      setSeries((prev) => [
+        ...prev,
+        { id: newId, slug, name: titleJa, titleEn: null, courses: [] },
+      ]);
+      callContentApi("create", { type: "series", slug, titleJa }).catch((err: unknown) => {
         onSaveError?.(`シリーズ追加エラー: ${String(err)}`);
       });
       return newId;
@@ -101,7 +104,8 @@ export function useSeriesMutations(options: {
       setSeries(next);
       setSelection(selection);
       if (target) {
-        callContentApi("delete", { type: "series", name: target.name }).catch(
+        const slug = target.slug ?? target.name;
+        callContentApi("delete", { type: "series", slug }).catch(
           (err: unknown) => onSaveError?.(`シリーズ削除エラー: ${String(err)}`),
         );
       }
@@ -124,10 +128,12 @@ export function useSeriesMutations(options: {
       setSeries(next);
       setSelection(selection);
       if (targetSeries && targetCourse) {
+        const seriesSlug = targetSeries.slug ?? targetSeries.name;
+        const courseSlug = targetCourse.slug ?? targetCourse.name;
         callContentApi("delete", {
           type: "course",
-          series: targetSeries.name,
-          name: targetCourse.name,
+          series: seriesSlug,
+          slug: courseSlug,
         }).catch((err: unknown) => onSaveError?.(`コース削除エラー: ${String(err)}`));
       }
     },
@@ -135,15 +141,17 @@ export function useSeriesMutations(options: {
   );
 
   const addCourse = useCallback(
-    (seriesId: string, name: string) => {
+    (seriesId: string, titleJa: string, slug: string) => {
       const targetSeries = series.find((s) => s.id === seriesId);
-      const newId = `course-${seriesId}-${name}`;
+      const newId = `course-${targetSeries?.slug ?? seriesId}-${slug}`;
       setSeries((prev) =>
         prev.map((s) => {
           if (s.id !== seriesId) return s;
           const newCourse: Course = {
             id: newId,
-            name,
+            slug,
+            name: titleJa,
+            titleEn: null,
             target_audience: "",
             prerequisites: [],
             next_courses: [],
@@ -153,10 +161,12 @@ export function useSeriesMutations(options: {
         }),
       );
       if (targetSeries) {
+        const seriesSlug = targetSeries.slug ?? targetSeries.name;
         callContentApi("create", {
           type: "course",
-          series: targetSeries.name,
-          name,
+          series: seriesSlug,
+          slug,
+          titleJa,
         }).catch((err: unknown) => onSaveError?.(`コース追加エラー: ${String(err)}`));
       }
     },
@@ -169,7 +179,7 @@ export function useSeriesMutations(options: {
         const next = [...prev];
         const [moved] = next.splice(fromIndex, 1);
         next.splice(toIndex, 0, moved);
-        saveSeriesOrder(next.map((s) => s.name)).catch((err: unknown) => {
+        saveSeriesOrder(next.map((s) => s.slug ?? s.name)).catch((err: unknown) => {
           onSaveError?.(`シリーズ順序保存エラー: ${String(err)}`);
         });
         return next;
@@ -186,10 +196,11 @@ export function useSeriesMutations(options: {
           const courses = [...s.courses];
           const [moved] = courses.splice(fromIndex, 1);
           courses.splice(toIndex, 0, moved);
+          const seriesSlug = s.slug ?? s.name;
           callContentApi("reorder", {
             type: "course",
-            series: s.name,
-            newOrder: courses.map((c) => c.name),
+            series: seriesSlug,
+            newOrder: courses.map((c) => c.slug ?? c.name),
           }).catch((err: unknown) =>
             onSaveError?.(`コース並び替えエラー: ${String(err)}`),
           );
@@ -208,17 +219,19 @@ export function useSeriesMutations(options: {
         "name" | "target_audience" | "prerequisites" | "next_courses"
       >,
     ) => {
-      let oldCourseName: string | undefined;
       let seriesName: string | undefined;
+      let seriesSlug: string | undefined;
+      let courseSlug: string | undefined;
       for (const s of series) {
         const c = s.courses.find((co) => co.id === courseId);
         if (c) {
-          oldCourseName = c.name;
           seriesName = s.name;
+          seriesSlug = s.slug ?? s.name;
+          courseSlug = c.slug ?? c.name;
           break;
         }
       }
-      if (!seriesName) return;
+      if (!seriesName || !seriesSlug) return;
 
       const crossPrerequisites = filterCrossSeriesIds(
         series,
@@ -240,78 +253,53 @@ export function useSeriesMutations(options: {
         ...s,
         courses: s.courses.map((c) => {
           if (c.id !== courseId) return c;
-          const newName = meta.name?.trim() || c.name;
-          const ctx = { seriesName: s.name, courseName: newName };
           return {
             ...c,
-            name: newName,
+            name: meta.name?.trim() || c.name,
             target_audience: meta.target_audience,
             lessons: c.lessons.map((l) =>
-              reconcileLesson({ ...l, course: newName }, ctx),
+              reconcileLesson({ ...l, course: c.slug ?? c.name }, {
+                seriesName: s.slug ?? s.name,
+                courseName: c.slug ?? c.name,
+              }),
             ),
           };
         }),
       }));
 
-      const updatedBeforeRemap = next
+      setSeries(next);
+
+      const updatedCourse = next
         .flatMap((s) => s.courses)
         .find((c) => c.id === courseId);
-      if (!updatedBeforeRemap) return;
-
-      let finalSeries = next;
-      let newCourseId = courseId;
-      if (oldCourseName && oldCourseName !== updatedBeforeRemap.name) {
-        const remapped = remapCourseAndLessonIds(
-          next,
-          courseId,
-          seriesName,
-          updatedBeforeRemap.name,
-        );
-        finalSeries = remapped.series;
-        newCourseId = remapped.remap.courseIds.get(courseId) ?? courseId;
-        setSelection(
-          remapSelection(
-            { courseId: selectedCourseId, lessonId: selectedLessonId },
-            remapped.remap,
-          ),
-        );
-      }
-
-      setSeries(finalSeries);
-
-      const updatedCourse = finalSeries
-        .flatMap((s) => s.courses)
-        .find((c) => c.id === newCourseId);
-      if (!updatedCourse) return;
+      if (!updatedCourse || !courseSlug) return;
 
       const metaPayload = {
         target_audience: updatedCourse.target_audience,
         prerequisites: updatedCourse.prerequisites,
         next_courses: updatedCourse.next_courses,
       };
-      const persistMeta = () =>
-        saveCourseMeta(seriesName, updatedCourse.name, metaPayload).catch(
-          (err: unknown) => {
-            onSaveError?.(`コースメタ保存エラー: ${String(err)}`);
-          },
-        );
 
-      if (oldCourseName && oldCourseName !== updatedCourse.name) {
+      // タイトル変更は _meta.json の title.ja 更新のみ（slug は変更しない）
+      const titleChanged = meta.name?.trim() && meta.name.trim() !== updatedCourse.name;
+      if (titleChanged) {
         callContentApi("rename", {
           type: "course",
-          series: seriesName,
-          oldName: oldCourseName,
-          newName: updatedCourse.name,
-        })
-          .then(persistMeta)
-          .catch((err: unknown) =>
-            onSaveError?.(`コースリネームエラー: ${String(err)}`),
-          );
-      } else {
-        persistMeta();
+          series: seriesSlug,
+          slug: courseSlug,
+          newTitleJa: meta.name!.trim(),
+        }).catch((err: unknown) =>
+          onSaveError?.(`コースタイトル更新エラー: ${String(err)}`),
+        );
       }
+
+      saveCourseMeta(seriesSlug, courseSlug, metaPayload).catch(
+        (err: unknown) => {
+          onSaveError?.(`コースメタ保存エラー: ${String(err)}`);
+        },
+      );
     },
-    [series, selectedCourseId, selectedLessonId, setSeries, setSelection, onSaveError],
+    [series, setSeries, onSaveError],
   );
 
   const updateSeriesName = useCallback(
@@ -321,24 +309,21 @@ export function useSeriesMutations(options: {
       const newName = name.trim() || target.name;
       if (newName === target.name) return;
 
-      const { series: next, remap } = applySeriesRename(series, seriesId, newName);
-      setSeries(next);
-      setSelection(
-        remapSelection(
-          { courseId: selectedCourseId, lessonId: selectedLessonId },
-          remap,
-        ),
+      // state 内の表示名を更新（slug・id は変更しない）
+      setSeries((prev) =>
+        prev.map((s) => (s.id === seriesId ? { ...s, name: newName } : s)),
       );
 
+      const slug = target.slug ?? target.name;
       callContentApi("rename", {
         type: "series",
-        oldName: target.name,
-        newName,
+        slug,
+        newTitleJa: newName,
       }).catch((err: unknown) =>
-        onSaveError?.(`シリーズリネームエラー: ${String(err)}`),
+        onSaveError?.(`シリーズタイトル更新エラー: ${String(err)}`),
       );
     },
-    [series, selectedCourseId, selectedLessonId, setSeries, setSelection, onSaveError],
+    [series, setSeries, onSaveError],
   );
 
   return {

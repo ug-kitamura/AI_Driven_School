@@ -8,7 +8,7 @@
 1. すべてのシリーズフォルダ・コースフォルダ・レッスン `.md` ファイルから `NN_` プレフィックスをリネームで除去する
 2. `contents/.meta.json` を `{ "order": [...シリーズ名] }` として生成する
 3. 各シリーズの `.meta.json` を `{ "order": [...コース名] }` として生成する
-4. 各コースの `.meta.json` を `{ "order": [...レッスン名], "target_audience": "...", "prerequisites": [...], "next_courses": [...] }` として生成する（既存の `.meta.json` から `target_audience`/`prerequisites`/`next_courses` を引き継ぎ、`_mandala.json` の値とマージする）
+4. 各コースの `.meta.json` を `{ "id": "...", "order": [...レッスン名], "target": "...", "cross_series_prev": [...], "cross_series_next": [...] }` として生成する（既存の `.meta.json` から `target`/`cross_series_prev`/`cross_series_next` を引き継ぎ、`_mandala.json` の値とマージする）
 5. 旧ファイル（`_series-order.json`、`_course-order.json`、`_lesson-order.json`、`_mandala.json`、`_meta.json`（アンダースコア版））を削除する
 
 #### Scenario: シリーズフォルダのプレフィックスが除去される

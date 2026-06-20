@@ -136,6 +136,66 @@ export function normalizeLessonMeta(
   };
 }
 
+/** ディスク上の本文と同一か（改行コードの差のみは同一扱い） */
+export function lessonFileContentEquals(a: string, b: string): boolean {
+  if (a === b) return true;
+  return a.replace(/\r\n/g, "\n") === b.replace(/\r\n/g, "\n");
+}
+
+export type AlignLessonContentResult =
+  | { ok: true; content: string }
+  | { ok: false; reason: string };
+
+/**
+ * 保存前に FM の series/course/lesson をディスク上の位置に合わせる。
+ * 別コース・別シリーズの FM が混ざっている場合は保存を拒否する。
+ * lesson 名の FM 変更はファイルリネームせず、ディスク上のレッスン名に FM を合わせる。
+ */
+export function alignLessonContentToDiskPath(
+  content: string,
+  ctx: LessonParentContext,
+  diskLessonName: string,
+): AlignLessonContentResult {
+  const trimmed = content.trimStart();
+  if (!trimmed.startsWith("---")) {
+    return { ok: true, content };
+  }
+
+  const { meta, body } = parseLessonDocument(content);
+  if (meta.series && meta.series !== ctx.seriesName) {
+    return {
+      ok: false,
+      reason: `フロントマターの series（${meta.series}）が保存先（${ctx.seriesName}）と一致しません`,
+    };
+  }
+  if (meta.course && meta.course !== ctx.courseName) {
+    return {
+      ok: false,
+      reason: `フロントマターの course（${meta.course}）が保存先（${ctx.courseName}）と一致しません`,
+    };
+  }
+
+  const normalized = normalizeLessonMeta(
+    {
+      ...meta,
+      series: ctx.seriesName,
+      course: ctx.courseName,
+      lesson: diskLessonName,
+    },
+    ctx,
+    {
+      series: ctx.seriesName,
+      course: ctx.courseName,
+      lesson: diskLessonName,
+    },
+  );
+  const aligned = serializeLessonDocument(normalized, body);
+  return {
+    ok: true,
+    content: lessonFileContentEquals(aligned, content) ? content : aligned,
+  };
+}
+
 export function serializeLessonDocument(
   meta: LessonMetaFields,
   body: string,
@@ -243,10 +303,15 @@ export function reconcileLesson(
     body = defaultLessonBody(normalized.lesson);
   }
 
+  const reserialized = serializeLessonDocument(normalized, body);
+  const content = lessonFileContentEquals(reserialized, lesson.content)
+    ? lesson.content
+    : reserialized;
+
   return {
     ...lesson,
     ...metaToLessonFields(normalized),
-    content: serializeLessonDocument(normalized, body),
+    content,
   };
 }
 

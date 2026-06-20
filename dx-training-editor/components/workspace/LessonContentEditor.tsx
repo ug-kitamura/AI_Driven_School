@@ -103,8 +103,13 @@ export const LessonContentEditor = forwardRef<
   const updateListenerExtension = useRef(
     EditorView.updateListener.of((update) => {
       if (update.docChanged) {
-        onChangeRef.current(update.state.doc.toString());
-        setLessonEditorStateCache(lessonIdRef.current, update.state);
+        const isRemote = update.transactions.some((tr) =>
+          tr.annotation(Transaction.remote),
+        );
+        if (!isRemote) {
+          onChangeRef.current(update.state.doc.toString());
+          setLessonEditorStateCache(lessonIdRef.current, update.state);
+        }
       }
       if (update.selectionSet || update.docChanged) {
         onCursorChangeRef.current?.(update.state.selection.main.head);
@@ -181,7 +186,6 @@ export const LessonContentEditor = forwardRef<
     }
 
     lessonIdRef.current = lessonId;
-    onChangeRef.current(view.state.doc.toString());
     onCursorChangeRef.current?.(view.state.selection.main.head);
   }, [lessonId, value, buildExtensions]);
 

@@ -1,8 +1,13 @@
 import { z } from "zod";
 import fs from "node:fs";
 import path from "node:path";
-import { getContentsDir, findSeriesDir, findCourseDir } from "@/lib/contents-loader";
-import { sanitizeFilename, stripPrefix } from "@/lib/content-filename";
+import {
+  getContentsDir,
+  findSeriesDir,
+  findCourseDir,
+  readMetaJson,
+  writeMetaJson,
+} from "@/lib/contents-loader";
 
 const schema = z.discriminatedUnion("type", [
   z.object({
@@ -21,26 +26,6 @@ const schema = z.discriminatedUnion("type", [
     name: z.string().min(1),
   }),
 ]);
-
-function renumberItems(dir: string, ext: "" | ".md") {
-  const entries = fs
-    .readdirSync(dir, { withFileTypes: true })
-    .filter((e) => ext === "" ? e.isDirectory() : e.name.endsWith(".md"))
-    .map((e) => e.name)
-    .sort((a, b) => {
-      const na = parseInt(a.match(/^(\d+)/)?.[1] ?? "0", 10);
-      const nb = parseInt(b.match(/^(\d+)/)?.[1] ?? "0", 10);
-      return na - nb;
-    });
-
-  entries.forEach((oldName, i) => {
-    const displayName = ext === "" ? stripPrefix(oldName) : stripPrefix(oldName);
-    const newName = `${String(i + 1).padStart(2, "0")}_${displayName}${ext}`;
-    if (oldName !== newName) {
-      fs.renameSync(path.join(dir, oldName), path.join(dir, newName));
-    }
-  });
-}
 
 export async function POST(req: Request) {
   let body: unknown;
@@ -66,43 +51,58 @@ export async function POST(req: Request) {
       return Response.json({ error: "シリーズフォルダが見つかりません" }, { status: 404 });
     }
     fs.rmSync(seriesDir, { recursive: true, force: true });
-    // シリーズ削除後に残りフォルダのプレフィックスを振り直す
-    renumberItems(contentsDir, "");
+
+    // contents/.meta.json の order から除去
+    const meta = readMetaJson(contentsDir);
+    if (Array.isArray(meta.order)) {
+      meta.order = (meta.order as string[]).filter((n) => n !== parsed.data.name);
+      writeMetaJson(contentsDir, meta);
+    }
     return Response.json({ ok: true });
   }
 
   if (parsed.data.type === "course") {
-    const seriesDirForCourse = findSeriesDir(contentsDir, parsed.data.series);
-    if (!seriesDirForCourse) {
+    const seriesDir = findSeriesDir(contentsDir, parsed.data.series);
+    if (!seriesDir) {
       return Response.json({ error: "シリーズフォルダが見つかりません" }, { status: 404 });
     }
-    const courseDir = findCourseDir(seriesDirForCourse, parsed.data.name);
+    const courseDir = findCourseDir(seriesDir, parsed.data.name);
     if (!courseDir) {
       return Response.json({ error: "コースフォルダが見つかりません" }, { status: 404 });
     }
     fs.rmSync(courseDir, { recursive: true, force: true });
-    renumberItems(seriesDirForCourse, "");
+
+    // series/.meta.json の order から除去
+    const meta = readMetaJson(seriesDir);
+    if (Array.isArray(meta.order)) {
+      meta.order = (meta.order as string[]).filter((n) => n !== parsed.data.name);
+      writeMetaJson(seriesDir, meta);
+    }
     return Response.json({ ok: true });
   }
 
   // lesson
-  const lessonData = parsed.data as { type: "lesson"; series: string; course: string; name: string };
-  const lessonSeriesDir = findSeriesDir(contentsDir, lessonData.series);
-  if (!lessonSeriesDir) {
+  const seriesDir = findSeriesDir(contentsDir, parsed.data.series);
+  if (!seriesDir) {
     return Response.json({ error: "シリーズフォルダが見つかりません" }, { status: 404 });
   }
-  const lessonCourseDir = findCourseDir(lessonSeriesDir, lessonData.course);
-  if (!lessonCourseDir) {
+  const courseDir = findCourseDir(seriesDir, parsed.data.course);
+  if (!courseDir) {
     return Response.json({ error: "コースフォルダが見つかりません" }, { status: 404 });
   }
-  const courseDir = lessonCourseDir;
-  const lessonFiles = fs
-    .readdirSync(courseDir)
-    .filter((f) => f.endsWith(".md") && stripPrefix(f) === lessonData.name);
-  if (lessonFiles.length === 0) {
+
+  const lessonFile = `${parsed.data.name}.md`;
+  const lessonPath = path.join(courseDir, lessonFile);
+  if (!fs.existsSync(lessonPath)) {
     return Response.json({ error: "レッスンファイルが見つかりません" }, { status: 404 });
   }
-  fs.unlinkSync(path.join(courseDir, lessonFiles[0]));
-  renumberItems(courseDir, ".md");
+  fs.unlinkSync(lessonPath);
+
+  // course/.meta.json の order から除去
+  const courseMeta = readMetaJson(courseDir);
+  if (Array.isArray(courseMeta.order)) {
+    courseMeta.order = (courseMeta.order as string[]).filter((n) => n !== parsed.data.name);
+    writeMetaJson(courseDir, courseMeta);
+  }
   return Response.json({ ok: true });
 }

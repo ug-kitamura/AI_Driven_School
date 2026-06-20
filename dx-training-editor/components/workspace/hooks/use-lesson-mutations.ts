@@ -6,9 +6,10 @@ import { buildLessonId } from "@/lib/content-ids";
 import { remapSelection } from "@/lib/content-rename";
 import {
   applyLessonContentEdit,
+  alignLessonContentToDiskPath,
   createLessonContentTemplate,
+  lessonFileContentEquals,
   normalizeLessonMeta,
-  parseLessonDocument,
   patchLessonMeta,
   type LessonMetaFields,
 } from "@/lib/lesson-frontmatter";
@@ -71,15 +72,6 @@ export function useLessonMutations(options: {
     onSaveError,
   } = options;
   const debounceTimers = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
-  /**
-   * エディタでフロントマターの lesson 名を直接変更した場合に使う。
-   * デバウンスがリセットされても "変更前のディスク上のファイル名" を保持する。
-   */
-  const pendingRename = useRef<{
-    series: string;
-    course: string;
-    oldName: string;
-  } | null>(null);
 
   const mapLessonById = useCallback(
     (
@@ -126,41 +118,23 @@ export function useLessonMutations(options: {
       }
       if (!diskLesson) return;
 
-      const diskLessonName = diskLesson.lesson; // ディスク上のファイル名（編集前）
-
-      // フロントマターから新しいレッスン名を取得
-      const { meta } = parseLessonDocument(content);
-      const newLessonName = meta.lesson?.trim() || diskLessonName;
-      const nameChanged = newLessonName !== diskLessonName;
-
-      // state を更新（lesson.lesson が frontmatter に追従する）
-      mapLessonById(lessonId, (lesson, ctx) => applyLessonContentEdit(lesson, ctx, content));
-
-      if (nameChanged) {
-        // pendingRename は最初の名前変更時のみセット（連続入力でも上書きしない）
-        if (!pendingRename.current) {
-          pendingRename.current = { series: seriesName, course: courseName, oldName: diskLessonName };
-        }
-        // lessonId を新名ベースに即座に更新
-        const newId = buildLessonId(seriesName, courseName, newLessonName);
-        setSeries((prev) =>
-          prev.map((s) => ({
-            ...s,
-            courses: s.courses.map((c) => ({
-              ...c,
-              lessons: c.lessons.map((l) => (l.id === lessonId ? { ...l, id: newId } : l)),
-            })),
-          })),
+      const diskLessonName = diskLesson.lesson;
+      const ctx = { seriesName, courseName };
+      const aligned = alignLessonContentToDiskPath(content, ctx, diskLessonName);
+      if (!aligned.ok) {
+        onSaveError?.(
+          `保存をスキップしました: ${aligned.reason}。別レッスンの内容が混ざっている可能性があります。`,
         );
-        setSelection(
-          remapSelection(
-            { courseId: selectedCourseId, lessonId },
-            { courseIds: new Map(), lessonIds: new Map([[lessonId, newId]]) },
-          ),
-        );
+        return;
       }
+      content = aligned.content;
 
-      // デバウンスキーは元の lessonId（変更前）で管理する
+      if (lessonFileContentEquals(content, diskLesson.content)) return;
+
+      mapLessonById(lessonId, (lesson, mapCtx) =>
+        applyLessonContentEdit(lesson, mapCtx, content),
+      );
+
       const existing = debounceTimers.current.get(lessonId);
       if (existing) clearTimeout(existing);
 
@@ -168,52 +142,18 @@ export function useLessonMutations(options: {
 
       const timer = setTimeout(() => {
         debounceTimers.current.delete(lessonId);
-
-        const finishSave = () => {
-          setPendingSave?.(false);
-        };
-
-        const rename = pendingRename.current;
-        if (rename) {
-          // フロントマターから最終的な新名を再取得して確実にする
-          const { meta: latestMeta } = parseLessonDocument(content);
-          const latestNewName = latestMeta.lesson?.trim() || rename.oldName;
-          pendingRename.current = null;
-
-          if (rename.oldName !== latestNewName) {
-            callContentApi("rename", {
-              type: "lesson",
-              series: rename.series,
-              course: rename.course,
-              oldName: rename.oldName,
-              newName: latestNewName,
-            })
-              .then(() => saveLessonToFs(rename.series, rename.course, latestNewName, content))
-              .catch((err: unknown) => {
-                onSaveError?.(`レッスンリネームエラー: ${String(err)}`);
-              })
-              .finally(finishSave);
-          } else {
-            // 元の名前に戻った場合は通常保存
-            saveLessonToFs(rename.series, rename.course, rename.oldName, content)
-              .catch((err: unknown) => {
-                onSaveError?.(`レッスン保存エラー: ${String(err)}`);
-              })
-              .finally(finishSave);
-          }
-        } else {
-          // 通常保存（ファイル名はディスク上の名前のまま）
-          saveLessonToFs(seriesName, courseName, diskLessonName, content)
-            .catch((err: unknown) => {
-              onSaveError?.(`レッスン保存エラー: ${String(err)}`);
-            })
-            .finally(finishSave);
-        }
+        saveLessonToFs(seriesName, courseName, diskLessonName, content)
+          .catch((err: unknown) => {
+            onSaveError?.(`レッスン保存エラー: ${String(err)}`);
+          })
+          .finally(() => {
+            setPendingSave?.(false);
+          });
       }, AUTOSAVE_DEBOUNCE_MS);
 
       debounceTimers.current.set(lessonId, timer);
     },
-    [series, mapLessonById, setSeries, selectedCourseId, setSelection, setPendingSave, onSaveError],
+    [series, mapLessonById, setPendingSave, onSaveError],
   );
 
   const updateLessonMeta = useCallback(

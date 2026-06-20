@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+﻿import { describe, expect, it } from "vitest";
 import {
   applySeriesRename,
   remapCourseAndLessonIds,
@@ -8,15 +8,15 @@ import type { Series } from "@/lib/schema";
 
 const initial: Series[] = [
   {
-    id: "series-シリーズA",
+    id: "srs-series-a-abc123",
     name: "シリーズA",
     courses: [
       {
-        id: "course-シリーズA-コース1",
+        id: "crs-course-1-def456",
         name: "コース1",
-        target_audience: "",
-        prerequisites: ["course-シリーズB-コースX"],
-        next_courses: [],
+        target: "",
+        cross_series_prev: ["crs-course-x-ghi789"],
+        cross_series_next: [],
         lessons: [
           {
             id: "lesson-シリーズA-コース1-レッスン1",
@@ -35,15 +35,15 @@ const initial: Series[] = [
     ],
   },
   {
-    id: "series-シリーズB",
+    id: "srs-series-b-jkl012",
     name: "シリーズB",
     courses: [
       {
-        id: "course-シリーズB-コースX",
+        id: "crs-course-x-ghi789",
         name: "コースX",
-        target_audience: "",
-        prerequisites: [],
-        next_courses: ["course-シリーズA-コース1"],
+        target: "",
+        cross_series_prev: [],
+        cross_series_next: ["crs-course-1-def456"],
         lessons: [],
       },
     ],
@@ -51,67 +51,69 @@ const initial: Series[] = [
 ];
 
 describe("applySeriesRename", () => {
-  it("remaps series, course, lesson ids and cross-series refs", () => {
+  it("keeps stable ids and updates lesson ids on series rename", () => {
     const { series, remap } = applySeriesRename(
       initial,
-      "series-シリーズA",
+      "srs-series-a-abc123",
       "シリーズA改",
     );
 
-    expect(series[0].id).toBe("series-シリーズA改");
-    expect(series[0].courses[0].id).toBe("course-シリーズA改-コース1");
+    expect(series[0].id).toBe("srs-series-a-abc123");
+    expect(series[0].name).toBe("シリーズA改");
+    expect(series[0].courses[0].id).toBe("crs-course-1-def456");
     expect(series[0].courses[0].lessons[0].id).toBe(
       "lesson-シリーズA改-コース1-レッスン1",
     );
-    expect(series[1].courses[0].next_courses).toEqual([
-      "course-シリーズA改-コース1",
+    expect(series[1].courses[0].cross_series_next).toEqual([
+      "crs-course-1-def456",
     ]);
-    expect(series[0].courses[0].prerequisites).toEqual([
-      "course-シリーズB-コースX",
+    expect(series[0].courses[0].cross_series_prev).toEqual([
+      "crs-course-x-ghi789",
     ]);
 
     expect(
       remapSelection(
         {
-          courseId: "course-シリーズA-コース1",
+          courseId: "crs-course-1-def456",
           lessonId: "lesson-シリーズA-コース1-レッスン1",
         },
         remap,
       ),
     ).toEqual({
-      courseId: "course-シリーズA改-コース1",
+      courseId: "crs-course-1-def456",
       lessonId: "lesson-シリーズA改-コース1-レッスン1",
     });
   });
 });
 
 describe("remapCourseAndLessonIds", () => {
-  it("remaps course and lesson ids and cross-series refs", () => {
+  it("keeps stable course id and updates lesson ids on course rename", () => {
     const { series, remap } = remapCourseAndLessonIds(
       initial,
-      "course-シリーズA-コース1",
+      "crs-course-1-def456",
       "シリーズA",
       "コース1改",
     );
 
-    expect(series[0].courses[0].id).toBe("course-シリーズA-コース1改");
+    expect(series[0].courses[0].id).toBe("crs-course-1-def456");
+    expect(series[0].courses[0].name).toBe("コース1改");
     expect(series[0].courses[0].lessons[0].id).toBe(
       "lesson-シリーズA-コース1改-レッスン1",
     );
-    expect(series[1].courses[0].next_courses).toEqual([
-      "course-シリーズA-コース1改",
+    expect(series[1].courses[0].cross_series_next).toEqual([
+      "crs-course-1-def456",
     ]);
 
     expect(
       remapSelection(
         {
-          courseId: "course-シリーズA-コース1",
+          courseId: "crs-course-1-def456",
           lessonId: "lesson-シリーズA-コース1-レッスン1",
         },
         remap,
       ),
     ).toEqual({
-      courseId: "course-シリーズA-コース1改",
+      courseId: "crs-course-1-def456",
       lessonId: "lesson-シリーズA-コース1改-レッスン1",
     });
   });

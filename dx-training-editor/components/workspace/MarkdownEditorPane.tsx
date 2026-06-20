@@ -156,10 +156,12 @@ export function MarkdownEditorPane({
   }, []);
 
   useEffect(() => {
-    if (mode !== "raw" && mode !== "agent") {
+    if (mode === "raw") {
+      paneScrollRef.current = editorRef.current?.getScrollElement() ?? null;
+    } else if (mode !== "agent") {
       paneScrollRef.current = null;
     }
-  }, [mode]);
+  }, [mode, lesson?.id]);
 
   useEffect(() => {
     if (mode !== "diff" || !lesson) {
@@ -262,9 +264,14 @@ export function MarkdownEditorPane({
         </div>
       </div>
 
-      <div className="min-h-0 flex-1 overflow-hidden">
-        {mode === "raw" && lesson ? (
-          <div className="flex h-full min-h-0 min-w-0 bg-background">
+      <div className="relative min-h-0 flex-1 overflow-hidden">
+        {lesson ? (
+          <div
+            className={cn(
+              "absolute inset-0 flex min-h-0 min-w-0 bg-background",
+              mode !== "raw" && "hidden",
+            )}
+          >
             <LessonContentEditor
               ref={editorRef}
               lessonId={lesson.id}
@@ -277,13 +284,15 @@ export function MarkdownEditorPane({
         ) : null}
 
         {mode === "agent" ? (
-          <AgentChatPane
-            series={series}
-            lesson={lesson}
-            course={course}
-            currentLessonPath={currentLessonPath}
-            onOpenSettings={onOpenSettings}
-          />
+          <div className={lesson ? "absolute inset-0" : "h-full"}>
+            <AgentChatPane
+              series={series}
+              lesson={lesson}
+              course={course}
+              currentLessonPath={currentLessonPath}
+              onOpenSettings={onOpenSettings}
+            />
+          </div>
         ) : null}
 
         {mode === "inline" && lesson ? (
@@ -291,7 +300,7 @@ export function MarkdownEditorPane({
             ref={(el) => {
               paneScrollRef.current = el;
             }}
-            className="workspace-scrollbar h-full overflow-y-auto overscroll-y-contain px-6 py-5"
+            className="absolute inset-0 workspace-scrollbar overflow-y-auto overscroll-y-contain px-6 py-5"
           >
             <div className={LESSON_PREVIEW_CLASS}>
               <ReactMarkdown
@@ -311,7 +320,7 @@ export function MarkdownEditorPane({
             ref={(el) => {
               paneScrollRef.current = el;
             }}
-            className="workspace-scrollbar h-full overflow-y-auto overscroll-y-contain"
+            className="absolute inset-0 workspace-scrollbar overflow-y-auto overscroll-y-contain"
           >
             {diffState.status === "loading" ? (
               <div className="flex h-full items-center justify-center text-sm text-muted-foreground">

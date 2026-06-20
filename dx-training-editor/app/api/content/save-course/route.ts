@@ -1,14 +1,18 @@
 import { z } from "zod";
-import fs from "node:fs";
-import path from "node:path";
-import { getContentsDir, findSeriesDir, findCourseDir } from "@/lib/contents-loader";
+import {
+  getContentsDir,
+  findSeriesDir,
+  findCourseDir,
+  readMetaJson,
+  writeMetaJson,
+} from "@/lib/contents-loader";
 
 const schema = z.object({
   series: z.string().min(1),
   course: z.string().min(1),
-  target_audience: z.string().default(""),
-  prerequisites: z.array(z.string()).default([]),
-  next_courses: z.array(z.string()).default([]),
+  target: z.string().default(""),
+  cross_series_prev: z.array(z.string()).default([]),
+  cross_series_next: z.array(z.string()).default([]),
 });
 
 export async function POST(req: Request) {
@@ -27,7 +31,7 @@ export async function POST(req: Request) {
     );
   }
 
-  const { series, course, target_audience, prerequisites, next_courses } = parsed.data;
+  const { series, course, target, cross_series_prev, cross_series_next } = parsed.data;
   const contentsDir = getContentsDir(process.cwd());
   const seriesDir = findSeriesDir(contentsDir, series);
   if (!seriesDir) {
@@ -37,14 +41,11 @@ export async function POST(req: Request) {
   if (!courseDir) {
     return Response.json({ error: `コースフォルダが見つかりません: ${course}` }, { status: 404 });
   }
-  const metaPath = path.join(courseDir, ".meta.json");
 
   try {
-    fs.writeFileSync(
-      metaPath,
-      JSON.stringify({ target_audience, prerequisites, next_courses }, null, 2),
-      "utf-8",
-    );
+    const existing = readMetaJson(courseDir);
+    const { target_audience: _legacy, ...rest } = existing as Record<string, unknown> & { target_audience?: unknown };
+    writeMetaJson(courseDir, { ...rest, target, cross_series_prev, cross_series_next });
     return Response.json({ ok: true });
   } catch (err) {
     return Response.json({ error: String(err) }, { status: 500 });

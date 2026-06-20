@@ -31,8 +31,8 @@ describe("findLessonContentInSeriesJson", () => {
         {
           id: "c1",
           name: "Course",
-          prerequisites: [],
-          next_courses: [],
+          cross_series_prev: [],
+          cross_series_next: [],
           lessons: [
             {
               id: "l1",

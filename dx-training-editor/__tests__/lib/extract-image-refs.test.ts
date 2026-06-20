@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+﻿import { describe, expect, it } from "vitest";
 import type { Series } from "@/lib/schema";
 import {
   extractImageRefs,
@@ -17,9 +17,9 @@ const seriesFixture: Series[] = [
       {
         id: "c1",
         name: "Course 1",
-        target_audience: "",
-        prerequisites: [],
-        next_courses: [],
+        target: "",
+        cross_series_prev: [],
+        cross_series_next: [],
         lessons: [
           {
             id: "l1",

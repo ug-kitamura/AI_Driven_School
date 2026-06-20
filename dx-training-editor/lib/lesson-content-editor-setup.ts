@@ -1,4 +1,6 @@
 import { markdown, markdownLanguage, markdownKeymap } from "@codemirror/lang-markdown";
+import { defaultKeymap, history, historyKeymap } from "@codemirror/commands";
+import { Compartment, type Extension } from "@codemirror/state";
 import { keymap } from "@codemirror/view";
 import { languages } from "@codemirror/language-data";
 import { foldService } from "@codemirror/language";
@@ -18,6 +20,9 @@ import {
   frontmatterHighlight,
 } from "@/lib/lesson-frontmatter-highlight";
 import { clampEditorFontSizePx } from "@/lib/workspace-settings";
+
+/** テーマ・フォントサイズを setState なしで差し替える Compartment（モジュール共有） */
+export const lessonEditorThemeCompartment = new Compartment();
 
 /** Pane3 編集ビュー: テキスト選択の背景・文字色（VS Code 既定 #add6ff を上書き） */
 const LESSON_EDITOR_SELECTION_BG = "#3367d1";
@@ -221,4 +226,24 @@ export function buildLessonEditorExtensions(
     );
   }
   return extensions;
+}
+
+/** EditorState 生成用: history / keymap + 差し替え可能テーマ */
+export function buildLessonEditorStateExtensions(
+  isDark = false,
+  fontSizePx = 14,
+  options?: {
+    getFontSize?: () => number;
+    onFontSizeChange?: (next: number) => void;
+  },
+  extraExtensions: Extension[] = [],
+): Extension[] {
+  return [
+    lessonEditorThemeCompartment.of(
+      buildLessonEditorExtensions(isDark, fontSizePx, options),
+    ),
+    history(),
+    keymap.of([...defaultKeymap, ...historyKeymap]),
+    ...extraExtensions,
+  ];
 }

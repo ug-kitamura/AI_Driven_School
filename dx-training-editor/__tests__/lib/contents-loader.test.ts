@@ -1,12 +1,21 @@
-import { describe, expect, it, beforeEach, afterEach } from "vitest";
+﻿import { describe, expect, it, beforeEach, afterEach } from "vitest";
 import fs from "node:fs";
 import path from "node:path";
 import os from "node:os";
-import { loadContentsFolder, contentsExists, getContentsFingerprint } from "@/lib/contents-loader";
+import {
+  loadContentsFolder,
+  contentsExists,
+  getContentsFingerprint,
+  reconcileOrderFiles,
+} from "@/lib/contents-loader";
 
 function writeFile(filePath: string, content: string) {
   fs.mkdirSync(path.dirname(filePath), { recursive: true });
   fs.writeFileSync(filePath, content, "utf-8");
+}
+
+function writeJson(filePath: string, data: unknown) {
+  writeFile(filePath, JSON.stringify(data, null, 2));
 }
 
 describe("loadContentsFolder", () => {
@@ -35,20 +44,22 @@ describe("loadContentsFolder", () => {
     const contentsDir = path.join(tmpDir, "contents");
     const lessonContent = `---\nseries: テストシリーズ\ncourse: テストコース\nlesson: テストレッスン\nstatus: done\ndescription: テスト\ntags: [git]\nestimated_minutes: 10\nauthor: 田中\n---\n\n本文\n`;
     writeFile(
-      path.join(contentsDir, "テストシリーズ", "01_テストコース", "01_テストレッスン.md"),
+      path.join(contentsDir, "テストシリーズ", "テストコース", "テストレッスン.md"),
       lessonContent,
     );
-    writeFile(
-      path.join(contentsDir, "テストシリーズ", "01_テストコース", "_course.json"),
-      JSON.stringify({ target_audience: "初心者", prerequisites: [], next_courses: [] }),
+    writeJson(
+      path.join(contentsDir, "テストシリーズ", "テストコース", ".meta.json"),
+      { order: ["テストレッスン"], target: "初心者", cross_series_prev: [], cross_series_next: [] },
     );
+    writeJson(path.join(contentsDir, "テストシリーズ", ".meta.json"), { order: ["テストコース"] });
+    writeJson(path.join(contentsDir, ".meta.json"), { order: ["テストシリーズ"] });
 
     const result = loadContentsFolder(tmpDir);
     expect(result).toHaveLength(1);
     expect(result[0].name).toBe("テストシリーズ");
     expect(result[0].courses).toHaveLength(1);
     expect(result[0].courses[0].name).toBe("テストコース");
-    expect(result[0].courses[0].target_audience).toBe("初心者");
+    expect(result[0].courses[0].target).toBe("初心者");
     expect(result[0].courses[0].lessons).toHaveLength(1);
     expect(result[0].courses[0].lessons[0].lesson).toBe("テストレッスン");
     expect(result[0].courses[0].lessons[0].status).toBe("done");
@@ -58,9 +69,10 @@ describe("loadContentsFolder", () => {
   it("falls back to folder path when frontmatter is broken", () => {
     const contentsDir = path.join(tmpDir, "contents");
     writeFile(
-      path.join(contentsDir, "シリーズA", "01_コースA", "01_レッスンA.md"),
+      path.join(contentsDir, "シリーズA", "コースA", "レッスンA.md"),
       "フロントマターなし\n\n本文\n",
     );
+    writeJson(path.join(contentsDir, "シリーズA", "コースA", ".meta.json"), { order: ["レッスンA"] });
 
     const result = loadContentsFolder(tmpDir);
     expect(result[0].courses[0].lessons[0].lesson).toBe("レッスンA");
@@ -69,12 +81,13 @@ describe("loadContentsFolder", () => {
 
   it("writes template to disk when lesson file is empty", () => {
     const contentsDir = path.join(tmpDir, "contents");
-    writeFile(path.join(contentsDir, "シリーズA", "01_コースA", "01_空.md"), "");
+    writeFile(path.join(contentsDir, "シリーズA", "コースA", "空.md"), "");
+    writeJson(path.join(contentsDir, "シリーズA", "コースA", ".meta.json"), { order: ["空"] });
 
     loadContentsFolder(tmpDir);
 
     const onDisk = fs.readFileSync(
-      path.join(contentsDir, "シリーズA", "01_コースA", "01_空.md"),
+      path.join(contentsDir, "シリーズA", "コースA", "空.md"),
       "utf-8",
     );
     expect(onDisk.trimStart().startsWith("---")).toBe(true);
@@ -85,9 +98,10 @@ describe("loadContentsFolder", () => {
     const contentsDir = path.join(tmpDir, "contents");
     const lessonContent = `---\nseries: シリーズA\ncourse: コースA\nlesson: 古い名前\nstatus: open\ndescription: ""\ntags: []\nestimated_minutes: 0\nauthor: ""\n---\n\n本文\n`;
     writeFile(
-      path.join(contentsDir, "シリーズA", "01_コースA", "01_新しい名前.md"),
+      path.join(contentsDir, "シリーズA", "コースA", "新しい名前.md"),
       lessonContent,
     );
+    writeJson(path.join(contentsDir, "シリーズA", "コースA", ".meta.json"), { order: ["新しい名前"] });
 
     const result = loadContentsFolder(tmpDir);
     expect(result[0].courses[0].lessons[0].lesson).toBe("新しい名前");
@@ -96,34 +110,86 @@ describe("loadContentsFolder", () => {
     );
   });
 
-  it("respects numeric prefixes for series ordering", () => {
+  it("reads stable ids from .meta.json when present", () => {
     const contentsDir = path.join(tmpDir, "contents");
-    writeFile(path.join(contentsDir, "02_シリーズB", ".keep"), "");
-    writeFile(path.join(contentsDir, "01_シリーズA", ".keep"), "");
+    writeFile(path.join(contentsDir, "テストシリーズ", "テストコース", "L.md"), "# L\n");
+    writeJson(path.join(contentsDir, "テストシリーズ", "テストコース", ".meta.json"), {
+      id: "crs-test-course-abc123",
+      order: ["L"],
+      cross_series_prev: [],
+      cross_series_next: [],
+    });
+    writeJson(path.join(contentsDir, "テストシリーズ", ".meta.json"), {
+      id: "srs-test-series-def456",
+      order: ["テストコース"],
+    });
+    writeJson(path.join(contentsDir, ".meta.json"), { order: ["テストシリーズ"] });
+
+    const result = loadContentsFolder(tmpDir);
+    expect(result[0].id).toBe("srs-test-series-def456");
+    expect(result[0].courses[0].id).toBe("crs-test-course-abc123");
+  });
+
+  it("generates and persists stable ids when missing from .meta.json", () => {
+    const contentsDir = path.join(tmpDir, "contents");
+    writeFile(path.join(contentsDir, "S", "C", "L.md"), "# L\n");
+    writeJson(path.join(contentsDir, "S", "C", ".meta.json"), {
+      order: ["L"],
+      cross_series_prev: [],
+      cross_series_next: [],
+    });
+    writeJson(path.join(contentsDir, "S", ".meta.json"), { order: ["C"] });
+    writeJson(path.join(contentsDir, ".meta.json"), { order: ["S"] });
+
+    const result = loadContentsFolder(tmpDir);
+    expect(result[0].id).toMatch(/^srs-/);
+    expect(result[0].courses[0].id).toMatch(/^crs-/);
+
+    const seriesMeta = JSON.parse(
+      fs.readFileSync(path.join(contentsDir, "S", ".meta.json"), "utf-8"),
+    ) as { id: string };
+    const courseMeta = JSON.parse(
+      fs.readFileSync(path.join(contentsDir, "S", "C", ".meta.json"), "utf-8"),
+    ) as { id: string };
+    expect(seriesMeta.id).toBe(result[0].id);
+    expect(courseMeta.id).toBe(result[0].courses[0].id);
+  });
+
+  it("respects .meta.json order for series", () => {
+    const contentsDir = path.join(tmpDir, "contents");
+    writeFile(path.join(contentsDir, "シリーズA", ".keep"), "");
+    writeFile(path.join(contentsDir, "シリーズB", ".keep"), "");
+    writeJson(path.join(contentsDir, ".meta.json"), { order: ["シリーズB", "シリーズA"] });
+
+    const result = loadContentsFolder(tmpDir);
+    expect(result[0].name).toBe("シリーズB");
+    expect(result[1].name).toBe("シリーズA");
+  });
+
+  it("falls back to alphabetical order when no .meta.json order exists", () => {
+    const contentsDir = path.join(tmpDir, "contents");
+    writeFile(path.join(contentsDir, "シリーズB", ".keep"), "");
+    writeFile(path.join(contentsDir, "シリーズA", ".keep"), "");
 
     const result = loadContentsFolder(tmpDir);
     expect(result[0].name).toBe("シリーズA");
     expect(result[1].name).toBe("シリーズB");
   });
 
-  it("sorts courses by numeric prefix", () => {
+  it("respects .meta.json order for courses", () => {
     const contentsDir = path.join(tmpDir, "contents");
-    writeFile(path.join(contentsDir, "S", "02_コースB", "_course.json"), "{}");
-    writeFile(path.join(contentsDir, "S", "01_コースA", "_course.json"), "{}");
+    writeFile(path.join(contentsDir, "S", "コースA", "_keep"), "");
+    writeFile(path.join(contentsDir, "S", "コースB", "_keep"), "");
+    writeJson(path.join(contentsDir, "S", ".meta.json"), { order: ["コースB", "コースA"] });
 
     const result = loadContentsFolder(tmpDir);
-    expect(result[0].courses[0].name).toBe("コースA");
-    expect(result[0].courses[1].name).toBe("コースB");
+    expect(result[0].courses[0].name).toBe("コースB");
+    expect(result[0].courses[1].name).toBe("コースA");
   });
 
   it("detects external lesson file rename via fingerprint", () => {
     const contentsDir = path.join(tmpDir, "contents");
-    const lessonPath = path.join(
-      contentsDir,
-      "シリーズA",
-      "01_コースA",
-      "01_旧レッスン.md",
-    );
+    const lessonPath = path.join(contentsDir, "シリーズA", "コースA", "旧レッスン.md");
     writeFile(lessonPath, "# old\n");
 
     const before = getContentsFingerprint(tmpDir);
@@ -131,9 +197,64 @@ describe("loadContentsFolder", () => {
     const after = getContentsFingerprint(tmpDir);
 
     expect(before).not.toBe(after);
+  });
+});
 
-    const result = loadContentsFolder(tmpDir);
-    expect(result[0].courses[0].lessons[0].lesson).toBe("新レッスン");
+describe("reconcileOrderFiles", () => {
+  let tmpDir: string;
+
+  beforeEach(() => {
+    tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "reconcile-test-"));
+  });
+
+  afterEach(() => {
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+  });
+
+  it("removes stale entries from order", () => {
+    const contentsDir = path.join(tmpDir, "contents");
+    writeFile(path.join(contentsDir, "シリーズA", ".keep"), "");
+    writeJson(path.join(contentsDir, ".meta.json"), { order: ["シリーズA", "シリーズB"] });
+
+    reconcileOrderFiles(tmpDir);
+
+    const meta = JSON.parse(fs.readFileSync(path.join(contentsDir, ".meta.json"), "utf-8")) as { order: string[] };
+    expect(meta.order).toEqual(["シリーズA"]);
+  });
+
+  it("appends new directories to order", () => {
+    const contentsDir = path.join(tmpDir, "contents");
+    writeFile(path.join(contentsDir, "シリーズA", ".keep"), "");
+    writeFile(path.join(contentsDir, "シリーズB", ".keep"), "");
+    writeJson(path.join(contentsDir, ".meta.json"), { order: ["シリーズA"] });
+
+    reconcileOrderFiles(tmpDir);
+
+    const meta = JSON.parse(fs.readFileSync(path.join(contentsDir, ".meta.json"), "utf-8")) as { order: string[] };
+    expect(meta.order).toEqual(["シリーズA", "シリーズB"]);
+  });
+
+  it("does not modify .meta.json when nothing changed", () => {
+    const contentsDir = path.join(tmpDir, "contents");
+    writeFile(path.join(contentsDir, "シリーズA", ".keep"), "");
+    writeJson(path.join(contentsDir, ".meta.json"), { order: ["シリーズA"] });
+    const mtimeBefore = fs.statSync(path.join(contentsDir, ".meta.json")).mtimeMs;
+
+    reconcileOrderFiles(tmpDir);
+
+    const mtimeAfter = fs.statSync(path.join(contentsDir, ".meta.json")).mtimeMs;
+    expect(mtimeAfter).toBe(mtimeBefore);
+  });
+
+  it("does not rename or modify any directories", () => {
+    const contentsDir = path.join(tmpDir, "contents");
+    writeFile(path.join(contentsDir, "シリーズA", ".keep"), "");
+    writeJson(path.join(contentsDir, ".meta.json"), { order: ["シリーズA", "存在しない"] });
+
+    reconcileOrderFiles(tmpDir);
+
+    expect(fs.existsSync(path.join(contentsDir, "シリーズA"))).toBe(true);
+    expect(fs.existsSync(path.join(contentsDir, "存在しない"))).toBe(false);
   });
 });
 

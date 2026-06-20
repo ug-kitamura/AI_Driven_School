@@ -12,11 +12,11 @@
 - **THEN** 最後の入力から 800ms が経過するまで API 呼び出しは発生しない
 
 ### Requirement: コースメタデータの自動保存
-コースの `target_audience`・`prerequisites`・`next_courses` が変更された場合、`/api/content/save-course` を呼び出して `_course.json` を保存しなければならない（SHALL）。
+コースの `target`・`cross_series_prev`・`cross_series_next` が変更された場合、`/api/content/save-course` を呼び出して `.meta.json` を保存しなければならない（SHALL）。
 
 #### Scenario: コースメタが変更されると保存される
-- **WHEN** ユーザーが UI でコースの `target_audience` を変更する
-- **THEN** 対応するコースフォルダの `_course.json` が更新されている
+- **WHEN** ユーザーが UI でコースの `target` を変更する
+- **THEN** 対応するコースフォルダの `.meta.json` が更新されている
 
 ### Requirement: シリーズ順序の自動保存
 シリーズの表示順が変更された場合、`/api/content/save-series-order` を呼び出して `_series-order.json` を更新しなければならない（SHALL）。

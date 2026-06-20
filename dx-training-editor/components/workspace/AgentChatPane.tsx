@@ -230,9 +230,9 @@ export function AgentChatPane({
           lessonBody: getLessonBody(lesson),
           courseMeta: {
             name: course?.name ?? lesson.course,
-            target_audience: course?.target_audience ?? "",
-            prerequisites: course?.prerequisites ?? [],
-            next_courses: course?.next_courses ?? [],
+            target: course?.target ?? "",
+            cross_series_prev: course?.cross_series_prev ?? [],
+            cross_series_next: course?.cross_series_next ?? [],
           },
         });
       }

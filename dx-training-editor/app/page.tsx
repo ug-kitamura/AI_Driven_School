@@ -1,6 +1,6 @@
 import { Workspace } from "@/components/workspace/Workspace";
 import workspaceData from "@/data/workspace.json";
-import { normalizeContentsFolder, loadContentsFolder } from "@/lib/contents-loader";
+import { reconcileOrderFiles, loadContentsFolder } from "@/lib/contents-loader";
 import { workspaceSchema } from "@/lib/schema";
 
 export default function Page() {
@@ -11,7 +11,7 @@ export default function Page() {
     );
   }
 
-  normalizeContentsFolder(process.cwd());
+  reconcileOrderFiles(process.cwd());
   const seriesList = loadContentsFolder(process.cwd());
 
   return (

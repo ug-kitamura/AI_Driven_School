@@ -83,7 +83,7 @@ function buildFullMandalaGraph(
     const key = `${fromId}-->${toId}`;
     if (crossEdgeKeys.has(key)) return;
     crossEdgeKeys.add(key);
-    lines.push(`  ${toNid(fromId)} --> ${toNid(toId)}`);
+    lines.push(`  ${toNid(fromId)} ---> ${toNid(toId)}`);
   };
   series.forEach((s) => {
     s.courses.forEach((c) => {

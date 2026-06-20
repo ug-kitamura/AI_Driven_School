@@ -114,7 +114,8 @@ async function main() {
       const existingMeta = readJson(path.join(newCoursePath, ".meta.json"));
       const mandala = readJson(path.join(newCoursePath, "_mandala.json"));
 
-      const target_audience =
+      const target =
+        typeof existingMeta.target === "string" ? existingMeta.target :
         typeof existingMeta.target_audience === "string" ? existingMeta.target_audience : "";
       const prerequisites = Array.isArray(existingMeta.prerequisites)
         ? existingMeta.prerequisites
@@ -127,7 +128,7 @@ async function main() {
           ? mandala.next_courses
           : [];
 
-      writeMetaJson(newCoursePath, { order: lessonOrder, target_audience, prerequisites, next_courses });
+      writeMetaJson(newCoursePath, { order: lessonOrder, target, prerequisites, next_courses });
 
       // 旧ファイル削除
       for (const oldFile of OLD_META_FILES) {

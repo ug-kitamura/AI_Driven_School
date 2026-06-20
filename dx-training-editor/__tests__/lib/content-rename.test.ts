@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+﻿import { describe, expect, it } from "vitest";
 import {
   applySeriesRename,
   remapCourseAndLessonIds,
@@ -14,7 +14,7 @@ const initial: Series[] = [
       {
         id: "course-シリーズA-コース1",
         name: "コース1",
-        target_audience: "",
+        target: "",
         prerequisites: ["course-シリーズB-コースX"],
         next_courses: [],
         lessons: [
@@ -41,7 +41,7 @@ const initial: Series[] = [
       {
         id: "course-シリーズB-コースX",
         name: "コースX",
-        target_audience: "",
+        target: "",
         prerequisites: [],
         next_courses: ["course-シリーズA-コース1"],
         lessons: [],

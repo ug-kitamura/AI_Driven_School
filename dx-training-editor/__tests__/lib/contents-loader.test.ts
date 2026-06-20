@@ -1,4 +1,4 @@
-import { describe, expect, it, beforeEach, afterEach } from "vitest";
+﻿import { describe, expect, it, beforeEach, afterEach } from "vitest";
 import fs from "node:fs";
 import path from "node:path";
 import os from "node:os";
@@ -49,7 +49,7 @@ describe("loadContentsFolder", () => {
     );
     writeJson(
       path.join(contentsDir, "テストシリーズ", "テストコース", ".meta.json"),
-      { order: ["テストレッスン"], target_audience: "初心者", prerequisites: [], next_courses: [] },
+      { order: ["テストレッスン"], target: "初心者", prerequisites: [], next_courses: [] },
     );
     writeJson(path.join(contentsDir, "テストシリーズ", ".meta.json"), { order: ["テストコース"] });
     writeJson(path.join(contentsDir, ".meta.json"), { order: ["テストシリーズ"] });
@@ -59,7 +59,7 @@ describe("loadContentsFolder", () => {
     expect(result[0].name).toBe("テストシリーズ");
     expect(result[0].courses).toHaveLength(1);
     expect(result[0].courses[0].name).toBe("テストコース");
-    expect(result[0].courses[0].target_audience).toBe("初心者");
+    expect(result[0].courses[0].target).toBe("初心者");
     expect(result[0].courses[0].lessons).toHaveLength(1);
     expect(result[0].courses[0].lessons[0].lesson).toBe("テストレッスン");
     expect(result[0].courses[0].lessons[0].status).toBe("done");

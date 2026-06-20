@@ -6,7 +6,7 @@ import type { Course, Series } from "@/lib/schema";
 async function saveCourseMeta(
   seriesName: string,
   courseName: string,
-  meta: Pick<Course, "target_audience" | "prerequisites" | "next_courses">,
+  meta: Pick<Course, "target" | "prerequisites" | "next_courses">,
 ): Promise<void> {
   const res = await fetch("/api/content/save-course", {
     method: "POST",
@@ -14,7 +14,7 @@ async function saveCourseMeta(
     body: JSON.stringify({
       series: seriesName,
       course: courseName,
-      target_audience: meta.target_audience ?? "",
+      target: meta.target ?? "",
       prerequisites: meta.prerequisites,
       next_courses: meta.next_courses,
     }),
@@ -144,7 +144,7 @@ export function useSeriesMutations(options: {
           const newCourse: Course = {
             id: newId,
             name,
-            target_audience: "",
+            target: "",
             prerequisites: [],
             next_courses: [],
             lessons: [],
@@ -205,7 +205,7 @@ export function useSeriesMutations(options: {
       courseId: string,
       meta: Pick<
         Course,
-        "name" | "target_audience" | "prerequisites" | "next_courses"
+        "name" | "target" | "prerequisites" | "next_courses"
       >,
     ) => {
       let oldCourseName: string | undefined;
@@ -245,7 +245,7 @@ export function useSeriesMutations(options: {
           return {
             ...c,
             name: newName,
-            target_audience: meta.target_audience,
+            target: meta.target,
             lessons: c.lessons.map((l) =>
               reconcileLesson({ ...l, course: newName }, ctx),
             ),
@@ -285,7 +285,7 @@ export function useSeriesMutations(options: {
       if (!updatedCourse) return;
 
       const metaPayload = {
-        target_audience: updatedCourse.target_audience,
+        target: updatedCourse.target,
         prerequisites: updatedCourse.prerequisites,
         next_courses: updatedCourse.next_courses,
       };

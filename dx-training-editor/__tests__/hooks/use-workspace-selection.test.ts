@@ -1,4 +1,4 @@
-import { act, renderHook } from "@testing-library/react";
+﻿import { act, renderHook } from "@testing-library/react";
 import { beforeEach, describe, expect, it } from "vitest";
 import { useWorkspaceSelection } from "@/components/workspace/hooks/use-workspace-selection";
 import type { Series } from "@/lib/schema";
@@ -11,7 +11,7 @@ const series: Series[] = [
       {
         id: "c1",
         name: "Course 1",
-        target_audience: "",
+        target: "",
         prerequisites: [],
         next_courses: [],
         lessons: [
@@ -44,7 +44,7 @@ const series: Series[] = [
       {
         id: "c2",
         name: "Course 2",
-        target_audience: "",
+        target: "",
         prerequisites: [],
         next_courses: [],
         lessons: [],

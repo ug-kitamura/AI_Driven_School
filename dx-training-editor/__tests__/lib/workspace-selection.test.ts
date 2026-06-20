@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it } from "vitest";
+﻿import { beforeEach, describe, expect, it } from "vitest";
 import {
   resolveSelectionAfterContentReload,
   resolveSelectionAfterDelete,
@@ -30,7 +30,7 @@ function course(id: string, overrides: Partial<Course> = {}): Course {
   return {
     id,
     name: id,
-    target_audience: "",
+    target: "",
     prerequisites: [],
     next_courses: [],
     lessons: [],

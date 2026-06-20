@@ -215,7 +215,7 @@ export function reconcileOrderFiles(projectRoot: string): void {
       if (!fs.existsSync(metaPath)) {
         writeMetaJson(courseDir, {
           order: [...actualLessons].sort(),
-          target_audience: "",
+          target: "",
           prerequisites: [],
           next_courses: [],
         });
@@ -319,7 +319,7 @@ export function loadContentsFolder(projectRoot: string): Series[] {
       courses.push({
         id: courseId,
         name: courseName,
-        target_audience: courseMeta.target_audience,
+        target: courseMeta.target,
         prerequisites: courseMeta.prerequisites,
         next_courses: courseMeta.next_courses,
         lessons,
@@ -333,7 +333,7 @@ export function loadContentsFolder(projectRoot: string): Series[] {
 }
 
 function loadCourseMeta(courseDir: string): {
-  target_audience: string;
+  target: string;
   prerequisites: string[];
   next_courses: string[];
   order: string[];
@@ -347,7 +347,7 @@ function loadCourseMeta(courseDir: string): {
       try {
         const raw = JSON.parse(fs.readFileSync(legacy, "utf-8")) as Record<string, unknown>;
         return {
-          target_audience: typeof raw.target_audience === "string" ? raw.target_audience : "",
+          target: typeof raw.target === "string" ? raw.target : (typeof raw.target_audience === "string" ? raw.target_audience : ""),
           prerequisites: Array.isArray(raw.prerequisites) ? (raw.prerequisites as string[]) : [],
           next_courses: Array.isArray(raw.next_courses) ? (raw.next_courses as string[]) : [],
           order: [],
@@ -359,7 +359,7 @@ function loadCourseMeta(courseDir: string): {
   }
 
   return {
-    target_audience: typeof meta.target_audience === "string" ? meta.target_audience : "",
+    target: typeof meta.target === "string" ? meta.target : (typeof meta.target_audience === "string" ? meta.target_audience : ""),
     prerequisites: Array.isArray(meta.prerequisites) ? (meta.prerequisites as string[]) : [],
     next_courses: Array.isArray(meta.next_courses) ? (meta.next_courses as string[]) : [],
     order: Array.isArray(meta.order) ? (meta.order as string[]) : [],

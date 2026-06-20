@@ -83,7 +83,7 @@ type Props = {
     courseId: string,
     meta: Pick<
       Course,
-      "name" | "target_audience" | "prerequisites" | "next_courses"
+      "name" | "target" | "prerequisites" | "next_courses"
     >,
   ) => void;
   onUpdateLessonStatus: (lessonId: string, status: Lesson["status"]) => void;
@@ -290,12 +290,12 @@ export function LessonListPane({
   const [metaCycleWarning, setMetaCycleWarning] = useState(false);
   const [editMeta, setEditMeta] = useState<{
     name: string;
-    target_audience: string;
+    target: string;
     crossPrerequisites: string[];
     crossNextCourses: string[];
   }>({
     name: "",
-    target_audience: "",
+    target: "",
     crossPrerequisites: [],
     crossNextCourses: [],
   });
@@ -479,7 +479,7 @@ export function LessonListPane({
             onClick={() => {
               setEditMeta({
                 name: course.name,
-                target_audience: course.target_audience ?? "",
+                target: course.target ?? "",
                 crossPrerequisites: filterCrossSeriesIds(
                   series,
                   course.id,
@@ -502,7 +502,7 @@ export function LessonListPane({
         <div className="text-xs">
           <div className="flex gap-1">
             <span className="truncate text-foreground text-muted-foreground">
-              対象: {course.target_audience || "—"}
+              対象: {course.target || "—"}
             </span>
           </div>
         </div>
@@ -714,11 +714,11 @@ export function LessonListPane({
             <MetaDialogField className="col-span-2">
               <Label>受講対象者</Label>
               <Input
-                value={editMeta.target_audience}
+                value={editMeta.target}
                 onChange={(e) =>
                   setEditMeta((prev) => ({
                     ...prev,
-                    target_audience: e.target.value,
+                    target: e.target.value,
                   }))
                 }
                 placeholder="例: Git未経験の開発者"
@@ -801,7 +801,7 @@ export function LessonListPane({
                 }
                 onUpdateCourseMeta(course.id, {
                   name: editMeta.name.trim() || course.name,
-                  target_audience: editMeta.target_audience || undefined,
+                  target: editMeta.target || undefined,
                   prerequisites: crossPrerequisites,
                   next_courses: crossNextCourses,
                 });

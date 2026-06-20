@@ -230,7 +230,7 @@ export function AgentChatPane({
           lessonBody: getLessonBody(lesson),
           courseMeta: {
             name: course?.name ?? lesson.course,
-            target_audience: course?.target_audience ?? "",
+            target: course?.target ?? "",
             prerequisites: course?.prerequisites ?? [],
             next_courses: course?.next_courses ?? [],
           },

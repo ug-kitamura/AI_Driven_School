@@ -68,7 +68,7 @@ export async function POST(req: Request) {
     const courseDirName = sanitizeFilename(parsed.data.name);
     const courseDir = path.join(seriesDir, courseDirName);
     fs.mkdirSync(courseDir, { recursive: true });
-    writeMetaJson(courseDir, { order: [], target_audience: "", prerequisites: [], next_courses: [] });
+    writeMetaJson(courseDir, { order: [], target: "", prerequisites: [], next_courses: [] });
 
     // series/.meta.json の order 末尾に追記
     const seriesMeta = readMetaJson(seriesDir);

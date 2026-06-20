@@ -146,6 +146,7 @@ export const LessonContentEditor = forwardRef<
       onChange={onChange}
       onCreateEditor={handleCreateEditor}
       basicSetup={{
+        history: true,
         lineNumbers: false,
         foldGutter: false,
         highlightActiveLine: false,

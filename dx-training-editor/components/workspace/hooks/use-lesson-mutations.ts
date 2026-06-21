@@ -128,14 +128,6 @@ export function useLessonMutations(options: {
 
       const diskLessonName = diskLesson.lesson;
       const ctx = { seriesName, courseName };
-      const aligned = alignLessonContentToDiskPath(content, ctx, diskLessonName);
-      if (!aligned.ok) {
-        onSaveError?.(
-          `保存をスキップしました: ${aligned.reason}。別レッスンの内容が混ざっている可能性があります。`,
-        );
-        return;
-      }
-      content = aligned.content;
 
       if (lessonFileContentEquals(content, diskLesson.content)) {
         return;
@@ -150,8 +142,27 @@ export function useLessonMutations(options: {
 
       const timer = setTimeout(() => {
         debounceTimers.current.delete(lessonId);
+        const aligned = alignLessonContentToDiskPath(
+          content,
+          ctx,
+          diskLessonName,
+        );
+        if (!aligned.ok) {
+          onSaveError?.(
+            `保存をスキップしました: ${aligned.reason}。別レッスンの内容が混ざっている可能性があります。`,
+          );
+          return;
+        }
+        const toSave = aligned.content;
         setPendingSave?.(true);
-        saveLessonToFs(seriesName, courseName, diskLessonName, content)
+        saveLessonToFs(seriesName, courseName, diskLessonName, toSave)
+          .then(() => {
+            if (!lessonFileContentEquals(toSave, content)) {
+              mapLessonById(lessonId, (lesson, mapCtx) =>
+                applyLessonContentEdit(lesson, mapCtx, toSave),
+              );
+            }
+          })
           .catch((err: unknown) => {
             onSaveError?.(`レッスン保存エラー: ${String(err)}`);
           })

@@ -8,7 +8,7 @@ import {
   useState,
   useEffect,
 } from "react";
-import { EditorState, Transaction } from "@codemirror/state";
+import { EditorState, Transaction, ChangeSet } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
 import { cn } from "@/lib/utils";
 import {
@@ -210,8 +210,14 @@ export const LessonContentEditor = forwardRef<
     const current = view.state.doc.toString();
     if (current === value) return;
 
+    const selection = view.state.selection;
+    const changes = ChangeSet.of(
+      [{ from: 0, to: current.length, insert: value }],
+      current.length,
+    );
     view.dispatch({
-      changes: { from: 0, to: current.length, insert: value },
+      changes,
+      selection: selection.map(changes),
       annotations: Transaction.remote.of(true),
     });
     setLessonEditorStateCache(lessonId, view.state);

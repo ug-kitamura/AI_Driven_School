@@ -1,4 +1,5 @@
 import { TAG_PATTERN } from "@/lib/lesson-tags";
+import { isFrontmatterDelimiterLine } from "@/lib/markdown-fold-ranges";
 import type { Lesson, LessonStatus, Series } from "@/lib/schema";
 
 export type LessonParentContext = {
@@ -17,8 +18,53 @@ export type LessonMetaFields = {
   author: string;
 };
 
-const FRONTMATTER_RE = /^---\r?\n([\s\S]*?)\r?\n---\r?\n?([\s\S]*)$/;
 const VALID_STATUSES: LessonStatus[] = ["open", "in_progress", "done"];
+
+type FrontmatterSplit = {
+  yaml: string;
+  body: string;
+  bodyStartOffset: number;
+};
+
+/** 先頭フロントマター（`---` 以上のハイフン区切り）を yaml / 本文に分割 */
+export function splitFrontmatterText(
+  content: string | undefined | null,
+): FrontmatterSplit | null {
+  const text = content ?? "";
+  const lines = text.split(/\r?\n/);
+  if (lines.length < 2 || !isFrontmatterDelimiterLine(lines[0] ?? "")) {
+    return null;
+  }
+
+  let closeIndex = -1;
+  for (let i = 1; i < lines.length; i++) {
+    if (isFrontmatterDelimiterLine(lines[i])) {
+      closeIndex = i;
+      break;
+    }
+  }
+  if (closeIndex === -1) return null;
+
+  const lineStarts: number[] = [0];
+  for (let i = 0; i < text.length; i++) {
+    if (text[i] === "\n") lineStarts.push(i + 1);
+    else if (text[i] === "\r" && text[i + 1] === "\n") {
+      lineStarts.push(i + 2);
+      i += 1;
+    }
+  }
+
+  const closeLineEnd = lineStarts[closeIndex]! + lines[closeIndex]!.length;
+  let bodyStart = closeLineEnd;
+  if (text[bodyStart] === "\r" && text[bodyStart + 1] === "\n") bodyStart += 2;
+  else if (text[bodyStart] === "\n") bodyStart += 1;
+
+  return {
+    yaml: lines.slice(1, closeIndex).join("\n"),
+    body: text.slice(bodyStart),
+    bodyStartOffset: bodyStart,
+  };
+}
 
 export function migrateLegacyStatus(status: string): LessonStatus {
   if (status === "draft") return "open";
@@ -33,19 +79,16 @@ export function parseLessonDocument(content: string | undefined | null): {
   body: string;
 } {
   const text = content ?? "";
-  const match = text.match(FRONTMATTER_RE);
-  if (!match) {
+  const split = splitFrontmatterText(text);
+  if (!split) {
     return { meta: {}, body: text };
   }
-  return { meta: parseYamlBlock(match[1]), body: match[2] };
+  return { meta: parseYamlBlock(split.yaml), body: split.body };
 }
 
 /** 本文先頭の文字オフセット。フロントマターが無ければ 0 */
 export function getLessonBodyStartOffset(content: string | undefined | null): number {
-  const text = content ?? "";
-  const match = text.match(FRONTMATTER_RE);
-  if (!match) return 0;
-  return text.length - match[2].length;
+  return splitFrontmatterText(content)?.bodyStartOffset ?? 0;
 }
 
 function parseYamlBlock(yaml: string): Partial<LessonMetaFields> {

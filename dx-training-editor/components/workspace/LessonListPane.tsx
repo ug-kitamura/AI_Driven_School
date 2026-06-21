@@ -541,7 +541,7 @@ export function LessonListPane({
 
   return (
     <>
-    <PaneWheelRoot scrollRef={lessonScrollRef} className="min-w-0 bg-card">
+    <PaneWheelRoot scrollRef={lessonScrollRef} className="min-w-0 overflow-hidden bg-card">
       {/* コースメタ情報エリア */}
       <div className="min-w-0 shrink-0 border-b border-border bg-muted/40 px-3 py-2">
         <div className="mb-2 flex items-center gap-1">

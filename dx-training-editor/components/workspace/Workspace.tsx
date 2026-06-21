@@ -11,6 +11,7 @@ import { ImageManagerPane } from "@/components/workspace/ImageManagerPane";
 import { PaneResizeHandle } from "@/components/workspace/PaneResizeHandle";
 import { ThemeInitializer } from "@/components/workspace/ThemeInitializer";
 import { WorkspaceSettingsDialog } from "@/components/workspace/WorkspaceSettingsDialog";
+import { PANE3_MIN_WIDTH } from "@/components/workspace/pane-layout";
 import { useWorkspacePaneWidths } from "@/components/workspace/use-workspace-pane-widths";
 import { useLessonMutations } from "@/components/workspace/hooks/use-lesson-mutations";
 import { useSeriesMutations } from "@/components/workspace/hooks/use-series-mutations";
@@ -80,9 +81,29 @@ export function Workspace({
     ((markdown: string) => void) | null
   >(null);
   const [currentLessonPath, setCurrentLessonPath] = useState<string | null>(null);
+  const workspaceRootRef = useRef<HTMLDivElement>(null);
+  const [workspaceTotalWidth, setWorkspaceTotalWidth] = useState<number | null>(
+    null,
+  );
+
+  const pane4Open = !pane4ManuallyClosed;
 
   const { paneWidths, isResizing, resizeHandleProps, applyPaneWidths } =
-    useWorkspacePaneWidths();
+    useWorkspacePaneWidths(workspaceTotalWidth, pane4Open);
+
+  useEffect(() => {
+    const el = workspaceRootRef.current;
+    if (!el) return;
+
+    const updateWidth = () => {
+      setWorkspaceTotalWidth(el.clientWidth);
+    };
+
+    updateWidth();
+    const observer = new ResizeObserver(updateWidth);
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
 
   const firstCourseId = initialSeries[0]?.courses[0]?.id ?? "";
   const firstLessonId = initialSeries[0]?.courses[0]?.lessons[0]?.id ?? "";
@@ -250,8 +271,6 @@ export function Workspace({
     selectedLesson?.lesson,
   ]);
 
-  const pane4Open = !pane4ManuallyClosed;
-
   const imageManagerPaneProps = {
     series,
     lesson: selectedLesson,
@@ -265,11 +284,15 @@ export function Workspace({
   };
 
   return (
+    <div
+      ref={workspaceRootRef}
+      className="h-screen w-full overflow-hidden"
+    >
     <SidebarProvider
       defaultOpen
       data-resizing={isResizing ? "" : undefined}
       className={cn(
-        "h-screen w-full overflow-hidden bg-background text-foreground",
+        "h-full w-full overflow-hidden bg-background text-foreground",
         isResizing &&
           "[&_[data-slot=sidebar-gap]]:transition-none [&_[data-slot=sidebar-container]]:transition-none",
       )}
@@ -348,7 +371,10 @@ export function Workspace({
             />
           </div>
           <PaneResizeHandle {...resizeHandleProps("pane2")} />
-          <div className="flex h-full min-w-0 flex-1 flex-col overflow-hidden">
+          <div
+            className="flex h-full min-w-0 flex-1 flex-col overflow-hidden"
+            style={{ minWidth: PANE3_MIN_WIDTH }}
+          >
             <MarkdownEditorPane
               lesson={selectedLesson}
               series={series}
@@ -383,5 +409,6 @@ export function Workspace({
         </div>
       </SidebarInset>
     </SidebarProvider>
+    </div>
   );
 }

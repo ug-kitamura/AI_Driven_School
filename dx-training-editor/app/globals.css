@@ -281,12 +281,20 @@
 
 /* Pane2 等: スクロールは有効・スクロールバーは非表示 */
 .workspace-scrollbar-hidden {
-  scrollbar-width: none;
+  scrollbar-width: none !important;
   -ms-overflow-style: none;
+  scrollbar-gutter: auto;
 }
 
 .workspace-scrollbar-hidden::-webkit-scrollbar {
+  width: 0 !important;
+  height: 0 !important;
   display: none;
+}
+
+.workspace-scrollbar-hidden::-webkit-scrollbar-thumb,
+.workspace-scrollbar-hidden::-webkit-scrollbar-track {
+  background: transparent;
 }
 
 /* Pane3・Pane4・グローバル曼陀羅: ネイティブスクロールバー（ライト/ダークで形状同一） */

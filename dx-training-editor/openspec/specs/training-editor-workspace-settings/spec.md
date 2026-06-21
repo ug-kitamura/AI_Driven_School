@@ -14,7 +14,7 @@ TBD - created by archiving change pane4-ai-generation-and-settings. Update Purpo
 
 ### Requirement: AI API キーをマスク入力で保存する
 
-設定ダイアログは **AI API キー**（Claude 等の AI 呼び出し用）を password 入力（マスク表示）で編集でき、保存操作で `localStorage` の `dx-training-editor-settings` に **`aiApiKey`** として格納しなければならない（SHALL）。入力欄の placeholder は **`例 sk-ant-...`** としなければならない（SHALL）。サーバーはキーを永続化してはならない（MUST NOT）。各キー行に **表示トグル**（目アイコン、`password` ↔ `text`）と **リセット**（当該フィールドの draft を空文字にする）を提供しなければならない（SHALL）。一括クリアのみの操作に限定してはならない（MUST NOT）。ダイアログにはキーがブラウザ内のみに保存される旨を表示しなければならない（SHALL）。
+設定ダイアログは **AI API キー**（Claude 等の AI 呼び出し用）を password 入力（マスク表示）で編集でき、保存操作で `localStorage` の `dx-training-editor-settings` に **`aiApiKey`** として格納しなければならない（SHALL）。入力欄の placeholder は **`AI API key`** としなければならない（SHALL）。サーバーはキーを永続化してはならない（MUST NOT）。各キー行に **表示トグル**（目アイコン、`password` ↔ `text`）と **リセット**（当該フィールドの draft を空文字にする）を提供しなければならない（SHALL）。一括クリアのみの操作に限定してはならない（MUST NOT）。ダイアログにはキーがブラウザ内のみに保存される旨を表示しなければならない（SHALL）。
 
 クライアントは AI 系 API 呼び出し時 **`x-ai-api-key`** ヘッダーでキーを渡してよい（MAY）。サーバーはキー解決時 **ダイアログ由来のヘッダーを優先**し、ヘッダーが無い（ダイアログ未入力）ときのみ **`process.env.AI_API_KEY`（`.env.local`）** を参照しなければならない（SHALL）。
 

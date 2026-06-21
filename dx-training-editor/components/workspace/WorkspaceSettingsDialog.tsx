@@ -326,7 +326,7 @@ function SettingsForm({
             label="AI API キー"
             value={apiKeyInput}
             onChange={setApiKeyInput}
-            placeholder="例 sk-ant-..."
+            placeholder="AI API key"
             hint="未入力時は環境変数 AI_API_KEY を取得"
           />
           <ApiKeyField

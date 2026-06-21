@@ -1,4 +1,10 @@
-## ADDED Requirements
+# content-migration-script Specification
+
+## Purpose
+
+`data/content.json` から `contents/` フォルダ構成への初回移行スクリプトの要件を規定する。
+
+## Requirements
 
 ### Requirement: content.json から contents/ フォルダへの変換
 `scripts/migrate-content.ts` を `npx ts-node scripts/migrate-content.ts` で実行すると、`data/content.json` の内容を `contents/` フォルダ構成に変換しなければならない（SHALL）。

@@ -1,4 +1,10 @@
-## ADDED Requirements
+# consolidated-course-meta Specification
+
+## Purpose
+
+シリーズ・コース・レッスンの順序とコースメタデータを `.meta.json` に統合し、旧来の `_series-order.json` 等を廃止する要件を規定する。
+
+## Requirements
 
 ### Requirement: コース .meta.json に order・対象者・曼陀羅情報を統合する
 

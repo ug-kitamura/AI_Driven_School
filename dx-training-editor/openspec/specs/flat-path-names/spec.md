@@ -1,4 +1,10 @@
-## ADDED Requirements
+# flat-path-names Specification
+
+## Purpose
+
+`contents/` のパス名から数値プレフィックスを排除し、`.meta.json` の `order` 配列を順序の唯一の情報源とする要件を規定する。
+
+## Requirements
 
 ### Requirement: フォルダ/ファイル名はプレフィックスなしの表示名とする
 

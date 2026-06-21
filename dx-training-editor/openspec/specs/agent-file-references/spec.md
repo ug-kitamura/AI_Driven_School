@@ -1,4 +1,10 @@
-## ADDED Requirements
+# agent-file-references Specification
+
+## Purpose
+
+Agent invoke 時に参照可能な `contents/` 配下 markdown ファイルの一覧 API と、許可パスの制限を規定する。
+
+## Requirements
 
 ### Requirement: contents ファイル一覧 API
 `GET /api/agent/files` エンドポイントが存在し、`contents/**/*.md` の全ファイルを返さなければならない（SHALL）。`current` クエリパラメータで選択中レッスンの path が渡された場合、そのファイルを先頭に、残りを path のアルファベット順で返さなければならない（SHALL）。

@@ -1,4 +1,10 @@
-## ADDED Requirements
+# lesson-draft-skill Specification
+
+## Purpose
+
+選択中レッスンから markdown 草稿を生成する `create-draft` Agent スキルの存在・入出力・Phase 1 制約を規定する。
+
+## Requirements
 
 ### Requirement: レッスン草稿作成スキルの存在
 `create-draft` スキルが `dx-training-editor/.claude/skills/create-draft/SKILL.md` に存在しなければならない（SHALL）。選択中レッスンのメタ情報と本文を入力として受け取り、markdown 形式の草稿を生成しなければならない（SHALL）。

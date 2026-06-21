@@ -1,4 +1,10 @@
-## ADDED Requirements
+# contents-migration Specification
+
+## Purpose
+
+既存 `contents/` ツリーをプレフィックスなし構成と `.meta.json` ベースの順序管理へ一括変換するマイグレーションスクリプトの要件を規定する。
+
+## Requirements
 
 ### Requirement: マイグレーションスクリプトが既存 contents/ を新フォーマットに変換する
 

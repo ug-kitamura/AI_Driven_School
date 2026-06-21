@@ -1,4 +1,10 @@
-## ADDED Requirements
+# lesson-autosave Specification
+
+## Purpose
+
+Pane 3 編集操作に連動したレッスン本文・コースメタ・シリーズ順序の debounce 自動保存と、保存失敗時のユーザー通知の要件を規定する。
+
+## Requirements
 
 ### Requirement: レッスン本文の自動保存
 レッスン本文が編集されてから 800ms 以内に変更が静止した場合、`/api/content/save-lesson` を呼び出して `.md` ファイルに保存しなければならない（SHALL）。

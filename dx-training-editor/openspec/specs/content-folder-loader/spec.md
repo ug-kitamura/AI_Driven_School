@@ -1,4 +1,10 @@
-## ADDED Requirements
+# content-folder-loader Specification
+
+## Purpose
+
+`contents/` フォルダ走査による初期ロード API、表示順決定、メタデータ取得、レッスン frontmatter 解析の要件を規定する。
+
+## Requirements
 
 ### Requirement: contents/ フォルダ走査による初期ロード
 アプリ起動時に `contents/` フォルダを走査し、シリーズ・コース・レッスンの構造を `Series[]` として返す API が存在しなければならない（SHALL）。フォルダが存在しない場合は空の配列を返し、エラーにしてはならない（SHALL NOT）。

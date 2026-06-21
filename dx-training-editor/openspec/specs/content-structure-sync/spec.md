@@ -1,4 +1,10 @@
-## ADDED Requirements
+# content-structure-sync Specification
+
+## Purpose
+
+UI 操作（追加・リネーム・並び替え・削除）と `contents/` ファイルシステムの同期、およびファイル名サニタイズの要件を規定する。
+
+## Requirements
 
 ### Requirement: レッスン追加時のファイル生成
 UI でレッスンを追加した場合、コースフォルダ内に適切な数値プレフィックスを持つ `.md` ファイルを生成しなければならない（SHALL）。ファイルにはフロントマターとデフォルト本文を含めなければならない（SHALL）。

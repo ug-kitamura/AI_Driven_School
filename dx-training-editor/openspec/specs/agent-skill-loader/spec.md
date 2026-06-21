@@ -1,7 +1,17 @@
-## ADDED Requirements
+# agent-skill-loader Specification
+
+## Purpose
+
+`.claude/skills/` 配下の Agent スキル定義を読み込み、一覧 API・Cursor 互換形式・変数注入の要件を規定する。
+
+## Requirements
 
 ### Requirement: スキルディレクトリからの読み込み
 `dx-training-editor/.claude/skills/` 配下のスキル定義（`SKILL.md`）を読み込んで一覧取得できなければならない（SHALL）。各スキルは `id`（ディレクトリ名）・`name`・`description` を返さなければならない（SHALL）。
+
+#### Scenario: SKILL.md から id・name・description を読み込む
+- **WHEN** `.claude/skills/create-draft/SKILL.md` が存在する
+- **THEN** `/api/agent/skills` の応答に id `create-draft` と frontmatter の name・description が含まれる
 
 ### Requirement: スキル一覧のソート
 スキル一覧 API は skill id（ディレクトリ名）のアルファベット順でスキルを返さなければならない（SHALL）。

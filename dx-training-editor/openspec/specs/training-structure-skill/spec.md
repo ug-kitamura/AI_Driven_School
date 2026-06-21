@@ -1,4 +1,10 @@
-## ADDED Requirements
+# training-structure-skill Specification
+
+## Purpose
+
+現在のシリーズ/コース/レッスン構成を踏まえた改善提案を出力する `create-structure` Agent スキルの要件を規定する。
+
+## Requirements
 
 ### Requirement: 構成作成スキルの存在
 `create-structure` スキルが `dx-training-editor/.claude/skills/create-structure/SKILL.md` に存在しなければならない（SHALL）。現在のシリーズ/コース/レッスン構成を入力として受け取り、追加・改善提案を出力しなければならない（SHALL）。

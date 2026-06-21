@@ -1,4 +1,5 @@
 import { TAG_PATTERN } from "@/lib/lesson-tags";
+import { lessonFileTextEquals } from "@/lib/lesson-file-text";
 import { isFrontmatterDelimiterLine } from "@/lib/markdown-fold-ranges";
 import type { Lesson, LessonStatus, Series } from "@/lib/schema";
 
@@ -181,8 +182,7 @@ export function normalizeLessonMeta(
 
 /** ディスク上の本文と同一か（改行コードの差のみは同一扱い） */
 export function lessonFileContentEquals(a: string, b: string): boolean {
-  if (a === b) return true;
-  return a.replace(/\r\n/g, "\n") === b.replace(/\r\n/g, "\n");
+  return lessonFileTextEquals(a, b);
 }
 
 export type AlignLessonContentResult =
@@ -216,6 +216,17 @@ export function alignLessonContentToDiskPath(
       ok: false,
       reason: `フロントマターの course（${meta.course}）が保存先（${ctx.courseName}）と一致しません`,
     };
+  }
+
+  const lessonInFm = (meta.lesson ?? "").trim();
+  const needsFmReserialize =
+    !meta.series ||
+    !meta.course ||
+    !lessonInFm ||
+    lessonInFm !== diskLessonName;
+
+  if (!needsFmReserialize) {
+    return { ok: true, content };
   }
 
   const normalized = normalizeLessonMeta(

@@ -20,6 +20,7 @@ export function useContentSync(options: {
   selectedLessonId: string;
   onSeriesLoaded: (newSeries: Series[]) => void;
   onSelectionChange: (selection: WorkspaceSelection) => void;
+  onLessonDiskSynced?: (lessonId: string) => void;
 }) {
   const {
     series,
@@ -27,6 +28,7 @@ export function useContentSync(options: {
     selectedLessonId,
     onSeriesLoaded,
     onSelectionChange,
+    onLessonDiskSynced,
   } = options;
 
   const lastFingerprintRef = useRef("");
@@ -104,6 +106,9 @@ export function useContentSync(options: {
               if (editingLesson && preserveLessonId && l.id === preserveLessonId) {
                 return { ...l, content: editingLesson.content };
               }
+              if (l.id === selectedLessonIdRef.current) {
+                onLessonDiskSynced?.(l.id);
+              }
               return l;
             }),
           })),
@@ -129,7 +134,7 @@ export function useContentSync(options: {
       cancelled = true;
       clearInterval(timer);
     };
-  }, [onSeriesLoaded, onSelectionChange]);
+  }, [onSeriesLoaded, onSelectionChange, onLessonDiskSynced]);
 
   return { setPendingSave };
 }

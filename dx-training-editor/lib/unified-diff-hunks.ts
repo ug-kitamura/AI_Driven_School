@@ -37,8 +37,12 @@ export function parseHunkHeader(
   return { oldStart: Number(match[1]), newStart: Number(match[2]) };
 }
 
-export function isDiffDisplayLine(kind: DiffLineKind): boolean {
-  return kind === "add" || kind === "remove" || kind === "context";
+/** @@ ハンク内の add / remove / context のみ表示対象（diff --git 等の preamble は除外） */
+export function isDiffDisplayLine(line: ParsedDiffLine): boolean {
+  if (line.kind !== "add" && line.kind !== "remove" && line.kind !== "context") {
+    return false;
+  }
+  return line.oldLineNumber !== null || line.newLineNumber !== null;
 }
 
 export function getDiffLineMarker(kind: DiffLineKind): string {

@@ -62,15 +62,36 @@ describe("parseUnifiedDiff", () => {
     });
   });
 
-  it("filters display lines to content only", () => {
+  it("filters display lines to hunk content only", () => {
     const lines = parseUnifiedDiff(SAMPLE).filter((line) =>
-      isDiffDisplayLine(line.kind),
+      isDiffDisplayLine(line),
     );
     expect(lines.map((line) => line.kind)).toEqual([
       "context",
       "remove",
       "add",
       "context",
+    ]);
+  });
+
+  it("excludes diff --git preamble with quotepath escapes", () => {
+    const diff = [
+      'diff --git "a/contents/\\343\\201\\257.md" "b/contents/\\343\\201\\257.md"',
+      "index 1234567..89abcde 100644",
+      "--- a/contents/\\343\\201\\257.md",
+      "+++ b/contents/\\343\\201\\257.md",
+      "@@ -1,2 +1,3 @@",
+      " series: はじめにシリーズ",
+      "-author: old",
+      "+author: 新しい作者",
+    ].join("\n");
+    const displayed = parseUnifiedDiff(diff).filter((line) =>
+      isDiffDisplayLine(line),
+    );
+    expect(displayed.map((line) => getDiffLineContent(line.text, line.kind))).toEqual([
+      "series: はじめにシリーズ",
+      "author: old",
+      "author: 新しい作者",
     ]);
   });
 

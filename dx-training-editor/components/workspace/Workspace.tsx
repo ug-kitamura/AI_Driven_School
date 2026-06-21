@@ -127,12 +127,19 @@ export function Workspace({
     [setSeries],
   );
 
+  const cancelLessonDebounceRef = useRef<(lessonId: string) => void>(() => {});
+
+  const handleLessonDiskSynced = useCallback((lessonId: string) => {
+    cancelLessonDebounceRef.current(lessonId);
+  }, []);
+
   const { setPendingSave } = useContentSync({
     series,
     selectedCourseId,
     selectedLessonId,
     onSeriesLoaded: handleSeriesLoaded,
     onSelectionChange: setSelection,
+    onLessonDiskSynced: handleLessonDiskSynced,
   });
 
   const {
@@ -142,6 +149,7 @@ export function Workspace({
     updateLessonContent,
     updateLessonMeta,
     updateLessonStatus,
+    cancelLessonDebounce,
   } = useLessonMutations({
     series,
     setSeries,
@@ -151,6 +159,8 @@ export function Workspace({
     setPendingSave,
     onSaveError: handleSaveError,
   });
+
+  cancelLessonDebounceRef.current = cancelLessonDebounce;
 
   const { availableImagePaths, imageAssetsRevision, notifyImageAssetsChanged } =
     useWorkspaceImageAssets();

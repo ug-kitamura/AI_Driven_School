@@ -177,8 +177,6 @@ export function MarkdownEditorPane({
       headers: { "Content-Type": "application/json" },
       signal: controller.signal,
       body: JSON.stringify({
-        lessonId: lesson.id,
-        content: lesson.content,
         series: lesson.series,
         course: lesson.course,
         lesson: lesson.lesson,
@@ -212,6 +210,7 @@ export function MarkdownEditorPane({
     lesson?.series,
     lesson?.course,
     lesson?.lesson,
+    lesson?.content,
   ]);
 
   if (!lesson && mode !== "agent") {

@@ -13,6 +13,14 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  META_DIALOG_CONTROL,
   META_DIALOG_STACK,
   MetaDialogField,
 } from "@/components/workspace/metaDialogLayout";
@@ -42,6 +50,7 @@ import {
   UNSUPPORTED_MODEL_ERROR,
   isUnsupportedAiModel,
 } from "@/lib/ai-models";
+import { cn } from "@/lib/utils";
 
 type Props = {
   open: boolean;
@@ -281,23 +290,29 @@ function SettingsForm({
         <section className="flex flex-col gap-3">
           <h3 className="text-sm font-semibold text-foreground">AI モデル</h3>
           <MetaDialogField>
-            <div className="flex flex-col gap-2">
-              {AI_MODEL_OPTIONS.map(({ slug, label }) => (
-                <Button
-                  key={slug}
-                  type="button"
-                  size="sm"
-                  variant={draft.aiModel === slug ? "default" : "outline"}
-                  className="justify-start"
-                  onClick={() => {
-                    setDraft((prev) => ({ ...prev, aiModel: slug as AiModelSlug }));
-                    setModelError(null);
-                  }}
-                >
-                  {label}
-                </Button>
-              ))}
-            </div>
+            <Select
+              items={AI_MODEL_OPTIONS.map(({ slug, label }) => ({
+                value: slug,
+                label,
+              }))}
+              value={draft.aiModel}
+              onValueChange={(v) => {
+                if (!v) return;
+                setDraft((prev) => ({ ...prev, aiModel: v as AiModelSlug }));
+                setModelError(null);
+              }}
+            >
+              <SelectTrigger className={cn(META_DIALOG_CONTROL, "w-full")}>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {AI_MODEL_OPTIONS.map(({ slug, label }) => (
+                  <SelectItem key={slug} value={slug}>
+                    {label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
             {modelError ? (
               <p className="text-xs text-destructive">{modelError}</p>
             ) : null}

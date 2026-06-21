@@ -98,6 +98,14 @@ export function useLessonMutations(options: {
     [setSeries],
   );
 
+  const cancelLessonDebounce = useCallback((lessonId: string) => {
+    const timer = debounceTimers.current.get(lessonId);
+    if (timer) {
+      clearTimeout(timer);
+      debounceTimers.current.delete(lessonId);
+    }
+  }, []);
+
   const updateLessonContent = useCallback(
     (lessonId: string, content: string) => {
       // series state を同期的に走査して現在のレッスン情報を取得する
@@ -129,7 +137,9 @@ export function useLessonMutations(options: {
       }
       content = aligned.content;
 
-      if (lessonFileContentEquals(content, diskLesson.content)) return;
+      if (lessonFileContentEquals(content, diskLesson.content)) {
+        return;
+      }
 
       mapLessonById(lessonId, (lesson, mapCtx) =>
         applyLessonContentEdit(lesson, mapCtx, content),
@@ -138,10 +148,9 @@ export function useLessonMutations(options: {
       const existing = debounceTimers.current.get(lessonId);
       if (existing) clearTimeout(existing);
 
-      setPendingSave?.(true);
-
       const timer = setTimeout(() => {
         debounceTimers.current.delete(lessonId);
+        setPendingSave?.(true);
         saveLessonToFs(seriesName, courseName, diskLessonName, content)
           .catch((err: unknown) => {
             onSaveError?.(`レッスン保存エラー: ${String(err)}`);
@@ -374,5 +383,6 @@ export function useLessonMutations(options: {
     updateLessonContent,
     updateLessonMeta,
     updateLessonStatus,
+    cancelLessonDebounce,
   };
 }

@@ -5,9 +5,9 @@ export type WorkspacePaneWidths = {
 };
 
 export const PANE_WIDTH_DEFAULTS: WorkspacePaneWidths = {
-  pane1: 300,
+  pane1: 270,
   pane2: 300,
-  pane4: 300,
+  pane4: 285,
 };
 
 /** Pane3（エディタ）の最小幅 — 派生幅のため設定 UI には含めない */
@@ -23,7 +23,7 @@ export const PANE_SHRINK_ORDER_DEFAULT: (keyof WorkspacePaneWidths)[] = [
   "pane2",
 ];
 
-/** 各ペインを広げる際に他ペインを縮める順（pane3 は flex 残り） */
+/** 各ペインを広げる際に他ペインを縮める順（pane3 は常に最後＝ここには含めない） */
 export const PANE_SHRINK_ORDER_WHEN_EXPAND: Record<
   keyof WorkspacePaneWidths,
   (keyof WorkspacePaneWidths)[]
@@ -139,7 +139,7 @@ export function computePane3Width(
   );
 }
 
-/** 利用可能幅に収めつつ pane3 最小幅を優先する */
+/** 利用可能幅に収めつつ pane3 最小幅 520 を守る */
 export function fitPaneLayout(input: FitPaneLayoutInput): WorkspacePaneWidths {
   let widths = clampRequestedWidths(input.requested);
   const expandPane = input.expandPane ?? null;

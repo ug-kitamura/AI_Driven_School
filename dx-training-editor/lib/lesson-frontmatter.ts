@@ -312,7 +312,7 @@ export function migrateQuizBlocksInBody(body: string): string {
 }
 
 export function defaultLessonBody(lessonName: string): string {
-  return `# ${lessonName}\n\n（ここに本文を書いてください）\n`;
+  return `\n# ${lessonName}\n\n（ここに本文を書いてください）\n`;
 }
 
 export function createLessonContentTemplate(

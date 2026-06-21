@@ -3,6 +3,7 @@
 import { ImageOff, Plus, Trash2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { MediaPlayOverlay } from "@/components/workspace/MediaPlayOverlay";
+import { IMAGE_GRID_CELL_MIN } from "@/components/workspace/pane-layout";
 import { isMp4Path, toImageApiUrl } from "@/lib/image-path";
 
 export type ImageGridItem = {
@@ -43,10 +44,10 @@ export function ImageGrid({
 
   return (
     <div
-      className={cn(
-        "grid grid-cols-[repeat(auto-fill,minmax(100px,1fr))] gap-2",
-        className,
-      )}
+      className={cn("grid w-full gap-2", className)}
+      style={{
+        gridTemplateColumns: `repeat(auto-fill, minmax(min(${IMAGE_GRID_CELL_MIN}px, calc((100% - 0.5rem) / 2)), 1fr))`,
+      }}
     >
       {items.map((item) => {
         const isVideo = !item.missing && isMp4Path(item.path);

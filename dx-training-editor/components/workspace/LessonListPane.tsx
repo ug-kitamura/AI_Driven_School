@@ -541,7 +541,7 @@ export function LessonListPane({
 
   return (
     <>
-    <PaneWheelRoot scrollRef={lessonScrollRef} className="min-w-0 bg-card">
+    <PaneWheelRoot scrollRef={lessonScrollRef} className="min-w-0 overflow-hidden bg-card">
       {/* コースメタ情報エリア */}
       <div className="min-w-0 shrink-0 border-b border-border bg-muted/40 px-3 py-2">
         <div className="mb-2 flex items-center gap-1">
@@ -635,7 +635,7 @@ export function LessonListPane({
         <div
           ref={lessonScrollRef}
           className={cn(
-            "flex min-h-0 flex-1 flex-col gap-1 overflow-y-auto overscroll-y-contain pb-2",
+            "workspace-scrollbar-hidden flex min-h-0 flex-1 flex-col gap-1 overflow-y-auto overscroll-y-contain pb-2",
             LIST_CHILD_LEFT_INSET_CLASS,
           )}
         >

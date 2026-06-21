@@ -109,4 +109,52 @@ describe("useWorkspaceSelection", () => {
     expect(result.current.selectedCourseId).toBe("c1");
     expect(result.current.selectedLessonId).toBe("l2");
   });
+
+  it("keeps renamed lesson selected when series updates after meta rename", () => {
+    localStorage.setItem(
+      "dx-training-editor-selection",
+      JSON.stringify({ courseId: "c1", lessonId: "l2" }),
+    );
+
+    const renamedSeries: Series[] = [
+      {
+        ...series[0],
+        courses: [
+          {
+            ...series[0].courses[0],
+            lessons: [
+              series[0].courses[0].lessons[0],
+              {
+                ...series[0].courses[0].lessons[1],
+                id: "l2-renamed",
+                lesson: "Lesson 2 renamed",
+              },
+            ],
+          },
+          series[0].courses[1],
+        ],
+      },
+    ];
+
+    const { result, rerender } = renderHook(
+      (props: { data: Series[] }) =>
+        useWorkspaceSelection({
+          series: props.data,
+          initialCourseId: "c1",
+          initialLessonId: "l1",
+        }),
+      { initialProps: { data: series } },
+    );
+
+    expect(result.current.selectedLessonId).toBe("l2");
+
+    act(() => {
+      result.current.setSelection({ courseId: "c1", lessonId: "l2-renamed" });
+      rerender({ data: renamedSeries });
+    });
+
+    expect(result.current.selectedCourseId).toBe("c1");
+    expect(result.current.selectedLessonId).toBe("l2-renamed");
+    expect(result.current.selectedLesson?.lesson).toBe("Lesson 2 renamed");
+  });
 });

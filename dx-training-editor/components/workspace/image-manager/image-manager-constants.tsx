@@ -15,7 +15,7 @@ export const PANE4_BUTTON_ROW_CLASS = "flex h-8 items-center justify-start gap-2
 export const PANE4_TOP_BOX_CLASS =
   "flex h-[calc(96px+0.5rem)] flex-col items-center justify-center rounded-lg border-2 border-dashed p-4 text-center";
 export const PANE4_PROMPT_TEXTAREA_CLASS =
-  "h-[96px] min-h-[96px] w-full resize-y overflow-y-auto rounded-lg border border-border bg-background px-3 pt-2 pb-3 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary";
+  "workspace-scrollbar h-[96px] min-h-[96px] w-full resize-y overflow-y-auto rounded-lg border border-border bg-background px-3 pt-2 pb-3 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary";
 
 export const AI_KEY_ERROR =
   "AI API キーを設定（歯車）するか、サーバーに AI_API_KEY を設定してください";

@@ -418,7 +418,7 @@ export function ImageManagerPane({
 
       <div
         ref={tabScrollRef}
-        className="min-h-0 flex-1 overflow-y-auto overscroll-y-contain"
+        className="workspace-scrollbar min-h-0 flex-1 overflow-y-auto overscroll-y-contain"
       >
         {loading && activeTab !== "ai" && activeTab !== "web" ? (
           <div className="flex h-24 items-center justify-center text-xs text-muted-foreground">

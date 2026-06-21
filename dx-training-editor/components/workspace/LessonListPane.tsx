@@ -635,7 +635,7 @@ export function LessonListPane({
         <div
           ref={lessonScrollRef}
           className={cn(
-            "flex min-h-0 flex-1 flex-col gap-1 overflow-y-auto overscroll-y-contain pb-2",
+            "workspace-scrollbar-hidden flex min-h-0 flex-1 flex-col gap-1 overflow-y-auto overscroll-y-contain pb-2",
             LIST_CHILD_LEFT_INSET_CLASS,
           )}
         >

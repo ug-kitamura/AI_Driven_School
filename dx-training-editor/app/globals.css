@@ -279,7 +279,17 @@
   background: linear-gradient(to top, var(--agent-chat-pane-bg), transparent);
 }
 
-/* Pane3・グローバル曼陀羅: ネイティブスクロールバー（ライト/ダークで形状同一） */
+/* Pane2 等: スクロールは有効・スクロールバーは非表示 */
+.workspace-scrollbar-hidden {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.workspace-scrollbar-hidden::-webkit-scrollbar {
+  display: none;
+}
+
+/* Pane3・Pane4・グローバル曼陀羅: ネイティブスクロールバー（ライト/ダークで形状同一） */
 .workspace-scrollbar,
 .lesson-content-editor .cm-scroller {
   scrollbar-width: thin;

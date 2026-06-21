@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   alignLessonContentToDiskPath,
+  createLessonContentTemplate,
   getLessonBodyStartOffset,
   parseLessonDocument,
   serializeLessonDocument,
@@ -65,6 +66,11 @@ describe("serializeLessonDocument", () => {
   it("preserves an intentional blank line after frontmatter", () => {
     const doc = serializeLessonDocument(meta, "\n# Title");
     expect(doc).toContain("---\n\n# Title");
+  });
+
+  it("createLessonContentTemplate inserts blank line after frontmatter", () => {
+    const doc = createLessonContentTemplate(meta);
+    expect(doc).toMatch(/---\n\n# L/);
   });
 
   it("round-trips body on line 11 without adding blank lines", () => {

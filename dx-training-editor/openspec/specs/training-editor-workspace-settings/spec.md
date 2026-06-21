@@ -14,7 +14,7 @@ TBD - created by archiving change pane4-ai-generation-and-settings. Update Purpo
 
 ### Requirement: AI API キーをマスク入力で保存する
 
-設定ダイアログは **AI API キー**（Claude 等の AI 呼び出し用）を password 入力（マスク表示）で編集でき、保存操作で `localStorage` の `dx-training-editor-settings` に **`aiApiKey`** として格納しなければならない（SHALL）。サーバーはキーを永続化してはならない（MUST NOT）。各キー行に **表示トグル**（目アイコン、`password` ↔ `text`）と **リセット**（当該フィールドの draft を空文字にする）を提供しなければならない（SHALL）。一括クリアのみの操作に限定してはならない（MUST NOT）。ダイアログにはキーがブラウザ内のみに保存される旨を表示しなければならない（SHALL）。
+設定ダイアログは **AI API キー**（Claude 等の AI 呼び出し用）を password 入力（マスク表示）で編集でき、保存操作で `localStorage` の `dx-training-editor-settings` に **`aiApiKey`** として格納しなければならない（SHALL）。入力欄の placeholder は **`例 sk-ant-...`** としなければならない（SHALL）。サーバーはキーを永続化してはならない（MUST NOT）。各キー行に **表示トグル**（目アイコン、`password` ↔ `text`）と **リセット**（当該フィールドの draft を空文字にする）を提供しなければならない（SHALL）。一括クリアのみの操作に限定してはならない（MUST NOT）。ダイアログにはキーがブラウザ内のみに保存される旨を表示しなければならない（SHALL）。
 
 クライアントは AI 系 API 呼び出し時 **`x-ai-api-key`** ヘッダーでキーを渡してよい（MAY）。サーバーはキー解決時 **ダイアログ由来のヘッダーを優先**し、ヘッダーが無い（ダイアログ未入力）ときのみ **`process.env.AI_API_KEY`（`.env.local`）** を参照しなければならない（SHALL）。
 
@@ -141,4 +141,40 @@ Web タブの検索 API 呼び出し時、クライアントは `x-pixabay-api-k
 - **WHEN** `editorFontSizePx` が settings に存在しない
 - **AND** ユーザーが編集モードを開く
 - **THEN** フォントサイズは 14 px 相当である
+
+### Requirement: AI モデルを設定ダイアログで選択する
+
+設定ダイアログは **横幅** セクションと **API** セクションの間に **AI モデル** セクションを配置しなければならない（SHALL）。選択肢は次の 2 つとしなければならない（SHALL）:
+
+| slug | 表示ラベル | 保存 |
+|------|-----------|------|
+| `claude-sonnet-4-6` | Claude Sonnet 4.6 | 可（デフォルト） |
+| `gpt-5-nano` | GPT 5 nano | 不可（未対応） |
+
+未設定時の既定値は `claude-sonnet-4-6` でなければならない（SHALL）。保存操作で **`aiModel`** を `dx-training-editor-settings` に格納しなければならない（SHALL）。クライアントは AI 系 API 呼び出し時 **`x-ai-model`** ヘッダーで slug を渡さなければならない（SHALL）。サーバーは **`x-ai-model` ヘッダーを優先**し、ヘッダーが無いときのみ **`process.env.AI_MODEL`** を参照し、それも無いときは **`claude-sonnet-4-6`** を用いなければならない（SHALL）。
+
+#### Scenario: デフォルトは Claude Sonnet 4.6
+
+- **WHEN** ユーザーが初めて設定ダイアログを開く
+- **AND** `aiModel` が未保存である
+- **THEN** Claude Sonnet 4.6 が選択されている
+
+#### Scenario: Claude Sonnet 4.6 を保存できる
+
+- **WHEN** ユーザーが Claude Sonnet 4.6 を選択して保存する
+- **THEN** `aiModel` が `claude-sonnet-4-6` として永続化される
+- **AND** 設定ダイアログが閉じる
+
+#### Scenario: GPT 5 nano は保存できない
+
+- **WHEN** ユーザーが GPT 5 nano を選択して保存を試みる
+- **THEN** 「このモデルは未対応です」というエラーが表示される
+- **AND** 設定は永続化されない
+- **AND** 設定ダイアログは閉じない
+
+#### Scenario: 保存済みモデルが AI API に渡される
+
+- **WHEN** ユーザーが Claude Sonnet 4.6 を保存している
+- **AND** AI タブで生成を実行する
+- **THEN** リクエストに `x-ai-model: claude-sonnet-4-6` が含まれる
 

@@ -11,6 +11,7 @@ import {
 } from "@/lib/ai-image-prompt";
 import { resolveUniquePngFileName } from "@/lib/image-slug";
 import { saveStagingImage } from "@/lib/image-store";
+import { resolveAiModel } from "@/lib/resolve-ai-model";
 import { lessonSchema } from "@/lib/schema";
 
 const execFileAsync = promisify(execFile);
@@ -21,13 +22,17 @@ const bodySchema = z.object({
 });
 
 /** @see https://platform.claude.com/docs/en/about-claude/models/overview */
-const DEFAULT_MODEL = "claude-sonnet-4-6";
 
 function resolveApiKey(req: Request): string | null {
   return resolveAiApiKey(req);
 }
 
-async function callClaude(apiKey: string, system: string, user: string): Promise<string> {
+async function callClaude(
+  apiKey: string,
+  model: string,
+  system: string,
+  user: string,
+): Promise<string> {
   const res = await fetch("https://api.anthropic.com/v1/messages", {
     method: "POST",
     headers: {
@@ -36,7 +41,7 @@ async function callClaude(apiKey: string, system: string, user: string): Promise
       "anthropic-version": "2023-06-01",
     },
     body: JSON.stringify({
-      model: process.env.AI_MODEL ?? DEFAULT_MODEL,
+      model,
       max_tokens: 8192,
       system,
       messages: [{ role: "user", content: user }],
@@ -81,6 +86,11 @@ export async function POST(req: Request) {
     );
   }
 
+  const modelResult = resolveAiModel(req);
+  if (!modelResult.ok) {
+    return Response.json({ error: modelResult.error }, { status: 400 });
+  }
+
   let parsed: z.infer<typeof bodySchema>;
   try {
     const json: unknown = await req.json();
@@ -93,7 +103,7 @@ export async function POST(req: Request) {
 
   let generation: ReturnType<typeof parseAiGenerationResponse>;
   try {
-    const raw = await callClaude(apiKey, system, user);
+    const raw = await callClaude(apiKey, modelResult.model, system, user);
     generation = parseAiGenerationResponse(raw, parsed.prompt);
   } catch (error) {
     const message = error instanceof Error ? error.message : "生成に失敗しました";

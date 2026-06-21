@@ -3,6 +3,13 @@ import {
   clampPaneWidth,
   type WorkspacePaneWidths,
 } from "@/components/workspace/pane-layout";
+import {
+  DEFAULT_AI_MODEL,
+  normalizeAiModel,
+  type AiModelSlug,
+} from "@/lib/ai-models";
+
+export type { AiModelSlug };
 
 export type ThemeMode = "light" | "dark" | "system";
 
@@ -11,10 +18,13 @@ export const EDITOR_FONT_SIZE_MIN = 8;
 export const EDITOR_FONT_SIZE_MAX = 32;
 
 export const EDITOR_FONT_SIZE_CHANGED_EVENT = "dx-training-editor-font-size-changed";
+export const WORKSPACE_SETTINGS_CHANGED_EVENT =
+  "dx-training-editor-settings-changed";
 
 export type WorkspaceSettings = {
   aiApiKey: string | null;
   pixabayApiKey: string | null;
+  aiModel: AiModelSlug;
   theme: ThemeMode;
   paneDefaults: WorkspacePaneWidths;
   editorFontSizePx: number;
@@ -31,6 +41,7 @@ const STORAGE_KEY = "dx-training-editor-settings";
 export const DEFAULT_WORKSPACE_SETTINGS: WorkspaceSettings = {
   aiApiKey: null,
   pixabayApiKey: null,
+  aiModel: DEFAULT_AI_MODEL,
   theme: "light",
   paneDefaults: { ...PANE_WIDTH_DEFAULTS },
   editorFontSizePx: EDITOR_FONT_SIZE_DEFAULT,
@@ -57,6 +68,7 @@ export function loadWorkspaceSettings(): WorkspaceSettings {
         typeof parsed.aiApiKey === "string" ? parsed.aiApiKey : null,
       pixabayApiKey:
         typeof parsed.pixabayApiKey === "string" ? parsed.pixabayApiKey : null,
+      aiModel: normalizeAiModel(parsed.aiModel),
       theme:
         parsed.theme === "dark" ||
         parsed.theme === "system" ||
@@ -79,6 +91,7 @@ export function saveWorkspaceSettings(settings: WorkspaceSettings): void {
   if (typeof window === "undefined") return;
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(settings));
+    window.dispatchEvent(new CustomEvent(WORKSPACE_SETTINGS_CHANGED_EVENT));
   } catch {
     // ignore quota
   }

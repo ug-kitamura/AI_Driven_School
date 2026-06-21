@@ -4,9 +4,8 @@ import {
   buildSuggestPromptMessages,
   parseSuggestPromptResponse,
 } from "@/lib/ai-image-suggest-prompt";
+import { resolveAiModel } from "@/lib/resolve-ai-model";
 import { lessonSchema } from "@/lib/schema";
-
-const DEFAULT_MODEL = "claude-sonnet-4-6";
 
 const bodySchema = z.object({
   lesson: lessonSchema,
@@ -14,7 +13,12 @@ const bodySchema = z.object({
   seedPrompt: z.string().optional(),
 });
 
-async function callClaude(apiKey: string, system: string, user: string): Promise<string> {
+async function callClaude(
+  apiKey: string,
+  model: string,
+  system: string,
+  user: string,
+): Promise<string> {
   const res = await fetch("https://api.anthropic.com/v1/messages", {
     method: "POST",
     headers: {
@@ -23,7 +27,7 @@ async function callClaude(apiKey: string, system: string, user: string): Promise
       "anthropic-version": "2023-06-01",
     },
     body: JSON.stringify({
-      model: process.env.AI_MODEL ?? DEFAULT_MODEL,
+      model,
       max_tokens: 2048,
       system,
       messages: [{ role: "user", content: user }],
@@ -64,6 +68,11 @@ export async function POST(req: Request) {
     );
   }
 
+  const modelResult = resolveAiModel(req);
+  if (!modelResult.ok) {
+    return Response.json({ error: modelResult.error }, { status: 400 });
+  }
+
   let parsed: z.infer<typeof bodySchema>;
   try {
     const json: unknown = await req.json();
@@ -80,7 +89,7 @@ export async function POST(req: Request) {
   );
 
   try {
-    const raw = await callClaude(apiKey, system, user);
+    const raw = await callClaude(apiKey, modelResult.model, system, user);
     const prompt = parseSuggestPromptResponse(raw);
     if (!prompt) {
       return Response.json({ error: "プロンプトを生成できませんでした" }, { status: 502 });

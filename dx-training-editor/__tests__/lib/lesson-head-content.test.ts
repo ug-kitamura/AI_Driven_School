@@ -2,6 +2,7 @@ import path from "node:path";
 import { describe, expect, it } from "vitest";
 import {
   findLessonContentInSeriesJson,
+  resolveHeadContent,
   toRepoRelativePath,
 } from "@/lib/lesson-head-content";
 
@@ -62,5 +63,23 @@ describe("findLessonContentInSeriesJson", () => {
 
   it("returns null for invalid json shape", () => {
     expect(findLessonContentInSeriesJson([], "l1")).toBeNull();
+  });
+});
+
+describe("resolveHeadContent integration", () => {
+  it("resolves git-md for course names containing spaces", () => {
+    const projectRoot = process.cwd();
+    const result = resolveHeadContent(
+      projectRoot,
+      "unused-lesson-id",
+      "はじめにシリーズ",
+      "DX piyopiyo コース",
+      "トレーニングの進め方",
+    );
+    if ("error" in result) {
+      expect.fail(`git error: ${result.error}`);
+    }
+    expect(result.headSource).toBe("git-md");
+    expect(result.content.length).toBeGreaterThan(0);
   });
 });

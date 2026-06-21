@@ -21,6 +21,7 @@ type Props = {
   onInsert?: (item: ImageGridItem) => void;
   onDelete?: (item: ImageGridItem) => void;
   className?: string;
+  thumbnailFit?: "cover" | "contain";
 };
 
 export function ImageGrid({
@@ -30,6 +31,7 @@ export function ImageGrid({
   onInsert,
   onDelete,
   className,
+  thumbnailFit = "cover",
 }: Props) {
   if (items.length === 0) {
     return (
@@ -48,6 +50,8 @@ export function ImageGrid({
     >
       {items.map((item) => {
         const isVideo = !item.missing && isMp4Path(item.path);
+        const mediaFitClass =
+          thumbnailFit === "contain" ? "object-contain" : "object-cover";
         return (
           <div
             key={item.path}
@@ -83,14 +87,14 @@ export function ImageGrid({
                   preload="metadata"
                   muted
                   playsInline
-                  className="h-full w-full object-cover"
+                  className={cn("h-full w-full", mediaFitClass)}
                 />
               ) : (
                 /* eslint-disable-next-line @next/next/no-img-element */
                 <img
                   src={toImageApiUrl(item.path)}
                   alt={item.name}
-                  className="h-full w-full object-cover"
+                  className={cn("h-full w-full", mediaFitClass)}
                 />
               )}
               {isVideo ? <MediaPlayOverlay /> : null}

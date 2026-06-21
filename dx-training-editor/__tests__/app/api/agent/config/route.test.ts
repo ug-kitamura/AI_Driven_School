@@ -5,6 +5,7 @@ import { resolveModelLabel } from "@/lib/agent/model-labels";
 describe("resolveModelLabel", () => {
   it("maps known model slugs", () => {
     expect(resolveModelLabel("claude-sonnet-4-6")).toBe("Claude Sonnet 4.6");
+    expect(resolveModelLabel("gpt-5-nano")).toBe("GPT 5 nano");
   });
 
   it("falls back to slug when unknown", () => {

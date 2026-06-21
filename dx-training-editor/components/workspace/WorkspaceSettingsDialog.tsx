@@ -33,9 +33,15 @@ import {
   clampEditorFontSizePx,
   loadWorkspaceSettings,
   saveWorkspaceSettings,
+  type AiModelSlug,
   type ThemeMode,
   type WorkspaceSettings,
 } from "@/lib/workspace-settings";
+import {
+  AI_MODEL_OPTIONS,
+  UNSUPPORTED_MODEL_ERROR,
+  isUnsupportedAiModel,
+} from "@/lib/ai-models";
 
 type Props = {
   open: boolean;
@@ -121,8 +127,14 @@ function SettingsForm({
   const [fontDraft, setFontDraft] = useState(() =>
     clampEditorFontSizePx(initial.editorFontSizePx),
   );
+  const [modelError, setModelError] = useState<string | null>(null);
 
   const handleSave = () => {
+    if (isUnsupportedAiModel(draft.aiModel)) {
+      setModelError(UNSUPPORTED_MODEL_ERROR);
+      return;
+    }
+    setModelError(null);
     const next: WorkspaceSettings = {
       ...draft,
       aiApiKey: apiKeyInput.trim() || null,
@@ -267,13 +279,39 @@ function SettingsForm({
         </section>
 
         <section className="flex flex-col gap-3">
+          <h3 className="text-sm font-semibold text-foreground">AI モデル</h3>
+          <MetaDialogField>
+            <div className="flex flex-col gap-2">
+              {AI_MODEL_OPTIONS.map(({ slug, label }) => (
+                <Button
+                  key={slug}
+                  type="button"
+                  size="sm"
+                  variant={draft.aiModel === slug ? "default" : "outline"}
+                  className="justify-start"
+                  onClick={() => {
+                    setDraft((prev) => ({ ...prev, aiModel: slug as AiModelSlug }));
+                    setModelError(null);
+                  }}
+                >
+                  {label}
+                </Button>
+              ))}
+            </div>
+            {modelError ? (
+              <p className="text-xs text-destructive">{modelError}</p>
+            ) : null}
+          </MetaDialogField>
+        </section>
+
+        <section className="flex flex-col gap-3">
           <h3 className="text-sm font-semibold text-foreground">API</h3>
           <ApiKeyField
             id="settings-ai-api-key"
             label="AI API キー"
             value={apiKeyInput}
             onChange={setApiKeyInput}
-            placeholder="sk-ant-api03-..."
+            placeholder="例 sk-ant-..."
             hint="未入力時は環境変数 AI_API_KEY を取得"
           />
           <ApiKeyField

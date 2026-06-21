@@ -1,6 +1,8 @@
 import { resolveAiApiKey } from "@/lib/api-keys";
+import { DEFAULT_AI_MODEL } from "@/lib/ai-models";
+import { resolveAiModel } from "@/lib/resolve-ai-model";
 
-export const DEFAULT_MODEL = "claude-sonnet-4-6";
+export const DEFAULT_MODEL = DEFAULT_AI_MODEL;
 export const AI_KEY_ERROR =
   "AI API キーを設定（歯車）するか、サーバーに AI_API_KEY を設定してください";
 
@@ -9,7 +11,11 @@ export type AnthropicMessage = {
   content: string;
 };
 
-export function resolveAnthropicModel(): string {
+export function resolveAnthropicModel(req?: Request): string {
+  if (req) {
+    const result = resolveAiModel(req);
+    if (result.ok) return result.model;
+  }
   return process.env.AI_MODEL?.trim() || DEFAULT_MODEL;
 }
 
@@ -24,6 +30,11 @@ export async function streamAnthropicMessages(options: {
     return Response.json({ error: AI_KEY_ERROR }, { status: 401 });
   }
 
+  const modelResult = resolveAiModel(options.req);
+  if (!modelResult.ok) {
+    return Response.json({ error: modelResult.error }, { status: 400 });
+  }
+
   const upstream = await fetch("https://api.anthropic.com/v1/messages", {
     method: "POST",
     headers: {
@@ -32,7 +43,7 @@ export async function streamAnthropicMessages(options: {
       "anthropic-version": "2023-06-01",
     },
     body: JSON.stringify({
-      model: resolveAnthropicModel(),
+      model: modelResult.model,
       max_tokens: options.maxTokens ?? 8192,
       stream: true,
       system: options.system,

@@ -86,7 +86,7 @@ function DiffContentCell({ line }: { line: ParsedDiffLine }) {
 
 export function LessonDiffView({ diff, className }: Props) {
   const lines = useMemo(
-    () => parseUnifiedDiff(diff).filter((line) => isDiffDisplayLine(line.kind)),
+    () => parseUnifiedDiff(diff).filter((line) => isDiffDisplayLine(line)),
     [diff],
   );
 

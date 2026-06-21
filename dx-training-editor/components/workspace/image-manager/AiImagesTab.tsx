@@ -142,6 +142,7 @@ export function AiImagesTab({
             <ImageGrid
               items={gridItems}
               emptyMessage="AI staging に画像がありません"
+              thumbnailFit="contain"
               onPreview={onPreview}
               onInsert={onInsert}
               onDelete={onDelete}

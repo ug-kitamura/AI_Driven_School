@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { resolveAiApiKey, resolvePixabayApiKey } from "@/lib/api-keys";
+import { resolveAiModel } from "@/lib/resolve-ai-model";
 import { lessonSchema } from "@/lib/schema";
 import { executeWebImageSearch } from "@/lib/web-image-search";
 import {
@@ -7,14 +8,17 @@ import {
   parseWebSearchPlanResponse,
 } from "@/lib/web-image-search-plan";
 
-const DEFAULT_MODEL = "claude-sonnet-4-6";
-
 const bodySchema = z.object({
   lesson: lessonSchema,
   prompt: z.string().min(1),
 });
 
-async function callClaude(apiKey: string, system: string, user: string): Promise<string> {
+async function callClaude(
+  apiKey: string,
+  model: string,
+  system: string,
+  user: string,
+): Promise<string> {
   const res = await fetch("https://api.anthropic.com/v1/messages", {
     method: "POST",
     headers: {
@@ -23,7 +27,7 @@ async function callClaude(apiKey: string, system: string, user: string): Promise
       "anthropic-version": "2023-06-01",
     },
     body: JSON.stringify({
-      model: process.env.AI_MODEL ?? DEFAULT_MODEL,
+      model,
       max_tokens: 2048,
       system,
       messages: [{ role: "user", content: user }],
@@ -72,6 +76,11 @@ export async function POST(req: Request) {
     );
   }
 
+  const modelResult = resolveAiModel(req);
+  if (!modelResult.ok) {
+    return Response.json({ error: modelResult.error }, { status: 400 });
+  }
+
   let parsed: z.infer<typeof bodySchema>;
   try {
     const json: unknown = await req.json();
@@ -84,7 +93,7 @@ export async function POST(req: Request) {
 
   let plan: ReturnType<typeof parseWebSearchPlanResponse>;
   try {
-    const raw = await callClaude(aiKey, system, user);
+    const raw = await callClaude(aiKey, modelResult.model, system, user);
     plan = parseWebSearchPlanResponse(raw);
   } catch (error) {
     const message = error instanceof Error ? error.message : "検索計画の生成に失敗しました";

@@ -98,6 +98,14 @@ export function useLessonMutations(options: {
     [setSeries],
   );
 
+  const cancelLessonDebounce = useCallback((lessonId: string) => {
+    const timer = debounceTimers.current.get(lessonId);
+    if (timer) {
+      clearTimeout(timer);
+      debounceTimers.current.delete(lessonId);
+    }
+  }, []);
+
   const updateLessonContent = useCallback(
     (lessonId: string, content: string) => {
       // series state を同期的に走査して現在のレッスン情報を取得する
@@ -120,16 +128,10 @@ export function useLessonMutations(options: {
 
       const diskLessonName = diskLesson.lesson;
       const ctx = { seriesName, courseName };
-      const aligned = alignLessonContentToDiskPath(content, ctx, diskLessonName);
-      if (!aligned.ok) {
-        onSaveError?.(
-          `保存をスキップしました: ${aligned.reason}。別レッスンの内容が混ざっている可能性があります。`,
-        );
+
+      if (lessonFileContentEquals(content, diskLesson.content)) {
         return;
       }
-      content = aligned.content;
-
-      if (lessonFileContentEquals(content, diskLesson.content)) return;
 
       mapLessonById(lessonId, (lesson, mapCtx) =>
         applyLessonContentEdit(lesson, mapCtx, content),
@@ -138,11 +140,29 @@ export function useLessonMutations(options: {
       const existing = debounceTimers.current.get(lessonId);
       if (existing) clearTimeout(existing);
 
-      setPendingSave?.(true);
-
       const timer = setTimeout(() => {
         debounceTimers.current.delete(lessonId);
-        saveLessonToFs(seriesName, courseName, diskLessonName, content)
+        const aligned = alignLessonContentToDiskPath(
+          content,
+          ctx,
+          diskLessonName,
+        );
+        if (!aligned.ok) {
+          onSaveError?.(
+            `保存をスキップしました: ${aligned.reason}。別レッスンの内容が混ざっている可能性があります。`,
+          );
+          return;
+        }
+        const toSave = aligned.content;
+        setPendingSave?.(true);
+        saveLessonToFs(seriesName, courseName, diskLessonName, toSave)
+          .then(() => {
+            if (!lessonFileContentEquals(toSave, content)) {
+              mapLessonById(lessonId, (lesson, mapCtx) =>
+                applyLessonContentEdit(lesson, mapCtx, toSave),
+              );
+            }
+          })
           .catch((err: unknown) => {
             onSaveError?.(`レッスン保存エラー: ${String(err)}`);
           })
@@ -374,5 +394,6 @@ export function useLessonMutations(options: {
     updateLessonContent,
     updateLessonMeta,
     updateLessonStatus,
+    cancelLessonDebounce,
   };
 }

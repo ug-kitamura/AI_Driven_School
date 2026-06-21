@@ -1,6 +1,10 @@
 import { z } from "zod";
 import fs from "node:fs";
 import { resolveOrCreateLessonFilePath } from "@/lib/contents-loader";
+import {
+  lessonFileTextEquals,
+  normalizeLessonFileNewlines,
+} from "@/lib/lesson-file-text";
 
 const schema = z.object({
   series: z.string().min(1),
@@ -40,19 +44,19 @@ export async function POST(req: Request) {
     );
   }
 
+  const normalizedContent = normalizeLessonFileNewlines(content);
+
   try {
     if (fs.existsSync(filePath)) {
       const existing = fs.readFileSync(filePath, "utf-8");
-      if (existing === content) {
-        return Response.json({ ok: true, skipped: true });
-      }
-      const normalizedExisting = existing.replace(/\r\n/g, "\n");
-      const normalizedContent = content.replace(/\r\n/g, "\n");
-      if (normalizedExisting === normalizedContent) {
+      if (lessonFileTextEquals(existing, normalizedContent)) {
+        if (existing !== normalizedContent) {
+          fs.writeFileSync(filePath, normalizedContent, "utf-8");
+        }
         return Response.json({ ok: true, skipped: true });
       }
     }
-    fs.writeFileSync(filePath, content, "utf-8");
+    fs.writeFileSync(filePath, normalizedContent, "utf-8");
     return Response.json({ ok: true });
   } catch (err) {
     return Response.json(

@@ -13,6 +13,14 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  META_DIALOG_CONTROL,
   META_DIALOG_STACK,
   MetaDialogField,
 } from "@/components/workspace/metaDialogLayout";
@@ -33,9 +41,16 @@ import {
   clampEditorFontSizePx,
   loadWorkspaceSettings,
   saveWorkspaceSettings,
+  type AiModelSlug,
   type ThemeMode,
   type WorkspaceSettings,
 } from "@/lib/workspace-settings";
+import {
+  AI_MODEL_OPTIONS,
+  UNSUPPORTED_MODEL_ERROR,
+  isUnsupportedAiModel,
+} from "@/lib/ai-models";
+import { cn } from "@/lib/utils";
 
 type Props = {
   open: boolean;
@@ -121,8 +136,14 @@ function SettingsForm({
   const [fontDraft, setFontDraft] = useState(() =>
     clampEditorFontSizePx(initial.editorFontSizePx),
   );
+  const [modelError, setModelError] = useState<string | null>(null);
 
   const handleSave = () => {
+    if (isUnsupportedAiModel(draft.aiModel)) {
+      setModelError(UNSUPPORTED_MODEL_ERROR);
+      return;
+    }
+    setModelError(null);
     const next: WorkspaceSettings = {
       ...draft,
       aiApiKey: apiKeyInput.trim() || null,
@@ -267,13 +288,45 @@ function SettingsForm({
         </section>
 
         <section className="flex flex-col gap-3">
+          <h3 className="text-sm font-semibold text-foreground">AI モデル</h3>
+          <MetaDialogField>
+            <Select
+              items={AI_MODEL_OPTIONS.map(({ slug, label }) => ({
+                value: slug,
+                label,
+              }))}
+              value={draft.aiModel}
+              onValueChange={(v) => {
+                if (!v) return;
+                setDraft((prev) => ({ ...prev, aiModel: v as AiModelSlug }));
+                setModelError(null);
+              }}
+            >
+              <SelectTrigger className={cn(META_DIALOG_CONTROL, "w-full")}>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {AI_MODEL_OPTIONS.map(({ slug, label }) => (
+                  <SelectItem key={slug} value={slug}>
+                    {label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            {modelError ? (
+              <p className="text-xs text-destructive">{modelError}</p>
+            ) : null}
+          </MetaDialogField>
+        </section>
+
+        <section className="flex flex-col gap-3">
           <h3 className="text-sm font-semibold text-foreground">API</h3>
           <ApiKeyField
             id="settings-ai-api-key"
             label="AI API キー"
             value={apiKeyInput}
             onChange={setApiKeyInput}
-            placeholder="sk-ant-api03-..."
+            placeholder="AI API key"
             hint="未入力時は環境変数 AI_API_KEY を取得"
           />
           <ApiKeyField

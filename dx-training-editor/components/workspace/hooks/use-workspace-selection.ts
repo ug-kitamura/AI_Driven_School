@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { Course, Lesson, Series } from "@/lib/schema";
 import {
   resolveInitialSelection,
+  resolveSelectionAfterContentReload,
   saveStoredSelection,
   type WorkspaceSelection,
 } from "@/lib/workspace-selection";
@@ -25,12 +26,39 @@ export function useWorkspaceSelection(options: {
   const [selectedCourseId, setSelectedCourseId] = useState(initialCourseId);
   const [selectedLessonId, setSelectedLessonId] = useState(initialLessonId);
   const skipPersistRef = useRef(true);
+  const hasResolvedInitialRef = useRef(false);
+  const prevSeriesRef = useRef(series);
+  const selectedCourseIdRef = useRef(selectedCourseId);
+  const selectedLessonIdRef = useRef(selectedLessonId);
 
   useEffect(() => {
-    const resolved = resolveInitialSelection(series, fallback);
-    setSelectedCourseId(resolved.courseId);
-    setSelectedLessonId(resolved.lessonId);
-    skipPersistRef.current = false;
+    selectedCourseIdRef.current = selectedCourseId;
+  }, [selectedCourseId]);
+
+  useEffect(() => {
+    selectedLessonIdRef.current = selectedLessonId;
+  }, [selectedLessonId]);
+
+  useEffect(() => {
+    if (!hasResolvedInitialRef.current) {
+      const resolved = resolveInitialSelection(series, fallback);
+      setSelectedCourseId(resolved.courseId);
+      setSelectedLessonId(resolved.lessonId);
+      skipPersistRef.current = false;
+      hasResolvedInitialRef.current = true;
+    } else if (prevSeriesRef.current !== series) {
+      const resolved = resolveSelectionAfterContentReload(
+        prevSeriesRef.current,
+        series,
+        {
+          courseId: selectedCourseIdRef.current,
+          lessonId: selectedLessonIdRef.current,
+        },
+      );
+      setSelectedCourseId(resolved.courseId);
+      setSelectedLessonId(resolved.lessonId);
+    }
+    prevSeriesRef.current = series;
   }, [series, fallback]);
 
   useEffect(() => {

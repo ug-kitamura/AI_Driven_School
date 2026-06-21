@@ -20,6 +20,7 @@ export function aiRequestHeaders(
   includePixabay = false,
 ): Record<string, string> {
   const headers: Record<string, string> = { "Content-Type": "application/json" };
+  headers["x-ai-model"] = settings.aiModel;
   if (settings.aiApiKey) headers["x-ai-api-key"] = settings.aiApiKey;
   if (includePixabay && settings.pixabayApiKey) {
     headers["x-pixabay-api-key"] = settings.pixabayApiKey;

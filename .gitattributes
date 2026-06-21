@@ -1,0 +1,2 @@
+# レッスン原稿は常に LF（Windows autocrlf による偽 diff を防ぐ）
+dx-training-editor/contents/** text eol=lf

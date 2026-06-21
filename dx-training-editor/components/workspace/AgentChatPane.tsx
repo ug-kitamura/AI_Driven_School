@@ -42,8 +42,12 @@ import {
   type AgentChatMessage,
   type AgentChatStorage,
 } from "@/lib/agent-chat-storage";
+import { resolveModelLabel } from "@/lib/agent/model-labels";
 import { getLessonBody } from "@/lib/lesson-frontmatter";
-import { loadWorkspaceSettings } from "@/lib/workspace-settings";
+import {
+  loadWorkspaceSettings,
+  WORKSPACE_SETTINGS_CHANGED_EVENT,
+} from "@/lib/workspace-settings";
 import { WorkspaceTooltip } from "@/components/workspace/WorkspaceTooltip";
 import { cn } from "@/lib/utils";
 import type { Course, Lesson, Series } from "@/lib/schema";
@@ -83,6 +87,10 @@ function createMessageId(): string {
   return `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 }
 
+function readModelLabelFromSettings(): string {
+  return resolveModelLabel(loadWorkspaceSettings().aiModel);
+}
+
 export function AgentChatPane({
   series,
   lesson,
@@ -105,7 +113,9 @@ export function AgentChatPane({
   const [isStreaming, setIsStreaming] = useState(false);
   const [streamingAssistantId, setStreamingAssistantId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [modelLabel, setModelLabel] = useState<string | null>(null);
+  const [modelLabel, setModelLabel] = useState<string>(() =>
+    readModelLabelFromSettings(),
+  );
   const [historyOpen, setHistoryOpen] = useState(false);
   const [deleteSessionTargetId, setDeleteSessionTargetId] = useState<string | null>(null);
   const [copiedMessageId, setCopiedMessageId] = useState<string | null>(null);
@@ -134,14 +144,14 @@ export function AgentChatPane({
   }, []);
 
   useEffect(() => {
-    void fetch("/api/agent/config")
-      .then((res) => res.json())
-      .then((data: { modelLabel?: string }) => {
-        setModelLabel(data.modelLabel ?? null);
-      })
-      .catch(() => {
-        setModelLabel(null);
-      });
+    const syncModelLabel = () => {
+      setModelLabel(readModelLabelFromSettings());
+    };
+    syncModelLabel();
+    window.addEventListener(WORKSPACE_SETTINGS_CHANGED_EVENT, syncModelLabel);
+    return () => {
+      window.removeEventListener(WORKSPACE_SETTINGS_CHANGED_EVENT, syncModelLabel);
+    };
   }, []);
 
   useEffect(() => {

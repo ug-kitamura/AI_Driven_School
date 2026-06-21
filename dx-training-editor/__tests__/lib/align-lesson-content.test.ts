@@ -61,4 +61,30 @@ describe("alignLessonContentToDiskPath", () => {
       expect(result.content).not.toContain("lesson: Pythonとは何か");
     }
   });
+
+  it("keeps raw bytes when FM paths already match disk (body-only edit revert)", () => {
+    const content = [
+      "---",
+      "series: Python基礎シリーズ",
+      "course: Python環境構築コース",
+      "lesson: Pythonのインストール",
+      "status: open",
+      "description:",
+      "tags: []",
+      "estimated_minutes: 0",
+      "author:",
+      "---",
+      "# body",
+    ].join("\n");
+
+    const result = alignLessonContentToDiskPath(
+      content,
+      ctx,
+      "Pythonのインストール",
+    );
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.content).toBe(content);
+    }
+  });
 });

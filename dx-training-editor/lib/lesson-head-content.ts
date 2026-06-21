@@ -1,4 +1,4 @@
-import { execSync } from "child_process";
+import { execFileSync, execSync } from "child_process";
 import path from "node:path";
 import { seriesArraySchema } from "@/lib/schema";
 import { resolveLessonMdPath } from "@/lib/lesson-md-path";
@@ -58,7 +58,7 @@ function getGitRepoRoot(projectRoot: string): string | null {
 
 function gitShowHead(repoRoot: string, pathFromRepoRoot: string): string | null {
   try {
-    return execSync(`git show HEAD:${pathFromRepoRoot}`, {
+    return execFileSync("git", ["show", `HEAD:${pathFromRepoRoot}`], {
       cwd: repoRoot,
       encoding: "utf-8",
       timeout: 5000,

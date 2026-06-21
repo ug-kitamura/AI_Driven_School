@@ -5,11 +5,18 @@ export function parseAtxHeading(line: string): number | null {
   return m[1].length;
 }
 
-/** 先頭フロントマターの閉じ `---` 行インデックス（0-based）。無ければ null */
+/** 先頭 YAML フロントマターの区切り行（`---` 以上のハイフン） */
+export function isFrontmatterDelimiterLine(line: string): boolean {
+  return /^-{3,}\s*$/.test(line.trim());
+}
+
+/** 先頭フロントマターの閉じ区切り行インデックス（0-based）。無ければ null */
 export function findFrontmatterCloseLine(lines: string[]): number | null {
-  if (lines.length < 2 || lines[0].trim() !== "---") return null;
+  if (lines.length < 2 || !isFrontmatterDelimiterLine(lines[0] ?? "")) {
+    return null;
+  }
   for (let i = 1; i < lines.length; i++) {
-    if (lines[i].trim() === "---") return i;
+    if (isFrontmatterDelimiterLine(lines[i])) return i;
   }
   return null;
 }
@@ -21,7 +28,7 @@ export function isFrontmatterOpenLine(
 ): boolean {
   return (
     lineIndex === 0 &&
-    lines[0]?.trim() === "---" &&
+    isFrontmatterDelimiterLine(lines[0] ?? "") &&
     findFrontmatterCloseLine(lines) !== null
   );
 }

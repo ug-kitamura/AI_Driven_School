@@ -24,3 +24,8 @@ next-env.d.ts
 /images/ai/
 /images/web/
 /images/trash/
+
+# OpenSpec
+.claude/commands/opsx/
+.claude/skills/openspec-*/
+openspec/changes/

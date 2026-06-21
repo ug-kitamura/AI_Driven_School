@@ -1,10 +1,7 @@
 import { z } from "zod";
-import { createLessonContentDiff } from "@/lib/lesson-content-diff";
-import { resolveHeadContent } from "@/lib/lesson-head-content";
+import { resolveLessonGitDiff } from "@/lib/lesson-git-diff";
 
 const requestSchema = z.object({
-  lessonId: z.string().min(1),
-  content: z.string(),
   series: z.string().min(1),
   course: z.string().min(1),
   lesson: z.string().min(1),
@@ -26,19 +23,13 @@ export async function POST(req: Request) {
     );
   }
 
-  const { lessonId, content, series, course, lesson } = parsed.data;
-  const headResult = resolveHeadContent(
-    process.cwd(),
-    lessonId,
-    series,
-    course,
-    lesson,
-  );
+  const { series, course, lesson } = parsed.data;
+  const result = resolveLessonGitDiff(process.cwd(), series, course, lesson);
 
-  if ("error" in headResult) {
+  if ("error" in result) {
     return Response.json(
       {
-        error: headResult.error,
+        error: result.error,
         diff: "",
         headSource: "empty" as const,
         path: "",
@@ -47,15 +38,9 @@ export async function POST(req: Request) {
     );
   }
 
-  const diff = createLessonContentDiff(
-    headResult.path,
-    headResult.content,
-    content,
-  );
-
   return Response.json({
-    diff,
-    headSource: headResult.headSource,
-    path: headResult.path,
+    diff: result.diff,
+    headSource: result.headSource,
+    path: result.path,
   });
 }

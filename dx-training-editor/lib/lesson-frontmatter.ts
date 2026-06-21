@@ -259,8 +259,8 @@ export function serializeLessonDocument(
     `author: ${meta.author}`,
     "---",
   ].join("\n");
-  const trimmedBody = body.replace(/^\n+/, "");
-  return trimmedBody ? `${yaml}\n\n${trimmedBody}` : `${yaml}\n\n`;
+  if (!body) return `${yaml}\n`;
+  return `${yaml}\n${body}`;
 }
 
 export function metaToLessonFields(meta: LessonMetaFields): Pick<

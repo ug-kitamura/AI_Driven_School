@@ -52,7 +52,7 @@ TBD - created by archiving change pane4-ai-generation-and-settings. Update Purpo
 
 ### Requirement: テーマをライト・ダーク・システムで切り替える
 
-設定ダイアログはテーマとして `light`・`dark`・`system` のいずれかを選択でき、保存時に `<html>` へ `dark` class を適用または除去しなければならない（SHALL）。`system` は `prefers-color-scheme` に従わなければならない（SHALL）。設定は `dx-training-editor-settings` に永続化し、起動時に復元しなければならない（SHALL）。
+設定ダイアログはテーマとして `light`・`dark`・`system` のいずれかを選択でき、保存時に `<html>` へ `dark` class を適用または除去しなければならない（SHALL）。`system` は `prefers-color-scheme` に従わなければならない（SHALL）。設定は `dx-training-editor-settings` に永続化し、起動時に復元しなければならない（SHALL）。`dx-training-editor-settings` が未保存の初回起動時、コード既定のテーマは `system` でなければならない（SHALL）。
 
 #### Scenario: ダーク選択で UI が暗色になる
 
@@ -64,6 +64,12 @@ TBD - created by archiving change pane4-ai-generation-and-settings. Update Purpo
 - **WHEN** ユーザーがテーマを `system` に保存する
 - **AND** OS がダークモードである
 - **THEN** ワークスペース UI はダークで描画される
+
+#### Scenario: 初回起動の既定はシステム
+
+- **WHEN** `dx-training-editor-settings` が存在しない
+- **THEN** `DEFAULT_WORKSPACE_SETTINGS.theme` は `system` である
+- **AND** ワークスペースは OS の明暗設定に従って描画される
 
 ### Requirement: ペイン既定幅を設定できる
 

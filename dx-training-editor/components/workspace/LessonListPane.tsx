@@ -54,7 +54,7 @@ import {
 } from "@/components/workspace/constants";
 import { PaneWheelRoot } from "@/components/workspace/PaneWheelRoot";
 import { WorkspaceTooltip } from "@/components/workspace/WorkspaceTooltip";
-import { cn, computeStatus } from "@/lib/utils";
+import { cn } from "@/lib/utils";
 import {
   getMermaidWorkspaceConfig,
   mandalaCurrentCourseStyleLine,
@@ -532,7 +532,6 @@ export function LessonListPane({
     );
   }
 
-  const courseStatus = computeStatus(course.lessons.map((l) => l.status));
   const doneCount = course.lessons.filter((l) => l.status === "done").length;
   const progress =
     course.lessons.length > 0
@@ -541,10 +540,20 @@ export function LessonListPane({
 
   return (
     <>
-    <PaneWheelRoot scrollRef={lessonScrollRef} className="min-w-0 overflow-hidden bg-card">
-      {/* コースメタ情報エリア */}
-      <div className="min-w-0 shrink-0 border-b border-border bg-muted/40 px-3 py-2">
-        <div className="mb-2 flex items-center gap-1">
+    <PaneWheelRoot
+      scrollRef={lessonScrollRef}
+      className={cn(
+        "min-w-0 overflow-hidden bg-card py-2",
+        PANE_LIST_CONTENT_X_INSET_CLASS,
+      )}
+    >
+      <div
+        className={cn(
+          "flex min-h-0 flex-1 flex-col",
+          LIST_CHILD_LEFT_INSET_CLASS,
+        )}
+      >
+        <div className="mb-0.5 flex shrink-0 items-center gap-1">
           <span className="flex-1 truncate text-xs font-bold text-foreground">
             {course.name}
           </span>
@@ -576,21 +585,16 @@ export function LessonListPane({
           </Button>
         </div>
 
-        <div className="text-xs">
-          <div className="flex gap-1">
-            <span className="truncate text-foreground text-muted-foreground">
-              対象: {course.target || "—"}
-            </span>
-          </div>
-        </div>
+        <p className="truncate text-[10px] text-muted-foreground">
+          対象: {course.target || "—"}
+        </p>
 
-        {/* Mermaid ミニグラフ（クリックで拡大） */}
         {miniGraphInput ? (
-          <>
+          <div className="my-3 shrink-0">
             {thumbnailSvg ? (
               <button
                 type="button"
-                className="mt-2 block w-full min-w-0 cursor-zoom-in overflow-hidden rounded border border-border bg-card p-1 text-left transition-opacity hover:opacity-80"
+                className="block w-full min-w-0 cursor-zoom-in overflow-hidden rounded border border-border/50 bg-muted/30 p-1 text-left transition-colors hover:bg-muted/50"
                 onClick={() => setMermaidModalOpen(true)}
                 aria-label="ミニ曼陀羅を拡大表示"
               >
@@ -602,27 +606,19 @@ export function LessonListPane({
             ) : (
               <button
                 type="button"
-                className="mt-2 flex min-h-[72px] w-full items-center justify-center rounded border border-border bg-card px-2 text-[10px] text-muted-foreground hover:bg-muted/30"
+                className="flex min-h-[72px] w-full items-center justify-center rounded border border-border/50 bg-muted/30 px-2 text-[10px] text-muted-foreground transition-colors hover:bg-muted/50"
                 onClick={() => setMermaidModalOpen(true)}
                 aria-label="ミニ曼陀羅を拡大表示"
               >
-                {thumbnailError ? "グラフを表示できません（クリックで拡大）" : "グラフを生成中..."}
+                {thumbnailError
+                  ? "グラフを表示できません（クリックで拡大）"
+                  : "グラフを生成中..."}
               </button>
             )}
-          </>
+          </div>
         ) : null}
-      </div>
 
-      {/* コース進捗・レッスン一覧（ペイン1と同じ px-2 → ml-3 pl-2 の二段インデント） */}
-      <div
-        className={cn(
-          "flex min-h-0 flex-1 flex-col",
-          PANE_LIST_CONTENT_X_INSET_CLASS,
-        )}
-      >
-        <div
-          className={cn("mb-2 shrink-0 pt-2", LIST_CHILD_LEFT_INSET_CLASS)}
-        >
+        <div className="mb-2 shrink-0">
           <div className="mb-0.5 flex items-center justify-between text-[10px]">
             <span className="text-muted-foreground">コース進捗</span>
             <span className="font-medium text-primary">
@@ -634,10 +630,7 @@ export function LessonListPane({
 
         <div
           ref={lessonScrollRef}
-          className={cn(
-            "workspace-scrollbar-hidden flex min-h-0 flex-1 flex-col gap-1 overflow-y-auto overscroll-y-contain pb-2",
-            LIST_CHILD_LEFT_INSET_CLASS,
-          )}
+          className="workspace-scrollbar-hidden flex min-h-0 flex-1 flex-col gap-1 overflow-y-auto overscroll-y-contain pb-2"
         >
         <DndContext
           id="lesson-list-dnd"

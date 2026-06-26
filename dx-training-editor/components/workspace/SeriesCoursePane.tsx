@@ -616,7 +616,7 @@ export function SeriesCoursePane({
         )}
       </SidebarContent>
 
-      <SidebarFooter className="shrink-0 gap-0 p-2">
+      <SidebarFooter className="shrink-0 gap-0 py-2 pl-1 pr-3">
         {isCollapsed ? (
           <WorkspaceTooltip
             label="シリーズを追加"

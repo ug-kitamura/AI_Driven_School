@@ -42,7 +42,7 @@ export const DEFAULT_WORKSPACE_SETTINGS: WorkspaceSettings = {
   aiApiKey: null,
   pixabayApiKey: null,
   aiModel: DEFAULT_AI_MODEL,
-  theme: "light",
+  theme: "system",
   paneDefaults: { ...PANE_WIDTH_DEFAULTS },
   editorFontSizePx: EDITOR_FONT_SIZE_DEFAULT,
 };

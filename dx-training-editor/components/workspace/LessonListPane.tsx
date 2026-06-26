@@ -553,7 +553,7 @@ export function LessonListPane({
           LIST_CHILD_LEFT_INSET_CLASS,
         )}
       >
-        <div className="mb-2 flex shrink-0 items-center gap-1">
+        <div className="mb-0.5 flex shrink-0 items-center gap-1">
           <span className="flex-1 truncate text-xs font-bold text-foreground">
             {course.name}
           </span>

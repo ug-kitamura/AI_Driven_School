@@ -124,13 +124,42 @@ Web タブの検索 API 呼び出し時、クライアントは `x-pixabay-api-k
 
 ### Requirement: 環境変数テンプレートを提供する
 
-リポジトリは **`dx-training-editor/.env.example`** をコミットし、`AI_API_KEY` および `PIXABAY_API_KEY` のプレースホルダを含めなければならない（SHALL）。**`.env.local`** は git 追跡対象外としなければならない（SHALL）。readme は `.env.example` をコピーして `.env.local` を作成する手順を記載しなければならない（SHALL）。
+リポジトリは **`dx-training-editor/.env.example`** をコミットし、`AI_API_KEY`・`PIXABAY_API_KEY`・**`BLOB_READ_WRITE_TOKEN`** のプレースホルダを含めなければならない（SHALL）。**`.env.local`** は git 追跡対象外としなければならない（SHALL）。`BLOB_READ_WRITE_TOKEN` は設定ダイアログでは編集せず、`.env.local` のみで設定する（SHALL）。readme は `.env.example` をコピーして `.env.local` を作成する手順を記載しなければならない（SHALL）。
 
 #### Scenario: 新規開発者が env を設定できる
 
 - **WHEN** 開発者が `.env.example` を `.env.local` にコピーしキーを記入する
 - **AND** `npm run dev` で起動する
 - **THEN** 設定ダイアログ未入力でも AI / Web API が env キーで動作する
+
+### Requirement: 画像の管理モードを設定できる
+
+設定ダイアログは **画像の管理** として **ローカル** / **ストレージ** の 2 択を提供し、選択値を `dx-training-editor-settings` の **`imageStorage`**（`local` | `storage`）として永続化しなければならない（SHALL）。未設定時の既定値は **ストレージ**（`storage`）としなければならない（SHALL）。**ストレージ** 選択時、保存前に `GET /api/images/storage-check` で接続を検証し、失敗時は **「ストレージに接続できません」** を表示して保存を拒否しなければならない（SHALL）。
+
+#### Scenario: 既定はストレージ
+
+- **WHEN** ユーザーが初めて設定ダイアログを開く
+- **AND** `imageStorage` が未保存である
+- **THEN** 画像の管理はストレージが選択されている
+
+#### Scenario: ローカルに切り替えて保存できる
+
+- **WHEN** ユーザーが画像の管理をローカルに変更して保存する
+- **THEN** `imageStorage` が `local` として永続化される
+- **AND** 以降の正本 promote・一覧・プレビューは fs を用いる
+
+#### Scenario: ストレージ保存時に接続確認する
+
+- **WHEN** ユーザーが画像の管理をストレージにして保存する
+- **AND** Blob 接続が成功する
+- **THEN** `imageStorage` が `storage` として永続化される
+
+#### Scenario: トークンなしでストレージ保存を拒否する
+
+- **WHEN** ユーザーが画像の管理をストレージにして保存する
+- **AND** `BLOB_READ_WRITE_TOKEN` が未設定である
+- **THEN** 「ストレージに接続できません」が表示される
+- **AND** 設定は保存されない
 
 ### Requirement: 編集エリアのデフォルトフォントサイズを設定できる
 

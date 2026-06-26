@@ -8,6 +8,11 @@ import {
   normalizeAiModel,
   type AiModelSlug,
 } from "@/lib/ai-models";
+import {
+  EDITOR_FONT_SIZE_CHANGED_EVENT as STORAGE_EDITOR_FONT_SIZE_CHANGED_EVENT,
+  STORAGE_KEYS,
+  WORKSPACE_SETTINGS_CHANGED_EVENT as STORAGE_WORKSPACE_SETTINGS_CHANGED_EVENT,
+} from "@/lib/storage-keys";
 
 export type { AiModelSlug };
 
@@ -19,9 +24,10 @@ export const EDITOR_FONT_SIZE_DEFAULT = 14;
 export const EDITOR_FONT_SIZE_MIN = 8;
 export const EDITOR_FONT_SIZE_MAX = 32;
 
-export const EDITOR_FONT_SIZE_CHANGED_EVENT = "dx-training-editor-font-size-changed";
+export const EDITOR_FONT_SIZE_CHANGED_EVENT =
+  STORAGE_EDITOR_FONT_SIZE_CHANGED_EVENT;
 export const WORKSPACE_SETTINGS_CHANGED_EVENT =
-  "dx-training-editor-settings-changed";
+  STORAGE_WORKSPACE_SETTINGS_CHANGED_EVENT;
 
 export type WorkspaceSettings = {
   aiApiKey: string | null;
@@ -39,7 +45,7 @@ export function clampEditorFontSizePx(value: number): number {
   return Math.min(EDITOR_FONT_SIZE_MAX, Math.max(EDITOR_FONT_SIZE_MIN, n));
 }
 
-const STORAGE_KEY = "dx-training-editor-settings";
+const STORAGE_KEY = STORAGE_KEYS.settings;
 
 export const DEFAULT_WORKSPACE_SETTINGS: WorkspaceSettings = {
   aiApiKey: null,

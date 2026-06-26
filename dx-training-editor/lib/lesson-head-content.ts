@@ -17,7 +17,7 @@ export type ResolveHeadError = {
   error: string;
 };
 
-/** git リポジトリ root からの相対パス（モノレポでは `dx-training-editor/...`） */
+/** git リポジトリ root からの相対パス（モノレポでは `dx-training-studio/...`） */
 export function toRepoRelativePath(
   projectRoot: string,
   repoRoot: string,

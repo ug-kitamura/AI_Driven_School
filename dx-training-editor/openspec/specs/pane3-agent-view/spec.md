@@ -2,7 +2,7 @@
 
 ## Purpose
 
-DX Training Editor の Pane 3 Agent ビューの UI と操作を定義する。AI チャット、スキル呼び出し（`/`）、ファイル参照（`@`）、草稿のエディタ挿入、ストリーミング停止などのユーザー向け挙動を規定する。
+DX Training Studio の Pane 3 Agent ビューの UI と操作を定義する。AI チャット、スキル呼び出し（`/`）、ファイル参照（`@`）、草稿のエディタ挿入、ストリーミング停止などのユーザー向け挙動を規定する。
 ## Requirements
 ### Requirement: Agent ビュー切り替え
 Pane 3 のモード切り替え UI に Agent ビューボタンが存在しなければならない（SHALL）。ボタンは差分ビューボタンの右隣に配置されなければならない（SHALL）。

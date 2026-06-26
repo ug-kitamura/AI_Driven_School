@@ -2,7 +2,7 @@
 
 ## Purpose
 
-DX Training Editor の Agent ビュー向け API を定義する。`POST /api/agent/invoke` によるスキル実行・ストリーミング応答、`GET /api/agent/config` によるモデル表示名の取得、会話履歴と `@` 参照ファイルの Anthropic API への受け渡しを規定する。
+DX Training Studio の Agent ビュー向け API を定義する。`POST /api/agent/invoke` によるスキル実行・ストリーミング応答、`GET /api/agent/config` によるモデル表示名の取得、会話履歴と `@` 参照ファイルの Anthropic API への受け渡しを規定する。
 ## Requirements
 ### Requirement: スキル実行 API
 `POST /api/agent/invoke` エンドポイントが存在し、指定されたスキルを Anthropic API で実行しなければならない（SHALL）。

@@ -1,4 +1,4 @@
-# training-editor-course-flow Specification
+# training-studio-course-flow Specification
 
 ## Purpose
 
@@ -197,7 +197,7 @@ TBD - created by archiving change course-order-and-mandala. Update Purpose after
 
 ### Requirement: 別シリーズコース選択 UI はダークで十分なコントラストを満たす
 
-コースメタ編集ダイアログ内の別シリーズ前/次コース選択 UI（`CrossSeriesCourseTreePicker`）は、ダークテーマ時にリスト背景・シリーズ見出し・選択行・ホバー行が識別可能なコントラストでなければならない（SHALL）。詳細は `training-editor-workspace-dark-mode` の曼陀羅・ピッカー要件と整合させなければならない（SHALL）。
+コースメタ編集ダイアログ内の別シリーズ前/次コース選択 UI（`CrossSeriesCourseTreePicker`）は、ダークテーマ時にリスト背景・シリーズ見出し・選択行・ホバー行が識別可能なコントラストでなければならない（SHALL）。詳細は `training-studio-workspace-dark-mode` の曼陀羅・ピッカー要件と整合させなければならない（SHALL）。
 
 #### Scenario: ダークでチェック済みコースが見える
 

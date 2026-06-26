@@ -12,8 +12,9 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "DX Training Editor",
-  description: "社内DXツールトレーニングのコンテンツを作成支援するUI",
+  title: "DX Training Studio",
+  description:
+    "社内DXツールトレーニングのコンテンツ計画・作成・編集・デプロイを支援する統合スタジオ",
 };
 
 export const viewport: Viewport = {

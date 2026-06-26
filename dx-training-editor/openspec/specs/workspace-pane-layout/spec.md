@@ -2,7 +2,7 @@
 
 ## Purpose
 
-DX Training Editor のワークスペースペイン幅（pane1 / pane2 / pane4）の clamp・snap ロジックを定義する。`components/workspace/pane-layout.ts` の pure function として実装され、リサイズ UI および設定モーダルから利用される。
+DX Training Studio のワークスペースペイン幅（pane1 / pane2 / pane4）の clamp・snap ロジックを定義する。`components/workspace/pane-layout.ts` の pure function として実装され、リサイズ UI および設定モーダルから利用される。
 ## Requirements
 ### Requirement: ペイン幅は clamp により範囲内に収める
 

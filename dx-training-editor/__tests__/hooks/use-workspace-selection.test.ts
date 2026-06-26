@@ -112,7 +112,7 @@ describe("useWorkspaceSelection", () => {
 
   it("keeps renamed lesson selected when series updates after meta rename", () => {
     localStorage.setItem(
-      "dx-training-editor-selection",
+      "dx-training-studio-selection",
       JSON.stringify({ courseId: "c1", lessonId: "l2" }),
     );
 

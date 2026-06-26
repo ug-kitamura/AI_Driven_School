@@ -1,4 +1,4 @@
-# training-editor-web-image-search Specification
+# training-studio-web-image-search Specification
 
 ## Purpose
 TBD - created by archiving change pane4-web-image-search. Update Purpose after archive.

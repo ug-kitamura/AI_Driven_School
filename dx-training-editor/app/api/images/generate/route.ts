@@ -74,7 +74,7 @@ async function callClaude(
 }
 
 function playwrightHint(): string {
-  return "Playwright の Chromium が未導入の可能性があります。start.bat で起動するか、dx-training-editor で npx playwright install chromium を実行してください。";
+  return "Playwright の Chromium が未導入の可能性があります。start.bat で起動するか、dx-training-studio で npx playwright install chromium を実行してください。";
 }
 
 export async function POST(req: Request) {

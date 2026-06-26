@@ -5,7 +5,7 @@
 Agent ビューの会話履歴をブラウザ `localStorage` で永続化し、複数セッションの作成・切替・削除を提供する。レッスン選択に依存しない会話スコープと、履歴 UI の要件を規定する。
 ## Requirements
 ### Requirement: localStorage によるセッション永続化
-Agent ビューの会話はブラウザ `localStorage` に複数セッションとして保存されなければならない（SHALL）。ストレージキーは `dx-training-editor-agent-chat` でなければならない（SHALL）。各セッションは `id`、`title`、`messages`、`activeSkillId`、`createdAt`、`updatedAt` を含まなければならない（SHALL）。セッション数の上限は 20 でなければならない（SHALL）。上限超過時は `updatedAt` が最も古いセッションを削除しなければならない（SHALL）。
+Agent ビューの会話はブラウザ `localStorage` に複数セッションとして保存されなければならない（SHALL）。ストレージキーは `dx-training-studio-agent-chat` でなければならない（SHALL）。各セッションは `id`、`title`、`messages`、`activeSkillId`、`createdAt`、`updatedAt` を含まなければならない（SHALL）。セッション数の上限は 20 でなければならない（SHALL）。上限超過時は `updatedAt` が最も古いセッションを削除しなければならない（SHALL）。
 
 #### Scenario: 初回起動時に空セッションを作成する
 - **WHEN** `localStorage` に Agent チャットデータが存在しない

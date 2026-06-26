@@ -1,5 +1,5 @@
 /**
- * DX Training Editor のドメインスキーマ。
+ * DX Training Studio のドメインスキーマ。
  * シリーズ → コース → レッスン の 3 層構造を Zod で定義する。
  */
 

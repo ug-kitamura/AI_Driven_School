@@ -8,7 +8,7 @@ import {
 
 describe("toRepoRelativePath", () => {
   it("returns path unchanged when project root is repo root", () => {
-    const root = path.resolve("/repo/dx-training-editor");
+    const root = path.resolve("/repo/dx-training-studio");
     expect(toRepoRelativePath(root, root, "data/content.json")).toBe(
       "data/content.json",
     );
@@ -16,9 +16,9 @@ describe("toRepoRelativePath", () => {
 
   it("prefixes project directory in monorepo", () => {
     const repo = path.resolve("/repo");
-    const project = path.resolve("/repo/dx-training-editor");
+    const project = path.resolve("/repo/dx-training-studio");
     expect(toRepoRelativePath(project, repo, "data/content.json")).toBe(
-      "dx-training-editor/data/content.json",
+      "dx-training-studio/data/content.json",
     );
   });
 });

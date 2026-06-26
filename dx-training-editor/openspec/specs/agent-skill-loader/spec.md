@@ -7,7 +7,7 @@
 ## Requirements
 
 ### Requirement: スキルディレクトリからの読み込み
-`dx-training-editor/.claude/skills/` 配下のスキル定義（`SKILL.md`）を読み込んで一覧取得できなければならない（SHALL）。各スキルは `id`（ディレクトリ名）・`name`・`description` を返さなければならない（SHALL）。
+`dx-training-studio/.claude/skills/` 配下のスキル定義（`SKILL.md`）を読み込んで一覧取得できなければならない（SHALL）。各スキルは `id`（ディレクトリ名）・`name`・`description` を返さなければならない（SHALL）。
 
 #### Scenario: SKILL.md から id・name・description を読み込む
 - **WHEN** `.claude/skills/create-draft/SKILL.md` が存在する

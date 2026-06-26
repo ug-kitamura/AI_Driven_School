@@ -1,8 +1,8 @@
-# training-editor-workspace-dark-mode Specification
+# training-studio-workspace-dark-mode Specification
 
 ## Purpose
 
-DX Training Editor のダークテーマ時における Pane3 編集、曼陀羅、別シリーズコース選択、レッスンメタ・コースメタダイアログの視認性を定義する。`workspace-ui-polish` change により確定した挙動を正本とする。
+DX Training Studio のダークテーマ時における Pane3 編集、曼陀羅、別シリーズコース選択、レッスンメタ・コースメタダイアログの視認性を定義する。`workspace-ui-polish` change により確定した挙動を正本とする。
 
 ## Requirements
 

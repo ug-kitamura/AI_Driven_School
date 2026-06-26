@@ -20,7 +20,9 @@ export type AgentChatStorage = {
   sessions: AgentChatSession[];
 };
 
-export const AGENT_CHAT_STORAGE_KEY = "dx-training-editor-agent-chat";
+import { STORAGE_KEYS } from "@/lib/storage-keys";
+
+export const AGENT_CHAT_STORAGE_KEY = STORAGE_KEYS.agentChat;
 export const MAX_AGENT_CHAT_SESSIONS = 20;
 export const DEFAULT_SESSION_TITLE = "新しい会話";
 

@@ -76,8 +76,10 @@ function shrinkOrderFor(input: FitPaneLayoutInput): (keyof WorkspacePaneWidths)[
   return PANE_SHRINK_ORDER_DEFAULT;
 }
 
-const STORAGE_KEY = "dx-training-editor-pane-widths";
-const SETTINGS_STORAGE_KEY = "dx-training-editor-settings";
+import { STORAGE_KEYS } from "@/lib/storage-keys";
+
+const STORAGE_KEY = STORAGE_KEYS.paneWidths;
+const SETTINGS_STORAGE_KEY = STORAGE_KEYS.settings;
 
 function loadPaneDefaultsFromSettings(): WorkspacePaneWidths {
   if (typeof window === "undefined") return { ...PANE_WIDTH_DEFAULTS };

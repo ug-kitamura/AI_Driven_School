@@ -2,9 +2,9 @@
 
 ## ツール一覧
 
-### [DX Training Editor](dx-training-editor)
+### [DX Training Studio](dx-training-studio)
 
-DX ツールトレーニングのコンテンツ作成を補助する4ペインUIツール。
+DX ツールトレーニングのコンテンツ計画・作成・編集・デプロイを支援する統合スタジオ（4ペイン UI）。
 
 ### [Commit & Track tool（コミとら）](commit-track-tool)
 

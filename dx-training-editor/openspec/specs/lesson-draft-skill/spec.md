@@ -7,7 +7,7 @@
 ## Requirements
 
 ### Requirement: レッスン草稿作成スキルの存在
-`create-draft` スキルが `dx-training-editor/.claude/skills/create-draft/SKILL.md` に存在しなければならない（SHALL）。選択中レッスンのメタ情報と本文を入力として受け取り、markdown 形式の草稿を生成しなければならない（SHALL）。
+`create-draft` スキルが `dx-training-studio/.claude/skills/create-draft/SKILL.md` に存在しなければならない（SHALL）。選択中レッスンのメタ情報と本文を入力として受け取り、markdown 形式の草稿を生成しなければならない（SHALL）。
 
 #### Scenario: スキル一覧に表示される
 - **WHEN** `/api/agent/skills` を呼び出す

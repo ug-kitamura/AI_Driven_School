@@ -82,7 +82,7 @@
 }
 
 :root {
-  /* DX Training Editor カラーパレット（custom-colors.xlsx より） */
+  /* DX Training Studio カラーパレット（custom-colors.xlsx より） */
   --background: #EFF1F2;        /* Custom_Gray_95: ページ背景 */
   --foreground: #1A1C1D;        /* Custom_Gray_10: テキスト（メイン） */
   --card: #FFFFFF;              /* White: カード・ペイン背景 */

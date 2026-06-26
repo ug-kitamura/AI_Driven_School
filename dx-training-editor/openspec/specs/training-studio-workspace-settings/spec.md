@@ -1,4 +1,4 @@
-# training-editor-workspace-settings Specification
+# training-studio-workspace-settings Specification
 
 ## Purpose
 TBD - created by archiving change pane4-ai-generation-and-settings. Update Purpose after archive.
@@ -14,7 +14,7 @@ TBD - created by archiving change pane4-ai-generation-and-settings. Update Purpo
 
 ### Requirement: AI API キーをマスク入力で保存する
 
-設定ダイアログは **AI API キー**（Claude 等の AI 呼び出し用）を password 入力（マスク表示）で編集でき、保存操作で `localStorage` の `dx-training-editor-settings` に **`aiApiKey`** として格納しなければならない（SHALL）。入力欄の placeholder は **`AI API key`** としなければならない（SHALL）。サーバーはキーを永続化してはならない（MUST NOT）。各キー行に **表示トグル**（目アイコン、`password` ↔ `text`）と **リセット**（当該フィールドの draft を空文字にする）を提供しなければならない（SHALL）。一括クリアのみの操作に限定してはならない（MUST NOT）。ダイアログにはキーがブラウザ内のみに保存される旨を表示しなければならない（SHALL）。
+設定ダイアログは **AI API キー**（Claude 等の AI 呼び出し用）を password 入力（マスク表示）で編集でき、保存操作で `localStorage` の `dx-training-studio-settings` に **`aiApiKey`** として格納しなければならない（SHALL）。入力欄の placeholder は **`AI API key`** としなければならない（SHALL）。サーバーはキーを永続化してはならない（MUST NOT）。各キー行に **表示トグル**（目アイコン、`password` ↔ `text`）と **リセット**（当該フィールドの draft を空文字にする）を提供しなければならない（SHALL）。一括クリアのみの操作に限定してはならない（MUST NOT）。ダイアログにはキーがブラウザ内のみに保存される旨を表示しなければならない（SHALL）。
 
 クライアントは AI 系 API 呼び出し時 **`x-ai-api-key`** ヘッダーでキーを渡してよい（MAY）。サーバーはキー解決時 **ダイアログ由来のヘッダーを優先**し、ヘッダーが無い（ダイアログ未入力）ときのみ **`process.env.AI_API_KEY`（`.env.local`）** を参照しなければならない（SHALL）。
 
@@ -52,7 +52,7 @@ TBD - created by archiving change pane4-ai-generation-and-settings. Update Purpo
 
 ### Requirement: テーマをライト・ダーク・システムで切り替える
 
-設定ダイアログはテーマとして `light`・`dark`・`system` のいずれかを選択でき、保存時に `<html>` へ `dark` class を適用または除去しなければならない（SHALL）。`system` は `prefers-color-scheme` に従わなければならない（SHALL）。設定は `dx-training-editor-settings` に永続化し、起動時に復元しなければならない（SHALL）。`dx-training-editor-settings` が未保存の初回起動時、コード既定のテーマは `system` でなければならない（SHALL）。
+設定ダイアログはテーマとして `light`・`dark`・`system` のいずれかを選択でき、保存時に `<html>` へ `dark` class を適用または除去しなければならない（SHALL）。`system` は `prefers-color-scheme` に従わなければならない（SHALL）。設定は `dx-training-studio-settings` に永続化し、起動時に復元しなければならない（SHALL）。`dx-training-studio-settings` が未保存の初回起動時、コード既定のテーマは `system` でなければならない（SHALL）。
 
 #### Scenario: ダーク選択で UI が暗色になる
 
@@ -67,17 +67,17 @@ TBD - created by archiving change pane4-ai-generation-and-settings. Update Purpo
 
 #### Scenario: 初回起動の既定はシステム
 
-- **WHEN** `dx-training-editor-settings` が存在しない
+- **WHEN** `dx-training-studio-settings` が存在しない
 - **THEN** `DEFAULT_WORKSPACE_SETTINGS.theme` は `system` である
 - **AND** ワークスペースは OS の明暗設定に従って描画される
 
 ### Requirement: ペイン既定幅を設定できる
 
-設定ダイアログは Pane1・Pane2・Pane4 の既定幅（px）を `pane-layout.ts` の min/max 内で編集でき、**3 ペイン分の数値入力を横 1 行**（レスポンシブ時は折り返し可）に配置しなければならない（SHALL）。保存時に `settings.paneDefaults` へ格納しなければならない（SHALL）。「今のレイアウトに適用」は現在値をワークスペース幅 state および `dx-training-editor-pane-widths` に書き込まなければならない（SHALL）。「既定幅に戻す」（リセット）は `paneDefaults` をコード既定に戻す操作として、`ghost` より視認しやすいスタイル（例: `outline`）で提供しなければならない（SHALL）。初回起動で `pane-widths` が無いときは `paneDefaults` を読み込まなければならない（SHALL）。
+設定ダイアログは Pane1・Pane2・Pane4 の既定幅（px）を `pane-layout.ts` の min/max 内で編集でき、**3 ペイン分の数値入力を横 1 行**（レスポンシブ時は折り返し可）に配置しなければならない（SHALL）。保存時に `settings.paneDefaults` へ格納しなければならない（SHALL）。「今のレイアウトに適用」は現在値をワークスペース幅 state および `dx-training-studio-pane-widths` に書き込まなければならない（SHALL）。「既定幅に戻す」（リセット）は `paneDefaults` をコード既定に戻す操作として、`ghost` より視認しやすいスタイル（例: `outline`）で提供しなければならない（SHALL）。初回起動で `pane-widths` が無いときは `paneDefaults` を読み込まなければならない（SHALL）。
 
 #### Scenario: 初回起動でカスタム既定が使われる
 
-- **WHEN** `dx-training-editor-pane-widths` が存在しない
+- **WHEN** `dx-training-studio-pane-widths` が存在しない
 - **AND** ユーザーが以前 paneDefaults を 300/320/360 に保存している
 - **THEN** ワークスペースはその幅で開く
 
@@ -88,7 +88,7 @@ TBD - created by archiving change pane4-ai-generation-and-settings. Update Purpo
 
 ### Requirement: 編集モードの CodeMirror はテーマに追従する
 
-テーマが `dark` または `system` かつ OS がダークのとき、レッスン編集 CodeMirror は **Cursor 現在のエディタに近い**ダーク向け Markdown 配色で表示しなければならない（SHALL）。ライトテーマ時は現行のライト配色を用いなければならない（SHALL）。詳細な色要件は `training-editor-workspace-dark-mode` を参照する（SHALL）。
+テーマが `dark` または `system` かつ OS がダークのとき、レッスン編集 CodeMirror は **Cursor 現在のエディタに近い**ダーク向け Markdown 配色で表示しなければならない（SHALL）。ライトテーマ時は現行のライト配色を用いなければならない（SHALL）。詳細な色要件は `training-studio-workspace-dark-mode` を参照する（SHALL）。
 
 #### Scenario: ダークテーマでエディタ背景が暗色
 
@@ -99,7 +99,7 @@ TBD - created by archiving change pane4-ai-generation-and-settings. Update Purpo
 
 ### Requirement: Pixabay API キーをマスク入力で保存する
 
-設定ダイアログは Pixabay API キーを password 入力（マスク表示）で編集でき、保存操作で `localStorage` の `dx-training-editor-settings` に格納しなければならない（SHALL）。サーバーはキーを永続化してはならない（MUST NOT）。各キー行に **表示トグル**と **リセット**（draft を空にする）を提供しなければならない（SHALL）。ダイアログにはキーがブラウザ内のみに保存される旨を表示しなければならない（SHALL）。
+設定ダイアログは Pixabay API キーを password 入力（マスク表示）で編集でき、保存操作で `localStorage` の `dx-training-studio-settings` に格納しなければならない（SHALL）。サーバーはキーを永続化してはならない（MUST NOT）。各キー行に **表示トグル**と **リセット**（draft を空にする）を提供しなければならない（SHALL）。ダイアログにはキーがブラウザ内のみに保存される旨を表示しなければならない（SHALL）。
 
 Web タブの検索 API 呼び出し時、クライアントは `x-pixabay-api-key` ヘッダーでキーを渡してよい（MAY）。サーバーはキー解決時 **ダイアログ由来のヘッダーを優先**し、ヘッダーが無い（ダイアログ未入力）ときのみ **`process.env.PIXABAY_API_KEY`（`.env.local`）** を参照しなければならない（SHALL）。
 
@@ -124,7 +124,7 @@ Web タブの検索 API 呼び出し時、クライアントは `x-pixabay-api-k
 
 ### Requirement: 環境変数テンプレートを提供する
 
-リポジトリは **`dx-training-editor/.env.example`** をコミットし、`AI_API_KEY`・`PIXABAY_API_KEY`・**`BLOB_READ_WRITE_TOKEN`** のプレースホルダを含めなければならない（SHALL）。**`.env.local`** は git 追跡対象外としなければならない（SHALL）。`BLOB_READ_WRITE_TOKEN` は設定ダイアログでは編集せず、`.env.local` のみで設定する（SHALL）。readme は `.env.example` をコピーして `.env.local` を作成する手順を記載しなければならない（SHALL）。
+リポジトリは **`dx-training-studio/.env.example`** をコミットし、`AI_API_KEY`・`PIXABAY_API_KEY`・**`BLOB_READ_WRITE_TOKEN`** のプレースホルダを含めなければならない（SHALL）。**`.env.local`** は git 追跡対象外としなければならない（SHALL）。`BLOB_READ_WRITE_TOKEN` は設定ダイアログでは編集せず、`.env.local` のみで設定する（SHALL）。readme は `.env.example` をコピーして `.env.local` を作成する手順を記載しなければならない（SHALL）。
 
 #### Scenario: 新規開発者が env を設定できる
 
@@ -134,7 +134,7 @@ Web タブの検索 API 呼び出し時、クライアントは `x-pixabay-api-k
 
 ### Requirement: 画像の管理モードを設定できる
 
-設定ダイアログは **画像の管理** として **ローカル** / **ストレージ** の 2 択を提供し、選択値を `dx-training-editor-settings` の **`imageStorage`**（`local` | `storage`）として永続化しなければならない（SHALL）。未設定時の既定値は **ストレージ**（`storage`）としなければならない（SHALL）。**ストレージ** 選択時、保存前に `GET /api/images/storage-check` で接続を検証し、失敗時は **「ストレージに接続できません」** を表示して保存を拒否しなければならない（SHALL）。
+設定ダイアログは **画像の管理** として **ローカル** / **ストレージ** の 2 択を提供し、選択値を `dx-training-studio-settings` の **`imageStorage`**（`local` | `storage`）として永続化しなければならない（SHALL）。未設定時の既定値は **ストレージ**（`storage`）としなければならない（SHALL）。**ストレージ** 選択時、保存前に `GET /api/images/storage-check` で接続を検証し、失敗時は **「ストレージに接続できません」** を表示して保存を拒否しなければならない（SHALL）。
 
 #### Scenario: 既定はストレージ
 
@@ -163,7 +163,7 @@ Web タブの検索 API 呼び出し時、クライアントは `x-pixabay-api-k
 
 ### Requirement: 編集エリアのデフォルトフォントサイズを設定できる
 
-設定ダイアログは Pane3 編集モード（raw）の **デフォルトフォントサイズ**（px、整数）を `pane-layout` 等と同様に min/max 内で編集し、`dx-training-editor-settings` に **`editorFontSizePx`** として永続化しなければならない（SHALL）。未設定時は **14** px を既定としなければならない（SHALL）。保存後、次回以降の編集モード初期表示および Ctrl+ホイール調整の基準値として用いなければならない（SHALL）。
+設定ダイアログは Pane3 編集モード（raw）の **デフォルトフォントサイズ**（px、整数）を `pane-layout` 等と同様に min/max 内で編集し、`dx-training-studio-settings` に **`editorFontSizePx`** として永続化しなければならない（SHALL）。未設定時は **14** px を既定としなければならない（SHALL）。保存後、次回以降の編集モード初期表示および Ctrl+ホイール調整の基準値として用いなければならない（SHALL）。
 
 #### Scenario: デフォルトフォントを保存して反映する
 
@@ -186,7 +186,7 @@ Web タブの検索 API 呼び出し時、クライアントは `x-pixabay-api-k
 | `claude-sonnet-4-6` | Claude Sonnet 4.6 | 可（デフォルト） |
 | `gpt-5-nano` | GPT 5 nano | 不可（未対応） |
 
-未設定時の既定値は `claude-sonnet-4-6` でなければならない（SHALL）。保存操作で **`aiModel`** を `dx-training-editor-settings` に格納しなければならない（SHALL）。クライアントは AI 系 API 呼び出し時 **`x-ai-model`** ヘッダーで slug を渡さなければならない（SHALL）。サーバーは **`x-ai-model` ヘッダーを優先**し、ヘッダーが無いときのみ **`process.env.AI_MODEL`** を参照し、それも無いときは **`claude-sonnet-4-6`** を用いなければならない（SHALL）。
+未設定時の既定値は `claude-sonnet-4-6` でなければならない（SHALL）。保存操作で **`aiModel`** を `dx-training-studio-settings` に格納しなければならない（SHALL）。クライアントは AI 系 API 呼び出し時 **`x-ai-model`** ヘッダーで slug を渡さなければならない（SHALL）。サーバーは **`x-ai-model` ヘッダーを優先**し、ヘッダーが無いときのみ **`process.env.AI_MODEL`** を参照し、それも無いときは **`claude-sonnet-4-6`** を用いなければならない（SHALL）。
 
 #### Scenario: デフォルトは Claude Sonnet 4.6
 

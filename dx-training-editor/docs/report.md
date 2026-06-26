@@ -2,7 +2,7 @@
     課題概要
         DX ツールトレーニングのコンテンツ作成を補助する 4 ペイン UI ツールの作成
         ツール名
-            DX Training Editor
+            DX Training Studio
         提出期限
             2026.06.07 10:00 まで
         担当者
@@ -79,7 +79,7 @@
         課題説明ページ
             <https://ai-driven-school-portal.com/pages/personal-workspace-ui>
         GitHub リポジトリ
-            <https://github.com/ug-kitamura/AI_Driven_School/tree/main/dx-training-editor>
+            <https://github.com/ug-kitamura/AI_Driven_School/tree/main/dx-training-studio>
         Vercel リンク
             <https://ai-driven-school.vercel.app/>
         提出物リンク

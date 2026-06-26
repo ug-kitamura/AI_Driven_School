@@ -2,7 +2,7 @@
 
 ## Purpose
 
-DX Training Editor の Pane4（ImageManagerPane）内部モジュール構成を定義する。`useImageLists`・`usePromoteAndInsert` によるロジック集約、タブコンポーネント分割、および `lib/image-list-client.ts` を用いたスコープ単位 fetch の責務境界を規定する。ユーザー向け挙動は `training-editor-image-pane` に従い、本 spec は実装構造の要件を扱う。
+DX Training Studio の Pane4（ImageManagerPane）内部モジュール構成を定義する。`useImageLists`・`usePromoteAndInsert` によるロジック集約、タブコンポーネント分割、および `lib/image-list-client.ts` を用いたスコープ単位 fetch の責務境界を規定する。ユーザー向け挙動は `training-studio-image-pane` に従い、本 spec は実装構造の要件を扱う。
 
 ## Requirements
 
@@ -62,7 +62,7 @@ Pane4 の 4 タブ（Used・UP・AI・Web）のコンテンツ領域は、それ
 
 ### Requirement: 既存のユーザー向け挙動を維持する
 
-本変更は内部構造のリファクタであり、`training-editor-image-pane` および関連 spec で定義されたユーザー向け挙動（promote・削除・フィルタ・通知・グリッド等）を変更してはならない（MUST NOT）。
+本変更は内部構造のリファクタであり、`training-studio-image-pane` および関連 spec で定義されたユーザー向け挙動（promote・削除・フィルタ・通知・グリッド等）を変更してはならない（MUST NOT）。
 
 #### Scenario: リファクタ後も promote 挿入が同等に動作する
 

@@ -6,7 +6,9 @@ export type WorkspaceSelection = {
   lessonId: string;
 };
 
-const SELECTION_STORAGE_KEY = "dx-training-editor-selection";
+import { STORAGE_KEYS } from "@/lib/storage-keys";
+
+const SELECTION_STORAGE_KEY = STORAGE_KEYS.selection;
 
 export function loadStoredSelection(): WorkspaceSelection | null {
   if (typeof window === "undefined") return null;

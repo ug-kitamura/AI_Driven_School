@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
+import { migrateLocalStorageIfNeeded } from "@/lib/storage-migration";
 import {
   applyThemeToDocument,
   loadWorkspaceSettings,
@@ -8,6 +9,7 @@ import {
 
 export function ThemeInitializer() {
   useEffect(() => {
+    migrateLocalStorageIfNeeded();
     const settings = loadWorkspaceSettings();
     applyThemeToDocument(settings.theme);
 

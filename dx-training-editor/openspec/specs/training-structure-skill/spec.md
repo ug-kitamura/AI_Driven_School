@@ -7,7 +7,7 @@
 ## Requirements
 
 ### Requirement: 構成作成スキルの存在
-`create-structure` スキルが `dx-training-editor/.claude/skills/create-structure/SKILL.md` に存在しなければならない（SHALL）。現在のシリーズ/コース/レッスン構成を入力として受け取り、追加・改善提案を出力しなければならない（SHALL）。
+`create-structure` スキルが `dx-training-studio/.claude/skills/create-structure/SKILL.md` に存在しなければならない（SHALL）。現在のシリーズ/コース/レッスン構成を入力として受け取り、追加・改善提案を出力しなければならない（SHALL）。
 
 #### Scenario: スキル一覧に表示される
 - **WHEN** `/api/agent/skills` を呼び出す

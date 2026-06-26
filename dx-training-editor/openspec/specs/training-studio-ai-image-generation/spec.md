@@ -1,4 +1,4 @@
-# training-editor-ai-image-generation Specification
+# training-studio-ai-image-generation Specification
 
 ## Purpose
 TBD - created by archiving change pane4-ai-generation-and-settings. Update Purpose after archive.

@@ -1,0 +1,12 @@
+{
+  "id": "crs-git-4fh0j2",
+  "order": [
+    "バージョン管理ってなに？",
+    "Gitの三大エリア"
+  ],
+  "target": "バージョン管理を全く知らない開発者",
+  "cross_series_prev": [
+    "crs-dx-piyopiyo-9y2gui"
+  ],
+  "cross_series_next": []
+}

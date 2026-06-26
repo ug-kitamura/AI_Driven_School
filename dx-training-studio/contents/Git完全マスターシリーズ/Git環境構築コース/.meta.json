@@ -1,0 +1,13 @@
+{
+  "id": "crs-git-vk36nl",
+  "order": [
+    "Gitのインストール手順",
+    "初期設定（名前・メールアドレス）",
+    "最初のコミット"
+  ],
+  "target": "Git未経験の開発者",
+  "cross_series_prev": [],
+  "cross_series_next": [
+    "crs-python-xwfmhd"
+  ]
+}

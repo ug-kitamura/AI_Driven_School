@@ -1,0 +1,9 @@
+{
+  "id": "crs-python-2209il",
+  "cross_series_prev": [],
+  "cross_series_next": [],
+  "order": [
+    "Pythonのインストール",
+    "仮想環境（venv）の作成"
+  ]
+}

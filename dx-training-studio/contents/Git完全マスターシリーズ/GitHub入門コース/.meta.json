@@ -1,0 +1,9 @@
+{
+  "id": "crs-github-6hbs7q",
+  "order": [
+    "GitHubアカウントの作成"
+  ],
+  "target": "Git基本操作ができる開発者",
+  "cross_series_prev": [],
+  "cross_series_next": []
+}

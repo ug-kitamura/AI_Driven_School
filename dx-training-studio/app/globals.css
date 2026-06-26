@@ -1,0 +1,601 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
+
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  /* `--font-inter` は next/font/google（app/layout.tsx）が <html> に注入する CSS 変数。
+     欧文・数字は Inter、日本語はシステムの日本語フォントに自然にフォールバックする。 */
+  --font-sans:
+    var(--font-inter), "Hiragino Sans", "BIZ UDPGothic", "Yu Gothic UI",
+    system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, monospace;
+  /* font-sans と同じ。見出し専用フォントに切り替える場合はここを変更 */
+  --font-heading: var(--font-sans);
+  --color-sidebar-ring: var(--sidebar-ring);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar: var(--sidebar);
+  --color-chart-5: var(--chart-5);
+  --color-chart-4: var(--chart-4);
+  --color-chart-3: var(--chart-3);
+  --color-chart-2: var(--chart-2);
+  --color-chart-1: var(--chart-1);
+  --color-ring: var(--ring);
+  --color-input: var(--input);
+  --color-border: var(--border);
+  --color-destructive: var(--destructive);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-accent: var(--accent);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-muted: var(--muted);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-secondary: var(--secondary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary: var(--primary);
+  --color-primary-hover: var(--primary-hover);
+  --color-button-outline-hover: var(--button-outline-hover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-popover: var(--popover);
+  --color-card-foreground: var(--card-foreground);
+  --color-card: var(--card);
+  --color-canvas: var(--canvas);
+  --radius-sm: calc(var(--radius) * 0.6);
+  --radius-md: calc(var(--radius) * 0.8);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) * 1.4);
+  --radius-2xl: calc(var(--radius) * 1.8);
+  --radius-3xl: calc(var(--radius) * 2.2);
+  --radius-4xl: calc(var(--radius) * 2.6);
+  --font-serif: "Georgia", serif;
+  --radius: 0.625rem;
+  --tracking-tighter: calc(var(--tracking-normal) - 0.05em);
+  --tracking-tight: calc(var(--tracking-normal) - 0.025em);
+  --tracking-wide: calc(var(--tracking-normal) + 0.025em);
+  --tracking-wider: calc(var(--tracking-normal) + 0.05em);
+  --tracking-widest: calc(var(--tracking-normal) + 0.1em);
+  --tracking-normal: var(--tracking-normal);
+  --shadow-2xl: var(--shadow-2xl);
+  --shadow-xl: var(--shadow-xl);
+  --shadow-lg: var(--shadow-lg);
+  --shadow-md: var(--shadow-md);
+  --shadow: var(--shadow);
+  --shadow-sm: var(--shadow-sm);
+  --shadow-xs: var(--shadow-xs);
+  --shadow-2xs: var(--shadow-2xs);
+  --spacing: var(--spacing);
+  --letter-spacing: var(--letter-spacing);
+  --shadow-offset-y: var(--shadow-offset-y);
+  --shadow-offset-x: var(--shadow-offset-x);
+  --shadow-spread: var(--shadow-spread);
+  --shadow-blur: var(--shadow-blur);
+  --shadow-opacity: var(--shadow-opacity);
+  --color-shadow-color: var(--shadow-color);
+  --color-destructive-foreground: var(--destructive-foreground);
+}
+
+:root {
+  /* DX Training Studio カラーパレット（custom-colors.xlsx より） */
+  --background: #EFF1F2;        /* Custom_Gray_95: ページ背景 */
+  --foreground: #1A1C1D;        /* Custom_Gray_10: テキスト（メイン） */
+  --card: #FFFFFF;              /* White: カード・ペイン背景 */
+  --card-foreground: #1A1C1D;
+  --canvas: #FFFFFF;
+  --popover: #FFFFFF;
+  --popover-foreground: #1A1C1D;
+  --primary: #007BC0;           /* Custom_Blue_50: プライマリ */
+  --primary-hover: color-mix(in oklab, var(--primary) 90%, black);
+  --button-outline-hover: color-mix(in oklab, var(--background) 82%, var(--input));
+  --primary-foreground: #FFFFFF;
+  --secondary: #D1E4FF;         /* Custom_Blue_90: 淡いアクセント */
+  --secondary-foreground: #007BC0;
+  --muted: #EFF1F2;
+  --muted-foreground: #71767C;  /* Custom_Gray_50: テキスト（サブ） */
+  --accent: #D1E4FF;
+  --accent-foreground: #007BC0;
+  --destructive: oklch(0.5624 0.0956 20.5303);
+  --border: #D0D4D8;            /* Custom_Gray_85: ボーダー */
+  --input: #D0D4D8;
+  --ring: #007BC0;
+  /* ステータスカラー */
+  --status-done: #00884A;       /* Custom_Green_50 */
+  --status-done-fg: #FFFFFF;
+  --status-wip: #EEC100;        /* Custom_Yellow_80 */
+  --status-wip-fg: #FFFFFF;
+  --status-draft: #A4ABB3;      /* Custom_Gray_70 */
+  --status-draft-fg: #FFFFFF;
+  --chart-1: #007BC0;
+  --chart-2: #00884A;
+  --chart-3: #EEC100;
+  --chart-4: #A4ABB3;
+  --chart-5: #D1E4FF;
+  --radius: 0.5rem;
+  --sidebar: #FFFFFF;
+  --sidebar-foreground: #1A1C1D;
+  --sidebar-primary: #007BC0;
+  --sidebar-primary-foreground: #FFFFFF;
+  --sidebar-accent: #D1E4FF;
+  --sidebar-accent-foreground: #007BC0;
+  --sidebar-border: #D0D4D8;
+  --sidebar-ring: #007BC0;
+  --destructive-foreground: oklch(1 0 0);
+  --font-sans:
+    var(--font-inter), "Hiragino Sans", "BIZ UDPGothic", "Yu Gothic UI",
+    system-ui, sans-serif;
+  --font-serif: "Georgia", serif;
+  --font-mono: "JetBrains Mono", ui-monospace, monospace;
+  --shadow-color: #000000;
+  --shadow-opacity: 0.05;
+  --shadow-blur: 12px;
+  --shadow-spread: 0px;
+  --shadow-offset-x: 0px;
+  --shadow-offset-y: 4px;
+  --letter-spacing: 0;
+  --spacing: 0.25rem;
+  --shadow-2xs: 0px 4px 12px 0px hsl(0 0% 0% / 0.03);
+  --shadow-xs: 0px 4px 12px 0px hsl(0 0% 0% / 0.03);
+  --shadow-sm:
+    0px 4px 12px 0px hsl(0 0% 0% / 0.05), 0px 1px 2px -1px hsl(0 0% 0% / 0.05);
+  --shadow:
+    0px 4px 12px 0px hsl(0 0% 0% / 0.05), 0px 1px 2px -1px hsl(0 0% 0% / 0.05);
+  --shadow-md:
+    0px 4px 12px 0px hsl(0 0% 0% / 0.05), 0px 2px 4px -1px hsl(0 0% 0% / 0.05);
+  --shadow-lg:
+    0px 4px 12px 0px hsl(0 0% 0% / 0.05), 0px 4px 6px -1px hsl(0 0% 0% / 0.05);
+  --shadow-xl:
+    0px 4px 12px 0px hsl(0 0% 0% / 0.05), 0px 8px 10px -1px hsl(0 0% 0% / 0.05);
+  --shadow-2xl: 0px 4px 12px 0px hsl(0 0% 0% / 0.13);
+  --tracking-normal: 0;
+  /* ワークスペーススクロールバー（形状共通・色はテーマの semantic トークンから算出） */
+  --workspace-scrollbar-track: var(--card);
+  --workspace-scrollbar-thumb: color-mix(
+    in oklab,
+    var(--muted-foreground) 50%,
+    var(--border)
+  );
+  --workspace-scrollbar-thumb-hover: var(--muted-foreground);
+  color-scheme: light;
+}
+
+.dark {
+  color-scheme: dark;
+  --background: oklch(0.2252 0.0049 248.0473);
+  --foreground: oklch(0.9168 0.0035 67.7802);
+  --card: oklch(0.2668 0.0071 248.094);
+  --card-foreground: oklch(0.9168 0.0035 67.7802);
+  --canvas: oklch(0.246 0.006 248.07);
+  --popover: oklch(0.2668 0.0071 248.094);
+  --popover-foreground: oklch(0.9168 0.0035 67.7802);
+  --primary: oklch(0.7441 0.1311 264.2789);
+  --primary-hover: color-mix(in oklab, var(--primary) 92%, black);
+  --button-outline-hover: color-mix(in oklab, var(--background) 88%, var(--input));
+  --primary-foreground: oklch(0.2077 0.0398 265.7549);
+  --secondary: oklch(0.2972 0 0);
+  --secondary-foreground: oklch(0.9168 0.0035 67.7802);
+  --muted: oklch(0.2972 0 0);
+  --muted-foreground: oklch(0.709 0 0);
+  --accent: oklch(0.2972 0 0);
+  --accent-foreground: oklch(0.9168 0.0035 67.7802);
+  --destructive: oklch(0.6338 0.1208 21.0422);
+  --border: oklch(0.3211 0 0);
+  --input: oklch(0.3211 0 0);
+  --ring: oklch(0.7441 0.1311 264.2789);
+  --chart-1: oklch(0.6318 0.06 244.8148);
+  --chart-2: oklch(0.6441 0.0496 146.8813);
+  --chart-3: oklch(0.719 0.1077 74.6093);
+  --chart-4: oklch(0.7107 0.0351 256.7878);
+  --chart-5: oklch(0.7118 0.0129 286.0665);
+  --sidebar: oklch(0.1989 0.0051 248.0841);
+  --sidebar-foreground: oklch(0.9168 0.0035 67.7802);
+  --sidebar-primary: oklch(0.7441 0.1311 264.2789);
+  --sidebar-primary-foreground: oklch(0.2077 0.0398 265.7549);
+  --sidebar-accent: oklch(0.2972 0 0);
+  --sidebar-accent-foreground: oklch(0.9168 0.0035 67.7802);
+  --sidebar-border: oklch(0.3211 0 0);
+  --sidebar-ring: oklch(0.7441 0.1311 264.2789);
+  --destructive-foreground: oklch(1 0 0);
+  --radius: 0.625rem;
+  --font-sans:
+    var(--font-inter), "Hiragino Sans", "BIZ UDPGothic", "Yu Gothic UI",
+    system-ui, sans-serif;
+  --font-serif: "Georgia", serif;
+  --font-mono: "JetBrains Mono", ui-monospace, monospace;
+  --shadow-color: #000000;
+  --shadow-opacity: 0.3;
+  --shadow-blur: 20px;
+  --shadow-spread: 0px;
+  --shadow-offset-x: 0px;
+  --shadow-offset-y: 10px;
+  --letter-spacing: 0;
+  --spacing: 0.25rem;
+  --shadow-2xs: 0px 10px 20px 0px hsl(0 0% 0% / 0.15);
+  --shadow-xs: 0px 10px 20px 0px hsl(0 0% 0% / 0.15);
+  --shadow-sm:
+    0px 10px 20px 0px hsl(0 0% 0% / 0.3), 0px 1px 2px -1px hsl(0 0% 0% / 0.3);
+  --shadow:
+    0px 10px 20px 0px hsl(0 0% 0% / 0.3), 0px 1px 2px -1px hsl(0 0% 0% / 0.3);
+  --shadow-md:
+    0px 10px 20px 0px hsl(0 0% 0% / 0.3), 0px 2px 4px -1px hsl(0 0% 0% / 0.3);
+  --shadow-lg:
+    0px 10px 20px 0px hsl(0 0% 0% / 0.3), 0px 4px 6px -1px hsl(0 0% 0% / 0.3);
+  --shadow-xl:
+    0px 10px 20px 0px hsl(0 0% 0% / 0.3), 0px 8px 10px -1px hsl(0 0% 0% / 0.3);
+  --shadow-2xl: 0px 10px 20px 0px hsl(0 0% 0% / 0.75);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground;
+    letter-spacing: var(--tracking-normal);
+    line-height: 1.65;
+  }
+  html {
+    @apply font-sans;
+  }
+
+  /* ダーク時: type=number の上下スピナーをダーク UI 配色に（設定モーダル等） */
+  html.dark input[type="number"] {
+    color-scheme: dark;
+  }
+}
+
+/* Pane3 Agent ビュー: 編集ビューと同じスクロールバー形状・位置、背景は極めて白に近いグレー */
+.agent-chat-pane {
+  --agent-chat-pane-bg: #fdfdfc;
+  background-color: var(--agent-chat-pane-bg);
+  --workspace-scrollbar-track: var(--agent-chat-pane-bg);
+}
+
+.dark .agent-chat-pane {
+  --agent-chat-pane-bg: #1e1e1e;
+}
+
+.agent-chat-pane__scroll-fade {
+  pointer-events: none;
+  position: absolute;
+  left: 0;
+  right: 0;
+  z-index: 10;
+  height: 1.25rem;
+}
+
+.agent-chat-pane__scroll-fade-top {
+  top: 0;
+  background: linear-gradient(to bottom, var(--agent-chat-pane-bg), transparent);
+}
+
+.agent-chat-pane__scroll-fade-bottom {
+  bottom: 0;
+  background: linear-gradient(to top, var(--agent-chat-pane-bg), transparent);
+}
+
+/* Pane2 等: スクロールは有効・スクロールバーは非表示 */
+.workspace-scrollbar-hidden {
+  scrollbar-width: none !important;
+  -ms-overflow-style: none;
+  scrollbar-gutter: auto;
+}
+
+.workspace-scrollbar-hidden::-webkit-scrollbar {
+  width: 0 !important;
+  height: 0 !important;
+  display: none;
+}
+
+.workspace-scrollbar-hidden::-webkit-scrollbar-thumb,
+.workspace-scrollbar-hidden::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+/* Pane3・Pane4・グローバル曼陀羅: ネイティブスクロールバー（ライト/ダークで形状同一） */
+.workspace-scrollbar,
+.lesson-content-editor .cm-scroller {
+  scrollbar-width: thin;
+  scrollbar-color: var(--workspace-scrollbar-thumb) var(--workspace-scrollbar-track);
+}
+
+.workspace-scrollbar::-webkit-scrollbar,
+.lesson-content-editor .cm-scroller::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+.workspace-scrollbar::-webkit-scrollbar-track,
+.lesson-content-editor .cm-scroller::-webkit-scrollbar-track {
+  background: var(--workspace-scrollbar-track);
+}
+
+.workspace-scrollbar::-webkit-scrollbar-thumb,
+.lesson-content-editor .cm-scroller::-webkit-scrollbar-thumb {
+  background-color: var(--workspace-scrollbar-thumb);
+  border: 2px solid var(--workspace-scrollbar-track);
+  border-radius: 9999px;
+}
+
+.workspace-scrollbar::-webkit-scrollbar-thumb:hover,
+.lesson-content-editor .cm-scroller::-webkit-scrollbar-thumb:hover {
+  background-color: var(--workspace-scrollbar-thumb-hover);
+}
+
+/* Pane3 プレビュー: preflight で flat になる見出し・リストを復元（typography プラグイン非依存） */
+@layer components {
+  .lesson-preview {
+    @apply max-w-none text-sm leading-relaxed text-foreground;
+  }
+
+  .lesson-preview > :first-child {
+    @apply mt-0;
+  }
+
+  .lesson-preview h1 {
+    @apply mb-4 mt-0 text-2xl font-semibold text-foreground;
+  }
+
+  .lesson-preview h2 {
+    @apply mb-3 mt-8 text-xl font-semibold text-foreground;
+  }
+
+  .lesson-preview h3 {
+    @apply mb-2 mt-6 scroll-mt-4 text-lg font-semibold text-foreground;
+  }
+
+  .lesson-preview h4 {
+    @apply mb-2 mt-4 text-base font-semibold text-foreground;
+  }
+
+  .lesson-preview p {
+    @apply my-3 leading-relaxed;
+  }
+
+  .lesson-preview ul:not(.contains-task-list) {
+    @apply my-3 list-disc pl-6;
+  }
+
+  .lesson-preview ol {
+    @apply my-3 list-decimal pl-6;
+  }
+
+  .lesson-preview li {
+    @apply my-0.5;
+  }
+
+  .lesson-preview ul.contains-task-list {
+    @apply my-3 list-none pl-0;
+  }
+
+  .lesson-preview li.task-list-item {
+    @apply list-none;
+  }
+
+  .lesson-preview input[type="checkbox"] {
+    @apply mr-2 size-4 shrink-0 align-middle accent-primary;
+  }
+
+  .lesson-preview strong {
+    @apply font-semibold text-foreground;
+  }
+
+  .lesson-preview a {
+    @apply text-primary underline underline-offset-2;
+  }
+
+  .lesson-preview code {
+    @apply rounded bg-muted px-1 py-0.5 font-mono text-sm;
+  }
+
+  .lesson-preview pre {
+    @apply my-4 overflow-x-auto rounded-lg border border-border bg-muted/30 p-4;
+  }
+
+  .lesson-preview pre code {
+    @apply bg-transparent p-0 font-mono;
+  }
+
+  .lesson-preview pre code.hljs {
+    @apply bg-transparent text-inherit;
+  }
+
+  .lesson-preview blockquote {
+    @apply my-4 border-l-4 border-primary pl-4 text-muted-foreground;
+  }
+
+  .lesson-preview hr {
+    @apply my-6 border-border;
+  }
+
+  .lesson-preview table {
+    @apply my-4 w-full border-collapse border border-border text-sm;
+  }
+
+  .lesson-preview th,
+  .lesson-preview td {
+    @apply border border-border px-3 py-2 text-left align-top;
+  }
+
+  .lesson-preview th {
+    @apply bg-muted/40 font-semibold text-foreground;
+  }
+
+  /* 曼陀羅 SVG: 実寸表示（横スクロール時も縮小しない） */
+  .global-mandala-graph svg,
+  .mini-mandala-graph svg {
+    display: block;
+    max-width: none;
+    height: auto;
+  }
+
+  /* グローバル曼陀羅: シリーズ名（subgraph タイトル）を太字 */
+  .global-mandala-graph g.cluster-label text,
+  .global-mandala-graph g.cluster g.cluster-label div,
+  .global-mandala-graph g.cluster g.cluster-label span {
+    font-weight: 700 !important;
+  }
+
+  /* Pane2 サムネイル: ペイン幅に合わせて拡大縮小（実寸固定は .mini-mandala-graph のみ） */
+  .mini-mandala-thumbnail svg {
+    display: block !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    height: auto !important;
+    margin-inline: auto;
+  }
+
+  /* Pane2 サムネイル: 全体クリックで拡大のみ。ノードの pointer は使わない */
+  .mini-mandala-thumbnail svg,
+  .mini-mandala-thumbnail svg * {
+    cursor: inherit !important;
+  }
+
+  .lesson-content-editor .cm-editor {
+    background-color: color-mix(in oklab, var(--muted) 20%, transparent);
+  }
+
+  html.dark .lesson-content-editor .cm-editor,
+  html.dark .lesson-content-editor .cm-scroller,
+  html.dark .lesson-content-editor .cm-content {
+    background-color: #1e1e1e !important;
+  }
+
+  html.dark .lesson-content-editor .cm-gutters {
+    background-color: #1e1e1e !important;
+  }
+}
+
+/* FM: @layer 外 + !important（CodeMirror シンタックスハイライトより優先） */
+.lesson-content-editor .cm-frontmatter-fade,
+.lesson-content-editor .cm-frontmatter-fade * {
+  color: color-mix(in oklab, var(--muted-foreground) 88%, transparent) !important;
+}
+
+/* 折りたたみガター: 行番号と同色（ライト） */
+.lesson-content-editor .cm-foldGutter.lesson-fold-gutter .lesson-fold-icon,
+.lesson-content-editor .cm-foldGutter.lesson-fold-gutter span.lesson-fold-open,
+.lesson-content-editor .cm-foldGutter.lesson-fold-gutter span.lesson-fold-closed {
+  color: #237893 !important;
+  -webkit-text-fill-color: #237893 !important;
+}
+
+html.dark .lesson-content-editor .cm-foldGutter.lesson-fold-gutter .lesson-fold-icon,
+html.dark .lesson-content-editor .cm-foldGutter.lesson-fold-gutter span.lesson-fold-open,
+html.dark .lesson-content-editor .cm-foldGutter.lesson-fold-gutter span.lesson-fold-closed {
+  color: #858585 !important;
+  -webkit-text-fill-color: #858585 !important;
+}
+
+.lesson-content-editor .lesson-fold-gutter span.lesson-fold-open {
+  opacity: 0 !important;
+  pointer-events: none;
+  transition: opacity 0.12s ease;
+}
+
+.lesson-content-editor
+  .lesson-fold-gutter.lesson-fold-gutter-column-hovered
+  span.lesson-fold-open {
+  opacity: 1 !important;
+  pointer-events: none;
+}
+
+.lesson-content-editor .lesson-fold-gutter span.lesson-fold-closed {
+  opacity: 1 !important;
+}
+
+/* 折りたたみプレースホルダー: 「…」テキストのみ背景付き・クリック可能 */
+.lesson-content-editor .cm-foldPlaceholder.lesson-fold-placeholder {
+  display: inline;
+  margin: 0;
+  padding: 0 0.2em;
+  border: none;
+  border-radius: 0.125rem;
+  background-color: color-mix(in oklab, var(--muted) 45%, transparent);
+  color: var(--muted-foreground);
+  cursor: pointer;
+  user-select: none;
+}
+
+.lesson-content-editor .cm-foldPlaceholder.lesson-fold-placeholder:hover {
+  background-color: color-mix(in oklab, var(--muted) 65%, transparent);
+  color: var(--foreground);
+}
+
+/* カーソル行: 行番号・折りガター・本文（CM 標準クラスではなく独自マーカー） */
+.lesson-content-editor .cm-gutterElement.lesson-active-line-gutter,
+.lesson-content-editor .cm-line.lesson-active-line {
+  background-color: color-mix(in oklab, var(--muted) 50%, transparent) !important;
+}
+
+/* 行番号のみ太字（テキスト色は変更しない） */
+.lesson-content-editor .cm-lineNumbers .cm-gutterElement.lesson-active-line-number {
+  font-weight: 700;
+}
+
+/* Pane3 差分: 編集モード .cm-lineNumbers + 行番号列と本文間の空白ガター */
+.lesson-diff-view {
+  font-family:
+    ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono",
+    "Courier New", monospace;
+  font-size: 0.875rem;
+  line-height: 1.375rem;
+  overscroll-behavior: contain;
+}
+
+.lesson-diff-view .lesson-diff-row {
+  display: flex;
+  min-height: 1.375rem;
+}
+
+.lesson-diff-view .lesson-diff-gutters {
+  display: flex;
+  flex-shrink: 0;
+  box-sizing: border-box;
+}
+
+.lesson-diff-view .lesson-diff-gutter-element {
+  box-sizing: border-box;
+  min-width: 20px;
+  padding: 0 3px 0 5px;
+  text-align: right;
+  white-space: nowrap;
+  font-size: 11px;
+  line-height: 1.375rem;
+  color: #237893;
+  user-select: none;
+}
+
+.dark .lesson-diff-view .lesson-diff-gutter-element {
+  color: #858585;
+}
+
+/* 2列目の行番号と差分本文の間（編集モード .cm-line の padding-left: 6px 相当） */
+.lesson-diff-view .lesson-diff-gutter-spacer {
+  flex: 0 0 12px;
+  box-sizing: border-box;
+}
+
+.lesson-diff-view .lesson-diff-marker {
+  box-sizing: border-box;
+  flex: 0 0 12px;
+  padding: 0 2px 0 0;
+  text-align: center;
+  line-height: 1.375rem;
+  user-select: none;
+}
+
+.lesson-diff-view .lesson-diff-content {
+  min-width: 0;
+  flex: 1;
+  padding: 0 2px 0 0;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+/* 編集ビュー テキスト選択: lesson-content-editor-setup.ts（LESSON_EDITOR_SELECTION_*）で制御 */

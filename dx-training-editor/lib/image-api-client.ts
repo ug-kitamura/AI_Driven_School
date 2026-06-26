@@ -5,6 +5,11 @@ export function getImageStorageMode(): ImageStorageMode {
   return loadWorkspaceSettings().imageStorage;
 }
 
+export async function checkImageStorageConnection(): Promise<boolean> {
+  const res = await fetch("/api/images/storage-check");
+  return res.ok;
+}
+
 export function withImageStorageMode(url: string): string {
   const storageMode = getImageStorageMode();
   const separator = url.includes("?") ? "&" : "?";

@@ -32,6 +32,7 @@ import {
 } from "@/lib/extract-image-refs";
 import { toImageMarkdown, isCanonicalImagePath } from "@/lib/image-path";
 import { canonicalFileApiParams } from "@/lib/image-api-client";
+import { STORAGE_CONNECTION_ERROR_MESSAGE } from "@/lib/image-storage/types";
 import { AiImagesTab } from "@/components/workspace/image-manager/AiImagesTab";
 import { UploadImagesTab } from "@/components/workspace/image-manager/UploadImagesTab";
 import { UsedImagesTab } from "@/components/workspace/image-manager/UsedImagesTab";
@@ -50,6 +51,16 @@ import type {
 } from "@/components/workspace/image-manager/types";
 import { useImageLists } from "@/components/workspace/image-manager/use-image-lists";
 import { usePromoteAndInsert } from "@/components/workspace/image-manager/use-promote-and-insert";
+
+function mergeTabNotice(
+  storageConnectionError: boolean,
+  notice: TabNotice | undefined,
+): TabNotice | undefined {
+  if (storageConnectionError) {
+    return { message: STORAGE_CONNECTION_ERROR_MESSAGE, tone: "error" };
+  }
+  return notice;
+}
 
 export function ImageManagerPane({
   series,
@@ -94,6 +105,7 @@ export function ImageManagerPane({
     webStagingFiles,
     promotedFiles,
     loading,
+    storageConnectionError,
     refreshScope,
     refreshScopes,
   } = useImageLists({ pane4Open, activeTab });
@@ -443,7 +455,7 @@ export function ImageManagerPane({
             filterLessons={filterLessons}
             gridItems={usedGridItems}
             usedRows={usedRows}
-            notice={tabNotices.used}
+            notice={mergeTabNotice(storageConnectionError, tabNotices.used)}
             onResetFilter={resetUsedFilter}
             onPreview={openPreview}
             onInsert={handleInsertPromoted}
@@ -456,7 +468,7 @@ export function ImageManagerPane({
         <div className={cn(activeTab !== "upload" || loading ? "hidden" : undefined)}>
           <UploadImagesTab
             gridItems={stagingGridItems}
-            notice={tabNotices.upload}
+            notice={mergeTabNotice(storageConnectionError, tabNotices.upload)}
             refreshScope={refreshScope}
             showNotice={showNotice}
             clearNotice={clearNotice}
@@ -477,7 +489,7 @@ export function ImageManagerPane({
             showNotice={showNotice}
             clearNotice={clearNotice}
             gridItems={aiStagingGridItems}
-            notice={tabNotices.ai}
+            notice={mergeTabNotice(storageConnectionError, tabNotices.ai)}
             onResolveAltReady={onAiResolveAltReady}
             onPreview={openPreview}
             onInsert={handleInsertAiStaging}
@@ -494,7 +506,7 @@ export function ImageManagerPane({
             showNotice={showNotice}
             clearNotice={clearNotice}
             gridItems={webStagingGridItems}
-            notice={tabNotices.web}
+            notice={mergeTabNotice(storageConnectionError, tabNotices.web)}
             onResolveAltReady={onWebResolveAltReady}
             onPreview={openPreview}
             onInsert={handleInsertWebStaging}

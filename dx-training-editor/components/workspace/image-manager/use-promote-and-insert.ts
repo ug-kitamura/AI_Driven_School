@@ -3,11 +3,13 @@
 import { useCallback } from "react";
 import type { ImageGridItem } from "@/components/workspace/ImageGrid";
 import {
+  isStorageConnectionErrorMessage,
   scopesAfterPromote,
   type ImageListScope,
 } from "@/lib/image-list-client";
-import { toImageMarkdown } from "@/lib/image-path";
 import { getImageStorageMode } from "@/lib/image-api-client";
+import { toImageMarkdown } from "@/lib/image-path";
+import { STORAGE_CONNECTION_ERROR_MESSAGE } from "@/lib/image-storage/types";
 import type { ImageAsset } from "@/lib/schema";
 import type { ImageManagerTab } from "@/components/workspace/image-manager/types";
 
@@ -45,7 +47,14 @@ export function usePromoteAndInsert(options: {
       });
       const data: { file?: ImageAsset; error?: string } = await res.json();
       if (!res.ok || !data.file) {
-        showNotice(params.tab, data.error ?? "画像の promote に失敗しました", "error");
+        const message = data.error ?? "画像の promote に失敗しました";
+        showNotice(
+          params.tab,
+          isStorageConnectionErrorMessage(message)
+            ? STORAGE_CONNECTION_ERROR_MESSAGE
+            : message,
+          "error",
+        );
         return;
       }
       const alt = params.resolveAlt?.(item);

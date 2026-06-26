@@ -1,8 +1,20 @@
 import type { ImageAsset } from "@/lib/schema";
 import { getImageStorageMode } from "@/lib/image-api-client";
+import { STORAGE_CONNECTION_ERROR_MESSAGE } from "@/lib/image-storage/types";
 
 /** Pane4 タブごとの画像リスト API スコープ */
 export type ImageListScope = "used" | "uploaded" | "ai" | "web";
+
+export type ImageListFetchResult = {
+  files: ImageAsset[];
+  storageConnectionError: boolean;
+};
+
+export function isStorageConnectionErrorMessage(
+  message: string | undefined,
+): boolean {
+  return message === STORAGE_CONNECTION_ERROR_MESSAGE;
+}
 
 export function imageListScopeUrl(scope: ImageListScope): string {
   switch (scope) {
@@ -19,11 +31,16 @@ export function imageListScopeUrl(scope: ImageListScope): string {
   }
 }
 
-export async function fetchImageList(scope: ImageListScope): Promise<ImageAsset[]> {
+export async function fetchImageList(scope: ImageListScope): Promise<ImageListFetchResult> {
   const res = await fetch(imageListScopeUrl(scope));
   const json: { files?: ImageAsset[]; error?: string } = await res.json();
-  if (!res.ok) return [];
-  return json.files ?? [];
+  if (!res.ok) {
+    return {
+      files: [],
+      storageConnectionError: isStorageConnectionErrorMessage(json.error),
+    };
+  }
+  return { files: json.files ?? [], storageConnectionError: false };
 }
 
 /** promote 後: staging ソースと used の両方を更新する */

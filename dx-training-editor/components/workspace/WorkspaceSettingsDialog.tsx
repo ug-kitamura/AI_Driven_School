@@ -52,6 +52,8 @@ import {
   isUnsupportedAiModel,
 } from "@/lib/ai-models";
 import { cn } from "@/lib/utils";
+import { checkImageStorageConnection } from "@/lib/image-api-client";
+import { STORAGE_CONNECTION_ERROR_MESSAGE } from "@/lib/image-storage/types";
 
 type Props = {
   open: boolean;
@@ -138,13 +140,30 @@ function SettingsForm({
     clampEditorFontSizePx(initial.editorFontSizePx),
   );
   const [modelError, setModelError] = useState<string | null>(null);
+  const [storageError, setStorageError] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (isUnsupportedAiModel(draft.aiModel)) {
       setModelError(UNSUPPORTED_MODEL_ERROR);
       return;
     }
     setModelError(null);
+
+    if (draft.imageStorage === "storage") {
+      setSaving(true);
+      try {
+        const connected = await checkImageStorageConnection();
+        if (!connected) {
+          setStorageError(STORAGE_CONNECTION_ERROR_MESSAGE);
+          return;
+        }
+      } finally {
+        setSaving(false);
+      }
+    }
+    setStorageError(null);
+
     const next: WorkspaceSettings = {
       ...draft,
       aiApiKey: apiKeyInput.trim() || null,
@@ -335,12 +354,13 @@ function SettingsForm({
                   type="button"
                   size="sm"
                   variant={draft.imageStorage === value ? "default" : "outline"}
-                  onClick={() =>
+                  onClick={() => {
                     setDraft((prev) => ({
                       ...prev,
                       imageStorage: value as ImageStorageMode,
-                    }))
-                  }
+                    }));
+                    if (value === "local") setStorageError(null);
+                  }}
                 >
                   {label}
                 </Button>
@@ -349,6 +369,9 @@ function SettingsForm({
             <p className="text-[10px] text-muted-foreground">
               ストレージを使用するにはトークンを .env.local に設定する
             </p>
+            {storageError ? (
+              <p className="text-xs text-destructive">{storageError}</p>
+            ) : null}
           </MetaDialogField>
         </section>
 
@@ -376,8 +399,8 @@ function SettingsForm({
         <Button type="button" variant="outline" onClick={handleCancel}>
           キャンセル
         </Button>
-        <Button type="button" onClick={handleSave}>
-          保存
+        <Button type="button" onClick={handleSave} disabled={saving}>
+          {saving ? "確認中..." : "保存"}
         </Button>
       </DialogFooter>
     </DialogContent>

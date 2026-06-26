@@ -30,16 +30,27 @@ AI タブで Tailwind 図解を生成する場合は、初回のみ `npx playwri
 | **Pane 3** | マークダウンエディタ（編集 / プレビュー / Git 差分の 3 モード） |
 | **Pane 4** | 画像アセットマネージャー（Used / Upload / AI / Web タブ） |
 
-GlobalHeader に **DXトレーニング曼陀羅** と **設定（歯車）** がある。設定では AI API キー、Pixabay API キー、テーマ（ライト／ダーク／システム）、ペイン既定幅を変更できる。
+GlobalHeader に **DXトレーニング曼陀羅** と **設定（歯車）** がある。設定では AI API キー、Pixabay API キー、**画像の管理（ローカル / ストレージ）**、テーマ（ライト／ダーク／システム）、ペイン既定幅を変更できる。
 
 ### API キー（`.env.local`）
 
 ```bash
 cp .env.example .env.local
-# AI_API_KEY / PIXABAY_API_KEY を設定
+# AI_API_KEY / PIXABAY_API_KEY / BLOB_READ_WRITE_TOKEN（ストレージモード時）を設定
 ```
 
-**設定ダイアログにキーがある場合はダイアログを優先**します。ダイアログ未入力のときのみ `.env.local` の `AI_API_KEY` / `PIXABAY_API_KEY` を参照します。
+**設定ダイアログにキーがある場合はダイアログを優先**します。ダイアログ未入力のときのみ `.env.local` の `AI_API_KEY` / `PIXABAY_API_KEY` を参照します。画像ストレージのトークンは **常に `.env.local` の `BLOB_READ_WRITE_TOKEN`** のみです。
+
+### 画像ストレージ（⚙ 画像の管理）
+
+| モード | 正本の保存先 | git |
+|--------|-------------|-----|
+| **ローカル**（既定） | `images/<filename>` | 正本を追跡可能 |
+| **ストレージ** | Vercel Blob（Private） | 正本は Blob 上（`images/` 直下には置かない想定） |
+
+- staging（`images/{uploaded,ai,web}/`）は **常にローカル**
+- ストレージモードでトークン未設定のときは「ストレージに接続できません。.env.local にトークンを設定してください。」と表示
+- 既存のローカル正本を Blob へ上げる: `npm run upload-images-to-blob`（`--dry-run` 可）
 
 ### Pane 3 のモード
 
@@ -56,7 +67,7 @@ cp .env.example .env.local
 - **AI**: プロンプト入力 → Claude + Playwright で PNG 生成 → `images/ai/`（staging）→ 挿入で promote（要 `AI_API_KEY`）。`<!-- -->` 内カーソルでプロンプト自動同期。**自動入力**ボタンは常に Claude でプロンプトを再構成
 - **Web**: 説明文プロンプト → Claude + Pixabay で最大 3 枚取得 → `images/web/`（staging）→ 挿入で promote（要 `AI_API_KEY` + `PIXABAY_API_KEY`）。同期・自動入力の挙動は AI タブと同様
 
-削除は全タブ共通で `images/trash/` へ move（同名は上書き）。trash は git 除外。
+削除は staging を `images/trash/` へ move（ローカル）。**ローカルモード**の正本削除も trash へ move。**ストレージモード**の正本削除は Blob から物理削除。
 
 Markdown の画像パスは正本形式 `images/<filename>` のみ。staging は `images/{uploaded|ai|web}/` に保存する。詳細は [`docs/image-slot-contract.md`](docs/image-slot-contract.md)。
 

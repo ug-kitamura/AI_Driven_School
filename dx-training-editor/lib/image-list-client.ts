@@ -1,12 +1,15 @@
 import type { ImageAsset } from "@/lib/schema";
+import { getImageStorageMode } from "@/lib/image-api-client";
 
 /** Pane4 タブごとの画像リスト API スコープ */
 export type ImageListScope = "used" | "uploaded" | "ai" | "web";
 
 export function imageListScopeUrl(scope: ImageListScope): string {
   switch (scope) {
-    case "used":
-      return "/api/images/list?scope=used";
+    case "used": {
+      const storageMode = getImageStorageMode();
+      return `/api/images/list?scope=used&storageMode=${encodeURIComponent(storageMode)}`;
+    }
     case "uploaded":
       return "/api/images/list?scope=staging&source=uploaded";
     case "ai":
@@ -18,7 +21,7 @@ export function imageListScopeUrl(scope: ImageListScope): string {
 
 export async function fetchImageList(scope: ImageListScope): Promise<ImageAsset[]> {
   const res = await fetch(imageListScopeUrl(scope));
-  const json: { files?: ImageAsset[] } = await res.json();
+  const json: { files?: ImageAsset[]; error?: string } = await res.json();
   if (!res.ok) return [];
   return json.files ?? [];
 }

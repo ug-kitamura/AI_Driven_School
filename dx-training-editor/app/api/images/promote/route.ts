@@ -1,8 +1,15 @@
 import { z } from "zod";
-import { promoteStagingImage } from "@/lib/image-store";
+import { promoteStagingToCanonical } from "@/lib/image-store";
+import {
+  parseImageStorageMode,
+  resolveCanonicalBackend,
+  storageErrorResponse,
+} from "@/lib/image-storage/resolve";
+import { imageStorageModeSchema } from "@/lib/schema";
 
 const requestSchema = z.object({
   stagingPath: z.string().min(1),
+  storageMode: imageStorageModeSchema.default("local"),
 });
 
 export async function POST(req: Request) {
@@ -22,9 +29,18 @@ export async function POST(req: Request) {
   }
 
   try {
-    const file = await promoteStagingImage(process.cwd(), parsed.data.stagingPath);
+    const storageMode = parseImageStorageMode(parsed.data.storageMode);
+    const backend = resolveCanonicalBackend(process.cwd(), storageMode);
+    const file = await promoteStagingToCanonical(
+      process.cwd(),
+      parsed.data.stagingPath,
+      backend,
+    );
     return Response.json({ file });
   } catch (error) {
+    const storageResponse = storageErrorResponse(error);
+    if (storageResponse) return storageResponse;
+
     const message = error instanceof Error ? error.message : "promote に失敗しました";
     const status = message.includes("not found") ? 404 : 400;
     return Response.json({ error: message }, { status });

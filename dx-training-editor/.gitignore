@@ -19,7 +19,6 @@ next-env.d.ts
 .env*.local
 
 # image staging (per source tab) and trash
-/images/*
 /images/uploaded/
 /images/ai/
 /images/web/

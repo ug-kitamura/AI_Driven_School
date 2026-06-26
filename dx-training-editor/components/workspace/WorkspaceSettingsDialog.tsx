@@ -43,6 +43,7 @@ import {
   saveWorkspaceSettings,
   type AiModelSlug,
   type ThemeMode,
+  type ImageStorageMode,
   type WorkspaceSettings,
 } from "@/lib/workspace-settings";
 import {
@@ -316,6 +317,39 @@ function SettingsForm({
             {modelError ? (
               <p className="text-xs text-destructive">{modelError}</p>
             ) : null}
+          </MetaDialogField>
+        </section>
+
+        <section className="flex flex-col gap-3">
+          <h3 className="text-sm font-semibold text-foreground">画像の管理</h3>
+          <MetaDialogField>
+            <div className="flex flex-wrap gap-2">
+              {(
+                [
+                  ["local", "ローカル"],
+                  ["storage", "ストレージ"],
+                ] as const
+              ).map(([value, label]) => (
+                <Button
+                  key={value}
+                  type="button"
+                  size="sm"
+                  variant={draft.imageStorage === value ? "default" : "outline"}
+                  onClick={() =>
+                    setDraft((prev) => ({
+                      ...prev,
+                      imageStorage: value as ImageStorageMode,
+                    }))
+                  }
+                >
+                  {label}
+                </Button>
+              ))}
+            </div>
+            <p className="text-[10px] text-muted-foreground">
+              ストレージは正本画像を Vercel Blob に保存します。トークンは .env.local の
+              BLOB_READ_WRITE_TOKEN を使用します。
+            </p>
           </MetaDialogField>
         </section>
 

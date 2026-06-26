@@ -1,9 +1,10 @@
 import { normalizeImageLogicalPath } from "@/lib/image-path";
+import { usedImageListUrl } from "@/lib/image-api-client";
 
 /** 正本 + staging の論理パス一覧（プレビュー可用性判定用） */
 export async function fetchAvailableImagePaths(): Promise<Set<string>> {
   const responses = await Promise.all([
-    fetch("/api/images/list?scope=used"),
+    fetch(usedImageListUrl()),
     fetch("/api/images/list?scope=staging&source=uploaded"),
     fetch("/api/images/list?scope=staging&source=ai"),
     fetch("/api/images/list?scope=staging&source=web"),

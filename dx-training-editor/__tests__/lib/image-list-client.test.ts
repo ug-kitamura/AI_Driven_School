@@ -11,7 +11,7 @@ describe("image-list-client", () => {
   });
 
   it("maps scopes to list API URLs", () => {
-    expect(imageListScopeUrl("used")).toBe("/api/images/list?scope=used");
+    expect(imageListScopeUrl("used")).toBe("/api/images/list?scope=used&storageMode=local");
     expect(imageListScopeUrl("uploaded")).toBe(
       "/api/images/list?scope=staging&source=uploaded",
     );
@@ -30,7 +30,7 @@ describe("image-list-client", () => {
     );
 
     await expect(fetchImageList("used")).resolves.toEqual(files);
-    expect(fetch).toHaveBeenCalledWith("/api/images/list?scope=used");
+    expect(fetch).toHaveBeenCalledWith("/api/images/list?scope=used&storageMode=local");
   });
 
   it("fetchImageList returns empty array on error", async () => {

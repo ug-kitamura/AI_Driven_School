@@ -7,6 +7,7 @@ import {
   type ImageListScope,
 } from "@/lib/image-list-client";
 import { toImageMarkdown } from "@/lib/image-path";
+import { getImageStorageMode } from "@/lib/image-api-client";
 import type { ImageAsset } from "@/lib/schema";
 import type { ImageManagerTab } from "@/components/workspace/image-manager/types";
 
@@ -37,7 +38,10 @@ export function usePromoteAndInsert(options: {
       const res = await fetch("/api/images/promote", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ stagingPath: item.path }),
+        body: JSON.stringify({
+          stagingPath: item.path,
+          storageMode: getImageStorageMode(),
+        }),
       });
       const data: { file?: ImageAsset; error?: string } = await res.json();
       if (!res.ok || !data.file) {

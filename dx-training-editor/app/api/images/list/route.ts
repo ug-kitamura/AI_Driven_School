@@ -1,9 +1,16 @@
-import { listPromotedImages, listStagingImages } from "@/lib/image-store";
+import { listStagingImages } from "@/lib/image-store";
+import {
+  parseImageStorageMode,
+  resolveCanonicalBackend,
+  storageErrorResponse,
+} from "@/lib/image-storage/resolve";
 import { isImageSource } from "@/lib/image-path";
 
 export async function GET(req: Request) {
-  const scope = new URL(req.url).searchParams.get("scope") ?? "staging";
-  const sourceRaw = new URL(req.url).searchParams.get("source") ?? "uploaded";
+  const url = new URL(req.url);
+  const scope = url.searchParams.get("scope") ?? "staging";
+  const sourceRaw = url.searchParams.get("source") ?? "uploaded";
+  const storageMode = parseImageStorageMode(url.searchParams.get("storageMode"));
 
   try {
     if (scope === "staging") {
@@ -15,12 +22,16 @@ export async function GET(req: Request) {
     }
 
     if (scope === "used") {
-      const files = await listPromotedImages(process.cwd());
+      const backend = resolveCanonicalBackend(process.cwd(), storageMode);
+      const files = await backend.listCanonical();
       return Response.json({ files });
     }
 
     return Response.json({ error: "scope が不正です" }, { status: 400 });
   } catch (error) {
+    const storageResponse = storageErrorResponse(error);
+    if (storageResponse) return storageResponse;
+
     return Response.json(
       { error: error instanceof Error ? error.message : "一覧取得に失敗しました" },
       { status: 500 },

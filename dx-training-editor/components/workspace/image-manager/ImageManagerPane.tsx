@@ -30,7 +30,8 @@ import {
   usedRowMatchesFilter,
   type UsedImageFilter,
 } from "@/lib/extract-image-refs";
-import { toImageMarkdown } from "@/lib/image-path";
+import { toImageMarkdown, isCanonicalImagePath } from "@/lib/image-path";
+import { canonicalFileApiParams } from "@/lib/image-api-client";
 import { AiImagesTab } from "@/components/workspace/image-manager/AiImagesTab";
 import { UploadImagesTab } from "@/components/workspace/image-manager/UploadImagesTab";
 import { UsedImagesTab } from "@/components/workspace/image-manager/UsedImagesTab";
@@ -200,7 +201,9 @@ export function ImageManagerPane({
 
   const executeDelete = useCallback(
     async (item: PendingDelete, tab: ImageManagerTab, force = false) => {
-      const params = new URLSearchParams({ path: item.path });
+      const params = isCanonicalImagePath(item.path)
+        ? canonicalFileApiParams(item.path)
+        : new URLSearchParams({ path: item.path });
       if (force && item.referenceCount) {
         params.set("force", "1");
         params.set("referenceCount", String(item.referenceCount));

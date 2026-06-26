@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { fetchImageList, type ImageListScope } from "@/lib/image-list-client";
+import { WORKSPACE_SETTINGS_CHANGED_EVENT } from "@/lib/workspace-settings";
 import type { ImageAsset } from "@/lib/schema";
 import { tabToScope } from "@/components/workspace/image-manager/image-manager-utils";
 import type { ImageManagerTab } from "@/components/workspace/image-manager/types";
@@ -71,6 +72,15 @@ export function useImageLists(options: {
     if (pane4Open) {
       void refreshScope(tabToScope(activeTab));
     }
+  }, [pane4Open, activeTab, refreshScope]);
+
+  useEffect(() => {
+    const onSettingsChanged = () => {
+      if (pane4Open) void refreshScope(tabToScope(activeTab));
+    };
+    window.addEventListener(WORKSPACE_SETTINGS_CHANGED_EVENT, onSettingsChanged);
+    return () =>
+      window.removeEventListener(WORKSPACE_SETTINGS_CHANGED_EVENT, onSettingsChanged);
   }, [pane4Open, activeTab, refreshScope]);
 
   return {

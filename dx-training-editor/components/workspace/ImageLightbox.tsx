@@ -10,7 +10,8 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { MediaPlayOverlay } from "@/components/workspace/MediaPlayOverlay";
-import { isMp4Path, toImageApiUrl } from "@/lib/image-path";
+import { isMp4Path, isCanonicalImagePath, toImageApiUrl } from "@/lib/image-path";
+import { getImageStorageMode } from "@/lib/image-api-client";
 
 export type LightboxItem = {
   name: string;
@@ -74,7 +75,9 @@ export function ImageLightbox({
 
   if (!item) return null;
 
-  const mediaUrl = toImageApiUrl(item.path);
+  const mediaUrl = toImageApiUrl(item.path, {
+    storageMode: isCanonicalImagePath(item.path) ? getImageStorageMode() : undefined,
+  });
 
   const handleVideoAreaClick = () => {
     const video = videoRef.current;

@@ -1,5 +1,6 @@
 import fs from "node:fs/promises";
 import path from "node:path";
+import type { CanonicalBackend } from "@/lib/image-storage/types";
 import {
   IMAGE_SOURCES,
   IMAGE_TRASH_DIR,
@@ -154,16 +155,16 @@ export async function saveStagingImage(
   };
 }
 
-export async function promoteStagingImage(
+export async function promoteStagingToCanonical(
   projectRoot: string,
   stagingPath: string,
+  backend: CanonicalBackend,
 ): Promise<ImageFileEntry> {
   const targetLogical = promoteTargetPath(stagingPath);
   if (!targetLogical) throw new Error("invalid staging path");
 
   const sourceAbsolute = resolveAbsoluteImagePath(projectRoot, stagingPath);
-  const targetAbsolute = resolveAbsoluteImagePath(projectRoot, targetLogical);
-  if (!sourceAbsolute || !targetAbsolute) throw new Error("invalid path");
+  if (!sourceAbsolute) throw new Error("invalid path");
 
   try {
     await fs.access(sourceAbsolute);
@@ -171,18 +172,23 @@ export async function promoteStagingImage(
     throw new Error("staging file not found");
   }
 
-  await fs.mkdir(path.dirname(targetAbsolute), { recursive: true });
-  await fs.copyFile(sourceAbsolute, targetAbsolute);
-  const stat = await fs.stat(targetAbsolute);
+  const data = await fs.readFile(sourceAbsolute);
   const source = sourceFromStagingPath(stagingPath);
   if (!source) throw new Error("invalid source");
 
-  return {
-    path: targetLogical,
-    name: path.basename(targetLogical),
-    source,
-    uploadedAt: stat.mtime.toISOString(),
-  };
+  return backend.putCanonical(targetLogical, data, source);
+}
+
+export async function promoteStagingImage(
+  projectRoot: string,
+  stagingPath: string,
+): Promise<ImageFileEntry> {
+  const { createLocalCanonicalBackend } = await import("@/lib/image-storage/local");
+  return promoteStagingToCanonical(
+    projectRoot,
+    stagingPath,
+    createLocalCanonicalBackend(projectRoot),
+  );
 }
 
 function sourceFromStagingPath(stagingPath: string): ImageSource | null {

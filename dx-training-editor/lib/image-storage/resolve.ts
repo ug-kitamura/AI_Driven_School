@@ -9,8 +9,8 @@ import { createVercelBlobCanonicalBackend } from "@/lib/image-storage/vercel-blo
 export function parseImageStorageMode(
   raw: string | null | undefined,
 ): ImageStorageMode {
-  const parsed = imageStorageModeSchema.safeParse(raw ?? "local");
-  return parsed.success ? parsed.data : "local";
+  const parsed = imageStorageModeSchema.safeParse(raw ?? "storage");
+  return parsed.success ? parsed.data : "storage";
 }
 
 export function resolveCanonicalBackend(

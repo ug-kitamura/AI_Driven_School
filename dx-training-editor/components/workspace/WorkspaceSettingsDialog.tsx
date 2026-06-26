@@ -347,8 +347,7 @@ function SettingsForm({
               ))}
             </div>
             <p className="text-[10px] text-muted-foreground">
-              ストレージは正本画像を Vercel Blob に保存します。トークンは .env.local の
-              BLOB_READ_WRITE_TOKEN を使用します。
+              ストレージを使用するにはトークンを .env.local に設定する
             </p>
           </MetaDialogField>
         </section>

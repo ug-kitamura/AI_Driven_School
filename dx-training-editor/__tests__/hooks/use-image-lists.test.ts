@@ -17,7 +17,7 @@ describe("useImageLists", () => {
     renderHook(() => useImageLists({ pane4Open: true, activeTab: "used" }));
 
     await waitFor(() => {
-      expect(fetchMock).toHaveBeenCalledWith("/api/images/list?scope=used&storageMode=local");
+      expect(fetchMock).toHaveBeenCalledWith("/api/images/list?scope=used&storageMode=storage");
     });
     expect(fetchMock).toHaveBeenCalledTimes(1);
   });

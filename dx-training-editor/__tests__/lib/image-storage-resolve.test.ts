@@ -19,10 +19,10 @@ describe("image-storage resolve", () => {
     }
   });
 
-  it("parseImageStorageMode defaults to local", () => {
-    expect(parseImageStorageMode(null)).toBe("local");
-    expect(parseImageStorageMode(undefined)).toBe("local");
-    expect(parseImageStorageMode("invalid")).toBe("local");
+  it("parseImageStorageMode defaults to storage", () => {
+    expect(parseImageStorageMode(null)).toBe("storage");
+    expect(parseImageStorageMode(undefined)).toBe("storage");
+    expect(parseImageStorageMode("invalid")).toBe("storage");
   });
 
   it("parseImageStorageMode accepts storage", () => {

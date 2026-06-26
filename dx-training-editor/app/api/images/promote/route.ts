@@ -9,7 +9,7 @@ import { imageStorageModeSchema } from "@/lib/schema";
 
 const requestSchema = z.object({
   stagingPath: z.string().min(1),
-  storageMode: imageStorageModeSchema.default("local"),
+  storageMode: imageStorageModeSchema.default("storage"),
 });
 
 export async function POST(req: Request) {

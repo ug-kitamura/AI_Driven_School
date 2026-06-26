@@ -45,11 +45,11 @@ cp .env.example .env.local
 
 | モード | 正本の保存先 | git |
 |--------|-------------|-----|
-| **ローカル**（既定） | `images/<filename>` | 正本を追跡可能 |
-| **ストレージ** | Vercel Blob（Private） | 正本は Blob 上（`images/` 直下には置かない想定） |
+| **ストレージ**（既定） | Vercel Blob（Private） | 正本は Blob 上（`images/` は git 除外） |
+| **ローカル** | `images/<filename>` | 正本を fs に保存（`images/*` は git 除外のまま） |
 
 - staging（`images/{uploaded,ai,web}/`）は **常にローカル**
-- ストレージモードでトークン未設定のときは「ストレージに接続できません。.env.local にトークンを設定してください。」と表示
+- ストレージモードでトークン未設定のときは「ストレージに接続できません」と表示
 - 既存のローカル正本を Blob へ上げる: `npm run upload-images-to-blob`（`--dry-run` 可）
 
 ### Pane 3 のモード

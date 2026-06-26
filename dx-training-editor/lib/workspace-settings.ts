@@ -48,7 +48,7 @@ export const DEFAULT_WORKSPACE_SETTINGS: WorkspaceSettings = {
   theme: "system",
   paneDefaults: { ...PANE_WIDTH_DEFAULTS },
   editorFontSizePx: EDITOR_FONT_SIZE_DEFAULT,
-  imageStorage: "local",
+  imageStorage: "storage",
 };
 
 function normalizePaneDefaults(

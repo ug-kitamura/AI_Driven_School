@@ -7,7 +7,7 @@ describe("useImageLists", () => {
     vi.unstubAllGlobals();
   });
 
-  it("fetches only active tab scope when pane4 opens", async () => {
+  it("fetches only active tab scope when pane4 opens on used tab", async () => {
     const fetchMock = vi.fn(async () => ({
       ok: true,
       json: async () => ({ files: [] }),
@@ -17,12 +17,12 @@ describe("useImageLists", () => {
     renderHook(() => useImageLists({ pane4Open: true, activeTab: "used" }));
 
     await waitFor(() => {
-      expect(fetchMock).toHaveBeenCalledWith("/api/images/list?scope=used");
+      expect(fetchMock).toHaveBeenCalledWith("/api/images/list?scope=used&storageMode=storage");
     });
     expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 
-  it("fetches staging uploaded scope for upload tab", async () => {
+  it("fetches staging only for upload tab without storage-check", async () => {
     const fetchMock = vi.fn(async () => ({
       ok: true,
       json: async () => ({ files: [] }),
@@ -36,6 +36,7 @@ describe("useImageLists", () => {
         "/api/images/list?scope=staging&source=uploaded",
       );
     });
+    expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 
   it("refetches when activeTab changes", async () => {

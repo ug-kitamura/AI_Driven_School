@@ -130,8 +130,16 @@ export function toImageMarkdown(path: string, alt?: string): string {
   return `![${label}](${canonical})`;
 }
 
-export function toImageApiUrl(logicalPath: string): string {
-  return `/api/images/file?path=${encodeURIComponent(normalizeImageLogicalPath(logicalPath))}`;
+export function toImageApiUrl(
+  logicalPath: string,
+  options?: { storageMode?: "local" | "storage" },
+): string {
+  const normalized = normalizeImageLogicalPath(logicalPath);
+  const params = new URLSearchParams({ path: normalized });
+  if (options?.storageMode && isCanonicalImagePath(normalized)) {
+    params.set("storageMode", options.storageMode);
+  }
+  return `/api/images/file?${params.toString()}`;
 }
 
 export function sanitizeUploadFileName(name: string): string {

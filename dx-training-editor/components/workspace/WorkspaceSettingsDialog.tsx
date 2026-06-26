@@ -43,6 +43,7 @@ import {
   saveWorkspaceSettings,
   type AiModelSlug,
   type ThemeMode,
+  type ImageStorageMode,
   type WorkspaceSettings,
 } from "@/lib/workspace-settings";
 import {
@@ -51,6 +52,8 @@ import {
   isUnsupportedAiModel,
 } from "@/lib/ai-models";
 import { cn } from "@/lib/utils";
+import { checkImageStorageConnection } from "@/lib/image-api-client";
+import { STORAGE_CONNECTION_ERROR_MESSAGE } from "@/lib/image-storage/types";
 
 type Props = {
   open: boolean;
@@ -137,13 +140,30 @@ function SettingsForm({
     clampEditorFontSizePx(initial.editorFontSizePx),
   );
   const [modelError, setModelError] = useState<string | null>(null);
+  const [storageError, setStorageError] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (isUnsupportedAiModel(draft.aiModel)) {
       setModelError(UNSUPPORTED_MODEL_ERROR);
       return;
     }
     setModelError(null);
+
+    if (draft.imageStorage === "storage") {
+      setSaving(true);
+      try {
+        const connected = await checkImageStorageConnection();
+        if (!connected) {
+          setStorageError(STORAGE_CONNECTION_ERROR_MESSAGE);
+          return;
+        }
+      } finally {
+        setSaving(false);
+      }
+    }
+    setStorageError(null);
+
     const next: WorkspaceSettings = {
       ...draft,
       aiApiKey: apiKeyInput.trim() || null,
@@ -320,6 +340,42 @@ function SettingsForm({
         </section>
 
         <section className="flex flex-col gap-3">
+          <h3 className="text-sm font-semibold text-foreground">画像の管理</h3>
+          <MetaDialogField>
+            <div className="flex flex-wrap gap-2">
+              {(
+                [
+                  ["local", "ローカル"],
+                  ["storage", "ストレージ"],
+                ] as const
+              ).map(([value, label]) => (
+                <Button
+                  key={value}
+                  type="button"
+                  size="sm"
+                  variant={draft.imageStorage === value ? "default" : "outline"}
+                  onClick={() => {
+                    setDraft((prev) => ({
+                      ...prev,
+                      imageStorage: value as ImageStorageMode,
+                    }));
+                    if (value === "local") setStorageError(null);
+                  }}
+                >
+                  {label}
+                </Button>
+              ))}
+            </div>
+            <p className="text-[10px] text-muted-foreground">
+              ストレージを使用するにはトークンを .env.local に設定する
+            </p>
+            {storageError ? (
+              <p className="text-xs text-destructive">{storageError}</p>
+            ) : null}
+          </MetaDialogField>
+        </section>
+
+        <section className="flex flex-col gap-3">
           <h3 className="text-sm font-semibold text-foreground">API</h3>
           <ApiKeyField
             id="settings-ai-api-key"
@@ -343,8 +399,8 @@ function SettingsForm({
         <Button type="button" variant="outline" onClick={handleCancel}>
           キャンセル
         </Button>
-        <Button type="button" onClick={handleSave}>
-          保存
+        <Button type="button" onClick={handleSave} disabled={saving}>
+          {saving ? "確認中..." : "保存"}
         </Button>
       </DialogFooter>
     </DialogContent>

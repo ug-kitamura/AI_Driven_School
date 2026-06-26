@@ -8,6 +8,7 @@ import {
   resolveToAvailablePath,
   toImageApiUrl,
 } from "@/lib/image-path";
+import { getImageStorageMode } from "@/lib/image-api-client";
 
 type Props = {
   src: string;
@@ -60,7 +61,7 @@ export function LessonPreviewVideo({
   );
 
   const resolved = fetchPath
-    ? `${toImageApiUrl(fetchPath)}&v=${cacheRevision}`
+    ? `${toImageApiUrl(fetchPath, { storageMode: getImageStorageMode() })}&v=${cacheRevision}`
     : null;
 
   const label = logicalPath ?? src;

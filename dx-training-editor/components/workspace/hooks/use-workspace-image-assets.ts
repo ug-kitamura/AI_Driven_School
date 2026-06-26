@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { normalizeImageLogicalPath } from "@/lib/image-path";
 import { fetchAvailableImagePaths } from "@/lib/preview-image-assets";
+import { WORKSPACE_SETTINGS_CHANGED_EVENT } from "@/lib/workspace-settings";
 
 export function useWorkspaceImageAssets() {
   const [imageAssetsRevision, setImageAssetsRevision] = useState(0);
@@ -37,6 +38,13 @@ export function useWorkspaceImageAssets() {
       cancelled = true;
     };
   }, [imageAssetsRevision]);
+
+  useEffect(() => {
+    const onSettingsChanged = () => setImageAssetsRevision((v) => v + 1);
+    window.addEventListener(WORKSPACE_SETTINGS_CHANGED_EVENT, onSettingsChanged);
+    return () =>
+      window.removeEventListener(WORKSPACE_SETTINGS_CHANGED_EVENT, onSettingsChanged);
+  }, []);
 
   return {
     availableImagePaths,

@@ -30,7 +30,9 @@ import {
   usedRowMatchesFilter,
   type UsedImageFilter,
 } from "@/lib/extract-image-refs";
-import { toImageMarkdown } from "@/lib/image-path";
+import { toImageMarkdown, isCanonicalImagePath } from "@/lib/image-path";
+import { canonicalFileApiParams } from "@/lib/image-api-client";
+import { STORAGE_CONNECTION_ERROR_MESSAGE } from "@/lib/image-storage/types";
 import { AiImagesTab } from "@/components/workspace/image-manager/AiImagesTab";
 import { UploadImagesTab } from "@/components/workspace/image-manager/UploadImagesTab";
 import { UsedImagesTab } from "@/components/workspace/image-manager/UsedImagesTab";
@@ -49,6 +51,16 @@ import type {
 } from "@/components/workspace/image-manager/types";
 import { useImageLists } from "@/components/workspace/image-manager/use-image-lists";
 import { usePromoteAndInsert } from "@/components/workspace/image-manager/use-promote-and-insert";
+
+function mergeTabNotice(
+  usedStorageConnectionError: boolean,
+  notice: TabNotice | undefined,
+): TabNotice | undefined {
+  if (usedStorageConnectionError) {
+    return { message: STORAGE_CONNECTION_ERROR_MESSAGE, tone: "error" };
+  }
+  return notice;
+}
 
 export function ImageManagerPane({
   series,
@@ -93,6 +105,7 @@ export function ImageManagerPane({
     webStagingFiles,
     promotedFiles,
     loading,
+    usedStorageConnectionError,
     refreshScope,
     refreshScopes,
   } = useImageLists({ pane4Open, activeTab });
@@ -200,7 +213,9 @@ export function ImageManagerPane({
 
   const executeDelete = useCallback(
     async (item: PendingDelete, tab: ImageManagerTab, force = false) => {
-      const params = new URLSearchParams({ path: item.path });
+      const params = isCanonicalImagePath(item.path)
+        ? canonicalFileApiParams(item.path)
+        : new URLSearchParams({ path: item.path });
       if (force && item.referenceCount) {
         params.set("force", "1");
         params.set("referenceCount", String(item.referenceCount));
@@ -440,7 +455,7 @@ export function ImageManagerPane({
             filterLessons={filterLessons}
             gridItems={usedGridItems}
             usedRows={usedRows}
-            notice={tabNotices.used}
+            notice={mergeTabNotice(usedStorageConnectionError, tabNotices.used)}
             onResetFilter={resetUsedFilter}
             onPreview={openPreview}
             onInsert={handleInsertPromoted}

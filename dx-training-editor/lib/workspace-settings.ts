@@ -13,6 +13,8 @@ export type { AiModelSlug };
 
 export type ThemeMode = "light" | "dark" | "system";
 
+export type ImageStorageMode = "local" | "storage";
+
 export const EDITOR_FONT_SIZE_DEFAULT = 14;
 export const EDITOR_FONT_SIZE_MIN = 8;
 export const EDITOR_FONT_SIZE_MAX = 32;
@@ -28,6 +30,7 @@ export type WorkspaceSettings = {
   theme: ThemeMode;
   paneDefaults: WorkspacePaneWidths;
   editorFontSizePx: number;
+  imageStorage: ImageStorageMode;
 };
 
 export function clampEditorFontSizePx(value: number): number {
@@ -45,6 +48,7 @@ export const DEFAULT_WORKSPACE_SETTINGS: WorkspaceSettings = {
   theme: "system",
   paneDefaults: { ...PANE_WIDTH_DEFAULTS },
   editorFontSizePx: EDITOR_FONT_SIZE_DEFAULT,
+  imageStorage: "storage",
 };
 
 function normalizePaneDefaults(
@@ -81,6 +85,10 @@ export function loadWorkspaceSettings(): WorkspaceSettings {
           ? parsed.editorFontSizePx
           : EDITOR_FONT_SIZE_DEFAULT,
       ),
+      imageStorage:
+        parsed.imageStorage === "storage" || parsed.imageStorage === "local"
+          ? parsed.imageStorage
+          : DEFAULT_WORKSPACE_SETTINGS.imageStorage,
     };
   } catch {
     return { ...DEFAULT_WORKSPACE_SETTINGS };

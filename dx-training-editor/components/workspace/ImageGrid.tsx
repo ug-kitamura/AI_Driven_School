@@ -4,7 +4,13 @@ import { ImageOff, Plus, Trash2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { MediaPlayOverlay } from "@/components/workspace/MediaPlayOverlay";
 import { IMAGE_GRID_CELL_MIN } from "@/components/workspace/pane-layout";
-import { isMp4Path, toImageApiUrl } from "@/lib/image-path";
+import { isMp4Path, isCanonicalImagePath, toImageApiUrl } from "@/lib/image-path";
+import { getImageStorageMode } from "@/lib/image-api-client";
+
+function mediaSrc(path: string): string {
+  const storageMode = isCanonicalImagePath(path) ? getImageStorageMode() : undefined;
+  return toImageApiUrl(path, storageMode ? { storageMode } : undefined);
+}
 
 export type ImageGridItem = {
   path: string;
@@ -84,7 +90,7 @@ export function ImageGrid({
                 </div>
               ) : isVideo ? (
                 <video
-                  src={toImageApiUrl(item.path)}
+                  src={mediaSrc(item.path)}
                   preload="metadata"
                   muted
                   playsInline
@@ -93,7 +99,7 @@ export function ImageGrid({
               ) : (
                 /* eslint-disable-next-line @next/next/no-img-element */
                 <img
-                  src={toImageApiUrl(item.path)}
+                  src={mediaSrc(item.path)}
                   alt={item.name}
                   className={cn("h-full w-full", mediaFitClass)}
                 />

@@ -9,6 +9,7 @@ import {
   resolveToAvailablePath,
   toImageApiUrl,
 } from "@/lib/image-path";
+import { getImageStorageMode } from "@/lib/image-api-client";
 
 type Props = {
   src?: string | Blob;
@@ -66,7 +67,7 @@ export function LessonPreviewImage({
   const resolved =
     src && typeof src === "string"
       ? fetchPath
-        ? `${toImageApiUrl(fetchPath)}&v=${cacheRevision}`
+        ? `${toImageApiUrl(fetchPath, { storageMode: getImageStorageMode() })}&v=${cacheRevision}`
         : src
       : null;
 

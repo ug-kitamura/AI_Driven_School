@@ -60,6 +60,9 @@ export type Series = z.infer<typeof seriesSchema>;
 export const imageSourceSchema = z.enum(["uploaded", "ai", "web"]);
 export type ImageSource = z.infer<typeof imageSourceSchema>;
 
+export const imageStorageModeSchema = z.enum(["local", "storage"]);
+export type ImageStorageMode = z.infer<typeof imageStorageModeSchema>;
+
 export const imageAssetSchema = z.object({
   path: z.string(),
   name: z.string(),

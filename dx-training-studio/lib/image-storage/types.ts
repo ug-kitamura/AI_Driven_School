@@ -4,7 +4,7 @@ import type { ImageStorageMode } from "@/lib/schema";
 export type { ImageStorageMode };
 
 export const STORAGE_CONNECTION_ERROR_MESSAGE =
-  "ストレージに接続できません";
+  "ストレージに接続できません。ストレージトークンを環境変数に設定してください。";
 
 export class StorageConnectionError extends Error {
   readonly statusCode = 503;

@@ -366,9 +366,6 @@ function SettingsForm({
                 </Button>
               ))}
             </div>
-            <p className="text-[10px] text-muted-foreground">
-              ストレージを使用するにはトークンを .env.local に設定する
-            </p>
             {storageError ? (
               <p className="text-xs text-destructive">{storageError}</p>
             ) : null}

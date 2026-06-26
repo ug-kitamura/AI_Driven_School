@@ -1,10 +1,6 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import {
-  checkImageStorageConnection,
-  getImageStorageMode,
-} from "@/lib/image-api-client";
 import { fetchImageList, type ImageListScope } from "@/lib/image-list-client";
 import { WORKSPACE_SETTINGS_CHANGED_EVENT } from "@/lib/workspace-settings";
 import type { ImageAsset } from "@/lib/schema";
@@ -24,7 +20,8 @@ export function useImageLists(options: {
   const [webStagingFiles, setWebStagingFiles] = useState<ImageAsset[]>([]);
   const [promotedFiles, setPromotedFiles] = useState<ImageAsset[]>([]);
   const [loading, setLoading] = useState(false);
-  const [storageConnectionError, setStorageConnectionError] = useState(false);
+  /** Used タブの正本一覧取得時のみ（UP/AI/Web はローカル staging のため対象外） */
+  const [usedStorageConnectionError, setUsedStorageConnectionError] = useState(false);
 
   const applyScopeFiles = useCallback((scope: ImageListScope, files: ImageAsset[]) => {
     switch (scope) {
@@ -48,14 +45,12 @@ export function useImageLists(options: {
       if (!refreshOptions?.silent) setLoading(true);
       try {
         const result = await fetchImageList(scope);
-        let storageError = result.storageConnectionError;
-
-        if (!storageError && getImageStorageMode() === "storage" && scope !== "used") {
-          storageError = !(await checkImageStorageConnection());
+        if (scope === "used") {
+          setUsedStorageConnectionError(result.storageConnectionError);
+          applyScopeFiles(scope, result.storageConnectionError ? [] : result.files);
+        } else {
+          applyScopeFiles(scope, result.files);
         }
-
-        setStorageConnectionError(storageError);
-        applyScopeFiles(scope, scope === "used" && storageError ? [] : result.files);
       } finally {
         if (!refreshOptions?.silent) setLoading(false);
       }
@@ -67,20 +62,17 @@ export function useImageLists(options: {
     async (scopes: ImageListScope[], refreshOptions?: RefreshOptions) => {
       if (!refreshOptions?.silent) setLoading(true);
       try {
-        let storageError = getImageStorageMode() === "storage" && !(await checkImageStorageConnection());
-
         const results = await Promise.all(
           scopes.map(async (scope) => [scope, await fetchImageList(scope)] as const),
         );
         for (const [scope, result] of results) {
-          if (result.storageConnectionError) storageError = true;
-          if (scope === "used" && (storageError || result.storageConnectionError)) {
-            applyScopeFiles(scope, []);
+          if (scope === "used") {
+            setUsedStorageConnectionError(result.storageConnectionError);
+            applyScopeFiles(scope, result.storageConnectionError ? [] : result.files);
           } else {
             applyScopeFiles(scope, result.files);
           }
         }
-        setStorageConnectionError(storageError);
       } finally {
         if (!refreshOptions?.silent) setLoading(false);
       }
@@ -109,7 +101,7 @@ export function useImageLists(options: {
     webStagingFiles,
     promotedFiles,
     loading,
-    storageConnectionError,
+    usedStorageConnectionError,
     refreshScope,
     refreshScopes,
   };

@@ -22,8 +22,8 @@ describe("useImageLists", () => {
     expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 
-  it("fetches staging and storage-check for upload tab in storage mode", async () => {
-    const fetchMock = vi.fn(async (url: string) => ({
+  it("fetches staging only for upload tab without storage-check", async () => {
+    const fetchMock = vi.fn(async () => ({
       ok: true,
       json: async () => ({ files: [] }),
     }));
@@ -35,9 +35,8 @@ describe("useImageLists", () => {
       expect(fetchMock).toHaveBeenCalledWith(
         "/api/images/list?scope=staging&source=uploaded",
       );
-      expect(fetchMock).toHaveBeenCalledWith("/api/images/storage-check");
     });
-    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 
   it("refetches when activeTab changes", async () => {
@@ -61,9 +60,8 @@ describe("useImageLists", () => {
       expect(fetchMock).toHaveBeenCalledWith(
         "/api/images/list?scope=staging&source=ai",
       );
-      expect(fetchMock).toHaveBeenCalledWith("/api/images/storage-check");
     });
-    expect(fetchMock).toHaveBeenCalledTimes(3);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
   });
 
   it("does not fetch when pane4 is closed", async () => {

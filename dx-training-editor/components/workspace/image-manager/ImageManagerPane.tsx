@@ -53,10 +53,10 @@ import { useImageLists } from "@/components/workspace/image-manager/use-image-li
 import { usePromoteAndInsert } from "@/components/workspace/image-manager/use-promote-and-insert";
 
 function mergeTabNotice(
-  storageConnectionError: boolean,
+  usedStorageConnectionError: boolean,
   notice: TabNotice | undefined,
 ): TabNotice | undefined {
-  if (storageConnectionError) {
+  if (usedStorageConnectionError) {
     return { message: STORAGE_CONNECTION_ERROR_MESSAGE, tone: "error" };
   }
   return notice;
@@ -105,7 +105,7 @@ export function ImageManagerPane({
     webStagingFiles,
     promotedFiles,
     loading,
-    storageConnectionError,
+    usedStorageConnectionError,
     refreshScope,
     refreshScopes,
   } = useImageLists({ pane4Open, activeTab });
@@ -455,7 +455,7 @@ export function ImageManagerPane({
             filterLessons={filterLessons}
             gridItems={usedGridItems}
             usedRows={usedRows}
-            notice={mergeTabNotice(storageConnectionError, tabNotices.used)}
+            notice={mergeTabNotice(usedStorageConnectionError, tabNotices.used)}
             onResetFilter={resetUsedFilter}
             onPreview={openPreview}
             onInsert={handleInsertPromoted}
@@ -468,7 +468,7 @@ export function ImageManagerPane({
         <div className={cn(activeTab !== "upload" || loading ? "hidden" : undefined)}>
           <UploadImagesTab
             gridItems={stagingGridItems}
-            notice={mergeTabNotice(storageConnectionError, tabNotices.upload)}
+            notice={tabNotices.upload}
             refreshScope={refreshScope}
             showNotice={showNotice}
             clearNotice={clearNotice}
@@ -489,7 +489,7 @@ export function ImageManagerPane({
             showNotice={showNotice}
             clearNotice={clearNotice}
             gridItems={aiStagingGridItems}
-            notice={mergeTabNotice(storageConnectionError, tabNotices.ai)}
+            notice={tabNotices.ai}
             onResolveAltReady={onAiResolveAltReady}
             onPreview={openPreview}
             onInsert={handleInsertAiStaging}
@@ -506,7 +506,7 @@ export function ImageManagerPane({
             showNotice={showNotice}
             clearNotice={clearNotice}
             gridItems={webStagingGridItems}
-            notice={mergeTabNotice(storageConnectionError, tabNotices.web)}
+            notice={tabNotices.web}
             onResolveAltReady={onWebResolveAltReady}
             onPreview={openPreview}
             onInsert={handleInsertWebStaging}

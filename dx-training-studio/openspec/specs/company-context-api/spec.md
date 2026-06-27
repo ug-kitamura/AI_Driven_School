@@ -1,7 +1,8 @@
 # company-context-api Specification
 
 ## Purpose
-TBD - created by archiving change company-context-db. Update Purpose after archive.
+
+社内コンテキスト（`context_items`）の REST API（CRUD・タグ一覧・DB 接続確認・AI 整形）とエラーレスポンス契約を定義する。
 ## Requirements
 ### Requirement: DB 接続確認 API
 

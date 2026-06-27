@@ -1,7 +1,8 @@
 # ai-contracts Specification
 
 ## Purpose
-TBD - created by archiving change company-context-db. Update Purpose after archive.
+
+ランタイム AI 向け規則 Markdown（`contracts/`）の配置、社内コンテキスト整形契約、画像 slot 契約の自己完結化とドキュメント参照先を定義する。
 ## Requirements
 ### Requirement: contracts フォルダで AI 規則を集約する
 

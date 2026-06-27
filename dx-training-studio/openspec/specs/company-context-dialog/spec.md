@@ -1,7 +1,8 @@
 # company-context-dialog Specification
 
 ## Purpose
-TBD - created by archiving change company-context-db. Update Purpose after archive.
+
+GlobalHeader から開く社内コンテキスト管理ダイアログ（一覧・CRUD・タグ入力・鮮度アラート・AI 整形）の UI 要件を定義する。
 ## Requirements
 ### Requirement: GlobalHeader から社内コンテキストダイアログを開く
 

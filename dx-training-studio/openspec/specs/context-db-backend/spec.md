@@ -1,7 +1,8 @@
 # context-db-backend Specification
 
 ## Purpose
-TBD - created by archiving change company-context-db. Update Purpose after archive.
+
+Neon PostgreSQL 上の `context_items` テーブル、接続解決（`DATABASE_URL`）、リポジトリ層 CRUD・タグ OR 検索、マイグレーション SQL を定義する。`@neondatabase/serverless` による App Router 向け DB アクセスを含む。
 ## Requirements
 ### Requirement: context_items テーブルスキーマ
 

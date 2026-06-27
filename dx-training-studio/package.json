@@ -11,6 +11,8 @@
     "format:check": "prettier --check .",
     "test": "vitest run",
     "test:watch": "vitest",
+    "check:context-db": "node scripts/check-context-db.mjs",
+    "migrate:context-db": "node scripts/migrate-context-db.mjs",
     "upload-images-to-blob": "node scripts/upload-local-images-to-blob.mjs"
   },
   "dependencies": {

@@ -18,6 +18,9 @@ venv/
 .claude/skills/openspec-*/
 openspec/changes/
 
+# Vercel
+.vercel
+
 # 環境変数
 .env
 

@@ -35,6 +35,7 @@ type Props = {
   value: string;
   onChange: (value: string) => void;
   onSend: () => void;
+  onAfterSend?: () => void;
   onStop?: () => void;
   disabled?: boolean;
   isLoading?: boolean;
@@ -85,6 +86,7 @@ export function AgentChatInput({
   value,
   onChange,
   onSend,
+  onAfterSend,
   onStop,
   disabled = false,
   isLoading = false,
@@ -263,6 +265,13 @@ export function AgentChatInput({
     [onChange, suggestion, value],
   );
 
+  const submitMessage = useCallback(() => {
+    if (disabled || isLoading || !value.trim()) return;
+    onSend();
+    onAfterSend?.();
+    requestAnimationFrame(() => textareaRef.current?.focus());
+  }, [disabled, isLoading, onAfterSend, onSend, value]);
+
   const handleKeyDown = (event: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (suggestion) {
       if (visibleItems.length > 0) {
@@ -302,7 +311,7 @@ export function AgentChatInput({
 
     if (event.key === "Enter" && !event.shiftKey) {
       event.preventDefault();
-      if (!disabled && !isLoading) onSend();
+      submitMessage();
     }
   };
 
@@ -412,7 +421,8 @@ export function AgentChatInput({
               className="size-8 shrink-0 rounded-full"
               disabled={disabled || isLoading || !value.trim()}
               aria-label="送信"
-              onClick={onSend}
+              onMouseDown={(event) => event.preventDefault()}
+              onClick={submitMessage}
             >
               <ArrowUp className="size-4" />
             </Button>

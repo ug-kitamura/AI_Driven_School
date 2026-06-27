@@ -1,11 +1,12 @@
 import { z } from "zod";
+import { contextTagsSchema } from "@/lib/context-tags-schema";
 import { dbErrorResponse } from "@/lib/context-db/resolve";
 import { getContextRepository } from "@/lib/context-db/repository";
 
 const createSchema = z.object({
   title: z.string().trim().min(1),
   body: z.string().trim().min(1),
-  tags: z.array(z.string().trim().min(1)).default([]),
+  tags: contextTagsSchema,
   source_url: z.string().trim().min(1),
   source_last_updated_at: z.string().nullable().optional(),
 });

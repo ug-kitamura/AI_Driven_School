@@ -213,6 +213,15 @@ export function MarkdownEditorPane({
     lesson?.content,
   ]);
 
+  const handleOverwriteEditor = useCallback(
+    (markdown: string) => {
+      if (!lesson) return;
+      onUpdateContent(lesson.id, markdown);
+      onModeChange("raw");
+    },
+    [lesson, onModeChange, onUpdateContent],
+  );
+
   if (!lesson && mode !== "agent") {
     return (
       <div className="flex flex-1 items-center justify-center text-muted-foreground text-sm">
@@ -282,17 +291,22 @@ export function MarkdownEditorPane({
           </div>
         ) : null}
 
-        {mode === "agent" ? (
-          <div className={lesson ? "absolute inset-0" : "h-full"}>
-            <AgentChatPane
-              series={series}
-              lesson={lesson}
-              course={course}
-              currentLessonPath={currentLessonPath}
-              onOpenSettings={onOpenSettings}
-            />
-          </div>
-        ) : null}
+        <div
+          className={cn(
+            "absolute inset-0",
+            mode !== "agent" && "hidden",
+            !lesson && "h-full",
+          )}
+        >
+          <AgentChatPane
+            series={series}
+            lesson={lesson}
+            course={course}
+            currentLessonPath={currentLessonPath}
+            onOpenSettings={onOpenSettings}
+            onOverwriteEditor={lesson ? handleOverwriteEditor : undefined}
+          />
+        </div>
 
         {mode === "inline" && lesson ? (
           <div

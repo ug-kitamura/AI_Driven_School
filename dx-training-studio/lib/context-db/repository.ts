@@ -161,6 +161,20 @@ export function createContextRepository(
       `) as { tag: string }[];
       return rows.map((row) => row.tag);
     },
+
+    async searchItems(query: string): Promise<ContextItem[]> {
+      const trimmed = query.trim();
+      if (!trimmed) return [];
+
+      const pattern = `%${trimmed}%`;
+      const rows = (await sql`
+        SELECT *
+        FROM context_items
+        WHERE title ILIKE ${pattern} OR body ILIKE ${pattern}
+        ORDER BY updated_at DESC, id DESC
+      `) as ContextItemRow[];
+      return rows.map(mapContextItemRow);
+    },
   };
 }
 

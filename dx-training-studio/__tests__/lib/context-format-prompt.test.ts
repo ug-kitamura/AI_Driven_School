@@ -16,11 +16,13 @@ describe("context-format-prompt", () => {
 
   it("parses JSON response", () => {
     const parsed = parseContextFormatResponse(
-      '{"body":"# 見出し\\n本文","suggestedTags":["環境構築","xyz"]}',
+      '{"title":"環境構築手順","body":"# 見出し\\n本文","suggestedTags":["環境構築","xyz"],"source_last_updated_at":"2025-03-01"}',
     );
     expect(parsed).toEqual({
+      title: "環境構築手順",
       body: "# 見出し\n本文",
       suggestedTags: ["環境構築", "xyz"],
+      source_last_updated_at: "2025-03-01",
     });
   });
 

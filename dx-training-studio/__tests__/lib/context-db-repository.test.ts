@@ -78,4 +78,28 @@ describe("context-db repository", () => {
     const repo = createContextRepository(sql as never);
     await expect(repo.listDistinctTags()).resolves.toEqual(["xyz", "環境構築"]);
   });
+
+  it("searches items by title and body", async () => {
+    const sql = async (strings: TemplateStringsArray, ...values: unknown[]) => {
+      expect(values[0]).toBe("%ブランチ%");
+      return [
+        {
+          id: 3,
+          title: "ブランチ戦略",
+          body: "main 運用",
+          tags: ["xyz"],
+          source_url: "https://example.com",
+          source_last_updated_at: null,
+          created_by: null,
+          updated_by: null,
+          created_at: "2024-02-01T00:00:00.000Z",
+          updated_at: "2024-02-02T00:00:00.000Z",
+        },
+      ];
+    };
+    const repo = createContextRepository(sql as never);
+    const items = await repo.searchItems("ブランチ");
+    expect(items).toHaveLength(1);
+    expect(items[0]?.title).toBe("ブランチ戦略");
+  });
 });

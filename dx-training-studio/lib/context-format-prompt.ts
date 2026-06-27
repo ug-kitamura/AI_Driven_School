@@ -31,15 +31,23 @@ function stripCodeFences(text: string): string {
 
 export function parseContextFormatResponse(
   raw: string,
-): { body: string; suggestedTags: string[] } | null {
+): {
+  title: string;
+  body: string;
+  suggestedTags: string[];
+  source_last_updated_at: string | null;
+} | null {
   const cleaned = stripCodeFences(raw);
   try {
     const parsed = JSON.parse(cleaned) as {
+      title?: string;
       body?: string;
       suggestedTags?: unknown;
+      source_last_updated_at?: unknown;
     };
+    const title = parsed.title?.trim();
     const body = parsed.body?.trim();
-    if (!body) return null;
+    if (!title || !body) return null;
 
     const suggestedTags = Array.isArray(parsed.suggestedTags)
       ? parsed.suggestedTags
@@ -50,7 +58,16 @@ export function parseContextFormatResponse(
       : [];
 
     if (suggestedTags.length === 0) return null;
-    return { body, suggestedTags };
+
+    let sourceLastUpdated: string | null = null;
+    if (typeof parsed.source_last_updated_at === "string") {
+      const date = parsed.source_last_updated_at.trim().slice(0, 10);
+      if (/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+        sourceLastUpdated = date;
+      }
+    }
+
+    return { title, body, suggestedTags, source_last_updated_at: sourceLastUpdated };
   } catch {
     return null;
   }

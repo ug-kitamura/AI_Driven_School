@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AlertTriangle, Loader2, Pencil, Plus, Sparkles, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -71,6 +71,8 @@ export function CompanyContextDialog({ open, onOpenChange, onOpenSettings }: Pro
   const [editingId, setEditingId] = useState<number | null>(null);
   const [draft, setDraft] = useState<FormDraft>(EMPTY_DRAFT);
   const [sourceUrlError, setSourceUrlError] = useState<string | null>(null);
+  const [tagsError, setTagsError] = useState<string | null>(null);
+  const [keywordQuery, setKeywordQuery] = useState("");
   const flushTagsRef = useRef<(() => string[]) | null>(null);
 
   const loadData = useCallback(async () => {
@@ -103,12 +105,21 @@ export function CompanyContextDialog({ open, onOpenChange, onOpenSettings }: Pro
     }
   }, []);
 
+  useEffect(() => {
+    if (open) {
+      // 親 state から open だけ更新された場合も一覧を再取得する
+      void loadData();
+    }
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- ダイアログ表示時のデータ取得
+  }, [open, loadData]);
+
   const resetFormState = useCallback(() => {
     setMode("list");
     setEditingId(null);
     setDraft(EMPTY_DRAFT);
     setSourceUrlError(null);
     setStaleOnly(false);
+    setKeywordQuery("");
     setError(null);
   }, []);
 
@@ -124,14 +135,31 @@ export function CompanyContextDialog({ open, onOpenChange, onOpenSettings }: Pro
     [loadData, onOpenChange, resetFormState],
   );
 
+  const filteredItems = useMemo(() => {
+    const query = keywordQuery.trim().toLowerCase();
+    if (!query) return items;
+    return items.filter((item) => {
+      const haystack = [
+        item.title,
+        item.body,
+        item.source_url,
+        ...item.tags,
+      ]
+        .join("\n")
+        .toLowerCase();
+      return haystack.includes(query);
+    });
+  }, [items, keywordQuery]);
+
   const visibleItems = staleOnly
-    ? items.filter((item) => isContextItemStale(item.source_last_updated_at))
-    : items;
+    ? filteredItems.filter((item) => isContextItemStale(item.source_last_updated_at))
+    : filteredItems;
 
   const openCreateForm = () => {
     setEditingId(null);
     setDraft(EMPTY_DRAFT);
     setSourceUrlError(null);
+    setTagsError(null);
     setMode("form");
   };
 
@@ -139,6 +167,7 @@ export function CompanyContextDialog({ open, onOpenChange, onOpenSettings }: Pro
     setEditingId(item.id);
     setDraft(itemToDraft(item));
     setSourceUrlError(null);
+    setTagsError(null);
     setMode("form");
   };
 
@@ -159,7 +188,7 @@ export function CompanyContextDialog({ open, onOpenChange, onOpenSettings }: Pro
 
   const handleFormat = async () => {
     if (!draft.body.trim()) {
-      setError("AI整形するテキストを body 欄に入力してください");
+      setError("AI整形するテキストを本文欄に入力してください");
       return;
     }
     setFormatting(true);
@@ -183,13 +212,18 @@ export function CompanyContextDialog({ open, onOpenChange, onOpenSettings }: Pro
         throw new Error(message);
       }
       const data = (await res.json()) as {
+        title?: string;
         body?: string;
         suggestedTags?: string[];
+        source_last_updated_at?: string | null;
       };
       setDraft((prev) => ({
         ...prev,
+        title: data.title ?? prev.title,
         body: data.body ?? prev.body,
         tags: data.suggestedTags?.length ? data.suggestedTags : prev.tags,
+        source_last_updated_at:
+          data.source_last_updated_at ?? prev.source_last_updated_at,
       }));
     } catch (err) {
       setError(err instanceof Error ? err.message : "AI整形に失敗しました");
@@ -201,17 +235,26 @@ export function CompanyContextDialog({ open, onOpenChange, onOpenSettings }: Pro
   const handleSave = async () => {
     const tags = flushTagsRef.current?.() ?? draft.tags;
     if (!draft.source_url.trim()) {
-      setSourceUrlError("source_url は必須です");
+      setSourceUrlError("ソース URL は必須です");
       return;
     }
     if (!draft.title.trim() || !draft.body.trim()) {
-      setError("タイトルと body は必須です");
+      setError("タイトルと本文は必須です");
+      return;
+    }
+    if (tags.length === 0) {
+      setTagsError("タグは 1 個以上必要です");
+      return;
+    }
+    if (tags.length > 3) {
+      setTagsError("タグは 3 個以内です");
       return;
     }
 
     setSaving(true);
     setError(null);
     setSourceUrlError(null);
+    setTagsError(null);
     try {
       const payload = {
         title: draft.title.trim(),
@@ -262,7 +305,16 @@ export function CompanyContextDialog({ open, onOpenChange, onOpenSettings }: Pro
         ) : null}
 
         {mode === "list" ? (
-          <div className="flex min-h-0 flex-1 flex-col gap-3">
+          <div className="flex min-h-[40vh] flex-1 flex-col gap-3">
+            <div className="flex items-center gap-2">
+              <Input
+                value={keywordQuery}
+                onChange={(event) => setKeywordQuery(event.target.value)}
+                placeholder="キーワードで検索..."
+                className={cn(META_DIALOG_CONTROL, "flex-1")}
+                aria-label="キーワード検索"
+              />
+            </div>
             <div className="flex items-center justify-between gap-2">
               <label className="flex items-center gap-2 text-sm text-muted-foreground">
                 <input
@@ -270,7 +322,7 @@ export function CompanyContextDialog({ open, onOpenChange, onOpenSettings }: Pro
                   checked={staleOnly}
                   onChange={(event) => setStaleOnly(event.target.checked)}
                 />
-                原典更新日が古い・未入力のみ
+                ソース最終更新日が古い・未入力のみ
               </label>
               <Button type="button" size="sm" onClick={openCreateForm}>
                 <Plus className="size-3.5" />
@@ -286,7 +338,9 @@ export function CompanyContextDialog({ open, onOpenChange, onOpenSettings }: Pro
                 </div>
               ) : visibleItems.length === 0 ? (
                 <div className="p-8 text-center text-sm text-muted-foreground">
-                  {staleOnly ? "該当するアイテムがありません" : "登録された社内コンテキストがありません"}
+                  {staleOnly || keywordQuery.trim()
+                    ? "該当するアイテムがありません"
+                    : "登録された社内コンテキストがありません"}
                 </div>
               ) : (
                 <ul className="divide-y divide-border">
@@ -321,8 +375,8 @@ export function CompanyContextDialog({ open, onOpenChange, onOpenSettings }: Pro
                             <p className="mt-1 truncate text-[11px] text-muted-foreground">
                               {item.source_url}
                               {item.source_last_updated_at
-                                ? ` · 原典更新: ${item.source_last_updated_at}`
-                                : " · 原典更新: 未入力"}
+                                ? ` · ソース最終更新日: ${item.source_last_updated_at}`
+                                : " · ソース最終更新日: 未入力"}
                             </p>
                           </div>
                           <div className="flex shrink-0 items-center gap-1">
@@ -371,7 +425,7 @@ export function CompanyContextDialog({ open, onOpenChange, onOpenSettings }: Pro
 
             <MetaDialogField>
               <div className="flex items-center justify-between gap-2">
-                <Label htmlFor="context-body">body（Markdown）</Label>
+                <Label htmlFor="context-body">本文</Label>
                 <WorkspaceTooltip
                   label="要約・タグ提案・Markdown 整形"
                   render={
@@ -407,20 +461,26 @@ export function CompanyContextDialog({ open, onOpenChange, onOpenSettings }: Pro
             </MetaDialogField>
 
             <MetaDialogField>
-              <Label id="context-tags-label">タグ</Label>
+              <Label id="context-tags-label">タグ（1〜3 個）</Label>
               <ContextTagsInput
                 id="context-tags"
                 tags={draft.tags}
                 suggestions={tagSuggestions}
-                onChange={(tags) => setDraft((prev) => ({ ...prev, tags }))}
+                onChange={(tags) => {
+                  setTagsError(null);
+                  setDraft((prev) => ({ ...prev, tags }));
+                }}
                 onFlushReady={(flush) => {
                   flushTagsRef.current = flush;
                 }}
               />
+              {tagsError ? (
+                <p className="text-xs text-destructive">{tagsError}</p>
+              ) : null}
             </MetaDialogField>
 
             <MetaDialogField>
-              <Label htmlFor="context-source-url">source_url（必須）</Label>
+              <Label htmlFor="context-source-url">ソース URL</Label>
               <Input
                 id="context-source-url"
                 className={META_DIALOG_CONTROL}
@@ -437,7 +497,7 @@ export function CompanyContextDialog({ open, onOpenChange, onOpenSettings }: Pro
             </MetaDialogField>
 
             <MetaDialogField>
-              <Label htmlFor="context-source-updated">source_last_updated_at（任意）</Label>
+              <Label htmlFor="context-source-updated">ソース最終更新日（任意）</Label>
               <Input
                 id="context-source-updated"
                 type="date"
@@ -465,6 +525,7 @@ export function CompanyContextDialog({ open, onOpenChange, onOpenSettings }: Pro
                   setEditingId(null);
                   setDraft(EMPTY_DRAFT);
                   setSourceUrlError(null);
+                  setTagsError(null);
                   setError(null);
                 }}
               >

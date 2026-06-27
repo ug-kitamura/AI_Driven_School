@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { contextTagsSchema } from "@/lib/context-tags-schema";
 import { dbErrorResponse } from "@/lib/context-db/resolve";
 import { getContextRepository } from "@/lib/context-db/repository";
 
@@ -6,7 +7,7 @@ const updateSchema = z
   .object({
     title: z.string().trim().min(1).optional(),
     body: z.string().trim().min(1).optional(),
-    tags: z.array(z.string().trim().min(1)).optional(),
+    tags: contextTagsSchema.optional(),
     source_url: z.string().trim().min(1).optional(),
     source_last_updated_at: z.string().nullable().optional(),
   })

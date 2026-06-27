@@ -38,7 +38,7 @@ export function ImageGrid({
   onInsert,
   onDelete,
   className,
-  thumbnailFit = "cover",
+  thumbnailFit = "contain",
 }: Props) {
   if (items.length === 0) {
     return (

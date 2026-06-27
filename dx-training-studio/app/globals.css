@@ -430,6 +430,53 @@
     @apply bg-muted/40 font-semibold text-foreground;
   }
 
+  /* Agent チャット: プレビュー同等の Markdown をコンパクトに */
+  .agent-chat-message.lesson-preview h1 {
+    @apply mb-2 mt-0 text-lg;
+  }
+
+  .agent-chat-message.lesson-preview h2 {
+    @apply mb-2 mt-4 text-base;
+  }
+
+  .agent-chat-message.lesson-preview h3 {
+    @apply mb-1 mt-3 text-sm;
+  }
+
+  .agent-chat-message.lesson-preview h4 {
+    @apply mb-1 mt-2 text-sm;
+  }
+
+  .agent-chat-message.lesson-preview p {
+    @apply my-2;
+  }
+
+  .agent-chat-message.lesson-preview ul:not(.contains-task-list),
+  .agent-chat-message.lesson-preview ol {
+    @apply my-2;
+  }
+
+  .agent-chat-message.lesson-preview blockquote {
+    @apply my-2;
+  }
+
+  .agent-chat-message.lesson-preview hr {
+    @apply my-4;
+  }
+
+  .agent-chat-message.lesson-preview pre {
+    @apply my-2;
+  }
+
+  .agent-chat-message.lesson-preview table {
+    @apply my-2;
+  }
+
+  .agent-chat-message--user.lesson-preview > :only-child,
+  .agent-chat-message--user.lesson-preview p:only-child {
+    @apply my-0;
+  }
+
   /* 曼陀羅 SVG: 実寸表示（横スクロール時も縮小しない） */
   .global-mandala-graph svg,
   .mini-mandala-graph svg {

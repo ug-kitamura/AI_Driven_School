@@ -17,7 +17,7 @@ import {
   AgentChatInput,
   type AgentFileOption,
 } from "@/components/workspace/AgentChatInput";
-import { renderAgentChatMessageContent } from "@/lib/agent-chat-content";
+import { AgentChatMessageContent } from "@/components/workspace/AgentChatMessageContent";
 import { aiRequestHeaders } from "@/components/workspace/image-manager/image-manager-utils";
 import { AI_KEY_ERROR } from "@/components/workspace/image-manager/image-manager-constants";
 import {
@@ -766,9 +766,10 @@ export function AgentChatPane({
                 return (
                   <div key={message.id} className="flex w-full justify-end">
                     <div className="max-w-[min(70%,28rem)] rounded-2xl bg-muted px-3 py-2 text-sm text-foreground">
-                      <div className="whitespace-pre-wrap break-words">
-                        {renderAgentChatMessageContent(message.content)}
-                      </div>
+                      <AgentChatMessageContent
+                        content={message.content}
+                        variant="user"
+                      />
                     </div>
                   </div>
                 );
@@ -776,9 +777,11 @@ export function AgentChatPane({
 
               return (
                 <div key={message.id} className="flex w-full flex-col gap-2 text-sm">
-                  <div className="whitespace-pre-wrap break-words font-sans text-sm">
-                    {message.content ? renderAgentChatMessageContent(message.content) : "..."}
-                  </div>
+                  {message.content ? (
+                    <AgentChatMessageContent content={message.content} />
+                  ) : (
+                    <span className="text-muted-foreground">...</span>
+                  )}
                   {showActions ? (
                     <div className="flex items-center gap-2">
                       <WorkspaceTooltip

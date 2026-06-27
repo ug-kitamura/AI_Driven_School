@@ -616,7 +616,13 @@ export function SeriesCoursePane({
         )}
       </SidebarContent>
 
-      <SidebarFooter className="shrink-0 gap-0 py-2 pl-1 pr-3">
+      <SidebarFooter
+        className={cn(
+          "shrink-0 gap-0 py-2",
+          PANE_LIST_CONTENT_X_INSET_CLASS,
+          "pl-2",
+        )}
+      >
         {isCollapsed ? (
           <WorkspaceTooltip
             label="シリーズを追加"

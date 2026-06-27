@@ -373,7 +373,14 @@ export function CompanyContextDialog({ open, onOpenChange, onOpenSettings }: Pro
                               ))}
                             </div>
                             <p className="mt-1 truncate text-[11px] text-muted-foreground">
-                              {item.source_url}
+                              <a
+                                href={item.source_url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-primary hover:underline"
+                              >
+                                {item.source_url}
+                              </a>
                               {item.source_last_updated_at
                                 ? ` · ソース最終更新日: ${item.source_last_updated_at}`
                                 : " · ソース最終更新日: 未入力"}

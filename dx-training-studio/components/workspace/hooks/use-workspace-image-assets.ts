@@ -5,7 +5,7 @@ import { normalizeImageLogicalPath } from "@/lib/image-path";
 import { fetchAvailableImagePaths } from "@/lib/preview-image-assets";
 import { WORKSPACE_SETTINGS_CHANGED_EVENT } from "@/lib/workspace-settings";
 
-export function useWorkspaceImageAssets() {
+export function useWorkspaceImageAssets(enabled = true) {
   const [imageAssetsRevision, setImageAssetsRevision] = useState(0);
   const [availableImagePaths, setAvailableImagePaths] = useState<Set<string> | null>(
     null,
@@ -30,6 +30,7 @@ export function useWorkspaceImageAssets() {
   );
 
   useEffect(() => {
+    if (!enabled) return;
     let cancelled = false;
     void fetchAvailableImagePaths().then((paths) => {
       if (!cancelled) setAvailableImagePaths(paths);
@@ -37,7 +38,7 @@ export function useWorkspaceImageAssets() {
     return () => {
       cancelled = true;
     };
-  }, [imageAssetsRevision]);
+  }, [enabled, imageAssetsRevision]);
 
   useEffect(() => {
     const onSettingsChanged = () => setImageAssetsRevision((v) => v + 1);

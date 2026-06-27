@@ -102,7 +102,7 @@ export function LessonPreviewImage({
       key={resolved}
       src={resolved}
       alt={alt ?? ""}
-      className="my-4 max-w-full rounded-md"
+      className="my-4 block h-auto max-w-full rounded-md"
       onError={() => setFailed(true)}
     />
   );

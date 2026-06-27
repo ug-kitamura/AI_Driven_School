@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Check, ChevronDown, Copy, History, Plus, RotateCcw, Trash2 } from "lucide-react";
+import { Check, ChevronDown, Copy, FilePen, History, Plus, RotateCcw, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   AlertDialog,
@@ -15,15 +15,22 @@ import {
 } from "@/components/ui/alert-dialog";
 import {
   AgentChatInput,
-  renderUserMessageContent,
   type AgentFileOption,
 } from "@/components/workspace/AgentChatInput";
+import { AgentChatMessageContent } from "@/components/workspace/AgentChatMessageContent";
 import { aiRequestHeaders } from "@/components/workspace/image-manager/image-manager-utils";
 import { AI_KEY_ERROR } from "@/components/workspace/image-manager/image-manager-constants";
 import {
   buildCreateDraftVariables,
   buildCreateStructureVariables,
 } from "@/lib/agent/invoke-context";
+import {
+  applyContextSelection,
+  parseContextSelection,
+  resolveConfirmedSearchQuery,
+} from "@/lib/context-draft-selection";
+import { extractMarkdownBlock } from "@/lib/extract-markdown-block";
+import type { ContextItem } from "@/lib/context-db/types";
 import { consumeAnthropicStream } from "@/lib/agent/stream-client";
 import {
   addSession,
@@ -59,23 +66,41 @@ type Props = {
   course: Course | undefined;
   currentLessonPath: string | null;
   onOpenSettings: () => void;
+  onOverwriteEditor?: (markdown: string) => void;
+  className?: string;
+  /** Agent タブ表示中のみ Markdown をレンダリングする */
+  richMarkdown?: boolean;
 };
 
-function readInitialAgentState(): {
+type CreateDraftContextState = {
+  contextItemsJson: string;
+  searchResults: ContextItem[];
+  searchPerformed: boolean;
+  selectionConfirmed: boolean;
+};
+
+function emptyCreateDraftContextState(): CreateDraftContextState {
+  return {
+    contextItemsJson: "[]",
+    searchResults: [],
+    searchPerformed: false,
+    selectionConfirmed: false,
+  };
+}
+
+function hydrateAgentStateFromStorage(): {
   storage: AgentChatStorage;
   messages: AgentChatMessage[];
   activeSkillId: string | null;
   sessionId: string;
-} | null {
-  if (typeof window === "undefined") return null;
+} {
   const storage = ensureAgentChatStorage();
   const active = getActiveSession(storage);
-  if (!active) return null;
   return {
     storage,
-    messages: active.messages,
-    activeSkillId: active.activeSkillId,
-    sessionId: active.id,
+    messages: active?.messages ?? [],
+    activeSkillId: active?.activeSkillId ?? null,
+    sessionId: active?.id ?? storage.activeSessionId,
   };
 }
 
@@ -97,25 +122,18 @@ export function AgentChatPane({
   course,
   currentLessonPath,
   onOpenSettings,
+  onOverwriteEditor,
+  className,
+  richMarkdown = true,
 }: Props) {
-  const [initialAgentState] = useState(readInitialAgentState);
-  const [skills, setSkills] = useState<SkillSummary[]>([]);
-  const [chatStorage, setChatStorage] = useState<AgentChatStorage | null>(
-    () => initialAgentState?.storage ?? null,
-  );
-  const [messages, setMessages] = useState<AgentChatMessage[]>(
-    () => initialAgentState?.messages ?? [],
-  );
+  const [chatStorage, setChatStorage] = useState<AgentChatStorage | null>(null);
+  const [messages, setMessages] = useState<AgentChatMessage[]>([]);
   const [input, setInput] = useState("");
-  const [activeSkillId, setActiveSkillId] = useState<string | null>(
-    () => initialAgentState?.activeSkillId ?? null,
-  );
+  const [activeSkillId, setActiveSkillId] = useState<string | null>(null);
   const [isStreaming, setIsStreaming] = useState(false);
   const [streamingAssistantId, setStreamingAssistantId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [modelLabel, setModelLabel] = useState<string>(() =>
-    readModelLabelFromSettings(),
-  );
+  const [modelLabel, setModelLabel] = useState("");
   const [historyOpen, setHistoryOpen] = useState(false);
   const [deleteSessionTargetId, setDeleteSessionTargetId] = useState<string | null>(null);
   const [copiedMessageId, setCopiedMessageId] = useState<string | null>(null);
@@ -124,15 +142,55 @@ export function AgentChatPane({
     history: AgentChatMessage[];
   } | null>(null);
 
+  const [overwriteTarget, setOverwriteTarget] = useState<{
+    messageId: string;
+    content: string;
+  } | null>(null);
+
   const abortRef = useRef<AbortController | null>(null);
+  const createDraftContextRef = useRef<CreateDraftContextState>(
+    emptyCreateDraftContextState(),
+  );
   const stopContextRef = useRef<{
     userMessage: AgentChatMessage;
     assistantId: string;
   } | null>(null);
   const historyRef = useRef<HTMLDivElement>(null);
-  const sessionSwitchRef = useRef<string | null>(initialAgentState?.sessionId ?? null);
+  const chatScrollRef = useRef<HTMLDivElement>(null);
+  const stickToBottomRef = useRef(true);
+  const sessionSwitchRef = useRef<string | null>(null);
+
+  const [skills, setSkills] = useState<SkillSummary[]>([]);
 
   useEffect(() => {
+    const hydrated = hydrateAgentStateFromStorage();
+    setChatStorage(hydrated.storage);
+    setMessages(hydrated.messages);
+    setActiveSkillId(hydrated.activeSkillId);
+    sessionSwitchRef.current = hydrated.sessionId;
+  }, []);
+
+  const resetCreateDraftContext = useCallback(() => {
+    createDraftContextRef.current = emptyCreateDraftContextState();
+  }, []);
+
+  const scrollChatToBottom = useCallback(() => {
+    const element = chatScrollRef.current;
+    if (!element) return;
+    element.scrollTop = element.scrollHeight;
+  }, []);
+
+  useEffect(() => {
+    if (!stickToBottomRef.current) return;
+    scrollChatToBottom();
+  }, [messages, isStreaming, streamingAssistantId, scrollChatToBottom]);
+
+  useEffect(() => {
+    resetCreateDraftContext();
+  }, [activeSkillId, resetCreateDraftContext]);
+
+  useEffect(() => {
+    if (!richMarkdown) return;
     void fetch("/api/agent/skills")
       .then((res) => res.json())
       .then((data: { skills?: SkillSummary[] }) => {
@@ -141,7 +199,7 @@ export function AgentChatPane({
       .catch(() => {
         setError("スキル一覧の取得に失敗しました");
       });
-  }, []);
+  }, [richMarkdown]);
 
   useEffect(() => {
     const syncModelLabel = () => {
@@ -227,7 +285,7 @@ export function AgentChatPane({
   }, [currentLessonPath]);
 
   const buildVariables = useCallback(
-    (skillId: string): Record<string, string> | { error: string } => {
+    (skillId: string, contextItemsJson?: string): Record<string, string> | { error: string } => {
       if (skillId === "create-structure") {
         return buildCreateStructureVariables(series);
       }
@@ -244,11 +302,70 @@ export function AgentChatPane({
             cross_series_prev: course?.cross_series_prev ?? [],
             cross_series_next: course?.cross_series_next ?? [],
           },
+          contextItems: contextItemsJson ?? createDraftContextRef.current.contextItemsJson,
         });
       }
       return {};
     },
     [series, lesson, course],
+  );
+
+  const resolveCreateDraftContextItems = useCallback(
+    async (options: {
+      userMessage: AgentChatMessage;
+      history: AgentChatMessage[];
+    }): Promise<{ contextItemsJson: string } | { error: string }> => {
+      const state = createDraftContextRef.current;
+
+      if (state.selectionConfirmed) {
+        return { contextItemsJson: state.contextItemsJson };
+      }
+
+      if (state.searchPerformed && state.searchResults.length > 0) {
+        const selection = parseContextSelection(
+          options.userMessage.content,
+          state.searchResults.length,
+        );
+        if (selection !== null) {
+          const selected = applyContextSelection(state.searchResults, selection);
+          state.selectionConfirmed = true;
+          state.contextItemsJson = JSON.stringify(selected, null, 2);
+          return { contextItemsJson: state.contextItemsJson };
+        }
+        return {
+          contextItemsJson: JSON.stringify(state.searchResults, null, 2),
+        };
+      }
+
+      const query = resolveConfirmedSearchQuery({
+        userMessage: options.userMessage.content,
+        history: options.history,
+      });
+      if (!query) {
+        return { contextItemsJson: "[]" };
+      }
+
+      const res = await fetch(
+        `/api/context/items/search?q=${encodeURIComponent(query)}`,
+      );
+      if (!res.ok) {
+        let message = "社内コンテキストの取得に失敗しました";
+        try {
+          const data = (await res.json()) as { error?: string };
+          message = data.error ?? message;
+        } catch {
+          // ignore
+        }
+        return { error: message };
+      }
+
+      const data = (await res.json()) as { items?: ContextItem[] };
+      state.searchResults = data.items ?? [];
+      state.searchPerformed = true;
+      state.contextItemsJson = JSON.stringify(state.searchResults, null, 2);
+      return { contextItemsJson: state.contextItemsJson };
+    },
+    [],
   );
 
   const handleStop = useCallback(() => {
@@ -279,7 +396,20 @@ export function AgentChatPane({
       history: AgentChatMessage[];
       skillId: string;
     }) => {
-      const variablesResult = buildVariables(options.skillId);
+      let contextItemsJson: string | undefined;
+      if (options.skillId === "create-draft") {
+        const contextResult = await resolveCreateDraftContextItems({
+          userMessage: options.userMessage,
+          history: options.history,
+        });
+        if ("error" in contextResult) {
+          setError(contextResult.error);
+          return;
+        }
+        contextItemsJson = contextResult.contextItemsJson;
+      }
+
+      const variablesResult = buildVariables(options.skillId, contextItemsJson);
       if ("error" in variablesResult) {
         setError(variablesResult.error);
         return;
@@ -378,7 +508,7 @@ export function AgentChatPane({
         setStreamingAssistantId(null);
       }
     },
-    [buildVariables, onOpenSettings],
+    [buildVariables, onOpenSettings, resolveCreateDraftContextItems],
   );
 
   const handleSend = useCallback(async () => {
@@ -401,6 +531,7 @@ export function AgentChatPane({
       content: trimmed,
       createdAt: new Date().toISOString(),
     };
+    stickToBottomRef.current = true;
     setInput("");
     await invokeSkill({
       userMessage,
@@ -422,12 +553,13 @@ export function AgentChatPane({
     const session = storage.sessions.find((item) => item.id === sessionId);
     if (!session) return;
     sessionSwitchRef.current = session.id;
+    resetCreateDraftContext();
     setMessages(session.messages);
     setActiveSkillId(session.activeSkillId);
     setInput("");
     setError(null);
     setRetryPayload(null);
-  }, []);
+  }, [resetCreateDraftContext]);
 
   const handleSwitchSession = useCallback(
     (sessionId: string) => {
@@ -514,10 +646,17 @@ export function AgentChatPane({
     }
   }, []);
 
+  const handleConfirmOverwrite = useCallback(() => {
+    if (!overwriteTarget || !onOverwriteEditor) return;
+    const markdown = extractMarkdownBlock(overwriteTarget.content);
+    onOverwriteEditor(markdown);
+    setOverwriteTarget(null);
+  }, [onOverwriteEditor, overwriteTarget]);
+
   const sessionTitle = activeSession?.title ?? DEFAULT_SESSION_TITLE;
 
   return (
-    <div className="agent-chat-pane flex h-full min-h-0 flex-col">
+    <div className={cn("agent-chat-pane flex h-full min-h-0 flex-col", className)}>
       <div className="relative z-10 shrink-0 bg-[var(--agent-chat-pane-bg)] px-3 pt-3 pb-2">
         <div className="flex items-center gap-2">
         <div ref={historyRef} className="relative">
@@ -601,9 +740,19 @@ export function AgentChatPane({
       </div>
 
       <div className="relative min-h-0 flex-1">
-        <div className="workspace-scrollbar h-full min-h-0 overflow-y-auto overscroll-y-contain">
+        <div
+          ref={chatScrollRef}
+          className="workspace-scrollbar h-full min-h-0 overflow-y-auto overscroll-y-contain"
+          onScroll={(event) => {
+            const element = event.currentTarget;
+            const distanceFromBottom =
+              element.scrollHeight - element.scrollTop - element.clientHeight;
+            stickToBottomRef.current = distanceFromBottom < 80;
+          }}
+        >
           <div className="px-12 py-4">
-        {messages.length === 0 ? (
+        {richMarkdown ? (
+          messages.length === 0 ? (
           <div className="flex h-full min-h-[12rem] items-center justify-center text-sm text-muted-foreground">
             / でスキルを選択し、メッセージを送信してください
           </div>
@@ -622,9 +771,11 @@ export function AgentChatPane({
                 return (
                   <div key={message.id} className="flex w-full justify-end">
                     <div className="max-w-[min(70%,28rem)] rounded-2xl bg-muted px-3 py-2 text-sm text-foreground">
-                      <div className="whitespace-pre-wrap break-words">
-                        {renderUserMessageContent(message.content)}
-                      </div>
+                      <AgentChatMessageContent
+                        content={message.content}
+                        variant="user"
+                        richMarkdown={richMarkdown}
+                      />
                     </div>
                   </div>
                 );
@@ -632,9 +783,14 @@ export function AgentChatPane({
 
               return (
                 <div key={message.id} className="flex w-full flex-col gap-2 text-sm">
-                  <pre className="whitespace-pre-wrap break-words font-sans text-sm">
-                    {message.content || "..."}
-                  </pre>
+                  {message.content ? (
+                    <AgentChatMessageContent
+                      content={message.content}
+                      richMarkdown={richMarkdown}
+                    />
+                  ) : (
+                    <span className="text-muted-foreground">...</span>
+                  )}
                   {showActions ? (
                     <div className="flex items-center gap-2">
                       <WorkspaceTooltip
@@ -656,6 +812,28 @@ export function AgentChatPane({
                           </Button>
                         }
                       />
+                      {onOverwriteEditor && lesson ? (
+                        <WorkspaceTooltip
+                          label="エディタに上書き"
+                          render={
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="icon"
+                              className="size-7"
+                              aria-label="エディタに上書き"
+                              onClick={() =>
+                                setOverwriteTarget({
+                                  messageId: message.id,
+                                  content: message.content,
+                                })
+                              }
+                            >
+                              <FilePen className="size-3.5" />
+                            </Button>
+                          }
+                        />
+                      ) : null}
                       <span className="text-xs text-muted-foreground">
                         {formatMessageTimestamp(message)}
                       </span>
@@ -665,7 +843,8 @@ export function AgentChatPane({
               );
             })}
           </div>
-        )}
+        )
+        ) : null}
           </div>
         </div>
         <div aria-hidden className="agent-chat-pane__scroll-fade agent-chat-pane__scroll-fade-top" />
@@ -689,6 +868,10 @@ export function AgentChatPane({
         value={input}
         onChange={setInput}
         onSend={() => void handleSend()}
+        onAfterSend={() => {
+          stickToBottomRef.current = true;
+          requestAnimationFrame(() => scrollChatToBottom());
+        }}
         onStop={handleStop}
         disabled={false}
         isLoading={isStreaming}
@@ -728,6 +911,28 @@ export function AgentChatPane({
               }}
             >
               削除
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog
+        open={overwriteTarget !== null}
+        onOpenChange={(open) => {
+          if (!open) setOverwriteTarget(null);
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>レッスン本文を上書きしますか？</AlertDialogTitle>
+            <AlertDialogDescription>
+              AI 応答の Markdown 内容で現在のレッスン本文を置き換えます。この操作は元に戻せません。
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>キャンセル</AlertDialogCancel>
+            <AlertDialogAction onClick={handleConfirmOverwrite}>
+              上書き
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

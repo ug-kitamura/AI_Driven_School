@@ -389,14 +389,6 @@ export function ImageManagerPane({
     setUsedFilter({ seriesId: null, courseId: null, lessonId: null });
   }, []);
 
-  if (!pane4Open) {
-    return (
-      <div className="flex w-12 flex-shrink-0 flex-col items-center border-l border-border bg-card py-3">
-        <Pane4Toggle open={false} onToggle={onTogglePane4} />
-      </div>
-    );
-  }
-
   return (
     <PaneWheelRoot
       scrollRef={tabScrollRef}

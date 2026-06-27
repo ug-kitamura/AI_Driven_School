@@ -409,6 +409,10 @@
     @apply my-4 border-l-4 border-primary pl-4 text-muted-foreground;
   }
 
+  .lesson-preview img {
+    @apply block h-auto max-w-full;
+  }
+
   .lesson-preview hr {
     @apply my-6 border-border;
   }
@@ -424,6 +428,53 @@
 
   .lesson-preview th {
     @apply bg-muted/40 font-semibold text-foreground;
+  }
+
+  /* Agent チャット: プレビュー同等の Markdown をコンパクトに */
+  .agent-chat-message.lesson-preview h1 {
+    @apply mb-2 mt-0 text-lg;
+  }
+
+  .agent-chat-message.lesson-preview h2 {
+    @apply mb-2 mt-4 text-base;
+  }
+
+  .agent-chat-message.lesson-preview h3 {
+    @apply mb-1 mt-3 text-sm;
+  }
+
+  .agent-chat-message.lesson-preview h4 {
+    @apply mb-1 mt-2 text-sm;
+  }
+
+  .agent-chat-message.lesson-preview p {
+    @apply my-2;
+  }
+
+  .agent-chat-message.lesson-preview ul:not(.contains-task-list),
+  .agent-chat-message.lesson-preview ol {
+    @apply my-2;
+  }
+
+  .agent-chat-message.lesson-preview blockquote {
+    @apply my-2;
+  }
+
+  .agent-chat-message.lesson-preview hr {
+    @apply my-4;
+  }
+
+  .agent-chat-message.lesson-preview pre {
+    @apply my-2;
+  }
+
+  .agent-chat-message.lesson-preview table {
+    @apply my-2;
+  }
+
+  .agent-chat-message--user.lesson-preview > :only-child,
+  .agent-chat-message--user.lesson-preview p:only-child {
+    @apply my-0;
   }
 
   /* 曼陀羅 SVG: 実寸表示（横スクロール時も縮小しない） */
@@ -599,3 +650,38 @@ html.dark .lesson-content-editor .cm-foldGutter.lesson-fold-gutter span.lesson-f
 }
 
 /* 編集ビュー テキスト選択: lesson-content-editor-setup.ts（LESSON_EDITOR_SELECTION_*）で制御 */
+
+/* 社内コンテキスト: date 入力のプレースホルダー見た目（タグ入力 placeholder と同系） */
+input.context-date-input[type="date"] {
+  color: var(--muted-foreground);
+}
+
+input.context-date-input[type="date"]::-webkit-datetime-edit {
+  padding: 0;
+}
+
+input.context-date-input[type="date"]::-webkit-datetime-edit-fields-wrapper {
+  padding: 0;
+}
+
+input.context-date-input[type="date"]::-webkit-datetime-edit-text {
+  color: var(--muted-foreground);
+  padding: 0 0.125rem;
+}
+
+input.context-date-input[type="date"]::-webkit-datetime-edit-month-field,
+input.context-date-input[type="date"]::-webkit-datetime-edit-day-field,
+input.context-date-input[type="date"]::-webkit-datetime-edit-year-field {
+  color: var(--muted-foreground);
+}
+
+input.context-date-input[type="date"]:not([value=""]) {
+  color: var(--foreground);
+}
+
+input.context-date-input[type="date"]:not([value=""])::-webkit-datetime-edit-text,
+input.context-date-input[type="date"]:not([value=""])::-webkit-datetime-edit-month-field,
+input.context-date-input[type="date"]:not([value=""])::-webkit-datetime-edit-day-field,
+input.context-date-input[type="date"]:not([value=""])::-webkit-datetime-edit-year-field {
+  color: var(--foreground);
+}

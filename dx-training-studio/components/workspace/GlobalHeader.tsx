@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { Network, Settings } from "lucide-react";
+import { BookOpen, Network, Settings } from "lucide-react";
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -124,6 +124,7 @@ type GlobalHeaderProps = {
   selectedCourseId?: string;
   onSelectCourse?: (courseId: string) => void;
   onOpenSettings?: () => void;
+  onOpenCompanyContext?: () => void;
 };
 
 export function GlobalHeader({
@@ -134,6 +135,7 @@ export function GlobalHeader({
   selectedCourseId = "",
   onSelectCourse,
   onOpenSettings,
+  onOpenCompanyContext,
 }: GlobalHeaderProps) {
   const [mandalaOpen, setMandalaOpen] = useState(false);
   const [mandalaSvg, setMandalaSvg] = useState("");
@@ -254,6 +256,16 @@ export function GlobalHeader({
       >
         <Network className="h-4 w-4" />
         <span className="hidden sm:inline">DXトレーニング曼陀羅</span>
+      </Button>
+
+      <Button
+        variant="ghost"
+        size="sm"
+        className="flex-shrink-0 gap-1.5 text-xs text-muted-foreground hover:text-primary"
+        onClick={() => onOpenCompanyContext?.()}
+      >
+        <BookOpen className="h-4 w-4" />
+        <span className="hidden sm:inline">社内コンテキスト</span>
       </Button>
 
       <Button

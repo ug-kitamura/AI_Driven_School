@@ -35,6 +35,7 @@ type Props = {
   value: string;
   onChange: (value: string) => void;
   onSend: () => void;
+  onAfterSend?: () => void;
   onStop?: () => void;
   disabled?: boolean;
   isLoading?: boolean;
@@ -85,6 +86,7 @@ export function AgentChatInput({
   value,
   onChange,
   onSend,
+  onAfterSend,
   onStop,
   disabled = false,
   isLoading = false,
@@ -263,6 +265,13 @@ export function AgentChatInput({
     [onChange, suggestion, value],
   );
 
+  const submitMessage = useCallback(() => {
+    if (disabled || isLoading || !value.trim()) return;
+    onSend();
+    onAfterSend?.();
+    requestAnimationFrame(() => textareaRef.current?.focus());
+  }, [disabled, isLoading, onAfterSend, onSend, value]);
+
   const handleKeyDown = (event: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (suggestion) {
       if (visibleItems.length > 0) {
@@ -302,7 +311,7 @@ export function AgentChatInput({
 
     if (event.key === "Enter" && !event.shiftKey) {
       event.preventDefault();
-      if (!disabled && !isLoading) onSend();
+      if (!isLoading) submitMessage();
     }
   };
 
@@ -385,7 +394,7 @@ export function AgentChatInput({
           onKeyDown={handleKeyDown}
           rows={3}
           placeholder="メッセージを入力（/ でスキル、@ でファイル参照）"
-          disabled={disabled || isLoading}
+          disabled={disabled}
           className="w-full resize-y rounded-lg border border-border bg-white px-3 pb-10 pt-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary dark:bg-muted"
         />
 
@@ -412,7 +421,8 @@ export function AgentChatInput({
               className="size-8 shrink-0 rounded-full"
               disabled={disabled || isLoading || !value.trim()}
               aria-label="送信"
-              onClick={onSend}
+              onMouseDown={(event) => event.preventDefault()}
+              onClick={submitMessage}
             >
               <ArrowUp className="size-4" />
             </Button>
@@ -421,22 +431,4 @@ export function AgentChatInput({
       </div>
     </div>
   );
-}
-
-export function renderUserMessageContent(content: string) {
-  const parts = content.split(/(@contents\/[^\s@]+)/g);
-  return parts.map((part, index) => {
-    if (part.startsWith("@contents/")) {
-      const fileName = part.split("/").pop() ?? part;
-      return (
-        <span
-          key={`${part}-${index}`}
-          className="mx-0.5 inline-flex rounded border border-border bg-background px-1.5 py-0.5 text-xs text-foreground"
-        >
-          {fileName}
-        </span>
-      );
-    }
-    return <span key={`text-${index}`}>{part}</span>;
-  });
 }

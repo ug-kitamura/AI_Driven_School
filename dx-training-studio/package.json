@@ -11,6 +11,8 @@
     "format:check": "prettier --check .",
     "test": "vitest run",
     "test:watch": "vitest",
+    "check:context-db": "node scripts/check-context-db.mjs",
+    "migrate:context-db": "node scripts/migrate-context-db.mjs",
     "upload-images-to-blob": "node scripts/upload-local-images-to-blob.mjs"
   },
   "dependencies": {
@@ -26,6 +28,7 @@
     "@dnd-kit/sortable": "^10.0.0",
     "@dnd-kit/utilities": "^3.2.2",
     "@lezer/highlight": "^1.2.3",
+    "@neondatabase/serverless": "^1.1.0",
     "@uiw/codemirror-theme-vscode": "^4.25.10",
     "@uiw/react-codemirror": "^4.25.10",
     "@vercel/blob": "^2.5.0",

@@ -77,10 +77,13 @@ Generate a draft for {{series}} / {{course}}.`);
       id: "create-draft",
       name: "draft",
       description: "",
-      variables: ["series", "course"],
+      variables: ["series", "course", "contextItems"],
       body: "{{series}}",
     };
-    const { missingVariables } = buildSkillSystemPrompt(skill, { series: "A" });
+    const { missingVariables } = buildSkillSystemPrompt(skill, {
+      series: "A",
+      contextItems: "[]",
+    });
     expect(missingVariables).toEqual(["course"]);
   });
 });

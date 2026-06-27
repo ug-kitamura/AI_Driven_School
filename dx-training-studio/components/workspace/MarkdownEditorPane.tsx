@@ -13,7 +13,6 @@ import { getLessonBody, type LessonMetaFields } from "@/lib/lesson-frontmatter";
 import { stripHtmlComments } from "@/lib/html-comment-at-cursor";
 import { LessonMetaDialog } from "@/components/workspace/LessonMetaDialog";
 import { LessonDiffView } from "@/components/workspace/LessonDiffView";
-import { AgentChatPane } from "@/components/workspace/AgentChatPane";
 import { PaneWheelRoot } from "@/components/workspace/PaneWheelRoot";
 import type { LessonContentEditorHandle } from "@/components/workspace/LessonContentEditor";
 import type { Course, Lesson, Series } from "@/lib/schema";
@@ -30,6 +29,21 @@ const LessonContentEditor = dynamic(
     loading: () => (
       <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
         エディタを読み込み中...
+      </div>
+    ),
+  },
+);
+
+const AgentChatPane = dynamic(
+  () =>
+    import("@/components/workspace/AgentChatPane").then(
+      (m) => m.AgentChatPane,
+    ),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
+        Agent を読み込み中...
       </div>
     ),
   },
@@ -98,6 +112,11 @@ export function MarkdownEditorPane({
   const lastCursorOffsetRef = useRef(0);
   const [diffState, setDiffState] = useState<DiffState>({ status: "idle" });
   const [metaDialogOpen, setMetaDialogOpen] = useState(false);
+  const [agentPaneReady, setAgentPaneReady] = useState(false);
+
+  useEffect(() => {
+    if (mode === "agent") setAgentPaneReady(true);
+  }, [mode]);
 
   const previewBody = useMemo(
     () => (lesson ? stripHtmlComments(getLessonBody(lesson)) : ""),
@@ -213,6 +232,15 @@ export function MarkdownEditorPane({
     lesson?.content,
   ]);
 
+  const handleOverwriteEditor = useCallback(
+    (markdown: string) => {
+      if (!lesson) return;
+      onUpdateContent(lesson.id, markdown);
+      onModeChange("raw");
+    },
+    [lesson, onModeChange, onUpdateContent],
+  );
+
   if (!lesson && mode !== "agent") {
     return (
       <div className="flex flex-1 items-center justify-center text-muted-foreground text-sm">
@@ -282,14 +310,22 @@ export function MarkdownEditorPane({
           </div>
         ) : null}
 
-        {mode === "agent" ? (
-          <div className={lesson ? "absolute inset-0" : "h-full"}>
+        {agentPaneReady ? (
+          <div
+            className={cn(
+              "absolute inset-0",
+              mode !== "agent" && "hidden",
+              !lesson && "h-full",
+            )}
+          >
             <AgentChatPane
               series={series}
               lesson={lesson}
               course={course}
               currentLessonPath={currentLessonPath}
               onOpenSettings={onOpenSettings}
+              onOverwriteEditor={lesson ? handleOverwriteEditor : undefined}
+              richMarkdown={mode === "agent"}
             />
           </div>
         ) : null}

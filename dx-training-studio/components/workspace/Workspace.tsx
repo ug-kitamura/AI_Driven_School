@@ -8,8 +8,11 @@ import { SeriesCoursePane } from "@/components/workspace/SeriesCoursePane";
 import { LessonListPane } from "@/components/workspace/LessonListPane";
 import { MarkdownEditorPane } from "@/components/workspace/MarkdownEditorPane";
 import { ImageManagerPane } from "@/components/workspace/ImageManagerPane";
+import { Pane4Toggle } from "@/components/workspace/Pane4Toggle";
 import { PaneResizeHandle } from "@/components/workspace/PaneResizeHandle";
+import { PANE4_COLLAPSED_WIDTH } from "@/components/workspace/pane-layout";
 import { ThemeInitializer } from "@/components/workspace/ThemeInitializer";
+import { CompanyContextDialog } from "@/components/workspace/CompanyContextDialog";
 import { WorkspaceSettingsDialog } from "@/components/workspace/WorkspaceSettingsDialog";
 import { PANE3_MIN_WIDTH } from "@/components/workspace/pane-layout";
 import { useWorkspacePaneWidths } from "@/components/workspace/use-workspace-pane-widths";
@@ -63,6 +66,7 @@ export function Workspace({
   const [pane4ManuallyClosed, setPane4ManuallyClosed] = useState(false);
   const [pane3Mode, setPane3Mode] = useState<Pane3Mode>("raw");
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [companyContextOpen, setCompanyContextOpen] = useState(false);
   const [saveErrorMsg, setSaveErrorMsg] = useState<string | null>(null);
   const saveErrorTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -183,8 +187,9 @@ export function Workspace({
 
   cancelLessonDebounceRef.current = cancelLessonDebounce;
 
+  const shouldLoadImageAssets = pane4Open || pane3Mode === "inline";
   const { availableImagePaths, imageAssetsRevision, notifyImageAssetsChanged } =
-    useWorkspaceImageAssets();
+    useWorkspaceImageAssets(shouldLoadImageAssets);
 
   const tagSuggestions = useMemo(
     () => collectAllLessonTags(series),
@@ -239,8 +244,8 @@ export function Workspace({
   }, [pane3Mode, selectedLesson?.id]);
 
   useEffect(() => {
-    if (!selectedLesson) {
-      setCurrentLessonPath(null);
+    if (pane3Mode !== "agent" || !selectedLesson) {
+      if (!selectedLesson) setCurrentLessonPath(null);
       return;
     }
 
@@ -265,6 +270,7 @@ export function Workspace({
       cancelled = true;
     };
   }, [
+    pane3Mode,
     selectedLesson?.id,
     selectedLesson?.series,
     selectedLesson?.course,
@@ -332,12 +338,18 @@ export function Workspace({
           selectedCourseId={selectedCourseId}
           onSelectCourse={selectCourse}
           onOpenSettings={() => setSettingsOpen(true)}
+          onOpenCompanyContext={() => setCompanyContextOpen(true)}
         />
         <WorkspaceSettingsDialog
           open={settingsOpen}
           onOpenChange={setSettingsOpen}
           currentPaneWidths={paneWidths}
           onApplyPaneWidths={applyPaneWidths}
+        />
+        <CompanyContextDialog
+          open={companyContextOpen}
+          onOpenChange={setCompanyContextOpen}
+          onOpenSettings={() => setSettingsOpen(true)}
         />
         {contentsEmpty && (
           <div className="flex items-center justify-center border-b bg-amber-50 px-4 py-2 text-sm text-amber-800 dark:bg-amber-950 dark:text-amber-200">
@@ -404,7 +416,15 @@ export function Workspace({
               </div>
             </>
           ) : (
-            <ImageManagerPane {...imageManagerPaneProps} />
+            <div
+              className="flex shrink-0 flex-col items-center border-l border-border bg-card py-3"
+              style={{ width: PANE4_COLLAPSED_WIDTH }}
+            >
+              <Pane4Toggle
+                open={false}
+                onToggle={() => setPane4ManuallyClosed((v) => !v)}
+              />
+            </div>
           )}
         </div>
       </SidebarInset>

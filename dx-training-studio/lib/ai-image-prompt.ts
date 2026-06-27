@@ -9,7 +9,7 @@ export type AiImageGenerationResult = {
 };
 
 const GRAPHIC_VOCABULARY = `
-## Visual vocabulary (creating-visual-explainers graphics only)
+## Visual vocabulary (see contracts/image-slot-contract.md — generation quality)
 
 - Show familiar UIs with Tailwind mocks (terminal, editor, browser, chat, app screens) — do not describe them in prose outside the diagram.
 - Combine structural diagrams AND experience-reproduction mocks when both help.

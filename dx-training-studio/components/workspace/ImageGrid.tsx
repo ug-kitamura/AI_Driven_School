@@ -38,7 +38,7 @@ export function ImageGrid({
   onInsert,
   onDelete,
   className,
-  thumbnailFit = "cover",
+  thumbnailFit = "contain",
 }: Props) {
   if (items.length === 0) {
     return (
@@ -70,7 +70,7 @@ export function ImageGrid({
             <button
               type="button"
               className={cn(
-                "relative aspect-square w-full overflow-hidden bg-muted",
+                "relative flex aspect-square w-full items-center justify-center overflow-hidden bg-muted",
                 item.missing ? "cursor-default" : "cursor-zoom-in hover:opacity-90",
               )}
               onClick={() => !item.missing && onPreview(item)}
@@ -94,14 +94,14 @@ export function ImageGrid({
                   preload="metadata"
                   muted
                   playsInline
-                  className={cn("h-full w-full", mediaFitClass)}
+                  className={cn("max-h-full max-w-full", mediaFitClass)}
                 />
               ) : (
                 /* eslint-disable-next-line @next/next/no-img-element */
                 <img
                   src={mediaSrc(item.path)}
                   alt={item.name}
-                  className={cn("h-full w-full", mediaFitClass)}
+                  className={cn("max-h-full max-w-full", mediaFitClass)}
                 />
               )}
               {isVideo ? <MediaPlayOverlay /> : null}

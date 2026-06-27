@@ -19,5 +19,12 @@ if errorlevel 1 (
   exit /b 1
 )
 
+powershell -NoProfile -Command "try { exit ([int]-not((Invoke-WebRequest -Uri 'http://localhost:3000/' -UseBasicParsing -TimeoutSec 3).StatusCode -eq 200)) } catch { exit 1 }"
+if not errorlevel 1 (
+  echo [DX Training Studio] Dev server is already running at http://localhost:3000
+  start "" http://localhost:3000
+  exit /b 0
+)
+
 start "" http://localhost:3000
 npm run dev

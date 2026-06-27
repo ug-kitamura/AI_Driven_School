@@ -29,14 +29,16 @@ export function buildCreateDraftVariables(options: {
   lesson: Lesson;
   lessonBody: string;
   courseMeta: Record<string, unknown>;
+  contextItems?: string;
 }): Record<string, string> {
-  const { lesson, lessonBody, courseMeta } = options;
+  const { lesson, lessonBody, courseMeta, contextItems = "[]" } = options;
   return {
     series: lesson.series,
     course: lesson.course,
     lesson: lesson.lesson,
     lessonBody,
     courseMeta: JSON.stringify(courseMeta, null, 2),
+    contextItems,
   };
 }
 

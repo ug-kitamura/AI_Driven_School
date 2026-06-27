@@ -68,6 +68,8 @@ type Props = {
   onOpenSettings: () => void;
   onOverwriteEditor?: (markdown: string) => void;
   className?: string;
+  /** Agent タブ表示中のみ Markdown をレンダリングする */
+  richMarkdown?: boolean;
 };
 
 type CreateDraftContextState = {
@@ -122,6 +124,7 @@ export function AgentChatPane({
   onOpenSettings,
   onOverwriteEditor,
   className,
+  richMarkdown = true,
 }: Props) {
   const [chatStorage, setChatStorage] = useState<AgentChatStorage | null>(null);
   const [messages, setMessages] = useState<AgentChatMessage[]>([]);
@@ -187,6 +190,7 @@ export function AgentChatPane({
   }, [activeSkillId, resetCreateDraftContext]);
 
   useEffect(() => {
+    if (!richMarkdown) return;
     void fetch("/api/agent/skills")
       .then((res) => res.json())
       .then((data: { skills?: SkillSummary[] }) => {
@@ -195,7 +199,7 @@ export function AgentChatPane({
       .catch(() => {
         setError("スキル一覧の取得に失敗しました");
       });
-  }, []);
+  }, [richMarkdown]);
 
   useEffect(() => {
     const syncModelLabel = () => {
@@ -747,7 +751,8 @@ export function AgentChatPane({
           }}
         >
           <div className="px-12 py-4">
-        {messages.length === 0 ? (
+        {richMarkdown ? (
+          messages.length === 0 ? (
           <div className="flex h-full min-h-[12rem] items-center justify-center text-sm text-muted-foreground">
             / でスキルを選択し、メッセージを送信してください
           </div>
@@ -769,6 +774,7 @@ export function AgentChatPane({
                       <AgentChatMessageContent
                         content={message.content}
                         variant="user"
+                        richMarkdown={richMarkdown}
                       />
                     </div>
                   </div>
@@ -778,7 +784,10 @@ export function AgentChatPane({
               return (
                 <div key={message.id} className="flex w-full flex-col gap-2 text-sm">
                   {message.content ? (
-                    <AgentChatMessageContent content={message.content} />
+                    <AgentChatMessageContent
+                      content={message.content}
+                      richMarkdown={richMarkdown}
+                    />
                   ) : (
                     <span className="text-muted-foreground">...</span>
                   )}
@@ -834,7 +843,8 @@ export function AgentChatPane({
               );
             })}
           </div>
-        )}
+        )
+        ) : null}
           </div>
         </div>
         <div aria-hidden className="agent-chat-pane__scroll-fade agent-chat-pane__scroll-fade-top" />

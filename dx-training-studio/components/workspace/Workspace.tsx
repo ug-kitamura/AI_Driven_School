@@ -8,7 +8,9 @@ import { SeriesCoursePane } from "@/components/workspace/SeriesCoursePane";
 import { LessonListPane } from "@/components/workspace/LessonListPane";
 import { MarkdownEditorPane } from "@/components/workspace/MarkdownEditorPane";
 import { ImageManagerPane } from "@/components/workspace/ImageManagerPane";
+import { Pane4Toggle } from "@/components/workspace/Pane4Toggle";
 import { PaneResizeHandle } from "@/components/workspace/PaneResizeHandle";
+import { PANE4_COLLAPSED_WIDTH } from "@/components/workspace/pane-layout";
 import { ThemeInitializer } from "@/components/workspace/ThemeInitializer";
 import { CompanyContextDialog } from "@/components/workspace/CompanyContextDialog";
 import { WorkspaceSettingsDialog } from "@/components/workspace/WorkspaceSettingsDialog";
@@ -185,8 +187,9 @@ export function Workspace({
 
   cancelLessonDebounceRef.current = cancelLessonDebounce;
 
+  const shouldLoadImageAssets = pane4Open || pane3Mode === "inline";
   const { availableImagePaths, imageAssetsRevision, notifyImageAssetsChanged } =
-    useWorkspaceImageAssets();
+    useWorkspaceImageAssets(shouldLoadImageAssets);
 
   const tagSuggestions = useMemo(
     () => collectAllLessonTags(series),
@@ -241,8 +244,8 @@ export function Workspace({
   }, [pane3Mode, selectedLesson?.id]);
 
   useEffect(() => {
-    if (!selectedLesson) {
-      setCurrentLessonPath(null);
+    if (pane3Mode !== "agent" || !selectedLesson) {
+      if (!selectedLesson) setCurrentLessonPath(null);
       return;
     }
 
@@ -267,6 +270,7 @@ export function Workspace({
       cancelled = true;
     };
   }, [
+    pane3Mode,
     selectedLesson?.id,
     selectedLesson?.series,
     selectedLesson?.course,
@@ -412,7 +416,15 @@ export function Workspace({
               </div>
             </>
           ) : (
-            <ImageManagerPane {...imageManagerPaneProps} />
+            <div
+              className="flex shrink-0 flex-col items-center border-l border-border bg-card py-3"
+              style={{ width: PANE4_COLLAPSED_WIDTH }}
+            >
+              <Pane4Toggle
+                open={false}
+                onToggle={() => setPane4ManuallyClosed((v) => !v)}
+              />
+            </div>
           )}
         </div>
       </SidebarInset>

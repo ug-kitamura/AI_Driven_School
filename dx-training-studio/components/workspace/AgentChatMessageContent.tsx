@@ -1,14 +1,13 @@
 "use client";
 
-import { useMemo } from "react";
+import { memo, useMemo } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
-import rehypeHighlight from "rehype-highlight";
 import type { Components } from "react-markdown";
 import { cn } from "@/lib/utils";
-import "highlight.js/styles/github.min.css";
 
 const CONTENTS_REF_RE = /(@contents\/[^\s@]+)/g;
+const remarkPlugins = [remarkGfm];
 
 const markdownComponents: Components = {
   a: ({ href, children }) => (
@@ -33,28 +32,59 @@ function ContentsRefChip({ path }: { path: string }) {
 }
 
 function MarkdownSegment({ content }: { content: string }) {
+  if (!content.trim()) return null;
   return (
-    <ReactMarkdown
-      remarkPlugins={[remarkGfm]}
-      rehypePlugins={[rehypeHighlight]}
-      components={markdownComponents}
-    >
+    <ReactMarkdown remarkPlugins={remarkPlugins} components={markdownComponents}>
       {content}
     </ReactMarkdown>
+  );
+}
+
+function PlainTextContent({ content }: { content: string }) {
+  const parts = content.split(CONTENTS_REF_RE);
+  return (
+    <>
+      {parts.map((part, index) => {
+        if (part.startsWith("@contents/")) {
+          return <ContentsRefChip key={`ref-${index}`} path={part} />;
+        }
+        if (!part) return null;
+        return <span key={`text-${index}`}>{part}</span>;
+      })}
+    </>
   );
 }
 
 type Props = {
   content: string;
   variant?: "user" | "assistant";
+  /** false のとき Markdown パースを省略（Agent タブ非表示時の負荷軽減） */
+  richMarkdown?: boolean;
 };
 
 /** Agent チャットメッセージをプレビューに近い Markdown 表示で描画する */
-export function AgentChatMessageContent({
+export const AgentChatMessageContent = memo(function AgentChatMessageContent({
   content,
   variant = "assistant",
+  richMarkdown = true,
 }: Props) {
-  const segments = useMemo(() => content.split(CONTENTS_REF_RE), [content]);
+  const segments = useMemo(
+    () => (richMarkdown ? content.split(CONTENTS_REF_RE) : null),
+    [content, richMarkdown],
+  );
+
+  if (!richMarkdown) {
+    return (
+      <div
+        className={cn(
+          "whitespace-pre-wrap break-words font-sans text-sm",
+          variant === "user" && "agent-chat-message--user",
+        )}
+      >
+        <PlainTextContent content={content} />
+      </div>
+    );
+  }
 
   return (
     <div
@@ -63,7 +93,7 @@ export function AgentChatMessageContent({
         variant === "user" && "agent-chat-message--user",
       )}
     >
-      {segments.map((part, index) => {
+      {segments?.map((part, index) => {
         if (part.startsWith("@contents/")) {
           return <ContentsRefChip key={`ref-${index}`} path={part} />;
         }
@@ -72,4 +102,4 @@ export function AgentChatMessageContent({
       })}
     </div>
   );
-}
+});

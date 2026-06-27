@@ -57,37 +57,37 @@ export function createContextRepository(
 
     async listItems(tags?: string[]): Promise<ContextItem[]> {
       if (tags && tags.length > 0) {
-        const rows = await sql<ContextItemRow[]>`
+        const rows = (await sql`
           SELECT *
           FROM context_items
           WHERE tags && ${tags}::text[]
           ORDER BY updated_at DESC, id DESC
-        `;
+        `) as ContextItemRow[];
         return rows.map(mapContextItemRow);
       }
 
-      const rows = await sql<ContextItemRow[]>`
+      const rows = (await sql`
         SELECT *
         FROM context_items
         ORDER BY updated_at DESC, id DESC
-      `;
+      `) as ContextItemRow[];
       return rows.map(mapContextItemRow);
     },
 
     async getItem(id: number): Promise<ContextItem | null> {
-      const rows = await sql<ContextItemRow[]>`
+      const rows = (await sql`
         SELECT *
         FROM context_items
         WHERE id = ${id}
         LIMIT 1
-      `;
+      `) as ContextItemRow[];
       const row = rows[0];
       return row ? mapContextItemRow(row) : null;
     },
 
     async createItem(input: CreateContextItemInput): Promise<ContextItem> {
       const username = getCurrentUsername();
-      const rows = await sql<ContextItemRow[]>`
+      const rows = (await sql`
         INSERT INTO context_items (
           title,
           body,
@@ -107,7 +107,7 @@ export function createContextRepository(
           ${username}
         )
         RETURNING *
-      `;
+      `) as ContextItemRow[];
       const row = rows[0];
       if (!row) {
         throw new Error("Failed to create context item");
@@ -123,7 +123,7 @@ export function createContextRepository(
       if (!existing) return null;
 
       const username = getCurrentUsername();
-      const rows = await sql<ContextItemRow[]>`
+      const rows = (await sql`
         UPDATE context_items
         SET
           title = ${input.title ?? existing.title},
@@ -139,26 +139,26 @@ export function createContextRepository(
           updated_at = now()
         WHERE id = ${id}
         RETURNING *
-      `;
+      `) as ContextItemRow[];
       const row = rows[0];
       return row ? mapContextItemRow(row) : null;
     },
 
     async deleteItem(id: number): Promise<boolean> {
-      const rows = await sql<{ id: number }[]>`
+      const rows = (await sql`
         DELETE FROM context_items
         WHERE id = ${id}
         RETURNING id
-      `;
+      `) as { id: number }[];
       return rows.length > 0;
     },
 
     async listDistinctTags(): Promise<string[]> {
-      const rows = await sql<{ tag: string }[]>`
+      const rows = (await sql`
         SELECT DISTINCT unnest(tags) AS tag
         FROM context_items
         ORDER BY tag
-      `;
+      `) as { tag: string }[];
       return rows.map((row) => row.tag);
     },
   };

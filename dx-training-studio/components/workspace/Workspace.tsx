@@ -10,6 +10,7 @@ import { MarkdownEditorPane } from "@/components/workspace/MarkdownEditorPane";
 import { ImageManagerPane } from "@/components/workspace/ImageManagerPane";
 import { PaneResizeHandle } from "@/components/workspace/PaneResizeHandle";
 import { ThemeInitializer } from "@/components/workspace/ThemeInitializer";
+import { CompanyContextDialog } from "@/components/workspace/CompanyContextDialog";
 import { WorkspaceSettingsDialog } from "@/components/workspace/WorkspaceSettingsDialog";
 import { PANE3_MIN_WIDTH } from "@/components/workspace/pane-layout";
 import { useWorkspacePaneWidths } from "@/components/workspace/use-workspace-pane-widths";
@@ -63,6 +64,7 @@ export function Workspace({
   const [pane4ManuallyClosed, setPane4ManuallyClosed] = useState(false);
   const [pane3Mode, setPane3Mode] = useState<Pane3Mode>("raw");
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [companyContextOpen, setCompanyContextOpen] = useState(false);
   const [saveErrorMsg, setSaveErrorMsg] = useState<string | null>(null);
   const saveErrorTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -332,12 +334,18 @@ export function Workspace({
           selectedCourseId={selectedCourseId}
           onSelectCourse={selectCourse}
           onOpenSettings={() => setSettingsOpen(true)}
+          onOpenCompanyContext={() => setCompanyContextOpen(true)}
         />
         <WorkspaceSettingsDialog
           open={settingsOpen}
           onOpenChange={setSettingsOpen}
           currentPaneWidths={paneWidths}
           onApplyPaneWidths={applyPaneWidths}
+        />
+        <CompanyContextDialog
+          open={companyContextOpen}
+          onOpenChange={setCompanyContextOpen}
+          onOpenSettings={() => setSettingsOpen(true)}
         />
         {contentsEmpty && (
           <div className="flex items-center justify-center border-b bg-amber-50 px-4 py-2 text-sm text-amber-800 dark:bg-amber-950 dark:text-amber-200">

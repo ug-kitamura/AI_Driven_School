@@ -69,7 +69,7 @@ cp .env.example .env.local
 
 削除は staging を `images/trash/` へ move（ローカル）。**ローカルモード**の正本削除も trash へ move。**ストレージモード**の正本削除は Blob から物理削除。
 
-Markdown の画像パスは正本形式 `images/<filename>` のみ。staging は `images/{uploaded|ai|web}/` に保存する。詳細は [`docs/image-slot-contract.md`](docs/image-slot-contract.md)。
+Markdown の画像パスは正本形式 `images/<filename>` のみ。staging は `images/{uploaded|ai|web}/` に保存する。詳細は [`contracts/image-slot-contract.md`](contracts/image-slot-contract.md)。
 
 ## 技術スタック
 

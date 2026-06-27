@@ -604,7 +604,11 @@ html.dark .lesson-content-editor .cm-foldGutter.lesson-fold-gutter span.lesson-f
 
 /* 編集ビュー テキスト選択: lesson-content-editor-setup.ts（LESSON_EDITOR_SELECTION_*）で制御 */
 
-/* 社内コンテキスト: date 入力のプレースホルダー見た目 */
+/* 社内コンテキスト: date 入力のプレースホルダー見た目（タグ入力 placeholder と同系） */
+input.context-date-input[type="date"] {
+  color: var(--muted-foreground);
+}
+
 input.context-date-input[type="date"]::-webkit-datetime-edit {
   padding: 0;
 }
@@ -624,10 +628,7 @@ input.context-date-input[type="date"]::-webkit-datetime-edit-year-field {
   color: var(--muted-foreground);
 }
 
-input.context-date-input[type="date"]:focus::-webkit-datetime-edit-text,
-input.context-date-input[type="date"]:focus::-webkit-datetime-edit-month-field,
-input.context-date-input[type="date"]:focus::-webkit-datetime-edit-day-field,
-input.context-date-input[type="date"]:focus::-webkit-datetime-edit-year-field {
+input.context-date-input[type="date"]:not([value=""]) {
   color: var(--foreground);
 }
 

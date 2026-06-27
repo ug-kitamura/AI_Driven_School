@@ -1,6 +1,7 @@
 import os from "node:os";
 import type { NeonQueryFunction } from "@neondatabase/serverless";
 import { resolveSql } from "@/lib/context-db/resolve";
+import { tokenizeSearchQuery } from "@/lib/context-search";
 import type {
   ContextItem,
   ContextItemRow,
@@ -163,14 +164,21 @@ export function createContextRepository(
     },
 
     async searchItems(query: string): Promise<ContextItem[]> {
-      const trimmed = query.trim();
-      if (!trimmed) return [];
+      const tokens = tokenizeSearchQuery(query);
+      if (tokens.length === 0) return [];
 
-      const pattern = `%${trimmed}%`;
+      const patterns = tokens.map((token) => `%${token}%`);
       const rows = (await sql`
         SELECT *
         FROM context_items
-        WHERE title ILIKE ${pattern} OR body ILIKE ${pattern}
+        WHERE EXISTS (
+          SELECT 1
+          FROM unnest(${patterns}::text[]) AS search_pattern(pattern)
+          WHERE
+            title ILIKE search_pattern.pattern
+            OR body ILIKE search_pattern.pattern
+            OR COALESCE(array_to_string(tags, ' '), '') ILIKE search_pattern.pattern
+        )
         ORDER BY updated_at DESC, id DESC
       `) as ContextItemRow[];
       return rows.map(mapContextItemRow);

@@ -1,5 +1,6 @@
 import fs from "node:fs";
 import path from "node:path";
+import { isValidTag, normalizeTagToken } from "@/lib/lesson-tags";
 
 const CONTRACT_PATH = path.join(process.cwd(), "contracts", "context-format-contract.md");
 
@@ -12,9 +13,12 @@ export function buildContextFormatMessages(
   existingTags: string[] = [],
 ): { system: string; user: string } {
   const contract = loadContextFormatContract();
+  const validExistingTags = existingTags.filter(
+    (tag) => typeof tag === "string" && isValidTag(tag.trim()),
+  );
   const tagSection =
-    existingTags.length > 0
-      ? `\n\n## 既存タグ（優先して選ぶ）\n${existingTags.map((tag) => `- ${tag}`).join("\n")}`
+    validExistingTags.length > 0
+      ? `\n\n## 既存タグ（形式が合うものを優先して選ぶ）\n${validExistingTags.map((tag) => `- ${tag}`).join("\n")}`
       : "";
 
   return {
@@ -52,8 +56,8 @@ export function parseContextFormatResponse(
     const suggestedTags = Array.isArray(parsed.suggestedTags)
       ? parsed.suggestedTags
           .filter((tag): tag is string => typeof tag === "string")
-          .map((tag) => tag.trim())
-          .filter(Boolean)
+          .map((tag) => normalizeTagToken(tag))
+          .filter((tag) => Boolean(tag) && isValidTag(tag))
       : [];
 
     let sourceLastUpdated: string | null = null;

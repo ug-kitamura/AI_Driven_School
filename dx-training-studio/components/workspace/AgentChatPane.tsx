@@ -86,21 +86,19 @@ function emptyCreateDraftContextState(): CreateDraftContextState {
   };
 }
 
-function readInitialAgentState(): {
+function hydrateAgentStateFromStorage(): {
   storage: AgentChatStorage;
   messages: AgentChatMessage[];
   activeSkillId: string | null;
   sessionId: string;
-} | null {
-  if (typeof window === "undefined") return null;
+} {
   const storage = ensureAgentChatStorage();
   const active = getActiveSession(storage);
-  if (!active) return null;
   return {
     storage,
-    messages: active.messages,
-    activeSkillId: active.activeSkillId,
-    sessionId: active.id,
+    messages: active?.messages ?? [],
+    activeSkillId: active?.activeSkillId ?? null,
+    sessionId: active?.id ?? storage.activeSessionId,
   };
 }
 
@@ -125,24 +123,14 @@ export function AgentChatPane({
   onOverwriteEditor,
   className,
 }: Props) {
-  const [initialAgentState] = useState(readInitialAgentState);
-  const [skills, setSkills] = useState<SkillSummary[]>([]);
-  const [chatStorage, setChatStorage] = useState<AgentChatStorage | null>(
-    () => initialAgentState?.storage ?? null,
-  );
-  const [messages, setMessages] = useState<AgentChatMessage[]>(
-    () => initialAgentState?.messages ?? [],
-  );
+  const [chatStorage, setChatStorage] = useState<AgentChatStorage | null>(null);
+  const [messages, setMessages] = useState<AgentChatMessage[]>([]);
   const [input, setInput] = useState("");
-  const [activeSkillId, setActiveSkillId] = useState<string | null>(
-    () => initialAgentState?.activeSkillId ?? null,
-  );
+  const [activeSkillId, setActiveSkillId] = useState<string | null>(null);
   const [isStreaming, setIsStreaming] = useState(false);
   const [streamingAssistantId, setStreamingAssistantId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [modelLabel, setModelLabel] = useState<string>(() =>
-    readModelLabelFromSettings(),
-  );
+  const [modelLabel, setModelLabel] = useState("");
   const [historyOpen, setHistoryOpen] = useState(false);
   const [deleteSessionTargetId, setDeleteSessionTargetId] = useState<string | null>(null);
   const [copiedMessageId, setCopiedMessageId] = useState<string | null>(null);
@@ -167,7 +155,17 @@ export function AgentChatPane({
   const historyRef = useRef<HTMLDivElement>(null);
   const chatScrollRef = useRef<HTMLDivElement>(null);
   const stickToBottomRef = useRef(true);
-  const sessionSwitchRef = useRef<string | null>(initialAgentState?.sessionId ?? null);
+  const sessionSwitchRef = useRef<string | null>(null);
+
+  const [skills, setSkills] = useState<SkillSummary[]>([]);
+
+  useEffect(() => {
+    const hydrated = hydrateAgentStateFromStorage();
+    setChatStorage(hydrated.storage);
+    setMessages(hydrated.messages);
+    setActiveSkillId(hydrated.activeSkillId);
+    sessionSwitchRef.current = hydrated.sessionId;
+  }, []);
 
   const resetCreateDraftContext = useCallback(() => {
     createDraftContextRef.current = emptyCreateDraftContextState();
@@ -319,23 +317,20 @@ export function AgentChatPane({
         return { contextItemsJson: state.contextItemsJson };
       }
 
-      if (state.searchPerformed) {
-        if (state.searchResults.length > 0) {
-          const selection = parseContextSelection(
-            options.userMessage.content,
-            state.searchResults.length,
-          );
-          if (selection !== null) {
-            const selected = applyContextSelection(state.searchResults, selection);
-            state.selectionConfirmed = true;
-            state.contextItemsJson = JSON.stringify(selected, null, 2);
-            return { contextItemsJson: state.contextItemsJson };
-          }
-          return {
-            contextItemsJson: JSON.stringify(state.searchResults, null, 2),
-          };
+      if (state.searchPerformed && state.searchResults.length > 0) {
+        const selection = parseContextSelection(
+          options.userMessage.content,
+          state.searchResults.length,
+        );
+        if (selection !== null) {
+          const selected = applyContextSelection(state.searchResults, selection);
+          state.selectionConfirmed = true;
+          state.contextItemsJson = JSON.stringify(selected, null, 2);
+          return { contextItemsJson: state.contextItemsJson };
         }
-        return { contextItemsJson: "[]" };
+        return {
+          contextItemsJson: JSON.stringify(state.searchResults, null, 2),
+        };
       }
 
       const query = resolveConfirmedSearchQuery({

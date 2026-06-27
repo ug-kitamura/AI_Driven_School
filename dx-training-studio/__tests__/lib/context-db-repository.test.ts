@@ -79,15 +79,16 @@ describe("context-db repository", () => {
     await expect(repo.listDistinctTags()).resolves.toEqual(["xyz", "環境構築"]);
   });
 
-  it("searches items by title and body", async () => {
-    const sql = async (strings: TemplateStringsArray, ...values: unknown[]) => {
-      expect(values[0]).toBe("%ブランチ%");
+  it("searches items with OR across tokens in one query", async () => {
+    const calls: unknown[][] = [];
+    const sql = async (_strings: TemplateStringsArray, ...values: unknown[]) => {
+      calls.push(values);
       return [
         {
           id: 3,
-          title: "ブランチ戦略",
-          body: "main 運用",
-          tags: ["xyz"],
+          title: "開発環境セットアップ",
+          body: "Git を社内 PC にインストール",
+          tags: ["git"],
           source_url: "https://example.com",
           source_last_updated_at: null,
           created_by: null,
@@ -98,8 +99,10 @@ describe("context-db repository", () => {
       ];
     };
     const repo = createContextRepository(sql as never);
-    const items = await repo.searchItems("ブランチ");
+    const items = await repo.searchItems("Git インストール 環境構築");
+    expect(calls).toHaveLength(1);
+    expect(calls[0]?.[0]).toEqual(["%Git%", "%インストール%", "%環境構築%"]);
     expect(items).toHaveLength(1);
-    expect(items[0]?.title).toBe("ブランチ戦略");
+    expect(items[0]?.title).toBe("開発環境セットアップ");
   });
 });

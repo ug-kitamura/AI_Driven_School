@@ -13,6 +13,22 @@ describe("context-draft-selection", () => {
     );
   });
 
+  it("strips trailing explanation after em dash", () => {
+    expect(
+      parseSearchQueryFromAssistant(
+        "検索キーワード: Git インストール 環境構築 — このキーワードで社内コンテキストを検索します。",
+      ),
+    ).toBe("Git インストール 環境構築");
+  });
+
+  it("strips trailing explanation after spaced hyphen", () => {
+    expect(
+      parseSearchQueryFromAssistant(
+        "検索キーワード: Git インストール - このキーワードで社内コンテキストを検索します。",
+      ),
+    ).toBe("Git インストール");
+  });
+
   it("resolves search query when user acknowledges", () => {
     expect(
       resolveConfirmedSearchQuery({
@@ -25,6 +41,44 @@ describe("context-draft-selection", () => {
         ],
       }),
     ).toBe("環境構築");
+  });
+
+  it("does not treat initial user message as search query", () => {
+    expect(
+      resolveConfirmedSearchQuery({
+        userMessage: "原稿作って",
+        history: [],
+      }),
+    ).toBeNull();
+  });
+
+  it("resolves keyword revision after assistant proposal", () => {
+    expect(
+      resolveConfirmedSearchQuery({
+        userMessage: "Git インストール",
+        history: [
+          {
+            role: "assistant",
+            content:
+              "検索キーワード: Git インストール 環境構築 — このキーワードで社内コンテキストを検索します。",
+          },
+        ],
+      }),
+    ).toBe("Git インストール");
+  });
+
+  it("resolves OK as acknowledgement", () => {
+    expect(
+      resolveConfirmedSearchQuery({
+        userMessage: "OK",
+        history: [
+          {
+            role: "assistant",
+            content: "検索キーワード: Git インストール",
+          },
+        ],
+      }),
+    ).toBe("Git インストール");
   });
 
   it("parses comma-separated selection", () => {

@@ -191,7 +191,7 @@ export function LessonTagsInput({
             if (input.trim()) commitToken(input);
             window.setTimeout(() => setSuggestOpen(false), 120);
           }}
-          className="min-w-[7rem] flex-1 border-0 bg-transparent py-0.5 text-sm outline-none"
+          className="min-w-[7rem] flex-1 border-0 bg-transparent py-0.5 text-sm outline-none placeholder:text-muted-foreground"
           placeholder={tags.length === 0 ? "スペースで区切って追加" : ""}
           aria-invalid={ariaInvalid || Boolean(inlineError)}
           aria-describedby={ariaDescribedBy}

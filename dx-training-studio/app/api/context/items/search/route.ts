@@ -1,10 +1,11 @@
 import { dbErrorResponse } from "@/lib/context-db/resolve";
 import { getContextRepository } from "@/lib/context-db/repository";
+import { normalizeSearchQuery } from "@/lib/context-search";
 
 export async function GET(req: Request) {
   try {
     const { searchParams } = new URL(req.url);
-    const q = searchParams.get("q")?.trim();
+    const q = normalizeSearchQuery(searchParams.get("q") ?? "");
     if (!q) {
       return Response.json({ error: "q パラメータが必要です" }, { status: 400 });
     }

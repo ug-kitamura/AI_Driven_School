@@ -54,10 +54,7 @@ export function parseContextFormatResponse(
           .filter((tag): tag is string => typeof tag === "string")
           .map((tag) => tag.trim())
           .filter(Boolean)
-          .slice(0, 3)
       : [];
-
-    if (suggestedTags.length === 0) return null;
 
     let sourceLastUpdated: string | null = null;
     if (typeof parsed.source_last_updated_at === "string") {

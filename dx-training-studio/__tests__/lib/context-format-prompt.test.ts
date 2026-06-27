@@ -26,6 +26,18 @@ describe("context-format-prompt", () => {
     });
   });
 
+  it("parses JSON response without tags", () => {
+    const parsed = parseContextFormatResponse(
+      '{"title":"環境構築手順","body":"# 見出し\\n本文","suggestedTags":[],"source_last_updated_at":null}',
+    );
+    expect(parsed).toEqual({
+      title: "環境構築手順",
+      body: "# 見出し\n本文",
+      suggestedTags: [],
+      source_last_updated_at: null,
+    });
+  });
+
   it("returns null for invalid response", () => {
     expect(parseContextFormatResponse("not-json")).toBeNull();
   });

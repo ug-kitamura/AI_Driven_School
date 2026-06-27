@@ -105,8 +105,8 @@ export function ImageLightbox({
           </DialogTitle>
         </DialogHeader>
 
-        <div className="flex w-full justify-center">
-          <div className="relative inline-block max-w-full overflow-hidden rounded border border-border bg-muted">
+        <div className="relative flex w-full justify-center">
+          <div className="relative max-w-full rounded border border-border bg-muted">
             {hasPrev ? (
               <Button
                 type="button"

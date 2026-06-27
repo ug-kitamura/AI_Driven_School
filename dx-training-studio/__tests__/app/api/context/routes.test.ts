@@ -67,7 +67,7 @@ describe("GET /api/context/items", () => {
     expect(response.status).toBe(400);
   });
 
-  it("returns 400 when tags are empty", async () => {
+  it("accepts empty tags on create", async () => {
     const { POST } = await import("@/app/api/context/items/route");
     const response = await POST(
       new Request("http://localhost/api/context/items", {
@@ -81,7 +81,7 @@ describe("GET /api/context/items", () => {
         }),
       }),
     );
-    expect(response.status).toBe(400);
+    expect(response.status).toBe(201);
   });
 });
 

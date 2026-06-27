@@ -12,7 +12,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { ContextTagsInput } from "@/components/workspace/ContextTagsInput";
+import { LessonTagsInput } from "@/components/workspace/LessonTagsInput";
 import {
   META_DIALOG_CONTROL,
   META_DIALOG_FORM,
@@ -71,7 +71,6 @@ export function CompanyContextDialog({ open, onOpenChange, onOpenSettings }: Pro
   const [editingId, setEditingId] = useState<number | null>(null);
   const [draft, setDraft] = useState<FormDraft>(EMPTY_DRAFT);
   const [sourceUrlError, setSourceUrlError] = useState<string | null>(null);
-  const [tagsError, setTagsError] = useState<string | null>(null);
   const [keywordQuery, setKeywordQuery] = useState("");
   const flushTagsRef = useRef<(() => string[]) | null>(null);
 
@@ -159,7 +158,6 @@ export function CompanyContextDialog({ open, onOpenChange, onOpenSettings }: Pro
     setEditingId(null);
     setDraft(EMPTY_DRAFT);
     setSourceUrlError(null);
-    setTagsError(null);
     setMode("form");
   };
 
@@ -167,7 +165,6 @@ export function CompanyContextDialog({ open, onOpenChange, onOpenSettings }: Pro
     setEditingId(item.id);
     setDraft(itemToDraft(item));
     setSourceUrlError(null);
-    setTagsError(null);
     setMode("form");
   };
 
@@ -242,19 +239,10 @@ export function CompanyContextDialog({ open, onOpenChange, onOpenSettings }: Pro
       setError("タイトルと本文は必須です");
       return;
     }
-    if (tags.length === 0) {
-      setTagsError("タグは 1 個以上必要です");
-      return;
-    }
-    if (tags.length > 3) {
-      setTagsError("タグは 3 個以内です");
-      return;
-    }
 
     setSaving(true);
     setError(null);
     setSourceUrlError(null);
-    setTagsError(null);
     try {
       const payload = {
         title: draft.title.trim(),
@@ -468,22 +456,16 @@ export function CompanyContextDialog({ open, onOpenChange, onOpenSettings }: Pro
             </MetaDialogField>
 
             <MetaDialogField>
-              <Label id="context-tags-label">タグ（1〜3 個）</Label>
-              <ContextTagsInput
+              <Label id="context-tags-label">タグ</Label>
+              <LessonTagsInput
                 id="context-tags"
                 tags={draft.tags}
                 suggestions={tagSuggestions}
-                onChange={(tags) => {
-                  setTagsError(null);
-                  setDraft((prev) => ({ ...prev, tags }));
-                }}
+                onChange={(tags) => setDraft((prev) => ({ ...prev, tags }))}
                 onFlushReady={(flush) => {
                   flushTagsRef.current = flush;
                 }}
               />
-              {tagsError ? (
-                <p className="text-xs text-destructive">{tagsError}</p>
-              ) : null}
             </MetaDialogField>
 
             <MetaDialogField>
@@ -508,7 +490,7 @@ export function CompanyContextDialog({ open, onOpenChange, onOpenSettings }: Pro
               <Input
                 id="context-source-updated"
                 type="date"
-                className={META_DIALOG_CONTROL}
+                className={cn(META_DIALOG_CONTROL, "context-date-input")}
                 value={draft.source_last_updated_at}
                 onChange={(event) =>
                   setDraft((prev) => ({
@@ -532,7 +514,6 @@ export function CompanyContextDialog({ open, onOpenChange, onOpenSettings }: Pro
                   setEditingId(null);
                   setDraft(EMPTY_DRAFT);
                   setSourceUrlError(null);
-                  setTagsError(null);
                   setError(null);
                 }}
               >

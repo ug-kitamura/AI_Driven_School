@@ -409,6 +409,10 @@
     @apply my-4 border-l-4 border-primary pl-4 text-muted-foreground;
   }
 
+  .lesson-preview img {
+    @apply block h-auto max-w-full;
+  }
+
   .lesson-preview hr {
     @apply my-6 border-border;
   }
@@ -599,3 +603,37 @@ html.dark .lesson-content-editor .cm-foldGutter.lesson-fold-gutter span.lesson-f
 }
 
 /* 編集ビュー テキスト選択: lesson-content-editor-setup.ts（LESSON_EDITOR_SELECTION_*）で制御 */
+
+/* 社内コンテキスト: date 入力のプレースホルダー見た目 */
+input.context-date-input[type="date"]::-webkit-datetime-edit {
+  padding: 0;
+}
+
+input.context-date-input[type="date"]::-webkit-datetime-edit-fields-wrapper {
+  padding: 0;
+}
+
+input.context-date-input[type="date"]::-webkit-datetime-edit-text {
+  color: var(--muted-foreground);
+  padding: 0 0.125rem;
+}
+
+input.context-date-input[type="date"]::-webkit-datetime-edit-month-field,
+input.context-date-input[type="date"]::-webkit-datetime-edit-day-field,
+input.context-date-input[type="date"]::-webkit-datetime-edit-year-field {
+  color: var(--muted-foreground);
+}
+
+input.context-date-input[type="date"]:focus::-webkit-datetime-edit-text,
+input.context-date-input[type="date"]:focus::-webkit-datetime-edit-month-field,
+input.context-date-input[type="date"]:focus::-webkit-datetime-edit-day-field,
+input.context-date-input[type="date"]:focus::-webkit-datetime-edit-year-field {
+  color: var(--foreground);
+}
+
+input.context-date-input[type="date"]:not([value=""])::-webkit-datetime-edit-text,
+input.context-date-input[type="date"]:not([value=""])::-webkit-datetime-edit-month-field,
+input.context-date-input[type="date"]:not([value=""])::-webkit-datetime-edit-day-field,
+input.context-date-input[type="date"]:not([value=""])::-webkit-datetime-edit-year-field {
+  color: var(--foreground);
+}

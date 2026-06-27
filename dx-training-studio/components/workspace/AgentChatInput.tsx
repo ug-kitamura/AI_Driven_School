@@ -311,7 +311,7 @@ export function AgentChatInput({
 
     if (event.key === "Enter" && !event.shiftKey) {
       event.preventDefault();
-      submitMessage();
+      if (!isLoading) submitMessage();
     }
   };
 
@@ -394,7 +394,7 @@ export function AgentChatInput({
           onKeyDown={handleKeyDown}
           rows={3}
           placeholder="メッセージを入力（/ でスキル、@ でファイル参照）"
-          disabled={disabled || isLoading}
+          disabled={disabled}
           className="w-full resize-y rounded-lg border border-border bg-white px-3 pb-10 pt-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary dark:bg-muted"
         />
 

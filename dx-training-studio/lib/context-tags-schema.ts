@@ -1,6 +1,15 @@
 import { z } from "zod";
+import { isValidTag } from "@/lib/lesson-tags";
 
 export const contextTagsSchema = z
   .array(z.string().trim().min(1))
-  .min(1, "tags は 1 個以上必要です")
-  .max(3, "tags は 3 個以内です");
+  .superRefine((tags, ctx) => {
+    for (const tag of tags) {
+      if (!isValidTag(tag)) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: `無効なタグ: ${tag}`,
+        });
+      }
+    }
+  });

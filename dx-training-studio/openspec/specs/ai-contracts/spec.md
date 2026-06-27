@@ -15,12 +15,18 @@
 
 ### Requirement: 社内コンテキスト整形契約
 
-`contracts/context-format-contract.md` を作成し、AI 整形 API 向けの規則を自己完結で記載しなければならない（SHALL）。少なくとも次を含めなければならない（SHALL）: 原文にない事実・手順・URL を追加しないこと、Markdown 出力、タグ 1〜3 個提案、既存タグリストが渡された場合は既存タグを優先すること。
+`contracts/context-format-contract.md` を作成し、AI 整形 API 向けの規則を自己完結で記載しなければならない（SHALL）。少なくとも次を含めなければならない（SHALL）: 原文にない事実・手順・URL を追加しないこと、Markdown 出力、**title** の生成、**tags 1〜3 個（必須）** の提案、原文から取得できる場合のみ **source_last_updated_at**（`YYYY-MM-DD`）の抽出、既存タグリストが渡された場合は既存タグを優先すること。出力 JSON スキーマは `{"title":"...","body":"...","suggestedTags":["..."],"source_last_updated_at":"YYYY-MM-DD"|null}` でなければならない（SHALL）。
 
 #### Scenario: 契約が創作禁止を規定する
 
 - **WHEN** 開発者が `contracts/context-format-contract.md` を読む
 - **THEN** 原文にない内容の追加禁止が明記されている
+
+#### Scenario: 契約が拡張 JSON スキーマを規定する
+
+- **WHEN** 開発者が契約の出力形式セクションを読む
+- **THEN** `title` と `source_last_updated_at` が含まれる
+- **AND** `suggestedTags` は 1〜3 個必須と明記されている
 
 ### Requirement: 画像 slot 契約の移行と自己完結化
 

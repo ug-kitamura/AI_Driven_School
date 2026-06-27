@@ -49,3 +49,24 @@ Neon PostgreSQL 上の `context_items` テーブル、接続解決（`DATABASE_U
 - **WHEN** 開発者が `.env.local` に `DATABASE_URL` を設定し `npm run dev` で起動する
 - **THEN** リポジトリ層が Neon に接続できる
 
+### Requirement: title と body の ILIKE 検索
+
+`lib/context-db/repository.ts` は `searchItems(query: string)` を提供し、`title ILIKE %query% OR body ILIKE %query%` で部分一致検索しなければならない（SHALL）。結果は `updated_at DESC, id DESC` で並べなければならない（SHALL）。`query` が空文字の場合は空配列を返さなければならない（SHALL）。
+
+#### Scenario: title に一致
+
+- **WHEN** アイテム A の `title` が「環境構築手順」である
+- **AND** `searchItems("環境")` が呼ばれる
+- **THEN** A が返される
+
+#### Scenario: body に一致
+
+- **WHEN** アイテム B の `body` に「ブランチ戦略」が含まれる
+- **AND** `searchItems("ブランチ")` が呼ばれる
+- **THEN** B が返される
+
+#### Scenario: 空クエリ
+
+- **WHEN** `searchItems("")` が呼ばれる
+- **THEN** 空配列が返される
+

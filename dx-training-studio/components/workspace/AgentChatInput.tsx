@@ -432,21 +432,3 @@ export function AgentChatInput({
     </div>
   );
 }
-
-export function renderUserMessageContent(content: string) {
-  const parts = content.split(/(@contents\/[^\s@]+)/g);
-  return parts.map((part, index) => {
-    if (part.startsWith("@contents/")) {
-      const fileName = part.split("/").pop() ?? part;
-      return (
-        <span
-          key={`${part}-${index}`}
-          className="mx-0.5 inline-flex rounded border border-border bg-background px-1.5 py-0.5 text-xs text-foreground"
-        >
-          {fileName}
-        </span>
-      );
-    }
-    return <span key={`text-${index}`}>{part}</span>;
-  });
-}

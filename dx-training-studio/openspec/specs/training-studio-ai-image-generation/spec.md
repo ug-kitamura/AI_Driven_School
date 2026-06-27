@@ -59,20 +59,21 @@ AI タブは UP タブと同型のレイアウトとし、上部に **実線枠*
 
 ### Requirement: visual-explainers グラフィックで PNG 化する
 
-生成は Claude が **図 1 ブロック** 分の HTML 断片（`#capture-root` 内）を出力し、Playwright で PNG 化して `images/ai/<filename>` に保存しなければならない（SHALL）。デザインは creating-visual-explainers の **グラフィック語彙**（構造パターン 8 種・体験再現 5 種）および model-answer.html の **図コンポーネント**（`custom.*` 配色・Lucide・surface カード）に従わなければならない（SHALL）。viewport 幅 768・`deviceScaleFactor` 2・要素クリップを既定とする（SHALL）。背景はライトとし、アプリのダークテーマに依存してはならない（SHALL）。
+生成は Claude が **図 1 ブロック** 分の HTML 断片（`#capture-root` 内）を出力し、Playwright で PNG 化して `images/ai/<filename>` に保存しなければならない（SHALL）。デザイン品質規則の SSoT は `contracts/image-slot-contract.md` の「生成品質」セクションとし、リポジトリ外のスキル・HTML ファイルへの参照を用いてはならない（MUST NOT）。規則には構造図 + UI mock のグラフィック語彙、`custom.*` 配色・Lucide・surface カード、図内テキスト可・図外説明段落不可を含めなければならない（SHALL）。viewport 幅 768・`deviceScaleFactor` 2・要素クリップを既定とする（SHALL）。背景はライトとし、アプリのダークテーマに依存してはならない（SHALL）。
 
-テキストは **図コンポーネント内**（ステップラベル・カード内短説明・UI mock 内ラベル等）に限り、model-answer の 4 ステップフロー例と同程度まで許容する（SHALL）。図コンポーネント **外** の導入段落・まとめ・キャプションを出力してはならない（MUST NOT）。任意で図全体のタイトル 1 行（h3 等）を含めてよい（MAY）。
+テキストは **図コンポーネント内**（ステップラベル・カード内短説明・UI mock 内ラベル等）に限り、4 ステップフロー例と同程度まで許容する（SHALL）。図コンポーネント **外** の導入段落・まとめ・キャプションを出力してはならない（MUST NOT）。任意で図全体のタイトル 1 行（h3 等）を含めてよい（MAY）。
 
 #### Scenario: 生成成功で ai staging に PNG ができる
 
 - **WHEN** ユーザーがプロンプトで生成を実行する
 - **AND** Claude と Playwright が成功する
-- **THEN** `images/ai/<filename>` に PNG が存在する
+- **THEN** `images/ai/<filename>.png` が staging に作成される
 
-#### Scenario: 図外説明を含まない
+#### Scenario: 契約に従った HTML が生成される
 
-- **WHEN** 生成 HTML が評価される
-- **THEN** surface カード 1 枚（または同等の単一 diagram ブロック）外に説明段落がない
+- **WHEN** Claude が図解 HTML を生成する
+- **THEN** 出力は単一 diagram ブロック内に収まる
+- **AND** 図コンポーネント外に説明段落を含まない
 
 ### Requirement: 生成時に AI がスラッグと alt を決定する
 

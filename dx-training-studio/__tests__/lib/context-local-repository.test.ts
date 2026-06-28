@@ -3,11 +3,7 @@ import os from "node:os";
 import path from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import { createContextLocalRepository } from "@/lib/context-local/repository";
-import {
-  getItemPath,
-  getMetaPath,
-  readMeta,
-} from "@/lib/context-local/store";
+import { getStorePath, readStore } from "@/lib/context-local/store";
 
 describe("context-local repository", () => {
   let tempDir: string;
@@ -33,10 +29,13 @@ describe("context-local repository", () => {
     });
 
     expect(item.id).toBe(1);
-    await expect(readMeta(tempDir)).resolves.toEqual({ nextId: 2 });
-    await expect(
-      fs.readFile(getItemPath(tempDir, 1), "utf8"),
-    ).resolves.toContain("環境構築");
+    await expect(readStore(tempDir)).resolves.toEqual({
+      nextId: 2,
+      items: [item],
+    });
+    await expect(fs.readFile(getStorePath(tempDir), "utf8")).resolves.toContain(
+      "環境構築",
+    );
   });
 
   it("lists items with OR tag filter", async () => {
@@ -58,7 +57,7 @@ describe("context-local repository", () => {
     expect(items).toHaveLength(2);
   });
 
-  it("updates item without renaming file", async () => {
+  it("updates item in place", async () => {
     const repo = await createTempRepo();
     const created = await repo.createItem({
       title: "旧タイトル",
@@ -69,10 +68,11 @@ describe("context-local repository", () => {
 
     const updated = await repo.updateItem(created.id, { title: "新タイトル" });
     expect(updated?.title).toBe("新タイトル");
-    await expect(fs.access(getItemPath(tempDir, created.id))).resolves.toBeUndefined();
+    const store = await readStore(tempDir);
+    expect(store.items[0]?.title).toBe("新タイトル");
   });
 
-  it("deletes item file", async () => {
+  it("deletes item from store", async () => {
     const repo = await createTempRepo();
     const created = await repo.createItem({
       title: "削除対象",
@@ -82,7 +82,10 @@ describe("context-local repository", () => {
     });
 
     await expect(repo.deleteItem(created.id)).resolves.toBe(true);
-    await expect(fs.access(getItemPath(tempDir, created.id))).rejects.toThrow();
+    await expect(readStore(tempDir)).resolves.toEqual({
+      nextId: 2,
+      items: [],
+    });
   });
 
   it("searches title, body, and tags", async () => {
@@ -121,9 +124,43 @@ describe("context-local repository", () => {
     await expect(repo.listDistinctTags()).resolves.toEqual(["xyz", "環境構築"]);
   });
 
-  it("initializes meta file path under local-db", async () => {
+  it("initializes single store file under local-db", async () => {
     const repo = await createTempRepo();
     await repo.listItems();
-    await expect(fs.access(getMetaPath(tempDir))).resolves.toBeUndefined();
+    await expect(fs.access(getStorePath(tempDir))).resolves.toBeUndefined();
+  });
+
+  it("migrates legacy split files into single store", async () => {
+    tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "context-local-"));
+    const localDb = path.join(tempDir, "local-db");
+    const itemsDir = path.join(localDb, "context-items");
+    await fs.mkdir(itemsDir, { recursive: true });
+    await fs.writeFile(
+      path.join(localDb, "context-meta.json"),
+      JSON.stringify({ nextId: 2 }),
+      "utf8",
+    );
+    await fs.writeFile(
+      path.join(itemsDir, "1.json"),
+      JSON.stringify({
+        id: 1,
+        title: "legacy",
+        body: "body",
+        tags: ["git"],
+        source_url: "https://example.com",
+        source_last_updated_at: null,
+        created_by: null,
+        updated_by: null,
+        created_at: "2024-01-01T00:00:00.000Z",
+        updated_at: "2024-01-01T00:00:00.000Z",
+      }),
+      "utf8",
+    );
+
+    const repo = createContextLocalRepository(tempDir);
+    const items = await repo.listItems();
+    expect(items).toHaveLength(1);
+    expect(items[0]?.title).toBe("legacy");
+    await expect(fs.access(getStorePath(tempDir))).resolves.toBeUndefined();
   });
 });

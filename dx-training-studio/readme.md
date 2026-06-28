@@ -57,10 +57,10 @@ cp .env.example .env.local
 | モード | 保存先 | git |
 |--------|--------|-----|
 | **データベース**（既定） | Vercel Neon `context_items` | DB 上（`DATABASE_URL` 要） |
-| **ローカル** | `local-db/context-items/{id}.json` | `local-db/*` は git 除外（`.gitkeep` のみ追跡） |
+| **ローカル** | `local-db/context-items.json` | `local-db/*` は git 除外（`.gitkeep` のみ追跡） |
 
-- ID 採番は `local-db/context-meta.json` の `nextId`
-- 初回アクセス時に store を自動作成（空の状態から開始）
+- 1 ファイルに `{ "nextId": number, "items": ContextItem[] }` 形式で保存（Ctrl+F 検索しやすい）
+- 初回アクセス時に空 store を自動作成
 - データベースモード保存時のみ Neon 接続を検証（`DATABASE_URL` 未設定時は保存不可）
 - **Neon ↔ local の同期は行わない**（画像の管理と同様、モード切替は保存先の切替のみ）
 - ローカルモードでは JSON をエディタで直接編集可能（100 件未満想定）

@@ -1,7 +1,10 @@
 import { z } from "zod";
 import { contextTagsSchema } from "@/lib/context-tags-schema";
 import { dbErrorResponse } from "@/lib/context-db/resolve";
-import { getContextRepository } from "@/lib/context-db/repository";
+import {
+  getContextRepository,
+  parseContextModeFromRequest,
+} from "@/lib/context-resolve";
 
 const createSchema = z.object({
   title: z.string().trim().min(1),
@@ -24,7 +27,8 @@ export async function GET(req: Request) {
   try {
     const { searchParams } = new URL(req.url);
     const tags = parseTagsParam(searchParams.get("tags"));
-    const repo = getContextRepository();
+    const contextMode = parseContextModeFromRequest(req);
+    const repo = getContextRepository(contextMode);
     const items = await repo.listItems(tags);
     return Response.json({ items });
   } catch (error) {
@@ -47,7 +51,7 @@ export async function POST(req: Request) {
       return Response.json({ error: "リクエストが不正です" }, { status: 400 });
     }
 
-    const repo = getContextRepository();
+    const repo = getContextRepository(parseContextModeFromRequest(req));
     const item = await repo.createItem(parsed);
     return Response.json({ item }, { status: 201 });
   } catch (error) {

@@ -213,3 +213,40 @@ Web タブの検索 API 呼び出し時、クライアントは `x-pixabay-api-k
 - **AND** AI タブで生成を実行する
 - **THEN** リクエストに `x-ai-model: claude-sonnet-4-6` が含まれる
 
+### Requirement: 社内コンテキストの管理モードを設定できる
+
+設定ダイアログは **ストレージ** セクション内に **画像の管理** および **社内コンテキストの管理** の 2 サブセクションを配置しなければならない（SHALL）。**社内コンテキストの管理** は **ローカル** / **データベース** の 2 択を提供し、選択値を `dx-training-studio-settings` の **`contextStorage`**（`local` | `database`）として永続化しなければならない（SHALL）。未設定時の既定値は **データベース**（`database`）としなければならない（SHALL）。
+
+**データベース** 選択時、保存前に `GET /api/context/db-check` で接続を検証し、失敗時は **「データベースに接続できません」** を表示して保存を拒否しなければならない（SHALL）。**ローカル** 選択時は `DATABASE_URL` の接続チェックを行ってはならない（MUST NOT）。
+
+#### Scenario: 既定はデータベース
+
+- **WHEN** ユーザーが初めて設定ダイアログを開く
+- **AND** `contextStorage` が未保存である
+- **THEN** 社内コンテキストの管理はデータベースが選択されている
+
+#### Scenario: ローカルに切り替えて保存できる
+
+- **WHEN** ユーザーが社内コンテキストの管理をローカルに変更して保存する
+- **THEN** `contextStorage` が `local` として永続化される
+- **AND** 以降の context API 呼び出しは `contextMode=local` を用いる
+
+#### Scenario: データベース保存時に接続確認する
+
+- **WHEN** ユーザーが社内コンテキストの管理をデータベースにして保存する
+- **AND** Neon 接続が成功する
+- **THEN** `contextStorage` が `database` として永続化される
+
+#### Scenario: DATABASE_URL なしでデータベース保存を拒否する
+
+- **WHEN** ユーザーが社内コンテキストの管理をデータベースにして保存する
+- **AND** `DATABASE_URL` が未設定である
+- **THEN** 「データベースに接続できません」が表示される
+- **AND** 設定は保存されない
+
+#### Scenario: ローカル保存時は db-check 不要
+
+- **WHEN** ユーザーが社内コンテキストの管理をローカルにして保存する
+- **AND** `DATABASE_URL` が未設定である
+- **THEN** 設定は正常に保存される
+

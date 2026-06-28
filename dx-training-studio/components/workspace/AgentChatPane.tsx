@@ -31,6 +31,7 @@ import {
 } from "@/lib/context-draft-selection";
 import { extractMarkdownBlock } from "@/lib/extract-markdown-block";
 import type { ContextItem } from "@/lib/context-db/types";
+import { withContextMode } from "@/lib/context-api-client";
 import { consumeAnthropicStream } from "@/lib/agent/stream-client";
 import {
   addSession,
@@ -346,7 +347,9 @@ export function AgentChatPane({
       }
 
       const res = await fetch(
-        `/api/context/items/search?q=${encodeURIComponent(query)}`,
+        withContextMode(
+          `/api/context/items/search?q=${encodeURIComponent(query)}`,
+        ),
       );
       if (!res.ok) {
         let message = "社内コンテキストの取得に失敗しました";

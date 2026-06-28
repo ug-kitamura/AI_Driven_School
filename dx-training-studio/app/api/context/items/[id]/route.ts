@@ -1,7 +1,10 @@
 import { z } from "zod";
 import { contextTagsSchema } from "@/lib/context-tags-schema";
 import { dbErrorResponse } from "@/lib/context-db/resolve";
-import { getContextRepository } from "@/lib/context-db/repository";
+import {
+  getContextRepository,
+  parseContextModeFromRequest,
+} from "@/lib/context-resolve";
 
 const updateSchema = z
   .object({
@@ -30,7 +33,7 @@ export async function GET(_req: Request, context: RouteContext) {
       return Response.json({ error: "ID が不正です" }, { status: 400 });
     }
 
-    const repo = getContextRepository();
+    const repo = getContextRepository(parseContextModeFromRequest(_req));
     const item = await repo.getItem(id);
     if (!item) {
       return Response.json({ error: "アイテムが見つかりません" }, { status: 404 });
@@ -62,7 +65,7 @@ export async function PATCH(req: Request, context: RouteContext) {
       return Response.json({ error: "リクエストが不正です" }, { status: 400 });
     }
 
-    const repo = getContextRepository();
+    const repo = getContextRepository(parseContextModeFromRequest(req));
     const item = await repo.updateItem(id, parsed);
     if (!item) {
       return Response.json({ error: "アイテムが見つかりません" }, { status: 404 });
@@ -86,7 +89,7 @@ export async function DELETE(_req: Request, context: RouteContext) {
       return Response.json({ error: "ID が不正です" }, { status: 400 });
     }
 
-    const repo = getContextRepository();
+    const repo = getContextRepository(parseContextModeFromRequest(_req));
     const deleted = await repo.deleteItem(id);
     if (!deleted) {
       return Response.json({ error: "アイテムが見つかりません" }, { status: 404 });

@@ -23,6 +23,7 @@ import { WorkspaceTooltip } from "@/components/workspace/WorkspaceTooltip";
 import { aiRequestHeaders } from "@/components/workspace/image-manager/image-manager-utils";
 import { AI_KEY_ERROR } from "@/components/workspace/image-manager/image-manager-constants";
 import { isContextItemStale } from "@/lib/context-freshness";
+import { withContextMode } from "@/lib/context-api-client";
 import { loadWorkspaceSettings } from "@/lib/workspace-settings";
 import type { ContextItem } from "@/lib/context-db/types";
 import { cn } from "@/lib/utils";
@@ -79,8 +80,8 @@ export function CompanyContextDialog({ open, onOpenChange, onOpenSettings }: Pro
     setError(null);
     try {
       const [itemsRes, tagsRes] = await Promise.all([
-        fetch("/api/context/items"),
-        fetch("/api/context/tags"),
+        fetch(withContextMode("/api/context/items")),
+        fetch(withContextMode("/api/context/tags")),
       ]);
 
       if (!itemsRes.ok) {
@@ -172,7 +173,9 @@ export function CompanyContextDialog({ open, onOpenChange, onOpenSettings }: Pro
     if (!window.confirm(`「${item.title}」を削除しますか？`)) return;
     setError(null);
     try {
-      const res = await fetch(`/api/context/items/${item.id}`, { method: "DELETE" });
+      const res = await fetch(withContextMode(`/api/context/items/${item.id}`), {
+        method: "DELETE",
+      });
       if (!res.ok) {
         const data = (await res.json()) as { error?: string };
         throw new Error(data.error ?? "削除に失敗しました");
@@ -253,7 +256,9 @@ export function CompanyContextDialog({ open, onOpenChange, onOpenSettings }: Pro
       };
 
       const res = await fetch(
-        editingId ? `/api/context/items/${editingId}` : "/api/context/items",
+        withContextMode(
+          editingId ? `/api/context/items/${editingId}` : "/api/context/items",
+        ),
         {
           method: editingId ? "PATCH" : "POST",
           headers: { "content-type": "application/json" },

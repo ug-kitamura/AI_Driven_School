@@ -1,9 +1,12 @@
 import { dbErrorResponse } from "@/lib/context-db/resolve";
-import { getContextRepository } from "@/lib/context-db/repository";
+import {
+  getContextRepository,
+  parseContextModeFromRequest,
+} from "@/lib/context-resolve";
 
-export async function GET() {
+export async function GET(req: Request) {
   try {
-    const repo = getContextRepository();
+    const repo = getContextRepository(parseContextModeFromRequest(req));
     const tags = await repo.listDistinctTags();
     return Response.json({ tags });
   } catch (error) {

@@ -30,7 +30,7 @@ AI タブで Tailwind 図解を生成する場合は、初回のみ `npx playwri
 | **Pane 3** | マークダウンエディタ（編集 / プレビュー / Git 差分の 3 モード） |
 | **Pane 4** | 画像アセットマネージャー（Used / Upload / AI / Web タブ） |
 
-GlobalHeader に **DXトレーニング曼陀羅** と **設定（歯車）** がある。設定では AI API キー、Pixabay API キー、**画像の管理（ローカル / ストレージ）**、テーマ（ライト／ダーク／システム）、ペイン既定幅を変更できる。
+GlobalHeader に **DXトレーニング曼陀羅** と **設定（歯車）** がある。設定では AI API キー、Pixabay API キー、**画像の管理（ローカル / ストレージ）**、**社内コンテキストの管理（ローカル / データベース）**、テーマ（ライト／ダーク／システム）、ペイン既定幅を変更できる。
 
 ### API キー（`.env.local`）
 
@@ -51,6 +51,19 @@ cp .env.example .env.local
 - staging（`images/{uploaded,ai,web}/`）は **常にローカル**
 - ストレージモードでトークン未設定のときは「ストレージに接続できません」と表示
 - 既存のローカル正本を Blob へ上げる: `npm run upload-images-to-blob`（`--dry-run` 可）
+
+### 社内コンテキスト（⚙ 社内コンテキストの管理）
+
+| モード | 保存先 | git |
+|--------|--------|-----|
+| **データベース**（既定） | Vercel Neon `context_items` | DB 上（`DATABASE_URL` 要） |
+| **ローカル** | `local-db/context-items.json` | `local-db/*` は git 除外（`.gitkeep` のみ追跡） |
+
+- 1 ファイルに `{ "nextId": number, "items": ContextItem[] }` 形式で保存（Ctrl+F 検索しやすい）
+- 初回アクセス時に空 store を自動作成
+- データベースモード保存時のみ Neon 接続を検証（`DATABASE_URL` 未設定時は保存不可）
+- **Neon ↔ local の同期は行わない**（画像の管理と同様、モード切替は保存先の切替のみ）
+- ローカルモードでは JSON をエディタで直接編集可能（100 件未満想定）
 
 ### Pane 3 のモード
 

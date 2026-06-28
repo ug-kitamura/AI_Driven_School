@@ -14,16 +14,12 @@ node_modules/
 *.tsbuildinfo
 next-env.d.ts
 
-# env (secrets)
+# secret env
 .env.local
-.env*.local
 
-# images
-/images/*
-/images/uploaded/
-/images/ai/
-/images/web/
-/images/trash/
+# local storage
+images/
+local-db/
 
 # OpenSpec
 .claude/commands/opsx/

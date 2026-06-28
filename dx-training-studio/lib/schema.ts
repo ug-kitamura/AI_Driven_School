@@ -63,6 +63,9 @@ export type ImageSource = z.infer<typeof imageSourceSchema>;
 export const imageStorageModeSchema = z.enum(["local", "storage"]);
 export type ImageStorageMode = z.infer<typeof imageStorageModeSchema>;
 
+export const contextStorageModeSchema = z.enum(["local", "database"]);
+export type ContextStorageMode = z.infer<typeof contextStorageModeSchema>;
+
 export const imageAssetSchema = z.object({
   path: z.string(),
   name: z.string(),

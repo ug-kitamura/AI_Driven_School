@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
-  createContextRepository,
+  createContextDbRepository,
   mapContextItemRow,
 } from "@/lib/context-db/repository";
 import type { ContextItemRow } from "@/lib/context-db/types";
@@ -66,7 +66,7 @@ describe("context-db repository", () => {
       ];
     };
 
-    const repo = createContextRepository(sql as never);
+    const repo = createContextDbRepository(sql as never);
     const items = await repo.listItems(["環境構築", "セキュリティ"]);
 
     expect(items).toHaveLength(2);
@@ -75,7 +75,7 @@ describe("context-db repository", () => {
 
   it("returns distinct tags", async () => {
     const sql = async () => [{ tag: "xyz" }, { tag: "環境構築" }];
-    const repo = createContextRepository(sql as never);
+    const repo = createContextDbRepository(sql as never);
     await expect(repo.listDistinctTags()).resolves.toEqual(["xyz", "環境構築"]);
   });
 
@@ -98,7 +98,7 @@ describe("context-db repository", () => {
         },
       ];
     };
-    const repo = createContextRepository(sql as never);
+    const repo = createContextDbRepository(sql as never);
     const items = await repo.searchItems("Git インストール 環境構築");
     expect(calls).toHaveLength(1);
     expect(calls[0]?.[0]).toEqual(["%Git%", "%インストール%", "%環境構築%"]);

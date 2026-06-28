@@ -1,28 +1,93 @@
+/**
+ * create-draft のクライアント連携（機械可読プロトコルのみ）。
+ *
+ * 検索:
+ * - `検索キーワード: xxx` … 検索実行
+ * - `検索結果承認` / 承認トークン … 結果確定
+ *
+ * 参照 item 選択（自然言語はスキルが `選択確定:` 行に変換）:
+ * - `選択確定: 1,3` / `all` / `none` … contextItems をフィルタ（body 付き）
+ * - 選択確定前は body を空にした一覧のみ渡し、未選択 item を織り込めないようにする
+ */
+import type { ContextItem } from "@/lib/context-db/types";
 import { normalizeSearchQuery } from "@/lib/context-search";
 
 export { normalizeSearchQuery, tokenizeSearchQuery } from "@/lib/context-search";
 
-const SEARCH_QUERY_RE = /検索キーワード[:：]\s*(.+)/;
-const SEARCH_ACK_RE =
-  /^(ok|okay|はい|承認|了解|そのまま|進めて|問題ない|問題なし|いいです|大丈夫)$/i;
-const SEARCH_RESULTS_APPROVAL_RE =
-  /^(この結果で(?:ok|okay|進めて|いい)?|結果(?:で|に)(?:ok|問題なし|よし)|これで(?:ok|いい|進めて))$/i;
+/** assistant / user 共通: `検索キーワード: xxx` */
+export const SEARCH_KEYWORD_LINE_RE = /検索キーワード[:：]\s*(.+)/;
 
-/** 「やっぱり Git で検索して」等 */
-const RE_SEARCH_REQUEST_RE =
-  /(?:やっぱり|改めて|もう一度)?(.+?)(?:で)?(?:検索(?:し(?:直)?(?:して)?)?)/;
+/** assistant / user 共通: `選択確定: 1,3` / `all` / `none` */
+export const SELECTION_CONFIRM_LINE_RE = /選択確定[:：]\s*(.+)/;
 
-/** 「ブランチも検索対象に加えて」等 — 直前クエリへの additive */
-const ADD_SEARCH_TERM_RE =
-  /^(.+?)(?:も)?(?:検索(?:対象)?に)?(?:加え(?:て|る)|追加(?:して)?|含め(?:て|る))(?:。)?$/;
+/** 短い承認トークン（自然文パースではない） */
+export const SEARCH_ACK_RE =
+  /^(ok|okay|はい|承認|了解|そのまま|進めて|問題ない|問題なし|いいです|大丈夫|(まぁ)?いい(かな|です|よ)?|(それ)?(で)?(いい|よ)(かな|です|よ)?)$/i;
+
+/** ユーザーが明示的に結果承認するときの1行プロトコル */
+export const SEARCH_RESULTS_APPROVED_LINE = "検索結果承認";
+
+export type SelectionConfirmResult = "none" | "all" | number[];
 
 type ChatHistoryMessage = { role: string; content: string };
 
-export function parseSearchQueryFromAssistant(text: string): string | null {
-  const match = SEARCH_QUERY_RE.exec(text);
+export function parseSearchKeywordLine(text: string): string | null {
+  const match = SEARCH_KEYWORD_LINE_RE.exec(text);
   const query = match?.[1]?.trim();
   if (!query) return null;
   return normalizeSearchQuery(query);
+}
+
+/** @deprecated parseSearchKeywordLine を使用 */
+export function parseSearchQueryFromAssistant(text: string): string | null {
+  return parseSearchKeywordLine(text);
+}
+
+export function parseSelectionConfirmLine(
+  text: string,
+): SelectionConfirmResult | null {
+  const match = SELECTION_CONFIRM_LINE_RE.exec(text.trim());
+  if (!match?.[1]) return null;
+
+  const value = match[1].trim();
+  if (/^(none|0|なし|不要)$/i.test(value)) return "none";
+  if (/^(all|全部|すべて|全件)$/i.test(value)) return "all";
+
+  const numbers = value
+    .split(/[,、\s]+/)
+    .map((part) => Number.parseInt(part.trim(), 10))
+    .filter((number) => Number.isFinite(number) && number >= 1);
+
+  if (numbers.length === 0) return null;
+  return [...new Set(numbers)];
+}
+
+/** 1 メッセージ内に複数行あれば最後の `選択確定:` を採用 */
+export function parseLastSelectionConfirmLine(
+  text: string,
+): SelectionConfirmResult | null {
+  let last: SelectionConfirmResult | null = null;
+  for (const line of text.split(/\r?\n/)) {
+    const parsed = parseSelectionConfirmLine(line);
+    if (parsed !== null) last = parsed;
+  }
+  return last;
+}
+
+export function applySelectionConfirm(
+  items: ContextItem[],
+  selection: SelectionConfirmResult,
+): ContextItem[] {
+  if (selection === "none") return [];
+  if (selection === "all") return [...items];
+  return selection
+    .map((index) => items[index - 1])
+    .filter((item): item is ContextItem => item !== undefined);
+}
+
+/** 表提示用: body を空にし、未選択 item の本文参照を防ぐ */
+export function toContextItemSummaries(items: ContextItem[]): ContextItem[] {
+  return items.map((item) => ({ ...item, body: "" }));
 }
 
 export function findLastAssistantMessage(
@@ -35,50 +100,59 @@ export function findLastAssistantMessage(
   return null;
 }
 
-export function findLastAssistantSearchQuery(
+function parsePendingSearchQueryFromLastAssistant(
   history: ChatHistoryMessage[],
 ): string | null {
-  for (let index = history.length - 1; index >= 0; index -= 1) {
-    const message = history[index];
-    if (message.role !== "assistant") continue;
-    const query = parseSearchQueryFromAssistant(message.content);
-    if (query) return query;
-  }
-  return null;
+  const lastAssistant = findLastAssistantMessage(history);
+  if (!lastAssistant) return null;
+  return parseSearchKeywordLine(lastAssistant.content);
 }
 
-export function parseReSearchQueryFromUserMessage(
-  userMessage: string,
-  lastSearchQuery: string | null,
-): string | null {
-  const trimmed = userMessage.trim();
-  if (!trimmed) return null;
-
-  const addMatch = ADD_SEARCH_TERM_RE.exec(trimmed);
-  if (addMatch && lastSearchQuery) {
-    const addition = normalizeSearchQuery(addMatch[1]!);
-    if (addition) {
-      return normalizeSearchQuery(`${lastSearchQuery} ${addition}`);
-    }
+/** assistant が `選択確定:` のみ返したとき、次フェーズへ自動 invoke する */
+export function shouldAutoContinueAfterCreateDraftAssistant(
+  assistantContent: string,
+): boolean {
+  if (parseLastSelectionConfirmLine(assistantContent) === null) {
+    return false;
   }
-
-  const reSearchMatch = RE_SEARCH_REQUEST_RE.exec(trimmed);
-  if (reSearchMatch) {
-    const query = normalizeSearchQuery(reSearchMatch[1]!);
-    if (query) return query;
+  if (/```(?:markdown)?[\s\S]*?```/i.test(assistantContent)) {
+    return false;
   }
+  if (/^---\r?\n[\s\S]*?\r?\n---/m.test(assistantContent.trim())) {
+    return false;
+  }
+  return true;
+}
 
-  return null;
+export function resolveSelectionConfirmUpdate(options: {
+  userMessage: string;
+  history: ChatHistoryMessage[];
+}): SelectionConfirmResult | null {
+  const fromUser = parseLastSelectionConfirmLine(options.userMessage);
+  if (fromUser !== null) return fromUser;
+
+  const lastAssistant = findLastAssistantMessage(options.history);
+  if (!lastAssistant) return null;
+  return parseLastSelectionConfirmLine(lastAssistant.content);
+}
+
+export function resolveContextItemsForInvoke(options: {
+  searchResults: ContextItem[];
+  selectedContextItems: ContextItem[] | null;
+}): ContextItem[] {
+  if (options.selectedContextItems !== null) {
+    return options.selectedContextItems;
+  }
+  return toContextItemSummaries(options.searchResults);
 }
 
 /**
- * 検索結果承認前の検索クエリ解決。
- * null = 新しい検索は不要（結果承認の可能性あり）。
+ * 検索結果承認前に API を叩くクエリを解決する。
+ * null = 今回は検索しない（結果承認の可能性あり）。
  */
 export function resolveSearchQueryRequest(options: {
   userMessage: string;
   history: ChatHistoryMessage[];
-  lastSearchQuery: string | null;
   searchResultsApproved: boolean;
 }): string | null {
   if (options.searchResultsApproved) return null;
@@ -86,58 +160,33 @@ export function resolveSearchQueryRequest(options: {
   const trimmed = options.userMessage.trim();
   if (!trimmed) return null;
 
-  const directMatch = SEARCH_QUERY_RE.exec(trimmed);
-  if (directMatch?.[1]?.trim()) {
-    return normalizeSearchQuery(directMatch[1]);
-  }
-
-  const reSearch = parseReSearchQueryFromUserMessage(
-    trimmed,
-    options.lastSearchQuery,
-  );
-  if (reSearch) return reSearch;
+  const directQuery = parseSearchKeywordLine(trimmed);
+  if (directQuery) return directQuery;
 
   if (SEARCH_ACK_RE.test(trimmed)) {
-    const lastAssistant = findLastAssistantMessage(options.history);
-    const proposal = lastAssistant
-      ? parseSearchQueryFromAssistant(lastAssistant.content)
-      : null;
-    if (proposal) return proposal;
-    return null;
-  }
-
-  // 初回検索前: キーワード提案直後の短い修正（例: 「Git インストール」）
-  if (!options.lastSearchQuery && findLastAssistantSearchQuery(options.history)) {
-    return normalizeSearchQuery(trimmed);
+    return parsePendingSearchQueryFromLastAssistant(options.history);
   }
 
   return null;
 }
 
+/** 検索結果を確定し、以降の再検索を止める */
 export function shouldApproveSearchResults(options: {
   userMessage: string;
   history: ChatHistoryMessage[];
   searchResultsApproved: boolean;
   hasSearchResults: boolean;
 }): boolean {
-  if (
-    options.searchResultsApproved ||
-    !options.hasSearchResults
-  ) {
+  if (options.searchResultsApproved || !options.hasSearchResults) {
     return false;
   }
 
   const trimmed = options.userMessage.trim();
-  if (!SEARCH_ACK_RE.test(trimmed) && !SEARCH_RESULTS_APPROVAL_RE.test(trimmed)) {
-    return false;
-  }
+  if (trimmed === SEARCH_RESULTS_APPROVED_LINE) return true;
 
-  const lastAssistant = findLastAssistantMessage(options.history);
-  if (lastAssistant && parseSearchQueryFromAssistant(lastAssistant.content)) {
-    return false;
-  }
+  if (!SEARCH_ACK_RE.test(trimmed)) return false;
 
-  return true;
+  return parsePendingSearchQueryFromLastAssistant(options.history) === null;
 }
 
 /** @deprecated resolveSearchQueryRequest を使用 */
@@ -147,7 +196,6 @@ export function resolveConfirmedSearchQuery(options: {
 }): string | null {
   return resolveSearchQueryRequest({
     ...options,
-    lastSearchQuery: null,
     searchResultsApproved: false,
   });
 }

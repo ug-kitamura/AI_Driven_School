@@ -25,8 +25,12 @@ import {
   buildCreateStructureVariables,
 } from "@/lib/agent/invoke-context";
 import {
+  applySelectionConfirm,
+  resolveContextItemsForInvoke,
   resolveSearchQueryRequest,
+  resolveSelectionConfirmUpdate,
   shouldApproveSearchResults,
+  shouldAutoContinueAfterCreateDraftAssistant,
 } from "@/lib/context-draft-selection";
 import { extractMarkdownBlock } from "@/lib/extract-markdown-block";
 import type { ContextItem } from "@/lib/context-db/types";
@@ -79,8 +83,8 @@ type CreateDraftContextState = {
   contextItemsJson: string;
   searchResults: ContextItem[];
   searchPerformed: boolean;
-  lastSearchQuery: string | null;
   searchResultsApproved: boolean;
+  selectedContextItems: ContextItem[] | null;
 };
 
 function emptyCreateDraftContextState(): CreateDraftContextState {
@@ -88,8 +92,8 @@ function emptyCreateDraftContextState(): CreateDraftContextState {
     contextItemsJson: "[]",
     searchResults: [],
     searchPerformed: false,
-    lastSearchQuery: null,
     searchResultsApproved: false,
+    selectedContextItems: null,
   };
 }
 
@@ -100,8 +104,8 @@ function snapshotCreateDraftContext(
     contextItemsJson: state.contextItemsJson,
     searchResults: state.searchResults,
     searchPerformed: state.searchPerformed,
-    lastSearchQuery: state.lastSearchQuery,
     searchResultsApproved: state.searchResultsApproved,
+    selectedContextItems: state.selectedContextItems,
   };
 }
 
@@ -111,17 +115,22 @@ function restoreCreateDraftContext(
   if (!snapshot) return emptyCreateDraftContextState();
 
   const searchResults = snapshot.searchResults ?? [];
+  const selectedContextItems = snapshot.selectedContextItems ?? null;
+  const itemsForInvoke = resolveContextItemsForInvoke({
+    searchResults,
+    selectedContextItems,
+  });
   const contextItemsJson =
     searchResults.length > 0
-      ? JSON.stringify(searchResults, null, 2)
+      ? JSON.stringify(itemsForInvoke, null, 2)
       : snapshot.contextItemsJson;
 
   return {
     contextItemsJson,
     searchResults,
     searchPerformed: snapshot.searchPerformed,
-    lastSearchQuery: snapshot.lastSearchQuery ?? null,
     searchResultsApproved: snapshot.searchResultsApproved ?? false,
+    selectedContextItems,
   };
 }
 
@@ -145,6 +154,7 @@ function computeSessionFingerprint(
 }
 
 const CONTINUE_USER_MESSAGE = "つづきよろしく";
+const MAX_CREATE_DRAFT_AUTO_CONTINUE_DEPTH = 3;
 
 function isAbortError(error: unknown): boolean {
   return error instanceof DOMException && error.name === "AbortError";
@@ -475,7 +485,6 @@ export function AgentChatPane({
       const query = resolveSearchQueryRequest({
         userMessage: options.userMessage.content,
         history: options.history,
-        lastSearchQuery: state.lastSearchQuery,
         searchResultsApproved: state.searchResultsApproved,
       });
 
@@ -499,9 +508,16 @@ export function AgentChatPane({
         const data = (await res.json()) as { items?: ContextItem[] };
         state.searchResults = data.items ?? [];
         state.searchPerformed = true;
-        state.lastSearchQuery = query;
         state.searchResultsApproved = false;
-        state.contextItemsJson = JSON.stringify(state.searchResults, null, 2);
+        state.selectedContextItems = null;
+        state.contextItemsJson = JSON.stringify(
+          resolveContextItemsForInvoke({
+            searchResults: state.searchResults,
+            selectedContextItems: null,
+          }),
+          null,
+          2,
+        );
         return { contextItemsJson: state.contextItemsJson };
       }
 
@@ -517,7 +533,22 @@ export function AgentChatPane({
       }
 
       if (state.searchResults.length > 0) {
-        state.contextItemsJson = JSON.stringify(state.searchResults, null, 2);
+        const selectionUpdate = resolveSelectionConfirmUpdate({
+          userMessage: options.userMessage.content,
+          history: options.history,
+        });
+        if (selectionUpdate !== null) {
+          state.selectedContextItems = applySelectionConfirm(
+            state.searchResults,
+            selectionUpdate,
+          );
+        }
+
+        const itemsForInvoke = resolveContextItemsForInvoke({
+          searchResults: state.searchResults,
+          selectedContextItems: state.selectedContextItems,
+        });
+        state.contextItemsJson = JSON.stringify(itemsForInvoke, null, 2);
         return { contextItemsJson: state.contextItemsJson };
       }
 
@@ -549,11 +580,14 @@ export function AgentChatPane({
   }, []);
 
   const invokeSkill = useCallback(
-    async (options: {
-      userMessage: AgentChatMessage;
-      history: AgentChatMessage[];
-      skillId: string;
-    }) => {
+    async function invokeSkill(
+      options: {
+        userMessage: AgentChatMessage;
+        history: AgentChatMessage[];
+        skillId: string;
+      },
+      autoContinueDepth = 0,
+    ) {
       let contextItemsJson: string | undefined;
       if (options.skillId === "create-draft") {
         const contextResult = await resolveCreateDraftContextItems({
@@ -574,6 +608,7 @@ export function AgentChatPane({
       }
 
       const assistantId = createMessageId();
+      const assistantCreatedAt = new Date().toISOString();
 
       setMessages((prev) => [
         ...prev,
@@ -582,7 +617,7 @@ export function AgentChatPane({
           id: assistantId,
           role: "assistant",
           content: "",
-          createdAt: new Date().toISOString(),
+          createdAt: assistantCreatedAt,
         },
       ]);
       setIsStreaming(true);
@@ -632,9 +667,11 @@ export function AgentChatPane({
           throw new Error(message);
         }
 
+        let assistantContent = "";
         await consumeAnthropicStream(
           res,
           (delta) => {
+            assistantContent += delta;
             setMessages((prev) =>
               prev.map((message) =>
                 message.id === assistantId
@@ -647,6 +684,34 @@ export function AgentChatPane({
         );
         stopContextRef.current = null;
         setPendingContinueAssistantId(null);
+
+        if (
+          options.skillId === "create-draft" &&
+          autoContinueDepth < MAX_CREATE_DRAFT_AUTO_CONTINUE_DEPTH &&
+          shouldAutoContinueAfterCreateDraftAssistant(assistantContent)
+        ) {
+          const assistantMessage: AgentChatMessage = {
+            id: assistantId,
+            role: "assistant",
+            content: assistantContent,
+            createdAt: assistantCreatedAt,
+          };
+          const continueUserMessage: AgentChatMessage = {
+            id: createMessageId(),
+            role: "user",
+            content: CONTINUE_USER_MESSAGE,
+            createdAt: new Date().toISOString(),
+          };
+          stickToBottomRef.current = true;
+          await invokeSkill(
+            {
+              userMessage: continueUserMessage,
+              history: [...options.history, options.userMessage, assistantMessage],
+              skillId: options.skillId,
+            },
+            autoContinueDepth + 1,
+          );
+        }
       } catch (err) {
         if (isAbortError(err)) {
           return;

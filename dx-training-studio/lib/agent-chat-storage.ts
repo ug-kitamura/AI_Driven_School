@@ -11,8 +11,9 @@ export type CreateDraftContextSnapshot = {
   contextItemsJson: string;
   searchResults: ContextItem[];
   searchPerformed: boolean;
-  lastSearchQuery: string | null;
   searchResultsApproved: boolean;
+  /** `選択確定:` 適用後の参照 item。null = 未確定（一覧のみ body 空で渡す） */
+  selectedContextItems: ContextItem[] | null;
 };
 
 export type AgentChatSession = {

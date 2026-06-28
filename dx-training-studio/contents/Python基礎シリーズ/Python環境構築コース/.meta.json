@@ -4,6 +4,7 @@
   "cross_series_next": [],
   "order": [
     "Pythonのインストール",
-    "仮想環境（venv）の作成"
+    "仮想環境（venv）の作成",
+    "Anaconda セットアップ"
   ]
 }

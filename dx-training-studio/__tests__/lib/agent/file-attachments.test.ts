@@ -10,6 +10,7 @@ import {
   readAttachmentContents,
   resolveAllowedContentPath,
 } from "@/lib/agent/file-attachments";
+import { LESSON_CONTENTS_FILENAME } from "@/lib/lesson-paths";
 
 function writeFile(filePath: string, content: string) {
   fs.mkdirSync(path.dirname(filePath), { recursive: true });
@@ -29,15 +30,15 @@ describe("file-attachments", () => {
 
   it("extracts @path tokens from message text", () => {
     const tokens = extractAttachmentTokens(
-      "Please review @contents/series/course/lesson.md and improve it.",
+      "Please review @contents/series/course/lesson/contents.md and improve it.",
     );
-    expect(tokens).toEqual(["contents/series/course/lesson.md"]);
+    expect(tokens).toEqual(["contents/series/course/lesson/contents.md"]);
   });
 
   it("rejects path traversal", () => {
-    expect(isAllowedContentMdPath("contents/../secret.md")).toBe(false);
-    const resolved = resolveAllowedContentPath(tmpDir, "contents/../secret.md");
-    expect(resolved).toEqual({ error: "許可されていないパスです: contents/../secret.md" });
+    expect(isAllowedContentMdPath("contents/../secret/contents.md")).toBe(false);
+    const resolved = resolveAllowedContentPath(tmpDir, "contents/../secret/contents.md");
+    expect(resolved).toEqual({ error: "許可されていないパスです: contents/../secret/contents.md" });
   });
 
   it("rejects paths outside contents/", () => {
@@ -50,32 +51,33 @@ describe("file-attachments", () => {
   });
 
   it("reads allowed markdown files", () => {
-    const relative = "contents/series/course/lesson.md";
+    const relative = "contents/series/course/lesson/contents.md";
     writeFile(path.join(tmpDir, relative), "# Lesson");
     const result = readAttachmentContents(tmpDir, relative);
     expect(result).toEqual({ path: relative, content: "# Lesson" });
   });
 
-  it("lists all markdown files under contents/", () => {
-    writeFile(path.join(tmpDir, "contents/b/second.md"), "# B");
-    writeFile(path.join(tmpDir, "contents/a/first.md"), "# A");
+  it("lists all contents.md files under contents/", () => {
+    writeFile(path.join(tmpDir, "contents/b/second", LESSON_CONTENTS_FILENAME), "# B");
+    writeFile(path.join(tmpDir, "contents/a/first", LESSON_CONTENTS_FILENAME), "# A");
     const files = listContentMarkdownFiles(tmpDir);
     expect(files.map((file) => file.path)).toEqual([
-      "contents/a/first.md",
-      "contents/b/second.md",
+      "contents/a/first/contents.md",
+      "contents/b/second/contents.md",
     ]);
+    expect(files.map((file) => file.name)).toEqual(["first", "second"]);
   });
 
   it("puts current lesson first and keeps path order for the rest", () => {
     const files = [
-      { path: "contents/a/one.md", name: "one.md" },
-      { path: "contents/b/two.md", name: "two.md" },
-      { path: "contents/c/three.md", name: "three.md" },
+      { path: "contents/a/one/contents.md", name: "one" },
+      { path: "contents/b/two/contents.md", name: "two" },
+      { path: "contents/c/three/contents.md", name: "three" },
     ];
-    expect(orderContentFilesForPicker(files, "contents/b/two.md")).toEqual([
-      { path: "contents/b/two.md", name: "two.md" },
-      { path: "contents/a/one.md", name: "one.md" },
-      { path: "contents/c/three.md", name: "three.md" },
+    expect(orderContentFilesForPicker(files, "contents/b/two/contents.md")).toEqual([
+      { path: "contents/b/two/contents.md", name: "two" },
+      { path: "contents/a/one/contents.md", name: "one" },
+      { path: "contents/c/three/contents.md", name: "three" },
     ]);
   });
 });

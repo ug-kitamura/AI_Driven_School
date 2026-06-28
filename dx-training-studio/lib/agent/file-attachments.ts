@@ -1,6 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { CONTENTS_DIR_NAME, getContentsDir } from "@/lib/contents-loader";
+import { LESSON_CONTENTS_FILENAME } from "@/lib/lesson-paths";
 
 export const ALLOWED_PREFIX = `${CONTENTS_DIR_NAME}/`;
 
@@ -22,7 +23,7 @@ export function extractAttachmentTokens(text: string): string[] {
 export function isAllowedContentMdPath(relativePath: string): boolean {
   const normalized = relativePath.replace(/\\/g, "/");
   if (!normalized.startsWith(ALLOWED_PREFIX)) return false;
-  if (!normalized.endsWith(".md")) return false;
+  if (!normalized.endsWith(`/${LESSON_CONTENTS_FILENAME}`)) return false;
   if (normalized.includes("..")) return false;
   return true;
 }
@@ -99,10 +100,11 @@ export function listContentMarkdownFiles(projectRoot: string): ContentFileRef[] 
         walk(absolute);
         continue;
       }
-      if (!entry.isFile() || !entry.name.endsWith(".md")) continue;
+      if (!entry.isFile() || entry.name !== LESSON_CONTENTS_FILENAME) continue;
       const relativePath = path.relative(projectRoot, absolute).replace(/\\/g, "/");
       if (!isAllowedContentMdPath(relativePath)) continue;
-      results.push({ path: relativePath, name: entry.name });
+      const lessonName = path.basename(path.dirname(relativePath));
+      results.push({ path: relativePath, name: lessonName });
     }
   }
 

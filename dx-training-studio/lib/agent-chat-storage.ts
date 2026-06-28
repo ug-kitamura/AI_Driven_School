@@ -1,3 +1,5 @@
+import type { ContextItem } from "@/lib/context-db/types";
+
 export type AgentChatMessage = {
   id: string;
   role: "user" | "assistant";
@@ -5,11 +7,19 @@ export type AgentChatMessage = {
   createdAt?: string;
 };
 
+export type CreateDraftContextSnapshot = {
+  contextItemsJson: string;
+  searchResults: ContextItem[];
+  searchPerformed: boolean;
+  selectionConfirmed: boolean;
+};
+
 export type AgentChatSession = {
   id: string;
   title: string;
   messages: AgentChatMessage[];
   activeSkillId: string | null;
+  createDraftContext?: CreateDraftContextSnapshot | null;
   createdAt: string;
   updatedAt: string;
 };
@@ -20,10 +30,16 @@ export type AgentChatStorage = {
   sessions: AgentChatSession[];
 };
 
+export type AgentChatStorageV2 = {
+  version: 2;
+  lessons: Record<string, AgentChatStorage>;
+};
+
 import { STORAGE_KEYS } from "@/lib/storage-keys";
 
 export const AGENT_CHAT_STORAGE_KEY = STORAGE_KEYS.agentChat;
-export const MAX_AGENT_CHAT_SESSIONS = 20;
+export const AGENT_CHAT_STORAGE_V2_KEY = STORAGE_KEYS.agentChatV2;
+export const MAX_AGENT_CHAT_SESSIONS = 10;
 export const DEFAULT_SESSION_TITLE = "新しい会話";
 
 function createSessionId(): string {
@@ -43,6 +59,7 @@ export function createEmptySession(now = new Date().toISOString()): AgentChatSes
     title: DEFAULT_SESSION_TITLE,
     messages: [],
     activeSkillId: null,
+    createDraftContext: null,
     createdAt: now,
     updatedAt: now,
   };
@@ -69,25 +86,80 @@ export function enforceSessionLimit(sessions: AgentChatSession[]): AgentChatSess
   return sorted.slice(0, MAX_AGENT_CHAT_SESSIONS);
 }
 
+export function parseAgentChatStorage(raw: unknown): AgentChatStorage | null {
+  if (!raw || typeof raw !== "object") return null;
+  const parsed = raw as AgentChatStorage;
+  if (parsed.version !== 1 || !parsed.activeSessionId || !Array.isArray(parsed.sessions)) {
+    return null;
+  }
+  const sessions = enforceSessionLimit(parsed.sessions);
+  const activeSessionId = sessions.some((s) => s.id === parsed.activeSessionId)
+    ? parsed.activeSessionId
+    : (sessions[0]?.id ?? parsed.activeSessionId);
+  return { version: 1, activeSessionId, sessions };
+}
+
+function loadV2Root(): AgentChatStorageV2 {
+  if (typeof window === "undefined") {
+    return { version: 2, lessons: {} };
+  }
+  try {
+    const raw = localStorage.getItem(AGENT_CHAT_STORAGE_V2_KEY);
+    if (!raw) return { version: 2, lessons: {} };
+    const parsed = JSON.parse(raw) as AgentChatStorageV2;
+    if (parsed.version !== 2 || !parsed.lessons || typeof parsed.lessons !== "object") {
+      return { version: 2, lessons: {} };
+    }
+    return parsed;
+  } catch {
+    return { version: 2, lessons: {} };
+  }
+}
+
+function saveV2Root(root: AgentChatStorageV2): boolean {
+  if (typeof window === "undefined") return false;
+  try {
+    localStorage.setItem(AGENT_CHAT_STORAGE_V2_KEY, JSON.stringify(root));
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+export function loadLessonAgentChatStorage(lessonId: string): AgentChatStorage | null {
+  const root = loadV2Root();
+  const storage = root.lessons[lessonId];
+  if (!storage) return null;
+  return parseAgentChatStorage(storage);
+}
+
+export function saveLessonAgentChatStorage(
+  lessonId: string,
+  storage: AgentChatStorage,
+): boolean {
+  const normalized: AgentChatStorage = {
+    version: 1,
+    activeSessionId: storage.activeSessionId,
+    sessions: enforceSessionLimit(storage.sessions),
+  };
+  const root = loadV2Root();
+  root.lessons[lessonId] = normalized;
+  return saveV2Root(root);
+}
+
+/** @deprecated v1 global storage — 新規コードでは loadLessonAgentChatStorage を使用 */
 export function loadAgentChatStorage(): AgentChatStorage | null {
   if (typeof window === "undefined") return null;
   try {
     const raw = localStorage.getItem(AGENT_CHAT_STORAGE_KEY);
     if (!raw) return null;
-    const parsed = JSON.parse(raw) as AgentChatStorage;
-    if (parsed.version !== 1 || !parsed.activeSessionId || !Array.isArray(parsed.sessions)) {
-      return null;
-    }
-    const sessions = enforceSessionLimit(parsed.sessions);
-    const activeSessionId = sessions.some((s) => s.id === parsed.activeSessionId)
-      ? parsed.activeSessionId
-      : (sessions[0]?.id ?? parsed.activeSessionId);
-    return { version: 1, activeSessionId, sessions };
+    return parseAgentChatStorage(JSON.parse(raw));
   } catch {
     return null;
   }
 }
 
+/** @deprecated v1 global storage — 新規コードでは saveLessonAgentChatStorage を使用 */
 export function saveAgentChatStorage(storage: AgentChatStorage): boolean {
   if (typeof window === "undefined") return false;
   try {
@@ -117,7 +189,9 @@ export function getActiveSession(storage: AgentChatStorage): AgentChatSession | 
 
 export function updateActiveSession(
   storage: AgentChatStorage,
-  updates: Partial<Pick<AgentChatSession, "messages" | "activeSkillId" | "title">>,
+  updates: Partial<
+    Pick<AgentChatSession, "messages" | "activeSkillId" | "title" | "createDraftContext">
+  >,
 ): AgentChatStorage {
   const now = new Date().toISOString();
   const sessions = storage.sessions.map((session) => {

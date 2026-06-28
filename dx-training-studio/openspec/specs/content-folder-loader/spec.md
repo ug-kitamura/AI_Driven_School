@@ -3,17 +3,18 @@
 ## Purpose
 
 `contents/` フォルダ走査による初期ロード API、表示順決定、メタデータ取得、レッスン frontmatter 解析の要件を規定する。
-
 ## Requirements
-
 ### Requirement: contents/ フォルダ走査による初期ロード
-アプリ起動時に `contents/` フォルダを走査し、シリーズ・コース・レッスンの構造を `Series[]` として返す API が存在しなければならない（SHALL）。フォルダが存在しない場合は空の配列を返し、エラーにしてはならない（SHALL NOT）。
+
+アプリ起動時に `contents/` フォルダを走査し、シリーズ・コース・レッスンの構造を `Series[]` として返す API が存在しなければならない（SHALL）。レッスンはコース直下の `{lessonName}/contents.md` から読み込まなければならない（SHALL）。フォルダが存在しない場合は空の配列を返し、エラーにしてはならない（SHALL NOT）。
 
 #### Scenario: 正常なフォルダ構成を読み込む
-- **WHEN** `contents/` 配下に有効なシリーズフォルダ・コースフォルダ・レッスン `.md` ファイルが存在する状態で `/api/content/load` を呼ぶ
+
+- **WHEN** `contents/` 配下に有効なシリーズフォルダ・コースフォルダ・レッスンフォルダ（各 `contents.md` 含む）が存在する状態で `/api/content/load` を呼ぶ
 - **THEN** `Series[]` 形式の JSON が返され、シリーズ・コース・レッスンの階層が正しく構築されている
 
 #### Scenario: contents/ フォルダが存在しない
+
 - **WHEN** `contents/` フォルダが存在しない状態で `/api/content/load` を呼ぶ
 - **THEN** 空の配列 `[]` が返され、HTTP ステータスは 200 である
 
@@ -43,12 +44,16 @@
 - **THEN** ロード結果のコースオブジェクトにそれらの値が反映されている
 
 ### Requirement: レッスン `.md` ファイルのフロントマター解析
-レッスン `.md` ファイルのフロントマターを解析し、`status`・`description`・`tags`・`estimated_minutes`・`author` を取得しなければならない（SHALL）。フロントマターが壊れていてもフォルダパスから `series`・`course`・`lesson` 名を補完しなければならない（SHALL）。
 
-#### Scenario: 有効なフロントマターを持つ .md ファイル
-- **WHEN** フロントマターに `status: in_progress`, `tags: [git, tutorial]` が記載された `.md` ファイルがある
+レッスン `contents.md` のフロントマターを解析し、`status`・`description`・`tags`・`estimated_minutes`・`author` を取得しなければならない（SHALL）。フロントマターが壊れていてもフォルダパスから `series`・`course`・`lesson` 名を補完しなければならない（SHALL）。
+
+#### Scenario: 有効なフロントマターを持つ contents.md
+
+- **WHEN** フロントマターに `status: in_progress`, `tags: [git, tutorial]` が記載された `contents.md` がある
 - **THEN** ロード結果のレッスンオブジェクトに `status: "in_progress"`, `tags: ["git", "tutorial"]` が設定されている
 
-#### Scenario: フロントマターが壊れている .md ファイル
-- **WHEN** フロントマターが存在しない `.md` ファイルがある
-- **THEN** ファイルパスからシリーズ名・コース名・レッスン名が補完され、`status: "open"` でレッスンオブジェクトが生成される
+#### Scenario: フロントマターが壊れている contents.md
+
+- **WHEN** フロントマターが存在しない `contents.md` がある
+- **THEN** フォルダパスからシリーズ名・コース名・レッスン名が補完され、`status: "open"` でレッスンオブジェクトが生成される
+

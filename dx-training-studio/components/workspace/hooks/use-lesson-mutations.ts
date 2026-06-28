@@ -1,9 +1,10 @@
 "use client";
 
-import { useCallback, useRef } from "react";
+import { useCallback, useEffect, useRef } from "react";
 import type { Lesson, Series } from "@/lib/schema";
 import { buildLessonId } from "@/lib/content-ids";
 import { remapSelection } from "@/lib/content-rename";
+import { deleteLessonEditorStateCache } from "@/lib/lesson-editor-state-cache";
 import {
   applyLessonContentEdit,
   alignLessonContentToDiskPath,
@@ -53,6 +54,17 @@ async function saveLessonToFs(
   }
 }
 
+function findLessonInSeries(series: Series[], lessonId: string): Lesson | null {
+  for (const s of series) {
+    for (const c of s.courses) {
+      for (const l of c.lessons) {
+        if (l.id === lessonId) return l;
+      }
+    }
+  }
+  return null;
+}
+
 export function useLessonMutations(options: {
   series: Series[];
   setSeries: React.Dispatch<React.SetStateAction<Series[]>>;
@@ -72,6 +84,41 @@ export function useLessonMutations(options: {
     onSaveError,
   } = options;
   const debounceTimers = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
+  const seriesRef = useRef(series);
+  /** 削除済みレッスン ID。非同期 create/save が完了しても FS を汚さない */
+  const retiredLessonIdsRef = useRef(new Set<string>());
+
+  useEffect(() => {
+    seriesRef.current = series;
+  }, [series]);
+
+  const isLessonPersistable = useCallback((lessonId: string): boolean => {
+    if (retiredLessonIdsRef.current.has(lessonId)) return false;
+    return findLessonInSeries(seriesRef.current, lessonId) !== null;
+  }, []);
+
+  const retireLesson = useCallback((lessonId: string) => {
+    retiredLessonIdsRef.current.add(lessonId);
+    const timer = debounceTimers.current.get(lessonId);
+    if (timer) {
+      clearTimeout(timer);
+      debounceTimers.current.delete(lessonId);
+    }
+    deleteLessonEditorStateCache(lessonId);
+  }, []);
+
+  const cleanupLessonOnDisk = useCallback(
+    (seriesName: string, courseName: string, lessonName: string) =>
+      callContentApi("delete", {
+        type: "lesson",
+        series: seriesName,
+        course: courseName,
+        name: lessonName,
+      }).catch(() => {
+        /* 既に削除済みなら無視 */
+      }),
+    [],
+  );
 
   const mapLessonById = useCallback(
     (
@@ -108,12 +155,12 @@ export function useLessonMutations(options: {
 
   const updateLessonContent = useCallback(
     (lessonId: string, content: string) => {
-      // series state を同期的に走査して現在のレッスン情報を取得する
-      // （setSeries の更新関数は遅延評価のため、ここで直接読む）
+      if (!isLessonPersistable(lessonId)) return;
+
       let diskLesson: Lesson | null = null;
       let seriesName = "";
       let courseName = "";
-      for (const s of series) {
+      for (const s of seriesRef.current) {
         for (const c of s.courses) {
           for (const l of c.lessons) {
             if (l.id === lessonId) {
@@ -142,6 +189,8 @@ export function useLessonMutations(options: {
 
       const timer = setTimeout(() => {
         debounceTimers.current.delete(lessonId);
+        if (!isLessonPersistable(lessonId)) return;
+
         const aligned = alignLessonContentToDiskPath(
           content,
           ctx,
@@ -157,6 +206,7 @@ export function useLessonMutations(options: {
         setPendingSave?.(true);
         saveLessonToFs(seriesName, courseName, diskLessonName, toSave)
           .then(() => {
+            if (!isLessonPersistable(lessonId)) return;
             if (!lessonFileContentEquals(toSave, content)) {
               mapLessonById(lessonId, (lesson, mapCtx) =>
                 applyLessonContentEdit(lesson, mapCtx, toSave),
@@ -164,6 +214,7 @@ export function useLessonMutations(options: {
             }
           })
           .catch((err: unknown) => {
+            if (!isLessonPersistable(lessonId)) return;
             onSaveError?.(`レッスン保存エラー: ${String(err)}`);
           })
           .finally(() => {
@@ -173,11 +224,13 @@ export function useLessonMutations(options: {
 
       debounceTimers.current.set(lessonId, timer);
     },
-    [series, mapLessonById, setPendingSave, onSaveError],
+    [isLessonPersistable, mapLessonById, setPendingSave, onSaveError],
   );
 
   const updateLessonMeta = useCallback(
     (lessonId: string, meta: Partial<LessonMetaFields>) => {
+      if (!isLessonPersistable(lessonId)) return;
+
       let rename: {
         oldName: string;
         newName: string;
@@ -187,7 +240,7 @@ export function useLessonMutations(options: {
       } | null = null;
       let updatedLesson: Lesson | null = null;
 
-      const next = series.map((s) => ({
+      const next = seriesRef.current.map((s) => ({
         ...s,
         courses: s.courses.map((c) => ({
           ...c,
@@ -221,15 +274,19 @@ export function useLessonMutations(options: {
 
       setSeries(next);
 
-      const persistMeta = () =>
-        saveLessonToFs(
-          updatedLesson!.series,
-          updatedLesson!.course,
-          updatedLesson!.lesson,
-          updatedLesson!.content,
+      const persistMeta = () => {
+        const target = updatedLesson!;
+        if (!isLessonPersistable(rename ? rename.newId : lessonId)) return;
+        return saveLessonToFs(
+          target.series,
+          target.course,
+          target.lesson,
+          target.content,
         ).catch((err: unknown) => {
+          if (!isLessonPersistable(rename ? rename.newId : lessonId)) return;
           onSaveError?.(`レッスン保存エラー: ${String(err)}`);
         });
+      };
 
       if (rename) {
         const { oldName, newName, series: seriesName, course: courseName, newId } =
@@ -255,7 +312,7 @@ export function useLessonMutations(options: {
         persistMeta();
       }
     },
-    [series, selectedCourseId, setSeries, setSelection, onSaveError],
+    [isLessonPersistable, selectedCourseId, setSeries, setSelection, onSaveError],
   );
 
   const updateLessonStatus = useCallback(
@@ -269,7 +326,7 @@ export function useLessonMutations(options: {
     (courseId: string, lessonName: string) => {
       let seriesName = "";
       let courseName = "";
-      for (const s of series) {
+      for (const s of seriesRef.current) {
         const c = s.courses.find((co) => co.id === courseId);
         if (c) {
           seriesName = s.name;
@@ -308,20 +365,39 @@ export function useLessonMutations(options: {
       );
       setSelection({ courseId, lessonId: newLesson.id });
       setPendingSave?.(true);
-      saveLessonToFs(
-        seriesName,
-        courseName,
-        newLesson.lesson,
-        newLesson.content,
-      )
+      callContentApi("create", {
+        type: "lesson",
+        series: seriesName,
+        course: courseName,
+        name: lessonName,
+      })
+        .then(() => {
+          if (!isLessonPersistable(newLesson.id)) {
+            return cleanupLessonOnDisk(seriesName, courseName, lessonName);
+          }
+          return saveLessonToFs(
+            seriesName,
+            courseName,
+            newLesson.lesson,
+            newLesson.content,
+          );
+        })
         .catch((err: unknown) => {
+          if (!isLessonPersistable(newLesson.id)) return;
           onSaveError?.(`レッスン追加エラー: ${String(err)}`);
         })
         .finally(() => {
           setPendingSave?.(false);
         });
     },
-    [series, setSeries, setSelection, setPendingSave, onSaveError],
+    [
+      cleanupLessonOnDisk,
+      isLessonPersistable,
+      setSeries,
+      setSelection,
+      setPendingSave,
+      onSaveError,
+    ],
   );
 
   const deleteLesson = useCallback(
@@ -329,6 +405,9 @@ export function useLessonMutations(options: {
       let seriesName = "";
       let courseName = "";
       let lessonName = "";
+
+      retireLesson(lessonId);
+
       setSeries((prev) =>
         prev.map((s) => ({
           ...s,
@@ -348,17 +427,22 @@ export function useLessonMutations(options: {
         setSelection({ courseId: selectedCourseId, lessonId: "" });
       }
       if (seriesName && courseName && lessonName) {
-        callContentApi("delete", {
-          type: "lesson",
-          series: seriesName,
-          course: courseName,
-          name: lessonName,
-        }).catch((err: unknown) => {
-          onSaveError?.(`レッスン削除エラー: ${String(err)}`);
-        });
+        cleanupLessonOnDisk(seriesName, courseName, lessonName).catch(
+          (err: unknown) => {
+            onSaveError?.(`レッスン削除エラー: ${String(err)}`);
+          },
+        );
       }
     },
-    [setSeries, selectedCourseId, selectedLessonId, setSelection, onSaveError],
+    [
+      cleanupLessonOnDisk,
+      onSaveError,
+      retireLesson,
+      selectedCourseId,
+      selectedLessonId,
+      setSelection,
+      setSeries,
+    ],
   );
 
   const reorderLessons = useCallback(

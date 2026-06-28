@@ -10,10 +10,11 @@ export function matchLessonContentPath(
 ): string | null {
   for (const file of files) {
     const parts = file.path.split("/");
-    if (parts.length < 4 || parts[0] !== "contents") continue;
-    const fileLesson = stripNumericPrefix(parts[parts.length - 1].replace(/\.md$/, ""));
-    const coursePart = stripNumericPrefix(parts[parts.length - 2]);
-    const seriesPart = stripNumericPrefix(parts[parts.length - 3]);
+    if (parts.length < 5 || parts[0] !== "contents") continue;
+    if (parts[parts.length - 1] !== "contents.md") continue;
+    const fileLesson = stripNumericPrefix(parts[parts.length - 2]);
+    const coursePart = stripNumericPrefix(parts[parts.length - 3]);
+    const seriesPart = stripNumericPrefix(parts[parts.length - 4]);
     if (
       fileLesson === lesson.lesson &&
       coursePart === lesson.course &&

@@ -11,6 +11,7 @@ import {
 import { sanitizeFilename } from "@/lib/content-filename";
 import { generateCourseId, generateSeriesId, readStoredId } from "@/lib/content-ids";
 import { createLessonContentTemplate, normalizeLessonMeta } from "@/lib/lesson-frontmatter";
+import { LESSON_CONTENTS_FILENAME } from "@/lib/lesson-paths";
 
 const schema = z.discriminatedUnion("type", [
   z.object({
@@ -104,13 +105,15 @@ export async function POST(req: Request) {
     return Response.json({ error: `コースフォルダが見つかりません` }, { status: 404 });
   }
 
-  const lessonFileName = `${sanitizeFilename(parsed.data.name)}.md`;
+  const lessonDirName = sanitizeFilename(parsed.data.name);
+  const lessonDir = path.join(courseDir, lessonDirName);
+  fs.mkdirSync(lessonDir, { recursive: true });
   const meta = normalizeLessonMeta(
     { lesson: parsed.data.name, status: "open" },
     { seriesName: parsed.data.series, courseName: parsed.data.course },
   );
   fs.writeFileSync(
-    path.join(courseDir, lessonFileName),
+    path.join(lessonDir, LESSON_CONTENTS_FILENAME),
     createLessonContentTemplate(meta),
     "utf-8",
   );
@@ -118,8 +121,7 @@ export async function POST(req: Request) {
   // course/.meta.json の order 末尾に追記
   const courseMeta = readMetaJson(courseDir);
   const lessonOrder = Array.isArray(courseMeta.order) ? (courseMeta.order as string[]) : [];
-  const lessonName = sanitizeFilename(parsed.data.name);
-  writeMetaJson(courseDir, { ...courseMeta, order: [...lessonOrder, lessonName] });
+  writeMetaJson(courseDir, { ...courseMeta, order: [...lessonOrder, lessonDirName] });
 
-  return Response.json({ ok: true, fileName: lessonFileName });
+  return Response.json({ ok: true, dirName: lessonDirName });
 }

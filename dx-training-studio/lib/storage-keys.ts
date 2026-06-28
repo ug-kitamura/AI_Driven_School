@@ -10,6 +10,7 @@ export const STORAGE_KEYS = {
   settings: "dx-training-studio-settings",
   paneWidths: "dx-training-studio-pane-widths",
   agentChat: "dx-training-studio-agent-chat",
+  agentChatV2: "dx-training-studio-agent-chat-v2",
   selection: "dx-training-studio-selection",
 } as const;
 

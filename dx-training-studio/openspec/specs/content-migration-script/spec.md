@@ -3,9 +3,7 @@
 ## Purpose
 
 `data/content.json` から `contents/` フォルダ構成への初回移行スクリプトの要件を規定する。
-
 ## Requirements
-
 ### Requirement: content.json から contents/ フォルダへの変換
 `scripts/migrate-content.ts` を `npx ts-node scripts/migrate-content.ts` で実行すると、`data/content.json` の内容を `contents/` フォルダ構成に変換しなければならない（SHALL）。
 
@@ -30,3 +28,19 @@
 #### Scenario: コースに番号が振られる
 - **WHEN** `content.json` のシリーズ内に `[コースA, コースB, コースC]` の順でコースが並んでいる
 - **THEN** 生成されるフォルダが `01_コースA/`, `02_コースB/`, `03_コースC/` となる
+
+### Requirement: フラット md からレッスンフォルダへの移行
+
+`scripts/migrate-lesson-folders.ts` を `npx ts-node scripts/migrate-lesson-folders.ts` で実行すると、コース直下の `{lesson}.md` を `{lesson}/contents.md` に移行しなければならない（SHALL）。コース `.meta.json` の `order` はレッスン名のまま維持されなければならない（SHALL）。
+
+#### Scenario: フラット md を移行する
+
+- **WHEN** `contents/シリーズ/コース/レッスン.md` が存在する状態でスクリプトを実行する
+- **THEN** `contents/シリーズ/コース/レッスン/contents.md` が作成される
+- **AND** 元の `レッスン.md` は削除される
+
+#### Scenario: 既にレッスンフォルダ構成の場合
+
+- **WHEN** 当該レッスンがすでに `{lesson}/contents.md` 形式である
+- **THEN** スクリプトは当該エントリをスキップする
+

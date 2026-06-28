@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
   AGENT_CHAT_STORAGE_KEY,
+  AGENT_CHAT_STORAGE_V2_KEY,
   addSession,
   createEmptySession,
   createInitialStorage,
@@ -12,8 +13,10 @@ import {
   exportSessionAsMarkdown,
   formatMessageTimestamp,
   loadAgentChatStorage,
+  loadLessonAgentChatStorage,
   MAX_AGENT_CHAT_SESSIONS,
   saveAgentChatStorage,
+  saveLessonAgentChatStorage,
   switchSession,
   updateActiveSession,
 } from "@/lib/agent-chat-storage";
@@ -102,6 +105,14 @@ describe("agent-chat-storage", () => {
     expect(markdown).toContain("質問");
     expect(markdown).toContain("## Assistant");
     expect(markdown).toContain("回答");
+  });
+
+  it("persists and restores per-lesson v2 storage", () => {
+    const initial = createInitialStorage();
+    saveLessonAgentChatStorage("lesson-a", initial);
+    const loaded = loadLessonAgentChatStorage("lesson-a");
+    expect(loaded?.activeSessionId).toBe(initial.activeSessionId);
+    expect(localStorage.getItem(AGENT_CHAT_STORAGE_V2_KEY)).toContain("lesson-a");
   });
 
   it("returns false when localStorage throws on save", () => {

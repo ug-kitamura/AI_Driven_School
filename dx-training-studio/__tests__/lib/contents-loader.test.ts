@@ -8,6 +8,7 @@ import {
   getContentsFingerprint,
   reconcileOrderFiles,
 } from "@/lib/contents-loader";
+import { LESSON_CONTENTS_FILENAME } from "@/lib/lesson-paths";
 
 function writeFile(filePath: string, content: string) {
   fs.mkdirSync(path.dirname(filePath), { recursive: true });
@@ -16,6 +17,19 @@ function writeFile(filePath: string, content: string) {
 
 function writeJson(filePath: string, data: unknown) {
   writeFile(filePath, JSON.stringify(data, null, 2));
+}
+
+function writeLesson(
+  contentsDir: string,
+  series: string,
+  course: string,
+  lesson: string,
+  content: string,
+) {
+  writeFile(
+    path.join(contentsDir, series, course, lesson, LESSON_CONTENTS_FILENAME),
+    content,
+  );
 }
 
 describe("loadContentsFolder", () => {
@@ -43,10 +57,7 @@ describe("loadContentsFolder", () => {
   it("loads series, course and lessons from folder structure", () => {
     const contentsDir = path.join(tmpDir, "contents");
     const lessonContent = `---\nseries: テストシリーズ\ncourse: テストコース\nlesson: テストレッスン\nstatus: done\ndescription: テスト\ntags: [git]\nestimated_minutes: 10\nauthor: 田中\n---\n\n本文\n`;
-    writeFile(
-      path.join(contentsDir, "テストシリーズ", "テストコース", "テストレッスン.md"),
-      lessonContent,
-    );
+    writeLesson(contentsDir, "テストシリーズ", "テストコース", "テストレッスン", lessonContent);
     writeJson(
       path.join(contentsDir, "テストシリーズ", "テストコース", ".meta.json"),
       { order: ["テストレッスン"], target: "初心者", cross_series_prev: [], cross_series_next: [] },
@@ -68,10 +79,7 @@ describe("loadContentsFolder", () => {
 
   it("falls back to folder path when frontmatter is broken", () => {
     const contentsDir = path.join(tmpDir, "contents");
-    writeFile(
-      path.join(contentsDir, "シリーズA", "コースA", "レッスンA.md"),
-      "フロントマターなし\n\n本文\n",
-    );
+    writeLesson(contentsDir, "シリーズA", "コースA", "レッスンA", "フロントマターなし\n\n本文\n");
     writeJson(path.join(contentsDir, "シリーズA", "コースA", ".meta.json"), { order: ["レッスンA"] });
 
     const result = loadContentsFolder(tmpDir);
@@ -81,26 +89,23 @@ describe("loadContentsFolder", () => {
 
   it("writes template to disk when lesson file is empty", () => {
     const contentsDir = path.join(tmpDir, "contents");
-    writeFile(path.join(contentsDir, "シリーズA", "コースA", "空.md"), "");
+    writeLesson(contentsDir, "シリーズA", "コースA", "空", "");
     writeJson(path.join(contentsDir, "シリーズA", "コースA", ".meta.json"), { order: ["空"] });
 
     loadContentsFolder(tmpDir);
 
     const onDisk = fs.readFileSync(
-      path.join(contentsDir, "シリーズA", "コースA", "空.md"),
+      path.join(contentsDir, "シリーズA", "コースA", "空", LESSON_CONTENTS_FILENAME),
       "utf-8",
     );
     expect(onDisk.trimStart().startsWith("---")).toBe(true);
     expect(onDisk).toContain("# 空");
   });
 
-  it("prefers filename over stale frontmatter lesson name", () => {
+  it("prefers folder name over stale frontmatter lesson name", () => {
     const contentsDir = path.join(tmpDir, "contents");
     const lessonContent = `---\nseries: シリーズA\ncourse: コースA\nlesson: 古い名前\nstatus: open\ndescription: ""\ntags: []\nestimated_minutes: 0\nauthor: ""\n---\n\n本文\n`;
-    writeFile(
-      path.join(contentsDir, "シリーズA", "コースA", "新しい名前.md"),
-      lessonContent,
-    );
+    writeLesson(contentsDir, "シリーズA", "コースA", "新しい名前", lessonContent);
     writeJson(path.join(contentsDir, "シリーズA", "コースA", ".meta.json"), { order: ["新しい名前"] });
 
     const result = loadContentsFolder(tmpDir);
@@ -112,7 +117,7 @@ describe("loadContentsFolder", () => {
 
   it("reads stable ids from .meta.json when present", () => {
     const contentsDir = path.join(tmpDir, "contents");
-    writeFile(path.join(contentsDir, "テストシリーズ", "テストコース", "L.md"), "# L\n");
+    writeLesson(contentsDir, "テストシリーズ", "テストコース", "L", "# L\n");
     writeJson(path.join(contentsDir, "テストシリーズ", "テストコース", ".meta.json"), {
       id: "crs-test-course-abc123",
       order: ["L"],
@@ -132,7 +137,7 @@ describe("loadContentsFolder", () => {
 
   it("generates and persists stable ids when missing from .meta.json", () => {
     const contentsDir = path.join(tmpDir, "contents");
-    writeFile(path.join(contentsDir, "S", "C", "L.md"), "# L\n");
+    writeLesson(contentsDir, "S", "C", "L", "# L\n");
     writeJson(path.join(contentsDir, "S", "C", ".meta.json"), {
       order: ["L"],
       cross_series_prev: [],
@@ -187,13 +192,13 @@ describe("loadContentsFolder", () => {
     expect(result[0].courses[1].name).toBe("コースA");
   });
 
-  it("detects external lesson file rename via fingerprint", () => {
+  it("detects external lesson folder rename via fingerprint", () => {
     const contentsDir = path.join(tmpDir, "contents");
-    const lessonPath = path.join(contentsDir, "シリーズA", "コースA", "旧レッスン.md");
-    writeFile(lessonPath, "# old\n");
+    const lessonDir = path.join(contentsDir, "シリーズA", "コースA", "旧レッスン");
+    writeFile(path.join(lessonDir, LESSON_CONTENTS_FILENAME), "# old\n");
 
     const before = getContentsFingerprint(tmpDir);
-    fs.renameSync(lessonPath, lessonPath.replace("旧レッスン", "新レッスン"));
+    fs.renameSync(lessonDir, path.join(contentsDir, "シリーズA", "コースA", "新レッスン"));
     const after = getContentsFingerprint(tmpDir);
 
     expect(before).not.toBe(after);

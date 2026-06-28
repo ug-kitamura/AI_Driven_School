@@ -125,9 +125,20 @@ describe("inferDraftTagsFromText", () => {
 });
 
 describe("estimateDraftMinutes", () => {
-  it("returns at least 10 for non-empty body", () => {
-    expect(estimateDraftMinutes("# Title\n\nSome content.")).toBeGreaterThanOrEqual(
-      10,
-    );
+  it("returns 5 for minimal body (workspace minimum lesson length)", () => {
+    expect(estimateDraftMinutes("# Title\n\nSome content.")).toBe(5);
+  });
+
+  it("scales up for longer structured content", () => {
+    const body = [
+      "# Title",
+      "",
+      ...Array.from({ length: 20 }, (_, i) => `- Step ${i + 1}`),
+      "",
+      "```bash",
+      "git status",
+      "```",
+    ].join("\n");
+    expect(estimateDraftMinutes(body)).toBeGreaterThanOrEqual(10);
   });
 });

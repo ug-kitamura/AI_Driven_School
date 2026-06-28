@@ -26,7 +26,7 @@ import {
 } from "@/lib/agent/invoke-context";
 import {
   applyContextSelection,
-  parseContextSelection,
+  parseContextSelectionIntent,
   resolveConfirmedSearchQuery,
 } from "@/lib/context-draft-selection";
 import { extractMarkdownBlock } from "@/lib/extract-markdown-block";
@@ -80,7 +80,8 @@ type CreateDraftContextState = {
   contextItemsJson: string;
   searchResults: ContextItem[];
   searchPerformed: boolean;
-  selectionConfirmed: boolean;
+  /** null = 未選択（検索結果を Agent に一覧表示する段階） */
+  selectedItems: ContextItem[] | null;
 };
 
 function emptyCreateDraftContextState(): CreateDraftContextState {
@@ -88,7 +89,7 @@ function emptyCreateDraftContextState(): CreateDraftContextState {
     contextItemsJson: "[]",
     searchResults: [],
     searchPerformed: false,
-    selectionConfirmed: false,
+    selectedItems: null,
   };
 }
 
@@ -99,7 +100,7 @@ function snapshotCreateDraftContext(
     contextItemsJson: state.contextItemsJson,
     searchResults: state.searchResults,
     searchPerformed: state.searchPerformed,
-    selectionConfirmed: state.selectionConfirmed,
+    selectedItems: state.selectedItems,
   };
 }
 
@@ -107,11 +108,22 @@ function restoreCreateDraftContext(
   snapshot: CreateDraftContextSnapshot | null | undefined,
 ): CreateDraftContextState {
   if (!snapshot) return emptyCreateDraftContextState();
+
+  let selectedItems = snapshot.selectedItems ?? null;
+  if (selectedItems === null && snapshot.selectionConfirmed) {
+    try {
+      const parsed = JSON.parse(snapshot.contextItemsJson) as ContextItem[];
+      selectedItems = Array.isArray(parsed) ? parsed : null;
+    } catch {
+      selectedItems = null;
+    }
+  }
+
   return {
     contextItemsJson: snapshot.contextItemsJson,
     searchResults: snapshot.searchResults,
     searchPerformed: snapshot.searchPerformed,
-    selectionConfirmed: snapshot.selectionConfirmed,
+    selectedItems,
   };
 }
 
@@ -463,23 +475,22 @@ export function AgentChatPane({
       const state = createDraftContextRef.current;
 
       if (state.searchResults.length > 0) {
-        const selection = parseContextSelection(
+        const intent = parseContextSelectionIntent(
           options.userMessage.content,
           state.searchResults.length,
         );
-        if (selection !== null) {
-          const selected = applyContextSelection(state.searchResults, selection);
-          state.selectionConfirmed = true;
+        if (intent !== null) {
+          const selected = applyContextSelection(state.searchResults, intent);
+          state.selectedItems = selected;
           state.contextItemsJson = JSON.stringify(selected, null, 2);
           return { contextItemsJson: state.contextItemsJson };
         }
-      }
 
-      if (state.selectionConfirmed) {
-        return { contextItemsJson: state.contextItemsJson };
-      }
+        if (state.selectedItems !== null) {
+          state.contextItemsJson = JSON.stringify(state.selectedItems, null, 2);
+          return { contextItemsJson: state.contextItemsJson };
+        }
 
-      if (state.searchPerformed && state.searchResults.length > 0) {
         return {
           contextItemsJson: JSON.stringify(state.searchResults, null, 2),
         };

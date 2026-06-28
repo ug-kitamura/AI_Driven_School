@@ -359,14 +359,31 @@ export function resolveDraftTags(options: {
   return [];
 }
 
+/** 既存コンテンツ最短レッスン（問い合わせ先 5分）に合わせた下限 */
+export const DRAFT_ESTIMATED_MINUTES_MIN = 5;
+export const DRAFT_ESTIMATED_MINUTES_MAX = 180;
+
+/**
+ * 草稿本文から estimated_minutes を推定する。
+ * 400文字≈1分の読了 + 見出し・箇条書き・コードブロックの実習加算を 5分刻みに丸める。
+ */
 export function estimateDraftMinutes(body: string): number {
   const trimmed = body.trim();
-  if (!trimmed) return 10;
-  const headingCount = (trimmed.match(/^#{1,3}\s/gm) ?? []).length;
-  const codeBlockCount = Math.floor((trimmed.match(/```/g) ?? []).length / 2);
-  const fromLength = Math.ceil(trimmed.length / 500) * 5;
-  const fromStructure = headingCount * 2 + codeBlockCount * 3;
-  return Math.min(180, Math.max(10, 10 + fromLength + fromStructure));
+  if (!trimmed) return DRAFT_ESTIMATED_MINUTES_MIN;
+
+  const headings = (trimmed.match(/^#{1,3}\s/gm) ?? []).length;
+  const listItems = (trimmed.match(/^[\-*]\s+/gm) ?? []).length;
+  const codeBlocks = Math.floor((trimmed.match(/```/g) ?? []).length / 2);
+
+  const readingMinutes = trimmed.length / 400;
+  const activityMinutes = headings * 0.5 + listItems * 0.5 + codeBlocks * 3;
+  const raw = readingMinutes + activityMinutes;
+
+  const rounded = Math.round(raw / 5) * 5;
+  return Math.min(
+    DRAFT_ESTIMATED_MINUTES_MAX,
+    Math.max(DRAFT_ESTIMATED_MINUTES_MIN, rounded || DRAFT_ESTIMATED_MINUTES_MIN),
+  );
 }
 
 export type NormalizeDraftOptions = {

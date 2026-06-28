@@ -6,7 +6,7 @@ status: open
 description: Windows/Mac への Python インストール手順
 tags: [python, setup, install]
 estimated_minutes: 15
-author: 山田太郎
+author: Kitamura
 ---
 
 # Python のインストール

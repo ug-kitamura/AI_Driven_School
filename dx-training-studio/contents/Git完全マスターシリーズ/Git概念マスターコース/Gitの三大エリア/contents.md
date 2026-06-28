@@ -6,7 +6,7 @@ status: done
 description: 作業ツリー・ステージングエリア・リポジトリの関係
 tags: [git, staging]
 estimated_minutes: 20
-author: 山田太郎
+author: Kitamura
 ---
 
 # Gitの三大エリア

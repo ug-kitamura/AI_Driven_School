@@ -6,7 +6,7 @@ status: done
 description: バージョン管理の概念とGitの基本を学ぶ
 tags: [git, version-control]
 estimated_minutes: 15
-author: 山田太郎
+author: Kitamura
 ---
 
 # バージョン管理ってなに？

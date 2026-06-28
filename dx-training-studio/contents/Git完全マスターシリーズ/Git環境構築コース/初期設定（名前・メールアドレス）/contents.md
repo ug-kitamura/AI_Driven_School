@@ -6,7 +6,7 @@ status: in_progress
 description: git config で名前とメールアドレスを設定する
 tags: [git, config]
 estimated_minutes: 10
-author: 山田太郎
+author: Kitamura
 ---
 
 # 初期設定（名前・メールアドレス）

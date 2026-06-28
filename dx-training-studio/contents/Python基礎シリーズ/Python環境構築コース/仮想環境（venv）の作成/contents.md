@@ -6,7 +6,7 @@ status: open
 description: プロジェクトごとに独立した Python 環境を用意する
 tags: [python, venv]
 estimated_minutes: 20
-author: 山田太郎
+author: Kitamura
 ---
 
 # 仮想環境（venv）の作成

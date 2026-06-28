@@ -83,7 +83,6 @@ variables:
 
 草稿出力例:
 
-````markdown
 ```markdown
 ---
 series: ...
@@ -93,7 +92,6 @@ series: ...
 # レッスンタイトル
 ...
 ```
-````
 
 ## 執筆方針
 

@@ -3,22 +3,21 @@
 ## Purpose
 
 `contents/` のパス名から数値プレフィックスを排除し、`.meta.json` の `order` 配列を順序の唯一の情報源とする要件を規定する。
-
 ## Requirements
-
 ### Requirement: フォルダ/ファイル名はプレフィックスなしの表示名とする
 
-`contents/` 以下のすべてのシリーズフォルダ・コースフォルダ・レッスン `.md` ファイルは、`NN_` 形式の数値プレフィックスを持たず、表示名そのもの（`sanitizeFilename()` 適用済み）をパス名として使用しなければならない（SHALL）。
+`contents/` 以下のすべてのシリーズフォルダ・コースフォルダ・レッスンフォルダは、`NN_` 形式の数値プレフィックスを持たず、表示名そのもの（`sanitizeFilename()` 適用済み）をパス名として使用しなければならない（SHALL）。レッスン本文は `{lessonName}/contents.md` に配置されなければならない（SHALL）。
 
 #### Scenario: シリーズフォルダ名が表示名と一致する
 
 - **WHEN** シリーズ「Git完全マスターシリーズ」が存在する
 - **THEN** フォルダ名は `Git完全マスターシリーズ` であり `02_Git完全マスターシリーズ` ではない
 
-#### Scenario: レッスンファイル名が表示名と一致する
+#### Scenario: レッスンフォルダ名が表示名と一致する
 
 - **WHEN** レッスン「バージョン管理ってなに？」が存在する
-- **THEN** ファイル名は `バージョン管理ってなに？.md` であり `01_バージョン管理ってなに？.md` ではない
+- **THEN** フォルダ名は `バージョン管理ってなに？` であり `01_バージョン管理ってなに？` ではない
+- **AND** 本文は `バージョン管理ってなに？/contents.md` に存在する
 
 ---
 
@@ -28,7 +27,7 @@
 
 - `contents/.meta.json` の `order` がシリーズの表示順を決める
 - `contents/{series}/.meta.json` の `order` がコースの表示順を決める
-- `contents/{series}/{course}/.meta.json` の `order` がレッスンの表示順を決める
+- `contents/{series}/{course}/.meta.json` の `order` がレッスン**フォルダ名**の表示順を決める
 
 #### Scenario: シリーズの表示順が .meta.json に従う
 
@@ -71,17 +70,10 @@
 
 `POST /api/content/reorder` は FS 上のフォルダ/ファイルを rename せず、対象階層の `.meta.json` の `order` 配列を新しい順序で上書きするだけでなければならない（SHALL）。
 
-#### Scenario: コースを並び替えた場合にフォルダが rename されない
-
-- **WHEN** シリーズ内のコース順序を変更して reorder API を呼び出す
-- **THEN** コースフォルダ名は変わらず、シリーズの `.meta.json` の `order` のみが更新される
-
-#### Scenario: レッスンを並び替えた場合にファイルが rename されない
+#### Scenario: レッスンを並び替えた場合にフォルダが rename されない
 
 - **WHEN** コース内のレッスン順序を変更して reorder API を呼び出す
-- **THEN** レッスンファイル名は変わらず、コースの `.meta.json` の `order` のみが更新される
-
----
+- **THEN** レッスンフォルダ名は変わらず、コースの `.meta.json` の `order` のみが更新される
 
 ### Requirement: rename API は .meta.json を in-place 更新する
 
@@ -113,3 +105,4 @@
 
 - **WHEN** コースを削除する
 - **THEN** コースフォルダが削除され、シリーズ `.meta.json` の `order` から該当コース名が除去される
+

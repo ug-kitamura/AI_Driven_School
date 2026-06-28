@@ -25,9 +25,8 @@ import {
   buildCreateStructureVariables,
 } from "@/lib/agent/invoke-context";
 import {
-  applyContextSelection,
-  parseContextSelectionIntent,
-  resolveConfirmedSearchQuery,
+  resolveSearchQueryRequest,
+  shouldApproveSearchResults,
 } from "@/lib/context-draft-selection";
 import { extractMarkdownBlock } from "@/lib/extract-markdown-block";
 import type { ContextItem } from "@/lib/context-db/types";
@@ -80,8 +79,8 @@ type CreateDraftContextState = {
   contextItemsJson: string;
   searchResults: ContextItem[];
   searchPerformed: boolean;
-  /** null = 未選択（検索結果を Agent に一覧表示する段階） */
-  selectedItems: ContextItem[] | null;
+  lastSearchQuery: string | null;
+  searchResultsApproved: boolean;
 };
 
 function emptyCreateDraftContextState(): CreateDraftContextState {
@@ -89,7 +88,8 @@ function emptyCreateDraftContextState(): CreateDraftContextState {
     contextItemsJson: "[]",
     searchResults: [],
     searchPerformed: false,
-    selectedItems: null,
+    lastSearchQuery: null,
+    searchResultsApproved: false,
   };
 }
 
@@ -100,7 +100,8 @@ function snapshotCreateDraftContext(
     contextItemsJson: state.contextItemsJson,
     searchResults: state.searchResults,
     searchPerformed: state.searchPerformed,
-    selectedItems: state.selectedItems,
+    lastSearchQuery: state.lastSearchQuery,
+    searchResultsApproved: state.searchResultsApproved,
   };
 }
 
@@ -109,21 +110,18 @@ function restoreCreateDraftContext(
 ): CreateDraftContextState {
   if (!snapshot) return emptyCreateDraftContextState();
 
-  let selectedItems = snapshot.selectedItems ?? null;
-  if (selectedItems === null && snapshot.selectionConfirmed) {
-    try {
-      const parsed = JSON.parse(snapshot.contextItemsJson) as ContextItem[];
-      selectedItems = Array.isArray(parsed) ? parsed : null;
-    } catch {
-      selectedItems = null;
-    }
-  }
+  const searchResults = snapshot.searchResults ?? [];
+  const contextItemsJson =
+    searchResults.length > 0
+      ? JSON.stringify(searchResults, null, 2)
+      : snapshot.contextItemsJson;
 
   return {
-    contextItemsJson: snapshot.contextItemsJson,
-    searchResults: snapshot.searchResults,
+    contextItemsJson,
+    searchResults,
     searchPerformed: snapshot.searchPerformed,
-    selectedItems,
+    lastSearchQuery: snapshot.lastSearchQuery ?? null,
+    searchResultsApproved: snapshot.searchResultsApproved ?? false,
   };
 }
 
@@ -474,57 +472,56 @@ export function AgentChatPane({
     }): Promise<{ contextItemsJson: string } | { error: string }> => {
       const state = createDraftContextRef.current;
 
-      if (state.searchResults.length > 0) {
-        const intent = parseContextSelectionIntent(
-          options.userMessage.content,
-          state.searchResults.length,
-        );
-        if (intent !== null) {
-          const selected = applyContextSelection(state.searchResults, intent);
-          state.selectedItems = selected;
-          state.contextItemsJson = JSON.stringify(selected, null, 2);
-          return { contextItemsJson: state.contextItemsJson };
-        }
-
-        if (state.selectedItems !== null) {
-          state.contextItemsJson = JSON.stringify(state.selectedItems, null, 2);
-          return { contextItemsJson: state.contextItemsJson };
-        }
-
-        return {
-          contextItemsJson: JSON.stringify(state.searchResults, null, 2),
-        };
-      }
-
-      const query = resolveConfirmedSearchQuery({
+      const query = resolveSearchQueryRequest({
         userMessage: options.userMessage.content,
         history: options.history,
+        lastSearchQuery: state.lastSearchQuery,
+        searchResultsApproved: state.searchResultsApproved,
       });
-      if (!query) {
-        return { contextItemsJson: "[]" };
-      }
 
-      const res = await fetch(
-        withContextMode(
-          `/api/context/items/search?q=${encodeURIComponent(query)}`,
-        ),
-      );
-      if (!res.ok) {
-        let message = "社内コンテキストの取得に失敗しました";
-        try {
-          const data = (await res.json()) as { error?: string };
-          message = data.error ?? message;
-        } catch {
-          // ignore
+      if (query) {
+        const res = await fetch(
+          withContextMode(
+            `/api/context/items/search?q=${encodeURIComponent(query)}`,
+          ),
+        );
+        if (!res.ok) {
+          let message = "社内コンテキストの取得に失敗しました";
+          try {
+            const data = (await res.json()) as { error?: string };
+            message = data.error ?? message;
+          } catch {
+            // ignore
+          }
+          return { error: message };
         }
-        return { error: message };
+
+        const data = (await res.json()) as { items?: ContextItem[] };
+        state.searchResults = data.items ?? [];
+        state.searchPerformed = true;
+        state.lastSearchQuery = query;
+        state.searchResultsApproved = false;
+        state.contextItemsJson = JSON.stringify(state.searchResults, null, 2);
+        return { contextItemsJson: state.contextItemsJson };
       }
 
-      const data = (await res.json()) as { items?: ContextItem[] };
-      state.searchResults = data.items ?? [];
-      state.searchPerformed = true;
-      state.contextItemsJson = JSON.stringify(state.searchResults, null, 2);
-      return { contextItemsJson: state.contextItemsJson };
+      if (
+        shouldApproveSearchResults({
+          userMessage: options.userMessage.content,
+          history: options.history,
+          searchResultsApproved: state.searchResultsApproved,
+          hasSearchResults: state.searchResults.length > 0,
+        })
+      ) {
+        state.searchResultsApproved = true;
+      }
+
+      if (state.searchResults.length > 0) {
+        state.contextItemsJson = JSON.stringify(state.searchResults, null, 2);
+        return { contextItemsJson: state.contextItemsJson };
+      }
+
+      return { contextItemsJson: "[]" };
     },
     [],
   );

@@ -11,10 +11,8 @@ export type CreateDraftContextSnapshot = {
   contextItemsJson: string;
   searchResults: ContextItem[];
   searchPerformed: boolean;
-  /** ユーザーが確定した選択。null は未選択（検索結果一覧を Agent に渡す段階） */
-  selectedItems: ContextItem[] | null;
-  /** @deprecated selectedItems に移行。復元時のみ参照 */
-  selectionConfirmed?: boolean;
+  lastSearchQuery: string | null;
+  searchResultsApproved: boolean;
 };
 
 export type AgentChatSession = {

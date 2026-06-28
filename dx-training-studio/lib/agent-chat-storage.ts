@@ -1,17 +1,11 @@
-import type { ContextItem } from "@/lib/context-db/types";
+import type { AgentToolEvent } from "@/lib/agent/llm/types";
 
 export type AgentChatMessage = {
   id: string;
   role: "user" | "assistant";
   content: string;
   createdAt?: string;
-};
-
-export type CreateDraftContextSnapshot = {
-  contextItemsJson: string;
-  searchResults: ContextItem[];
-  searchPerformed: boolean;
-  selectionConfirmed: boolean;
+  toolEvents?: AgentToolEvent[];
 };
 
 export type AgentChatSession = {
@@ -19,7 +13,6 @@ export type AgentChatSession = {
   title: string;
   messages: AgentChatMessage[];
   activeSkillId: string | null;
-  createDraftContext?: CreateDraftContextSnapshot | null;
   createdAt: string;
   updatedAt: string;
 };
@@ -59,7 +52,6 @@ export function createEmptySession(now = new Date().toISOString()): AgentChatSes
     title: DEFAULT_SESSION_TITLE,
     messages: [],
     activeSkillId: null,
-    createDraftContext: null,
     createdAt: now,
     updatedAt: now,
   };
@@ -189,9 +181,7 @@ export function getActiveSession(storage: AgentChatStorage): AgentChatSession | 
 
 export function updateActiveSession(
   storage: AgentChatStorage,
-  updates: Partial<
-    Pick<AgentChatSession, "messages" | "activeSkillId" | "title" | "createDraftContext">
-  >,
+  updates: Partial<Pick<AgentChatSession, "messages" | "activeSkillId" | "title">>,
 ): AgentChatStorage {
   const now = new Date().toISOString();
   const sessions = storage.sessions.map((session) => {

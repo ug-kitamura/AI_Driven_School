@@ -322,6 +322,140 @@ export function createLessonContentTemplate(
   return serializeLessonDocument(meta, body ?? defaultLessonBody(meta.lesson));
 }
 
+/** Agent 草稿の tags / estimated_minutes 補完 */
+
+export function inferDraftTagsFromText(
+  text: string,
+  availableTags: string[],
+): string[] {
+  const lower = text.toLowerCase();
+  return normalizeTags(
+    availableTags.filter((tag) => lower.includes(tag.toLowerCase())),
+  ).slice(0, 5);
+}
+
+export function resolveDraftTags(options: {
+  parsedTags?: string[];
+  fallbackTags: string[];
+  availableTags: string[];
+  contextItemTags: string[];
+  bodyText: string;
+}): string[] {
+  const parsed = normalizeTags(options.parsedTags);
+  if (parsed.length > 0) return parsed;
+
+  const inferred = inferDraftTagsFromText(
+    options.bodyText,
+    options.availableTags,
+  );
+  if (inferred.length > 0) return inferred;
+
+  const fromContext = normalizeTags([...new Set(options.contextItemTags)]);
+  if (fromContext.length > 0) return fromContext.slice(0, 5);
+
+  const fallbacks = normalizeTags(options.fallbackTags);
+  if (fallbacks.length > 0) return fallbacks;
+
+  return [];
+}
+
+/** 既存コンテンツ最短レッスン（問い合わせ先 5分）に合わせた下限 */
+export const DRAFT_ESTIMATED_MINUTES_MIN = 5;
+export const DRAFT_ESTIMATED_MINUTES_MAX = 180;
+
+/**
+ * 草稿本文から estimated_minutes を推定する。
+ * 400文字≈1分の読了 + 見出し・箇条書き・コードブロックの実習加算を 5分刻みに丸める。
+ */
+export function estimateDraftMinutes(body: string): number {
+  const trimmed = body.trim();
+  if (!trimmed) return DRAFT_ESTIMATED_MINUTES_MIN;
+
+  const headings = (trimmed.match(/^#{1,3}\s/gm) ?? []).length;
+  const listItems = (trimmed.match(/^[\-*]\s+/gm) ?? []).length;
+  const codeBlocks = Math.floor((trimmed.match(/```/g) ?? []).length / 2);
+
+  const readingMinutes = trimmed.length / 400;
+  const activityMinutes = headings * 0.5 + listItems * 0.5 + codeBlocks * 3;
+  const raw = readingMinutes + activityMinutes;
+
+  const rounded = Math.round(raw / 5) * 5;
+  return Math.min(
+    DRAFT_ESTIMATED_MINUTES_MAX,
+    Math.max(DRAFT_ESTIMATED_MINUTES_MIN, rounded || DRAFT_ESTIMATED_MINUTES_MIN),
+  );
+}
+
+export type NormalizeDraftOptions = {
+  availableTags?: string[];
+  contextItemTags?: string[];
+};
+
+/** Agent 草稿上書き前に FM を選択中レッスンのドメイン制約へ矯正する */
+export function normalizeDraftMarkdownForLesson(
+  markdown: string,
+  ctx: LessonParentContext,
+  fallbacks: Pick<
+    Lesson,
+    | "series"
+    | "course"
+    | "lesson"
+    | "status"
+    | "description"
+    | "tags"
+    | "estimated_minutes"
+    | "author"
+  >,
+  options: NormalizeDraftOptions = {},
+): string {
+  const { meta, body } = parseLessonDocument(markdown);
+  const availableTags = options.availableTags ?? [];
+  const contextItemTags = options.contextItemTags ?? [];
+  const bodyText = [
+    meta.description ?? "",
+    fallbacks.description,
+    fallbacks.course,
+    fallbacks.lesson,
+    body,
+  ].join("\n");
+
+  const tags = resolveDraftTags({
+    parsedTags: meta.tags,
+    fallbackTags: fallbacks.tags,
+    availableTags,
+    contextItemTags,
+    bodyText,
+  });
+
+  const parsedMinutes = meta.estimated_minutes ?? 0;
+  const minutes =
+    parsedMinutes > 0
+      ? parsedMinutes
+      : fallbacks.estimated_minutes > 0
+        ? fallbacks.estimated_minutes
+        : estimateDraftMinutes(body);
+
+  const normalized = normalizeLessonMeta(
+    {
+      ...meta,
+      tags,
+      estimated_minutes: minutes,
+    },
+    ctx,
+    {
+      series: fallbacks.series,
+      course: fallbacks.course,
+      lesson: fallbacks.lesson,
+      status: fallbacks.status,
+      description: fallbacks.description,
+      tags,
+      estimated_minutes: minutes,
+      author: fallbacks.author,
+    },
+  );
+  return serializeLessonDocument(normalized, body);
+}
+
 export function reconcileLesson(
   lesson: Lesson,
   ctx: LessonParentContext,

@@ -88,11 +88,17 @@
 
 ### Requirement: 社内コンテキスト本文検索 API
 
-`GET /api/context/items/search` を提供し、クエリ `q`（必須・空文字不可）と `contextMode` でバックエンドを選択し、`title` および `body`（およびタグ文字列）の部分一致検索を行わなければならない（SHALL）。応答は `{ items: ContextItem[] }` とし、各 item に `id`, `title`, `body`, `tags`, `source_url`, `source_last_updated_at` を含めなければならない（SHALL）。結果は `updated_at DESC` で並べなければならない（SHALL）。`q` 未指定または空の場合は 400 を返さなければならない（SHALL）。
+`GET /api/context/items/search` を提供し、クエリ `q`（必須・空文字不可）と `contextMode` でバックエンドを選択し、`title` および `body`（およびタグ文字列）の部分一致検索を行わなければならない（SHALL）。`q` は `lib/context-search.ts` の `normalizeSearchQuery` で正規化され、**引用符**（`「」『』""''` 等）および説明文（`—` / `-` 以降）が除去された後に検索に用いられなければならない（SHALL）。応答は `{ items: ContextItem[] }` とし、各 item に `id`, `title`, `body`, `tags`, `source_url`, `source_last_updated_at` を含めなければならない（SHALL）。結果は `updated_at DESC` で並べなければならない（SHALL）。`q` 未指定または正規化後空の場合は 400 を返さなければならない（SHALL）。
 
 #### Scenario: キーワードでヒットする
 
 - **WHEN** `GET /api/context/items/search?q=ブランチ&contextMode=local` が呼ばれる
+- **AND** `title` または `body` に「ブランチ」を含むアイテムが存在する
+- **THEN** 該当アイテムが JSON 配列で返される
+
+#### Scenario: 括弧付き q でもヒットする
+
+- **WHEN** `GET /api/context/items/search?q=「ブランチ」&contextMode=database` が呼ばれる
 - **AND** `title` または `body` に「ブランチ」を含むアイテムが存在する
 - **THEN** 該当アイテムが JSON 配列で返される
 
@@ -105,4 +111,14 @@
 
 - **WHEN** `GET /api/context/items/search` が `q` なしで呼ばれる
 - **THEN** レスポンスは 400 である
+
+### Requirement: 社内コンテキストモーダルのキーワードフィルタ正規化
+
+社内コンテキストダイアログのキーワードフィルタは、`lib/context-search.ts` の `normalizeSearchQuery` および `tokenizeSearchQuery` を用いてクエリを正規化しなければならない（SHALL）。各アイテムの `title`・`body`・`source_url`・`tags` に対し、正規化後トークンのいずれかが部分一致すれば表示対象としなければならない（SHALL）。
+
+#### Scenario: モーダルと API で同一クエリが同等にヒットする
+
+- **WHEN** DB に「NMS Git ブランチ運用ルール」が登録されている
+- **AND** モーダルで `「ブランチ」` を入力してフィルタする
+- **THEN** 当該アイテムが表示される
 

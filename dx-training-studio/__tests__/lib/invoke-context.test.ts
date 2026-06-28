@@ -16,23 +16,30 @@ describe("buildCreateDraftVariables", () => {
     content: "---\nseries: シリーズ\n---\n\n本文",
   };
 
-  it("includes contextItems with default empty array", () => {
+  it("does not include contextItems", () => {
     const variables = buildCreateDraftVariables({
       lesson,
       lessonBody: "本文",
       courseMeta: { name: "コース" },
     });
-    expect(variables.contextItems).toBe("[]");
+    expect(variables.contextItems).toBeUndefined();
+    expect(JSON.parse(variables.lessonMeta)).toEqual({
+      status: "open",
+      tags: [],
+      description: "説明",
+      estimated_minutes: 10,
+      author: "author",
+    });
+    expect(JSON.parse(variables.availableTags)).toEqual([]);
   });
 
-  it("passes provided contextItems JSON", () => {
-    const contextItems = JSON.stringify([{ id: 1, title: "A" }], null, 2);
+  it("passes availableTags", () => {
     const variables = buildCreateDraftVariables({
       lesson,
       lessonBody: "本文",
       courseMeta: { name: "コース" },
-      contextItems,
+      availableTags: ["git", "python"],
     });
-    expect(variables.contextItems).toBe(contextItems);
+    expect(JSON.parse(variables.availableTags)).toEqual(["git", "python"]);
   });
 });

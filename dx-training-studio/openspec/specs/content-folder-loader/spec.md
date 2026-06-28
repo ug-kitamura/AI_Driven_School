@@ -57,3 +57,18 @@
 - **WHEN** フロントマターが存在しない `contents.md` がある
 - **THEN** フォルダパスからシリーズ名・コース名・レッスン名が補完され、`status: "open"` でレッスンオブジェクトが生成される
 
+### Requirement: contents 指紋から session.json を除外
+
+`getContentsFingerprint` および `getContentsLatestMtime` が `contents/` ツリーを走査する際、各レッスンフォルダ内の `session.json`（`LESSON_SESSION_FILENAME`）を走査対象から除外しなければならない（SHALL）。Agent 会話の保存だけではコンテンツ hot-reload 用 fingerprint が変化してはならない（MUST NOT）。
+
+#### Scenario: session.json 更新で fingerprint が変わらない
+
+- **WHEN** レッスンフォルダの `session.json` のみが更新される
+- **AND** `contents.md` および `.meta.json` に変更がない
+- **THEN** `GET /api/content/mtime` の `fingerprint` は前回と同一である
+
+#### Scenario: contents.md 更新で fingerprint が変わる
+
+- **WHEN** レッスンフォルダの `contents.md` が更新される
+- **THEN** `GET /api/content/mtime` の `fingerprint` は変化する
+

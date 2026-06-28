@@ -18,21 +18,16 @@ import {
   type AgentFileOption,
 } from "@/components/workspace/AgentChatInput";
 import { AgentChatMessageContent } from "@/components/workspace/AgentChatMessageContent";
+import { AgentToolCallBlock } from "@/components/workspace/AgentToolCallBlock";
 import { aiRequestHeaders } from "@/components/workspace/image-manager/image-manager-utils";
 import { AI_KEY_ERROR } from "@/components/workspace/image-manager/image-manager-constants";
 import {
   buildCreateDraftVariables,
   buildCreateStructureVariables,
 } from "@/lib/agent/invoke-context";
-import {
-  applyContextSelection,
-  parseContextSelection,
-  resolveConfirmedSearchQuery,
-} from "@/lib/context-draft-selection";
 import { extractMarkdownBlock } from "@/lib/extract-markdown-block";
-import type { ContextItem } from "@/lib/context-db/types";
-import { withContextMode } from "@/lib/context-api-client";
-import { consumeAnthropicStream } from "@/lib/agent/stream-client";
+import { consumeAgentStream } from "@/lib/agent/stream-client";
+import type { AgentToolEvent } from "@/lib/agent/llm/types";
 import {
   addSession,
   DEFAULT_SESSION_TITLE,
@@ -47,12 +42,12 @@ import {
   updateActiveSession,
   type AgentChatMessage,
   type AgentChatStorage,
-  type CreateDraftContextSnapshot,
 } from "@/lib/agent-chat-storage";
 import { loadLessonSession, saveLessonSession } from "@/lib/agent-session-client";
 import type { AgentChatController } from "@/lib/agent-chat-controller";
 import { resolveModelLabel } from "@/lib/agent/model-labels";
-import { getLessonBody } from "@/lib/lesson-frontmatter";
+import { getLessonBody, normalizeDraftMarkdownForLesson } from "@/lib/lesson-frontmatter";
+import { collectAllLessonTags } from "@/lib/lesson-tags";
 import {
   loadWorkspaceSettings,
   WORKSPACE_SETTINGS_CHANGED_EVENT,
@@ -75,46 +70,36 @@ type Props = {
   richMarkdown?: boolean;
 };
 
-type CreateDraftContextState = {
-  contextItemsJson: string;
-  searchResults: ContextItem[];
-  searchPerformed: boolean;
-  selectionConfirmed: boolean;
-};
-
-function emptyCreateDraftContextState(): CreateDraftContextState {
-  return {
-    contextItemsJson: "[]",
-    searchResults: [],
-    searchPerformed: false,
-    selectionConfirmed: false,
-  };
+function computeSessionFingerprint(
+  nextMessages: AgentChatMessage[],
+  nextSkillId: string | null,
+): string {
+  return JSON.stringify({
+    messages: nextMessages.map((message) => ({
+      id: message.id,
+      role: message.role,
+      content: message.content,
+      toolEvents: message.toolEvents,
+    })),
+    activeSkillId: nextSkillId,
+  });
 }
 
-function snapshotCreateDraftContext(
-  state: CreateDraftContextState,
-): CreateDraftContextSnapshot {
-  return {
-    contextItemsJson: state.contextItemsJson,
-    searchResults: state.searchResults,
-    searchPerformed: state.searchPerformed,
-    selectionConfirmed: state.selectionConfirmed,
-  };
+function collectContextTagsFromMessages(messages: AgentChatMessage[]): string[] {
+  const tags: string[] = [];
+  for (const message of messages) {
+    for (const event of message.toolEvents ?? []) {
+      if (
+        event.phase === "end" &&
+        event.name === "select_company_context" &&
+        event.tags
+      ) {
+        tags.push(...event.tags);
+      }
+    }
+  }
+  return tags;
 }
-
-function restoreCreateDraftContext(
-  snapshot: CreateDraftContextSnapshot | null | undefined,
-): CreateDraftContextState {
-  if (!snapshot) return emptyCreateDraftContextState();
-  return {
-    contextItemsJson: snapshot.contextItemsJson,
-    searchResults: snapshot.searchResults,
-    searchPerformed: snapshot.searchPerformed,
-    selectionConfirmed: snapshot.selectionConfirmed,
-  };
-}
-
-const CONTINUE_USER_MESSAGE = "つづきよろしく";
 
 function isAbortError(error: unknown): boolean {
   return error instanceof DOMException && error.name === "AbortError";
@@ -161,14 +146,7 @@ export function AgentChatPane({
     content: string;
   } | null>(null);
 
-  const [pendingContinueAssistantId, setPendingContinueAssistantId] = useState<
-    string | null
-  >(null);
-
   const abortRef = useRef<AbortController | null>(null);
-  const createDraftContextRef = useRef<CreateDraftContextState>(
-    emptyCreateDraftContextState(),
-  );
   const stopContextRef = useRef<{
     userMessage: AgentChatMessage;
     assistantId: string;
@@ -181,6 +159,8 @@ export function AgentChatPane({
   const chatStorageRef = useRef<AgentChatStorage | null>(null);
   const messagesRef = useRef<AgentChatMessage[]>([]);
   const activeSkillIdRef = useRef<string | null>(null);
+  const lastPersistedFingerprintRef = useRef("");
+  const persistTimerRef = useRef<number | null>(null);
 
   const [skills, setSkills] = useState<SkillSummary[]>([]);
 
@@ -202,10 +182,6 @@ export function AgentChatPane({
     return updateActiveSession(storage, {
       messages: messagesRef.current,
       activeSkillId: activeSkillIdRef.current,
-      createDraftContext:
-        activeSkillIdRef.current === "create-draft"
-          ? snapshotCreateDraftContext(createDraftContextRef.current)
-          : null,
     });
   }, []);
 
@@ -215,9 +191,29 @@ export function AgentChatPane({
     await saveLessonSession(lessonId, snapshot);
   }, [buildStorageSnapshot]);
 
-  const resetCreateDraftContext = useCallback(() => {
-    createDraftContextRef.current = emptyCreateDraftContextState();
-  }, []);
+  const scheduleDebouncedPersist = useCallback(() => {
+    if (!lessonId || sessionSwitchRef.current === null) return;
+
+    if (persistTimerRef.current !== null) {
+      window.clearTimeout(persistTimerRef.current);
+    }
+
+    persistTimerRef.current = window.setTimeout(() => {
+      persistTimerRef.current = null;
+      const targetLessonId = currentLessonIdRef.current;
+      if (!targetLessonId) return;
+
+      const fingerprint = computeSessionFingerprint(
+        messagesRef.current,
+        activeSkillIdRef.current,
+      );
+      if (fingerprint === lastPersistedFingerprintRef.current) return;
+
+      void flushSessionToStorage(targetLessonId).then(() => {
+        lastPersistedFingerprintRef.current = fingerprint;
+      });
+    }, 800);
+  }, [flushSessionToStorage, lessonId]);
 
   const scrollChatToBottom = useCallback(() => {
     const element = chatScrollRef.current;
@@ -229,10 +225,6 @@ export function AgentChatPane({
     if (!stickToBottomRef.current) return;
     scrollChatToBottom();
   }, [messages, isStreaming, streamingAssistantId, scrollChatToBottom]);
-
-  useEffect(() => {
-    resetCreateDraftContext();
-  }, [activeSkillId, resetCreateDraftContext]);
 
   useEffect(() => {
     if (!richMarkdown) return;
@@ -300,22 +292,15 @@ export function AgentChatPane({
                 nextMessages.find((message) => message.role === "user")?.content ?? "",
               )
             : current?.title ?? DEFAULT_SESSION_TITLE);
-        const next = updateActiveSession(prev, {
+        return updateActiveSession(prev, {
           messages: nextMessages,
           activeSkillId: nextSkillId,
           title,
-          createDraftContext:
-            nextSkillId === "create-draft"
-              ? snapshotCreateDraftContext(createDraftContextRef.current)
-              : null,
         });
-        if (lessonId) {
-          void saveLessonSession(lessonId, next);
-        }
-        return next;
       });
+      scheduleDebouncedPersist();
     },
-    [lessonId],
+    [scheduleDebouncedPersist],
   );
 
   const interruptForSwitch = useCallback(async () => {
@@ -329,7 +314,11 @@ export function AgentChatPane({
     stopContextRef.current = null;
 
     if (assistantId) {
-      setPendingContinueAssistantId(assistantId);
+      setMessages((prev) =>
+        prev.map((message) =>
+          message.id === assistantId ? { ...message, content: message.content || "…" } : message,
+        ),
+      );
     }
 
     const lessonId = currentLessonIdRef.current;
@@ -350,12 +339,30 @@ export function AgentChatPane({
   }, [agentChatControllerRef, interruptForSwitch, isStreaming]);
 
   useEffect(() => {
-    if (!chatStorage || sessionSwitchRef.current === null || !lessonId) return;
-    const timer = window.setTimeout(() => {
-      persistSession(messages, activeSkillId);
-    }, 800);
-    return () => window.clearTimeout(timer);
-  }, [messages, activeSkillId, chatStorage, lessonId, persistSession]);
+    if (!lessonId || sessionSwitchRef.current === null) return;
+    if (!chatStorageRef.current) return;
+    persistSession(messages, activeSkillId);
+  }, [messages, activeSkillId, lessonId, persistSession]);
+
+  useEffect(() => {
+    const handleBeforeUnload = () => {
+      const targetLessonId = currentLessonIdRef.current;
+      if (!targetLessonId) return;
+      const snapshot = buildStorageSnapshot();
+      if (!snapshot) return;
+      void saveLessonSession(targetLessonId, snapshot);
+    };
+    window.addEventListener("beforeunload", handleBeforeUnload);
+    return () => window.removeEventListener("beforeunload", handleBeforeUnload);
+  }, [buildStorageSnapshot]);
+
+  useEffect(() => {
+    return () => {
+      if (persistTimerRef.current !== null) {
+        window.clearTimeout(persistTimerRef.current);
+      }
+    };
+  }, []);
 
   const loadContentFiles = useCallback(async () => {
     const params = currentLessonPath
@@ -367,7 +374,7 @@ export function AgentChatPane({
   }, [currentLessonPath]);
 
   const buildVariables = useCallback(
-    (skillId: string, contextItemsJson?: string): Record<string, string> | { error: string } => {
+    (skillId: string): Record<string, string> | { error: string } => {
       if (skillId === "create-structure") {
         return buildCreateStructureVariables(series);
       }
@@ -384,72 +391,12 @@ export function AgentChatPane({
             cross_series_prev: course?.cross_series_prev ?? [],
             cross_series_next: course?.cross_series_next ?? [],
           },
-          contextItems: contextItemsJson ?? createDraftContextRef.current.contextItemsJson,
+          availableTags: collectAllLessonTags(series),
         });
       }
       return {};
     },
     [series, lesson, course],
-  );
-
-  const resolveCreateDraftContextItems = useCallback(
-    async (options: {
-      userMessage: AgentChatMessage;
-      history: AgentChatMessage[];
-    }): Promise<{ contextItemsJson: string } | { error: string }> => {
-      const state = createDraftContextRef.current;
-
-      if (state.selectionConfirmed) {
-        return { contextItemsJson: state.contextItemsJson };
-      }
-
-      if (state.searchPerformed && state.searchResults.length > 0) {
-        const selection = parseContextSelection(
-          options.userMessage.content,
-          state.searchResults.length,
-        );
-        if (selection !== null) {
-          const selected = applyContextSelection(state.searchResults, selection);
-          state.selectionConfirmed = true;
-          state.contextItemsJson = JSON.stringify(selected, null, 2);
-          return { contextItemsJson: state.contextItemsJson };
-        }
-        return {
-          contextItemsJson: JSON.stringify(state.searchResults, null, 2),
-        };
-      }
-
-      const query = resolveConfirmedSearchQuery({
-        userMessage: options.userMessage.content,
-        history: options.history,
-      });
-      if (!query) {
-        return { contextItemsJson: "[]" };
-      }
-
-      const res = await fetch(
-        withContextMode(
-          `/api/context/items/search?q=${encodeURIComponent(query)}`,
-        ),
-      );
-      if (!res.ok) {
-        let message = "社内コンテキストの取得に失敗しました";
-        try {
-          const data = (await res.json()) as { error?: string };
-          message = data.error ?? message;
-        } catch {
-          // ignore
-        }
-        return { error: message };
-      }
-
-      const data = (await res.json()) as { items?: ContextItem[] };
-      state.searchResults = data.items ?? [];
-      state.searchPerformed = true;
-      state.contextItemsJson = JSON.stringify(state.searchResults, null, 2);
-      return { contextItemsJson: state.contextItemsJson };
-    },
-    [],
   );
 
   const handleStop = useCallback(() => {
@@ -480,26 +427,14 @@ export function AgentChatPane({
       history: AgentChatMessage[];
       skillId: string;
     }) => {
-      let contextItemsJson: string | undefined;
-      if (options.skillId === "create-draft") {
-        const contextResult = await resolveCreateDraftContextItems({
-          userMessage: options.userMessage,
-          history: options.history,
-        });
-        if ("error" in contextResult) {
-          setError(contextResult.error);
-          return;
-        }
-        contextItemsJson = contextResult.contextItemsJson;
-      }
-
-      const variablesResult = buildVariables(options.skillId, contextItemsJson);
+      const variablesResult = buildVariables(options.skillId);
       if ("error" in variablesResult) {
         setError(variablesResult.error);
         return;
       }
 
       const assistantId = createMessageId();
+      const assistantCreatedAt = new Date().toISOString();
 
       setMessages((prev) => [
         ...prev,
@@ -508,7 +443,8 @@ export function AgentChatPane({
           id: assistantId,
           role: "assistant",
           content: "",
-          createdAt: new Date().toISOString(),
+          createdAt: assistantCreatedAt,
+          toolEvents: [],
         },
       ]);
       setIsStreaming(true);
@@ -533,13 +469,19 @@ export function AgentChatPane({
         messages: [...options.history, options.userMessage].map((message) => ({
           role: message.role,
           content: message.content,
+          ...(message.toolEvents ? { toolEvents: message.toolEvents } : {}),
         })),
       };
+
+      const toolEvents: AgentToolEvent[] = [];
 
       try {
         const res = await fetch("/api/agent/invoke", {
           method: "POST",
-          headers: aiRequestHeaders(settings),
+          headers: {
+            ...aiRequestHeaders(settings),
+            "x-context-mode": settings.contextStorage,
+          },
           body: JSON.stringify(payload),
           signal: controller.signal,
         });
@@ -558,21 +500,42 @@ export function AgentChatPane({
           throw new Error(message);
         }
 
-        await consumeAnthropicStream(
+        await consumeAgentStream(
           res,
-          (delta) => {
-            setMessages((prev) =>
-              prev.map((message) =>
-                message.id === assistantId
-                  ? { ...message, content: message.content + delta }
-                  : message,
-              ),
-            );
+          {
+            onDelta: (delta) => {
+              setMessages((prev) =>
+                prev.map((message) =>
+                  message.id === assistantId
+                    ? { ...message, content: message.content + delta }
+                    : message,
+                ),
+              );
+            },
+            onToolStart: (event) => {
+              toolEvents.push(event);
+              setMessages((prev) =>
+                prev.map((message) =>
+                  message.id === assistantId
+                    ? { ...message, toolEvents: [...toolEvents] }
+                    : message,
+                ),
+              );
+            },
+            onToolEnd: (event) => {
+              toolEvents.push(event);
+              setMessages((prev) =>
+                prev.map((message) =>
+                  message.id === assistantId
+                    ? { ...message, toolEvents: [...toolEvents] }
+                    : message,
+                ),
+              );
+            },
           },
           controller.signal,
         );
         stopContextRef.current = null;
-        setPendingContinueAssistantId(null);
       } catch (err) {
         if (isAbortError(err)) {
           return;
@@ -593,7 +556,7 @@ export function AgentChatPane({
         setStreamingAssistantId(null);
       }
     },
-    [buildVariables, onOpenSettings, resolveCreateDraftContextItems],
+    [buildVariables, onOpenSettings],
   );
 
   const handleSend = useCallback(async () => {
@@ -625,24 +588,6 @@ export function AgentChatPane({
     });
   }, [activeSkillId, input, invokeSkill, isStreaming, lesson, messages]);
 
-  const handleContinueGeneration = useCallback(async () => {
-    if (!activeSkillId || isStreaming || !pendingContinueAssistantId) return;
-
-    const userMessage: AgentChatMessage = {
-      id: createMessageId(),
-      role: "user",
-      content: CONTINUE_USER_MESSAGE,
-      createdAt: new Date().toISOString(),
-    };
-    setPendingContinueAssistantId(null);
-    stickToBottomRef.current = true;
-    await invokeSkill({
-      userMessage,
-      history: messages,
-      skillId: activeSkillId,
-    });
-  }, [activeSkillId, invokeSkill, isStreaming, messages, pendingContinueAssistantId]);
-
   const handleRetry = useCallback(async () => {
     if (!retryPayload || !activeSkillId || isStreaming) return;
     await invokeSkill({
@@ -656,13 +601,11 @@ export function AgentChatPane({
     const session = storage.sessions.find((item) => item.id === sessionId);
     if (!session) return;
     sessionSwitchRef.current = session.id;
-    createDraftContextRef.current = restoreCreateDraftContext(session.createDraftContext);
     setMessages(session.messages);
     setActiveSkillId(session.activeSkillId);
     setInput("");
     setError(null);
     setRetryPayload(null);
-    setPendingContinueAssistantId(null);
   }, []);
 
   useEffect(() => {
@@ -680,6 +623,7 @@ export function AgentChatPane({
       if (cancelled) return;
 
       currentLessonIdRef.current = targetLessonId;
+      lastPersistedFingerprintRef.current = "";
       setChatStorage(storage);
       applySessionState(storage.activeSessionId, storage);
       sessionSwitchRef.current = storage.activeSessionId;
@@ -778,11 +722,21 @@ export function AgentChatPane({
   }, []);
 
   const handleConfirmOverwrite = useCallback(() => {
-    if (!overwriteTarget || !onOverwriteEditor) return;
-    const markdown = extractMarkdownBlock(overwriteTarget.content);
+    if (!overwriteTarget || !onOverwriteEditor || !lesson) return;
+    const extracted = extractMarkdownBlock(overwriteTarget.content);
+    const contextItemTags = collectContextTagsFromMessages(messages);
+    const markdown = normalizeDraftMarkdownForLesson(
+      extracted,
+      { seriesName: lesson.series, courseName: lesson.course },
+      lesson,
+      {
+        availableTags: collectAllLessonTags(series),
+        contextItemTags,
+      },
+    );
     onOverwriteEditor(markdown);
     setOverwriteTarget(null);
-  }, [onOverwriteEditor, overwriteTarget]);
+  }, [lesson, messages, onOverwriteEditor, overwriteTarget, series]);
 
   const sessionTitle = activeSession?.title ?? DEFAULT_SESSION_TITLE;
 
@@ -892,11 +846,6 @@ export function AgentChatPane({
             {messages.map((message) => {
               const isStreamingMessage =
                 isStreaming && message.id === streamingAssistantId;
-              const showContinue =
-                message.role === "assistant" &&
-                !isStreamingMessage &&
-                pendingContinueAssistantId === message.id &&
-                Boolean(message.content);
               const showActions =
                 message.role === "assistant" &&
                 !isStreamingMessage &&
@@ -919,6 +868,9 @@ export function AgentChatPane({
 
               return (
                 <div key={message.id} className="flex w-full flex-col gap-2 text-sm">
+                  {message.toolEvents && message.toolEvents.length > 0 ? (
+                    <AgentToolCallBlock events={message.toolEvents} />
+                  ) : null}
                   {message.content ? (
                     <AgentChatMessageContent
                       content={message.content}
@@ -927,20 +879,8 @@ export function AgentChatPane({
                   ) : (
                     <span className="text-muted-foreground">...</span>
                   )}
-                  {showActions || showContinue ? (
+                  {showActions ? (
                     <div className="flex items-center gap-2">
-                      {showContinue ? (
-                        <Button
-                          type="button"
-                          variant="secondary"
-                          size="sm"
-                          onClick={() => void handleContinueGeneration()}
-                        >
-                          続きを生成
-                        </Button>
-                      ) : null}
-                      {showActions ? (
-                        <>
                       <WorkspaceTooltip
                         label={copied ? "コピー済み" : "コピー"}
                         render={
@@ -985,8 +925,6 @@ export function AgentChatPane({
                       <span className="text-xs text-muted-foreground">
                         {formatMessageTimestamp(message)}
                       </span>
-                        </>
-                      ) : null}
                     </div>
                   ) : null}
                 </div>

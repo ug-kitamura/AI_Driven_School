@@ -77,13 +77,28 @@ Generate a draft for {{series}} / {{course}}.`);
       id: "create-draft",
       name: "draft",
       description: "",
-      variables: ["series", "course", "contextItems"],
+      variables: ["series", "course"],
+      tools: ["search_company_context"],
       body: "{{series}}",
     };
     const { missingVariables } = buildSkillSystemPrompt(skill, {
       series: "A",
-      contextItems: "[]",
     });
     expect(missingVariables).toEqual(["course"]);
+  });
+
+  it("parses tools frontmatter", () => {
+    const parsed = parseSkillDocument(`---
+name: create-draft
+description: d
+variables:
+  - series
+tools:
+  - search_company_context
+  - select_company_context
+---
+
+Body`);
+    expect(parsed.tools).toEqual(["search_company_context", "select_company_context"]);
   });
 });

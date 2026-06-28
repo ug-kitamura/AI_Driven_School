@@ -7,14 +7,24 @@ import {
   enrichUserMessageWithAttachments,
   resolveAttachmentsForMessage,
 } from "@/lib/agent/file-attachments";
-import {
-  streamAnthropicMessages,
-  type AnthropicMessage,
-} from "@/lib/agent/anthropic-stream";
+import { createAgentLoopSseStream, runAgentLoop } from "@/lib/agent/agent-loop";
+import { clientMessagesToLlmMessages } from "@/lib/agent/message-history";
+
+const toolEventSchema = z.object({
+  name: z.string(),
+  phase: z.enum(["start", "end"]),
+  toolUseId: z.string().optional(),
+  input: z.record(z.string(), z.unknown()).optional(),
+  summary: z.string().optional(),
+  display: z.string(),
+  result: z.string().optional(),
+  tags: z.array(z.string()).optional(),
+});
 
 const messageSchema = z.object({
   role: z.enum(["user", "assistant"]),
   content: z.string(),
+  toolEvents: z.array(toolEventSchema).optional(),
 });
 
 const bodySchema = z.object({
@@ -56,28 +66,46 @@ export async function POST(req: Request) {
     );
   }
 
-  const anthropicMessages: AnthropicMessage[] = [];
-  for (let i = 0; i < parsed.data.messages.length; i++) {
-    const message = parsed.data.messages[i];
-    if (message.role !== "user") {
-      anthropicMessages.push(message);
-      continue;
-    }
-
-    const attachments = resolveAttachmentsForMessage(projectRoot, message.content);
-    if ("error" in attachments) {
-      return Response.json({ error: attachments.error }, { status: 400 });
-    }
-
-    anthropicMessages.push({
-      role: "user",
-      content: enrichUserMessageWithAttachments(message.content, attachments.attachments),
-    });
+  const historyMessages = parsed.data.messages.slice(0, -1);
+  const latestMessage = parsed.data.messages[parsed.data.messages.length - 1];
+  if (!latestMessage || latestMessage.role !== "user") {
+    return Response.json({ error: "Last message must be from user" }, { status: 400 });
   }
 
-  return streamAnthropicMessages({
-    req,
-    system: prompt,
-    messages: anthropicMessages,
+  const attachments = resolveAttachmentsForMessage(projectRoot, latestMessage.content);
+  if ("error" in attachments) {
+    return Response.json({ error: attachments.error }, { status: 400 });
+  }
+
+  const enrichedLatest = {
+    ...latestMessage,
+    content: enrichUserMessageWithAttachments(
+      latestMessage.content,
+      attachments.attachments,
+    ),
+  };
+
+  const invokeMessages = [...historyMessages, enrichedLatest];
+  const llmMessages = clientMessagesToLlmMessages(invokeMessages);
+  const toolNames = skill.tools ?? [];
+
+  const stream = createAgentLoopSseStream((emit) =>
+    runAgentLoop({
+      req,
+      system: prompt,
+      messages: llmMessages,
+      toolNames,
+      emit,
+      signal: req.signal,
+    }),
+  );
+
+  return new Response(stream, {
+    status: 200,
+    headers: {
+      "Content-Type": "text/event-stream",
+      "Cache-Control": "no-cache",
+      Connection: "keep-alive",
+    },
   });
 }

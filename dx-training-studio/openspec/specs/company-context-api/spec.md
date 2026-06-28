@@ -6,7 +6,7 @@
 ## Requirements
 ### Requirement: DB 接続確認 API
 
-`GET /api/context/db-check` は Neon への接続可否を検証しなければならない（SHALL）。失敗時は「データベースに接続できません」を返さなければならない（SHALL）。
+`GET /api/context/db-check` は Neon への接続可否を検証しなければならない（SHALL）。失敗時は「データベースに接続できません」を返さなければならない（SHALL）。この API は ⚙ 設定で **データベース** モード保存前の接続確認に用いられ、ローカルモード選択時はクライアントから呼ばれなくてよい（MAY）。
 
 #### Scenario: 接続成功
 
@@ -31,11 +31,15 @@
 - `PATCH /api/context/items/[id]` — 更新
 - `DELETE /api/context/items/[id]` — 削除
 
+上記および `GET /api/context/items/search`・`GET /api/context/tags` はクエリ（または POST body）で **`contextMode`**（`local` | `database`）を受け取り、バックエンド選択に用いなければならない（SHALL）。未指定時は `database` としなければならない（SHALL）。
+
 `source_url` は必須でなければならない（SHALL）。`tags` は **1〜3 個** の非空文字列配列でなければならない（SHALL）。作成・更新時に `updated_by` を設定しなければならない（SHALL）。
+
+`POST /api/context/format` はストレージモードに依存せず、永続化を行わない（SHALL）。
 
 #### Scenario: タグでフィルタ一覧
 
-- **WHEN** `GET /api/context/items?tags=環境構築,xyz` が呼ばれる
+- **WHEN** `GET /api/context/items?tags=環境構築,xyz&contextMode=local` が呼ばれる
 - **THEN** `tags` が `環境構築` または `xyz` を含むアイテムが JSON 配列で返される
 
 #### Scenario: 必須フィールド不足で作成失敗
@@ -48,14 +52,21 @@
 - **WHEN** `POST /api/context/items` に `tags: []` が含まれる
 - **THEN** レスポンスは 400 である
 
+#### Scenario: local モードで DATABASE_URL なしでも CRUD 可能
+
+- **WHEN** `DATABASE_URL` が未設定である
+- **AND** `POST /api/context/items?contextMode=local` が有効な body で呼ばれる
+- **THEN** レスポンスは 201 である
+- **AND** `local-db/context-items/{id}.json` が作成される
+
 ### Requirement: タグ一覧 API
 
-`GET /api/context/tags` は既存 `context_items` から収集したユニークタグをアルファベット順（または日本語ロケール順）で返さなければならない（SHALL）。
+`GET /api/context/tags` は `contextMode` に応じたバックエンドから収集したユニークタグを返さなければならない（SHALL）。
 
 #### Scenario: 既存タグを返す
 
-- **WHEN** DB に `tags: [環境構築, xyz]` のアイテムが存在する
-- **AND** `GET /api/context/tags` が呼ばれる
+- **WHEN** ローカル store に `tags: [環境構築, xyz]` のアイテムが存在する
+- **AND** `GET /api/context/tags?contextMode=local` が呼ばれる
 - **THEN** 応答に `環境構築` と `xyz` が含まれる
 
 ### Requirement: AI 整形 API
@@ -77,17 +88,17 @@
 
 ### Requirement: 社内コンテキスト本文検索 API
 
-`GET /api/context/items/search` を提供し、クエリ `q`（必須・空文字不可）で `title` および `body` を ILIKE 部分一致検索しなければならない（SHALL）。応答は `{ items: ContextItem[] }` とし、各 item に `id`, `title`, `body`, `tags`, `source_url`, `source_last_updated_at` を含めなければならない（SHALL）。結果は `updated_at DESC` で並べなければならない（SHALL）。`q` 未指定または空の場合は 400 を返さなければならない（SHALL）。
+`GET /api/context/items/search` を提供し、クエリ `q`（必須・空文字不可）と `contextMode` でバックエンドを選択し、`title` および `body`（およびタグ文字列）の部分一致検索を行わなければならない（SHALL）。応答は `{ items: ContextItem[] }` とし、各 item に `id`, `title`, `body`, `tags`, `source_url`, `source_last_updated_at` を含めなければならない（SHALL）。結果は `updated_at DESC` で並べなければならない（SHALL）。`q` 未指定または空の場合は 400 を返さなければならない（SHALL）。
 
 #### Scenario: キーワードでヒットする
 
-- **WHEN** `GET /api/context/items/search?q=ブランチ` が呼ばれる
+- **WHEN** `GET /api/context/items/search?q=ブランチ&contextMode=local` が呼ばれる
 - **AND** `title` または `body` に「ブランチ」を含むアイテムが存在する
 - **THEN** 該当アイテムが JSON 配列で返される
 
 #### Scenario: ヒット 0 件
 
-- **WHEN** `GET /api/context/items/search?q=存在しない語` が呼ばれる
+- **WHEN** `GET /api/context/items/search?q=存在しない語&contextMode=database` が呼ばれる
 - **THEN** 空配列 `{ items: [] }` が返される
 
 #### Scenario: q 未指定

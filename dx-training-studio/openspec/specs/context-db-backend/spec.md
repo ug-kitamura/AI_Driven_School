@@ -15,14 +15,21 @@ Neon PostgreSQL 上の `context_items` テーブル、接続解決（`DATABASE_U
 
 ### Requirement: Neon 接続の解決
 
-システムは `DATABASE_URL` 環境変数から Neon 接続を解決しなければならない（SHALL）。未設定または接続不可のときは `DbConnectionError`（または同等）を送出し、メッセージ **「データベースに接続できません」** としなければならない（SHALL）。ローカルファイルやインメモリへのフォールバックを行ってはならない（MUST NOT）。
+`contextMode` が **`database`** のとき、システムは `DATABASE_URL` 環境変数から Neon 接続を解決しなければならない（SHALL）。未設定または接続不可のときは `DbConnectionError`（または同等）を送出し、メッセージ **「データベースに接続できません」** としなければならない（SHALL）。`contextMode` が `database` のとき、ローカル JSON ファイルやインメモリへの**暗黙フォールバック**を行ってはならない（MUST NOT）。`contextMode` が `local` のとき、Neon 接続を解決してはならない（MUST NOT）。
 
-#### Scenario: DATABASE_URL 未設定
+#### Scenario: DATABASE_URL 未設定で database モード
 
 - **WHEN** `DATABASE_URL` が未設定である
-- **AND** リポジトリ層が呼び出される
+- **AND** `contextMode` が `database` である
+- **AND** データベースリポジトリ層が呼び出される
 - **THEN** 接続エラーが送出される
-- **AND** エラーメッセージは「データベースに接続できません」である
+- **AND** エラーメージは「データベースに接続できません」である
+
+#### Scenario: local モードでは Neon を使わない
+
+- **WHEN** `contextMode` が `local` である
+- **AND** context CRUD API が呼び出される
+- **THEN** Neon への接続試行は行われない
 
 ### Requirement: リポジトリ層で CRUD とタグ検索を提供する
 
@@ -69,4 +76,25 @@ Neon PostgreSQL 上の `context_items` テーブル、接続解決（`DATABASE_U
 
 - **WHEN** `searchItems("")` が呼ばれる
 - **THEN** 空配列が返される
+
+### Requirement: Context リポジトリのモード解決
+
+システムは `contextMode`（`local` | `database`）に応じて `ContextRepository` 実装を解決しなければならない（SHALL）。`database` は既存 Neon 実装、`local` は `context-local-backend` の JSON 実装としなければならない（SHALL）。未指定または不正値のときは `database` を用いなければならない（SHALL）。
+
+#### Scenario: database モードで Neon リポジトリ
+
+- **WHEN** `contextMode` が `database` である
+- **AND** `getContextRepository`（または同等）が呼ばれる
+- **THEN** Neon SQL リポジトリが返される
+
+#### Scenario: local モードで JSON リポジトリ
+
+- **WHEN** `contextMode` が `local` である
+- **AND** `getContextRepository` が呼ばれる
+- **THEN** ローカル JSON リポジトリが返される
+
+#### Scenario: 未指定時は database
+
+- **WHEN** API 呼び出しに `contextMode` が含まれない
+- **THEN** `database` として解決される
 

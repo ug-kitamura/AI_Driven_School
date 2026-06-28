@@ -42,7 +42,7 @@ author:
    - Git のインストーラには **SourceTree が同梱**されており、両方が一緒にインストールされます
 
 <!-- スクリーンショット: 社内ソフトウェア配布ポータルのトップ画面。Git の申請ボタンを赤枠で強調 -->
-![社内ソフトウェア配布ポータルのトップ画面モックアップ（Git申請ボタン強調）](images/internal-software-portal-git-apply.png)
+![社内ソフトウェア配布ポータルのトップ画面（Gitインストール申請ボタンを赤枠で強調）](images/software-portal-git-install.png)
 
 ### Git 操作ツールの選択
 

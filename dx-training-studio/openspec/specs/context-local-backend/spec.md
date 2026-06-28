@@ -3,7 +3,6 @@
 ## Purpose
 
 `local-db/context-items.json` による社内コンテキストのローカル永続化、ID 採番、CRUD・タグ OR 検索・全文検索のリポジトリ層を定義する。
-
 ## Requirements
 ### Requirement: local-db ディレクトリ構成
 
@@ -75,3 +74,22 @@
 
 - **WHEN** アイテム更新の書き込みが成功する
 - **THEN** `context-items.json` はパース可能な完全な JSON である
+
+### Requirement: 旧分割形式からの自動移行
+
+`local-db/context-items.json` が存在せず、旧形式（`context-meta.json` および/または `context-items/{id}.json`）が存在する場合、システムは初回アクセス時に内容を読み取り `context-items.json` を生成しなければならない（SHALL）。移行後も旧ファイルの自動削除を行ってはならない（MUST NOT）。
+
+#### Scenario: 分割ファイルから単一 JSON へ移行
+
+- **WHEN** `context-items/1.json` と `context-meta.json` が存在する
+- **AND** `context-items.json` が存在しない
+- **AND** ローカルリポジトリが初回アクセスされる
+- **THEN** `context-items.json` が作成される
+- **AND** `items` に旧 `1.json` の内容が含まれる
+
+#### Scenario: 移行後は単一ファイルのみ更新
+
+- **WHEN** 移行済みの `context-items.json` が存在する
+- **AND** ローカルリポジトリで CRUD が実行される
+- **THEN** `context-items.json` のみが更新される
+

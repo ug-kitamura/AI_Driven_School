@@ -12,6 +12,7 @@ const nextConfig: NextConfig = {
     root: projectRoot,
   },
   outputFileTracingRoot: projectRoot,
+  serverExternalPackages: ["playwright"],
 };
 
 export default nextConfig;

@@ -52,7 +52,7 @@ Rules for html:
 - Use custom.* Tailwind colors: custom-surface, custom-border, custom-muted, custom-dim, custom-accent, etc.
 - Lucide icons: <i data-lucide="name" class="..."></i>
 - No <script>, no <style>, no external images, no emoji.
-- Width ~768px. Light background.
+- Target width roughly 640–960 CSS px (wider for UI mocks like editor/terminal, narrower for flow/card diagrams). Prefer vertical stacking over too many horizontal columns. Keep in-diagram text at text-xs (12px) or larger. Light background.
 
 ${GRAPHIC_VOCABULARY}
 

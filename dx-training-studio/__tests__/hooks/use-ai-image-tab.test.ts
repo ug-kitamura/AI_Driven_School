@@ -55,4 +55,47 @@ describe("useAiImageTab", () => {
       "success",
     );
   });
+
+  it("shows warning tone when API returns warning", async () => {
+    const refreshScope = vi.fn(async () => undefined);
+    const showNotice = vi.fn();
+    const clearNotice = vi.fn();
+
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => ({
+        ok: true,
+        json: async () => ({
+          file: { path: "/staging/ai/small.png", name: "small.png" },
+          alt: "alt text",
+          warning: "生成画像の幅が小さいです",
+        }),
+      })),
+    );
+
+    const { result } = renderHook(() =>
+      useAiImageTab({
+        lesson,
+        editorCommentPrompt: null,
+        editorCursorOffset: null,
+        refreshScope,
+        showNotice,
+        clearNotice,
+      }),
+    );
+
+    act(() => {
+      result.current.setPrompt("tiny icon");
+    });
+
+    await act(async () => {
+      await result.current.handleGenerate();
+    });
+
+    expect(showNotice).toHaveBeenCalledWith(
+      "ai",
+      expect.stringMatching(/AI staging.*小さい/),
+      "warning",
+    );
+  });
 });

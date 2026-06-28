@@ -143,7 +143,7 @@ export function ImageManagerPane({
   }, [activeTab]);
 
   const showNotice = useCallback(
-    (tab: ImageManagerTab, message: string, tone: "error" | "success") => {
+    (tab: ImageManagerTab, message: string, tone: TabNotice["tone"]) => {
       setTabNotices((prev) => ({ ...prev, [tab]: { message, tone } }));
     },
     [],

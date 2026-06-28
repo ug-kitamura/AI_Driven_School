@@ -19,7 +19,11 @@ export function useAiImageTab(options: {
   editorCommentPrompt: string | null;
   editorCursorOffset: number | null;
   refreshScope: RefreshScope;
-  showNotice: (tab: "ai", message: string, tone: "error" | "success") => void;
+  showNotice: (
+    tab: "ai",
+    message: string,
+    tone: "error" | "success" | "warning",
+  ) => void;
   clearNotice: (tab: "ai") => void;
 }) {
   const {
@@ -64,7 +68,12 @@ export function useAiImageTab(options: {
         headers,
         body: JSON.stringify({ lesson, prompt: trimmed }),
       });
-      let data: { file?: ImageAsset; alt?: string; error?: string };
+      let data: {
+        file?: ImageAsset;
+        alt?: string;
+        error?: string;
+        warning?: string;
+      };
       try {
         data = (await res.json()) as typeof data;
       } catch {
@@ -88,7 +97,12 @@ export function useAiImageTab(options: {
         }));
       }
       await refreshScope("ai", { silent: true });
-      showNotice("ai", `AI staging に保存しました: ${data.file.name}`, "success");
+      const savedMessage = `AI staging に保存しました: ${data.file.name}`;
+      if (data.warning) {
+        showNotice("ai", `${savedMessage} ${data.warning}`, "warning");
+      } else {
+        showNotice("ai", savedMessage, "success");
+      }
     } catch (error) {
       showNotice(
         "ai",

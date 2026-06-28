@@ -57,7 +57,7 @@
 - **WHEN** `DATABASE_URL` が未設定である
 - **AND** `POST /api/context/items?contextMode=local` が有効な body で呼ばれる
 - **THEN** レスポンスは 201 である
-- **AND** `local-db/context-items/{id}.json` が作成される
+- **AND** `local-db/context-items.json` に当該アイテムが追加される
 
 ### Requirement: タグ一覧 API
 

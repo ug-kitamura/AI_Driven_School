@@ -59,7 +59,13 @@ AI タブは UP タブと同型のレイアウトとし、上部に **実線枠*
 
 ### Requirement: visual-explainers グラフィックで PNG 化する
 
-生成は Claude が **図 1 ブロック** 分の HTML 断片（`#capture-root` 内）を出力し、Playwright で PNG 化して `images/ai/<filename>` に保存しなければならない（SHALL）。デザイン品質規則の SSoT は `contracts/image-slot-contract.md` の「生成品質」セクションとし、リポジトリ外のスキル・HTML ファイルへの参照を用いてはならない（MUST NOT）。規則には構造図 + UI mock のグラフィック語彙、`custom.*` 配色・Lucide・surface カード、図内テキスト可・図外説明段落不可を含めなければならない（SHALL）。viewport 幅 768・`deviceScaleFactor` 2・要素クリップを既定とする（SHALL）。背景はライトとし、アプリのダークテーマに依存してはならない（SHALL）。
+生成は Claude が **図 1 ブロック** 分の HTML 断片（`#capture-root` 内）を出力し、Playwright で PNG 化して `images/ai/<filename>` に保存しなければならない（SHALL）。デザイン品質規則の SSoT は `contracts/image-slot-contract.md` の「生成品質」セクションとし、リポジトリ外のスキル・HTML ファイルへの参照を用いてはならない（MUST NOT）。規則には構造図 + UI mock のグラフィック語彙、`custom.*` 配色・Lucide・surface カード、図内テキスト可・図外説明段落不可を含めなければならない（SHALL）。
+
+HTML の横幅は **640〜960 CSS px を目安** とし、UI mock（エディタ・ターミナル等）は広め、フロー図・カードグリッドは狭めとする（SHALL）。768px 固定幅を要求してはならない（MUST NOT）。横並び過多で overflow しそうな場合は縦積みレイアウトを優先してよい（MAY）。
+
+Playwright キャプチャは `#capture-root` の `scrollWidth` / `scrollHeight`（body padding 込み）に viewport を合わせ、`deviceScaleFactor` 2 で **要素全体** を PNG 化しなければならない（SHALL）。固定 viewport 768×600 と `boundingBox` + `page.screenshot({ clip })` のみでキャプチャしてはならない（MUST NOT）。横方向または縦方向に overflow するコンテンツの端が PNG から欠落してはならない（MUST NOT）。
+
+生成 PNG の物理ピクセル長辺は **2048px 以下** でなければならない（SHALL）。超過時はアスペクト比を維持して縮小しなければならない（SHALL）。背景はライトとし、アプリのダークテーマに依存してはならない（SHALL）。
 
 テキストは **図コンポーネント内**（ステップラベル・カード内短説明・UI mock 内ラベル等）に限り、4 ステップフロー例と同程度まで許容する（SHALL）。図コンポーネント **外** の導入段落・まとめ・キャプションを出力してはならない（MUST NOT）。任意で図全体のタイトル 1 行（h3 等）を含めてよい（MAY）。
 
@@ -74,6 +80,47 @@ AI タブは UP タブと同型のレイアウトとし、上部に **実線枠*
 - **WHEN** Claude が図解 HTML を生成する
 - **THEN** 出力は単一 diagram ブロック内に収まる
 - **AND** 図コンポーネント外に説明段落を含まない
+
+#### Scenario: 横長 UI mock の右端が PNG に含まれる
+
+- **WHEN** 生成 HTML の `#capture-root` の `scrollWidth` が viewport 初期幅（768 CSS px）を超える
+- **AND** Playwright が PNG 化する
+- **THEN** 出力 PNG の CSS 幅（物理幅 ÷ deviceScaleFactor）は `scrollWidth` 以上である
+- **AND** 右端のコンテンツが欠落していない
+
+#### Scenario: 縦長コンテンツの下端が PNG に含まれる
+
+- **WHEN** 生成 HTML の `#capture-root` の `scrollHeight` が viewport 初期高（600 CSS px）を超える
+- **AND** Playwright が PNG 化する
+- **THEN** 出力 PNG の CSS 高さ（物理高 ÷ deviceScaleFactor）は `scrollHeight` 以上である
+- **AND** 下端のコンテンツが欠落していない
+
+#### Scenario: 長辺上限で正規化される
+
+- **WHEN** キャプチャ直後の PNG 物理長辺が 2048px を超える
+- **THEN** 保存前にアスペクト比を維持して長辺が 2048px 以下になるよう縮小される
+
+### Requirement: 小さい生成 PNG は警告を返す
+
+生成 PNG の CSS 幅（物理幅 ÷ deviceScaleFactor）が **480px 未満** のとき、生成 API は成功レスポンスに `warning` 文字列を含めなければならない（SHALL）。PNG は staging に保存し、生成自体は拒否してはならない（MUST NOT）。AI タブは `warning` がある場合、当該タブ内バナーに表示しなければならない（SHALL）。
+
+#### Scenario: 小 PNG 生成時に警告が返る
+
+- **WHEN** 生成 HTML が CSS 幅 480px 未満の PNG になる
+- **AND** 生成 API が成功する
+- **THEN** レスポンスに非空の `warning` が含まれる
+- **AND** `images/ai/<filename>.png` は staging に作成される
+
+#### Scenario: AI タブで警告バナーが表示される
+
+- **WHEN** 生成 API が `warning` 付きで成功する
+- **THEN** AI タブ内バナーに当該警告が表示される
+
+#### Scenario: 通常サイズでは warning を含めない
+
+- **WHEN** 生成 PNG の CSS 幅が 480px 以上である
+- **AND** 生成 API が成功する
+- **THEN** レスポンスに `warning` フィールドは含まれない、または空である
 
 ### Requirement: 生成時に AI がスラッグと alt を決定する
 

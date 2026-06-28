@@ -362,71 +362,71 @@ function SettingsForm({
         </section>
 
         <section className="flex flex-col gap-3">
-          <h3 className="text-sm font-semibold text-foreground">画像の管理</h3>
-          <MetaDialogField>
-            <div className="flex flex-wrap gap-2">
-              {(
-                [
-                  ["local", "ローカル"],
-                  ["storage", "ストレージ"],
-                ] as const
-              ).map(([value, label]) => (
-                <Button
-                  key={value}
-                  type="button"
-                  size="sm"
-                  variant={draft.imageStorage === value ? "default" : "outline"}
-                  onClick={() => {
-                    setDraft((prev) => ({
-                      ...prev,
-                      imageStorage: value as ImageStorageMode,
-                    }));
-                    if (value === "local") setStorageError(null);
-                  }}
-                >
-                  {label}
-                </Button>
-              ))}
-            </div>
-            {storageError ? (
-              <p className="text-xs text-destructive">{storageError}</p>
-            ) : null}
-          </MetaDialogField>
-        </section>
-
-        <section className="flex flex-col gap-3">
-          <h3 className="text-sm font-semibold text-foreground">
-            社内コンテキストの管理
-          </h3>
-          <MetaDialogField>
-            <div className="flex flex-wrap gap-2">
-              {(
-                [
-                  ["local", "ローカル"],
-                  ["database", "データベース"],
-                ] as const
-              ).map(([value, label]) => (
-                <Button
-                  key={value}
-                  type="button"
-                  size="sm"
-                  variant={draft.contextStorage === value ? "default" : "outline"}
-                  onClick={() => {
-                    setDraft((prev) => ({
-                      ...prev,
-                      contextStorage: value as ContextStorageMode,
-                    }));
-                    if (value === "local") setContextStorageError(null);
-                  }}
-                >
-                  {label}
-                </Button>
-              ))}
-            </div>
-            {contextStorageError ? (
-              <p className="text-xs text-destructive">{contextStorageError}</p>
-            ) : null}
-          </MetaDialogField>
+          <h3 className="text-sm font-semibold text-foreground">ストレージ</h3>
+          <div className="flex flex-col gap-4">
+            <MetaDialogField>
+              <Label className="text-xs text-muted-foreground">画像の管理</Label>
+              <div className="flex flex-wrap gap-2">
+                {(
+                  [
+                    ["local", "ローカル"],
+                    ["storage", "ストレージ"],
+                  ] as const
+                ).map(([value, label]) => (
+                  <Button
+                    key={value}
+                    type="button"
+                    size="sm"
+                    variant={draft.imageStorage === value ? "default" : "outline"}
+                    onClick={() => {
+                      setDraft((prev) => ({
+                        ...prev,
+                        imageStorage: value as ImageStorageMode,
+                      }));
+                      if (value === "local") setStorageError(null);
+                    }}
+                  >
+                    {label}
+                  </Button>
+                ))}
+              </div>
+              {storageError ? (
+                <p className="text-xs text-destructive">{storageError}</p>
+              ) : null}
+            </MetaDialogField>
+            <MetaDialogField>
+              <Label className="text-xs text-muted-foreground">
+                社内コンテキストの管理
+              </Label>
+              <div className="flex flex-wrap gap-2">
+                {(
+                  [
+                    ["local", "ローカル"],
+                    ["database", "データベース"],
+                  ] as const
+                ).map(([value, label]) => (
+                  <Button
+                    key={value}
+                    type="button"
+                    size="sm"
+                    variant={draft.contextStorage === value ? "default" : "outline"}
+                    onClick={() => {
+                      setDraft((prev) => ({
+                        ...prev,
+                        contextStorage: value as ContextStorageMode,
+                      }));
+                      if (value === "local") setContextStorageError(null);
+                    }}
+                  >
+                    {label}
+                  </Button>
+                ))}
+              </div>
+              {contextStorageError ? (
+                <p className="text-xs text-destructive">{contextStorageError}</p>
+              ) : null}
+            </MetaDialogField>
+          </div>
         </section>
 
         <section className="flex flex-col gap-3">

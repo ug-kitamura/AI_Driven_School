@@ -462,11 +462,7 @@ export function AgentChatPane({
     }): Promise<{ contextItemsJson: string } | { error: string }> => {
       const state = createDraftContextRef.current;
 
-      if (state.selectionConfirmed) {
-        return { contextItemsJson: state.contextItemsJson };
-      }
-
-      if (state.searchPerformed && state.searchResults.length > 0) {
+      if (state.searchResults.length > 0) {
         const selection = parseContextSelection(
           options.userMessage.content,
           state.searchResults.length,
@@ -477,6 +473,13 @@ export function AgentChatPane({
           state.contextItemsJson = JSON.stringify(selected, null, 2);
           return { contextItemsJson: state.contextItemsJson };
         }
+      }
+
+      if (state.selectionConfirmed) {
+        return { contextItemsJson: state.contextItemsJson };
+      }
+
+      if (state.searchPerformed && state.searchResults.length > 0) {
         return {
           contextItemsJson: JSON.stringify(state.searchResults, null, 2),
         };
@@ -844,14 +847,27 @@ export function AgentChatPane({
   const handleConfirmOverwrite = useCallback(() => {
     if (!overwriteTarget || !onOverwriteEditor || !lesson) return;
     const extracted = extractMarkdownBlock(overwriteTarget.content);
+    let contextItemTags: string[] = [];
+    try {
+      const items = JSON.parse(
+        createDraftContextRef.current.contextItemsJson,
+      ) as ContextItem[];
+      contextItemTags = items.flatMap((item) => item.tags);
+    } catch {
+      /* ignore invalid JSON */
+    }
     const markdown = normalizeDraftMarkdownForLesson(
       extracted,
       { seriesName: lesson.series, courseName: lesson.course },
       lesson,
+      {
+        availableTags: collectAllLessonTags(series),
+        contextItemTags,
+      },
     );
     onOverwriteEditor(markdown);
     setOverwriteTarget(null);
-  }, [lesson, onOverwriteEditor, overwriteTarget]);
+  }, [lesson, onOverwriteEditor, overwriteTarget, series]);
 
   const sessionTitle = activeSession?.title ?? DEFAULT_SESSION_TITLE;
 

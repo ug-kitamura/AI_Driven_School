@@ -78,7 +78,7 @@ export function parseContextSelection(
     return "none";
   }
 
-  if (ALL_SELECTION_RE.test(trimmed)) {
+  if (ALL_SELECTION_RE.test(trimmed) || /(?:全部|すべて|全件)/.test(trimmed)) {
     return "all";
   }
 

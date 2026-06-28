@@ -88,8 +88,9 @@ variables:
 ユーザーが番号選択（または 0 件選択）を完了したら:
 
 1. 選択されたアイテムのタイトル一覧を簡潔に確認する
-2. 草稿生成の承認を求める
-3. 承認後、以下の出力形式で markdown を返す（**必ず `\`\`\`markdown` コードブロックで囲む**）
+2. ユーザーが **選択を変更** した場合（例: `全部` / `1,2` / `やっぱり全部参照して`）、**`contextItems` JSON に含まれる最新の選択結果** を正とする（チャット上の過去の確認文より優先）
+3. 草稿生成の承認を求める
+4. 承認後、以下の出力形式で markdown を返す（**必ず `\`\`\`markdown` コードブロックで囲む**）
 
 ## 出力形式
 
@@ -97,8 +98,8 @@ variables:
    - `series`, `course`, `lesson` — レッスン情報と同じ値
    - `status` — **`lessonMeta.status` をそのまま使用**（`draft` 等は不可）
    - `description` — 草稿内容に合わせて更新可
-   - `tags` — **`lessonMeta.tags` をそのまま使用**（日本語 tag や新規 invent 不可）
-   - `estimated_minutes` — `lessonMeta.estimated_minutes` を基本とし、必要なら調整可
+   - `tags` — **`lessonMeta.tags` が空でないときはそのまま使用**。空のときは `availableTags` と `contextItems` 内各 item の `tags` から内容に合う **1〜5 個** を選ぶ（`[a-z0-9-]+` のみ）
+   - `estimated_minutes` — **`lessonMeta.estimated_minutes` が 1 以上のときはそれを使用**。0 のときは草稿の見出し数・手順・コード例量から **10〜30 分** の妥当な整数を推定する
    - `author` — `lessonMeta.author` をそのまま使用
 2. markdown 本文（見出し・箇条書き・コード例を適宜使用）
 

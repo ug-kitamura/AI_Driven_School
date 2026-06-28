@@ -107,6 +107,7 @@ describe("context-draft-selection", () => {
 
   it("parses all selection", () => {
     expect(parseContextSelection("all", 3)).toBe("all");
+    expect(parseContextSelection("やっぱり全部参照して", 2)).toBe("all");
     expect(applyContextSelection([{ id: 1 }, { id: 2 }], "all")).toEqual([
       { id: 1 },
       { id: 2 },

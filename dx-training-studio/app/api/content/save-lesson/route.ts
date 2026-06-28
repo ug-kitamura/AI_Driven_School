@@ -1,7 +1,6 @@
 import { z } from "zod";
 import fs from "node:fs";
-import path from "node:path";
-import { resolveOrCreateLessonFilePath } from "@/lib/contents-loader";
+import { resolveLessonFilePath } from "@/lib/contents-loader";
 import {
   lessonFileTextEquals,
   normalizeLessonFileNewlines,
@@ -31,16 +30,11 @@ export async function POST(req: Request) {
   }
 
   const { series, course, lesson, content } = parsed.data;
-  const filePath = resolveOrCreateLessonFilePath(
-    process.cwd(),
-    series,
-    course,
-    lesson,
-  );
+  const filePath = resolveLessonFilePath(process.cwd(), series, course, lesson);
 
   if (!filePath) {
     return Response.json(
-      { error: `レッスンファイルを作成できません: ${series}/${course}/${lesson}` },
+      { error: `レッスンが見つかりません: ${series}/${course}/${lesson}` },
       { status: 404 },
     );
   }
@@ -48,15 +42,12 @@ export async function POST(req: Request) {
   const normalizedContent = normalizeLessonFileNewlines(content);
 
   try {
-    fs.mkdirSync(path.dirname(filePath), { recursive: true });
-    if (fs.existsSync(filePath)) {
-      const existing = fs.readFileSync(filePath, "utf-8");
-      if (lessonFileTextEquals(existing, normalizedContent)) {
-        if (existing !== normalizedContent) {
-          fs.writeFileSync(filePath, normalizedContent, "utf-8");
-        }
-        return Response.json({ ok: true, skipped: true });
+    const existing = fs.readFileSync(filePath, "utf-8");
+    if (lessonFileTextEquals(existing, normalizedContent)) {
+      if (existing !== normalizedContent) {
+        fs.writeFileSync(filePath, normalizedContent, "utf-8");
       }
+      return Response.json({ ok: true, skipped: true });
     }
     fs.writeFileSync(filePath, normalizedContent, "utf-8");
     return Response.json({ ok: true });

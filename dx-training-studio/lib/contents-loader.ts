@@ -82,12 +82,15 @@ export function resolveLessonFilePath(
   if (!seriesDir) return null;
   const courseDir = findCourseDir(seriesDir, courseName);
   if (!courseDir) return null;
-  const lessonFile = path.join(
-    courseDir,
-    lessonName,
-    LESSON_CONTENTS_FILENAME,
+
+  const candidates = [lessonName, sanitizeFilename(lessonName)].filter(
+    (name, index, arr) => arr.indexOf(name) === index,
   );
-  return fs.existsSync(lessonFile) ? lessonFile : null;
+  for (const name of candidates) {
+    const lessonFile = path.join(courseDir, name, LESSON_CONTENTS_FILENAME);
+    if (fs.existsSync(lessonFile)) return lessonFile;
+  }
+  return null;
 }
 
 /** レッスンフォルダの絶対パスを返す */
@@ -104,29 +107,6 @@ export function resolveLessonDirPath(
   if (!courseDir) return null;
   const lessonDir = path.join(courseDir, sanitizeFilename(lessonName));
   return fs.existsSync(lessonDir) ? lessonDir : null;
-}
-
-/** レッスンファイルのパスを返す。存在しなければ新規パスを返す */
-export function resolveOrCreateLessonFilePath(
-  projectRoot: string,
-  seriesName: string,
-  courseName: string,
-  lessonName: string,
-): string | null {
-  const existing = resolveLessonFilePath(projectRoot, seriesName, courseName, lessonName);
-  if (existing) return existing;
-
-  const contentsDir = getContentsDir(projectRoot);
-  const seriesDir = findSeriesDir(contentsDir, seriesName);
-  if (!seriesDir) return null;
-  const courseDir = findCourseDir(seriesDir, courseName);
-  if (!courseDir) return null;
-
-  return path.join(
-    courseDir,
-    sanitizeFilename(lessonName),
-    LESSON_CONTENTS_FILENAME,
-  );
 }
 
 /** contents/ 以下の全ファイル・フォルダの最新 mtime（ミリ秒）を返す */

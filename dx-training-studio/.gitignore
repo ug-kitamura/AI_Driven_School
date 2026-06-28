@@ -25,6 +25,10 @@ next-env.d.ts
 /images/web/
 /images/trash/
 
+# local database
+/local-db/*
+!/local-db/.gitkeep
+
 # OpenSpec
 .claude/commands/opsx/
 .claude/skills/openspec-*/

@@ -44,6 +44,7 @@ import {
   type AiModelSlug,
   type ThemeMode,
   type ImageStorageMode,
+  type ContextStorageMode,
   type WorkspaceSettings,
 } from "@/lib/workspace-settings";
 import {
@@ -54,6 +55,10 @@ import {
 import { cn } from "@/lib/utils";
 import { checkImageStorageConnection } from "@/lib/image-api-client";
 import { STORAGE_CONNECTION_ERROR_MESSAGE } from "@/lib/image-storage/types";
+import {
+  checkContextDatabaseConnection,
+  CONTEXT_DATABASE_CONNECTION_ERROR_MESSAGE,
+} from "@/lib/context-api-client";
 
 type Props = {
   open: boolean;
@@ -141,6 +146,9 @@ function SettingsForm({
   );
   const [modelError, setModelError] = useState<string | null>(null);
   const [storageError, setStorageError] = useState<string | null>(null);
+  const [contextStorageError, setContextStorageError] = useState<string | null>(
+    null,
+  );
   const [saving, setSaving] = useState(false);
 
   const handleSave = async () => {
@@ -163,6 +171,20 @@ function SettingsForm({
       }
     }
     setStorageError(null);
+
+    if (draft.contextStorage === "database") {
+      setSaving(true);
+      try {
+        const connected = await checkContextDatabaseConnection();
+        if (!connected) {
+          setContextStorageError(CONTEXT_DATABASE_CONNECTION_ERROR_MESSAGE);
+          return;
+        }
+      } finally {
+        setSaving(false);
+      }
+    }
+    setContextStorageError(null);
 
     const next: WorkspaceSettings = {
       ...draft,
@@ -368,6 +390,41 @@ function SettingsForm({
             </div>
             {storageError ? (
               <p className="text-xs text-destructive">{storageError}</p>
+            ) : null}
+          </MetaDialogField>
+        </section>
+
+        <section className="flex flex-col gap-3">
+          <h3 className="text-sm font-semibold text-foreground">
+            社内コンテキストの管理
+          </h3>
+          <MetaDialogField>
+            <div className="flex flex-wrap gap-2">
+              {(
+                [
+                  ["local", "ローカル"],
+                  ["database", "データベース"],
+                ] as const
+              ).map(([value, label]) => (
+                <Button
+                  key={value}
+                  type="button"
+                  size="sm"
+                  variant={draft.contextStorage === value ? "default" : "outline"}
+                  onClick={() => {
+                    setDraft((prev) => ({
+                      ...prev,
+                      contextStorage: value as ContextStorageMode,
+                    }));
+                    if (value === "local") setContextStorageError(null);
+                  }}
+                >
+                  {label}
+                </Button>
+              ))}
+            </div>
+            {contextStorageError ? (
+              <p className="text-xs text-destructive">{contextStorageError}</p>
             ) : null}
           </MetaDialogField>
         </section>

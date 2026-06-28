@@ -46,9 +46,9 @@ export function mapContextItemRow(row: ContextItemRow): ContextItem {
   };
 }
 
-export type ContextRepository = ReturnType<typeof createContextRepository>;
+export type ContextRepository = ReturnType<typeof createContextDbRepository>;
 
-export function createContextRepository(
+export function createContextDbRepository(
   sql: NeonQueryFunction<false, false> = resolveSql(),
 ) {
   return {
@@ -186,15 +186,3 @@ export function createContextRepository(
   };
 }
 
-let defaultRepository: ContextRepository | null = null;
-
-export function getContextRepository(): ContextRepository {
-  if (!defaultRepository) {
-    defaultRepository = createContextRepository();
-  }
-  return defaultRepository;
-}
-
-export function resetContextRepositoryForTests(): void {
-  defaultRepository = null;
-}

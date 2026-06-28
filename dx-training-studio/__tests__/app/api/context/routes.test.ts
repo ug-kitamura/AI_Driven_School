@@ -5,7 +5,7 @@ const checkConnection = vi.fn();
 const listItems = vi.fn();
 const searchItems = vi.fn();
 
-vi.mock("@/lib/context-db/repository", () => ({
+vi.mock("@/lib/context-resolve", () => ({
   getContextRepository: () => ({
     checkConnection,
     listItems,
@@ -16,6 +16,10 @@ vi.mock("@/lib/context-db/repository", () => ({
     deleteItem: vi.fn(),
     listDistinctTags: vi.fn(),
   }),
+  parseContextModeFromRequest: (req: Request) => {
+    const { searchParams } = new URL(req.url);
+    return searchParams.get("contextMode") === "local" ? "local" : "database";
+  },
   resetContextRepositoryForTests: vi.fn(),
 }));
 
@@ -49,7 +53,11 @@ describe("GET /api/context/items", () => {
   it("returns filtered items", async () => {
     listItems.mockResolvedValue([{ id: 1, title: "A" }]);
     const { GET } = await import("@/app/api/context/items/route");
-    const response = await GET(new Request("http://localhost/api/context/items?tags=環境構築,xyz"));
+    const response = await GET(
+      new Request(
+        "http://localhost/api/context/items?tags=環境構築,xyz&contextMode=database",
+      ),
+    );
     expect(response.status).toBe(200);
     await expect(response.json()).resolves.toEqual({ items: [{ id: 1, title: "A" }] });
     expect(listItems).toHaveBeenCalledWith(["環境構築", "xyz"]);
@@ -58,7 +66,7 @@ describe("GET /api/context/items", () => {
   it("returns 400 on invalid create body", async () => {
     const { POST } = await import("@/app/api/context/items/route");
     const response = await POST(
-      new Request("http://localhost/api/context/items", {
+      new Request("http://localhost/api/context/items?contextMode=local", {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ title: "A", body: "B" }),
@@ -70,7 +78,7 @@ describe("GET /api/context/items", () => {
   it("accepts empty tags on create", async () => {
     const { POST } = await import("@/app/api/context/items/route");
     const response = await POST(
-      new Request("http://localhost/api/context/items", {
+      new Request("http://localhost/api/context/items?contextMode=local", {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({
@@ -94,7 +102,9 @@ describe("GET /api/context/items/search", () => {
     searchItems.mockResolvedValue([{ id: 1, title: "A" }]);
     const { GET } = await import("@/app/api/context/items/search/route");
     const response = await GET(
-      new Request("http://localhost/api/context/items/search?q=環境"),
+      new Request(
+        "http://localhost/api/context/items/search?q=環境&contextMode=local",
+      ),
     );
     expect(response.status).toBe(200);
     await expect(response.json()).resolves.toEqual({
@@ -106,7 +116,7 @@ describe("GET /api/context/items/search", () => {
   it("returns 400 when q is missing", async () => {
     const { GET } = await import("@/app/api/context/items/search/route");
     const response = await GET(
-      new Request("http://localhost/api/context/items/search"),
+      new Request("http://localhost/api/context/items/search?contextMode=local"),
     );
     expect(response.status).toBe(400);
   });

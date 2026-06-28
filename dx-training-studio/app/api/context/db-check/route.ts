@@ -1,9 +1,9 @@
 import { dbErrorResponse } from "@/lib/context-db/resolve";
-import { getContextRepository } from "@/lib/context-db/repository";
+import { getContextRepository } from "@/lib/context-resolve";
 
 export async function GET() {
   try {
-    const repo = getContextRepository();
+    const repo = getContextRepository("database");
     await repo.checkConnection();
     return Response.json({ ok: true });
   } catch (error) {

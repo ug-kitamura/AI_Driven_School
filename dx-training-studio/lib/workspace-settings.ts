@@ -20,6 +20,8 @@ export type ThemeMode = "light" | "dark" | "system";
 
 export type ImageStorageMode = "local" | "storage";
 
+export type ContextStorageMode = "local" | "database";
+
 export const EDITOR_FONT_SIZE_DEFAULT = 14;
 export const EDITOR_FONT_SIZE_MIN = 8;
 export const EDITOR_FONT_SIZE_MAX = 32;
@@ -37,6 +39,7 @@ export type WorkspaceSettings = {
   paneDefaults: WorkspacePaneWidths;
   editorFontSizePx: number;
   imageStorage: ImageStorageMode;
+  contextStorage: ContextStorageMode;
 };
 
 export function clampEditorFontSizePx(value: number): number {
@@ -55,6 +58,7 @@ export const DEFAULT_WORKSPACE_SETTINGS: WorkspaceSettings = {
   paneDefaults: { ...PANE_WIDTH_DEFAULTS },
   editorFontSizePx: EDITOR_FONT_SIZE_DEFAULT,
   imageStorage: "storage",
+  contextStorage: "database",
 };
 
 function normalizePaneDefaults(
@@ -95,6 +99,10 @@ export function loadWorkspaceSettings(): WorkspaceSettings {
         parsed.imageStorage === "storage" || parsed.imageStorage === "local"
           ? parsed.imageStorage
           : DEFAULT_WORKSPACE_SETTINGS.imageStorage,
+      contextStorage:
+        parsed.contextStorage === "database" || parsed.contextStorage === "local"
+          ? parsed.contextStorage
+          : DEFAULT_WORKSPACE_SETTINGS.contextStorage,
     };
   } catch {
     return { ...DEFAULT_WORKSPACE_SETTINGS };

@@ -58,7 +58,7 @@ Neon PostgreSQL 上の `context_items` テーブル、接続解決（`DATABASE_U
 
 ### Requirement: title と body の ILIKE 検索
 
-`lib/context-db/repository.ts` は `searchItems(query: string)` を提供し、`title ILIKE %query% OR body ILIKE %query%` で部分一致検索しなければならない（SHALL）。結果は `updated_at DESC, id DESC` で並べなければならない（SHALL）。`query` が空文字の場合は空配列を返さなければならない（SHALL）。
+`lib/context-db/repository.ts` は `searchItems(query: string)` を提供し、`lib/context-search.ts` の `tokenizeSearchQuery` で分割した各トークンについて `title ILIKE` / `body ILIKE` / タグ文字列 `ILIKE` のいずれかに部分一致するアイテムを返さなければならない（SHALL）。`query` は API 層で `normalizeSearchQuery` により引用符除去された後に渡されることを前提とする（SHALL）。結果は `updated_at DESC, id DESC` で並べなければならない（SHALL）。正規化後空の場合は空配列を返さなければならない（SHALL）。
 
 #### Scenario: title に一致
 
@@ -71,6 +71,12 @@ Neon PostgreSQL 上の `context_items` テーブル、接続解決（`DATABASE_U
 - **WHEN** アイテム B の `body` に「ブランチ戦略」が含まれる
 - **AND** `searchItems("ブランチ")` が呼ばれる
 - **THEN** B が返される
+
+#### Scenario: 括弧付き query でも title に一致
+
+- **WHEN** アイテム C の `title` が「NMS Git ブランチ運用ルール」である
+- **AND** `searchItems("「ブランチ」")` が呼ばれる（API 経由で正規化済み）
+- **THEN** C が返される
 
 #### Scenario: 空クエリ
 

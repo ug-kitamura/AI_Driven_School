@@ -53,12 +53,18 @@
 
 ### Requirement: ローカル全文検索
 
-ローカルリポジトリの `searchItems(query)` は `lib/context-search.ts` の `tokenizeSearchQuery` を用い、各アイテムの `title`・`body`・`tags`（空白結合）に対し大文字小文字を区別しない部分一致で検索しなければならない（SHALL）。結果は `updated_at DESC, id DESC` で並べなければならない（SHALL）。空クエリは空配列を返さなければならない（SHALL）。
+ローカルリポジトリの `searchItems(query)` は `lib/context-search.ts` の `tokenizeSearchQuery` を用い、各アイテムの `title`・`body`・`tags`（空白結合）に対し大文字小文字を区別しない部分一致で検索しなければならない（SHALL）。`query` は呼び出し前に `normalizeSearchQuery` 相当で引用符が除去された後の文字列であることを前提とする（SHALL）。結果は `updated_at DESC, id DESC` で並べなければならない（SHALL）。空クエリは空配列を返さなければならない（SHALL）。
 
 #### Scenario: body に一致
 
 - **WHEN** アイテム B の `body` に「ブランチ戦略」が含まれる
 - **AND** `searchItems("ブランチ")` が呼ばれる
+- **THEN** B が返される
+
+#### Scenario: 括弧付き query でも body に一致
+
+- **WHEN** アイテム B の `body` に「ブランチ戦略」が含まれる
+- **AND** `searchItems("「ブランチ」")` が呼ばれる（API 経由で正規化済み）
 - **THEN** B が返される
 
 #### Scenario: 空クエリ

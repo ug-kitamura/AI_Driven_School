@@ -3,9 +3,7 @@
 ## Purpose
 
 `.claude/skills/` 配下の Agent スキル定義を読み込み、一覧 API・Cursor 互換形式・変数注入の要件を規定する。
-
 ## Requirements
-
 ### Requirement: スキルディレクトリからの読み込み
 `dx-training-studio/.claude/skills/` 配下のスキル定義（`SKILL.md`）を読み込んで一覧取得できなければならない（SHALL）。各スキルは `id`（ディレクトリ名）・`name`・`description` を返さなければならない（SHALL）。
 
@@ -36,8 +34,16 @@
 - **THEN** スキル一覧 API の応答にその name と description が含まれる
 
 ### Requirement: 変数定義
-スキル frontmatter の `variables` 配列で宣言された変数を、実行時に SKILL.md 本文へ注入できなければならない（SHALL）。
+
+スキル frontmatter の `variables` 配列で宣言された変数を、実行時に SKILL.md 本文へ注入できなければならない（SHALL）。`create-draft` スキルは `lessonMeta` および `availableTags` を variables に宣言しなければならない（SHALL）。
 
 #### Scenario: 変数を注入してプロンプトを構築する
+
 - **WHEN** スキル frontmatter に `variables: [series, course, lesson]` が定義され、invoke リクエストにそれらの値が含まれる
 - **THEN** SKILL.md 本文内の `{{series}}` 等のプレースホルダが置換されたプロンプトが生成される
+
+#### Scenario: create-draft の lessonMeta を注入する
+
+- **WHEN** `create-draft` の invoke に `variables.lessonMeta` が JSON 文字列として渡される
+- **THEN** SKILL.md 本文内の `{{lessonMeta}}` が当該 JSON に置換される
+

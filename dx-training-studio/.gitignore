@@ -20,6 +20,7 @@ next-env.d.ts
 # local storage
 images/
 local-db/
+contents/**/session.json
 
 # OpenSpec
 .claude/commands/opsx/

@@ -91,12 +91,12 @@ export async function POST(req: Request) {
     return Response.json({ error: "コースフォルダが見つかりません" }, { status: 404 });
   }
 
-  const lessonFile = `${parsed.data.name}.md`;
-  const lessonPath = path.join(courseDir, lessonFile);
-  if (!fs.existsSync(lessonPath)) {
-    return Response.json({ error: "レッスンファイルが見つかりません" }, { status: 404 });
+  const lessonDir = path.join(courseDir, parsed.data.name);
+  const lessonContents = path.join(lessonDir, "contents.md");
+  if (!fs.existsSync(lessonContents)) {
+    return Response.json({ error: "レッスンフォルダが見つかりません" }, { status: 404 });
   }
-  fs.unlinkSync(lessonPath);
+  fs.rmSync(lessonDir, { recursive: true, force: true });
 
   // course/.meta.json の order から除去
   const courseMeta = readMetaJson(courseDir);

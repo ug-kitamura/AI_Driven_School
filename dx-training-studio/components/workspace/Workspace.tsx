@@ -29,6 +29,17 @@ import {
 import { collectAllLessonTags } from "@/lib/lesson-tags";
 import { htmlCommentInnerTextAtOffset } from "@/lib/html-comment-at-cursor";
 import { matchLessonContentPath } from "@/lib/agent/invoke-context";
+import type { AgentChatController } from "@/lib/agent-chat-controller";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 export type Pane3Mode = "inline" | "raw" | "diff" | "agent";
 
@@ -85,6 +96,9 @@ export function Workspace({
     ((markdown: string) => void) | null
   >(null);
   const [currentLessonPath, setCurrentLessonPath] = useState<string | null>(null);
+  const agentChatControllerRef = useRef<AgentChatController | null>(null);
+  const [streamingSwitchOpen, setStreamingSwitchOpen] = useState(false);
+  const pendingSwitchRef = useRef<(() => void) | null>(null);
   const workspaceRootRef = useRef<HTMLDivElement>(null);
   const [workspaceTotalWidth, setWorkspaceTotalWidth] = useState<number | null>(
     null,
@@ -126,6 +140,37 @@ export function Workspace({
     initialCourseId: firstCourseId,
     initialLessonId: firstLessonId,
   });
+
+  const requestSelectionChange = useCallback((action: () => void) => {
+    if (agentChatControllerRef.current?.isStreaming()) {
+      pendingSwitchRef.current = action;
+      setStreamingSwitchOpen(true);
+      return;
+    }
+    action();
+  }, []);
+
+  const guardedSelectLesson = useCallback(
+    (lessonId: string) => {
+      requestSelectionChange(() => selectLesson(lessonId));
+    },
+    [requestSelectionChange, selectLesson],
+  );
+
+  const guardedSelectCourse = useCallback(
+    (courseId: string) => {
+      requestSelectionChange(() => selectCourse(courseId));
+    },
+    [requestSelectionChange, selectCourse],
+  );
+
+  const handleConfirmStreamingSwitch = useCallback(async () => {
+    const action = pendingSwitchRef.current;
+    pendingSwitchRef.current = null;
+    setStreamingSwitchOpen(false);
+    await agentChatControllerRef.current?.interruptForSwitch();
+    action?.();
+  }, []);
 
   const {
     addSeries,
@@ -185,7 +230,9 @@ export function Workspace({
     onSaveError: handleSaveError,
   });
 
-  cancelLessonDebounceRef.current = cancelLessonDebounce;
+  useEffect(() => {
+    cancelLessonDebounceRef.current = cancelLessonDebounce;
+  }, [cancelLessonDebounce]);
 
   const shouldLoadImageAssets = pane4Open || pane3Mode === "inline";
   const { availableImagePaths, imageAssetsRevision, notifyImageAssetsChanged } =
@@ -314,7 +361,7 @@ export function Workspace({
           workspaceName={workspace.name}
           series={series}
           selectedCourseId={selectedCourseId}
-          onSelectCourse={selectCourse}
+          onSelectCourse={guardedSelectCourse}
           onReorderSeries={reorderSeries}
           onReorderCourses={reorderCourses}
           onAddSeries={addSeries}
@@ -336,7 +383,7 @@ export function Workspace({
           lessonName={selectedLesson?.lesson ?? ""}
           series={series}
           selectedCourseId={selectedCourseId}
-          onSelectCourse={selectCourse}
+          onSelectCourse={guardedSelectCourse}
           onOpenSettings={() => setSettingsOpen(true)}
           onOpenCompanyContext={() => setCompanyContextOpen(true)}
         />
@@ -373,8 +420,8 @@ export function Workspace({
               series={series}
               course={selectedCourse}
               selectedLessonId={selectedLessonId}
-              onSelectLesson={selectLesson}
-              onSelectCourse={selectCourse}
+              onSelectLesson={guardedSelectLesson}
+              onSelectCourse={guardedSelectCourse}
               onAddLesson={addLesson}
               onDeleteLesson={deleteLesson}
               onReorderLessons={reorderLessons}
@@ -400,6 +447,7 @@ export function Workspace({
               onInsertAgentMarkdown={insertAgentMarkdown}
               onOpenSettings={() => setSettingsOpen(true)}
               currentLessonPath={currentLessonPath}
+              agentChatControllerRef={agentChatControllerRef}
               tagSuggestions={tagSuggestions}
               availableImagePaths={availableImagePaths}
               imageAssetsRevision={imageAssetsRevision}
@@ -427,6 +475,28 @@ export function Workspace({
             </div>
           )}
         </div>
+        <AlertDialog open={streamingSwitchOpen} onOpenChange={setStreamingSwitchOpen}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>AI が応答中です</AlertDialogTitle>
+              <AlertDialogDescription>
+                レッスンを切り替えると応答は中断されます。途中までの内容は保存され、戻ったあと「続きを生成」から再開できます。
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel
+                onClick={() => {
+                  pendingSwitchRef.current = null;
+                }}
+              >
+                キャンセル
+              </AlertDialogCancel>
+              <AlertDialogAction onClick={() => void handleConfirmStreamingSwitch()}>
+                切り替える
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </SidebarInset>
     </SidebarProvider>
     </div>

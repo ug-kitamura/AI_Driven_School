@@ -1,4 +1,7 @@
+import fs from "node:fs";
+import os from "node:os";
 import path from "node:path";
+import { execFileSync } from "node:child_process";
 import { describe, expect, it } from "vitest";
 import {
   findLessonContentInSeriesJson,
@@ -68,18 +71,33 @@ describe("findLessonContentInSeriesJson", () => {
 
 describe("resolveHeadContent integration", () => {
   it("resolves git-md for course names containing spaces", () => {
-    const projectRoot = process.cwd();
-    const result = resolveHeadContent(
-      projectRoot,
-      "unused-lesson-id",
-      "はじめにシリーズ",
-      "DX piyopiyo コース",
-      "トレーニングの進め方",
-    );
-    if ("error" in result) {
-      expect.fail(`git error: ${result.error}`);
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), "lesson-head-content-"));
+    try {
+      execFileSync("git", ["init"], { cwd: root, stdio: "pipe" });
+      execFileSync("git", ["config", "user.email", "test@example.com"], { cwd: root, stdio: "pipe" });
+      execFileSync("git", ["config", "user.name", "Test"], { cwd: root, stdio: "pipe" });
+
+      const rel = "contents/はじめにシリーズ/DX piyopiyo コース/トレーニングの進め方/contents.md";
+      const absolute = path.join(root, rel);
+      fs.mkdirSync(path.dirname(absolute), { recursive: true });
+      fs.writeFileSync(absolute, "# training\n", "utf-8");
+      execFileSync("git", ["add", "."], { cwd: root, stdio: "pipe" });
+      execFileSync("git", ["commit", "-m", "init"], { cwd: root, stdio: "pipe" });
+
+      const result = resolveHeadContent(
+        root,
+        "unused-lesson-id",
+        "はじめにシリーズ",
+        "DX piyopiyo コース",
+        "トレーニングの進め方",
+      );
+      if ("error" in result) {
+        expect.fail(`git error: ${result.error}`);
+      }
+      expect(result.headSource).toBe("git-md");
+      expect(result.content.length).toBeGreaterThan(0);
+    } finally {
+      fs.rmSync(root, { recursive: true, force: true });
     }
-    expect(result.headSource).toBe("git-md");
-    expect(result.content.length).toBeGreaterThan(0);
   });
 });

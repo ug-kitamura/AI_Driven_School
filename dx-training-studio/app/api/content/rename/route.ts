@@ -108,30 +108,33 @@ export async function POST(req: Request) {
     return Response.json({ error: "コースフォルダが見つかりません" }, { status: 404 });
   }
 
-  const oldFileName = `${parsed.data.oldName}.md`;
-  const newFileName = `${sanitizeFilename(parsed.data.newName)}.md`;
-  const oldFilePath = path.join(courseDir, oldFileName);
-  const newFilePath = path.join(courseDir, newFileName);
+  const oldLessonDir = path.join(courseDir, parsed.data.oldName);
+  const oldContentsPath = path.join(oldLessonDir, "contents.md");
+  const newDirName = sanitizeFilename(parsed.data.newName);
+  const newLessonDir = path.join(courseDir, newDirName);
 
-  if (!fs.existsSync(oldFilePath)) {
-    return Response.json({ error: "レッスンファイルが見つかりません" }, { status: 404 });
+  if (!fs.existsSync(oldContentsPath)) {
+    return Response.json({ error: "レッスンフォルダが見つかりません" }, { status: 404 });
   }
 
-  const content = fs.readFileSync(oldFilePath, "utf-8");
+  const content = fs.readFileSync(oldContentsPath, "utf-8");
   const { meta, body: lessonBody } = parseLessonDocument(content);
   const normalized = normalizeLessonMeta(
     { ...meta, lesson: parsed.data.newName },
     { seriesName: parsed.data.series, courseName: parsed.data.course },
   );
-  fs.writeFileSync(oldFilePath, serializeLessonDocument(normalized, lessonBody), "utf-8");
-  fs.renameSync(oldFilePath, newFilePath);
+  fs.writeFileSync(
+    oldContentsPath,
+    serializeLessonDocument(normalized, lessonBody),
+    "utf-8",
+  );
+  fs.renameSync(oldLessonDir, newLessonDir);
 
   // course/.meta.json の order を in-place 更新
   const courseMeta = readMetaJson(courseDir);
   if (Array.isArray(courseMeta.order)) {
-    const newLessonName = sanitizeFilename(parsed.data.newName);
     courseMeta.order = (courseMeta.order as string[]).map((n) =>
-      n === parsed.data.oldName ? newLessonName : n,
+      n === parsed.data.oldName ? newDirName : n,
     );
     writeMetaJson(courseDir, courseMeta);
   }

@@ -36,7 +36,7 @@ describe("resolveLessonGitDiff", () => {
 
   it("returns empty diff when working tree matches HEAD", () => {
     const root = tempGitRoot();
-    const rel = "contents/Series/Course/Lesson.md";
+    const rel = "contents/Series/Course/Lesson/contents.md";
     const absolute = path.join(root, rel);
     fs.mkdirSync(path.dirname(absolute), { recursive: true });
     fs.writeFileSync(absolute, "---\nlesson: Lesson\n---\n\nbody\n", "utf-8");
@@ -53,7 +53,7 @@ describe("resolveLessonGitDiff", () => {
 
   it("returns git diff output when file is modified on disk", () => {
     const root = tempGitRoot();
-    const rel = "contents/Series/Course/Lesson.md";
+    const rel = "contents/Series/Course/Lesson/contents.md";
     const absolute = path.join(root, rel);
     fs.mkdirSync(path.dirname(absolute), { recursive: true });
     fs.writeFileSync(absolute, "before\n", "utf-8");
@@ -71,7 +71,7 @@ describe("resolveLessonGitDiff", () => {
 
   it("returns full addition diff for untracked new file", () => {
     const root = tempGitRoot();
-    const rel = "contents/Series/Course/New.md";
+    const rel = "contents/Series/Course/New/contents.md";
     const absolute = path.join(root, rel);
     fs.mkdirSync(path.dirname(absolute), { recursive: true });
     fs.writeFileSync(absolute, "new lesson\n", "utf-8");
@@ -85,9 +85,17 @@ describe("resolveLessonGitDiff", () => {
   });
 
   it("handles course names containing spaces without quotepath escapes", () => {
-    const projectRoot = process.cwd();
+    const root = tempGitRoot();
+    const rel =
+      "contents/はじめにシリーズ/DX piyopiyo コース/トレーニングの進め方/contents.md";
+    const absolute = path.join(root, rel);
+    fs.mkdirSync(path.dirname(absolute), { recursive: true });
+    fs.writeFileSync(absolute, "# training\n", "utf-8");
+    execFileSync("git", ["add", "."], { cwd: root, stdio: "pipe" });
+    execFileSync("git", ["commit", "-m", "init"], { cwd: root, stdio: "pipe" });
+
     const result = resolveLessonGitDiff(
-      projectRoot,
+      root,
       "はじめにシリーズ",
       "DX piyopiyo コース",
       "トレーニングの進め方",

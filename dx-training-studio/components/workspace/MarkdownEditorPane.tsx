@@ -17,6 +17,7 @@ import { PaneWheelRoot } from "@/components/workspace/PaneWheelRoot";
 import type { LessonContentEditorHandle } from "@/components/workspace/LessonContentEditor";
 import type { Course, Lesson, Series } from "@/lib/schema";
 import type { Pane3Mode } from "@/components/workspace/Workspace";
+import type { AgentChatController } from "@/lib/agent-chat-controller";
 import { createLessonPreviewMarkdownComponents } from "@/lib/lesson-preview-markdown";
 
 const LessonContentEditor = dynamic(
@@ -65,6 +66,7 @@ type Props = {
   onInsertAgentMarkdown: (markdown: string) => void;
   onOpenSettings: () => void;
   currentLessonPath: string | null;
+  agentChatControllerRef?: React.MutableRefObject<AgentChatController | null>;
   tagSuggestions?: readonly string[];
   availableImagePaths?: ReadonlySet<string> | null;
   imageAssetsRevision?: number;
@@ -103,6 +105,7 @@ export function MarkdownEditorPane({
   onInsertAgentMarkdown,
   onOpenSettings,
   currentLessonPath,
+  agentChatControllerRef,
   tagSuggestions = [],
   availableImagePaths = null,
   imageAssetsRevision = 0,
@@ -325,6 +328,7 @@ export function MarkdownEditorPane({
               currentLessonPath={currentLessonPath}
               onOpenSettings={onOpenSettings}
               onOverwriteEditor={lesson ? handleOverwriteEditor : undefined}
+              agentChatControllerRef={agentChatControllerRef}
               richMarkdown={mode === "agent"}
             />
           </div>

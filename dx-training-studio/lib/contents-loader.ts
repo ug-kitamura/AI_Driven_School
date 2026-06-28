@@ -13,6 +13,12 @@ import {
   createLessonContentTemplate,
 } from "@/lib/lesson-frontmatter";
 import type { Course, Lesson, Series } from "@/lib/schema";
+import {
+  LESSON_CONTENTS_FILENAME,
+  LESSON_SESSION_FILENAME,
+} from "@/lib/lesson-paths";
+
+export { LESSON_CONTENTS_FILENAME, LESSON_SESSION_FILENAME };
 
 export const CONTENTS_DIR_NAME = "contents";
 
@@ -64,7 +70,7 @@ export function findCourseDir(seriesDir: string, courseName: string): string | n
   return fs.existsSync(dir) && fs.statSync(dir).isDirectory() ? dir : null;
 }
 
-/** series/course/lesson の表示名からファイルシステム上の実パスを返す */
+/** series/course/lesson の表示名からレッスン contents.md の絶対パスを返す */
 export function resolveLessonFilePath(
   projectRoot: string,
   seriesName: string,
@@ -76,8 +82,28 @@ export function resolveLessonFilePath(
   if (!seriesDir) return null;
   const courseDir = findCourseDir(seriesDir, courseName);
   if (!courseDir) return null;
-  const lessonFile = path.join(courseDir, `${lessonName}.md`);
+  const lessonFile = path.join(
+    courseDir,
+    lessonName,
+    LESSON_CONTENTS_FILENAME,
+  );
   return fs.existsSync(lessonFile) ? lessonFile : null;
+}
+
+/** レッスンフォルダの絶対パスを返す */
+export function resolveLessonDirPath(
+  projectRoot: string,
+  seriesName: string,
+  courseName: string,
+  lessonName: string,
+): string | null {
+  const contentsDir = getContentsDir(projectRoot);
+  const seriesDir = findSeriesDir(contentsDir, seriesName);
+  if (!seriesDir) return null;
+  const courseDir = findCourseDir(seriesDir, courseName);
+  if (!courseDir) return null;
+  const lessonDir = path.join(courseDir, sanitizeFilename(lessonName));
+  return fs.existsSync(lessonDir) ? lessonDir : null;
 }
 
 /** レッスンファイルのパスを返す。存在しなければ新規パスを返す */
@@ -96,7 +122,11 @@ export function resolveOrCreateLessonFilePath(
   const courseDir = findCourseDir(seriesDir, courseName);
   if (!courseDir) return null;
 
-  return path.join(courseDir, `${sanitizeFilename(lessonName)}.md`);
+  return path.join(
+    courseDir,
+    sanitizeFilename(lessonName),
+    LESSON_CONTENTS_FILENAME,
+  );
 }
 
 /** contents/ 以下の全ファイル・フォルダの最新 mtime（ミリ秒）を返す */
@@ -204,11 +234,7 @@ export function reconcileOrderFiles(projectRoot: string): void {
       const courseDir = path.join(seriesDir, courseName);
       if (!fs.existsSync(courseDir)) continue;
 
-      const actualLessons = new Set(
-        fs.readdirSync(courseDir)
-          .filter((f) => f.endsWith(".md"))
-          .map((f) => f.slice(0, -3)),
-      );
+      const actualLessons = listLessonFolderNames(courseDir);
       const courseMeta = readMetaJson(courseDir);
       const lessonOrder = Array.isArray(courseMeta.order) ? (courseMeta.order as string[]) : [];
       const reconciledLessons = reconcileOrder(lessonOrder, actualLessons);
@@ -291,20 +317,21 @@ export function loadContentsFolder(projectRoot: string): Series[] {
       }
       const courseMeta = loadCourseMeta(courseDir);
 
-      const actualLessonFiles = fs
-        .readdirSync(courseDir)
-        .filter((f) => f.endsWith(".md"));
-      const actualLessonNames = new Set(actualLessonFiles.map((f) => f.slice(0, -3)));
+      const actualLessons = listLessonFolderNames(courseDir);
 
       const effectiveLessons =
         courseMeta.order.length > 0
-          ? courseMeta.order.filter((name) => actualLessonNames.has(name))
-          : [...actualLessonNames].sort();
+          ? courseMeta.order.filter((name) => actualLessons.has(name))
+          : [...actualLessons].sort();
 
       const lessons: Lesson[] = [];
 
       for (const lessonName of effectiveLessons) {
-        const lessonFilePath = path.join(courseDir, `${lessonName}.md`);
+        const lessonFilePath = path.join(
+          courseDir,
+          lessonName,
+          LESSON_CONTENTS_FILENAME,
+        );
         let content = fs.readFileSync(lessonFilePath, "utf-8");
 
         const { meta } = parseLessonDocument(content);
@@ -393,6 +420,50 @@ function loadCourseMeta(courseDir: string): {
     cross_series_next: Array.isArray(meta.cross_series_next) ? (meta.cross_series_next as string[]) : [],
     order: Array.isArray(meta.order) ? (meta.order as string[]) : [],
   };
+}
+
+function listLessonFolderNames(courseDir: string): Set<string> {
+  const names = new Set<string>();
+  if (!fs.existsSync(courseDir)) return names;
+  for (const entry of fs.readdirSync(courseDir, { withFileTypes: true })) {
+    if (!entry.isDirectory()) continue;
+    const contentsPath = path.join(courseDir, entry.name, LESSON_CONTENTS_FILENAME);
+    if (fs.existsSync(contentsPath)) {
+      names.add(entry.name);
+    }
+  }
+  return names;
+}
+
+export function findLessonLocationById(
+  projectRoot: string,
+  lessonId: string,
+): {
+  seriesName: string;
+  courseName: string;
+  lessonName: string;
+  lessonDir: string;
+} | null {
+  for (const series of loadContentsFolder(projectRoot)) {
+    for (const course of series.courses) {
+      for (const lesson of course.lessons) {
+        if (lesson.id !== lessonId) continue;
+        const lessonDir = path.join(
+          getContentsDir(projectRoot),
+          series.name,
+          course.name,
+          lesson.lesson,
+        );
+        return {
+          seriesName: series.name,
+          courseName: course.name,
+          lessonName: lesson.lesson,
+          lessonDir,
+        };
+      }
+    }
+  }
+  return null;
 }
 
 /**

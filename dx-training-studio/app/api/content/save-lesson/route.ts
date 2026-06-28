@@ -1,5 +1,6 @@
 import { z } from "zod";
 import fs from "node:fs";
+import path from "node:path";
 import { resolveOrCreateLessonFilePath } from "@/lib/contents-loader";
 import {
   lessonFileTextEquals,
@@ -47,6 +48,7 @@ export async function POST(req: Request) {
   const normalizedContent = normalizeLessonFileNewlines(content);
 
   try {
+    fs.mkdirSync(path.dirname(filePath), { recursive: true });
     if (fs.existsSync(filePath)) {
       const existing = fs.readFileSync(filePath, "utf-8");
       if (lessonFileTextEquals(existing, normalizedContent)) {

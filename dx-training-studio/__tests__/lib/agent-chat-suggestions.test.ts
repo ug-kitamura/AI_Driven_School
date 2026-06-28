@@ -49,8 +49,8 @@ describe("filterSkills", () => {
 
 describe("filterContentFiles", () => {
   const files = [
-    { path: "contents/a/intro.md", name: "intro.md" },
-    { path: "contents/b/lesson.md", name: "lesson.md" },
+    { path: "contents/a/intro/contents.md", name: "intro" },
+    { path: "contents/b/lesson/contents.md", name: "lesson" },
   ];
 
   it("matches file path substring", () => {

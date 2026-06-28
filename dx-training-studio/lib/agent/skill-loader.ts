@@ -10,6 +10,7 @@ export type SkillSummary = {
 export type LoadedSkill = SkillSummary & {
   body: string;
   variables: string[];
+  tools: string[];
 };
 
 const SKILLS_DIR = path.join(".claude", "skills");
@@ -50,6 +51,7 @@ export function loadSkill(projectRoot: string, skillId: string): LoadedSkill | n
     name: parsed.name || skillId,
     description: parsed.description,
     variables: parsed.variables,
+    tools: parsed.tools,
     body: parsed.body,
   };
 }
@@ -83,11 +85,12 @@ export function parseSkillDocument(raw: string): {
   name: string;
   description: string;
   variables: string[];
+  tools: string[];
   body: string;
 } {
   const match = raw.match(FRONTMATTER_RE);
   if (!match) {
-    return { name: "", description: "", variables: [], body: raw.trim() };
+    return { name: "", description: "", variables: [], tools: [], body: raw.trim() };
   }
 
   const frontmatter = parseSkillFrontmatter(match[1]);
@@ -95,6 +98,7 @@ export function parseSkillDocument(raw: string): {
     name: frontmatter.name,
     description: frontmatter.description,
     variables: frontmatter.variables,
+    tools: frontmatter.tools,
     body: match[2].trim(),
   };
 }
@@ -103,12 +107,15 @@ function parseSkillFrontmatter(yaml: string): {
   name: string;
   description: string;
   variables: string[];
+  tools: string[];
 } {
   let name = "";
   let description = "";
   const variables: string[] = [];
+  const tools: string[] = [];
   let inDescription = false;
   let inVariables = false;
+  let inTools = false;
   let descriptionIndent = 0;
 
   const lines = yaml.split("\n");
@@ -134,6 +141,14 @@ function parseSkillFrontmatter(yaml: string): {
       inVariables = false;
     }
 
+    if (inTools) {
+      if (/^-\s+/.test(trimmed)) {
+        tools.push(trimmed.slice(2).trim());
+        continue;
+      }
+      inTools = false;
+    }
+
     if (trimmed.startsWith("variables:")) {
       const inline = trimmed.slice("variables:".length).trim();
       if (inline.startsWith("[") && inline.endsWith("]")) {
@@ -144,6 +159,20 @@ function parseSkillFrontmatter(yaml: string): {
         }
       } else if (!inline) {
         inVariables = true;
+      }
+      continue;
+    }
+
+    if (trimmed.startsWith("tools:")) {
+      const inline = trimmed.slice("tools:".length).trim();
+      if (inline.startsWith("[") && inline.endsWith("]")) {
+        const inner = inline.slice(1, -1);
+        for (const item of inner.split(",")) {
+          const value = item.trim();
+          if (value) tools.push(value);
+        }
+      } else if (!inline) {
+        inTools = true;
       }
       continue;
     }
@@ -172,7 +201,7 @@ function parseSkillFrontmatter(yaml: string): {
     }
   }
 
-  return { name, description: description.trim(), variables };
+  return { name, description: description.trim(), variables, tools };
 }
 
 function stripQuotes(value: string): string {

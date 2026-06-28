@@ -30,16 +30,9 @@ export function buildCreateDraftVariables(options: {
   lesson: Lesson;
   lessonBody: string;
   courseMeta: Record<string, unknown>;
-  contextItems?: string;
   availableTags?: string[];
 }): Record<string, string> {
-  const {
-    lesson,
-    lessonBody,
-    courseMeta,
-    contextItems = "[]",
-    availableTags = [],
-  } = options;
+  const { lesson, lessonBody, courseMeta, availableTags = [] } = options;
   const lessonMeta = {
     status: lesson.status,
     tags: lesson.tags,
@@ -53,7 +46,6 @@ export function buildCreateDraftVariables(options: {
     lesson: lesson.lesson,
     lessonBody,
     courseMeta: JSON.stringify(courseMeta, null, 2),
-    contextItems,
     lessonMeta: JSON.stringify(lessonMeta, null, 2),
     availableTags: JSON.stringify(availableTags, null, 2),
   };

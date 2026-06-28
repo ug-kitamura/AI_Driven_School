@@ -23,6 +23,24 @@ describe("buildCreateDraftVariables", () => {
       courseMeta: { name: "コース" },
     });
     expect(variables.contextItems).toBe("[]");
+    expect(JSON.parse(variables.lessonMeta)).toEqual({
+      status: "open",
+      tags: [],
+      description: "説明",
+      estimated_minutes: 10,
+      author: "author",
+    });
+    expect(JSON.parse(variables.availableTags)).toEqual([]);
+  });
+
+  it("passes availableTags", () => {
+    const variables = buildCreateDraftVariables({
+      lesson,
+      lessonBody: "本文",
+      courseMeta: { name: "コース" },
+      availableTags: ["git", "python"],
+    });
+    expect(JSON.parse(variables.availableTags)).toEqual(["git", "python"]);
   });
 
   it("passes provided contextItems JSON", () => {

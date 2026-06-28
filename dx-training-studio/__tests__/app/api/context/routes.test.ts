@@ -113,6 +113,18 @@ describe("GET /api/context/items/search", () => {
     expect(searchItems).toHaveBeenCalledWith("環境");
   });
 
+  it("normalizes quoted q before search", async () => {
+    searchItems.mockResolvedValue([{ id: 2, title: "NMS Git ブランチ運用ルール" }]);
+    const { GET } = await import("@/app/api/context/items/search/route");
+    const response = await GET(
+      new Request(
+        "http://localhost/api/context/items/search?q=%E3%80%8C%E3%83%96%E3%83%A9%E3%83%B3%E3%83%81%E3%80%8D&contextMode=database",
+      ),
+    );
+    expect(response.status).toBe(200);
+    expect(searchItems).toHaveBeenCalledWith("ブランチ");
+  });
+
   it("returns 400 when q is missing", async () => {
     const { GET } = await import("@/app/api/context/items/search/route");
     const response = await GET(

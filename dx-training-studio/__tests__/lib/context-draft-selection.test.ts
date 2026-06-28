@@ -13,6 +13,12 @@ describe("context-draft-selection", () => {
     );
   });
 
+  it("strips quotes from assistant keyword proposal", () => {
+    expect(parseSearchQueryFromAssistant("検索キーワード: 「ブランチ」")).toBe(
+      "ブランチ",
+    );
+  });
+
   it("strips trailing explanation after em dash", () => {
     expect(
       parseSearchQueryFromAssistant(
@@ -65,6 +71,20 @@ describe("context-draft-selection", () => {
         ],
       }),
     ).toBe("Git インストール");
+  });
+
+  it("resolves OK as acknowledgement with quoted keyword", () => {
+    expect(
+      resolveConfirmedSearchQuery({
+        userMessage: "OK",
+        history: [
+          {
+            role: "assistant",
+            content: "検索キーワード: 「ブランチ」 — このキーワードで検索します。",
+          },
+        ],
+      }),
+    ).toBe("ブランチ");
   });
 
   it("resolves OK as acknowledgement", () => {

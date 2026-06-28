@@ -8,7 +8,7 @@ import {
   getContentsFingerprint,
   reconcileOrderFiles,
 } from "@/lib/contents-loader";
-import { LESSON_CONTENTS_FILENAME } from "@/lib/lesson-paths";
+import { LESSON_CONTENTS_FILENAME, LESSON_SESSION_FILENAME } from "@/lib/lesson-paths";
 
 function writeFile(filePath: string, content: string) {
   fs.mkdirSync(path.dirname(filePath), { recursive: true });
@@ -202,6 +202,23 @@ describe("loadContentsFolder", () => {
     const after = getContentsFingerprint(tmpDir);
 
     expect(before).not.toBe(after);
+  });
+
+  it("ignores session.json changes in fingerprint", () => {
+    const contentsDir = path.join(tmpDir, "contents");
+    writeFile(
+      path.join(contentsDir, "S", "C", "L", LESSON_CONTENTS_FILENAME),
+      "# L\n",
+    );
+
+    const before = getContentsFingerprint(tmpDir);
+    writeFile(
+      path.join(contentsDir, "S", "C", "L", LESSON_SESSION_FILENAME),
+      '{"version":1}\n',
+    );
+    const after = getContentsFingerprint(tmpDir);
+
+    expect(before).toBe(after);
   });
 });
 

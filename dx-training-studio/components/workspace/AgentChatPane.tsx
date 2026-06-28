@@ -52,7 +52,8 @@ import {
 import { loadLessonSession, saveLessonSession } from "@/lib/agent-session-client";
 import type { AgentChatController } from "@/lib/agent-chat-controller";
 import { resolveModelLabel } from "@/lib/agent/model-labels";
-import { getLessonBody } from "@/lib/lesson-frontmatter";
+import { getLessonBody, normalizeDraftMarkdownForLesson } from "@/lib/lesson-frontmatter";
+import { collectAllLessonTags } from "@/lib/lesson-tags";
 import {
   loadWorkspaceSettings,
   WORKSPACE_SETTINGS_CHANGED_EVENT,
@@ -112,6 +113,25 @@ function restoreCreateDraftContext(
     searchPerformed: snapshot.searchPerformed,
     selectionConfirmed: snapshot.selectionConfirmed,
   };
+}
+
+function computeSessionFingerprint(
+  nextMessages: AgentChatMessage[],
+  nextSkillId: string | null,
+  draftState: CreateDraftContextState,
+): string {
+  return JSON.stringify({
+    messages: nextMessages.map((message) => ({
+      id: message.id,
+      role: message.role,
+      content: message.content,
+    })),
+    activeSkillId: nextSkillId,
+    createDraftContext:
+      nextSkillId === "create-draft"
+        ? snapshotCreateDraftContext(draftState)
+        : null,
+  });
 }
 
 const CONTINUE_USER_MESSAGE = "つづきよろしく";
@@ -181,6 +201,8 @@ export function AgentChatPane({
   const chatStorageRef = useRef<AgentChatStorage | null>(null);
   const messagesRef = useRef<AgentChatMessage[]>([]);
   const activeSkillIdRef = useRef<string | null>(null);
+  const lastPersistedFingerprintRef = useRef("");
+  const persistTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const [skills, setSkills] = useState<SkillSummary[]>([]);
 
@@ -214,6 +236,31 @@ export function AgentChatPane({
     if (!snapshot) return;
     await saveLessonSession(lessonId, snapshot);
   }, [buildStorageSnapshot]);
+
+  const scheduleDebouncedPersist = useCallback(() => {
+    if (!lessonId || sessionSwitchRef.current === null) return;
+
+    if (persistTimerRef.current !== null) {
+      window.clearTimeout(persistTimerRef.current);
+    }
+
+    persistTimerRef.current = window.setTimeout(() => {
+      persistTimerRef.current = null;
+      const targetLessonId = currentLessonIdRef.current;
+      if (!targetLessonId) return;
+
+      const fingerprint = computeSessionFingerprint(
+        messagesRef.current,
+        activeSkillIdRef.current,
+        createDraftContextRef.current,
+      );
+      if (fingerprint === lastPersistedFingerprintRef.current) return;
+
+      void flushSessionToStorage(targetLessonId).then(() => {
+        lastPersistedFingerprintRef.current = fingerprint;
+      });
+    }, 800);
+  }, [flushSessionToStorage, lessonId]);
 
   const resetCreateDraftContext = useCallback(() => {
     createDraftContextRef.current = emptyCreateDraftContextState();
@@ -300,7 +347,7 @@ export function AgentChatPane({
                 nextMessages.find((message) => message.role === "user")?.content ?? "",
               )
             : current?.title ?? DEFAULT_SESSION_TITLE);
-        const next = updateActiveSession(prev, {
+        return updateActiveSession(prev, {
           messages: nextMessages,
           activeSkillId: nextSkillId,
           title,
@@ -309,13 +356,10 @@ export function AgentChatPane({
               ? snapshotCreateDraftContext(createDraftContextRef.current)
               : null,
         });
-        if (lessonId) {
-          void saveLessonSession(lessonId, next);
-        }
-        return next;
       });
+      scheduleDebouncedPersist();
     },
-    [lessonId],
+    [scheduleDebouncedPersist],
   );
 
   const interruptForSwitch = useCallback(async () => {
@@ -350,12 +394,30 @@ export function AgentChatPane({
   }, [agentChatControllerRef, interruptForSwitch, isStreaming]);
 
   useEffect(() => {
-    if (!chatStorage || sessionSwitchRef.current === null || !lessonId) return;
-    const timer = window.setTimeout(() => {
-      persistSession(messages, activeSkillId);
-    }, 800);
-    return () => window.clearTimeout(timer);
-  }, [messages, activeSkillId, chatStorage, lessonId, persistSession]);
+    if (!lessonId || sessionSwitchRef.current === null) return;
+    if (!chatStorageRef.current) return;
+    persistSession(messages, activeSkillId);
+  }, [messages, activeSkillId, lessonId, persistSession]);
+
+  useEffect(() => {
+    const handleBeforeUnload = () => {
+      const targetLessonId = currentLessonIdRef.current;
+      if (!targetLessonId) return;
+      const snapshot = buildStorageSnapshot();
+      if (!snapshot) return;
+      void saveLessonSession(targetLessonId, snapshot);
+    };
+    window.addEventListener("beforeunload", handleBeforeUnload);
+    return () => window.removeEventListener("beforeunload", handleBeforeUnload);
+  }, [buildStorageSnapshot]);
+
+  useEffect(() => {
+    return () => {
+      if (persistTimerRef.current !== null) {
+        window.clearTimeout(persistTimerRef.current);
+      }
+    };
+  }, []);
 
   const loadContentFiles = useCallback(async () => {
     const params = currentLessonPath
@@ -385,6 +447,7 @@ export function AgentChatPane({
             cross_series_next: course?.cross_series_next ?? [],
           },
           contextItems: contextItemsJson ?? createDraftContextRef.current.contextItemsJson,
+          availableTags: collectAllLessonTags(series),
         });
       }
       return {};
@@ -680,6 +743,7 @@ export function AgentChatPane({
       if (cancelled) return;
 
       currentLessonIdRef.current = targetLessonId;
+      lastPersistedFingerprintRef.current = "";
       setChatStorage(storage);
       applySessionState(storage.activeSessionId, storage);
       sessionSwitchRef.current = storage.activeSessionId;
@@ -778,11 +842,16 @@ export function AgentChatPane({
   }, []);
 
   const handleConfirmOverwrite = useCallback(() => {
-    if (!overwriteTarget || !onOverwriteEditor) return;
-    const markdown = extractMarkdownBlock(overwriteTarget.content);
+    if (!overwriteTarget || !onOverwriteEditor || !lesson) return;
+    const extracted = extractMarkdownBlock(overwriteTarget.content);
+    const markdown = normalizeDraftMarkdownForLesson(
+      extracted,
+      { seriesName: lesson.series, courseName: lesson.course },
+      lesson,
+    );
     onOverwriteEditor(markdown);
     setOverwriteTarget(null);
-  }, [onOverwriteEditor, overwriteTarget]);
+  }, [lesson, onOverwriteEditor, overwriteTarget]);
 
   const sessionTitle = activeSession?.title ?? DEFAULT_SESSION_TITLE;
 

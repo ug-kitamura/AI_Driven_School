@@ -23,6 +23,7 @@ import { WorkspaceTooltip } from "@/components/workspace/WorkspaceTooltip";
 import { aiRequestHeaders } from "@/components/workspace/image-manager/image-manager-utils";
 import { AI_KEY_ERROR } from "@/components/workspace/image-manager/image-manager-constants";
 import { isContextItemStale } from "@/lib/context-freshness";
+import { matchesContextSearchText } from "@/lib/context-search";
 import { withContextMode } from "@/lib/context-api-client";
 import { loadWorkspaceSettings } from "@/lib/workspace-settings";
 import type { ContextItem } from "@/lib/context-db/types";
@@ -136,7 +137,7 @@ export function CompanyContextDialog({ open, onOpenChange, onOpenSettings }: Pro
   );
 
   const filteredItems = useMemo(() => {
-    const query = keywordQuery.trim().toLowerCase();
+    const query = keywordQuery.trim();
     if (!query) return items;
     return items.filter((item) => {
       const haystack = [
@@ -144,10 +145,8 @@ export function CompanyContextDialog({ open, onOpenChange, onOpenSettings }: Pro
         item.body,
         item.source_url,
         ...item.tags,
-      ]
-        .join("\n")
-        .toLowerCase();
-      return haystack.includes(query);
+      ].join("\n");
+      return matchesContextSearchText(haystack, query);
     });
   }, [items, keywordQuery]);
 

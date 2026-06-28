@@ -322,6 +322,36 @@ export function createLessonContentTemplate(
   return serializeLessonDocument(meta, body ?? defaultLessonBody(meta.lesson));
 }
 
+/** Agent 草稿上書き前に FM を選択中レッスンのドメイン制約へ矯正する */
+export function normalizeDraftMarkdownForLesson(
+  markdown: string,
+  ctx: LessonParentContext,
+  fallbacks: Pick<
+    Lesson,
+    | "series"
+    | "course"
+    | "lesson"
+    | "status"
+    | "description"
+    | "tags"
+    | "estimated_minutes"
+    | "author"
+  >,
+): string {
+  const { meta, body } = parseLessonDocument(markdown);
+  const normalized = normalizeLessonMeta(meta, ctx, {
+    series: fallbacks.series,
+    course: fallbacks.course,
+    lesson: fallbacks.lesson,
+    status: fallbacks.status,
+    description: fallbacks.description,
+    tags: fallbacks.tags,
+    estimated_minutes: fallbacks.estimated_minutes,
+    author: fallbacks.author,
+  });
+  return serializeLessonDocument(normalized, body);
+}
+
 export function reconcileLesson(
   lesson: Lesson,
   ctx: LessonParentContext,

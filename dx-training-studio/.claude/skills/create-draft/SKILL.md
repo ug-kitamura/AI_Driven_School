@@ -8,6 +8,8 @@ variables:
   - lessonBody
   - courseMeta
   - contextItems
+  - lessonMeta
+  - availableTags
 ---
 
 # レッスン草稿作成スキル（Phase 2）
@@ -24,6 +26,20 @@ variables:
 
 ```json
 {{courseMeta}}
+```
+
+## 現在のレッスンメタ（frontmatter の正本）
+
+```json
+{{lessonMeta}}
+```
+
+`lessonMeta.status` は `open` / `in_progress` / `done` のいずれかです。`lessonMeta.tags` は英小文字・数字・ハイフンのみ（例: `git`, `branch`）です。
+
+## ワークスペース内の既存タグ候補
+
+```json
+{{availableTags}}
 ```
 
 ## 現在の本文（参考）
@@ -47,8 +63,8 @@ variables:
 `contextItems` が `"[]"` または空配列のとき:
 
 1. レッスン・コース情報から社内コンテキスト検索用キーワードを **1 個** 提案する
-2. 必ず **`検索キーワード: 「xxx」`** 形式（コロン区切り）で提示する
-3. 例: `検索キーワード: 「ブランチ戦略」 — このキーワードで社内コンテキストを検索します。修正があればキーワードをそのまま返信、問題なければ「ok」と返信してください。`
+2. 必ず **`検索キーワード: xxx`** 形式（コロン区切り）で提示する。**xxx に `「」` 等の引用符を含めない**
+3. 例: `検索キーワード: ブランチ — このキーワードで社内コンテキストを検索します。修正があればキーワードをそのまま返信、問題なければ「ok」と返信してください。`
 4. **このフェーズでは草稿を生成しない**
 
 ### フェーズ 2: 検索結果の選択
@@ -78,7 +94,12 @@ variables:
 ## 出力形式
 
 1. YAML frontmatter（`---` で囲む）
-   - `series`, `course`, `lesson`, `status`, `description`, `tags`, `estimated_minutes`
+   - `series`, `course`, `lesson` — レッスン情報と同じ値
+   - `status` — **`lessonMeta.status` をそのまま使用**（`draft` 等は不可）
+   - `description` — 草稿内容に合わせて更新可
+   - `tags` — **`lessonMeta.tags` をそのまま使用**（日本語 tag や新規 invent 不可）
+   - `estimated_minutes` — `lessonMeta.estimated_minutes` を基本とし、必要なら調整可
+   - `author` — `lessonMeta.author` をそのまま使用
 2. markdown 本文（見出し・箇条書き・コード例を適宜使用）
 
 草稿出力例:
@@ -86,6 +107,8 @@ variables:
 ```markdown
 ---
 series: ...
+status: open
+tags: [git, branch]
 ...
 ---
 

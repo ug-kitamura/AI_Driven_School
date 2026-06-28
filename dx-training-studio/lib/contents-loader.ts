@@ -122,11 +122,15 @@ export function getContentsLatestMtime(projectRoot: string): number {
       return;
     }
     for (const e of entries) {
+      if (e.name === LESSON_SESSION_FILENAME) continue;
       const p = path.join(dir, e.name);
       try {
-        const mtime = fs.statSync(p).mtimeMs;
-        if (mtime > latest) latest = mtime;
-        if (e.isDirectory()) scan(p);
+        if (e.isDirectory()) {
+          scan(p);
+        } else {
+          const mtime = fs.statSync(p).mtimeMs;
+          if (mtime > latest) latest = mtime;
+        }
       } catch {
         /* ignore */
       }
@@ -154,12 +158,16 @@ export function getContentsFingerprint(projectRoot: string): string {
     }
     entries.sort((a, b) => a.name.localeCompare(b.name));
     for (const e of entries) {
+      if (e.name === LESSON_SESSION_FILENAME) continue;
       const childRel = rel ? `${rel}/${e.name}` : e.name;
       const childPath = path.join(dir, e.name);
       try {
-        const stat = fs.statSync(childPath);
-        lines.push(`${childRel}\t${stat.size}\t${stat.mtimeMs}`);
-        if (e.isDirectory()) walk(childPath, childRel);
+        if (e.isDirectory()) {
+          walk(childPath, childRel);
+        } else {
+          const stat = fs.statSync(childPath);
+          lines.push(`${childRel}\t${stat.size}\t${stat.mtimeMs}`);
+        }
       } catch {
         /* ignore */
       }

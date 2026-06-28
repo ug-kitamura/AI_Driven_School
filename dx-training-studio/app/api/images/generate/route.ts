@@ -1,8 +1,3 @@
-import { execFile } from "node:child_process";
-import fs from "node:fs/promises";
-import os from "node:os";
-import path from "node:path";
-import { promisify } from "node:util";
 import { z } from "zod";
 import { resolveAiApiKey } from "@/lib/api-keys";
 import {
@@ -11,10 +6,12 @@ import {
 } from "@/lib/ai-image-prompt";
 import { resolveUniquePngFileName } from "@/lib/image-slug";
 import { saveStagingImage } from "@/lib/image-store";
+import {
+  buildSmallWidthWarning,
+  renderDiagramToPng,
+} from "@/lib/render-diagram-capture.mjs";
 import { resolveAiModel } from "@/lib/resolve-ai-model";
 import { lessonSchema } from "@/lib/schema";
-
-const execFileAsync = promisify(execFile);
 
 const bodySchema = z.object({
   lesson: lessonSchema,
@@ -113,40 +110,25 @@ export async function POST(req: Request) {
   const projectRoot = process.cwd();
   const fileName = await resolveUniquePngFileName(projectRoot, generation.slug);
 
-  const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), "dx-img-gen-"));
-  const htmlFile = path.join(tmpDir, "fragment.html");
-  const pngFile = path.join(tmpDir, "out.png");
-  const scriptPath = path.join(projectRoot, "scripts", "render-diagram.mjs");
-
   try {
-    await fs.writeFile(htmlFile, generation.html, "utf8");
-    await execFileAsync(process.execPath, [scriptPath, htmlFile, pngFile], {
-      cwd: projectRoot,
-      timeout: 120_000,
-    });
-    const png = await fs.readFile(pngFile);
+    const { png, cssWidth } = await renderDiagramToPng(generation.html);
     const file = await saveStagingImage(projectRoot, "ai", fileName, png);
+    const warning = buildSmallWidthWarning(cssWidth);
     return Response.json({
       file,
       alt: generation.alt,
       slug: generation.slug,
+      ...(warning ? { warning } : {}),
     });
   } catch (error) {
-    const stderr =
-      error instanceof Error && "stderr" in error
-        ? String((error as { stderr?: string }).stderr).trim()
-        : "";
     const message = error instanceof Error ? error.message : "PNG 変換に失敗しました";
-    const detail = stderr ? `${message}\n${stderr.slice(0, 500)}` : message;
     const isPlaywright =
-      /playwright|chromium|Executable doesn't exist/i.test(detail);
+      /playwright|chromium|Executable doesn't exist/i.test(message);
     return Response.json(
       {
-        error: isPlaywright ? playwrightHint() : detail,
+        error: isPlaywright ? playwrightHint() : message,
       },
       { status: 500 },
     );
-  } finally {
-    await fs.rm(tmpDir, { recursive: true, force: true }).catch(() => {});
   }
 }

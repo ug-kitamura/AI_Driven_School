@@ -24,7 +24,11 @@ type Props = {
     scope: "ai",
     options?: { silent?: boolean },
   ) => Promise<void>;
-  showNotice: (tab: "ai", message: string, tone: "error" | "success") => void;
+  showNotice: (
+    tab: "ai",
+    message: string,
+    tone: "error" | "success" | "warning",
+  ) => void;
   clearNotice: (tab: "ai") => void;
   gridItems: ImageGridItem[];
   notice?: TabNotice;

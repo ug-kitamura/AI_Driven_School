@@ -4,7 +4,10 @@ import type { Pane3Mode } from "@/components/workspace/Workspace";
 
 export type ImageManagerTab = "used" | "upload" | "ai" | "web";
 
-export type TabNotice = { message: string; tone: "error" | "success" };
+export type TabNotice = {
+  message: string;
+  tone: "error" | "success" | "warning";
+};
 
 export type PendingDelete = ImageGridItem & {
   referenceCount: number;

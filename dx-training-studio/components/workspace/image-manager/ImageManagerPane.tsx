@@ -211,28 +211,6 @@ export function ImageManagerPane({
     [promoteAndInsert],
   );
 
-  const executeDelete = useCallback(
-    async (item: PendingDelete, tab: ImageManagerTab, force = false) => {
-      const params = isCanonicalImagePath(item.path)
-        ? canonicalFileApiParams(item.path)
-        : new URLSearchParams({ path: item.path });
-      if (force && item.referenceCount) {
-        params.set("force", "1");
-        params.set("referenceCount", String(item.referenceCount));
-      }
-      const res = await fetch(`/api/images/file?${params}`, { method: "DELETE" });
-      if (!res.ok) {
-        const data: { error?: string } = await res.json();
-        showNotice(tab, data.error ?? "削除に失敗しました", "error");
-        return;
-      }
-      await refreshScope(tabToScope(tab), { silent: true });
-      onImageAssetsChanged?.(item.path);
-      closePreview();
-    },
-    [refreshScope, showNotice, onImageAssetsChanged, closePreview],
-  );
-
   const requestDelete = useCallback(
     (item: ImageGridItem, tab: ImageManagerTab, referenceCount = 0) => {
       if (item.missing) return;
@@ -326,6 +304,52 @@ export function ImageManagerPane({
   const previewableItems: ImageGridItem[] = useMemo(
     () => previewItems.filter((item) => !item.missing),
     [previewItems],
+  );
+
+  const executeDelete = useCallback(
+    async (item: PendingDelete, tab: ImageManagerTab, force = false) => {
+      const wasPreviewingDeleted = previewPath === item.path;
+      let nextPreviewPath: string | null | undefined;
+      if (wasPreviewingDeleted) {
+        const idx = previewableItems.findIndex((i) => i.path === item.path);
+        if (previewableItems.length <= 1) {
+          nextPreviewPath = null;
+        } else if (idx < previewableItems.length - 1) {
+          nextPreviewPath = previewableItems[idx + 1]!.path;
+        } else {
+          nextPreviewPath = previewableItems[idx - 1]!.path;
+        }
+      }
+
+      const params = isCanonicalImagePath(item.path)
+        ? canonicalFileApiParams(item.path)
+        : new URLSearchParams({ path: item.path });
+      if (force && item.referenceCount) {
+        params.set("force", "1");
+        params.set("referenceCount", String(item.referenceCount));
+      }
+      const res = await fetch(`/api/images/file?${params}`, { method: "DELETE" });
+      if (!res.ok) {
+        const data: { error?: string } = await res.json();
+        showNotice(tab, data.error ?? "削除に失敗しました", "error");
+        return;
+      }
+      await refreshScope(tabToScope(tab), { silent: true });
+      onImageAssetsChanged?.(item.path);
+
+      if (wasPreviewingDeleted) {
+        if (nextPreviewPath) setPreviewPath(nextPreviewPath);
+        else closePreview();
+      }
+    },
+    [
+      previewPath,
+      previewableItems,
+      refreshScope,
+      showNotice,
+      onImageAssetsChanged,
+      closePreview,
+    ],
   );
 
   const previewIndex = useMemo(() => {

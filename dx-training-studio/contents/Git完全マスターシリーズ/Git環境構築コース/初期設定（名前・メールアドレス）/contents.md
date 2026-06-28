@@ -44,7 +44,7 @@ git config --global user.name "あなたの名前"
 **例:**
 
 ```bash
-git config --global user.name "山田 太郎"
+git config --global user.name "Kitamura"
 ```
 
 > `--global` オプションを付けると、そのコンピュータ上のすべての Git リポジトリに共通して適用されます。

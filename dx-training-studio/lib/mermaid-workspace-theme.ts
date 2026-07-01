@@ -77,7 +77,7 @@ const DARK_THEME_VARIABLES = {
 } as const;
 
 /** 曼陀羅の現在コース枠線（ライト / ダーク共通） */
-const MANDALA_CURRENT_COURSE_STROKE = "#5E94BE";
+export const MANDALA_CURRENT_COURSE_STROKE = "#5E94BE";
 
 export function mandalaCurrentCourseStyleLine(
   nodeId: string,

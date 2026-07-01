@@ -216,7 +216,7 @@ const selectedLesson = useMemo(...)
   - 全ノードを stadium 形式 `("text")` で統一
   - テーマ: `base`（黄色系）。`securityLevel: "loose"` で click ディレクティブを有効化
   - 現在選択中のコースに「★ 」プレフィックス + `style N_xxx stroke-width:3px,font-weight:bold`
-  - ノードクリック → `window.mandalaNav` コールバック → `onSelectCourse` + モーダルを閉じる
+  - ノードクリック → `window.mandalaNav` コールバック → `onSelectCourse`（曼陀羅モーダルは開いたまま、★ 表示は選択コースに追従）
   - クリックイベントは `e.target.closest("g")` で SVG g 要素を探索
   - 脚注「★ = 現在選択中のコース　ノードをクリックするとそのコースに移動します」を表示
 

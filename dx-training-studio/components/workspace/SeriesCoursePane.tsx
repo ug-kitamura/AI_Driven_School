@@ -52,6 +52,8 @@ import { WorkspaceTooltip } from "@/components/workspace/WorkspaceTooltip";
 import {
   ADD_LIST_BUTTON_CLASS,
   LIST_CHILD_LEFT_INSET_CLASS,
+  LIST_ROW_SELECTED_CLASS,
+  LIST_ROW_UNSELECTED_CLASS,
   LIST_ROW_X_INSET_CLASS,
   PANE_LIST_CONTENT_X_INSET_CLASS,
   SORTABLE_POINTER_ACTIVATION,
@@ -80,10 +82,11 @@ type Props = {
   onUpdateSeriesName: (seriesId: string, name: string) => void;
 };
 
+/** ステータス種別はラベルで区別。色は行の text-* を currentColor として継承する */
 const STATUS_ICON = {
-  done: <CircleCheck className="h-3.5 w-3.5 text-[--status-done]" />,
-  in_progress: <Loader className="h-3.5 w-3.5 text-[--status-wip]" />,
-  open: <CircleDashed className="h-3.5 w-3.5 text-[--status-draft]" />,
+  done: <CircleCheck className="size-3.5" />,
+  in_progress: <Loader className="size-3.5" />,
+  open: <CircleDashed className="size-3.5" />,
 } as const;
 
 function SortableCourseRow({
@@ -133,9 +136,7 @@ function SortableCourseRow({
         className={cn(
           "group/course-row flex cursor-pointer items-center gap-1 rounded-md py-1.5 text-xs transition-colors",
           LIST_ROW_X_INSET_CLASS,
-          isSelected
-            ? "bg-muted text-primary dark:bg-accent dark:text-primary"
-            : "text-foreground hover:bg-muted",
+          isSelected ? LIST_ROW_SELECTED_CLASS : LIST_ROW_UNSELECTED_CLASS,
         )}
       >
         <span

@@ -13,3 +13,11 @@ export const LIST_CHILD_LEFT_INSET_CLASS = "ml-3 pl-2";
 
 /** この距離未満のポインタ操作はクリック（選択）として扱う */
 export const SORTABLE_POINTER_ACTIVATION = { distance: 8 } as const;
+
+/** コース/レッスン行（未選択）: テキスト・アイコンとも muted、ホバーで背景のみ */
+export const LIST_ROW_UNSELECTED_CLASS =
+  "text-muted-foreground hover:bg-muted [&_svg]:text-current";
+
+/** コース/レッスン行（選択中）: シリーズ見出しと同系統の foreground + 背景ハイライト */
+export const LIST_ROW_SELECTED_CLASS =
+  "bg-muted font-semibold text-foreground dark:bg-accent dark:text-foreground [&_svg]:text-current";

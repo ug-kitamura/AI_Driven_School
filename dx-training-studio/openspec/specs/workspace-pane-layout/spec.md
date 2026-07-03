@@ -6,17 +6,22 @@ DX Training Studio のワークスペースペイン幅（pane1 / pane2 / pane4�
 ## Requirements
 ### Requirement: ペイン幅は clamp により範囲内に収める
 
-各ペイン（pane1 / pane2 / pane4）の幅は `PANE_WIDTH_LIMITS` で定義された min/max の範囲内に収めなければならない（SHALL）。`clampPaneWidth` はこの規則を pure function として実装しなければならない（SHALL）。
+各ペイン（pane1 / pane2 / pane4）の幅は `PANE_WIDTH_LIMITS` で定義された min/max の範囲内に収めなければならない（SHALL）。`clampPaneWidth` はこの規則を pure function として実装しなければならない（SHALL）。pane1 の min/max は **200 / 400**、pane2 の min/max は **200 / 400**、pane4 の min/max は **400 / 1000** でなければならない（SHALL）。`PANE_WIDTH_DEFAULTS` は pane1 **250**、pane2 **250**、pane4 **600** でなければならない（SHALL）。
 
 #### Scenario: 下限未満の値を clamp
 
 - **WHEN** `clampPaneWidth("pane1", 100)` を呼び出す
-- **THEN** 結果は pane1 の min（180）である
+- **THEN** 結果は pane1 の min（200）である
 
 #### Scenario: 上限超過の値を clamp
 
-- **WHEN** `clampPaneWidth("pane4", 999)` を呼び出す
-- **THEN** 結果は pane4 の max（480）である
+- **WHEN** `clampPaneWidth("pane4", 1500)` を呼び出す
+- **THEN** 結果は pane4 の max（1000）である
+
+#### Scenario: pane4 下限 clamp
+
+- **WHEN** `clampPaneWidth("pane4", 200)` を呼び出す
+- **THEN** 結果は pane4 の min（400）である
 
 ### Requirement: 設定モーダル用 snap は PANE_WIDTH_STEP 刻みに丸める
 
@@ -34,12 +39,12 @@ DX Training Studio のワークスペースペイン幅（pane1 / pane2 / pane4�
 
 ### Requirement: Pane3 最小幅は 520px とする
 
-Pane3（Markdown エディタペイン）の実幅は **520px 未満になってはならない**（SHALL NOT）。`PANE3_MIN_WIDTH` 定数（520）として `pane-layout.ts` に定義しなければならない（SHALL）。Pane3 幅は設定ダイアログの項目に含めてはならない（MUST NOT）。
+Pane3（Markdown エディタペイン）の実幅は **400px 未満になってはならない**（SHALL NOT）。`PANE3_MIN_WIDTH` 定数（400）として `pane-layout.ts` に定義しなければならない（SHALL）。Pane3 幅は設定ダイアログの項目に含めてはならない（MUST NOT）。
 
 #### Scenario: fit 後の pane3 が min 以上
 
 - **WHEN** `fitPaneLayout` が任意の入力で実行される
-- **THEN** 返却後のレイアウトにおける pane3 実幅は 520px 以上である（利用可能幅が全 min 合計未満の例外を除く）
+- **THEN** 返却後のレイアウトにおける pane3 実幅は 400px 以上である（利用可能幅が全 min 合計未満の例外を除く）
 
 #### Scenario: 設定 UI に pane3 幅がない
 
@@ -58,12 +63,12 @@ Pane3（Markdown エディタペイン）の実幅は **520px 未満になって
 #### Scenario: 不足時は pane4 から縮小
 
 - **WHEN** 要求幅の合計が利用可能幅を超え、pane4 が開いている
-- **THEN** まず pane4 幅を min（240）まで減らす
+- **THEN** まず pane4 幅を min（400）まで減らす
 
 #### Scenario: 不足時の縮小順
 
-- **WHEN** pane4 を min まで縮めても pane3 が 520 未満である
-- **THEN** 次に pane1 を min（180）まで、続けて pane2 を min（200）まで縮小する
+- **WHEN** pane4 を min まで縮めても pane3 が 400 未満である
+- **THEN** 次に pane1 を min（200）まで、続けて pane2 を min（200）まで縮小する
 
 ### Requirement: fit はブラウザリサイズとペイン操作で実行する
 
@@ -73,7 +78,7 @@ Pane3（Markdown エディタペイン）の実幅は **520px 未満になって
 
 - **WHEN** ユーザーがブラウザウィンドウ幅を狭める
 - **THEN** pane4 → pane1 → pane2 の順で各 min まで自動縮小される
-- **AND** pane3 実幅は 520px 以上が維持される（可能な範囲で）
+- **AND** pane3 実幅は 400px 以上が維持される（可能な範囲で）
 
 #### Scenario: pane2 ハンドルで広げる
 

@@ -73,18 +73,18 @@ TBD - created by archiving change pane4-ai-generation-and-settings. Update Purpo
 
 ### Requirement: ペイン既定幅を設定できる
 
-設定ダイアログは Pane1・Pane2・Pane4 の既定幅（px）を `pane-layout.ts` の min/max 内で編集でき、**3 ペイン分の数値入力を横 1 行**（レスポンシブ時は折り返し可）に配置しなければならない（SHALL）。保存時に `settings.paneDefaults` へ格納しなければならない（SHALL）。「今のレイアウトに適用」は現在値をワークスペース幅 state および `dx-training-studio-pane-widths` に書き込まなければならない（SHALL）。「既定幅に戻す」（リセット）は `paneDefaults` をコード既定に戻す操作として、`ghost` より視認しやすいスタイル（例: `outline`）で提供しなければならない（SHALL）。初回起動で `pane-widths` が無いときは `paneDefaults` を読み込まなければならない（SHALL）。
+設定ダイアログは Pane1・Pane2・Pane4 の既定幅（px）を `pane-layout.ts` の min/max 内で編集でき、**3 ペイン分の数値入力を横 1 行**（レスポンシブ時は折り返し可）に配置しなければならない（SHALL）。保存時に `settings.paneDefaults` へ格納しなければならない（SHALL）。「今のレイアウトに適用」は現在値をワークスペース幅 state および `dx-training-studio-pane-widths` に書き込まなければならない（SHALL）。「既定幅に戻す」（リセット）は `paneDefaults` をコード既定に戻す操作として、`ghost` より視認しやすいスタイル（例: `outline`）で提供しなければならない（SHALL）。初回起動で `pane-widths` が無いときは `paneDefaults` を読み込まなければならない（SHALL）。コード既定の pane4 幅は **600** でなければならない（SHALL）。pane1・pane2 のコード既定は **250** でなければならない（SHALL）。
 
-#### Scenario: 初回起動でカスタム既定が使われる
+#### Scenario: 初回起動で paneDefaults を読む
 
 - **WHEN** `dx-training-studio-pane-widths` が存在しない
-- **AND** ユーザーが以前 paneDefaults を 300/320/360 に保存している
-- **THEN** ワークスペースはその幅で開く
+- **AND** ユーザーが以前 paneDefaults を 250/250/600 に保存している
+- **THEN** 初回 fit は保存済み paneDefaults を用いる
 
-#### Scenario: 横幅入力が 1 行に並ぶ
+#### Scenario: 既定幅リセットで pane4 が 600
 
-- **WHEN** ユーザーが設定ダイアログの横幅セクションを表示する（十分な幅のビューポート）
-- **THEN** Pane1・Pane2・Pane4 の入力が縦 3 段ではなく横並びで表示される
+- **WHEN** ユーザーが設定ダイアログで「既定幅に戻す」を実行する
+- **THEN** pane4 の paneDefaults は 600 になる
 
 ### Requirement: 編集モードの CodeMirror はテーマに追従する
 

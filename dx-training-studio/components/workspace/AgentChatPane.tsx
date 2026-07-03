@@ -896,24 +896,24 @@ export function AgentChatPane({
           </Button>
         </div>
         {historyOpen ? (
-          <div className="absolute inset-x-3 top-full z-30 mt-1 max-h-64 overflow-y-auto rounded-md border border-border bg-popover shadow-md">
+          <div className="absolute left-3 top-full z-30 mt-1 max-h-64 w-max max-w-[calc(100%-1.5rem)] overflow-y-auto rounded-md border border-border bg-popover shadow-md">
                 {sortedSessions.map((session) => (
                   <div
                     key={session.id}
                     className={cn(
-                      "flex flex-col gap-0.5 border-b border-border px-3 py-2 text-left text-xs last:border-b-0 hover:bg-muted/60",
+                      "flex w-fit min-w-0 max-w-full flex-col gap-0.5 border-b border-border px-3 py-2 text-left text-xs last:border-b-0 hover:bg-muted/60",
                       session.id === chatStorage?.activeSessionId && "bg-muted",
                     )}
                   >
                     <button
                       type="button"
-                      className="w-full min-w-0 truncate text-left font-medium text-foreground"
+                      className="block max-w-full truncate whitespace-nowrap text-left font-medium text-foreground"
                       title={session.title}
                       onClick={() => handleSwitchSession(session.id)}
                     >
                       {session.title}
                     </button>
-                    <div className="flex min-w-0 items-center gap-1">
+                    <div className="flex w-full min-w-0 items-center gap-1">
                       <button
                         type="button"
                         className="min-w-0 flex-1 truncate text-left text-muted-foreground"

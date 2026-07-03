@@ -12,7 +12,7 @@ import {
   snapPaneWidths,
 } from "@/components/workspace/pane-layout";
 
-const defaultWidths = { pane1: 300, pane2: 300, pane4: 300 };
+const defaultWidths = { pane1: 250, pane2: 250, pane4: 400 };
 
 function handles(pane4Open: boolean) {
   return (pane4Open ? 2 : 1) * PANE_RESIZE_HANDLE_WIDTH_PX;
@@ -44,7 +44,7 @@ describe("clampPaneWidth", () => {
 
   it("returns value unchanged when within range", () => {
     expect(clampPaneWidth("pane1", 300)).toBe(300);
-    expect(clampPaneWidth("pane4", 360)).toBe(360);
+    expect(clampPaneWidth("pane4", 500)).toBe(500);
   });
 });
 
@@ -69,7 +69,7 @@ describe("snapPaneWidths", () => {
   it("snaps each pane independently", () => {
     expect(
       snapPaneWidths({ pane1: 302, pane2: 298, pane4: 301 }),
-    ).toEqual({ pane1: 300, pane2: 300, pane4: 300 });
+    ).toEqual({ pane1: 300, pane2: 300, pane4: 400 });
   });
 });
 
@@ -153,7 +153,7 @@ describe("fitPaneLayout", () => {
       handles(true);
 
     const result = fitPaneLayout({
-      requested: { pane1: 480, pane2: 520, pane4: 480 },
+      requested: { pane1: 400, pane2: 400, pane4: 480 },
       totalWidth,
       pane4Open: true,
     });
@@ -177,7 +177,7 @@ describe("fitPaneLayout", () => {
       handles(false);
 
     const result = fitPaneLayout({
-      requested: { pane1: 480, pane2: 520, pane4: 480 },
+      requested: { pane1: 400, pane2: 400, pane4: 480 },
       totalWidth,
       pane4Open: false,
     });
@@ -190,7 +190,7 @@ describe("fitPaneLayout", () => {
   it("returns all mins when viewport is below absolute minimum", () => {
     const totalWidth = 800;
     const result = fitPaneLayout({
-      requested: { pane1: 480, pane2: 520, pane4: 480 },
+      requested: { pane1: 400, pane2: 400, pane4: 480 },
       totalWidth,
       pane4Open: true,
     });
@@ -204,15 +204,15 @@ describe("fitPaneLayout", () => {
   });
 
   it("when expanding pane1 shrinks pane4 then pane2 but not pane1", () => {
-    const totalWidth = 1540;
+    const totalWidth = 1460;
     const result = fitPaneLayout({
-      requested: { pane1: 480, pane2: 300, pane4: 400 },
+      requested: { pane1: 400, pane2: 250, pane4: 450 },
       totalWidth,
       pane4Open: true,
       expandPane: "pane1",
     });
 
-    expect(result.pane1).toBe(480);
+    expect(result.pane1).toBe(400);
     expect(result.pane4).toBe(PANE_WIDTH_LIMITS.pane4.min);
     expect(
       computePane3Width(result, { totalWidth, pane4Open: true }),
@@ -220,33 +220,33 @@ describe("fitPaneLayout", () => {
   });
 
   it("when expanding pane2 shrinks only pane4", () => {
-    const totalWidth = 1670;
+    const totalWidth = 1510;
     const result = fitPaneLayout({
-      requested: { pane1: 300, pane2: 520, pane4: 400 },
+      requested: { pane1: 250, pane2: 400, pane4: 450 },
       totalWidth,
       pane4Open: true,
       expandPane: "pane2",
     });
 
-    expect(result.pane1).toBe(300);
-    expect(result.pane2).toBe(520);
-    expect(result.pane4).toBe(354);
+    expect(result.pane1).toBe(250);
+    expect(result.pane2).toBe(400);
+    expect(result.pane4).toBe(444);
     expect(
       computePane3Width(result, { totalWidth, pane4Open: true }),
     ).toBeGreaterThanOrEqual(PANE3_MIN_WIDTH);
   });
 
   it("when expanding pane4 shrinks pane1 then pane2 but not pane4", () => {
-    const totalWidth = 1500;
+    const totalWidth = 1360;
     const result = fitPaneLayout({
-      requested: { pane1: 300, pane2: 300, pane4: 480 },
+      requested: { pane1: 250, pane2: 250, pane4: 480 },
       totalWidth,
       pane4Open: true,
       expandPane: "pane4",
     });
 
     expect(result.pane4).toBe(480);
-    expect(result.pane1).toBeLessThan(300);
+    expect(result.pane1).toBeLessThan(250);
     expect(
       computePane3Width(result, { totalWidth, pane4Open: true }),
     ).toBeGreaterThanOrEqual(PANE3_MIN_WIDTH);

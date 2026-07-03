@@ -5,13 +5,13 @@ export type WorkspacePaneWidths = {
 };
 
 export const PANE_WIDTH_DEFAULTS: WorkspacePaneWidths = {
-  pane1: 270,
-  pane2: 300,
-  pane4: 500,
+  pane1: 250,
+  pane2: 250,
+  pane4: 600,
 };
 
 /** Pane3（エディタ）の最小幅 — 派生幅のため設定 UI には含めない */
-export const PANE3_MIN_WIDTH = 480;
+export const PANE3_MIN_WIDTH = 400;
 
 /** Pane4 折りたたみ時ストリップ幅（w-12） */
 export const PANE4_COLLAPSED_WIDTH = 48;
@@ -43,9 +43,9 @@ export const PANE_RESIZE_HANDLE_WIDTH_PX = 8;
 export const PANE_WIDTH_STEP = 5;
 
 export const PANE_WIDTH_LIMITS = {
-  pane1: { min: 180, max: 480 },
-  pane2: { min: 200, max: 520 },
-  pane4: { min: 300, max: 1000 },
+  pane1: { min: 200, max: 400 },
+  pane2: { min: 200, max: 400 },
+  pane4: { min: 400, max: 1000 },
 } as const;
 
 /** 左端の区切り線: 右ドラッグでペイン幅が狭くなる */
@@ -141,7 +141,7 @@ export function computePane3Width(
   );
 }
 
-/** 利用可能幅に収めつつ pane3 最小幅 520 を守る */
+/** 利用可能幅に収めつつ pane3 最小幅 400 を守る */
 export function fitPaneLayout(input: FitPaneLayoutInput): WorkspacePaneWidths {
   let widths = clampRequestedWidths(input.requested);
   const expandPane = input.expandPane ?? null;

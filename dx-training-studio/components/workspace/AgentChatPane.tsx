@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Check, Copy, FilePen, RotateCcw } from "lucide-react";
+import { Check, ChevronDown, Copy, FilePen, History, Plus, RotateCcw, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   AlertDialog,
@@ -35,6 +35,8 @@ import {
   deriveSessionTitle,
   downloadSessionMarkdown,
   formatMessageTimestamp,
+  formatSessionUpdatedAt,
+  isPlaceholderSessionTitle,
   getActiveSession,
   listSessionsSorted,
   switchSession,
@@ -153,6 +155,9 @@ export function AgentChatPane({
     assistantId: string;
   } | null>(null);
   const chatScrollRef = useRef<HTMLDivElement>(null);
+  const historyRef = useRef<HTMLDivElement>(null);
+  const llmTitleGeneratedSessionIdRef = useRef<string | null>(null);
+  const titleGenerationInFlightRef = useRef(false);
   const controllerListenersRef = useRef(new Set<() => void>());
   const sessionChromeRef = useRef<AgentSessionChrome | null>(null);
   const stickToBottomRef = useRef(true);
@@ -293,6 +298,57 @@ export function AgentChatPane({
     },
     [scheduleDebouncedPersist],
   );
+
+  const maybeGenerateSessionTitle = useCallback(async () => {
+    const storage = chatStorageRef.current;
+    if (!storage || titleGenerationInFlightRef.current) return;
+
+    const sessionId = storage.activeSessionId;
+    if (llmTitleGeneratedSessionIdRef.current === sessionId) return;
+
+    const currentMessages = messagesRef.current;
+    const firstUserMessage = currentMessages.find((message) => message.role === "user");
+    const hasAssistantReply = currentMessages.some(
+      (message) => message.role === "assistant" && message.content.trim(),
+    );
+    if (!firstUserMessage || !hasAssistantReply) return;
+
+    const currentSession = getActiveSession(storage);
+    if (!currentSession) return;
+    if (!isPlaceholderSessionTitle(currentSession.title, firstUserMessage.content)) {
+      llmTitleGeneratedSessionIdRef.current = sessionId;
+      return;
+    }
+
+    titleGenerationInFlightRef.current = true;
+    try {
+      const settings = loadWorkspaceSettings();
+      const res = await fetch("/api/agent/session/title", {
+        method: "POST",
+        headers: aiRequestHeaders(settings),
+        body: JSON.stringify({
+          messages: currentMessages
+            .filter((message) => message.role === "user" || message.role === "assistant")
+            .map((message) => ({
+              role: message.role,
+              content: message.content,
+            })),
+        }),
+      });
+      if (!res.ok) return;
+
+      const data = (await res.json()) as { title?: string };
+      const title = data.title?.trim();
+      if (!title) return;
+
+      llmTitleGeneratedSessionIdRef.current = sessionId;
+      persistSession(currentMessages, activeSkillIdRef.current, title);
+    } catch {
+      // タイトル生成失敗はサイレントにフォールバック
+    } finally {
+      titleGenerationInFlightRef.current = false;
+    }
+  }, [persistSession]);
 
   const interruptForSwitch = useCallback(async () => {
     if (!isStreaming) return;
@@ -516,6 +572,7 @@ export function AgentChatPane({
           controller.signal,
         );
         stopContextRef.current = null;
+        await maybeGenerateSessionTitle();
       } catch (err) {
         if (isAbortError(err)) {
           return;
@@ -536,7 +593,7 @@ export function AgentChatPane({
         setStreamingAssistantId(null);
       }
     },
-    [buildVariables, onOpenSettings],
+    [buildVariables, maybeGenerateSessionTitle, onOpenSettings],
   );
 
   const handleSend = useCallback(async () => {
@@ -674,27 +731,20 @@ export function AgentChatPane({
   }, []);
 
   useEffect(() => {
-    sessionChromeRef.current = {
-      sessionTitle,
-      historyOpen,
-      sortedSessions,
-      activeSessionId: chatStorage?.activeSessionId,
-      setHistoryOpen,
-      handleNewSession,
-      handleSwitchSession,
-      requestDeleteSession,
+    if (!historyOpen) return;
+    const handlePointerDown = (event: MouseEvent) => {
+      if (!historyRef.current?.contains(event.target as Node)) {
+        setHistoryOpen(false);
+      }
     };
+    document.addEventListener("mousedown", handlePointerDown);
+    return () => document.removeEventListener("mousedown", handlePointerDown);
+  }, [historyOpen]);
+
+  useEffect(() => {
+    sessionChromeRef.current = { sessionTitle };
     notifyControllerListeners();
-  }, [
-    sessionTitle,
-    historyOpen,
-    sortedSessions,
-    chatStorage?.activeSessionId,
-    handleNewSession,
-    handleSwitchSession,
-    requestDeleteSession,
-    notifyControllerListeners,
-  ]);
+  }, [sessionTitle, notifyControllerListeners]);
 
   useEffect(() => {
     if (!agentChatControllerRef) return;
@@ -776,6 +826,84 @@ export function AgentChatPane({
 
   return (
     <div className={cn("agent-chat-pane flex h-full min-h-0 flex-col", className)}>
+      <div className="relative z-10 shrink-0 bg-[var(--agent-chat-pane-bg)] px-3 pt-3 pb-2">
+        <div className="flex items-center gap-2">
+          <div ref={historyRef} className="relative">
+            <Button
+              type="button"
+              variant="secondary"
+              size="sm"
+              className="gap-1 border-0 bg-muted text-foreground hover:bg-muted/80 dark:bg-secondary dark:text-secondary-foreground dark:hover:bg-secondary/80"
+              onClick={() => setHistoryOpen((open) => !open)}
+            >
+              <History className="size-3" />
+              履歴
+              <ChevronDown className="size-3" />
+            </Button>
+            {historyOpen ? (
+              <div className="absolute left-0 top-full z-30 mt-1 max-h-64 w-72 overflow-y-auto rounded-md border border-border bg-popover shadow-md">
+                {sortedSessions.map((session) => (
+                  <div
+                    key={session.id}
+                    className={cn(
+                      "flex flex-col gap-0.5 border-b border-border px-3 py-2 text-left text-xs last:border-b-0 hover:bg-muted/60",
+                      session.id === chatStorage?.activeSessionId && "bg-muted",
+                    )}
+                  >
+                    <button
+                      type="button"
+                      className="w-full truncate text-left font-medium text-foreground"
+                      onClick={() => handleSwitchSession(session.id)}
+                    >
+                      {session.title}
+                    </button>
+                    <div className="flex items-center gap-1">
+                      <button
+                        type="button"
+                        className="min-w-0 flex-1 truncate text-left text-muted-foreground"
+                        onClick={() => handleSwitchSession(session.id)}
+                      >
+                        {session.activeSkillId ?? "スキル未選択"} · {session.messages.length} 件 ·{" "}
+                        {formatSessionUpdatedAt(session.updatedAt)}
+                      </button>
+                      <WorkspaceTooltip
+                        label="会話を削除"
+                        render={
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            className="size-6 shrink-0 text-muted-foreground hover:text-destructive"
+                            aria-label="会話を削除"
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              requestDeleteSession(session.id);
+                            }}
+                          >
+                            <Trash2 className="size-3" />
+                          </Button>
+                        }
+                      />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : null}
+          </div>
+
+          <Button
+            type="button"
+            variant="secondary"
+            size="sm"
+            className="ml-auto gap-1 border-0 bg-muted text-foreground hover:bg-muted/80 dark:bg-secondary dark:text-secondary-foreground dark:hover:bg-secondary/80"
+            onClick={handleNewSession}
+          >
+            <Plus className="size-3" />
+            新規
+          </Button>
+        </div>
+      </div>
+
       <div className="relative min-h-0 flex-1">
         <div
           ref={chatScrollRef}

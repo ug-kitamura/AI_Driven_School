@@ -46,6 +46,16 @@ export function deriveSessionTitle(content: string, maxLength = 30): string {
   return `${trimmed.slice(0, maxLength)}…`;
 }
 
+export function isPlaceholderSessionTitle(
+  title: string,
+  firstUserContent: string,
+): boolean {
+  if (title === DEFAULT_SESSION_TITLE) return true;
+  const trimmed = firstUserContent.trim();
+  if (!trimmed) return title === DEFAULT_SESSION_TITLE;
+  return title === deriveSessionTitle(trimmed);
+}
+
 export function createEmptySession(now = new Date().toISOString()): AgentChatSession {
   return {
     id: createSessionId(),

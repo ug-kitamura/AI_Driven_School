@@ -162,7 +162,7 @@ const selectedLesson = useMemo(...)
 - **DnD**: コースの並び替え（同一シリーズ内のみ）。`@dnd-kit` を使用。`DndContext` に `id` を付与してハイドレーション不一致を防止
 - **追加ボタン**: 「シリーズを追加」（グローバル）・「コースを追加」（シリーズごと）
 - **サイドバー収納時**: 開閉ボタン以外のコンテンツをすべて非表示（縦並び文字化けを防止）
-- **選択/ホバー色**: 未選択 `text-muted-foreground`、選択中 `bg-muted` + `text-foreground` + `font-semibold`（テキスト・アイコンとも行色を継承）
+- **選択/ホバー色**: 未選択 `text-foreground`、選択中 `bg-muted` + `text-foreground` + `font-semibold`（テキスト・アイコンとも行色を継承）
 
 ### Pane 2 — LessonListPane ✅
 

@@ -515,6 +515,9 @@ export function LessonListPane({
             グラフを生成中...
           </div>
         )}
+        <p className="pt-1 text-left text-[11px] text-muted-foreground">
+          ノードをクリックするとそのコースに移動します
+        </p>
       </DialogContent>
     </Dialog>
   );

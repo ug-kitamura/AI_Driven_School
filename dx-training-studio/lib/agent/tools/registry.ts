@@ -1,6 +1,5 @@
 import type { ContextStorageMode } from "@/lib/schema";
 import type { ToolDefinition } from "@/lib/agent/llm/types";
-import type { CreateDraftToolSession } from "@/lib/agent/tools/create-draft-session";
 import {
   executeSearchCompanyContext,
   SEARCH_COMPANY_CONTEXT_SCHEMA,
@@ -41,7 +40,6 @@ export function resolveToolDefinitions(names: string[]): ToolDefinition[] {
 export async function executeRegisteredTool(
   name: string,
   input: Record<string, unknown>,
-  session: CreateDraftToolSession,
   contextMode: ContextStorageMode,
 ): Promise<ToolExecutionOutcome> {
   if (!isRegisteredToolName(name)) {
@@ -53,13 +51,9 @@ export async function executeRegisteredTool(
 
   switch (name) {
     case "search_company_context":
-      return executeSearchCompanyContext(
-        input as SearchCompanyContextInput,
-        session,
-        contextMode,
-      );
+      return executeSearchCompanyContext(input as SearchCompanyContextInput, contextMode);
     case "select_company_context":
-      return executeSelectCompanyContext(input as SelectCompanyContextInput, session);
+      return executeSelectCompanyContext(input as SelectCompanyContextInput, contextMode);
     default:
       return {
         result: { error: `未知の tool: ${name}` },

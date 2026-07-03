@@ -68,10 +68,14 @@ tools:
 
 1. tool result の items を **markdown 表** で提示する
    - 列: `#` / `タイトル` / `ソース URL` / `最終更新日` / `タグ`
-   - `#` は tool result の `i` フィールド
+   - `#` は tool result の表示用 `i` フィールド（ユーザー向け）
 2. ユーザーに参照 item を自然な言葉で選んでもらう
-3. 意図を理解したら `select_company_context` tool を呼び出す（例: `{ "selection": [2] }` / `{ "selection": "all" }` / `{ "selection": "none" }`）
-4. 選択変更時は tool を再実行する
+3. 意図を理解したら `select_company_context` tool を呼び出す
+   - 例: `{ "ids": [42] }` — **必ず tool result の `id` フィールドを使う**（`i` は表示用であり select 入力に使わない）
+   - 複数選択: `{ "ids": [42, 57] }`
+   - 選択なし: `{ "ids": [] }`
+4. 前のターンで search 済みの場合、messages 履歴内の search tool result から `id` を読み取って select する（再 search は不要）
+5. 選択変更時は tool を再実行する
 
 検索 0 件のとき:
 
@@ -81,7 +85,7 @@ tools:
 
 ### フェーズ 3: 盛り込み確認と草稿生成
 
-`select_company_context` の tool result に **body 付き item** があるときのみ Phase 3 に進む:
+`select_company_context` の tool result に **item がある** とき Phase 3 に進む:
 
 1. 草稿に使うアイテムのタイトル一覧を簡潔に確認する
 2. 草稿生成の承認を求める
@@ -121,9 +125,21 @@ tags: [git, branch]
 
 ## 社内コンテキストの織り込み
 
-`select_company_context` tool result の **`body` 付き item のみ** を草稿に使う:
+`select_company_context` tool result の item を草稿に使う。`hasBody` で分岐する:
+
+### hasBody: true
 
 - 各 item の `body` をレッスン内の適切な箇所に配置する
-- **`body` が空の item** は表提示用メタデータ。タイトル・URL を草稿に引用しない
 - プロジェクト固有タグ（例: `xyz`）の内容は `> **xyz ワンポイント**` 形式の blockquote で区別してよい
+
+### hasBody: false
+
+- `body` を創作して引用してはならない
+- レッスン内容およびユーザー意図を踏まえ、link-only で十分と判断した場合（ユーザーが「含めて」「リンクも載せて」等と明示した場合を含む）:
+  - タイトルと `url` のみを `> **{tag} ワンポイント**` 形式の blockquote で載せてよい
+  - 原文にない情報を創作しない
+
+### 共通
+
+- search 段階（select 前）の tool result から URL を草稿に引用してはならない
 - 原文にない情報を創作しない

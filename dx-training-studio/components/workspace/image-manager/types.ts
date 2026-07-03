@@ -19,11 +19,12 @@ export type ImageManagerPaneProps = {
   series: Series[];
   lesson: Lesson | undefined;
   pane3Mode: Pane3Mode;
+  activeTab: ImageManagerTab;
+  onActiveTabChange: (tab: ImageManagerTab) => void;
   onInsertImage: (markdown: string) => boolean;
   /** null = コメント外（プロンプト上書きしない）、string = コメント内テキスト */
   editorCommentPrompt: string | null;
   editorCursorOffset: number | null;
   pane4Open: boolean;
-  onTogglePane4: () => void;
   onImageAssetsChanged?: (removedPaths?: string | string[]) => void;
 };

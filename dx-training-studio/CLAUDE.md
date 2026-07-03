@@ -6,7 +6,7 @@ DX ツールトレーニング用の **4ペイン Next.js 16 × shadcn/ui ワー
 ## アーキテクチャ
 
 - **状態の SSoT**: `components/workspace/Workspace.tsx`
-- **Pane 1–4**: `SeriesCoursePane`, `LessonListPane`, `MarkdownEditorPane`, `ImageManagerPane`
+- **Pane 1–4**: `SeriesCoursePane`, `LessonListPane`, `MarkdownEditorPane`, `Pane4Shell`（Agent + `ImageManagerPane`）
 - **画像**: 正本 `images/<file>`、staging `images/{uploaded|ai|web}/`（`lib/image-path.ts`, `lib/image-store.ts`）
 - **AI 画像**: 骨子は `<!-- プロンプト -->`、Pane4 AI タブで生成。契約は `contracts/image-slot-contract.md`
 - **設定**: `lib/workspace-settings.ts`、GlobalHeader 歯車 → `WorkspaceSettingsDialog`

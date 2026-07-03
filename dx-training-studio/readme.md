@@ -27,8 +27,8 @@ AI タブで Tailwind 図解を生成する場合は、初回のみ `npx playwri
 |---|---|
 | **Pane 1** | シリーズ・コース一覧（折りたたみ / DnD 並び替え / 進捗バー） |
 | **Pane 2** | コースメタ情報（受講対象・前後コース・Mermaid フロー図）＋ レッスン一覧 |
-| **Pane 3** | マークダウンエディタ（編集 / プレビュー / Git 差分の 3 モード） |
-| **Pane 4** | 画像アセットマネージャー（Used / Upload / AI / Web タブ） |
+| **Pane 3** | マークダウンエディタ（編集 / プレビュー / Git 差分） |
+| **Pane 4** | AI Agent チャット（デフォルト）と画像アセットマネージャー（Used / Upload / AI / Web）の切替 |
 
 GlobalHeader に **DXトレーニング曼陀羅** と **設定（歯車）** がある。設定では AI API キー、Pixabay API キー、**画像の管理（ローカル / ストレージ）**、**社内コンテキストの管理（ローカル / データベース）**、テーマ（ライト／ダーク／システム）、ペイン既定幅を変更できる。
 
@@ -72,6 +72,13 @@ cp .env.example .env.local
 | 編集 | CodeMirror による Markdown 編集（フロントマター折りたたみ・シンタックスハイライト） |
 | プレビュー | `react-markdown` によるレンダリング |
 | 差分 | Git HEAD と現在の content を unified diff 表示（`LessonDiffView`） |
+
+Pane 3 の編集と **Pane 4 の Agent チャット**は横並びで表示できる（Cursor 型レイアウト）。
+
+### Pane 4 の Agent / 画像
+
+- **Agent**（デフォルト）: スキル呼び出し（`/`）、ファイル参照（`@`）、草稿のエディタ上書き。折りたたみ復帰時は前回のビューを復元
+- **画像**: Used / Upload / AI / Web の 4 タブ（従来の画像マネージャー）
 
 ### Pane 4 の画像管理
 

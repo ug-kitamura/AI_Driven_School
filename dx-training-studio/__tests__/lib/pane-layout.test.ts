@@ -204,25 +204,25 @@ describe("fitPaneLayout", () => {
   });
 
   it("when expanding pane1 shrinks pane4 then pane2 but not pane1", () => {
-    const totalWidth = 1600;
+    const totalWidth = 1540;
     const result = fitPaneLayout({
-      requested: { pane1: 480, pane2: 300, pane4: 300 },
+      requested: { pane1: 480, pane2: 300, pane4: 400 },
       totalWidth,
       pane4Open: true,
       expandPane: "pane1",
     });
 
     expect(result.pane1).toBe(480);
-    expect(result.pane4).toBeLessThan(300);
+    expect(result.pane4).toBe(PANE_WIDTH_LIMITS.pane4.min);
     expect(
       computePane3Width(result, { totalWidth, pane4Open: true }),
     ).toBeGreaterThanOrEqual(PANE3_MIN_WIDTH);
   });
 
   it("when expanding pane2 shrinks only pane4", () => {
-    const totalWidth = 1600;
+    const totalWidth = 1670;
     const result = fitPaneLayout({
-      requested: { pane1: 300, pane2: 520, pane4: 300 },
+      requested: { pane1: 300, pane2: 520, pane4: 400 },
       totalWidth,
       pane4Open: true,
       expandPane: "pane2",
@@ -230,14 +230,14 @@ describe("fitPaneLayout", () => {
 
     expect(result.pane1).toBe(300);
     expect(result.pane2).toBe(520);
-    expect(result.pane4).toBeLessThan(300);
+    expect(result.pane4).toBe(354);
     expect(
       computePane3Width(result, { totalWidth, pane4Open: true }),
     ).toBeGreaterThanOrEqual(PANE3_MIN_WIDTH);
   });
 
   it("when expanding pane4 shrinks pane1 then pane2 but not pane4", () => {
-    const totalWidth = 1600;
+    const totalWidth = 1500;
     const result = fitPaneLayout({
       requested: { pane1: 300, pane2: 300, pane4: 480 },
       totalWidth,

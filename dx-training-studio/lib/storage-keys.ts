@@ -12,6 +12,9 @@ export const STORAGE_KEYS = {
   agentChat: "dx-training-studio-agent-chat",
   agentChatV2: "dx-training-studio-agent-chat-v2",
   selection: "dx-training-studio-selection",
+  pane4View: "dx-training-studio-pane4-view",
+  /** @deprecated Pane 3 Agent モード移行用（pane4-agent-side-panel） */
+  pane3ModeLegacy: "dx-training-studio-pane3-mode",
 } as const;
 
 export const EDITOR_FONT_SIZE_CHANGED_EVENT =

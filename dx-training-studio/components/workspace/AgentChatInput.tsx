@@ -76,7 +76,7 @@ function detectSuggestion(value: string, cursor: number): SuggestionState | null
 
 const SUGGESTION_VISIBLE_COUNT = 5;
 const SUGGESTION_ITEM_HEIGHT_CLASS = "h-14";
-const TEXTAREA_MIN_ROWS = 3;
+const TEXTAREA_MIN_ROWS = 2;
 const TEXTAREA_MAX_HEIGHT_PX = 200;
 
 function clampHighlightIndex(index: number, itemCount: number): number {
@@ -415,10 +415,10 @@ export function AgentChatInput({
             rows={TEXTAREA_MIN_ROWS}
             placeholder="メッセージを入力（/ でスキル、@ でファイル参照）"
             disabled={disabled}
-            className="workspace-scrollbar w-full resize-none border-0 bg-transparent px-3 pt-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-0"
+            className="workspace-scrollbar w-full resize-none border-0 bg-transparent px-3 pt-1.5 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-0"
           />
 
-          <div className="flex items-center justify-between px-2 pb-2 pt-1">
+          <div className="flex items-center justify-between px-2 pb-1 pt-0.5">
             <span className="truncate text-[10px] text-muted-foreground">
               {modelLabel ?? ""}
             </span>
@@ -428,7 +428,7 @@ export function AgentChatInput({
                   type="button"
                   variant="outline"
                   size="icon"
-                  className="size-8 shrink-0"
+                  className="size-7 shrink-0"
                   aria-label="生成を停止"
                   onClick={onStop}
                 >
@@ -438,7 +438,7 @@ export function AgentChatInput({
               <Button
                 type="button"
                 size="icon"
-                className="size-8 shrink-0 rounded-full"
+                className="size-7 shrink-0 rounded-full"
                 disabled={disabled || isLoading || !value.trim()}
                 aria-label="送信"
                 onMouseDown={(event) => event.preventDefault()}

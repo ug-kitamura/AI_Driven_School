@@ -1,19 +1,42 @@
 import fs from "node:fs/promises";
+import { head } from "@vercel/blob";
 import {
   moveImageToTrash,
   mimeTypeForPath,
   resolveAbsoluteImagePath,
 } from "@/lib/image-store";
 import {
+  formatImageFileEtag,
+  imageFileResponse,
+  matchesIfNoneMatch,
+  imageFileNotModifiedResponse,
+} from "@/lib/image-file-response";
+import {
   parseImageStorageMode,
   resolveCanonicalBackend,
   storageErrorResponse,
 } from "@/lib/image-storage/resolve";
+import { StorageConnectionError } from "@/lib/image-storage/types";
 import {
   isCanonicalImagePath,
   isSafeImageLogicalPath,
   isStagingPath,
 } from "@/lib/image-path";
+
+async function respondLocalImageFile(
+  req: Request,
+  absolutePath: string,
+  logicalPath: string,
+): Promise<Response> {
+  const stat = await fs.stat(absolutePath);
+  const etag = formatImageFileEtag(stat.mtimeMs, stat.size);
+  const lastModified = stat.mtime;
+  if (matchesIfNoneMatch(req, etag)) {
+    return imageFileNotModifiedResponse(etag, lastModified);
+  }
+  const data = await fs.readFile(absolutePath);
+  return imageFileResponse(req, data, mimeTypeForPath(logicalPath), etag, lastModified);
+}
 
 export async function GET(req: Request) {
   const url = new URL(req.url);
@@ -28,13 +51,7 @@ export async function GET(req: Request) {
       return Response.json({ error: "path が不正です" }, { status: 400 });
     }
     try {
-      const data = await fs.readFile(absolute);
-      return new Response(new Uint8Array(data), {
-        headers: {
-          "Content-Type": mimeTypeForPath(pathParam),
-          "Cache-Control": "private, no-cache, must-revalidate",
-        },
-      });
+      return await respondLocalImageFile(req, absolute, pathParam);
     } catch {
       return Response.json({ error: "ファイルが見つかりません" }, { status: 404 });
     }
@@ -47,17 +64,53 @@ export async function GET(req: Request) {
   const storageMode = parseImageStorageMode(url.searchParams.get("storageMode"));
 
   try {
+    if (storageMode === "local") {
+      const absolute = resolveAbsoluteImagePath(process.cwd(), pathParam);
+      if (!absolute) {
+        return Response.json({ error: "path が不正です" }, { status: 400 });
+      }
+      try {
+        return await respondLocalImageFile(req, absolute, pathParam);
+      } catch {
+        return Response.json({ error: "ファイルが見つかりません" }, { status: 404 });
+      }
+    }
+
+    const token = process.env.BLOB_READ_WRITE_TOKEN?.trim();
+    if (!token) {
+      const storageResponse = storageErrorResponse(new StorageConnectionError());
+      if (storageResponse) return storageResponse;
+      return Response.json({ error: "ストレージに接続できません" }, { status: 503 });
+    }
+
+    let blobMeta: Awaited<ReturnType<typeof head>>;
+    try {
+      blobMeta = await head(pathParam, { token });
+    } catch {
+      return Response.json({ error: "ファイルが見つかりません" }, { status: 404 });
+    }
+
+    const etag = formatImageFileEtag(
+      blobMeta.uploadedAt.getTime(),
+      blobMeta.size,
+    );
+    const lastModified = blobMeta.uploadedAt;
+    if (matchesIfNoneMatch(req, etag)) {
+      return imageFileNotModifiedResponse(etag, lastModified);
+    }
+
     const backend = resolveCanonicalBackend(process.cwd(), storageMode);
     const data = await backend.readCanonical(pathParam);
     if (!data) {
       return Response.json({ error: "ファイルが見つかりません" }, { status: 404 });
     }
-    return new Response(new Uint8Array(data), {
-      headers: {
-        "Content-Type": mimeTypeForPath(pathParam),
-        "Cache-Control": "private, no-cache, must-revalidate",
-      },
-    });
+    return imageFileResponse(
+      req,
+      data,
+      mimeTypeForPath(pathParam),
+      etag,
+      lastModified,
+    );
   } catch (error) {
     const storageResponse = storageErrorResponse(error);
     if (storageResponse) return storageResponse;

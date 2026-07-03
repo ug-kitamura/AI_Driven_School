@@ -107,7 +107,10 @@ export function Pane4Shell({
       <div className="flex h-12 shrink-0 items-center gap-2 border-b border-border px-2 py-0">
         <div className="flex min-w-0 flex-1 items-center gap-2">
           {pane4View === "agent" ? (
-            <span className="min-w-0 flex-1 truncate text-xs font-bold text-foreground">
+            <span
+              className="min-w-0 flex-1 truncate text-xs font-bold text-foreground"
+              title={sessionChrome?.sessionTitle ?? undefined}
+            >
               {sessionChrome?.sessionTitle ?? ""}
             </span>
           ) : (

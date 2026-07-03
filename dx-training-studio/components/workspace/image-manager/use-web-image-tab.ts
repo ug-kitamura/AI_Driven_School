@@ -22,6 +22,7 @@ export function useWebImageTab(options: {
   refreshScope: RefreshScope;
   showNotice: (tab: "web", message: string, tone: "error" | "success") => void;
   clearNotice: (tab: "web") => void;
+  onHighlightPaths: (paths: string | string[]) => void;
 }) {
   const {
     lesson,
@@ -30,6 +31,7 @@ export function useWebImageTab(options: {
     refreshScope,
     showNotice,
     clearNotice,
+    onHighlightPaths,
   } = options;
 
   const [prompt, setPrompt] = useState("");
@@ -95,6 +97,7 @@ export function useWebImageTab(options: {
         return next;
       });
       await refreshScope("web", { silent: true });
+      onHighlightPaths(data.results!.map((item) => item.file.path));
       showNotice(
         "web",
         `Web staging に ${data.results.length} 件保存しました`,
@@ -109,7 +112,7 @@ export function useWebImageTab(options: {
     } finally {
       setSearching(false);
     }
-  }, [lesson, prompt, refreshScope, showNotice, clearNotice]);
+  }, [lesson, prompt, refreshScope, showNotice, clearNotice, onHighlightPaths]);
 
   const handleAutoFill = useCallback(async () => {
     if (!lesson) return;

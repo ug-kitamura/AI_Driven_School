@@ -25,6 +25,7 @@ type Props = {
   showNotice: (tab: "upload", message: string, tone: "error" | "success") => void;
   clearNotice: (tab: "upload") => void;
   setActiveTab: (tab: ImageManagerTab) => void;
+  onHighlightPaths: (paths: string | string[]) => void;
   onPasteReady: (handler: ((e: React.ClipboardEvent) => void) | null) => void;
   onPreview: (item: ImageGridItem) => void;
   onInsert: (item: ImageGridItem) => void;
@@ -38,6 +39,7 @@ export function UploadImagesTab({
   showNotice,
   clearNotice,
   setActiveTab,
+  onHighlightPaths,
   onPasteReady,
   onPreview,
   onInsert,
@@ -49,6 +51,7 @@ export function UploadImagesTab({
     showNotice,
     clearNotice,
     setActiveTab,
+    onHighlightPaths,
   });
 
   useEffect(() => {

@@ -1,8 +1,17 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Check, ChevronDown, Copy, FilePen, History, Plus, RotateCcw, Trash2 } from "lucide-react";
+import { Check, ChevronDown, Copy, FilePen, History, Pencil, Plus, RotateCcw, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -39,8 +48,11 @@ import {
   isPlaceholderSessionTitle,
   getActiveSession,
   listSessionsSorted,
+  normalizeStoredSessionTitle,
+  SESSION_TITLE_MAX_LENGTH,
   switchSession,
   updateActiveSession,
+  updateSessionTitle,
   type AgentChatMessage,
   type AgentChatStorage,
 } from "@/lib/agent-chat-storage";
@@ -53,6 +65,11 @@ import {
   loadWorkspaceSettings,
   WORKSPACE_SETTINGS_CHANGED_EVENT,
 } from "@/lib/workspace-settings";
+import {
+  MetaDialogField,
+  META_DIALOG_CONTROL,
+  META_DIALOG_FORM,
+} from "@/components/workspace/metaDialogLayout";
 import { WorkspaceTooltip } from "@/components/workspace/WorkspaceTooltip";
 import { cn } from "@/lib/utils";
 import type { Course, Lesson, Series } from "@/lib/schema";
@@ -138,6 +155,8 @@ export function AgentChatPane({
   const [modelLabel, setModelLabel] = useState("");
   const [historyOpen, setHistoryOpen] = useState(false);
   const [deleteSessionTargetId, setDeleteSessionTargetId] = useState<string | null>(null);
+  const [editSessionTargetId, setEditSessionTargetId] = useState<string | null>(null);
+  const [editTitleDraft, setEditTitleDraft] = useState("");
   const [copiedMessageId, setCopiedMessageId] = useState<string | null>(null);
   const [retryPayload, setRetryPayload] = useState<{
     userMessage: AgentChatMessage;
@@ -722,6 +741,31 @@ export function AgentChatPane({
     setDeleteSessionTargetId(sessionId);
   }, []);
 
+  const openEditSessionTitle = useCallback(
+    (sessionId: string) => {
+      const session = chatStorageRef.current?.sessions.find((item) => item.id === sessionId);
+      if (!session) return;
+      setEditSessionTargetId(sessionId);
+      setEditTitleDraft(session.title);
+    },
+    [],
+  );
+
+  const handleSaveSessionTitle = useCallback(() => {
+    if (!chatStorage || !editSessionTargetId) return;
+    const normalized = normalizeStoredSessionTitle(editTitleDraft);
+    if (!normalized) return;
+
+    const next = updateSessionTitle(chatStorage, editSessionTargetId, normalized);
+    if (lessonId) void saveLessonSession(lessonId, next);
+    setChatStorage(next);
+    llmTitleGeneratedSessionIdRef.current = editSessionTargetId;
+    setEditSessionTargetId(null);
+    setEditTitleDraft("");
+  }, [chatStorage, editSessionTargetId, editTitleDraft, lessonId]);
+
+  const canSaveEditTitle = normalizeStoredSessionTitle(editTitleDraft).length > 0;
+
   const sessionTitle = activeSession?.title ?? DEFAULT_SESSION_TITLE;
 
   const notifyControllerListeners = useCallback(() => {
@@ -826,38 +870,50 @@ export function AgentChatPane({
 
   return (
     <div className={cn("agent-chat-pane flex h-full min-h-0 flex-col", className)}>
-      <div className="relative z-10 shrink-0 bg-[var(--agent-chat-pane-bg)] px-3 pt-3 pb-2">
+      <div ref={historyRef} className="relative z-10 shrink-0 bg-[var(--agent-chat-pane-bg)] px-3 pt-3 pb-2">
         <div className="flex items-center gap-2">
-          <div ref={historyRef} className="relative">
-            <Button
-              type="button"
-              variant="secondary"
-              size="sm"
-              className="gap-1 border-0 bg-muted text-foreground hover:bg-muted/80 dark:bg-secondary dark:text-secondary-foreground dark:hover:bg-secondary/80"
-              onClick={() => setHistoryOpen((open) => !open)}
-            >
-              <History className="size-3" />
-              履歴
-              <ChevronDown className="size-3" />
-            </Button>
-            {historyOpen ? (
-              <div className="absolute left-0 top-full z-30 mt-1 max-h-64 w-72 overflow-y-auto rounded-md border border-border bg-popover shadow-md">
+          <Button
+            type="button"
+            variant="secondary"
+            size="sm"
+            className="gap-1 border-0 bg-muted text-foreground hover:bg-muted/80 dark:bg-secondary dark:text-secondary-foreground dark:hover:bg-secondary/80"
+            onClick={() => setHistoryOpen((open) => !open)}
+          >
+            <History className="size-3" />
+            履歴
+            <ChevronDown className="size-3" />
+          </Button>
+
+          <Button
+            type="button"
+            variant="secondary"
+            size="sm"
+            className="ml-auto gap-1 border-0 bg-muted text-foreground hover:bg-muted/80 dark:bg-secondary dark:text-secondary-foreground dark:hover:bg-secondary/80"
+            onClick={handleNewSession}
+          >
+            <Plus className="size-3" />
+            新規
+          </Button>
+        </div>
+        {historyOpen ? (
+          <div className="absolute left-3 top-full z-30 mt-1 max-h-64 w-max max-w-[calc(100%-1.5rem)] overflow-y-auto rounded-md border border-border bg-popover shadow-md">
                 {sortedSessions.map((session) => (
                   <div
                     key={session.id}
                     className={cn(
-                      "flex flex-col gap-0.5 border-b border-border px-3 py-2 text-left text-xs last:border-b-0 hover:bg-muted/60",
+                      "flex w-fit min-w-0 max-w-full flex-col gap-0.5 border-b border-border px-3 py-2 text-left text-xs last:border-b-0 hover:bg-muted/60",
                       session.id === chatStorage?.activeSessionId && "bg-muted",
                     )}
                   >
                     <button
                       type="button"
-                      className="w-full truncate text-left font-medium text-foreground"
+                      className="block max-w-full truncate whitespace-nowrap text-left font-medium text-foreground"
+                      title={session.title}
                       onClick={() => handleSwitchSession(session.id)}
                     >
                       {session.title}
                     </button>
-                    <div className="flex items-center gap-1">
+                    <div className="flex w-full min-w-0 items-center gap-1">
                       <button
                         type="button"
                         className="min-w-0 flex-1 truncate text-left text-muted-foreground"
@@ -866,6 +922,24 @@ export function AgentChatPane({
                         {session.activeSkillId ?? "スキル未選択"} · {session.messages.length} 件 ·{" "}
                         {formatSessionUpdatedAt(session.updatedAt)}
                       </button>
+                      <WorkspaceTooltip
+                        label="タイトルを編集"
+                        render={
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            className="size-6 shrink-0 text-muted-foreground"
+                            aria-label="タイトルを編集"
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              openEditSessionTitle(session.id);
+                            }}
+                          >
+                            <Pencil className="size-3.5" />
+                          </Button>
+                        }
+                      />
                       <WorkspaceTooltip
                         label="会話を削除"
                         render={
@@ -887,21 +961,8 @@ export function AgentChatPane({
                     </div>
                   </div>
                 ))}
-              </div>
-            ) : null}
           </div>
-
-          <Button
-            type="button"
-            variant="secondary"
-            size="sm"
-            className="ml-auto gap-1 border-0 bg-muted text-foreground hover:bg-muted/80 dark:bg-secondary dark:text-secondary-foreground dark:hover:bg-secondary/80"
-            onClick={handleNewSession}
-          >
-            <Plus className="size-3" />
-            新規
-          </Button>
-        </div>
+        ) : null}
       </div>
 
       <div className="relative min-h-0 flex-1">
@@ -919,7 +980,7 @@ export function AgentChatPane({
         {richMarkdown ? (
           messages.length === 0 ? (
           <div className="flex h-full min-h-[12rem] items-center justify-center text-sm text-muted-foreground">
-            メッセージをそのまま送信できます。/ でスキルを選択することもできます。
+            本日はどのようなお手伝いをさせていただけますか？
           </div>
         ) : (
           <div className="flex flex-col gap-6">
@@ -1083,6 +1144,62 @@ export function AgentChatPane({
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <Dialog
+        open={editSessionTargetId !== null}
+        onOpenChange={(open) => {
+          if (!open) {
+            setEditSessionTargetId(null);
+            setEditTitleDraft("");
+          }
+        }}
+      >
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>会話タイトルを編集</DialogTitle>
+          </DialogHeader>
+          <div className={META_DIALOG_FORM}>
+            <MetaDialogField>
+              <Label htmlFor="session-title-edit">タイトル</Label>
+              <Input
+                id="session-title-edit"
+                className={META_DIALOG_CONTROL}
+                value={editTitleDraft}
+                maxLength={SESSION_TITLE_MAX_LENGTH}
+                onChange={(event) => setEditTitleDraft(event.target.value)}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter" && canSaveEditTitle) {
+                    event.preventDefault();
+                    handleSaveSessionTitle();
+                  }
+                }}
+              />
+              <p className="text-[11px] text-muted-foreground">
+                {editTitleDraft.trim().length}/{SESSION_TITLE_MAX_LENGTH} 文字
+              </p>
+            </MetaDialogField>
+          </div>
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => {
+                setEditSessionTargetId(null);
+                setEditTitleDraft("");
+              }}
+            >
+              キャンセル
+            </Button>
+            <Button
+              type="button"
+              disabled={!canSaveEditTitle}
+              onClick={handleSaveSessionTitle}
+            >
+              保存
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <AlertDialog
         open={overwriteTarget !== null}

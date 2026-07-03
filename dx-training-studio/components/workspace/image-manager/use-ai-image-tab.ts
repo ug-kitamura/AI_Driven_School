@@ -25,6 +25,7 @@ export function useAiImageTab(options: {
     tone: "error" | "success" | "warning",
   ) => void;
   clearNotice: (tab: "ai") => void;
+  onHighlightPaths: (paths: string | string[]) => void;
 }) {
   const {
     lesson,
@@ -33,6 +34,7 @@ export function useAiImageTab(options: {
     refreshScope,
     showNotice,
     clearNotice,
+    onHighlightPaths,
   } = options;
 
   const [prompt, setPrompt] = useState("");
@@ -97,6 +99,7 @@ export function useAiImageTab(options: {
         }));
       }
       await refreshScope("ai", { silent: true });
+      onHighlightPaths(data.file.path);
       const savedMessage = `AI staging に保存しました: ${data.file.name}`;
       if (data.warning) {
         showNotice("ai", `${savedMessage} ${data.warning}`, "warning");
@@ -112,7 +115,7 @@ export function useAiImageTab(options: {
     } finally {
       setGenerating(false);
     }
-  }, [lesson, prompt, refreshScope, showNotice, clearNotice]);
+  }, [lesson, prompt, refreshScope, showNotice, clearNotice, onHighlightPaths]);
 
   const handleAutoFill = useCallback(async () => {
     if (!lesson) return;

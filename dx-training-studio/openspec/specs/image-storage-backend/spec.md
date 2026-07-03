@@ -95,3 +95,20 @@ staging パス（`images/uploaded/` 等）に対する `GET` / `DELETE` は `sto
 - **WHEN** 開発者が `.env.local` にトークンを設定し `npm run dev` で起動する
 - **AND** ⚙ でストレージを選択する
 - **THEN** promote・プレビュー・Used 一覧が Blob 正本で動作する
+
+### Requirement: 画像 file GET は条件付き応答をサポートする
+
+`GET /api/images/file`（staging および正本）は、レスポンスに `ETag` および `Last-Modified` を含めなければならない（SHALL）。クライアントが `If-None-Match` で既存 ETag を送り、内容が変わっていない場合、サーバーは **304 Not Modified** を返さなければならない（SHALL）。`Cache-Control` は `private, no-cache, must-revalidate` を維持してよい（MAY）。
+
+#### Scenario: 同一ファイルの再 GET で 304
+
+- **WHEN** クライアントが `GET /api/images/file?path=images/ai/foo.png` で 200 を受け取る
+- **AND** ファイルが変更されていない
+- **AND** 同じ URL で `If-None-Match` 付きの再 GET を送る
+- **THEN** レスポンスは 304 である
+
+#### Scenario: ファイル更新後は新しい ETag
+
+- **WHEN** staging 画像が上書きまたは正本が promote で置換された
+- **AND** クライアントが古い `If-None-Match` で GET する
+- **THEN** レスポンスは 200 と新しいボディである

@@ -15,6 +15,7 @@ describe("useAiImageTab", () => {
     const refreshScope = vi.fn(async () => undefined);
     const showNotice = vi.fn();
     const clearNotice = vi.fn();
+    const onHighlightPaths = vi.fn();
 
     vi.stubGlobal(
       "fetch",
@@ -35,6 +36,7 @@ describe("useAiImageTab", () => {
         refreshScope,
         showNotice,
         clearNotice,
+        onHighlightPaths,
       }),
     );
 
@@ -49,6 +51,7 @@ describe("useAiImageTab", () => {
     await waitFor(() => {
       expect(refreshScope).toHaveBeenCalledWith("ai", { silent: true });
     });
+    expect(onHighlightPaths).toHaveBeenCalledWith("/staging/ai/a.png");
     expect(showNotice).toHaveBeenCalledWith(
       "ai",
       expect.stringContaining("AI staging"),
@@ -60,6 +63,7 @@ describe("useAiImageTab", () => {
     const refreshScope = vi.fn(async () => undefined);
     const showNotice = vi.fn();
     const clearNotice = vi.fn();
+    const onHighlightPaths = vi.fn();
 
     vi.stubGlobal(
       "fetch",
@@ -81,6 +85,7 @@ describe("useAiImageTab", () => {
         refreshScope,
         showNotice,
         clearNotice,
+        onHighlightPaths,
       }),
     );
 

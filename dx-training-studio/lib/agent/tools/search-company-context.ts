@@ -2,19 +2,23 @@ import { DbConnectionError } from "@/lib/context-db/types";
 import { getContextRepository } from "@/lib/context-resolve";
 import { normalizeSearchQuery } from "@/lib/context-search";
 import type { ContextStorageMode } from "@/lib/schema";
-import type { CreateDraftToolSession } from "@/lib/agent/tools/create-draft-session";
 
 export type SearchCompanyContextInput = {
   query: string;
 };
 
 export type CompactContextItem = {
+  id: number;
   i: number;
   title: string;
   url: string;
   tags: string[];
   updated: string | null;
   body: string;
+};
+
+export type SelectedCompactContextItem = CompactContextItem & {
+  hasBody: boolean;
 };
 
 export type SearchCompanyContextResult = {
@@ -36,6 +40,7 @@ export function buildSearchDisplay(query: string, count: number): SearchToolDisp
 
 export function toCompactSearchItems(
   items: Array<{
+    id: number;
     title: string;
     source_url: string;
     tags: string[];
@@ -43,6 +48,7 @@ export function toCompactSearchItems(
   }>,
 ): CompactContextItem[] {
   return items.map((item, index) => ({
+    id: item.id,
     i: index + 1,
     title: item.title,
     url: item.source_url,
@@ -54,7 +60,6 @@ export function toCompactSearchItems(
 
 export async function executeSearchCompanyContext(
   input: SearchCompanyContextInput,
-  session: CreateDraftToolSession,
   contextMode: ContextStorageMode = "database",
 ): Promise<{ result: SearchCompanyContextResult; display: SearchToolDisplay }> {
   const query = normalizeSearchQuery(input.query ?? "");
@@ -69,7 +74,6 @@ export async function executeSearchCompanyContext(
   try {
     const repo = getContextRepository(contextMode);
     const items = await repo.searchItems(query);
-    session.lastSearchResults = items;
     const compact = toCompactSearchItems(items);
     return {
       result: { items: compact },
@@ -93,7 +97,7 @@ export async function executeSearchCompanyContext(
 export const SEARCH_COMPANY_CONTEXT_SCHEMA = {
   name: "search_company_context",
   description:
-    "社内コンテキスト DB をキーワード検索する。結果は title / url / tags の一覧（body なし）。",
+    "社内コンテキスト DB をキーワード検索する。結果は id / title / url / tags の一覧（body なし）。",
   input_schema: {
     type: "object",
     properties: {

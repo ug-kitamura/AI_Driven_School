@@ -48,6 +48,8 @@ import { CrossSeriesCourseTreePicker } from "@/components/workspace/CrossSeriesC
 import {
   ADD_LIST_BUTTON_CLASS,
   LIST_CHILD_LEFT_INSET_CLASS,
+  LIST_ROW_SELECTED_CLASS,
+  LIST_ROW_UNSELECTED_CLASS,
   LIST_ROW_X_INSET_CLASS,
   PANE_LIST_CONTENT_X_INSET_CLASS,
   SORTABLE_POINTER_ACTIVATION,
@@ -89,20 +91,21 @@ type Props = {
   onUpdateLessonStatus: (lessonId: string, status: Lesson["status"]) => void;
 };
 
+/** ステータス種別はラベルで区別。色は行の text-* を currentColor として継承する */
 const STATUS_ICON: Record<
   Lesson["status"],
   { icon: React.ReactNode; label: string }
 > = {
   done: {
-    icon: <CircleCheck className="h-3.5 w-3.5 text-[--status-done]" />,
+    icon: <CircleCheck className="size-3.5" />,
     label: "完成",
   },
   in_progress: {
-    icon: <Loader className="h-3.5 w-3.5 text-[--status-wip]" />,
+    icon: <Loader className="size-3.5" />,
     label: "作成中",
   },
   open: {
-    icon: <CircleDashed className="h-3.5 w-3.5 text-[--status-draft]" />,
+    icon: <CircleDashed className="size-3.5" />,
     label: "未着手",
   },
 };
@@ -135,7 +138,7 @@ function buildMermaidDef(
   const safeLabel = (s: string) => s.replace(/"/g, "'");
   const currentId = "CURRENT";
   const nodeMap: Record<string, string> = { [currentId]: input.current.id };
-  lines.push(`  ${currentId}("★ ${safeLabel(input.current.name)}")`);
+  lines.push(`  ${currentId}("${safeLabel(input.current.name)}")`);
   lines.push(mandalaCurrentCourseStyleLine(currentId, 2));
   lines.push(`  click ${currentId} call miniGraphNav()`);
 
@@ -194,9 +197,7 @@ function SortableLessonRow({
         className={cn(
           "group flex cursor-pointer items-center gap-1 rounded-md py-1.5 text-sm transition-colors",
           LIST_ROW_X_INSET_CLASS,
-          isSelected
-            ? "bg-muted text-primary dark:bg-accent dark:text-primary"
-            : "hover:bg-muted text-foreground",
+          isSelected ? LIST_ROW_SELECTED_CLASS : LIST_ROW_UNSELECTED_CLASS,
         )}
       >
         <span
@@ -515,7 +516,7 @@ export function LessonListPane({
           </div>
         )}
         <p className="pt-1 text-left text-[11px] text-muted-foreground">
-          ★ = 現在選択中のコース　　ノードをクリックするとそのコースに移動します
+          ノードをクリックするとそのコースに移動します
         </p>
       </DialogContent>
     </Dialog>

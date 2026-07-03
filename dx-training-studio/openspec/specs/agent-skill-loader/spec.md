@@ -59,3 +59,23 @@
 
 - **THEN** loadSkill の結果に `tools: ["search_company_context", "select_company_context"]` が含まれる
 
+### Requirement: hidden スキルの frontmatter 解析
+
+スキル frontmatter の `hidden: true` を解析できなければならない（SHALL）。`hidden` が true のスキルは `loadSkill` で読み込めるが、スキル一覧 API（`/api/agent/skills`）および `/` オートコンプリート候補からは除外されなければならない（SHALL）。`hidden` 未指定または false のスキルは従来どおり一覧に含まれなければならない（SHALL）。
+
+#### Scenario: hidden スキルを loadSkill で読み込める
+
+- **WHEN** `general-chat/SKILL.md` に `hidden: true` が frontmatter で定義されている
+- **THEN** `loadSkill(projectRoot, "general-chat")` は非 null を返す
+
+#### Scenario: hidden スキルが一覧 API に含まれない
+
+- **WHEN** `/api/agent/skills` を呼び出す
+- **AND** `general-chat` スキルが `hidden: true` で存在する
+- **THEN** 応答の skills 配列に `general-chat` は含まれない
+
+#### Scenario: hidden 以外のスキルは一覧に含まれる
+
+- **WHEN** `/api/agent/skills` を呼び出す
+- **THEN** `create-draft` 等 `hidden` 未指定のスキルは従来どおり含まれる
+

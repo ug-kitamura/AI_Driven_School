@@ -45,6 +45,24 @@ describe("filterSkills", () => {
       "create-structure",
     ]);
   });
+
+  it("excludes hidden skills", () => {
+    expect(
+      filterSkills(
+        [
+          ...skills,
+          {
+            id: "general-chat",
+            name: "通常チャット",
+            description: "hidden",
+            hidden: true,
+          },
+        ],
+        "",
+        false,
+      ).map((skill) => skill.id),
+    ).toEqual(["create-draft", "create-structure"]);
+  });
 });
 
 describe("filterContentFiles", () => {

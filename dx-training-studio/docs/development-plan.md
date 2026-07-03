@@ -162,7 +162,7 @@ const selectedLesson = useMemo(...)
 - **DnD**: コースの並び替え（同一シリーズ内のみ）。`@dnd-kit` を使用。`DndContext` に `id` を付与してハイドレーション不一致を防止
 - **追加ボタン**: 「シリーズを追加」（グローバル）・「コースを追加」（シリーズごと）
 - **サイドバー収納時**: 開閉ボタン以外のコンテンツをすべて非表示（縦並び文字化けを防止）
-- **選択/ホバー色**: 選択中 `bg-accent`（薄青）、ホバー `bg-muted`（薄グレー）
+- **選択/ホバー色**: 未選択 `text-foreground`、選択中 `bg-muted` + `text-foreground` + `font-semibold`（テキスト・アイコンとも行色を継承）
 
 ### Pane 2 — LessonListPane ✅
 
@@ -215,10 +215,10 @@ const selectedLesson = useMemo(...)
   - シリーズを `subgraph` で囲む
   - 全ノードを stadium 形式 `("text")` で統一
   - テーマ: `base`（黄色系）。`securityLevel: "loose"` で click ディレクティブを有効化
-  - 現在選択中のコースに「★ 」プレフィックス + `style N_xxx stroke-width:3px,font-weight:bold`
-  - ノードクリック → `window.mandalaNav` コールバック → `onSelectCourse`（曼陀羅モーダルは開いたまま、★ 表示は選択コースに追従）
+  - 現在選択中のコースに青枠（`stroke`）+ 太字を適用
+  - ノードクリック → `window.mandalaNav` コールバック → `onSelectCourse`（曼陀羅モーダルは開いたまま、ハイライトは選択コースに追従）
   - クリックイベントは `e.target.closest("g")` で SVG g 要素を探索
-  - 脚注「★ = 現在選択中のコース　ノードをクリックするとそのコースに移動します」を表示
+  - 脚注「ノードをクリックするとそのコースに移動します」を表示
 
 ### API ルート — /api/git-diff ✅
 

@@ -1,7 +1,6 @@
 import type { Series } from "@/lib/schema";
 import { MANDALA_CURRENT_COURSE_STROKE } from "@/lib/mermaid-workspace-theme";
 
-const CURRENT_PREFIX = "★ ";
 const CURRENT_STROKE_WIDTH = "2px";
 
 export function resolveMandalaFlowchartNid(rawNodeId: string): string {
@@ -48,7 +47,7 @@ function setNodeCurrentStyle(nodeEl: SVGGElement, isCurrent: boolean): void {
   }
 }
 
-/** グローバル曼陀羅 SVG 内の ★ 表示と現在コース枠線を更新する（Mermaid 再描画なし） */
+/** グローバル曼陀羅 SVG 内の現在コース枠線・太字を更新する（Mermaid 再描画なし） */
 export function patchGlobalMandalaSelection(
   container: HTMLElement,
   series: Series[],
@@ -69,11 +68,7 @@ export function patchGlobalMandalaSelection(
       if (!nodeEl) continue;
 
       const isCurrent = c.id === selectedCourseId;
-      setNodeLabel(
-        nodeEl,
-        isCurrent ? `${CURRENT_PREFIX}${c.name}` : c.name,
-        isCurrent,
-      );
+      setNodeLabel(nodeEl, c.name, isCurrent);
       setNodeCurrentStyle(nodeEl, isCurrent);
     }
   }

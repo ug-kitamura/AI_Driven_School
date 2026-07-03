@@ -56,6 +56,7 @@ import { WorkspaceTooltip } from "@/components/workspace/WorkspaceTooltip";
 import { cn } from "@/lib/utils";
 import type { Course, Lesson, Series } from "@/lib/schema";
 import type { SkillSummary } from "@/lib/agent/skill-loader";
+import { resolveInvokeSkillId } from "@/lib/agent/resolve-invoke-skill";
 
 type Props = {
   series: Series[];
@@ -563,12 +564,9 @@ export function AgentChatPane({
     const trimmed = input.trim();
     if (!trimmed || isStreaming) return;
 
-    if (!activeSkillId) {
-      setError("スキルを選択してください。入力欄で / を入力してスキルを選べます。");
-      return;
-    }
+    const skillId = resolveInvokeSkillId(activeSkillId);
 
-    if (activeSkillId === "create-draft" && !lesson) {
+    if (skillId === "create-draft" && !lesson) {
       setError("create-draft スキルはレッスン選択が必要です");
       return;
     }
@@ -584,16 +582,16 @@ export function AgentChatPane({
     await invokeSkill({
       userMessage,
       history: messages,
-      skillId: activeSkillId,
+      skillId,
     });
   }, [activeSkillId, input, invokeSkill, isStreaming, lesson, messages]);
 
   const handleRetry = useCallback(async () => {
-    if (!retryPayload || !activeSkillId || isStreaming) return;
+    if (!retryPayload || isStreaming) return;
     await invokeSkill({
       userMessage: retryPayload.userMessage,
       history: retryPayload.history,
-      skillId: activeSkillId,
+      skillId: resolveInvokeSkillId(activeSkillId),
     });
   }, [activeSkillId, invokeSkill, isStreaming, retryPayload]);
 
@@ -839,7 +837,7 @@ export function AgentChatPane({
         {richMarkdown ? (
           messages.length === 0 ? (
           <div className="flex h-full min-h-[12rem] items-center justify-center text-sm text-muted-foreground">
-            / でスキルを選択し、メッセージを送信してください
+            メッセージをそのまま送信できます。/ でスキルを選択することもできます。
           </div>
         ) : (
           <div className="flex flex-col gap-6">

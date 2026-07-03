@@ -10,7 +10,6 @@ import {
   MAX_AGENT_LOOP_TURNS,
 } from "@/lib/agent/llm/types";
 import { resolveLlmProvider } from "@/lib/agent/llm/resolve-provider";
-import { createCreateDraftToolSession } from "@/lib/agent/tools/create-draft-session";
 import { executeRegisteredTool, resolveToolDefinitions } from "@/lib/agent/tools/registry";
 import { parseContextMode } from "@/lib/context-resolve";
 import type { ToolDefinition } from "@/lib/agent/llm/types";
@@ -48,7 +47,6 @@ export async function runAgentLoop(
   }
 
   const tools: ToolDefinition[] = resolveToolDefinitions(options.toolNames);
-  const session = createCreateDraftToolSession();
   const contextMode = parseContextModeFromRequest(options.req);
   const llmMessages = [...options.messages];
   const toolEvents: AgentToolEvent[] = [];
@@ -95,12 +93,7 @@ export async function runAgentLoop(
         display: call.name,
       });
 
-      const outcome = await executeRegisteredTool(
-        call.name,
-        call.input,
-        session,
-        contextMode,
-      );
+      const outcome = await executeRegisteredTool(call.name, call.input, contextMode);
       const resultJson = JSON.stringify(outcome.result);
       toolResults.push(resultJson);
 

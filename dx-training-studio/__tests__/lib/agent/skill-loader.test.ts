@@ -6,6 +6,7 @@ import {
   buildSkillSystemPrompt,
   injectSkillVariables,
   listSkills,
+  listVisibleSkills,
   loadSkill,
   parseSkillDocument,
 } from "@/lib/agent/skill-loader";
@@ -100,5 +101,43 @@ tools:
 
 Body`);
     expect(parsed.tools).toEqual(["search_company_context", "select_company_context"]);
+  });
+
+  it("parses hidden frontmatter", () => {
+    const parsed = parseSkillDocument(`---
+name: general-chat
+description: hidden chat
+hidden: true
+---
+
+Body`);
+    expect(parsed.hidden).toBe(true);
+  });
+
+  it("excludes hidden skills from listVisibleSkills", () => {
+    writeSkill(tmpDir, "create-draft", "name: draft\ndescription: d", "body");
+    writeSkill(
+      tmpDir,
+      "general-chat",
+      "name: chat\ndescription: c\nhidden: true",
+      "body",
+    );
+
+    expect(listSkills(tmpDir).map((skill) => skill.id)).toEqual([
+      "create-draft",
+      "general-chat",
+    ]);
+    expect(listVisibleSkills(tmpDir).map((skill) => skill.id)).toEqual(["create-draft"]);
+  });
+
+  it("loads hidden skill via loadSkill", () => {
+    writeSkill(
+      tmpDir,
+      "general-chat",
+      "name: chat\ndescription: c\nhidden: true",
+      "body",
+    );
+    const skill = loadSkill(tmpDir, "general-chat");
+    expect(skill?.hidden).toBe(true);
   });
 });

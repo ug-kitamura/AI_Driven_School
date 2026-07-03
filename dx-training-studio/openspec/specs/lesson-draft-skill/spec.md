@@ -40,7 +40,7 @@
 
 ### Requirement: create-draft Phase 2 対話フロー
 
-`create-draft` スキル本文は、Pane 3 Agent ビューのチャット対話で次のフェーズを実行する手順を記述しなければならない（SHALL）: (1) レッスン・コース情報から検索キーワードを自然文で提案し、ユーザーの承認後 `search_company_context` tool で検索する、(2) tool result の検索結果を markdown 表で提示し、ユーザーの自然言語選択意図を理解したうえで `select_company_context` tool を呼び出す、(3) **`body` が空でない item のみ**（`select_company_context` の tool result）を草稿に織り込む。0 件ヒット時は社内コンテキストダイアログからの登録を促さなければならない（SHALL）。**タグ候補の `[tag1, tag2]` 形式による検索フェーズは用いてはならない**（MUST NOT）。機械可読プロトコル行（`検索キーワード:` / `選択確定:` / `検索結果承認`）を出力してはならない（MUST NOT）。
+`create-draft` スキル本文は、Pane 3 Agent ビューのチャット対話で次のフェーズを実行する手順を記述しなければならない（SHALL）: (1) レッスン・コース情報から検索キーワードを自然文で提案し、ユーザーの承認後 `search_company_context` tool で検索する、(2) tool result の検索結果を markdown 表で提示し（列 `#` は表示用 `i`、select 呼び出しには tool result の `id` を使用）、ユーザーの自然言語選択意図を理解したうえで `select_company_context` tool を `{ ids: [...] }` で呼び出す、(3) `select_company_context` の tool result に item がある場合、Phase 3（盛り込み確認と草稿生成）に進む。0 件ヒット時は社内コンテキストダイアログからの登録を促さなければならない（SHALL）。**タグ候補の `[tag1, tag2]` 形式による検索フェーズは用いてはならない**（MUST NOT）。機械可読プロトコル行（`検索キーワード:` / `選択確定:` / `検索結果承認`）を出力してはならない（MUST NOT）。
 
 #### Scenario: 検索結果を表で提示する
 
@@ -50,11 +50,11 @@
 
 #### Scenario: ユーザーが番号で選択する
 
-- **WHEN** AI が 3 件の表を提示した
+- **WHEN** AI が 3 件の表を提示した（各行に tool result の `i` と `id` が対応している）
 
 - **AND** ユーザーが「1 と 3 で」と自然文で返信する
 
-- **THEN** AI は `select_company_context` を `{ selection: [1, 3] }` で呼び出す
+- **THEN** AI は `select_company_context` を `{ ids: [<i=1 の id>, <i=3 の id>] }` で呼び出す
 
 #### Scenario: 再検索は tool 経由
 
@@ -68,7 +68,7 @@
 
 - **WHEN** ユーザーが社内コンテキストを使わない旨を伝える
 
-- **THEN** AI は `select_company_context` を `{ selection: "none" }` で呼び出す
+- **THEN** AI は `select_company_context` を `{ ids: [] }` で呼び出す
 
 - **AND** 社内コンテキストなしでの生成確認を求める
 
@@ -80,23 +80,43 @@
 
 - **AND** レッスン情報のみの草稿生成はユーザーの明示的承認後に行ってよい
 
+#### Scenario: invoke 跨ぎで選択する
+
+- **WHEN** 前のターンで search tool result が messages に保存されている
+
+- **AND** ユーザーが別メッセージで「含めてください」等と返信する
+
+- **THEN** AI は messages 内の search tool result から `id` を読み取り `select_company_context` を呼び出す
+
+- **AND** 選択失敗として扱わない
+
 ### Requirement: 社内コンテキストの草稿への織り込み
 
-`select_company_context` tool result に含まれる item（`body` 付き）のみを草稿に使わなければならない（SHALL）。各 item の `body` をレッスン内の適切な箇所に配置しなければならない（SHALL）。検索 summary（`body` 空）の item の `source_url` を草稿に引用してはならない（MUST NOT）。プロジェクト固有タグ（例: `xyz`）の内容は `> **xyz ワンポイント**` 形式の blockquote 等で区別してよい（MAY）。
+`select_company_context` tool result に含まれる item を草稿に使わなければならない（SHALL）。`hasBody: true` の item は各 item の `body` をレッスン内の適切な箇所に配置しなければならない（SHALL）。`hasBody: false` の item は `body` を創作して引用してはならない（MUST NOT）。`hasBody: false` の item について、レッスン内容およびユーザー意図を踏まえ link-only で十分と判断した場合、タイトルと `url` のみを `> **{tag} ワンポイント**` 形式の blockquote で載せてよい（MAY）。search 段階（select 前）の tool result から URL を草稿に引用してはならない（MUST NOT）。プロジェクト固有タグ（例: `xyz`）の内容は `> **xyz ワンポイント**` 形式の blockquote 等で区別してよい（MAY）。
 
 #### Scenario: 社内コンテキストを blockquote で反映
 
-- **WHEN** `select_company_context` の tool result に `body` 付きの `xyz` タグアイテムが含まれる
+- **WHEN** `select_company_context` の tool result に `hasBody: true` の `xyz` タグアイテムが含まれる
 
 - **AND** ユーザーが草稿生成を承認する
 
 - **THEN** 応答 markdown に xyz 向けのワンポイント blockquote が含まれる
 
+#### Scenario: link-only ワンポイント
+
+- **WHEN** `select_company_context` の tool result に `hasBody: false` の item が含まれる
+
+- **AND** ユーザーが参照を含める旨を明示した、または AI が link-only で十分と判断した
+
+- **THEN** 応答 markdown にタイトルと url のみの blockquote が含まれる
+
+- **AND** 原文にない body 内容は含まれない
+
 #### Scenario: 未選択 item を織り込まない
 
-- **WHEN** 検索結果に item 1 と item 2 がある
+- **WHEN** 検索結果に item id 10 と item id 20 がある
 
-- **AND** `select_company_context` が `{ selection: [2] }` で実行された
+- **AND** `select_company_context` が `{ ids: [20] }` で実行された
 
-- **THEN** 草稿に item 1 の `source_url` や本文が含まれない
+- **THEN** 草稿に id 10 の `url` や本文が含まれない
 

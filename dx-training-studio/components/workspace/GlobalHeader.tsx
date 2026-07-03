@@ -226,7 +226,7 @@ export function GlobalHeader({
   );
 
   // モーダルを開いたとき（または series / テーマ変更時）に Mermaid レンダリング。
-  // ★・枠線は Mermaid 定義に含めず DOM パッチで更新（再描画時の subgraph 余白潰れを防ぐ）。
+  // 枠線・太字は Mermaid 定義に含めず DOM パッチで更新（再描画時の subgraph 余白潰れを防ぐ）。
   useEffect(() => {
     if (!mandalaOpen || series.length === 0) return;
     const { def, nodeMap } = buildFullMandalaGraph(series);
@@ -274,7 +274,7 @@ export function GlobalHeader({
     container.innerHTML = mandalaSvg;
   }, [mandalaSvg]);
 
-  // SVG 反映後およびコース選択変更時に ★・枠線を更新し、クリックハンドラを再紐付け
+  // SVG 反映後およびコース選択変更時に枠線・太字を更新し、クリックハンドラを再紐付け
   useEffect(() => {
     if (!mandalaOpen || !mandalaSvg) return;
     refreshMandalaSelection();
@@ -365,7 +365,7 @@ export function GlobalHeader({
             )}
           </div>
           <p className="text-[11px] text-muted-foreground text-left pt-1">
-            ★ = 現在選択中のコース　　ノードをクリックするとそのコースに移動します
+            ノードをクリックするとそのコースに移動します
           </p>
         </DialogContent>
       </Dialog>

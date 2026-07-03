@@ -6,7 +6,9 @@
   ],
   "cross_series_next": [],
   "order": [
-    "Pythonとは何か"
+    "Pythonとは何か",
+    "型を理解しよう",
+    "リスト内包表記"
   ],
   "target": ""
 }

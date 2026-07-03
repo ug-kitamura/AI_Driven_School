@@ -5,6 +5,7 @@ export type SkillSummary = {
   id: string;
   name: string;
   description: string;
+  hidden?: boolean;
 };
 
 export type LoadedSkill = SkillSummary & {
@@ -34,10 +35,19 @@ export function listSkills(projectRoot: string): SkillSummary[] {
   for (const id of entries) {
     const skill = loadSkill(projectRoot, id);
     if (skill) {
-      skills.push({ id: skill.id, name: skill.name, description: skill.description });
+      skills.push({
+        id: skill.id,
+        name: skill.name,
+        description: skill.description,
+        hidden: skill.hidden,
+      });
     }
   }
   return skills;
+}
+
+export function listVisibleSkills(projectRoot: string): SkillSummary[] {
+  return listSkills(projectRoot).filter((skill) => !skill.hidden);
 }
 
 export function loadSkill(projectRoot: string, skillId: string): LoadedSkill | null {
@@ -50,6 +60,7 @@ export function loadSkill(projectRoot: string, skillId: string): LoadedSkill | n
     id: skillId,
     name: parsed.name || skillId,
     description: parsed.description,
+    hidden: parsed.hidden,
     variables: parsed.variables,
     tools: parsed.tools,
     body: parsed.body,
@@ -84,19 +95,28 @@ export function buildSkillSystemPrompt(
 export function parseSkillDocument(raw: string): {
   name: string;
   description: string;
+  hidden: boolean;
   variables: string[];
   tools: string[];
   body: string;
 } {
   const match = raw.match(FRONTMATTER_RE);
   if (!match) {
-    return { name: "", description: "", variables: [], tools: [], body: raw.trim() };
+    return {
+      name: "",
+      description: "",
+      hidden: false,
+      variables: [],
+      tools: [],
+      body: raw.trim(),
+    };
   }
 
   const frontmatter = parseSkillFrontmatter(match[1]);
   return {
     name: frontmatter.name,
     description: frontmatter.description,
+    hidden: frontmatter.hidden,
     variables: frontmatter.variables,
     tools: frontmatter.tools,
     body: match[2].trim(),
@@ -106,11 +126,13 @@ export function parseSkillDocument(raw: string): {
 function parseSkillFrontmatter(yaml: string): {
   name: string;
   description: string;
+  hidden: boolean;
   variables: string[];
   tools: string[];
 } {
   let name = "";
   let description = "";
+  let hidden = false;
   const variables: string[] = [];
   const tools: string[] = [];
   let inDescription = false;
@@ -187,6 +209,9 @@ function parseSkillFrontmatter(yaml: string): {
       case "name":
         name = value;
         break;
+      case "hidden":
+        hidden = value === "true";
+        break;
       case "description":
         if (value === "|" || value === ">") {
           inDescription = true;
@@ -201,7 +226,7 @@ function parseSkillFrontmatter(yaml: string): {
     }
   }
 
-  return { name, description: description.trim(), variables, tools };
+  return { name, description: description.trim(), hidden, variables, tools };
 }
 
 function stripQuotes(value: string): string {

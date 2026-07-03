@@ -1,6 +1,16 @@
 import { resolveModelLabel } from "@/lib/agent/model-labels";
 
-export type AiModelSlug = "claude-sonnet-4-6" | "gpt-5-nano";
+export const AI_MODEL_SLUGS = [
+  "claude-sonnet-4-6",
+  "claude-sonnet-5",
+  "claude-opus-4-7",
+  "claude-opus-4-8",
+  "claude-fable-5",
+  "claude-haiku-4-5",
+  "gpt-5-nano",
+] as const;
+
+export type AiModelSlug = (typeof AI_MODEL_SLUGS)[number];
 
 export const DEFAULT_AI_MODEL: AiModelSlug = "claude-sonnet-4-6";
 
@@ -11,13 +21,16 @@ export const UNSUPPORTED_MODEL_ERROR = "このモデルは未対応です";
 export const AI_MODEL_OPTIONS: ReadonlyArray<{
   slug: AiModelSlug;
   label: string;
-}> = [
-  { slug: "claude-sonnet-4-6", label: resolveModelLabel("claude-sonnet-4-6") },
-  { slug: "gpt-5-nano", label: resolveModelLabel("gpt-5-nano") },
-];
+}> = AI_MODEL_SLUGS.map((slug) => ({
+  slug,
+  label: resolveModelLabel(slug),
+}));
 
 export function isAiModelSlug(value: unknown): value is AiModelSlug {
-  return value === "claude-sonnet-4-6" || value === "gpt-5-nano";
+  return (
+    typeof value === "string" &&
+    (AI_MODEL_SLUGS as readonly string[]).includes(value)
+  );
 }
 
 export function normalizeAiModel(value: unknown): AiModelSlug {

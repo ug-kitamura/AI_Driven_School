@@ -12,6 +12,7 @@ import {
   ensureAgentChatStorage,
   exportSessionAsMarkdown,
   formatMessageTimestamp,
+  getActiveSession,
   isPlaceholderSessionTitle,
   loadAgentChatStorage,
   loadLessonAgentChatStorage,
@@ -20,6 +21,7 @@ import {
   saveLessonAgentChatStorage,
   switchSession,
   updateActiveSession,
+  updateSessionTitle,
 } from "@/lib/agent-chat-storage";
 
 describe("agent-chat-storage", () => {
@@ -52,9 +54,24 @@ describe("agent-chat-storage", () => {
     expect(loaded?.sessions[0]?.title).toBe("hello");
   });
 
-  it("derives full session title without ellipsis", () => {
-    const long = "あ".repeat(40);
-    expect(deriveSessionTitle(long)).toBe(long);
+  it("derives session title up to max length without ellipsis", () => {
+    const atLimit = "あ".repeat(40);
+    expect(deriveSessionTitle(atLimit)).toBe(atLimit);
+    const overLimit = "あ".repeat(50);
+    expect(deriveSessionTitle(overLimit)).toBe("あ".repeat(40));
+  });
+
+  it("updates session title by id", () => {
+    const initial = createInitialStorage();
+    const sessionId = initial.activeSessionId;
+    const next = updateSessionTitle(initial, sessionId, "  カスタムタイトル  ");
+    expect(getActiveSession(next)?.title).toBe("カスタムタイトル");
+  });
+
+  it("rejects empty session title updates", () => {
+    const initial = createInitialStorage();
+    const next = updateSessionTitle(initial, initial.activeSessionId, "   ");
+    expect(next).toBe(initial);
   });
 
   it("detects placeholder session titles", () => {

@@ -79,6 +79,23 @@ const SUGGESTION_ITEM_HEIGHT_CLASS = "h-14";
 const TEXTAREA_MIN_ROWS = 2;
 const TEXTAREA_MAX_HEIGHT_PX = 200;
 
+function measureTextareaMinHeight(textarea: HTMLTextAreaElement): number {
+  const style = window.getComputedStyle(textarea);
+  const lineHeight = Number.parseFloat(style.lineHeight);
+  const paddingTop = Number.parseFloat(style.paddingTop);
+  const paddingBottom = Number.parseFloat(style.paddingBottom);
+  const borderTop = Number.parseFloat(style.borderTopWidth);
+  const borderBottom = Number.parseFloat(style.borderBottomWidth);
+  const lineHeightPx = Number.isFinite(lineHeight) ? lineHeight : 20;
+  return (
+    lineHeightPx * TEXTAREA_MIN_ROWS +
+    paddingTop +
+    paddingBottom +
+    borderTop +
+    borderBottom
+  );
+}
+
 function clampHighlightIndex(index: number, itemCount: number): number {
   if (itemCount <= 0) return 0;
   return Math.max(0, Math.min(index, itemCount - 1));
@@ -112,7 +129,11 @@ export function AgentChatInput({
     const textarea = textareaRef.current;
     if (!textarea) return;
     textarea.style.height = "auto";
-    const nextHeight = Math.min(textarea.scrollHeight, TEXTAREA_MAX_HEIGHT_PX);
+    const minHeight = measureTextareaMinHeight(textarea);
+    const nextHeight = Math.max(
+      minHeight,
+      Math.min(textarea.scrollHeight, TEXTAREA_MAX_HEIGHT_PX),
+    );
     textarea.style.height = `${nextHeight}px`;
     textarea.style.overflowY =
       textarea.scrollHeight > TEXTAREA_MAX_HEIGHT_PX ? "auto" : "hidden";
@@ -121,6 +142,20 @@ export function AgentChatInput({
   useEffect(() => {
     syncTextareaHeight();
   }, [value, syncTextareaHeight]);
+
+  useEffect(() => {
+    const textarea = textareaRef.current;
+    if (!textarea) return;
+
+    const observer = new ResizeObserver(() => {
+      syncTextareaHeight();
+    });
+    observer.observe(textarea);
+    if (textarea.parentElement) {
+      observer.observe(textarea.parentElement);
+    }
+    return () => observer.disconnect();
+  }, [syncTextareaHeight]);
 
   const filteredSkills = useMemo(() => {
     const query = suggestion?.kind === "skill" ? suggestion.query : "";

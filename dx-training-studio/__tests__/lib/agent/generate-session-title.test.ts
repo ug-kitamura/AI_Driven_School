@@ -16,9 +16,9 @@ describe("generate-session-title", () => {
     expect(normalizeSessionTitle('  "レッスン構成の相談"  ')).toBe("レッスン構成の相談");
   });
 
-  it("truncates generated title to 30 chars without ellipsis", () => {
-    const long = "あ".repeat(40);
-    expect(normalizeSessionTitle(long)).toBe("あ".repeat(30));
+  it("truncates generated title to 40 chars without ellipsis", () => {
+    const long = "あ".repeat(50);
+    expect(normalizeSessionTitle(long)).toBe("あ".repeat(40));
   });
 
   it("builds user prompt from first exchange", () => {

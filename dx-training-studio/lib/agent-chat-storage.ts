@@ -34,6 +34,8 @@ export const AGENT_CHAT_STORAGE_KEY = STORAGE_KEYS.agentChat;
 export const AGENT_CHAT_STORAGE_V2_KEY = STORAGE_KEYS.agentChatV2;
 export const MAX_AGENT_CHAT_SESSIONS = 10;
 export const DEFAULT_SESSION_TITLE = "新しい会話";
+export const SESSION_TITLE_TARGET_LENGTH = 30;
+export const SESSION_TITLE_MAX_LENGTH = 40;
 
 function createSessionId(): string {
   return `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
@@ -42,7 +44,8 @@ function createSessionId(): string {
 export function deriveSessionTitle(content: string): string {
   const trimmed = content.trim();
   if (!trimmed) return DEFAULT_SESSION_TITLE;
-  return trimmed;
+  if (trimmed.length <= SESSION_TITLE_MAX_LENGTH) return trimmed;
+  return trimmed.slice(0, SESSION_TITLE_MAX_LENGTH);
 }
 
 export function isPlaceholderSessionTitle(
@@ -224,6 +227,30 @@ function enforceStorage(storage: AgentChatStorage): AgentChatStorage {
 export function switchSession(storage: AgentChatStorage, sessionId: string): AgentChatStorage {
   if (!storage.sessions.some((session) => session.id === sessionId)) return storage;
   return { ...storage, activeSessionId: sessionId };
+}
+
+export function normalizeStoredSessionTitle(title: string): string {
+  const trimmed = title.trim();
+  if (!trimmed) return "";
+  if (trimmed.length <= SESSION_TITLE_MAX_LENGTH) return trimmed;
+  return trimmed.slice(0, SESSION_TITLE_MAX_LENGTH);
+}
+
+export function updateSessionTitle(
+  storage: AgentChatStorage,
+  sessionId: string,
+  title: string,
+): AgentChatStorage {
+  const normalized = normalizeStoredSessionTitle(title);
+  if (!normalized) return storage;
+
+  const now = new Date().toISOString();
+  const sessions = storage.sessions.map((session) =>
+    session.id === sessionId
+      ? { ...session, title: normalized, updatedAt: now }
+      : session,
+  );
+  return { ...storage, sessions: enforceSessionLimit(sessions) };
 }
 
 export function deleteSession(storage: AgentChatStorage, sessionId: string): AgentChatStorage {

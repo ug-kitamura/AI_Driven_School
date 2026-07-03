@@ -1,10 +1,14 @@
-import { deriveSessionTitle } from "@/lib/agent-chat-storage";
+import {
+  deriveSessionTitle,
+  SESSION_TITLE_MAX_LENGTH,
+  SESSION_TITLE_TARGET_LENGTH,
+} from "@/lib/agent-chat-storage";
 import { resolveAiApiKey } from "@/lib/api-keys";
 import { AI_KEY_ERROR } from "@/lib/agent/llm/anthropic";
 import type { LlmMessage } from "@/lib/agent/llm/types";
 import { resolveLlmProvider } from "@/lib/agent/llm/resolve-provider";
 
-export const SESSION_TITLE_MAX_LENGTH = 30;
+export { SESSION_TITLE_MAX_LENGTH, SESSION_TITLE_TARGET_LENGTH };
 export const SESSION_TITLE_CONTENT_TRUNCATE = 500;
 
 export const SESSION_TITLE_SYSTEM_PROMPT = `あなたは会話タイトル生成器です。
@@ -12,7 +16,7 @@ export const SESSION_TITLE_SYSTEM_PROMPT = `あなたは会話タイトル生成
 
 ルール:
 - 日本語
-- 30文字以内
+- 30文字程度を目標（最大40文字）
 - 名詞句または短い文
 - 引用符・句読点・説明は不要
 - 会話の主題が伝わること`;

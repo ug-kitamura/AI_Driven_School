@@ -5,8 +5,9 @@ import dynamic from "next/dynamic";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import rehypeHighlight from "rehype-highlight";
-import "highlight.js/styles/github.min.css";
 import { GitCompare, Code, Eye, Edit3 } from "lucide-react";
+import { useHighlightJsTheme } from "@/lib/use-highlight-js-theme";
+import { useResolvedDarkMode } from "@/lib/use-resolved-dark-mode";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { getLessonBody, type LessonMetaFields } from "@/lib/lesson-frontmatter";
@@ -91,6 +92,8 @@ export function MarkdownEditorPane({
   const lastCursorOffsetRef = useRef(0);
   const [diffState, setDiffState] = useState<DiffState>({ status: "idle" });
   const [metaDialogOpen, setMetaDialogOpen] = useState(false);
+  const isDark = useResolvedDarkMode();
+  useHighlightJsTheme(isDark);
 
   const previewBody = useMemo(
     () => (lesson ? stripHtmlComments(getLessonBody(lesson)) : ""),

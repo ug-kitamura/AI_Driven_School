@@ -21,6 +21,7 @@ import type { LessonContentEditorHandle } from "@/components/workspace/LessonCon
 import type { Course, Lesson, Series } from "@/lib/schema";
 import type { Pane3Mode } from "@/components/workspace/Workspace";
 import { createLessonPreviewMarkdownComponents } from "@/lib/lesson-preview-markdown";
+import "@/styles/hljs/lesson-preview-hljs.css";
 
 const LessonContentEditor = dynamic(
   () =>

@@ -3,9 +3,7 @@
 ## Purpose
 
 DX Training Studio の Pane4（ImageManagerPane）内部モジュール構成を定義する。`useImageLists`・`usePromoteAndInsert` によるロジック集約、タブコンポーネント分割、および `lib/image-list-client.ts` を用いたスコープ単位 fetch の責務境界を規定する。ユーザー向け挙動は `training-studio-image-pane` に従い、本 spec は実装構造の要件を扱う。
-
 ## Requirements
-
 ### Requirement: 画像リスト取得は useImageLists hook に集約する
 
 Pane4 の画像リスト state（`promotedFiles`・`stagingFiles`・`aiStagingFiles`・`webStagingFiles`）および `refreshScope` / `refreshScopes` は `useImageLists` hook に集約しなければならない（SHALL）。hook は `lib/image-list-client.ts` の `fetchImageList`・`scopesAfterPromote` を用いなければならない（SHALL）。Pane4 開閉およびアクティブタブ変更時は **アクティブタブの 1 スコープのみ** fetch しなければならない（SHALL）。レッスン編集による `series` 変更を fetch トリガーにしてはならない（MUST NOT）。
@@ -52,13 +50,18 @@ staging 画像からの promote → Markdown 挿入フロー（UP・AI・Web の
 
 ### Requirement: タブ UI は専用コンポーネントに分割する
 
-Pane4 の 4 タブ（Used・UP・AI・Web）のコンテンツ領域は、それぞれ専用コンポーネント（`UsedImagesTab`・`UploadImagesTab`・`AiImagesTab`・`WebImagesTab`）に分割しなければならない（SHALL）。`ImageManagerPane` はタブバー・Pane4 折りたたみ・共有 AlertDialog・ImageLightbox・hook 配線に限定しなければならない（SHALL）。
+Pane4 の 4 タブ（Used・UP・AI・Web）のコンテンツ領域は、それぞれ専用コンポーネント（`UsedImagesTab`・`UploadImagesTab`・`AiImagesTab`・`WebImagesTab`）に分割しなければならない（SHALL）。`ImageManagerPane` は画像コンテンツ・共有 AlertDialog・ImageLightbox・hook 配線に限定しなければならない（SHALL）。Used / UP / AI / Web の **タブバー**（`ImageTabBar`）および **Pane4 折りたたみ** は `Pane4Shell`（または同等の Pane 4 統合シェル）が所有しなければならない（SHALL）。
 
-#### Scenario: ImageManagerPane がシェルとして機能する
+#### Scenario: ImageManagerPane がコンテンツ専用になる
 
 - **WHEN** 開発者が `ImageManagerPane.tsx` を開く
-- **THEN** タブ切替 UI と共有 Dialog が定義されている
+- **THEN** Used / UP / AI / Web のタブバー UI は存在しない
 - **AND** 各タブの詳細 UI は対応する `*ImagesTab.tsx` に存在する
+
+#### Scenario: Pane4Shell が chrome を所有する
+
+- **WHEN** 開発者が Pane 4 統合シェルを開く
+- **THEN** Agent / 画像切替、画像タブバー（`ImageTabBar`）、Pane4Toggle、Agent セッションタイトル表示が定義されている
 
 ### Requirement: 既存のユーザー向け挙動を維持する
 
@@ -111,9 +114,27 @@ UP タブのファイルアップロード（`/api/images/upload`）、クリッ
 
 ### Requirement: ImageManagerPane シェルは横断 concern のみ保持する
 
-`ImageManagerPane` シェルはタブバー、Pane4 折りたたみ、Used フィルタ state、共有 Lightbox / 削除 Dialog、`useImageLists`、`usePromoteAndInsert`、およびタブコンポーネントの配置に限定しなければならない（SHALL）。タブ専用 API ロジックをシェルに残してはならない（MUST NOT）。
+`ImageManagerPane` は Used フィルタ state、共有 Lightbox / 削除 Dialog、`useImageLists`、`usePromoteAndInsert`、およびタブコンポーネントの配置に限定しなければならない（SHALL）。タブ専用 API ロジックをシェルに残してはならない（MUST NOT）。**Pane 4 統合シェル**（`Pane4Shell`）は Agent / 画像ビュー切替、`AgentChatPane` 配置、画像タブ state、`ImageManagerPane` への `activeTab` 受け渡しを担当しなければならない（SHALL）。
 
-#### Scenario: シェル行数の縮小
+#### Scenario: 責務が Pane4Shell と ImageManagerPane に分離される
 
-- **WHEN** 本 change 適用後に `ImageManagerPane.tsx` の行数を計測する
-- **THEN** 850 行超から大幅に減少している（目安 350 行以下）
+- **WHEN** 開発者が Pane 4 関連コンポーネントを開く
+- **THEN** タブバーと Agent / 画像切替は Pane4Shell にある
+- **AND** ImageManagerPane は props で受け取った activeTab に応じてタブコンテンツのみ描画する
+
+### Requirement: AgentChatPane は履歴サブヘッダーを持つ
+
+`AgentChatPane` はビュー内トップに **履歴ドロップダウン**（左）と **新規** ボタン（右）を配置しなければならない（SHALL）。セッションタイトルの表示は `AgentChatPane` 内に含めてはならない（MUST NOT）。セッションタイトルは `Pane4Shell` ヘッダー左が `AgentChatController` 経由で表示しなければならない（SHALL）。
+
+#### Scenario: AgentChatPane 内に履歴サブヘッダーがある
+
+- **WHEN** 開発者が `AgentChatPane.tsx` を開く
+- **THEN** 履歴ドロップダウンと新規ボタンの JSX がビュー内トップに存在する
+- **AND** セッションタイトル表示の JSX は存在しない
+
+#### Scenario: セッションタイトルは Pane4Shell ヘッダーにある
+
+- **WHEN** Agent ビューが表示されている
+- **THEN** セッションタイトルは `Pane4Shell` ヘッダー左に表示される
+- **AND** `AgentChatPane` 内には表示されない
+

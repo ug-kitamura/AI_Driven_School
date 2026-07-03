@@ -5,8 +5,7 @@ import dynamic from "next/dynamic";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import rehypeHighlight from "rehype-highlight";
-import "highlight.js/styles/github.min.css";
-import { GitCompare, Code, Eye, Edit3, Bot } from "lucide-react";
+import { GitCompare, Code, Eye, Edit3 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { getLessonBody, type LessonMetaFields } from "@/lib/lesson-frontmatter";
@@ -14,11 +13,15 @@ import { stripHtmlComments } from "@/lib/html-comment-at-cursor";
 import { LessonMetaDialog } from "@/components/workspace/LessonMetaDialog";
 import { LessonDiffView } from "@/components/workspace/LessonDiffView";
 import { PaneWheelRoot } from "@/components/workspace/PaneWheelRoot";
+import {
+  PaneSegmentControl,
+  type PaneSegmentOption,
+} from "@/components/workspace/PaneSegmentControl";
 import type { LessonContentEditorHandle } from "@/components/workspace/LessonContentEditor";
 import type { Course, Lesson, Series } from "@/lib/schema";
 import type { Pane3Mode } from "@/components/workspace/Workspace";
-import type { AgentChatController } from "@/lib/agent-chat-controller";
 import { createLessonPreviewMarkdownComponents } from "@/lib/lesson-preview-markdown";
+import "@/styles/hljs/lesson-preview-hljs.css";
 
 const LessonContentEditor = dynamic(
   () =>
@@ -30,21 +33,6 @@ const LessonContentEditor = dynamic(
     loading: () => (
       <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
         エディタを読み込み中...
-      </div>
-    ),
-  },
-);
-
-const AgentChatPane = dynamic(
-  () =>
-    import("@/components/workspace/AgentChatPane").then(
-      (m) => m.AgentChatPane,
-    ),
-  {
-    ssr: false,
-    loading: () => (
-      <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
-        Agent を読み込み中...
       </div>
     ),
   },
@@ -63,26 +51,20 @@ type Props = {
   ) => void;
   onRegisterInsertCallback: (cb: (markdown: string) => void) => void;
   onEditorCursorChange?: (offset: number) => void;
-  onInsertAgentMarkdown: (markdown: string) => void;
-  onOpenSettings: () => void;
-  currentLessonPath: string | null;
-  agentChatControllerRef?: React.MutableRefObject<AgentChatController | null>;
   tagSuggestions?: readonly string[];
   availableImagePaths?: ReadonlySet<string> | null;
   imageAssetsRevision?: number;
 };
 
-const MODE_TABS: Array<{ value: Pane3Mode; label: string; icon: React.ReactNode }> =
-  [
-    { value: "raw", label: "編集", icon: <Code className="h-3 w-3" /> },
-    { value: "inline", label: "プレビュー", icon: <Eye className="h-3 w-3" /> },
-    {
-      value: "diff",
-      label: "差分",
-      icon: <GitCompare className="h-3 w-3" />,
-    },
-    { value: "agent", label: "Agent", icon: <Bot className="h-3 w-3" /> },
-  ];
+const MODE_TABS: ReadonlyArray<PaneSegmentOption<Pane3Mode>> = [
+  { value: "raw", label: "編集", icon: <Code className="h-3 w-3" /> },
+  { value: "inline", label: "プレビュー", icon: <Eye className="h-3 w-3" /> },
+  {
+    value: "diff",
+    label: "差分",
+    icon: <GitCompare className="h-3 w-3" />,
+  },
+];
 
 const LESSON_PREVIEW_CLASS = "lesson-preview";
 
@@ -94,18 +76,12 @@ type DiffState =
 
 export function MarkdownEditorPane({
   lesson,
-  series,
-  course,
   mode,
   onModeChange,
   onUpdateContent,
   onUpdateLessonMeta,
   onRegisterInsertCallback,
   onEditorCursorChange,
-  onInsertAgentMarkdown,
-  onOpenSettings,
-  currentLessonPath,
-  agentChatControllerRef,
   tagSuggestions = [],
   availableImagePaths = null,
   imageAssetsRevision = 0,
@@ -115,11 +91,6 @@ export function MarkdownEditorPane({
   const lastCursorOffsetRef = useRef(0);
   const [diffState, setDiffState] = useState<DiffState>({ status: "idle" });
   const [metaDialogOpen, setMetaDialogOpen] = useState(false);
-  const [agentPaneReady, setAgentPaneReady] = useState(false);
-
-  useEffect(() => {
-    if (mode === "agent") setAgentPaneReady(true);
-  }, [mode]);
 
   const previewBody = useMemo(
     () => (lesson ? stripHtmlComments(getLessonBody(lesson)) : ""),
@@ -148,21 +119,9 @@ export function MarkdownEditorPane({
   const insertAtCursor = useCallback(
     (markdown: string) => {
       if (!markdown) return;
-      if (mode === "agent" && lesson) {
-        const content = lesson.content;
-        const offset = Math.max(
-          0,
-          Math.min(lastCursorOffsetRef.current, content.length),
-        );
-        const next =
-          content.slice(0, offset) + markdown + content.slice(offset);
-        onUpdateContent(lesson.id, next);
-        lastCursorOffsetRef.current = offset + markdown.length;
-        return;
-      }
       editorRef.current?.insertAtCursor(markdown);
     },
-    [lesson, mode, onUpdateContent],
+    [],
   );
 
   useEffect(() => {
@@ -180,7 +139,7 @@ export function MarkdownEditorPane({
   useEffect(() => {
     if (mode === "raw") {
       paneScrollRef.current = editorRef.current?.getScrollElement() ?? null;
-    } else if (mode !== "agent") {
+    } else {
       paneScrollRef.current = null;
     }
   }, [mode, lesson?.id]);
@@ -232,19 +191,9 @@ export function MarkdownEditorPane({
     lesson?.series,
     lesson?.course,
     lesson?.lesson,
-    lesson?.content,
   ]);
 
-  const handleOverwriteEditor = useCallback(
-    (markdown: string) => {
-      if (!lesson) return;
-      onUpdateContent(lesson.id, markdown);
-      onModeChange("raw");
-    },
-    [lesson, onModeChange, onUpdateContent],
-  );
-
-  if (!lesson && mode !== "agent") {
+  if (!lesson) {
     return (
       <div className="flex flex-1 items-center justify-center text-muted-foreground text-sm">
         レッスンを選択してください
@@ -252,89 +201,49 @@ export function MarkdownEditorPane({
     );
   }
 
-  const headerTitle = lesson?.lesson ?? "Agent";
-
   return (
     <PaneWheelRoot scrollRef={paneScrollRef} className="min-w-0 flex-1 bg-card">
       <div className="flex h-12 shrink-0 items-center gap-2 border-b border-border px-3 py-0">
         <h2 className="min-w-0 truncate text-sm font-semibold text-foreground">
-          {headerTitle}
+          {lesson.lesson}
         </h2>
         <div className="ml-auto flex items-center gap-2">
-          {lesson ? (
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon"
-              className="mr-1 h-6 w-6 shrink-0"
-              aria-label="レッスンメタを編集"
-              onClick={() => setMetaDialogOpen(true)}
-            >
-              <Edit3 className="h-3 w-3" />
-            </Button>
-          ) : null}
-          <div className="flex overflow-hidden rounded-md border border-border">
-            {MODE_TABS.map((tab) => (
-              <button
-                key={tab.value}
-                type="button"
-                onClick={() => onModeChange(tab.value)}
-                className={cn(
-                  "flex items-center gap-1 px-2 py-1 text-xs transition-colors",
-                  mode === tab.value
-                    ? "bg-primary text-white"
-                    : "text-muted-foreground hover:bg-muted",
-                )}
-              >
-                {tab.icon}
-                {tab.label}
-              </button>
-            ))}
-          </div>
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            className="mr-1 h-6 w-6 shrink-0"
+            aria-label="レッスンメタを編集"
+            onClick={() => setMetaDialogOpen(true)}
+          >
+            <Edit3 className="h-3 w-3" />
+          </Button>
+          <PaneSegmentControl
+            value={mode}
+            options={MODE_TABS}
+            onChange={onModeChange}
+          />
         </div>
       </div>
 
       <div className="relative min-h-0 flex-1 overflow-hidden">
-        {lesson ? (
-          <div
-            className={cn(
-              "absolute inset-0 flex min-h-0 min-w-0 bg-background",
-              mode !== "raw" && "hidden",
-            )}
-          >
-            <LessonContentEditor
-              ref={editorRef}
-              lessonId={lesson.id}
-              value={editContent}
-              onChange={(content) => onUpdateContent(lesson.id, content)}
-              onScrollElementReady={handleScrollElementReady}
-              onCursorChange={handleLocalCursorChange}
-            />
-          </div>
-        ) : null}
+        <div
+          className={cn(
+            "absolute inset-0 flex min-h-0 min-w-0 bg-background",
+            mode !== "raw" && "hidden",
+          )}
+        >
+          <LessonContentEditor
+            ref={editorRef}
+            lessonId={lesson.id}
+            value={editContent}
+            onChange={(content) => onUpdateContent(lesson.id, content)}
+            onScrollElementReady={handleScrollElementReady}
+            onCursorChange={handleLocalCursorChange}
+          />
+        </div>
 
-        {agentPaneReady ? (
-          <div
-            className={cn(
-              "absolute inset-0",
-              mode !== "agent" && "hidden",
-              !lesson && "h-full",
-            )}
-          >
-            <AgentChatPane
-              series={series}
-              lesson={lesson}
-              course={course}
-              currentLessonPath={currentLessonPath}
-              onOpenSettings={onOpenSettings}
-              onOverwriteEditor={lesson ? handleOverwriteEditor : undefined}
-              agentChatControllerRef={agentChatControllerRef}
-              richMarkdown={mode === "agent"}
-            />
-          </div>
-        ) : null}
-
-        {mode === "inline" && lesson ? (
+        {mode === "inline" ? (
           <div
             ref={(el) => {
               paneScrollRef.current = el;
@@ -354,7 +263,7 @@ export function MarkdownEditorPane({
           </div>
         ) : null}
 
-        {mode === "diff" && lesson ? (
+        {mode === "diff" ? (
           <div
             ref={(el) => {
               paneScrollRef.current = el;
@@ -376,15 +285,13 @@ export function MarkdownEditorPane({
         ) : null}
       </div>
 
-      {lesson ? (
-        <LessonMetaDialog
-          open={metaDialogOpen}
-          onOpenChange={setMetaDialogOpen}
-          lesson={lesson}
-          onSave={onUpdateLessonMeta}
-          tagSuggestions={tagSuggestions}
-        />
-      ) : null}
+      <LessonMetaDialog
+        open={metaDialogOpen}
+        onOpenChange={setMetaDialogOpen}
+        lesson={lesson}
+        onSave={onUpdateLessonMeta}
+        tagSuggestions={tagSuggestions}
+      />
     </PaneWheelRoot>
   );
 }

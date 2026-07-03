@@ -8,7 +8,6 @@ import {
   useMemo,
 } from "react";
 import { cn } from "@/lib/utils";
-import { Pane4Toggle } from "@/components/workspace/Pane4Toggle";
 import { PaneWheelRoot } from "@/components/workspace/PaneWheelRoot";
 import { type ImageGridItem } from "@/components/workspace/ImageGrid";
 import { ImageLightbox } from "@/components/workspace/ImageLightbox";
@@ -40,7 +39,6 @@ import { WebImagesTab } from "@/components/workspace/image-manager/WebImagesTab"
 import {
   FILTER_ALL,
   FILTER_UNUSED,
-  IMAGE_MANAGER_TABS,
 } from "@/components/workspace/image-manager/image-manager-constants";
 import { tabToScope } from "@/components/workspace/image-manager/image-manager-utils";
 import type {
@@ -66,14 +64,14 @@ export function ImageManagerPane({
   series,
   lesson,
   pane3Mode,
+  activeTab,
+  onActiveTabChange,
   onInsertImage,
   editorCommentPrompt,
   editorCursorOffset,
   pane4Open,
-  onTogglePane4,
   onImageAssetsChanged,
 }: ImageManagerPaneProps) {
-  const [activeTab, setActiveTab] = useState<ImageManagerTab>("used");
   const [tabNotices, setTabNotices] = useState<
     Partial<Record<ImageManagerTab, TabNotice>>
   >({});
@@ -416,31 +414,9 @@ export function ImageManagerPane({
   return (
     <PaneWheelRoot
       scrollRef={tabScrollRef}
-      className="bg-card"
+      className="min-h-0 flex-1 bg-card"
       onPaste={handlePaste}
     >
-      <div className="flex h-12 shrink-0 items-center justify-between border-b border-border px-2 py-0">
-        <div className="flex h-full min-w-0 items-center">
-          {IMAGE_MANAGER_TABS.map((tab) => (
-            <button
-              key={tab.value}
-              type="button"
-              onClick={() => setActiveTab(tab.value)}
-              className={cn(
-                "flex h-full items-center gap-1 px-2 text-[10px] font-medium transition-colors",
-                activeTab === tab.value
-                  ? "border-b-2 border-primary text-primary"
-                  : "text-muted-foreground hover:text-foreground",
-              )}
-            >
-              {tab.icon}
-              {tab.label}
-            </button>
-          ))}
-        </div>
-        <Pane4Toggle open={true} onToggle={onTogglePane4} />
-      </div>
-
       {pane3Mode !== "raw" && activeTab !== "ai" && activeTab !== "web" ? (
         <div className="border-b border-border bg-muted/40 px-3 py-1 text-[10px] text-muted-foreground">
           画像の挿入は編集モードでのみ利用できます
@@ -488,7 +464,7 @@ export function ImageManagerPane({
             refreshScope={refreshScope}
             showNotice={showNotice}
             clearNotice={clearNotice}
-            setActiveTab={setActiveTab}
+            setActiveTab={onActiveTabChange}
             onPasteReady={onPasteReady}
             onPreview={openPreview}
             onInsert={handleInsertStaging}

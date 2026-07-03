@@ -12,6 +12,7 @@ import {
   ensureAgentChatStorage,
   exportSessionAsMarkdown,
   formatMessageTimestamp,
+  isPlaceholderSessionTitle,
   loadAgentChatStorage,
   loadLessonAgentChatStorage,
   MAX_AGENT_CHAT_SESSIONS,
@@ -54,6 +55,12 @@ describe("agent-chat-storage", () => {
   it("derives truncated session title", () => {
     const long = "あ".repeat(40);
     expect(deriveSessionTitle(long)).toBe(`${"あ".repeat(30)}…`);
+  });
+
+  it("detects placeholder session titles", () => {
+    expect(isPlaceholderSessionTitle("新しい会話", "")).toBe(true);
+    expect(isPlaceholderSessionTitle("hello", "hello")).toBe(true);
+    expect(isPlaceholderSessionTitle("カスタムタイトル", "hello")).toBe(false);
   });
 
   it("drops oldest sessions when exceeding limit", () => {

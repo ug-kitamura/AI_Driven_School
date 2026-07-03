@@ -53,10 +53,9 @@ staging 画像または staging MP4 からの挿入操作は、`images/{source}/
 
 ### Requirement: Used タブは promote 済みと壊れリンクを表示する
 
-Used タブは Pane4 タブ列の **左端** に配置し、ラベル **Used** と Lucide **`SquareCheckBig`** アイコンを用いなければならない（SHALL）。Used タブは次を一覧表示しなければならない（SHALL）:
+Used タブは Pane 4 **画像ビュー** ヘッダー左側のタブ列の **左端** に配置し、ラベル **Used** と Lucide **`SquareCheckBig`** アイコンを用いなければならない（SHALL）。Used タブは次を一覧表示しなければならない（SHALL）:
 
-1. 正本ファイル（ローカルモードでは fs の `images/` 直下、ストレージモードでは Blob の `images/` プレフィックス配下）
-2. いずれかのレッスン `content` に参照があるが正本ファイルが存在しない `images/<filename>` パス
+（以降の表示内容・挙動は変更しない）
 
 #### Scenario: promote 済みが Used に表示される
 
@@ -65,10 +64,8 @@ Used タブは Pane4 タブ列の **左端** に配置し、ラベル **Used** �
 
 #### Scenario: 壊れリンクが Used に表示される
 
-- **WHEN** レッスン content に `images/missing.png` への参照がある
-- **AND** 当該ファイルが存在しない
+- **WHEN** レッスン本文が存在しない `images/foo.png` を参照している
 - **THEN** Used タブに当該パスの行が表示される
-- **AND** 「画像が存在しません」と表示される
 
 ### Requirement: Used タブは参照出現回数を表示する
 
@@ -131,7 +128,7 @@ Pane4 の画像一覧（Used・UP・AI・Web 各タブの `ImageGrid`）は、Pa
 
 #### Scenario: 狭い Pane4 幅でも 2 列
 
-- **WHEN** Pane4 の幅が min（240px）付近である
+- **WHEN** Pane4 の幅が min（400px）付近である
 - **THEN** グリッドは 2 列表示となる
 - **AND** 各セル幅は 100px 以上である
 
@@ -345,7 +342,7 @@ AI タブの staging サムネイルは、画像の **全体** が枠内に収�
 
 ### Requirement: Pane4 の通知はタブ内に限定する
 
-Pane4 の成功・エラー・警告メッセージ（生成結果、promote 失敗、削除失敗、挿入不可など）は、操作の対象タブ（Used・UP・AI・Web）の **コンテンツ領域内** バナーのみに表示しなければならない（SHALL）。タブ列や Pane 共通ヘッダー直下の横断バナーに表示してはならない（MUST NOT）。他タブに切り替えたとき、非表示タブのメッセージは見えてはならない（MUST NOT）。非表示タブに戻ったとき、当該タブの直前メッセージを再表示してよい（MAY）。
+Pane4 の成功・エラー・警告メッセージ（生成結果、promote 失敗、削除失敗、挿入不可など）は、操作の対象タブ（Used・UP・AI・Web）の **コンテンツ領域内** バナーのみに表示しなければならない（SHALL）。Pane 4 統合ヘッダーおよびヘッダー直下の横断バナーに表示してはならない（MUST NOT）。他タブに切り替えたとき、非表示タブのメッセージは見えてはならない（MUST NOT）。非表示タブに戻ったとき、当該タブの直前メッセージを再表示してよい（MAY）。
 
 #### Scenario: UP タブのエラーは UP 内のみ
 

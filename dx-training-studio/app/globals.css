@@ -401,10 +401,6 @@
     @apply bg-transparent p-0 font-mono;
   }
 
-  .lesson-preview pre code.hljs {
-    @apply bg-transparent text-inherit;
-  }
-
   .lesson-preview blockquote {
     @apply my-4 border-l-4 border-primary pl-4 text-muted-foreground;
   }
@@ -520,6 +516,17 @@
   html.dark .lesson-content-editor .cm-gutters {
     background-color: #1e1e1e !important;
   }
+}
+
+/* Pane3 編集ビュー: ライトテーマ時は CodeMirror 背景を白に固定（@layer 外） */
+html:not(.dark) .lesson-content-editor .cm-editor,
+html:not(.dark) .lesson-content-editor .cm-scroller,
+html:not(.dark) .lesson-content-editor .cm-content {
+  background-color: #ffffff !important;
+}
+
+html:not(.dark) .lesson-content-editor .cm-gutters {
+  background-color: color-mix(in oklab, var(--muted) 20%, transparent) !important;
 }
 
 /* FM: @layer 外 + !important（CodeMirror シンタックスハイライトより優先） */

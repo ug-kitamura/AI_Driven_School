@@ -147,6 +147,17 @@ export const LessonContentEditor = forwardRef<
     const view = new EditorView({ state, parent });
     viewRef.current = view;
     onScrollElementReadyRef.current?.(view.scrollDOM);
+
+    // キャッシュ復元時も現在のテーマを即反映（ダークテーマが残るのを防ぐ）
+    view.dispatch({
+      effects: lessonEditorThemeCompartment.reconfigure(
+        buildLessonEditorExtensions(isDarkRef.current, fontSizeRef.current, {
+          getFontSize: () => fontSizeRef.current,
+          onFontSizeChange: handleFontSizeChange,
+        }),
+      ),
+    });
+
     if (!cached) {
       setLessonEditorStateCache(lessonId, state);
     }

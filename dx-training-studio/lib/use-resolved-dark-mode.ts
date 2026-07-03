@@ -11,7 +11,7 @@ function readDarkFromDocument(): boolean {
   return document.documentElement.classList.contains("dark");
 }
 
-function readDarkFromSettings(): boolean {
+function readInitialDarkMode(): boolean {
   if (typeof window === "undefined") return false;
   return resolveThemeClass(loadWorkspaceSettings().theme) === "dark";
 }
@@ -19,9 +19,7 @@ function readDarkFromSettings(): boolean {
 /** 設定テーマ + html.dark クラスに追従する */
 export function useResolvedDarkMode(): boolean {
   const [isDark, setIsDark] = useState(() =>
-    typeof window === "undefined"
-      ? false
-      : readDarkFromDocument() || readDarkFromSettings(),
+    typeof window === "undefined" ? false : readInitialDarkMode(),
   );
 
   useEffect(() => {

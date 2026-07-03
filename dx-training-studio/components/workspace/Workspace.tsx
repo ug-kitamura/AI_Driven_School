@@ -7,7 +7,7 @@ import { GlobalHeader } from "@/components/workspace/GlobalHeader";
 import { SeriesCoursePane } from "@/components/workspace/SeriesCoursePane";
 import { LessonListPane } from "@/components/workspace/LessonListPane";
 import { MarkdownEditorPane } from "@/components/workspace/MarkdownEditorPane";
-import { ImageManagerPane } from "@/components/workspace/ImageManagerPane";
+import { Pane4Shell } from "@/components/workspace/Pane4Shell";
 import { Pane4Toggle } from "@/components/workspace/Pane4Toggle";
 import { PaneResizeHandle } from "@/components/workspace/PaneResizeHandle";
 import { PANE4_COLLAPSED_WIDTH } from "@/components/workspace/pane-layout";
@@ -31,6 +31,12 @@ import { htmlCommentInnerTextAtOffset } from "@/lib/html-comment-at-cursor";
 import { matchLessonContentPath } from "@/lib/agent/invoke-context";
 import type { AgentChatController } from "@/lib/agent-chat-controller";
 import {
+  loadPane4View,
+  loadPane4ViewMigration,
+  savePane4View,
+  type Pane4View,
+} from "@/lib/pane4-view-storage";
+import {
   AlertDialog,
   AlertDialogAction,
   AlertDialogCancel,
@@ -41,7 +47,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 
-export type Pane3Mode = "inline" | "raw" | "diff" | "agent";
+export type Pane3Mode = "inline" | "raw" | "diff";
 
 function Pane1ResizeHandle({
   className,
@@ -76,10 +82,12 @@ export function Workspace({
   );
   const [pane4ManuallyClosed, setPane4ManuallyClosed] = useState(false);
   const [pane3Mode, setPane3Mode] = useState<Pane3Mode>("raw");
+  const [pane4View, setPane4View] = useState<Pane4View>("agent");
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [companyContextOpen, setCompanyContextOpen] = useState(false);
   const [saveErrorMsg, setSaveErrorMsg] = useState<string | null>(null);
   const saveErrorTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const pane4UiInitialized = useRef(false);
 
   const handleSaveError = useCallback((msg: string) => {
     setSaveErrorMsg(msg);
@@ -108,6 +116,21 @@ export function Workspace({
 
   const { paneWidths, isResizing, resizeHandleProps, applyPaneWidths } =
     useWorkspacePaneWidths(workspaceTotalWidth, pane4Open);
+
+  useEffect(() => {
+    if (pane4UiInitialized.current) return;
+    pane4UiInitialized.current = true;
+    const migration = loadPane4ViewMigration();
+    if (migration) {
+      setPane4View(migration.pane4View);
+      if (migration.openPane4) {
+        setPane4ManuallyClosed(false);
+      }
+      savePane4View(migration.pane4View);
+      return;
+    }
+    setPane4View(loadPane4View());
+  }, []);
 
   useEffect(() => {
     const el = workspaceRootRef.current;
@@ -252,7 +275,7 @@ export function Workspace({
 
   const insertImageMarkdown = useCallback(
     (markdown: string): boolean => {
-      if (pane3Mode !== "raw" && pane3Mode !== "agent") return false;
+      if (pane3Mode !== "raw") return false;
       if (!insertCallback) return false;
       insertCallback(markdown);
       return true;
@@ -260,12 +283,13 @@ export function Workspace({
     [pane3Mode, insertCallback],
   );
 
-  const insertAgentMarkdown = useCallback(
+  const handleOverwriteEditor = useCallback(
     (markdown: string) => {
-      if (!insertCallback) return;
-      insertCallback(markdown);
+      if (!selectedLesson) return;
+      updateLessonContent(selectedLesson.id, markdown);
+      setPane3Mode("raw");
     },
-    [insertCallback],
+    [selectedLesson, updateLessonContent],
   );
 
   const handleEditorCursorChange = useCallback(
@@ -291,7 +315,7 @@ export function Workspace({
   }, [pane3Mode, selectedLesson?.id]);
 
   useEffect(() => {
-    if (pane3Mode !== "agent" || !selectedLesson) {
+    if (!pane4Open || pane4View !== "agent" || !selectedLesson) {
       if (!selectedLesson) setCurrentLessonPath(null);
       return;
     }
@@ -317,24 +341,22 @@ export function Workspace({
       cancelled = true;
     };
   }, [
-    pane3Mode,
+    pane4Open,
+    pane4View,
     selectedLesson?.id,
     selectedLesson?.series,
     selectedLesson?.course,
     selectedLesson?.lesson,
   ]);
 
-  const imageManagerPaneProps = {
-    series,
-    lesson: selectedLesson,
-    pane3Mode,
-    onInsertImage: insertImageMarkdown,
-    editorCommentPrompt,
-    editorCursorOffset,
-    pane4Open,
-    onTogglePane4: () => setPane4ManuallyClosed((v) => !v),
-    onImageAssetsChanged: notifyImageAssetsChanged,
-  };
+  const handlePane4ViewChange = useCallback((view: Pane4View) => {
+    setPane4View(view);
+    savePane4View(view);
+  }, []);
+
+  const handleTogglePane4 = useCallback(() => {
+    setPane4ManuallyClosed((closed) => !closed);
+  }, []);
 
   return (
     <div
@@ -444,10 +466,6 @@ export function Workspace({
               onUpdateLessonMeta={updateLessonMeta}
               onRegisterInsertCallback={registerInsertCallback}
               onEditorCursorChange={handleEditorCursorChange}
-              onInsertAgentMarkdown={insertAgentMarkdown}
-              onOpenSettings={() => setSettingsOpen(true)}
-              currentLessonPath={currentLessonPath}
-              agentChatControllerRef={agentChatControllerRef}
               tagSuggestions={tagSuggestions}
               availableImagePaths={availableImagePaths}
               imageAssetsRevision={imageAssetsRevision}
@@ -460,7 +478,23 @@ export function Workspace({
                 className="flex h-full shrink-0 flex-col overflow-hidden"
                 style={{ width: paneWidths.pane4 }}
               >
-                <ImageManagerPane {...imageManagerPaneProps} />
+                <Pane4Shell
+                  pane4View={pane4View}
+                  onPane4ViewChange={handlePane4ViewChange}
+                  onTogglePane4={handleTogglePane4}
+                  series={series}
+                  lesson={selectedLesson}
+                  course={selectedCourse}
+                  pane3Mode={pane3Mode}
+                  onInsertImage={insertImageMarkdown}
+                  editorCommentPrompt={editorCommentPrompt}
+                  editorCursorOffset={editorCursorOffset}
+                  onOpenSettings={() => setSettingsOpen(true)}
+                  currentLessonPath={currentLessonPath}
+                  agentChatControllerRef={agentChatControllerRef}
+                  onOverwriteEditor={handleOverwriteEditor}
+                  onImageAssetsChanged={notifyImageAssetsChanged}
+                />
               </div>
             </>
           ) : (
@@ -470,7 +504,7 @@ export function Workspace({
             >
               <Pane4Toggle
                 open={false}
-                onToggle={() => setPane4ManuallyClosed((v) => !v)}
+                onToggle={handleTogglePane4}
               />
             </div>
           )}

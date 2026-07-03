@@ -491,18 +491,32 @@ export function CompanyContextDialog({ open, onOpenChange, onOpenSettings }: Pro
 
             <MetaDialogField>
               <Label htmlFor="context-source-updated">ソース最終更新日（任意）</Label>
-              <Input
-                id="context-source-updated"
-                type="date"
-                className={cn(META_DIALOG_CONTROL, "context-date-input")}
-                value={draft.source_last_updated_at}
-                onChange={(event) =>
-                  setDraft((prev) => ({
-                    ...prev,
-                    source_last_updated_at: event.target.value,
-                  }))
-                }
-              />
+              <div className="relative">
+                <Input
+                  id="context-source-updated"
+                  type="date"
+                  className={cn(
+                    META_DIALOG_CONTROL,
+                    "context-date-input",
+                    !draft.source_last_updated_at && "context-date-input--empty",
+                  )}
+                  value={draft.source_last_updated_at}
+                  onChange={(event) =>
+                    setDraft((prev) => ({
+                      ...prev,
+                      source_last_updated_at: event.target.value,
+                    }))
+                  }
+                />
+                {!draft.source_last_updated_at ? (
+                  <span
+                    aria-hidden
+                    className="pointer-events-none absolute inset-y-0 left-2.5 flex items-center text-sm text-muted-foreground"
+                  >
+                    YYYY/MM/DD
+                  </span>
+                ) : null}
+              </div>
             </MetaDialogField>
           </div>
         )}

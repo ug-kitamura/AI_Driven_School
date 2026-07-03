@@ -682,6 +682,10 @@ input.context-date-input[type="date"]::-webkit-datetime-edit-year-field {
   color: var(--muted-foreground);
 }
 
+input.context-date-input--empty[type="date"]::-webkit-datetime-edit {
+  opacity: 0;
+}
+
 input.context-date-input[type="date"]:not([value=""]) {
   color: var(--foreground);
 }

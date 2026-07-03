@@ -43,6 +43,7 @@ export function filterSkills(
   const normalized = query.trim().toLowerCase();
   return skills
     .filter((skill) => {
+      if (skill.hidden) return false;
       if (skill.id === "create-draft" && createDraftDisabled) return false;
       if (!normalized) return true;
       const haystack = `${skill.id} ${skill.name} ${skill.description}`.toLowerCase();

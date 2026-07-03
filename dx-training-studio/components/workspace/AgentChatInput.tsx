@@ -76,6 +76,8 @@ function detectSuggestion(value: string, cursor: number): SuggestionState | null
 
 const SUGGESTION_VISIBLE_COUNT = 5;
 const SUGGESTION_ITEM_HEIGHT_CLASS = "h-14";
+const TEXTAREA_MIN_ROWS = 3;
+const TEXTAREA_MAX_HEIGHT_PX = 200;
 
 function clampHighlightIndex(index: number, itemCount: number): number {
   if (itemCount <= 0) return 0;
@@ -105,6 +107,20 @@ export function AgentChatInput({
   const [contentFiles, setContentFiles] = useState<AgentFileOption[]>([]);
   const [filesLoading, setFilesLoading] = useState(false);
   const [highlightIndex, setHighlightIndex] = useState(0);
+
+  const syncTextareaHeight = useCallback(() => {
+    const textarea = textareaRef.current;
+    if (!textarea) return;
+    textarea.style.height = "auto";
+    const nextHeight = Math.min(textarea.scrollHeight, TEXTAREA_MAX_HEIGHT_PX);
+    textarea.style.height = `${nextHeight}px`;
+    textarea.style.overflowY =
+      textarea.scrollHeight > TEXTAREA_MAX_HEIGHT_PX ? "auto" : "hidden";
+  }, []);
+
+  useEffect(() => {
+    syncTextareaHeight();
+  }, [value, syncTextareaHeight]);
 
   const filteredSkills = useMemo(() => {
     const query = suggestion?.kind === "skill" ? suggestion.query : "";
@@ -269,8 +285,11 @@ export function AgentChatInput({
     if (disabled || isLoading || !value.trim()) return;
     onSend();
     onAfterSend?.();
-    requestAnimationFrame(() => textareaRef.current?.focus());
-  }, [disabled, isLoading, onAfterSend, onSend, value]);
+    requestAnimationFrame(() => {
+      textareaRef.current?.focus();
+      syncTextareaHeight();
+    });
+  }, [disabled, isLoading, onAfterSend, onSend, syncTextareaHeight, value]);
 
   const handleKeyDown = (event: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (suggestion) {
@@ -385,47 +404,49 @@ export function AgentChatInput({
           </div>
         ) : null}
 
-        <textarea
-          ref={textareaRef}
-          value={value}
-          onChange={handleInputChange}
-          onClick={updateSuggestionFromCursor}
-          onSelect={updateSuggestionFromCursor}
-          onKeyDown={handleKeyDown}
-          rows={3}
-          placeholder="メッセージを入力（/ でスキル、@ でファイル参照）"
-          disabled={disabled}
-          className="w-full resize-y rounded-lg border border-border bg-white px-3 pb-10 pt-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary dark:bg-muted"
-        />
+        <div className="flex flex-col overflow-hidden rounded-lg border border-border bg-white dark:bg-muted">
+          <textarea
+            ref={textareaRef}
+            value={value}
+            onChange={handleInputChange}
+            onClick={updateSuggestionFromCursor}
+            onSelect={updateSuggestionFromCursor}
+            onKeyDown={handleKeyDown}
+            rows={TEXTAREA_MIN_ROWS}
+            placeholder="メッセージを入力（/ でスキル、@ でファイル参照）"
+            disabled={disabled}
+            className="workspace-scrollbar w-full resize-none border-0 bg-transparent px-3 pt-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-0"
+          />
 
-        <div className="pointer-events-none absolute inset-x-0 bottom-0 flex items-center justify-between px-2 pb-2">
-          <span className="truncate text-[10px] text-muted-foreground">
-            {modelLabel ?? ""}
-          </span>
-          <div className="pointer-events-auto flex items-center gap-1">
-            {isLoading ? (
+          <div className="flex items-center justify-between px-2 pb-2 pt-1">
+            <span className="truncate text-[10px] text-muted-foreground">
+              {modelLabel ?? ""}
+            </span>
+            <div className="flex items-center gap-1">
+              {isLoading ? (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="icon"
+                  className="size-8 shrink-0"
+                  aria-label="生成を停止"
+                  onClick={onStop}
+                >
+                  <Square className="size-3.5 fill-current" />
+                </Button>
+              ) : null}
               <Button
                 type="button"
-                variant="outline"
                 size="icon"
-                className="size-8 shrink-0"
-                aria-label="生成を停止"
-                onClick={onStop}
+                className="size-8 shrink-0 rounded-full"
+                disabled={disabled || isLoading || !value.trim()}
+                aria-label="送信"
+                onMouseDown={(event) => event.preventDefault()}
+                onClick={submitMessage}
               >
-                <Square className="size-3.5 fill-current" />
+                <ArrowUp className="size-4" />
               </Button>
-            ) : null}
-            <Button
-              type="button"
-              size="icon"
-              className="size-8 shrink-0 rounded-full"
-              disabled={disabled || isLoading || !value.trim()}
-              aria-label="送信"
-              onMouseDown={(event) => event.preventDefault()}
-              onClick={submitMessage}
-            >
-              <ArrowUp className="size-4" />
-            </Button>
+            </div>
           </div>
         </div>
       </div>

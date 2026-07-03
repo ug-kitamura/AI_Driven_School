@@ -1,7 +1,7 @@
-import { listSkills } from "@/lib/agent/skill-loader";
+import { listVisibleSkills } from "@/lib/agent/skill-loader";
 
 export async function GET() {
   const projectRoot = process.cwd();
-  const skills = listSkills(projectRoot);
+  const skills = listVisibleSkills(projectRoot);
   return Response.json({ skills });
 }

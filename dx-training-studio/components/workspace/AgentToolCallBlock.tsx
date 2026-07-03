@@ -11,6 +11,11 @@ type Props = {
   className?: string;
 };
 
+type CompactItem = {
+  i?: number;
+  title?: string;
+};
+
 function pairToolEvents(events: AgentToolEvent[]): Array<{
   start?: AgentToolEvent;
   end?: AgentToolEvent;
@@ -25,6 +30,77 @@ function pairToolEvents(events: AgentToolEvent[]): Array<{
     (start) => !ends.some((end) => end.toolUseId === start.toolUseId),
   );
   return [...paired, ...unmatchedStarts.map((start) => ({ start }))];
+}
+
+function parseToolResult(resultJson?: string): Record<string, unknown> | null {
+  if (!resultJson) return null;
+  try {
+    const parsed: unknown = JSON.parse(resultJson);
+    return parsed && typeof parsed === "object" && !Array.isArray(parsed)
+      ? (parsed as Record<string, unknown>)
+      : null;
+  } catch {
+    return null;
+  }
+}
+
+function readCompactItems(result: Record<string, unknown> | null): CompactItem[] {
+  if (!result || !Array.isArray(result.items)) return [];
+  return result.items.filter(
+    (item): item is CompactItem =>
+      typeof item === "object" && item !== null && "title" in item,
+  );
+}
+
+function ToolEventDetails({
+  start,
+  end,
+}: {
+  start?: AgentToolEvent;
+  end?: AgentToolEvent;
+}) {
+  const toolName = end?.name ?? start?.name;
+  const result = parseToolResult(end?.result);
+  const error = typeof result?.error === "string" ? result.error : undefined;
+  const query =
+    start?.input && typeof start.input.query === "string" ? start.input.query : undefined;
+  const items = readCompactItems(result);
+
+  return (
+    <div className="flex flex-col gap-0.5">
+      <span>{end?.display ?? start?.display}</span>
+      {query ? <span>query: {query}</span> : null}
+      {toolName === "search_company_context" && items.length > 0 ? (
+        <ul className="flex flex-col gap-0.5 pl-2">
+          {items.map((item) => (
+            <li key={`${item.i ?? item.title}`}>
+              {item.i != null ? `${item.i}. ` : ""}
+              {item.title ?? ""}
+            </li>
+          ))}
+        </ul>
+      ) : null}
+      {toolName === "select_company_context" ? (
+        <>
+          {items.length > 0 ? (
+            <ul className="flex flex-col gap-0.5 pl-2">
+              {items.map((item) => (
+                <li key={`${item.i ?? item.title}`}>
+                  {item.i != null ? `${item.i}. ` : ""}
+                  {item.title ?? ""}
+                </li>
+              ))}
+            </ul>
+          ) : null}
+          {end?.tags && end.tags.length > 0 ? (
+            <span>tags: {end.tags.join(", ")}</span>
+          ) : null}
+        </>
+      ) : null}
+      {error ? <span>error: {error}</span> : null}
+      {!error && end?.summary ? <span>result: {end.summary}</span> : null}
+    </div>
+  );
 }
 
 export function AgentToolCallBlock({ events, className }: Props) {
@@ -51,21 +127,13 @@ export function AgentToolCallBlock({ events, className }: Props) {
       </Button>
       {open ? (
         <div className="flex flex-col gap-1 rounded-md border border-border bg-muted/40 px-2 py-1.5 text-xs text-muted-foreground">
-          {pairs.map((pair, index) => {
-            const end = pair.end;
-            const start = pair.start;
-            const query =
-              start?.input && typeof start.input.query === "string"
-                ? start.input.query
-                : undefined;
-            return (
-              <div key={end?.toolUseId ?? start?.toolUseId ?? index} className="flex flex-col gap-0.5">
-                <span>{end?.display ?? start?.display}</span>
-                {query ? <span>query: {query}</span> : null}
-                {end?.summary ? <span>result: {end.summary}</span> : null}
-              </div>
-            );
-          })}
+          {pairs.map((pair, index) => (
+            <ToolEventDetails
+              key={pair.end?.toolUseId ?? pair.start?.toolUseId ?? index}
+              start={pair.start}
+              end={pair.end}
+            />
+          ))}
         </div>
       ) : null}
     </div>

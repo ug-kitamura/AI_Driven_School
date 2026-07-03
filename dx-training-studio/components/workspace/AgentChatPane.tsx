@@ -919,7 +919,7 @@ export function AgentChatPane({
         {richMarkdown ? (
           messages.length === 0 ? (
           <div className="flex h-full min-h-[12rem] items-center justify-center text-sm text-muted-foreground">
-            メッセージをそのまま送信できます。/ でスキルを選択することもできます。
+            本日はどのようなお手伝いをさせていただけますか？
           </div>
         ) : (
           <div className="flex flex-col gap-6">

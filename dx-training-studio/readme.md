@@ -5,7 +5,7 @@ DX ツールトレーニングのコンテンツ計画・作成・編集・デ�
 
 ## ツール画面
 
-<img width="1571" height="741" alt="image" src="https://github.com/user-attachments/assets/1c7b1e26-e08d-42c6-9af0-8b87a84ef369" />
+<img width="1643" height="806" alt="image" src="https://github.com/user-attachments/assets/692d1379-0d24-4e3b-b39b-3ae9d6a91f2b" />
 
 ## 起動する
 

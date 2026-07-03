@@ -44,7 +44,7 @@ export function normalizeSessionTitle(
     return deriveSessionTitle("");
   }
   if (singleLine.length <= maxLength) return singleLine;
-  return `${singleLine.slice(0, maxLength)}…`;
+  return singleLine.slice(0, maxLength);
 }
 
 export function buildTitleGenerationUserPrompt(

@@ -52,9 +52,9 @@ describe("agent-chat-storage", () => {
     expect(loaded?.sessions[0]?.title).toBe("hello");
   });
 
-  it("derives truncated session title", () => {
+  it("derives full session title without ellipsis", () => {
     const long = "あ".repeat(40);
-    expect(deriveSessionTitle(long)).toBe(`${"あ".repeat(30)}…`);
+    expect(deriveSessionTitle(long)).toBe(long);
   });
 
   it("detects placeholder session titles", () => {

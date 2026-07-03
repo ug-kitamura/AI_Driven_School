@@ -19,12 +19,15 @@ export function useUploadImagesTab(options: {
   showNotice: (tab: "upload", message: string, tone: "error" | "success") => void;
   clearNotice: (tab: "upload") => void;
   setActiveTab: (tab: ImageManagerTab) => void;
+  onHighlightPaths: (paths: string | string[]) => void;
 }) {
-  const { refreshScope, showNotice, clearNotice, setActiveTab } = options;
+  const { refreshScope, showNotice, clearNotice, setActiveTab, onHighlightPaths } =
+    options;
 
   const uploadFiles = useCallback(
     async (files: FileList | File[]) => {
       let uploaded = false;
+      const uploadedPaths: string[] = [];
       for (const file of Array.from(files)) {
         if (!isAllowedUploadMime(file.type, file.name)) continue;
         const isMp4 =
@@ -50,13 +53,16 @@ export function useUploadImagesTab(options: {
           );
           continue;
         }
+        const data: { file?: { path: string } } = await res.json();
+        if (data.file?.path) uploadedPaths.push(data.file.path);
         uploaded = true;
       }
       if (uploaded) clearNotice("upload");
       await refreshScope("uploaded", { silent: true });
+      if (uploadedPaths.length > 0) onHighlightPaths(uploadedPaths);
       setActiveTab("upload");
     },
-    [refreshScope, showNotice, clearNotice, setActiveTab],
+    [refreshScope, showNotice, clearNotice, setActiveTab, onHighlightPaths],
   );
 
   const handlePaste = useCallback(

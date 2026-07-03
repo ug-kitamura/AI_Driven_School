@@ -26,6 +26,7 @@ type Props = {
   ) => Promise<void>;
   showNotice: (tab: "web", message: string, tone: "error" | "success") => void;
   clearNotice: (tab: "web") => void;
+  onHighlightPaths: (paths: string | string[]) => void;
   gridItems: ImageGridItem[];
   notice?: TabNotice;
   onResolveAltReady: (
@@ -43,6 +44,7 @@ export function WebImagesTab({
   refreshScope,
   showNotice,
   clearNotice,
+  onHighlightPaths,
   gridItems,
   notice,
   onResolveAltReady,
@@ -66,6 +68,7 @@ export function WebImagesTab({
     refreshScope,
     showNotice,
     clearNotice,
+    onHighlightPaths,
   });
 
   useEffect(() => {

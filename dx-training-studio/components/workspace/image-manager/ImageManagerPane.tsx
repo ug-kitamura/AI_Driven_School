@@ -82,6 +82,9 @@ export function ImageManagerPane({
     courseId: null,
     lessonId: null,
   });
+  const [highlightedPaths, setHighlightedPaths] = useState<Set<string>>(
+    () => new Set(),
+  );
   const tabScrollRef = useRef<HTMLDivElement>(null);
   const pasteHandlerRef = useRef<
     ((e: React.ClipboardEvent) => void) | null
@@ -138,7 +141,26 @@ export function ImageManagerPane({
 
   useEffect(() => {
     setPreviewPath(null);
+    setHighlightedPaths(new Set());
   }, [activeTab]);
+
+  const highlightPaths = useCallback((paths: string | string[]) => {
+    const list = Array.isArray(paths) ? paths : [paths];
+    setHighlightedPaths((prev) => {
+      const next = new Set(prev);
+      for (const path of list) next.add(path);
+      return next;
+    });
+  }, []);
+
+  const withHighlight = useCallback(
+    (items: ImageGridItem[]): ImageGridItem[] =>
+      items.map((item) => ({
+        ...item,
+        highlighted: highlightedPaths.has(item.path),
+      })),
+    [highlightedPaths],
+  );
 
   const showNotice = useCallback(
     (tab: ImageManagerTab, message: string, tone: TabNotice["tone"]) => {
@@ -244,26 +266,32 @@ export function ImageManagerPane({
     pasteHandlerRef.current?.(e);
   }, []);
 
-  const aiStagingGridItems: ImageGridItem[] = aiStagingFiles.map((file) => ({
-    path: file.path,
-    name: file.name,
-    showInsert: true,
-    showDelete: true,
-  }));
+  const aiStagingGridItems: ImageGridItem[] = withHighlight(
+    aiStagingFiles.map((file) => ({
+      path: file.path,
+      name: file.name,
+      showInsert: true,
+      showDelete: true,
+    })),
+  );
 
-  const webStagingGridItems: ImageGridItem[] = webStagingFiles.map((file) => ({
-    path: file.path,
-    name: file.name,
-    showInsert: true,
-    showDelete: true,
-  }));
+  const webStagingGridItems: ImageGridItem[] = withHighlight(
+    webStagingFiles.map((file) => ({
+      path: file.path,
+      name: file.name,
+      showInsert: true,
+      showDelete: true,
+    })),
+  );
 
-  const stagingGridItems: ImageGridItem[] = stagingFiles.map((file) => ({
-    path: file.path,
-    name: file.name,
-    showInsert: true,
-    showDelete: true,
-  }));
+  const stagingGridItems: ImageGridItem[] = withHighlight(
+    stagingFiles.map((file) => ({
+      path: file.path,
+      name: file.name,
+      showInsert: true,
+      showDelete: true,
+    })),
+  );
 
   const usedGridItems: ImageGridItem[] = filteredUsedRows.map((row) => ({
     path: row.path,
@@ -465,6 +493,7 @@ export function ImageManagerPane({
             showNotice={showNotice}
             clearNotice={clearNotice}
             setActiveTab={onActiveTabChange}
+            onHighlightPaths={highlightPaths}
             onPasteReady={onPasteReady}
             onPreview={openPreview}
             onInsert={handleInsertStaging}
@@ -480,6 +509,7 @@ export function ImageManagerPane({
             refreshScope={refreshScope}
             showNotice={showNotice}
             clearNotice={clearNotice}
+            onHighlightPaths={highlightPaths}
             gridItems={aiStagingGridItems}
             notice={tabNotices.ai}
             onResolveAltReady={onAiResolveAltReady}
@@ -497,6 +527,7 @@ export function ImageManagerPane({
             refreshScope={refreshScope}
             showNotice={showNotice}
             clearNotice={clearNotice}
+            onHighlightPaths={highlightPaths}
             gridItems={webStagingGridItems}
             notice={tabNotices.web}
             onResolveAltReady={onWebResolveAltReady}

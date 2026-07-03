@@ -39,11 +39,10 @@ function createSessionId(): string {
   return `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
 }
 
-export function deriveSessionTitle(content: string, maxLength = 30): string {
+export function deriveSessionTitle(content: string): string {
   const trimmed = content.trim();
   if (!trimmed) return DEFAULT_SESSION_TITLE;
-  if (trimmed.length <= maxLength) return trimmed;
-  return `${trimmed.slice(0, maxLength)}…`;
+  return trimmed;
 }
 
 export function isPlaceholderSessionTitle(

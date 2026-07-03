@@ -23,6 +23,7 @@ export function useWorkspaceImageAssets(enabled = true) {
           }
           return next;
         });
+        return;
       }
       setImageAssetsRevision((v) => v + 1);
     },

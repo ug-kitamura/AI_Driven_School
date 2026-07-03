@@ -30,6 +30,7 @@ type Props = {
     tone: "error" | "success" | "warning",
   ) => void;
   clearNotice: (tab: "ai") => void;
+  onHighlightPaths: (paths: string | string[]) => void;
   gridItems: ImageGridItem[];
   notice?: TabNotice;
   onResolveAltReady: (
@@ -47,6 +48,7 @@ export function AiImagesTab({
   refreshScope,
   showNotice,
   clearNotice,
+  onHighlightPaths,
   gridItems,
   notice,
   onResolveAltReady,
@@ -70,6 +72,7 @@ export function AiImagesTab({
     refreshScope,
     showNotice,
     clearNotice,
+    onHighlightPaths,
   });
 
   useEffect(() => {

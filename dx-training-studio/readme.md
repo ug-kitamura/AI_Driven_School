@@ -30,16 +30,32 @@ AI タブで Tailwind 図解を生成する場合は、初回のみ `npx playwri
 | **Pane 3** | マークダウンエディタ（編集 / プレビュー / Git 差分） |
 | **Pane 4** | AI Agent チャット（デフォルト）と画像アセットマネージャー（Used / Upload / AI / Web）の切替 |
 
-GlobalHeader に **DXトレーニング曼陀羅** と **設定（歯車）** がある。設定では AI API キー、Pixabay API キー、**画像の管理（ローカル / ストレージ）**、**社内コンテキストの管理（ローカル / データベース）**、テーマ（ライト／ダーク／システム）、ペイン既定幅を変更できる。
+GlobalHeader に **DXトレーニング曼陀羅** と **設定（歯車）** がある。設定では **AI モデル**、AI API キー、Pixabay API キー、**画像の管理（ローカル / ストレージ）**、**社内コンテキストの管理（ローカル / データベース）**、テーマ（ライト／ダーク／システム）、ペイン既定幅、Pane3 編集フォントサイズを変更できる。
 
 ### API キー（`.env.local`）
 
 ```bash
 cp .env.example .env.local
-# AI_API_KEY / PIXABAY_API_KEY / BLOB_READ_WRITE_TOKEN（ストレージモード時）を設定
+# AI_API_KEY / PIXABAY_API_KEY / BLOB_READ_WRITE_TOKEN（ストレージモード時）/ DATABASE_URL（DB モード時）を設定
 ```
 
 **設定ダイアログにキーがある場合はダイアログを優先**します。ダイアログ未入力のときのみ `.env.local` の `AI_API_KEY` / `PIXABAY_API_KEY` を参照します。画像ストレージのトークンは **常に `.env.local` の `BLOB_READ_WRITE_TOKEN`** のみです。
+
+### AI モデル（⚙ AI モデル）
+
+| slug | 表示名 | 保存 |
+|------|--------|------|
+| `claude-sonnet-4-6` | Claude Sonnet 4.6 | ✓（既定） |
+| `claude-sonnet-5` | Claude Sonnet 5 | ✓ |
+| `claude-opus-4-7` | Claude Opus 4.7 | ✓ |
+| `claude-opus-4-8` | Claude Opus 4.8 | ✓ |
+| `claude-fable-5` | Claude Fable 5 | ✓ |
+| `claude-haiku-4-5` | Claude Haiku 4.5 | ✓ |
+| `gpt-5-nano` | GPT 5 nano | 未対応（保存拒否） |
+
+- slug は Anthropic API の model ID と一致
+- Agent チャット・AI 画像・Web 検索・社内コンテキスト整形など **全 AI 呼び出し**で使用
+- 未設定時は `claude-sonnet-4-6`
 
 ### 画像ストレージ（⚙ 画像の管理）
 
@@ -77,7 +93,7 @@ Pane 3 の編集と **Pane 4 の Agent チャット**は横並びで表示でき
 
 ### Pane 4 の Agent / 画像
 
-- **Agent**（デフォルト）: スキル呼び出し（`/`）、ファイル参照（`@`）、草稿のエディタ上書き。折りたたみ復帰時は前回のビューを復元
+- **Agent**（デフォルト）: 設定で選んだ AI モデルで応答。スキル呼び出し（`/`）、ファイル参照（`@`）、草稿のエディタ上書き。折りたたみ復帰時は前回のビューを復元
 - **画像**: Used / Upload / AI / Web の 4 タブ（従来の画像マネージャー）
 
 ### Pane 4 の画像管理
@@ -105,40 +121,51 @@ Markdown の画像パスは正本形式 `images/<filename>` のみ。staging は
 
 ```
 app/
-  page.tsx                 content.json / workspace.json 読み込み・検証
+  page.tsx                 contents/ 読み込み・workspace.json 検証
   layout.tsx               レイアウト・TooltipProvider
   globals.css              カラートークン定義
   api/
+    agent/                 Agent 呼び出し・セッション・スキル・設定
+    content/               シリーズ / コース / レッスンの CRUD・保存
+    context/               社内コンテキスト CRUD・検索・整形
     lesson-diff/           レッスン content の HEAD vs 現在 diff
-    images/
-      upload/              ステージングへアップロード
-      promote/             ステージング → 本番パスへ昇格
-      list/                画像一覧
-      file/                画像ファイル配信
-      generate/            AI 画像生成（Claude + Playwright）
-      search/              Web 画像検索（Claude + Pixabay）
-      suggest-web-prompt/  Web 検索条件の自動入力
+    images/                アップロード・promote・一覧・配信・AI 生成・Web 検索
 components/
   workspace/               4 ペイン UI（Workspace.tsx が状態 SSoT）
   ui/                      shadcn 部品（components.json で管理）
+contents/                  シリーズ / コース / レッスン（フォルダ階層 + contents.md）
+  <シリーズ>/
+    .meta.json             シリーズメタ・並び順
+    <コース>/
+      .meta.json           コースメタ
+      <レッスン>/
+        contents.md        レッスン本文（YAML フロントマター）
 data/
-  content.json             シリーズ / コース / レッスン
   workspace.json           ワークスペース名・アイコン
-images/
-  <file>.png               正本（git 追跡）
-  uploaded/ ai/ web/       staging（git 除外）
-  trash/                   削除退避（git 除外）
-scripts/
-  render-diagram.mjs       Playwright HTML→PNG
+  content.json             移行用バックアップ（ランタイムでは未使用）
+images/                    git 除外（正本はローカル fs または Vercel Blob）
+  <file>.png               正本
+  uploaded/ ai/ web/       staging
+  trash/                   削除退避
+local-db/                  社内コンテキスト（ローカルモード、git 除外）
+contracts/                 画像スロット・コンテキスト整形の契約
 lib/
+  agent/                   Agent ループ・LLM・ツール・スキルローダー
   schema.ts                Zod スキーマ
-  utils.ts                 cn() / computeStatus
+  contents-loader.ts       contents/ 読み書き
+  workspace-settings.ts    設定（localStorage）
   lesson-*.ts              フロントマター・エディタ・差分など
   image-*.ts               画像パス解決・ストア・参照抽出
+scripts/
+  render-diagram.mjs       Playwright HTML→PNG
+  upload-local-images-to-blob.mjs
+  check-context-db.mjs / migrate-context-db.mjs
 docs/
-  grill-me.md              仕様検討の記録
   development-plan.md      実装プランと実装済み内容
-  dx-training-studio.html    図解
+  grill-me-*.md            仕様検討の記録
+  dx-training-studio.html  図解
+.claude/skills/            Agent 用スキル（create-draft 等）
+openspec/                  仕様・変更管理
 ```
 
 AI 向けの編集ルールは [`CLAUDE.md`](CLAUDE.md) を参照。
@@ -155,6 +182,9 @@ AI 向けの編集ルールは [`CLAUDE.md`](CLAUDE.md) を参照。
 | `npm run test:watch` | Vitest（ウォッチ） |
 | `npm run format` | Prettier（整形） |
 | `npm run format:check` | Prettier（チェックのみ） |
+| `npm run upload-images-to-blob` | ローカル正本画像を Vercel Blob へアップロード（`--dry-run` 可） |
+| `npm run check:context-db` | Neon 接続・`context_items` テーブル確認 |
+| `npm run migrate:context-db` | 社内コンテキスト DB マイグレーション |
 
 shadcn 部品の追加: `npx shadcn@latest add <name> --diff`（設定は `components.json`）
 
@@ -197,6 +227,8 @@ Vercel ダッシュボード → **Settings** → **Build and Deployment**
 
 ## データ構造
 
+### 論理モデル
+
 ```
 Series（シリーズ）
   └─ Course（コース）
@@ -215,9 +247,22 @@ Series（シリーズ）
 - すべて `done` → `done`
 - それ以外 → `in_progress`
 
-編集内容は現状セッション内 state で保持される（ページリロードで `data/*.json` の初期値に戻る）。
+### ファイル配置（`contents/`）
+
+```
+contents/
+  <シリーズ名>/
+    .meta.json
+    <コース名>/
+      .meta.json
+      <レッスン名>/
+        contents.md        ← レッスン本文の正本
+```
+
+ローカル開発ではレッスン編集・CRUD は API 経由で `contents/` に永続化される。`data/workspace.json` は UI 表示用メタのみ。
 
 ## 仕様・設計の詳細
 
-- 仕様検討の記録 → [`docs/grill-me.md`](docs/grill-me.md)
+- 仕様検討の記録 → [`docs/grill-me-20260614.md`](docs/grill-me-20260614.md) ほか `docs/grill-me-*.md`
 - 実装プラン・実装済み内容 → [`docs/development-plan.md`](docs/development-plan.md)
+- OpenSpec 正本 → [`openspec/specs/`](openspec/specs/)

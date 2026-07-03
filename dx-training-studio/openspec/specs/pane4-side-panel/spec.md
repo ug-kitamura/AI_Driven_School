@@ -28,43 +28,25 @@ Pane 4 は **Agent ビュー** と **画像ビュー** の 2 モードを持た�
 
 Pane 4 ヘッダーは **高さ `h-12`** の 1 段としなければならない（SHALL）。右端には常に **Agent / 画像** のセグメント切替と **Pane4 折りたたみ**（`Pane4Toggle`）を配置しなければならない（SHALL）。Agent / 画像セグメントは Pane 3 の編集モード切替（`border` 枠付きセグメント、`bg-primary` アクティブ）と **同一の視覚パターン** を用いなければならない（SHALL）。
 
-Agent ビュー時、左側には **新規**・**履歴** ボタンと **アクティブセッションタイトル**（truncate）を配置しなければならない（SHALL）。画像ビュー時、左側には **Used / UP / AI / Web** のセグメント切替を配置しなければならない（SHALL）。新規・履歴・セッションタイトルは画像ビュー時に表示してはならない（MUST NOT）。
+Agent ビュー時、左側には **アクティブセッションタイトル**（`truncate text-xs font-bold text-foreground`、Pane 2 コース名と同スタイル）のみを配置しなければならない（SHALL）。画像ビュー時、左側には **Used / UP / AI / Web** の下線タブ切替（`ImageTabBar`）を配置しなければならない（SHALL）。新規・履歴ボタンはヘッダーに配置してはならない（MUST NOT）。セッションタイトルは画像ビュー時に表示してはならない（MUST NOT）。
 
 #### Scenario: Agent ビューのヘッダー構成
 
 - **WHEN** Agent ビューが表示されている
-- **THEN** ヘッダー左に新規・履歴ボタンとセッションタイトルがある
+- **THEN** ヘッダー左にセッションタイトル（truncate）がある
 - **AND** ヘッダー右に `[●Agent | 画像]` セグメントと折りたたみボタンがある
+- **AND** ヘッダーに新規・履歴ボタンはない
 
 #### Scenario: 画像ビューのヘッダー構成
 
 - **WHEN** 画像ビューが表示されている
-- **THEN** ヘッダー左に `[Used | UP | AI | Web]` セグメントがある
+- **THEN** ヘッダー左に Used / UP / AI / Web の下線タブがある
 - **AND** ヘッダー右に `[Agent | ●画像]` セグメントと折りたたみボタンがある
 
 #### Scenario: ヘッダーは 2 段にしない
 
 - **WHEN** 画像ビューが表示されている
 - **THEN** Used / UP / AI / Web と Agent / 画像切替は同一ヘッダー行内に収まる
-
-### Requirement: 狭幅時は左側をアイコンのみに縮小する
-
-Pane 4 の **実幅** が 480px 未満のとき、ヘッダー左側のコントロールは **アイコンのみ** 表示に切り替えなければならない（SHALL）。Agent ビュー時のセッションタイトルは **非表示** としなければならない（SHALL）。右端の Agent / 画像セグメントおよび折りたたみボタンは **常に表示** しなければならない（SHALL）。compact 判定は Pane 4 コンテナの `ResizeObserver` 等による **実幅** を用い、ウィンドウ幅のみで判定してはならない（MUST NOT）。
-
-#### Scenario: 狭幅で Agent ヘッダーが compact になる
-
-- **WHEN** Pane 4 実幅が 400px である
-- **AND** Agent ビューが表示されている
-- **THEN** 新規・履歴はアイコンのみ表示される
-- **AND** セッションタイトルは表示されない
-- **AND** Agent / 画像セグメントは表示される
-
-#### Scenario: 狭幅で画像タブが compact になる
-
-- **WHEN** Pane 4 実幅が 350px である
-- **AND** 画像ビューが表示されている
-- **THEN** Used / UP / AI / Web はアイコンのみ表示される
-- **AND** 各アイコンにツールチップでフルラベルが提供される
 
 ### Requirement: 編集と Agent を並列表示する
 
@@ -103,4 +85,20 @@ Pane 3 が編集・プレビュー・差分のいずれかを表示している�
 - **AND** ワークスペースを読み込む
 - **THEN** Pane 3 は編集モードになる
 - **AND** Pane 4 が Agent ビューで開く
+
+### Requirement: 画像タブは下線スタイルでラベル常時表示
+
+画像ビューの Used / UP / AI / Web タブは、各タブに **アイコンとラベルを常に表示** しなければならない（SHALL）。アクティブタブは `border-b-2 border-primary text-primary`、非アクティブは `text-muted-foreground` としなければならない（SHALL）。`PaneSegmentControl` の枠付きセグメントスタイルを画像タブに用いてはならない（MUST NOT）。ペイン最小幅（400px）でも 4 タブのラベルが表示されなければならない（SHALL）。
+
+#### Scenario: アクティブタブに下線が表示される
+
+- **WHEN** 画像ビューで Used タブが選択されている
+- **THEN** Used タブに primary 色の下線とラベルが表示される
+- **AND** 他タブは muted 色でラベルが表示される
+
+#### Scenario: 最小幅でもラベルが消えない
+
+- **WHEN** Pane 4 実幅が 400px である
+- **AND** 画像ビューが表示されている
+- **THEN** Used / UP / AI / Web の各ラベルが表示される
 

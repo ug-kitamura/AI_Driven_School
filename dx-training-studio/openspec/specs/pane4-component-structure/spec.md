@@ -50,7 +50,7 @@ staging 画像からの promote → Markdown 挿入フロー（UP・AI・Web の
 
 ### Requirement: タブ UI は専用コンポーネントに分割する
 
-Pane4 の 4 タブ（Used・UP・AI・Web）のコンテンツ領域は、それぞれ専用コンポーネント（`UsedImagesTab`・`UploadImagesTab`・`AiImagesTab`・`WebImagesTab`）に分割しなければならない（SHALL）。`ImageManagerPane` は画像コンテンツ・共有 AlertDialog・ImageLightbox・hook 配線に限定しなければならない（SHALL）。Used / UP / AI / Web の **タブバー** および **Pane4 折りたたみ** は `Pane4Shell`（または同等の Pane 4 統合シェル）が所有しなければならない（SHALL）。
+Pane4 の 4 タブ（Used・UP・AI・Web）のコンテンツ領域は、それぞれ専用コンポーネント（`UsedImagesTab`・`UploadImagesTab`・`AiImagesTab`・`WebImagesTab`）に分割しなければならない（SHALL）。`ImageManagerPane` は画像コンテンツ・共有 AlertDialog・ImageLightbox・hook 配線に限定しなければならない（SHALL）。Used / UP / AI / Web の **タブバー**（`ImageTabBar`）および **Pane4 折りたたみ** は `Pane4Shell`（または同等の Pane 4 統合シェル）が所有しなければならない（SHALL）。
 
 #### Scenario: ImageManagerPane がコンテンツ専用になる
 
@@ -61,7 +61,7 @@ Pane4 の 4 タブ（Used・UP・AI・Web）のコンテンツ領域は、それ
 #### Scenario: Pane4Shell が chrome を所有する
 
 - **WHEN** 開発者が Pane 4 統合シェルを開く
-- **THEN** Agent / 画像切替、画像タブバー、Pane4Toggle、Agent セッションヘッダーが定義されている
+- **THEN** Agent / 画像切替、画像タブバー（`ImageTabBar`）、Pane4Toggle、Agent セッションタイトル表示が定義されている
 
 ### Requirement: 既存のユーザー向け挙動を維持する
 
@@ -122,13 +122,19 @@ UP タブのファイルアップロード（`/api/images/upload`）、クリッ
 - **THEN** タブバーと Agent / 画像切替は Pane4Shell にある
 - **AND** ImageManagerPane は props で受け取った activeTab に応じてタブコンテンツのみ描画する
 
-### Requirement: AgentChatPane はセッションヘッダーを持たない
+### Requirement: AgentChatPane は履歴サブヘッダーを持つ
 
-`AgentChatPane` は新規・履歴・セッションタイトルの UI を **内包してはならない**（MUST NOT）。セッション操作 UI は Pane 4 統合シェルが `AgentChatPane` へ渡すコールバックまたは controller 経由で操作しなければならない（SHALL）。
+`AgentChatPane` はビュー内トップに **履歴ドロップダウン**（左）と **新規** ボタン（右）を配置しなければならない（SHALL）。セッションタイトルの表示は `AgentChatPane` 内に含めてはならない（MUST NOT）。セッションタイトルは `Pane4Shell` ヘッダー左が `AgentChatController` 経由で表示しなければならない（SHALL）。
 
-#### Scenario: AgentChatPane 内にセッションヘッダー行がない
+#### Scenario: AgentChatPane 内に履歴サブヘッダーがある
 
 - **WHEN** 開発者が `AgentChatPane.tsx` を開く
-- **THEN** 新規・履歴ボタンおよびセッションタイトル表示の JSX は存在しない
-- **AND** 当該 UI は Pane 4 統合シェルに存在する
+- **THEN** 履歴ドロップダウンと新規ボタンの JSX がビュー内トップに存在する
+- **AND** セッションタイトル表示の JSX は存在しない
+
+#### Scenario: セッションタイトルは Pane4Shell ヘッダーにある
+
+- **WHEN** Agent ビューが表示されている
+- **THEN** セッションタイトルは `Pane4Shell` ヘッダー左に表示される
+- **AND** `AgentChatPane` 内には表示されない
 

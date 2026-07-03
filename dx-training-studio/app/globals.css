@@ -1,6 +1,7 @@
 @import "tailwindcss";
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
+@import "../styles/hljs/lesson-preview-hljs.css";
 
 @custom-variant dark (&:is(.dark *));
 
@@ -399,10 +400,6 @@
 
   .lesson-preview pre code {
     @apply bg-transparent p-0 font-mono;
-  }
-
-  .lesson-preview pre code.hljs {
-    @apply bg-transparent text-inherit;
   }
 
   .lesson-preview blockquote {

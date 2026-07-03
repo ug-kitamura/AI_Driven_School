@@ -251,4 +251,32 @@ describe("fitPaneLayout", () => {
       computePane3Width(result, { totalWidth, pane4Open: true }),
     ).toBeGreaterThanOrEqual(PANE3_MIN_WIDTH);
   });
+
+  it("when expanding pane4 caps width once pane1 and pane2 are at min", () => {
+    const totalWidth = 1400;
+    const maxPane4 =
+      totalWidth -
+      PANE_WIDTH_LIMITS.pane1.min -
+      PANE_WIDTH_LIMITS.pane2.min -
+      PANE3_MIN_WIDTH -
+      handles(true);
+
+    const result = fitPaneLayout({
+      requested: {
+        pane1: PANE_WIDTH_LIMITS.pane1.min,
+        pane2: PANE_WIDTH_LIMITS.pane2.min,
+        pane4: maxPane4 + 120,
+      },
+      totalWidth,
+      pane4Open: true,
+      expandPane: "pane4",
+    });
+
+    expect(result.pane1).toBe(PANE_WIDTH_LIMITS.pane1.min);
+    expect(result.pane2).toBe(PANE_WIDTH_LIMITS.pane2.min);
+    expect(result.pane4).toBe(maxPane4);
+    expect(
+      computePane3Width(result, { totalWidth, pane4Open: true }),
+    ).toBe(PANE3_MIN_WIDTH);
+  });
 });

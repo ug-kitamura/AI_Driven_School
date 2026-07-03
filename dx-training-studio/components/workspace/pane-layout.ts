@@ -174,6 +174,15 @@ export function fitPaneLayout(input: FitPaneLayoutInput): WorkspacePaneWidths {
     }
 
     if (remaining > 0) {
+      if (expandPane) {
+        widths = {
+          ...widths,
+          [expandPane]: clampPaneWidth(
+            expandPane,
+            widths[expandPane] - remaining,
+          ),
+        };
+      }
       return widths;
     }
   }

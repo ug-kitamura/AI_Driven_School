@@ -13,20 +13,22 @@ function findMandalaNodeGroup(container: Element, nid: string): SVGGElement | nu
   return match instanceof SVGGElement ? match : null;
 }
 
+/** Mermaid は太字幅でノードを測る。選択のみ太字、未選択は通常ウェイト（箱幅は太字基準のまま）。 */
 function setNodeLabel(nodeEl: SVGGElement, label: string, bold: boolean): void {
+  const weight = bold ? "700" : "400";
   const fo = nodeEl.querySelector("foreignObject");
   const labelEl = fo?.querySelector("span, div, p");
   if (labelEl) {
     labelEl.textContent = label;
     if (labelEl instanceof HTMLElement) {
-      labelEl.style.fontWeight = bold ? "700" : "";
+      labelEl.style.fontWeight = weight;
     }
     return;
   }
   const text = nodeEl.querySelector("text");
   if (text) {
     text.textContent = label;
-    text.style.fontWeight = bold ? "700" : "";
+    text.style.fontWeight = weight;
   }
 }
 

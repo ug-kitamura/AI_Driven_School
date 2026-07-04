@@ -62,6 +62,7 @@ import {
   mandalaCurrentCourseStyleLine,
   scaleMiniMandalaThumbnailSvg,
 } from "@/lib/mermaid-workspace-theme";
+import { renderMermaidDiagram } from "@/lib/mermaid-render";
 import type { Series, Course, Lesson } from "@/lib/schema";
 import {
   buildMiniMandalaGraphInput,
@@ -345,27 +346,24 @@ export function LessonListPane({
     const { def } = buildMermaidDef(miniGraphInput);
     let cancelled = false;
     setThumbnailError(false);
-    import("mermaid").then(async (m) => {
-      if (cancelled) return;
-      try {
-        const mermaid = m.default;
-        const isDark = document.documentElement.classList.contains("dark");
-        mermaid.initialize(
-          getMermaidWorkspaceConfig(isDark, { thumbnail: true }),
-        );
-        const id = `mthumb${course.id.replace(/[^a-zA-Z0-9]/g, "")}${Date.now()}`;
-        const { svg } = await mermaid.render(id, def);
-        if (!cancelled) {
-          setThumbnailSvg(scaleMiniMandalaThumbnailSvg(svg));
-          setThumbnailError(false);
-        }
-      } catch {
-        if (!cancelled) {
-          setThumbnailSvg("");
-          setThumbnailError(true);
-        }
-      }
-    });
+    void renderMermaidDiagram(
+      def,
+      getMermaidWorkspaceConfig(
+        document.documentElement.classList.contains("dark"),
+        { thumbnail: true },
+      ),
+      `mthumb-${course.id.replace(/[^a-zA-Z0-9]/g, "")}`,
+    )
+      .then(({ svg }) => {
+        if (cancelled) return;
+        setThumbnailSvg(scaleMiniMandalaThumbnailSvg(svg));
+        setThumbnailError(false);
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setThumbnailSvg("");
+        setThumbnailError(true);
+      });
     return () => {
       cancelled = true;
     };
@@ -446,20 +444,22 @@ export function LessonListPane({
     const { def, nodeMap } = buildMermaidDef(miniGraphInput);
     (window as unknown as Record<string, unknown>)["miniGraphNodeMap"] = nodeMap;
     let cancelled = false;
-    import("mermaid").then(async (m) => {
-      if (cancelled) return;
-      try {
-        const mermaid = m.default;
-        mermaid.initialize(getMermaidWorkspaceConfig(mermaidIsDark));
-        const id = `mmodal${course.id.replace(/[^a-zA-Z0-9]/g, "")}${Date.now()}`;
-        const { svg, bindFunctions } = await mermaid.render(id, def);
-        if (!cancelled) {
-          modalBndRef.current = bindFunctions ?? null;
-          setModalSvg(svg);
-        }
-      } catch { if (!cancelled) setModalSvg(""); }
-    });
-    return () => { cancelled = true; };
+    void renderMermaidDiagram(
+      def,
+      getMermaidWorkspaceConfig(mermaidIsDark),
+      `mmodal-${course.id.replace(/[^a-zA-Z0-9]/g, "")}`,
+    )
+      .then(({ svg, bindFunctions }) => {
+        if (cancelled) return;
+        modalBndRef.current = bindFunctions ?? null;
+        setModalSvg(svg);
+      })
+      .catch(() => {
+        if (!cancelled) setModalSvg("");
+      });
+    return () => {
+      cancelled = true;
+    };
   }, [mermaidModalOpen, course, miniGraphInput, mermaidIsDark]);
 
   // モーダルを閉じたら SVG リセット

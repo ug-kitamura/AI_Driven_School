@@ -22,6 +22,7 @@ import { findSeriesContainingCourse, isCrossSeriesLink } from "@/lib/course-flow
 import {
   getMermaidWorkspaceConfig,
 } from "@/lib/mermaid-workspace-theme";
+import { renderMermaidDiagram } from "@/lib/mermaid-render";
 import {
   patchGlobalMandalaSelection,
   resolveMandalaCourseId,
@@ -32,7 +33,13 @@ const safeLabel = (s: string) => s.replace(/"/g, "'");
 function buildFullMandalaGraph(
   series: Series[],
 ): { def: string; nodeMap: Record<string, string> } {
-  const lines = ["flowchart TD", "  classDef mandalaSeriesTitle font-weight:bold"];
+  // コースノードは太字幅でレイアウトし、選択表示は DOM パッチで太字/通常を切り替える
+  // （後から太字にすると foreignObject 幅不足で末尾が欠ける）
+  const lines = [
+    "flowchart TD",
+    "  classDef mandalaSeriesTitle font-weight:bold",
+    "  classDef mandalaCourse font-weight:bold",
+  ];
   const nodeMap: Record<string, string> = {};
 
   // Mermaid ノード ID は英数字のみ有効。日本語 ID を直接使えないため
@@ -55,7 +62,7 @@ function buildFullMandalaGraph(
     s.courses.forEach((c) => {
       const nid = toNid(c.id);
       nodeMap[nid] = c.id;
-      lines.push(`    ${nid}("${safeLabel(c.name)}")`);
+      lines.push(`    ${nid}("${safeLabel(c.name)}"):::mandalaCourse`);
     });
     lines.push("  end");
     lines.push(`  class ${sgId} mandalaSeriesTitle`);
@@ -136,7 +143,6 @@ export function GlobalHeader({
   const [isDark, setIsDark] = useState(false);
   const svgContainerRef = useRef<HTMLDivElement>(null);
   const mandalaNodeMapRef = useRef<Record<string, string>>({});
-  const mandalaRenderIdRef = useRef("mandala-global");
 
   useEffect(() => {
     const update = () =>
@@ -226,31 +232,28 @@ export function GlobalHeader({
   );
 
   // モーダルを開いたとき（または series / テーマ変更時）に Mermaid レンダリング。
-  // 枠線・太字は Mermaid 定義に含めず DOM パッチで更新（再描画時の subgraph 余白潰れを防ぐ）。
+  // 選択の枠線・ウェイト切替は DOM パッチ（選択変更で再描画しない）。
+  // 描画自体は renderMermaidDiagram で直列化し、他曼陀羅との config 競合を防ぐ。
   useEffect(() => {
     if (!mandalaOpen || series.length === 0) return;
     const { def, nodeMap } = buildFullMandalaGraph(series);
     mandalaNodeMapRef.current = nodeMap;
     setMandalaDebug(def);
     let cancelled = false;
-    import("mermaid").then(async (m) => {
-      if (cancelled) return;
-      try {
-        const mermaid = m.default;
-        mermaid.initialize(getMermaidWorkspaceConfig(isDark, { global: true }));
-        const { svg, bindFunctions } = await mermaid.render(
-          mandalaRenderIdRef.current,
-          def,
-        );
-        if (!cancelled) {
-          bindFnsRef.current = bindFunctions ?? null;
-          setMandalaSvg(svg);
-          setMandalaDebug("");
-        }
-      } catch (err) {
+    void renderMermaidDiagram(
+      def,
+      getMermaidWorkspaceConfig(isDark, { global: true }),
+      "mandala-global",
+    )
+      .then(({ svg, bindFunctions }) => {
+        if (cancelled) return;
+        bindFnsRef.current = bindFunctions ?? null;
+        setMandalaSvg(svg);
+        setMandalaDebug("");
+      })
+      .catch((err) => {
         if (!cancelled) setMandalaDebug(`ERROR: ${String(err)}\n\n---\n${def}`);
-      }
-    });
+      });
     return () => {
       cancelled = true;
     };

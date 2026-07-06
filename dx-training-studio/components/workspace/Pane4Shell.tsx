@@ -104,7 +104,7 @@ export function Pane4Shell({
 
   return (
     <div className="flex h-full min-w-0 flex-col overflow-hidden bg-card">
-      <div className="flex h-12 shrink-0 items-center gap-2 border-b border-border px-2 py-0">
+      <div className="flex h-12 shrink-0 items-center gap-2 border-b border-border px-3 py-0">
         <div className="flex min-w-0 flex-1 items-center gap-2">
           {pane4View === "agent" ? (
             <span

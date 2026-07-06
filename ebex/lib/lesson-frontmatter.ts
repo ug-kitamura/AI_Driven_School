@@ -1,0 +1,607 @@
+import { TAG_PATTERN } from "@/lib/lesson-tags";
+import { lessonFileTextEquals } from "@/lib/lesson-file-text";
+import { isFrontmatterDelimiterLine } from "@/lib/markdown-fold-ranges";
+import type { Lesson, LessonStatus, Series } from "@/lib/schema";
+
+export type LessonParentContext = {
+  seriesName: string;
+  courseName: string;
+};
+
+export type LessonMetaFields = {
+  series: string;
+  course: string;
+  lesson: string;
+  status: LessonStatus;
+  description: string;
+  tags: string[];
+  estimated_minutes: number;
+  author: string;
+};
+
+const VALID_STATUSES: LessonStatus[] = ["open", "in_progress", "done"];
+
+type FrontmatterSplit = {
+  yaml: string;
+  body: string;
+  bodyStartOffset: number;
+};
+
+/** 先頭フロントマター（`---` 以上のハイフン区切り）を yaml / 本文に分割 */
+export function splitFrontmatterText(
+  content: string | undefined | null,
+): FrontmatterSplit | null {
+  const text = content ?? "";
+  const lines = text.split(/\r?\n/);
+  if (lines.length < 2 || !isFrontmatterDelimiterLine(lines[0] ?? "")) {
+    return null;
+  }
+
+  let closeIndex = -1;
+  for (let i = 1; i < lines.length; i++) {
+    if (isFrontmatterDelimiterLine(lines[i])) {
+      closeIndex = i;
+      break;
+    }
+  }
+  if (closeIndex === -1) return null;
+
+  const lineStarts: number[] = [0];
+  for (let i = 0; i < text.length; i++) {
+    if (text[i] === "\n") lineStarts.push(i + 1);
+    else if (text[i] === "\r" && text[i + 1] === "\n") {
+      lineStarts.push(i + 2);
+      i += 1;
+    }
+  }
+
+  const closeLineEnd = lineStarts[closeIndex]! + lines[closeIndex]!.length;
+  let bodyStart = closeLineEnd;
+  if (text[bodyStart] === "\r" && text[bodyStart + 1] === "\n") bodyStart += 2;
+  else if (text[bodyStart] === "\n") bodyStart += 1;
+
+  return {
+    yaml: lines.slice(1, closeIndex).join("\n"),
+    body: text.slice(bodyStart),
+    bodyStartOffset: bodyStart,
+  };
+}
+
+export function migrateLegacyStatus(status: string): LessonStatus {
+  if (status === "draft") return "open";
+  if (VALID_STATUSES.includes(status as LessonStatus)) {
+    return status as LessonStatus;
+  }
+  return "open";
+}
+
+export function parseLessonDocument(content: string | undefined | null): {
+  meta: Partial<LessonMetaFields>;
+  body: string;
+} {
+  const text = content ?? "";
+  const split = splitFrontmatterText(text);
+  if (!split) {
+    return { meta: {}, body: text };
+  }
+  return { meta: parseYamlBlock(split.yaml), body: split.body };
+}
+
+/** 本文先頭の文字オフセット。フロントマターが無ければ 0 */
+export function getLessonBodyStartOffset(content: string | undefined | null): number {
+  return splitFrontmatterText(content)?.bodyStartOffset ?? 0;
+}
+
+function parseYamlBlock(yaml: string): Partial<LessonMetaFields> {
+  const meta: Partial<LessonMetaFields> = {};
+  for (const line of yaml.split("\n")) {
+    const trimmed = line.trim();
+    if (!trimmed || trimmed.startsWith("#")) continue;
+
+    if (trimmed.startsWith("tags:")) {
+      const value = trimmed.slice("tags:".length).trim();
+      if (value === "[]") {
+        meta.tags = [];
+      } else {
+        const inner = value.replace(/^\[/, "").replace(/\]$/, "");
+        meta.tags = inner
+          .split(",")
+          .map((t) => t.trim())
+          .filter(Boolean);
+      }
+      continue;
+    }
+
+    const colon = trimmed.indexOf(":");
+    if (colon === -1) continue;
+    const key = trimmed.slice(0, colon).trim();
+    const raw = trimmed.slice(colon + 1).trim();
+
+    switch (key) {
+      case "series":
+        meta.series = raw;
+        break;
+      case "course":
+        meta.course = raw;
+        break;
+      case "lesson":
+        meta.lesson = raw;
+        break;
+      case "status":
+        meta.status = migrateLegacyStatus(raw);
+        break;
+      case "description":
+        meta.description = raw;
+        break;
+      case "estimated_minutes": {
+        const n = Number.parseInt(raw, 10);
+        if (!Number.isNaN(n)) meta.estimated_minutes = n;
+        break;
+      }
+      case "author":
+        meta.author = raw;
+        break;
+      default:
+        break;
+    }
+  }
+  return meta;
+}
+
+export function normalizeTags(tags: string[] | undefined): string[] {
+  if (!tags?.length) return [];
+  return tags.filter((t) => TAG_PATTERN.test(t));
+}
+
+export function normalizeLessonMeta(
+  partial: Partial<LessonMetaFields>,
+  ctx: LessonParentContext,
+  fallbacks?: Partial<LessonMetaFields>,
+): LessonMetaFields {
+  const status = migrateLegacyStatus(
+    partial.status ?? fallbacks?.status ?? "open",
+  );
+  let minutes =
+    partial.estimated_minutes ??
+    fallbacks?.estimated_minutes ??
+    0;
+  if (Number.isNaN(minutes)) minutes = 0;
+  minutes = Math.min(180, Math.max(0, Math.round(minutes)));
+
+  return {
+    series: ctx.seriesName,
+    course: ctx.courseName,
+    lesson: (partial.lesson ?? fallbacks?.lesson ?? "").trim() || "無題のレッスン",
+    status,
+    description: partial.description ?? fallbacks?.description ?? "",
+    tags: normalizeTags(partial.tags ?? fallbacks?.tags),
+    estimated_minutes: minutes,
+    author: partial.author ?? fallbacks?.author ?? "",
+  };
+}
+
+/** ディスク上の本文と同一か（改行コードの差のみは同一扱い） */
+export function lessonFileContentEquals(a: string, b: string): boolean {
+  return lessonFileTextEquals(a, b);
+}
+
+export type AlignLessonContentResult =
+  | { ok: true; content: string }
+  | { ok: false; reason: string };
+
+/**
+ * 保存前に FM の series/course/lesson をディスク上の位置に合わせる。
+ * 別コース・別シリーズの FM が混ざっている場合は保存を拒否する。
+ * lesson 名の FM 変更はファイルリネームせず、ディスク上のレッスン名に FM を合わせる。
+ */
+export function alignLessonContentToDiskPath(
+  content: string,
+  ctx: LessonParentContext,
+  diskLessonName: string,
+): AlignLessonContentResult {
+  const trimmed = content.trimStart();
+  if (!trimmed.startsWith("---")) {
+    return { ok: true, content };
+  }
+
+  const { meta, body } = parseLessonDocument(content);
+  if (meta.series && meta.series !== ctx.seriesName) {
+    return {
+      ok: false,
+      reason: `フロントマターの series（${meta.series}）が保存先（${ctx.seriesName}）と一致しません`,
+    };
+  }
+  if (meta.course && meta.course !== ctx.courseName) {
+    return {
+      ok: false,
+      reason: `フロントマターの course（${meta.course}）が保存先（${ctx.courseName}）と一致しません`,
+    };
+  }
+
+  const lessonInFm = (meta.lesson ?? "").trim();
+  const needsFmReserialize =
+    !meta.series ||
+    !meta.course ||
+    !lessonInFm ||
+    lessonInFm !== diskLessonName;
+
+  if (!needsFmReserialize) {
+    return { ok: true, content };
+  }
+
+  const normalized = normalizeLessonMeta(
+    {
+      ...meta,
+      series: ctx.seriesName,
+      course: ctx.courseName,
+      lesson: diskLessonName,
+    },
+    ctx,
+    {
+      series: ctx.seriesName,
+      course: ctx.courseName,
+      lesson: diskLessonName,
+    },
+  );
+  const aligned = serializeLessonDocument(normalized, body);
+  return {
+    ok: true,
+    content: lessonFileContentEquals(aligned, content) ? content : aligned,
+  };
+}
+
+export function serializeLessonDocument(
+  meta: LessonMetaFields,
+  body: string,
+): string {
+  const tagsYaml =
+    meta.tags.length === 0
+      ? "tags: []"
+      : `tags: [${meta.tags.join(", ")}]`;
+  const yaml = [
+    "---",
+    `series: ${meta.series}`,
+    `course: ${meta.course}`,
+    `lesson: ${meta.lesson}`,
+    `status: ${meta.status}`,
+    `description: ${meta.description}`,
+    tagsYaml,
+    `estimated_minutes: ${meta.estimated_minutes}`,
+    `author: ${meta.author}`,
+    "---",
+  ].join("\n");
+  if (!body) return `${yaml}\n`;
+  return `${yaml}\n${body}`;
+}
+
+export function metaToLessonFields(meta: LessonMetaFields): Pick<
+  Lesson,
+  | "series"
+  | "course"
+  | "lesson"
+  | "status"
+  | "description"
+  | "tags"
+  | "estimated_minutes"
+  | "author"
+> {
+  return {
+    series: meta.series,
+    course: meta.course,
+    lesson: meta.lesson,
+    status: meta.status,
+    description: meta.description,
+    tags: meta.tags,
+    estimated_minutes: meta.estimated_minutes,
+    author: meta.author,
+  };
+}
+
+/** :::quiz ブロックを ### 確認問題 + タスクリストへ変換 */
+export function migrateQuizBlocksInBody(body: string): string {
+  return body.replace(/:::quiz\r?\n([\s\S]*?):::/g, (_, inner: string) => {
+    const lines = inner.trim().split(/\r?\n/);
+    const qLine = lines.find((l) => /^Q:\s*/.test(l.trim()));
+    const question = qLine ? qLine.replace(/^Q:\s*/, "").trim() : "";
+    const choices = lines.filter((l) => /^\s*-\s+\[[ x]\]/.test(l));
+    const parts = ["### 確認問題", ""];
+    if (question) parts.push(question, "");
+    if (choices.length) parts.push(...choices, "");
+    return `${parts.join("\n")}\n`;
+  });
+}
+
+export function defaultLessonBody(lessonName: string): string {
+  return `\n# ${lessonName}\n\n（ここに本文を書いてください）\n`;
+}
+
+export function createLessonContentTemplate(
+  meta: LessonMetaFields,
+  body?: string,
+): string {
+  return serializeLessonDocument(meta, body ?? defaultLessonBody(meta.lesson));
+}
+
+/** Agent 草稿の tags / estimated_minutes 補完 */
+
+export function inferDraftTagsFromText(
+  text: string,
+  availableTags: string[],
+): string[] {
+  const lower = text.toLowerCase();
+  return normalizeTags(
+    availableTags.filter((tag) => lower.includes(tag.toLowerCase())),
+  ).slice(0, 5);
+}
+
+export function resolveDraftTags(options: {
+  parsedTags?: string[];
+  fallbackTags: string[];
+  availableTags: string[];
+  contextItemTags: string[];
+  bodyText: string;
+}): string[] {
+  const parsed = normalizeTags(options.parsedTags);
+  if (parsed.length > 0) return parsed;
+
+  const inferred = inferDraftTagsFromText(
+    options.bodyText,
+    options.availableTags,
+  );
+  if (inferred.length > 0) return inferred;
+
+  const fromContext = normalizeTags([...new Set(options.contextItemTags)]);
+  if (fromContext.length > 0) return fromContext.slice(0, 5);
+
+  const fallbacks = normalizeTags(options.fallbackTags);
+  if (fallbacks.length > 0) return fallbacks;
+
+  return [];
+}
+
+/** 既存コンテンツ最短レッスン（問い合わせ先 5分）に合わせた下限 */
+export const DRAFT_ESTIMATED_MINUTES_MIN = 5;
+export const DRAFT_ESTIMATED_MINUTES_MAX = 180;
+
+/**
+ * 草稿本文から estimated_minutes を推定する。
+ * 400文字≈1分の読了 + 見出し・箇条書き・コードブロックの実習加算を 5分刻みに丸める。
+ */
+export function estimateDraftMinutes(body: string): number {
+  const trimmed = body.trim();
+  if (!trimmed) return DRAFT_ESTIMATED_MINUTES_MIN;
+
+  const headings = (trimmed.match(/^#{1,3}\s/gm) ?? []).length;
+  const listItems = (trimmed.match(/^[\-*]\s+/gm) ?? []).length;
+  const codeBlocks = Math.floor((trimmed.match(/```/g) ?? []).length / 2);
+
+  const readingMinutes = trimmed.length / 400;
+  const activityMinutes = headings * 0.5 + listItems * 0.5 + codeBlocks * 3;
+  const raw = readingMinutes + activityMinutes;
+
+  const rounded = Math.round(raw / 5) * 5;
+  return Math.min(
+    DRAFT_ESTIMATED_MINUTES_MAX,
+    Math.max(DRAFT_ESTIMATED_MINUTES_MIN, rounded || DRAFT_ESTIMATED_MINUTES_MIN),
+  );
+}
+
+export type NormalizeDraftOptions = {
+  availableTags?: string[];
+  contextItemTags?: string[];
+};
+
+/** Agent 草稿上書き前に FM を選択中レッスンのドメイン制約へ矯正する */
+export function normalizeDraftMarkdownForLesson(
+  markdown: string,
+  ctx: LessonParentContext,
+  fallbacks: Pick<
+    Lesson,
+    | "series"
+    | "course"
+    | "lesson"
+    | "status"
+    | "description"
+    | "tags"
+    | "estimated_minutes"
+    | "author"
+  >,
+  options: NormalizeDraftOptions = {},
+): string {
+  const { meta, body } = parseLessonDocument(markdown);
+  const availableTags = options.availableTags ?? [];
+  const contextItemTags = options.contextItemTags ?? [];
+  const bodyText = [
+    meta.description ?? "",
+    fallbacks.description,
+    fallbacks.course,
+    fallbacks.lesson,
+    body,
+  ].join("\n");
+
+  const tags = resolveDraftTags({
+    parsedTags: meta.tags,
+    fallbackTags: fallbacks.tags,
+    availableTags,
+    contextItemTags,
+    bodyText,
+  });
+
+  const parsedMinutes = meta.estimated_minutes ?? 0;
+  const minutes =
+    parsedMinutes > 0
+      ? parsedMinutes
+      : fallbacks.estimated_minutes > 0
+        ? fallbacks.estimated_minutes
+        : estimateDraftMinutes(body);
+
+  const normalized = normalizeLessonMeta(
+    {
+      ...meta,
+      tags,
+      estimated_minutes: minutes,
+    },
+    ctx,
+    {
+      series: fallbacks.series,
+      course: fallbacks.course,
+      lesson: fallbacks.lesson,
+      status: fallbacks.status,
+      description: fallbacks.description,
+      tags,
+      estimated_minutes: minutes,
+      author: fallbacks.author,
+    },
+  );
+  return serializeLessonDocument(normalized, body);
+}
+
+export function reconcileLesson(
+  lesson: Lesson,
+  ctx: LessonParentContext,
+): Lesson {
+  const { meta: yamlMeta, body: rawBody } = parseLessonDocument(lesson.content);
+  let body = rawBody.trim() ? migrateQuizBlocksInBody(rawBody) : "";
+
+  const normalized = normalizeLessonMeta(
+    {
+      series: yamlMeta.series,
+      course: yamlMeta.course,
+      lesson: yamlMeta.lesson,
+      status: yamlMeta.status,
+      description: yamlMeta.description,
+      tags: yamlMeta.tags,
+      estimated_minutes: yamlMeta.estimated_minutes,
+      author: yamlMeta.author,
+    },
+    ctx,
+    {
+      series: lesson.series,
+      course: lesson.course,
+      lesson: lesson.lesson,
+      status: lesson.status,
+      description: lesson.description,
+      tags: lesson.tags,
+      estimated_minutes: lesson.estimated_minutes,
+      author: lesson.author,
+    },
+  );
+
+  if (!body) {
+    body = defaultLessonBody(normalized.lesson);
+  }
+
+  const reserialized = serializeLessonDocument(normalized, body);
+  const content = lessonFileContentEquals(reserialized, lesson.content)
+    ? lesson.content
+    : reserialized;
+
+  return {
+    ...lesson,
+    ...metaToLessonFields(normalized),
+    content,
+  };
+}
+
+export function normalizeAllLessonsInSeries(seriesList: Series[]): Series[] {
+  return seriesList.map((s) => ({
+    ...s,
+    courses: s.courses.map((c) => ({
+      ...c,
+      lessons: c.lessons.map((l) =>
+        reconcileLesson(l, { seriesName: s.name, courseName: c.name }),
+      ),
+    })),
+  }));
+}
+
+/** 編集モードで content 全文を保存し、パース可能な FM があれば Lesson フィールドを同期 */
+export function applyLessonContentEdit(
+  lesson: Lesson,
+  ctx: LessonParentContext,
+  content: string | undefined | null,
+): Lesson {
+  const text = content ?? "";
+  const trimmed = text.trimStart();
+  if (!trimmed.startsWith("---")) {
+    return { ...lesson, content: text };
+  }
+  const { meta } = parseLessonDocument(text);
+  const normalized = normalizeLessonMeta(meta, ctx, {
+    series: lesson.series,
+    course: lesson.course,
+    lesson: lesson.lesson,
+    status: lesson.status,
+    description: lesson.description,
+    tags: lesson.tags,
+    estimated_minutes: lesson.estimated_minutes,
+    author: lesson.author,
+  });
+  return {
+    ...lesson,
+    ...metaToLessonFields(normalized),
+    content: text,
+  };
+}
+
+export function patchLessonMeta(
+  lesson: Lesson,
+  ctx: LessonParentContext,
+  metaPatch: Partial<LessonMetaFields>,
+): Lesson {
+  const { body } = parseLessonDocument(lesson.content);
+  const normalized = normalizeLessonMeta(
+    {
+      series: lesson.series,
+      course: lesson.course,
+      lesson: metaPatch.lesson ?? lesson.lesson,
+      status: metaPatch.status ?? lesson.status,
+      description: metaPatch.description ?? lesson.description,
+      tags: metaPatch.tags ?? lesson.tags,
+      estimated_minutes:
+        metaPatch.estimated_minutes ?? lesson.estimated_minutes,
+      author: metaPatch.author ?? lesson.author,
+    },
+    ctx,
+  );
+  const resolvedBody = body.trim()
+    ? migrateQuizBlocksInBody(body)
+    : defaultLessonBody(normalized.lesson);
+  return {
+    ...lesson,
+    ...metaToLessonFields(normalized),
+    content: serializeLessonDocument(normalized, resolvedBody),
+  };
+}
+
+export function getLessonBody(lesson: Pick<Lesson, "content">): string {
+  return parseLessonDocument(lesson.content).body;
+}
+
+/** 本文のみ更新し、レッスンオブジェクトのメタは現状値を正本として FM を再生成 */
+export function applyLessonBodyEdit(
+  lesson: Lesson,
+  ctx: LessonParentContext,
+  body: string,
+): Lesson {
+  const normalized = normalizeLessonMeta(
+    {
+      series: lesson.series,
+      course: lesson.course,
+      lesson: lesson.lesson,
+      status: lesson.status,
+      description: lesson.description,
+      tags: lesson.tags,
+      estimated_minutes: lesson.estimated_minutes,
+      author: lesson.author,
+    },
+    ctx,
+  );
+  const resolvedBody = body.trim()
+    ? migrateQuizBlocksInBody(body)
+    : defaultLessonBody(normalized.lesson);
+  return {
+    ...lesson,
+    content: serializeLessonDocument(normalized, resolvedBody),
+  };
+}

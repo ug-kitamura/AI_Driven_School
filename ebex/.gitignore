@@ -16,6 +16,7 @@ next-env.d.ts
 
 # local storage
 contents/**/session.json
+workspace/**/session.json
 
 # OpenSpec
 .claude/commands/opsx/

@@ -1,0 +1,14 @@
+import { readFileContent, jsonError } from "@/lib/workspace-mutations";
+
+export async function GET(req: Request) {
+  const url = new URL(req.url);
+  const folderId = url.searchParams.get("folderId")?.trim();
+  const fileName = url.searchParams.get("fileName")?.trim();
+  if (!folderId || !fileName) {
+    return jsonError("folderId と fileName が必要です", 400);
+  }
+
+  const result = readFileContent(process.cwd(), folderId, fileName);
+  if ("error" in result) return jsonError(String(result.error), 404);
+  return Response.json({ content: result.content });
+}

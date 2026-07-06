@@ -7,18 +7,21 @@ context: |
   - コードブロック・コマンド・固有名詞・ツール名は英語のままにすること
   - それ以外の本文・説明・箇条書きはすべて日本語で記述すること
 
-  プロジェクト: EBEX — dx-training-studio をベースにした 3 ペイン AI ワークスペース
-  配置: `ebex/` 配下の standalone Next.js アプリ
-  実装方針: dx-training-studio をコピーして引き算（Series/Lesson/画像/曼陀羅/社内コンテキスト等を削除）
-  データ正本: `ebex/workspace/<プロジェクトフォルダ>/` 内のファイル（v1 は 1 階層のみ）
-  技術スタック: Next.js 16, React 19, TypeScript, Tailwind CSS v4, shadcn (base-nova), CodeMirror, Zod
-  設計の正本: `ebex/docs/grill-me-20260706.md`
-  参照実装: `../dx-training-studio/`（Workspace, Agent スタック, useContentSync, workspace-settings 等）
+# Project context (optional)
+# This is shown to AI when creating artifacts.
+# Add your tech stack, conventions, style guides, domain knowledge, etc.
+# Example:
+#   context: |
+#     Tech stack: TypeScript, React, Node.js
+#     We use conventional commits
+#     Domain: e-commerce platform
 
-rules:
-  proposal:
-    - Non-goals セクションを必ず含める
-    - v1 スコープと v2 以降の見送りを明確に区別する
-  tasks:
-    - Phase 単位でグループ化する（引き算 → データ層 → Pane 1 → Pane 2 → Agent → 仕上げ）
-    - 各タスクは 2 時間以内で完了できる粒度にする
+# Per-artifact rules (optional)
+# Add custom rules for specific artifacts.
+# Example:
+#   rules:
+#     proposal:
+#       - Keep proposals under 500 words
+#       - Always include a "Non-goals" section
+#     tasks:
+#       - Break tasks into chunks of max 2 hours

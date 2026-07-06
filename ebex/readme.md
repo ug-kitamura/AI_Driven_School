@@ -10,7 +10,9 @@ npm install
 npm run dev
 ```
 
-ブラウザで [http://localhost:3000](http://localhost:3000) を開きます。
+ブラウザで [http://localhost:3001](http://localhost:3001) を開きます。
+
+dx-training-studio（ポート 3000）と同時に使う場合は、EBEX は 3001 で起動します。
 
 ## 3 ペイン構成
 

@@ -19,17 +19,32 @@ TBD - created by archiving change ebex-v1-workspace. Update Purpose after archiv
 
 ### Requirement: ペインリサイズ
 
-各ペイン間のリサイズハンドルで幅を変更できなければならない（SHALL）。`pane-layout.ts` は pane1 / pane2 / pane3 の 3 ペイン用に定義されなければならない（SHALL）。ペイン幅は localStorage に永続化されなければならない（SHALL）。
+Pane 1 と Pane 3 は固定幅、Pane 2（エディタ）は残り幅を吸収する可変幅ペインとしなければならない（SHALL）。Pane 1 右のリサイズハンドルは Pane 1 幅を、Pane 2–Pane 3 間のリサイズハンドルは Pane 3（Agent）幅を変更しなければならない（SHALL）。`pane-layout.ts` は pane1 / pane2 / pane3 の 3 ペイン用に定義され、Pane 2 幅は `totalWidth - pane1 - pane3 - ハンドル幅` で算出されなければならない（SHALL）。ペイン幅（pane1 / pane3）は localStorage に永続化されなければならない（SHALL）。3 ペインの合計は常にワークスペース幅いっぱいに広がり、右端に余白を残してはならない（SHALL NOT）。
 
-#### Scenario: リサイズハンドルで幅変更
+#### Scenario: Pane 1 ハンドルで Pane 1 幅変更
 
-- **WHEN** ユーザーがペイン間のリサイズハンドルをドラッグする
-- **THEN** 隣接ペインの幅が更新される
+- **WHEN** ユーザーが Pane 1 右のリサイズハンドルをドラッグする
+- **THEN** Pane 1 の幅が更新され、Pane 2 が残り幅に自動調整される
+
+#### Scenario: Pane 2–Pane 3 間ハンドルで Agent 幅変更
+
+- **WHEN** ユーザーが Pane 2 と Pane 3 の間のリサイズハンドルをドラッグする
+- **THEN** Pane 3（Agent）の幅が更新され、Pane 2 が残り幅に自動調整される
+
+#### Scenario: 画面右端に余白がない
+
+- **WHEN** ワークスペースが表示される
+- **THEN** Pane 3 の右端がビューポート右端に接し、未使用の空白領域が存在しない
 
 #### Scenario: リロード後に幅が復元される
 
 - **WHEN** ユーザーがペイン幅を変更してページをリロードする
-- **THEN** 変更後のペイン幅が復元される
+- **THEN** 変更後の pane1 / pane3 幅が復元され、Pane 2 は残り幅にフィットする
+
+#### Scenario: リサイズハンドルにカーソルが変わる
+
+- **WHEN** ユーザーがペイン間のリサイズハンドル上にマウスを置く
+- **THEN** カーソルが `col-resize` に変わる
 
 ### Requirement: テーマ初期化
 
@@ -48,4 +63,27 @@ dx-training-studio の曼陀羅ボタン、シリーズ名表示、社内コン�
 
 - **WHEN** ワークスペースが表示される
 - **THEN** 曼陀羅ボタンは存在しない
+
+### Requirement: Tailwind ソーススキャン
+
+`.gitignore` はデータフォルダ `ebex/workspace/` のみを除外し、`components/workspace/` を除外してはならない（MUST NOT）。Tailwind CSS は `components/workspace/` 配下の TSX からユーティリティクラス（例: `size-3`, `cursor-col-resize`）を生成しなければならない（SHALL）。
+
+#### Scenario: 行アクションアイコンが意図サイズで表示される
+
+- **WHEN** Pane 1 のフォルダ行にマウスをホバーする
+- **THEN** 追加・編集・削除アイコンがコンパクトサイズ（`size-3.5` 相当）で表示される
+
+#### Scenario: gitignore がコンポーネントを除外しない
+
+- **WHEN** `git check-ignore components/workspace/FileTreePane.tsx` を実行する
+- **THEN** 当該パスは無視されない（exit code 1）
+
+### Requirement: ペインヘッダー高さ
+
+Pane 2 と Pane 3 のヘッダー行は `h-12`（48px）固定高さでなければならない（SHALL）。Pane 1 の EBEX タイトル行も `h-12` でなければならない（SHALL）。
+
+#### Scenario: Pane 2/3 ヘッダー高さが揃う
+
+- **WHEN** ワークスペースが表示される
+- **THEN** Pane 2 と Pane 3 のヘッダー行の高さが同一である
 

@@ -5,21 +5,21 @@ TBD - created by archiving change ebex-v1-workspace. Update Purpose after archiv
 ## Requirements
 ### Requirement: 3 ペイン構成
 
-ワークスペースは Pane 1（ファイルツリー）、Pane 2（編集+プレビュー）、Pane 3（Agent）の 3 ペインで構成されなければならない（SHALL）。Pane 1 ヘッダーにはツール名 **EBEX** が表示されなければならない（SHALL）。
+ワークスペースは Pane 1（ファイルツリー）、Pane 2（編集+プレビュー）、Pane 3（Agent）の 3 ペインで構成されなければならない（SHALL）。Pane 1 ヘッダーには `images/logo_small.png` とツール名 **EBEX** が左から順に表示されなければならない（SHALL）。
 
 #### Scenario: 3 ペインが同時に表示される
 
 - **WHEN** ユーザーが EBEX を起動する
 - **THEN** ファイルツリー、エディタ、Agent の 3 ペインが横並びで表示される
 
-#### Scenario: Pane 1 に EBEX 表示
+#### Scenario: Pane 1 にロゴと EBEX 表示
 
 - **WHEN** ワークスペースが表示される
-- **THEN** Pane 1 のヘッダーに「EBEX」が表示される
+- **THEN** Pane 1 のヘッダーにロゴと「EBEX」が表示される
 
 ### Requirement: ペインリサイズ
 
-Pane 1 と Pane 3 は固定幅、Pane 2（エディタ）は残り幅を吸収する可変幅ペインとしなければならない（SHALL）。Pane 1 右のリサイズハンドルは Pane 1 幅を、Pane 2–Pane 3 間のリサイズハンドルは Pane 3（Agent）幅を変更しなければならない（SHALL）。`pane-layout.ts` は pane1 / pane2 / pane3 の 3 ペイン用に定義され、Pane 2 幅は `totalWidth - pane1 - pane3 - ハンドル幅` で算出されなければならない（SHALL）。ペイン幅（pane1 / pane3）は localStorage に永続化されなければならない（SHALL）。3 ペインの合計は常にワークスペース幅いっぱいに広がり、右端に余白を残してはならない（SHALL NOT）。
+Pane 1 と Pane 3 は固定幅、Pane 2（エディタ）は残り幅を吸収する可変幅ペインとしなければならない（SHALL）。Pane 1 右のリサイズハンドルは Pane 1 幅を、Pane 2–Pane 3 間のリサイズハンドルは Pane 3（Agent）幅を変更しなければならない（SHALL）。`pane-layout.ts` は pane1 / pane2 / pane3 の 3 ペイン用に定義され、Pane 2 幅は `totalWidth - pane1 - pane3 - ハンドル幅` で算出されなければならない（SHALL）。ペイン幅（pane1 / pane3）は localStorage に永続化されなければならない（SHALL）。3 ペインの合計は常にワークスペース幅いっぱいに広がり、右端に余白を残してはならない（SHALL NOT）。pane1 の既定幅は 300px、最小幅 200px、最大幅 400px でなければならない（SHALL）。pane3 の既定幅は 600px、最小幅 400px、最大幅 800px でなければならない（SHALL）。
 
 #### Scenario: Pane 1 ハンドルで Pane 1 幅変更
 
@@ -46,6 +46,11 @@ Pane 1 と Pane 3 は固定幅、Pane 2（エディタ）は残り幅を吸収�
 - **WHEN** ユーザーがペイン間のリサイズハンドル上にマウスを置く
 - **THEN** カーソルが `col-resize` に変わる
 
+#### Scenario: 新規ユーザーの既定ペイン幅
+
+- **WHEN** ペイン幅の localStorage が未設定のユーザーが EBEX を起動する
+- **THEN** pane1 は 300px、pane3 は 600px で表示される
+
 ### Requirement: テーマ初期化
 
 `ThemeInitializer` により workspace-settings のテーマ設定（light / dark / system）が適用されなければならない（SHALL）。
@@ -67,11 +72,6 @@ dx-training-studio の曼陀羅ボタン、シリーズ名表示、社内コン�
 ### Requirement: Tailwind ソーススキャン
 
 `.gitignore` はデータフォルダ `ebex/workspace/` のみを除外し、`components/workspace/` を除外してはならない（MUST NOT）。Tailwind CSS は `components/workspace/` 配下の TSX からユーティリティクラス（例: `size-3`, `cursor-col-resize`）を生成しなければならない（SHALL）。
-
-#### Scenario: 行アクションアイコンが意図サイズで表示される
-
-- **WHEN** Pane 1 のフォルダ行にマウスをホバーする
-- **THEN** 追加・編集・削除アイコンがコンパクトサイズ（`size-3.5` 相当）で表示される
 
 #### Scenario: gitignore がコンポーネントを除外しない
 

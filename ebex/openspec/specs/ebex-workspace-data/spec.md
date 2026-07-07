@@ -5,12 +5,12 @@ TBD - created by archiving change ebex-v1-workspace. Update Purpose after archiv
 ## Requirements
 ### Requirement: workspace 読み込み API
 
-`GET /api/workspace/load` エンドポイントが存在し、`workspace/` 直下の全プロジェクトフォルダと各フォルダ内のファイル一覧を返さなければならない（SHALL）。`session.json` は応答に含めてはならない（MUST NOT）。サブフォルダの存在は `hasSubfolders: true` フラグで通知しなければならない（SHALL）。
+`GET /api/workspace/load` エンドポイントが存在し、`workspace/` 直下の全プロジェクトフォルダと **各フォルダ配下の再帰ツリー**（サブフォルダ・ファイル）を返さなければならない（SHALL）。応答の各ノードは `name`・`path`（`workspace/` からの相対フォルダパス）・`files`（直下ファイル basename 配列）・`children`（子フォルダノード配列）を含まなければならない（SHALL）。`session.json` は応答に含めてはならない（MUST NOT）。`hasSubfolders` フラグは返してはならない（MUST NOT）。
 
-#### Scenario: フォルダとファイル一覧
+#### Scenario: 再帰ツリー応答
 
-- **WHEN** `GET /api/workspace/load` を呼び出す
-- **THEN** プロジェクトフォルダ名と各フォルダ内のファイル名リストが返される
+- **WHEN** `workspace/demo/sub/notes.md` が存在し `GET /api/workspace/load` を呼び出す
+- **THEN** `demo` ノードの子に `sub` があり、`sub` の `files` に `notes.md` が含まれる
 
 #### Scenario: session.json 除外
 
@@ -30,42 +30,42 @@ TBD - created by archiving change ebex-v1-workspace. Update Purpose after archiv
 
 以下のエンドポイントが存在しなければならない（SHALL）:
 
-- `POST /api/workspace/create-folder` — フォルダ作成
-- `POST /api/workspace/rename-folder` — フォルダリネーム（`session.json` もフォルダごと移動）
-- `POST /api/workspace/delete-folder` — 空フォルダのみ削除
+- `POST /api/workspace/create-folder` — プロジェクトフォルダ作成（`{ name }`）またはサブフォルダ作成（`{ parentPath, name }`）
+- `POST /api/workspace/rename-folder` — フォルダリネーム（`{ fromPath, toPath }`、`session.json` はプロジェクトルート移動時のみ連動）
+- `POST /api/workspace/delete-folder` — 空フォルダのみ削除（`{ folderPath }`）
 
-#### Scenario: フォルダ作成
+#### Scenario: サブフォルダ作成
 
-- **WHEN** `POST /api/workspace/create-folder` に `{ "name": "20260706-demo" }` を送信する
-- **THEN** `workspace/20260706-demo/` が作成され HTTP 200 が返される
+- **WHEN** `POST /api/workspace/create-folder` に `{ "parentPath": "demo", "name": "sub" }` を送信する
+- **THEN** `workspace/demo/sub/` が作成され HTTP 200 が返される
 
-#### Scenario: リネーム時の session.json 移動
+#### Scenario: ネストパスでのリネーム
 
-- **WHEN** フォルダをリネームする
-- **THEN** フォルダ内の `session.json` も新フォルダ名の配下に移動される
+- **WHEN** `{ "fromPath": "demo/sub", "toPath": "demo/sub-renamed" }` でリネームする
+- **THEN** フォルダが移動し HTTP 200 が返される
+
+#### Scenario: 空でないフォルダは削除不可
+
+- **WHEN** サブフォルダまたはファイルを含む `folderPath` で削除を試みる
+- **THEN** HTTP 400 が返される
 
 ### Requirement: ファイル CRUD API
 
-以下のエンドポイントが存在しなければならない（SHALL）:
+ファイル CRUD は `folderPath`（ファイルの親フォルダ相対パス）と `fileName`（basename）で操作されなければならない（SHALL）。`folderPath` はネストパス（例: `demo/sub`）を許可しなければならない（SHALL）。
 
-- `POST /api/workspace/create-file` — ファイル作成
-- `POST /api/workspace/rename-file` — ファイルリネーム
-- `POST /api/workspace/delete-file` — ファイル削除
-- `POST /api/workspace/save-file` — ファイル内容保存
+#### Scenario: ネストフォルダ内ファイル保存
 
-#### Scenario: ファイル保存
-
-- **WHEN** `POST /api/workspace/save-file` にフォルダ名、ファイル名、内容を送信する
-- **THEN** 対応ファイルがディスクに書き込まれ HTTP 200 が返される
+- **WHEN** `POST /api/workspace/save-file` に `folderPath: "demo/sub"`, `fileName: "notes.md"` を送信する
+- **THEN** `workspace/demo/sub/notes.md` に書き込まれる
 
 ### Requirement: AI フォルダ名提案 API
 
-`POST /api/workspace/suggest-folder-name` エンドポイントが存在し、フォルダ内ファイルの内容から `{YYYYMMDD}-{slug}` 形式の名前を提案しなければならない（SHALL）。空フォルダ時は `{YYYYMMDD}-untitled` を返さなければならない（SHALL）。
+`POST /api/workspace/suggest-folder-name` は `folderPath`（プロジェクトフォルダ ID またはネストパス）を受け取り、**当該フォルダ配下のファイル**（再帰）の内容からスラッグを提案しなければならない（SHALL）。呼び出しはプロジェクトフォルダ（`folderPath` に `/` なし）のリネーム時に限定される（SHALL）。
 
-#### Scenario: スラッグ提案
+#### Scenario: ネストファイルを含むスラッグ提案
 
-- **WHEN** フォルダ内に `meeting-notes.md` が存在し API を呼び出す
-- **THEN** `20260706-meeting-notes` 形式の名前が提案される
+- **WHEN** `demo/sub/meeting.md` が存在し `folderPath: "demo"` で API を呼び出す
+- **THEN** フォルダ配下の内容に基づく `{YYYYMMDD}-{slug}` が提案される
 
 ### Requirement: mtime ポーリング同期
 
@@ -87,10 +87,15 @@ TBD - created by archiving change ebex-v1-workspace. Update Purpose after archiv
 
 ### Requirement: パストラバーサル防止
 
-すべての workspace API は `folderId` / ファイル名に `..` やパス区切り文字を含む値を拒否しなければならない（SHALL）。操作対象は `workspace/` 配下に限定されなければならない（SHALL）。
+すべての workspace API はパスに `..` を含む値を拒否しなければならない（SHALL）。操作対象は `workspace/` 配下に `path.resolve` で限定されなければならない（SHALL）。`folderPath` は `/` 区切りの相対パスを許可しなければならない（SHALL）。
 
 #### Scenario: 不正パス拒否
 
-- **WHEN** `folderId` に `../` を含むリクエストを送信する
+- **WHEN** `folderPath` に `../` を含むリクエストを送信する
 - **THEN** HTTP 400 が返される
+
+#### Scenario: ネストパス許可
+
+- **WHEN** `folderPath` に `demo/sub` を指定する
+- **THEN** HTTP 200 で操作が成功する
 

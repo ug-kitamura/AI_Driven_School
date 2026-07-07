@@ -37,10 +37,20 @@ TBD - created by archiving change ebex-v1-workspace. Update Purpose after archiv
 
 ### Requirement: ペイン既定幅
 
-ペイン既定幅の変更は 5px 刻みで clamp されなければならない（SHALL）。pane2（エディタ）の最小幅は 400px でなければならない（SHALL）。
+ペイン既定幅の変更は 5px 刻みで clamp されなければならない（SHALL）。pane1 の既定値は 300px、最小 200px、最大 400px でなければならない（SHALL）。pane3 の既定値は 600px、最小 400px、最大 800px でなければならない（SHALL）。pane2（エディタ）の最小幅は 400px でなければならない（SHALL）。
 
-#### Scenario: ペイン幅の clamp
+#### Scenario: pane3 の最小 clamp
 
 - **WHEN** ユーザーが pane3 の既定幅を 200 に設定しようとする
 - **THEN** 最小値（400）に clamp される
+
+#### Scenario: pane1 の既定値
+
+- **WHEN** ユーザーがペイン既定幅をリセットする
+- **THEN** pane1 は 300px に戻る
+
+#### Scenario: pane3 の既定値
+
+- **WHEN** ユーザーがペイン既定幅をリセットする
+- **THEN** pane3 は 600px に戻る
 

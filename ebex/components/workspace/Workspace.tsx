@@ -220,8 +220,6 @@ export function Workspace({ initialFolders }: WorkspaceProps) {
             onContentChange={handleContentChange}
             onSave={handleSave}
             onPendingSaveChange={setPendingSave}
-            onOpenSettings={() => setSettingsOpen(true)}
-            onOpenPurpose={() => setPurposeOpen(true)}
             onRegisterInsertCallback={(cb) => {
               insertCallbackRef.current = cb;
             }}

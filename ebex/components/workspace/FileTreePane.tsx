@@ -474,7 +474,9 @@ export function FileTreePane({
           <Image
             src={logoSmall}
             alt=""
-            className="size-6 shrink-0"
+            width={logoSmall.width}
+            height={logoSmall.height}
+            className="h-6 w-auto shrink-0"
             priority
           />
           <span className="font-semibold tracking-tight">EBEX</span>

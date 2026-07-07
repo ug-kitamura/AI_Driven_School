@@ -2,9 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import dynamic from "next/dynamic";
-import { Code, Eye, Leaf, Settings } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
+import { Code, Eye } from "lucide-react";
 import {
   PaneSegmentControl,
   type PaneSegmentOption,
@@ -42,8 +40,6 @@ type Props = {
   onContentChange: (content: string) => void;
   onSave: (content: string) => Promise<void>;
   onPendingSaveChange: (pending: boolean) => void;
-  onOpenSettings: () => void;
-  onOpenPurpose: () => void;
   onRegisterInsertCallback: (cb: (markdown: string) => void) => void;
   onRegisterOverwriteCallback: (cb: (markdown: string) => void) => void;
 };
@@ -57,8 +53,6 @@ export function EditorPane({
   onContentChange,
   onSave,
   onPendingSaveChange,
-  onOpenSettings,
-  onOpenPurpose,
   onRegisterInsertCallback,
   onRegisterOverwriteCallback,
 }: Props) {
@@ -113,11 +107,7 @@ export function EditorPane({
   if (!folderPath || !fileName) {
     return (
       <div className="flex h-full flex-col">
-        <EditorHeader
-          breadcrumb="ファイルを選択してください"
-          onOpenPurpose={onOpenPurpose}
-          onOpenSettings={onOpenSettings}
-        />
+        <EditorHeader breadcrumb="ファイルを選択してください" />
         <div className="flex flex-1 items-center justify-center text-sm text-muted-foreground">
           Pane 1 からフォルダとファイルを選択してください
         </div>
@@ -129,8 +119,6 @@ export function EditorPane({
     <div className="flex h-full min-h-0 flex-col">
       <EditorHeader
         breadcrumb={`${folderPath} / ${fileName}`}
-        onOpenPurpose={onOpenPurpose}
-        onOpenSettings={onOpenSettings}
         modeControl={
           supportsPreview(fileName) ? (
             <PaneSegmentControl
@@ -161,13 +149,9 @@ export function EditorPane({
 
 function EditorHeader({
   breadcrumb,
-  onOpenPurpose,
-  onOpenSettings,
   modeControl,
 }: {
   breadcrumb: string;
-  onOpenPurpose: () => void;
-  onOpenSettings: () => void;
   modeControl?: React.ReactNode;
 }) {
   return (
@@ -176,24 +160,6 @@ function EditorHeader({
         {breadcrumb}
       </span>
       {modeControl}
-      <Button
-        type="button"
-        variant="ghost"
-        size="icon-sm"
-        aria-label="EBE Purpose"
-        onClick={onOpenPurpose}
-      >
-        <Leaf className="size-4" />
-      </Button>
-      <Button
-        type="button"
-        variant="ghost"
-        size="icon-sm"
-        aria-label="設定"
-        onClick={onOpenSettings}
-      >
-        <Settings className="size-4" />
-      </Button>
     </div>
   );
 }

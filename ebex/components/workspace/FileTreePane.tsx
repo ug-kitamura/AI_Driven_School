@@ -239,7 +239,7 @@ export function FileTreePane({
 
   return (
     <div className="flex h-full min-h-0 flex-col">
-      <div className="flex shrink-0 items-center justify-between border-b px-3 py-2">
+      <div className="flex h-12 shrink-0 items-center justify-between border-b px-3 py-0">
         <span className="font-semibold tracking-tight">EBEX</span>
         <div className="flex items-center gap-1">
           <Button

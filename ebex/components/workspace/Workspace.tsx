@@ -9,6 +9,7 @@ import { AgentPane } from "@/components/workspace/AgentPane";
 import { PurposeDialog } from "@/components/workspace/PurposeDialog";
 import { WorkspaceSettingsDialog } from "@/components/workspace/WorkspaceSettingsDialog";
 import { PaneResizeHandle } from "@/components/workspace/PaneResizeHandle";
+import { PANE2_MIN_WIDTH } from "@/components/workspace/pane-layout";
 import { useWorkspacePaneWidths } from "@/components/workspace/use-workspace-pane-widths";
 import { useWorkspaceSync } from "@/components/workspace/hooks/use-workspace-sync";
 import type { WorkspaceFolder } from "@/lib/workspace-loader";
@@ -177,8 +178,8 @@ export function Workspace({ initialFolders }: WorkspaceProps) {
         <PaneResizeHandle {...resizeHandleProps("pane1")} />
 
         <div
-          className="flex h-full min-h-0 shrink-0 flex-col"
-          style={{ width: paneWidths.pane2 }}
+          className="flex h-full min-h-0 min-w-0 flex-1 flex-col"
+          style={{ minWidth: PANE2_MIN_WIDTH }}
         >
           <EditorPane
             folderId={selectedFolderId}
@@ -198,7 +199,7 @@ export function Workspace({ initialFolders }: WorkspaceProps) {
           />
         </div>
 
-        <PaneResizeHandle {...resizeHandleProps("pane2")} />
+        <PaneResizeHandle {...resizeHandleProps("pane3")} />
 
         <div
           className="flex h-full min-h-0 shrink-0 flex-col"

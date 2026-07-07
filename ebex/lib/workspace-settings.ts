@@ -56,7 +56,7 @@ function normalizePaneDefaults(
 ): WorkspacePaneWidths {
   return {
     pane1: clampPaneWidth("pane1", raw?.pane1 ?? PANE_WIDTH_DEFAULTS.pane1),
-    pane2: clampPaneWidth("pane2", raw?.pane2 ?? PANE_WIDTH_DEFAULTS.pane2),
+    pane2: PANE_WIDTH_DEFAULTS.pane2,
     pane3: clampPaneWidth("pane3", raw?.pane3 ?? PANE_WIDTH_DEFAULTS.pane3),
   };
 }
@@ -74,7 +74,6 @@ export function loadWorkspaceSettings(): WorkspaceSettings {
       paneDefaults
         ? {
             pane1: paneDefaults.pane1,
-            pane2: paneDefaults.pane2 ?? paneDefaults.pane4,
             pane3: paneDefaults.pane3 ?? paneDefaults.pane4,
           }
         : undefined;

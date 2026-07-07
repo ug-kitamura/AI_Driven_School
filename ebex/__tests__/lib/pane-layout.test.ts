@@ -1,7 +1,9 @@
 import { describe, expect, it } from "vitest";
 import {
   clampPaneWidth,
+  computePane2Width,
   fitPaneLayout,
+  PANE2_MIN_WIDTH,
   PANE_RESIZE_HANDLE_WIDTH_PX,
   PANE_WIDTH_LIMITS,
   PANE_WIDTH_STEP,
@@ -9,7 +11,7 @@ import {
   snapPaneWidths,
 } from "@/components/workspace/pane-layout";
 
-const defaultWidths = { pane1: 250, pane2: 600, pane3: 400 };
+const storedDefaults = { pane1: 250, pane3: 400 };
 
 function handles() {
   return 2 * PANE_RESIZE_HANDLE_WIDTH_PX;
@@ -40,56 +42,60 @@ describe("snapPaneWidth", () => {
 });
 
 describe("snapPaneWidths", () => {
-  it("snaps each pane independently", () => {
+  it("snaps pane1 and pane3 only", () => {
     expect(
       snapPaneWidths({ pane1: 302, pane2: 598, pane3: 301 }),
-    ).toEqual({ pane1: 300, pane2: 600, pane3: 300 });
+    ).toEqual({ pane1: 300, pane2: 598, pane3: 300 });
+  });
+});
+
+describe("computePane2Width", () => {
+  it("returns remaining width after pane1, pane3, and handles", () => {
+    const totalWidth = 1500;
+    expect(computePane2Width(storedDefaults, totalWidth)).toBe(
+      totalWidth - storedDefaults.pane1 - storedDefaults.pane3 - handles(),
+    );
   });
 });
 
 describe("fitPaneLayout", () => {
-  it("returns requested widths when all panes fit", () => {
-    const totalWidth =
-      defaultWidths.pane1 +
-      defaultWidths.pane2 +
-      defaultWidths.pane3 +
-      handles() +
-      100;
+  it("returns requested pane1/pane3 with derived pane2 when space is ample", () => {
+    const totalWidth = 1500;
+    const result = fitPaneLayout({
+      requested: { pane1: 250, pane2: 0, pane3: 400 },
+      totalWidth,
+    });
 
-    expect(
-      fitPaneLayout({
-        requested: defaultWidths,
-        totalWidth,
-      }),
-    ).toEqual(defaultWidths);
+    expect(result.pane1).toBe(250);
+    expect(result.pane3).toBe(400);
+    expect(result.pane2).toBe(computePane2Width(storedDefaults, totalWidth));
+    expect(result.pane2).toBeGreaterThanOrEqual(PANE2_MIN_WIDTH);
   });
 
-  it("shrinks pane3 first when space is tight", () => {
+  it("shrinks pane3 first when pane2 would fall below minimum", () => {
     const totalWidth =
-      defaultWidths.pane1 +
-      defaultWidths.pane2 +
-      PANE_WIDTH_LIMITS.pane3.min +
-      handles();
+      storedDefaults.pane1 + PANE2_MIN_WIDTH + PANE_WIDTH_LIMITS.pane3.min + handles();
 
     const result = fitPaneLayout({
-      requested: defaultWidths,
+      requested: { pane1: 250, pane2: 0, pane3: 800 },
       totalWidth,
     });
 
     expect(result.pane3).toBe(PANE_WIDTH_LIMITS.pane3.min);
-    expect(result.pane1).toBe(defaultWidths.pane1);
-    expect(result.pane2).toBe(defaultWidths.pane2);
+    expect(result.pane1).toBe(storedDefaults.pane1);
+    expect(result.pane2).toBeGreaterThanOrEqual(PANE2_MIN_WIDTH);
   });
 
-  it("when expanding pane2 shrinks pane3 first", () => {
-    const totalWidth = 1510;
+  it("when expanding pane3 shrinks pane1 if needed", () => {
+    const totalWidth = 1350;
     const result = fitPaneLayout({
-      requested: { pane1: 250, pane2: 700, pane3: 450 },
+      requested: { pane1: 250, pane2: 0, pane3: 700 },
       totalWidth,
-      expandPane: "pane2",
+      expandPane: "pane3",
     });
 
-    expect(result.pane2).toBe(700);
-    expect(result.pane3).toBeLessThanOrEqual(450);
+    expect(result.pane3).toBe(700);
+    expect(result.pane1).toBeLessThan(250);
+    expect(result.pane2).toBeGreaterThanOrEqual(PANE2_MIN_WIDTH);
   });
 });

@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
 import { ThemeInitializer } from "@/components/workspace/ThemeInitializer";
 import { FileTreePane } from "@/components/workspace/FileTreePane";
@@ -12,37 +12,39 @@ import { PaneResizeHandle } from "@/components/workspace/PaneResizeHandle";
 import { PANE2_MIN_WIDTH } from "@/components/workspace/pane-layout";
 import { useWorkspacePaneWidths } from "@/components/workspace/use-workspace-pane-widths";
 import { useWorkspaceSync } from "@/components/workspace/hooks/use-workspace-sync";
+import { useRestoredFileSelection } from "@/components/workspace/hooks/use-restored-file-selection";
 import type { WorkspaceTreeNode } from "@/lib/workspace-loader";
 import type { AgentChatController } from "@/lib/agent-chat-controller";
 import {
-  loadLastFileSelection,
   saveLastFileSelection,
+  type LastFileSelection,
 } from "@/lib/workspace-file-selection";
 import { ALLOWED_PREFIX } from "@/lib/workspace-constants";
-import { fileExistsInTree, getProjectFolderId } from "@/lib/workspace-tree";
+import { getProjectFolderId } from "@/lib/workspace-tree";
 
 type WorkspaceProps = {
   initialFolders: WorkspaceTreeNode[];
 };
 
-function resolveInitialSelection(folders: WorkspaceTreeNode[]) {
-  const last = loadLastFileSelection();
-  if (last && fileExistsInTree(folders, last.folderPath, last.fileName)) {
-    return { folderPath: last.folderPath, fileName: last.fileName };
-  }
+function resolveDefaultSelection(folders: WorkspaceTreeNode[]) {
   const first = folders[0];
   return { folderPath: first?.path ?? "", fileName: first?.files[0] ?? "" };
 }
 
 export function Workspace({ initialFolders }: WorkspaceProps) {
-  const initialSelection = resolveInitialSelection(initialFolders);
   const [folders, setFolders] = useState<WorkspaceTreeNode[]>(initialFolders);
-  const [selectedFolderPath, setSelectedFolderPath] = useState(
-    initialSelection.folderPath,
+  const defaultSelection = useMemo(
+    () => resolveDefaultSelection(folders),
+    [folders],
   );
-  const [selectedFileName, setSelectedFileName] = useState(
-    initialSelection.fileName,
+  const restoredSelection = useRestoredFileSelection(folders);
+  const [userSelection, setUserSelection] = useState<LastFileSelection | null>(
+    null,
   );
+  const activeSelection =
+    userSelection ?? restoredSelection ?? defaultSelection;
+  const selectedFolderPath = activeSelection.folderPath;
+  const selectedFileName = activeSelection.fileName;
   const [fileContent, setFileContent] = useState("");
   const [pendingSave, setPendingSave] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -135,8 +137,7 @@ export function Workspace({ initialFolders }: WorkspaceProps) {
 
   const handleSelectFile = useCallback(
     (folderPath: string, fileName: string) => {
-      setSelectedFolderPath(folderPath);
-      setSelectedFileName(fileName);
+      setUserSelection({ folderPath, fileName });
     },
     [],
   );
@@ -170,8 +171,7 @@ export function Workspace({ initialFolders }: WorkspaceProps) {
     pendingSave,
     onFoldersLoaded: setFolders,
     onSelectionChange: ({ folderPath, fileName }) => {
-      setSelectedFolderPath(folderPath);
-      setSelectedFileName(fileName);
+      setUserSelection({ folderPath, fileName });
     },
   });
 

@@ -11,7 +11,7 @@ import {
   snapPaneWidths,
 } from "@/components/workspace/pane-layout";
 
-const storedDefaults = { pane1: 250, pane3: 400 };
+const storedDefaults = { pane1: 300, pane3: 600 };
 
 function handles() {
   return 2 * PANE_RESIZE_HANDLE_WIDTH_PX;
@@ -44,8 +44,8 @@ describe("snapPaneWidth", () => {
 describe("snapPaneWidths", () => {
   it("snaps pane1 and pane3 only", () => {
     expect(
-      snapPaneWidths({ pane1: 302, pane2: 598, pane3: 301 }),
-    ).toEqual({ pane1: 300, pane2: 598, pane3: 300 });
+      snapPaneWidths({ pane1: 302, pane2: 598, pane3: 401 }),
+    ).toEqual({ pane1: 300, pane2: 598, pane3: 400 });
   });
 });
 
@@ -62,12 +62,12 @@ describe("fitPaneLayout", () => {
   it("returns requested pane1/pane3 with derived pane2 when space is ample", () => {
     const totalWidth = 1500;
     const result = fitPaneLayout({
-      requested: { pane1: 250, pane2: 0, pane3: 400 },
+      requested: { pane1: 300, pane2: 0, pane3: 600 },
       totalWidth,
     });
 
-    expect(result.pane1).toBe(250);
-    expect(result.pane3).toBe(400);
+    expect(result.pane1).toBe(300);
+    expect(result.pane3).toBe(600);
     expect(result.pane2).toBe(computePane2Width(storedDefaults, totalWidth));
     expect(result.pane2).toBeGreaterThanOrEqual(PANE2_MIN_WIDTH);
   });
@@ -77,7 +77,7 @@ describe("fitPaneLayout", () => {
       storedDefaults.pane1 + PANE2_MIN_WIDTH + PANE_WIDTH_LIMITS.pane3.min + handles();
 
     const result = fitPaneLayout({
-      requested: { pane1: 250, pane2: 0, pane3: 800 },
+      requested: { pane1: 300, pane2: 0, pane3: 800 },
       totalWidth,
     });
 
@@ -89,13 +89,13 @@ describe("fitPaneLayout", () => {
   it("when expanding pane3 shrinks pane1 if needed", () => {
     const totalWidth = 1350;
     const result = fitPaneLayout({
-      requested: { pane1: 250, pane2: 0, pane3: 700 },
+      requested: { pane1: 300, pane2: 0, pane3: 700 },
       totalWidth,
       expandPane: "pane3",
     });
 
     expect(result.pane3).toBe(700);
-    expect(result.pane1).toBeLessThan(250);
+    expect(result.pane1).toBeLessThan(300);
     expect(result.pane2).toBeGreaterThanOrEqual(PANE2_MIN_WIDTH);
   });
 });

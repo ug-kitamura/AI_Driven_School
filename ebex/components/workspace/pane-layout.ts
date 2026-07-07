@@ -5,9 +5,9 @@ export type WorkspacePaneWidths = {
 };
 
 export const PANE_WIDTH_DEFAULTS: WorkspacePaneWidths = {
-  pane1: 250,
+  pane1: 300,
   pane2: 600,
-  pane3: 400,
+  pane3: 600,
 };
 
 /** Pane 2（エディタ）の最小幅 — 派生幅のため永続化・設定 UI には含めない */
@@ -17,7 +17,7 @@ export const PANE2_MIN_WIDTH = 400;
 export const PANE_MIN_WIDTHS: Record<keyof WorkspacePaneWidths, number> = {
   pane1: 200,
   pane2: PANE2_MIN_WIDTH,
-  pane3: 300,
+  pane3: 400,
 };
 
 /** ウィンドウリサイズ等: pane2 不足時の縮小順（pane2 は派生のため含めない） */
@@ -45,7 +45,7 @@ export const PANE_WIDTH_STEP = 5;
 export const PANE_WIDTH_LIMITS = {
   pane1: { min: 200, max: 400 },
   pane2: { min: PANE2_MIN_WIDTH, max: 1200 },
-  pane3: { min: 300, max: 800 },
+  pane3: { min: 400, max: 800 },
 } as const;
 
 /** 左端の区切り線: 右ドラッグでペイン幅が狭くなる */

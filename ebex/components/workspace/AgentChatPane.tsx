@@ -73,7 +73,18 @@ import { WorkspaceTooltip } from "@/components/workspace/WorkspaceTooltip";
 import { cn } from "@/lib/utils";
 import type { Course, Lesson, Series } from "@/lib/schema";
 import type { SkillSummary } from "@/lib/agent/skill-loader";
+import { ALLOWED_PREFIX } from "@/lib/workspace-constants";
 import { resolveInvokeSkillId } from "@/lib/agent/resolve-invoke-skill";
+
+function toProjectRelativePath(
+  currentFilePath: string | null,
+  projectFolderId: string,
+): string | undefined {
+  if (!currentFilePath || !projectFolderId) return undefined;
+  const prefix = `${ALLOWED_PREFIX}${projectFolderId}/`;
+  if (!currentFilePath.startsWith(prefix)) return undefined;
+  return currentFilePath.slice(prefix.length);
+}
 
 type Props = {
   folderId?: string;
@@ -427,7 +438,8 @@ export function AgentChatPane({
   const loadContentFiles = useCallback(async () => {
     if (folderId) {
       const params = new URLSearchParams({ folderId });
-      if (filePath) params.set("current", filePath);
+      const currentRelative = toProjectRelativePath(filePath, folderId);
+      if (currentRelative) params.set("current", currentRelative);
       const res = await fetch(`/api/agent/files?${params.toString()}`);
       const data = (await res.json()) as { files?: AgentFileOption[] };
       return data.files ?? [];

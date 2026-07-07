@@ -36,7 +36,7 @@ const MODE_TABS: ReadonlyArray<PaneSegmentOption<EditorViewMode>> = [
 ];
 
 type Props = {
-  folderId: string;
+  folderPath: string;
   fileName: string;
   content: string;
   onContentChange: (content: string) => void;
@@ -51,7 +51,7 @@ type Props = {
 const SAVE_DEBOUNCE_MS = 800;
 
 export function EditorPane({
-  folderId,
+  folderPath,
   fileName,
   content,
   onContentChange,
@@ -66,7 +66,7 @@ export function EditorPane({
   const editorRef = useRef<LessonContentEditorHandle>(null);
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const fileKey = `${folderId}/${fileName}`;
+  const fileKey = `${folderPath}/${fileName}`;
 
   const scheduleSave = useCallback(
     (nextContent: string) => {
@@ -110,7 +110,7 @@ export function EditorPane({
 
   const showPreview = mode === "preview" && supportsPreview(fileName);
 
-  if (!folderId || !fileName) {
+  if (!folderPath || !fileName) {
     return (
       <div className="flex h-full flex-col">
         <EditorHeader
@@ -128,7 +128,7 @@ export function EditorPane({
   return (
     <div className="flex h-full min-h-0 flex-col">
       <EditorHeader
-        breadcrumb={`${folderId} / ${fileName}`}
+        breadcrumb={`${folderPath} / ${fileName}`}
         onOpenPurpose={onOpenPurpose}
         onOpenSettings={onOpenSettings}
         modeControl={

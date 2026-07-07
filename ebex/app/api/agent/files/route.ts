@@ -14,6 +14,10 @@ export async function GET(req: Request) {
   const files = orderWorkspaceFilesForPicker(
     listWorkspaceFolderFiles(projectRoot, folderId),
     current,
-  );
+  ).map((file) => ({
+    name: file.name,
+    path: file.path,
+    relativePath: file.relativePath,
+  }));
   return Response.json({ files });
 }

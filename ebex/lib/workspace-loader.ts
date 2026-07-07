@@ -3,18 +3,21 @@ import path from "node:path";
 import {
   SESSION_FILENAME,
   ensureWorkspaceDir,
-  folderHasSubfolders,
   getWorkspaceDir,
 } from "@/lib/workspace-paths";
 
-export type WorkspaceFolder = {
-  id: string;
+export type WorkspaceTreeNode = {
+  name: string;
+  path: string;
   files: string[];
-  hasSubfolders: boolean;
+  children: WorkspaceTreeNode[];
 };
 
+/** @deprecated use WorkspaceTreeNode */
+export type WorkspaceFolder = WorkspaceTreeNode;
+
 export type WorkspaceLoadResult = {
-  folders: WorkspaceFolder[];
+  folders: WorkspaceTreeNode[];
 };
 
 function listUserFiles(dirPath: string): string[] {
@@ -31,23 +34,49 @@ function listUserFiles(dirPath: string): string[] {
     .sort((a, b) => a.localeCompare(b, "ja"));
 }
 
+function loadFolderTree(
+  absoluteDir: string,
+  folderPath: string,
+  folderName: string,
+): WorkspaceTreeNode {
+  const children: WorkspaceTreeNode[] = [];
+  if (fs.existsSync(absoluteDir)) {
+    for (const entry of fs.readdirSync(absoluteDir, { withFileTypes: true })) {
+      if (!entry.isDirectory() || entry.name.startsWith(".")) continue;
+      const childPath = folderPath ? `${folderPath}/${entry.name}` : entry.name;
+      children.push(
+        loadFolderTree(
+          path.join(absoluteDir, entry.name),
+          childPath,
+          entry.name,
+        ),
+      );
+    }
+  }
+  children.sort((a, b) => a.name.localeCompare(b.name, "ja"));
+
+  return {
+    name: folderName,
+    path: folderPath,
+    files: listUserFiles(absoluteDir),
+    children,
+  };
+}
+
 export function loadWorkspace(projectRoot: string): WorkspaceLoadResult {
   ensureWorkspaceDir(projectRoot);
   const workspaceDir = getWorkspaceDir(projectRoot);
   const entries = fs.readdirSync(workspaceDir, { withFileTypes: true });
-  const folders: WorkspaceFolder[] = [];
+  const folders: WorkspaceTreeNode[] = [];
 
   for (const entry of entries) {
     if (!entry.isDirectory() || entry.name.startsWith(".")) continue;
-    const folderPath = path.join(workspaceDir, entry.name);
-    folders.push({
-      id: entry.name,
-      files: listUserFiles(folderPath),
-      hasSubfolders: folderHasSubfolders(projectRoot, entry.name),
-    });
+    folders.push(
+      loadFolderTree(path.join(workspaceDir, entry.name), entry.name, entry.name),
+    );
   }
 
-  folders.sort((a, b) => a.id.localeCompare(b.id, "ja"));
+  folders.sort((a, b) => a.path.localeCompare(b.path, "ja"));
   return { folders };
 }
 

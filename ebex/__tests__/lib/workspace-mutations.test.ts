@@ -5,6 +5,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import {
   createFile,
   createFolder,
+  createSubFolder,
   deleteFile,
   deleteFolder,
   readFileContent,
@@ -13,12 +14,12 @@ import {
   saveFile,
 } from "@/lib/workspace-mutations";
 import { loadWorkspace } from "@/lib/workspace-loader";
-import { validateFolderId, validateFileName } from "@/lib/workspace-paths";
+import { validateFileName, validateRelativeFolderPath } from "@/lib/workspace-paths";
 
 describe("workspace-paths", () => {
-  it("rejects path traversal in folderId", () => {
-    expect(validateFolderId("../evil")).not.toBeNull();
-    expect(validateFolderId("foo/bar")).not.toBeNull();
+  it("rejects path traversal in folder paths", () => {
+    expect(validateRelativeFolderPath("../evil")).not.toBeNull();
+    expect(validateRelativeFolderPath("foo/bar")).toBeNull();
   });
 
   it("rejects session.json as file name", () => {
@@ -44,19 +45,47 @@ describe("workspace mutations", () => {
 
     const loaded = loadWorkspace(tmpDir);
     expect(loaded.folders).toHaveLength(1);
-    expect(loaded.folders[0]?.id).toBe("demo");
+    expect(loaded.folders[0]?.path).toBe("demo");
     expect(loaded.folders[0]?.files).toContain("notes.md");
     expect(loaded.folders[0]?.files).not.toContain("session.json");
+  });
+
+  it("creates nested subfolder and file", () => {
+    tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "ebex-ws-"));
+    createFolder(tmpDir, "demo");
+    expect(createSubFolder(tmpDir, "demo", "sub")).toEqual({
+      ok: true,
+      path: "demo/sub",
+    });
+    expect(createFile(tmpDir, "demo/sub", "notes.md", "nested")).toEqual({
+      ok: true,
+    });
+
+    const loaded = loadWorkspace(tmpDir);
+    expect(loaded.folders[0]?.children[0]?.files).toContain("notes.md");
   });
 
   it("renames folder and file", () => {
     tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "ebex-ws-"));
     createFolder(tmpDir, "old");
     createFile(tmpDir, "old", "a.md", "x");
-    expect(renameFolder(tmpDir, "old", "new")).toEqual({ ok: true, newId: "new" });
+    expect(renameFolder(tmpDir, "old", "new")).toEqual({
+      ok: true,
+      newPath: "new",
+    });
     expect(renameFile(tmpDir, "new", "a.md", "b.md")).toEqual({
       ok: true,
       newName: "b.md",
+    });
+  });
+
+  it("renames nested folder", () => {
+    tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "ebex-ws-"));
+    createFolder(tmpDir, "demo");
+    createSubFolder(tmpDir, "demo", "sub");
+    expect(renameFolder(tmpDir, "demo/sub", "demo/sub-renamed")).toEqual({
+      ok: true,
+      newPath: "demo/sub-renamed",
     });
   });
 

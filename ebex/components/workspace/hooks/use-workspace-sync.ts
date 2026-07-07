@@ -1,26 +1,32 @@
 "use client";
 
 import { useEffect, useRef, useCallback } from "react";
-import type { WorkspaceFolder } from "@/lib/workspace-loader";
+import type { WorkspaceTreeNode } from "@/lib/workspace-loader";
+import {
+  fileExistsInTree,
+  findTreeNode,
+  folderExistsInTree,
+  remapFolderPath,
+} from "@/lib/workspace-tree";
 
 const POLL_INTERVAL_MS = 3000;
 
 export type WorkspaceSelection = {
-  folderId: string;
+  folderPath: string;
   fileName: string;
 };
 
 export function useWorkspaceSync(options: {
-  folders: WorkspaceFolder[];
-  selectedFolderId: string;
+  folders: WorkspaceTreeNode[];
+  selectedFolderPath: string;
   selectedFileName: string;
   pendingSave: boolean;
-  onFoldersLoaded: (folders: WorkspaceFolder[]) => void;
+  onFoldersLoaded: (folders: WorkspaceTreeNode[]) => void;
   onSelectionChange: (selection: WorkspaceSelection) => void;
 }) {
   const {
     folders,
-    selectedFolderId,
+    selectedFolderPath,
     selectedFileName,
     pendingSave,
     onFoldersLoaded,
@@ -29,7 +35,10 @@ export function useWorkspaceSync(options: {
 
   const lastFingerprintRef = useRef("");
   const foldersRef = useRef(folders);
-  const selectionRef = useRef({ folderId: selectedFolderId, fileName: selectedFileName });
+  const selectionRef = useRef({
+    folderPath: selectedFolderPath,
+    fileName: selectedFileName,
+  });
   const pendingSaveRef = useRef(pendingSave);
 
   useEffect(() => {
@@ -37,8 +46,11 @@ export function useWorkspaceSync(options: {
   }, [folders]);
 
   useEffect(() => {
-    selectionRef.current = { folderId: selectedFolderId, fileName: selectedFileName };
-  }, [selectedFolderId, selectedFileName]);
+    selectionRef.current = {
+      folderPath: selectedFolderPath,
+      fileName: selectedFileName,
+    };
+  }, [selectedFolderPath, selectedFileName]);
 
   useEffect(() => {
     pendingSaveRef.current = pendingSave;
@@ -69,30 +81,41 @@ export function useWorkspaceSync(options: {
 
         const dataRes = await fetch("/api/workspace/load", { cache: "no-store" });
         if (!dataRes.ok || cancelled) return;
-        const fresh = (await dataRes.json()) as { folders: WorkspaceFolder[] };
+        const fresh = (await dataRes.json()) as { folders: WorkspaceTreeNode[] };
 
         const current = selectionRef.current;
 
-        let nextFolderId = current.folderId;
+        let nextFolderPath = current.folderPath;
         let nextFileName = current.fileName;
 
-        const folderExists = fresh.folders.some((f) => f.id === current.folderId);
-        if (!folderExists) {
-          nextFolderId = fresh.folders[0]?.id ?? "";
+        if (
+          current.folderPath &&
+          !folderExistsInTree(fresh.folders, current.folderPath)
+        ) {
+          nextFolderPath = fresh.folders[0]?.path ?? "";
           nextFileName = fresh.folders[0]?.files[0] ?? "";
         } else if (current.fileName) {
-          const folder = fresh.folders.find((f) => f.id === current.folderId);
-          if (folder && !folder.files.includes(current.fileName)) {
-            nextFileName = folder.files[0] ?? "";
+          if (
+            !fileExistsInTree(
+              fresh.folders,
+              current.folderPath,
+              current.fileName,
+            )
+          ) {
+            const folder = findTreeNode(fresh.folders, current.folderPath);
+            nextFileName = folder?.files[0] ?? "";
           }
         }
 
         if (
-          nextFolderId !== current.folderId ||
+          nextFolderPath !== current.folderPath ||
           nextFileName !== current.fileName
         ) {
           if (!pendingSaveRef.current) {
-            onSelectionChange({ folderId: nextFolderId, fileName: nextFileName });
+            onSelectionChange({
+              folderPath: nextFolderPath,
+              fileName: nextFileName,
+            });
           }
         }
 
@@ -112,5 +135,5 @@ export function useWorkspaceSync(options: {
     };
   }, [onFoldersLoaded, onSelectionChange]);
 
-  return { setPendingSave };
+  return { setPendingSave, remapFolderPath };
 }

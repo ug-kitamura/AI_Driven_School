@@ -3,6 +3,7 @@ import type { SkillSummary } from "@/lib/agent/skill-loader";
 export type AgentFileOption = {
   path: string;
   name: string;
+  relativePath?: string;
 };
 
 export type AgentBuiltinCommand = {

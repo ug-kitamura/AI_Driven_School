@@ -1,18 +1,25 @@
 import { STORAGE_KEYS } from "@/lib/storage-keys";
 
 export type LastFileSelection = {
-  folderId: string;
+  folderPath: string;
   fileName: string;
 };
+
+type StoredSelection = Partial<{
+  folderPath: string;
+  folderId: string;
+  fileName: string;
+}>;
 
 export function loadLastFileSelection(): LastFileSelection | null {
   if (typeof window === "undefined") return null;
   try {
     const raw = localStorage.getItem(STORAGE_KEYS.lastFile);
     if (!raw) return null;
-    const parsed = JSON.parse(raw) as Partial<LastFileSelection>;
-    if (!parsed.folderId || !parsed.fileName) return null;
-    return { folderId: parsed.folderId, fileName: parsed.fileName };
+    const parsed = JSON.parse(raw) as StoredSelection;
+    const folderPath = parsed.folderPath ?? parsed.folderId;
+    if (!folderPath || !parsed.fileName) return null;
+    return { folderPath, fileName: parsed.fileName };
   } catch {
     return null;
   }

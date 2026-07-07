@@ -1,19 +1,17 @@
 import fs from "node:fs";
 import path from "node:path";
 import {
-  listFolderFiles,
-  readFileContent,
-} from "@/lib/workspace-mutations";
-import {
-  resolveFilePath,
-  resolveFolderPath,
-  validateFolderId,
-} from "@/lib/workspace-paths";
+  getProjectFolderId,
+  SESSION_FILENAME,
+  validateRelativeFolderPath,
+} from "@/lib/workspace-path-utils";
+import { resolveFilePath, resolveFolderPath } from "@/lib/workspace-paths";
 import { WORKSPACE_DIR_NAME, ALLOWED_PREFIX } from "@/lib/workspace-constants";
 
 export type WorkspaceFileRef = {
   path: string;
   name: string;
+  relativePath: string;
 };
 
 const ATTACHMENT_TOKEN_RE = /@((?:workspace\/)[^\s@]+)/g;
@@ -33,8 +31,8 @@ export function isAllowedWorkspacePath(relativePath: string): boolean {
   if (!normalized.startsWith(ALLOWED_PREFIX)) return false;
   if (normalized.includes("..")) return false;
   const parts = normalized.slice(ALLOWED_PREFIX.length).split("/");
-  if (parts.length !== 2) return false;
-  return parts.every((p) => p.length > 0);
+  if (parts.length < 2) return false;
+  return parts.every((part) => part.length > 0);
 }
 
 export function resolveAllowedWorkspacePath(
@@ -64,27 +62,69 @@ export function resolveAllowedWorkspacePath(
   };
 }
 
+function listProjectFilesRecursive(
+  projectRoot: string,
+  projectFolderId: string,
+): WorkspaceFileRef[] {
+  const validation = validateRelativeFolderPath(projectFolderId);
+  if (validation) return [];
+
+  const resolved = resolveFolderPath(projectRoot, projectFolderId);
+  if ("error" in resolved) return [];
+
+  const results: WorkspaceFileRef[] = [];
+
+  function walk(absoluteDir: string, relativePrefix: string) {
+    if (!fs.existsSync(absoluteDir)) return;
+    for (const entry of fs.readdirSync(absoluteDir, { withFileTypes: true })) {
+      if (entry.name.startsWith(".")) continue;
+      const entryAbs = path.join(absoluteDir, entry.name);
+      const entryRel = relativePrefix
+        ? `${relativePrefix}/${entry.name}`
+        : entry.name;
+      if (entry.isDirectory()) {
+        walk(entryAbs, entryRel);
+        continue;
+      }
+      if (!entry.isFile() || entry.name === SESSION_FILENAME) continue;
+      results.push({
+        name: entry.name,
+        relativePath: entryRel,
+        path: `${ALLOWED_PREFIX}${projectFolderId}/${entryRel}`,
+      });
+    }
+  }
+
+  walk(resolved.absolutePath, "");
+  results.sort((a, b) => a.relativePath.localeCompare(b.relativePath, "ja"));
+  return results;
+}
+
 export function listWorkspaceFolderFiles(
   projectRoot: string,
   folderId: string,
 ): WorkspaceFileRef[] {
-  const validation = validateFolderId(folderId);
-  if (validation) return [];
-  const files = listFolderFiles(projectRoot, folderId);
-  return files.map((name) => ({
-    name,
-    path: `${ALLOWED_PREFIX}${folderId}/${name}`,
-  }));
+  const projectFolderId = getProjectFolderId(folderId);
+  return listProjectFilesRecursive(projectRoot, projectFolderId);
 }
 
 export function orderWorkspaceFilesForPicker(
   files: WorkspaceFileRef[],
   current?: string,
 ): WorkspaceFileRef[] {
-  if (!current) return files;
-  const idx = files.findIndex((f) => f.path === current);
-  if (idx <= 0) return files;
-  const next = [...files];
+  const sorted = [...files].sort((a, b) =>
+    a.relativePath.localeCompare(b.relativePath, "ja"),
+  );
+  if (!current) return sorted;
+
+  const idx = sorted.findIndex(
+    (file) =>
+      file.relativePath === current ||
+      file.path === current ||
+      file.path.endsWith(`/${current}`),
+  );
+  if (idx <= 0) return sorted;
+  const next = [...sorted];
   const [hit] = next.splice(idx, 1);
   next.unshift(hit);
   return next;

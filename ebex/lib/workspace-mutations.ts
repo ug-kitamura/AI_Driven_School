@@ -8,7 +8,8 @@ import {
   resolveFilePath,
   resolveFolderPath,
   validateFileName,
-  validateFolderId,
+  validateFolderSegment,
+  validateRelativeFolderPath,
   SESSION_FILENAME,
 } from "@/lib/workspace-paths";
 
@@ -46,7 +47,7 @@ export async function parseJsonBody<T>(
 }
 
 export function createFolder(projectRoot: string, name: string) {
-  const validation = validateFolderId(name);
+  const validation = validateFolderSegment(name);
   if (validation) return { error: validation };
   if (folderExists(projectRoot, name)) {
     return { error: "同名のフォルダが既に存在します" };
@@ -58,39 +59,63 @@ export function createFolder(projectRoot: string, name: string) {
   return { ok: true as const };
 }
 
-export function renameFolder(
+export function createSubFolder(
   projectRoot: string,
-  fromId: string,
-  toId: string,
+  parentPath: string,
+  name: string,
 ) {
-  const fromValidation = validateFolderId(fromId);
-  if (fromValidation) return { error: fromValidation };
-  const toValidation = validateFolderId(toId);
-  if (toValidation) return { error: toValidation };
-  if (!folderExists(projectRoot, fromId)) {
-    return { error: "フォルダが見つかりません" };
+  const parentValidation = validateRelativeFolderPath(parentPath);
+  if (parentValidation) return { error: parentValidation };
+  const nameValidation = validateFolderSegment(name);
+  if (nameValidation) return { error: nameValidation };
+  if (!folderExists(projectRoot, parentPath)) {
+    return { error: "親フォルダが見つかりません" };
   }
-  if (folderExists(projectRoot, toId)) {
+
+  const childPath = `${parentPath}/${name}`;
+  if (folderExists(projectRoot, childPath)) {
     return { error: "同名のフォルダが既に存在します" };
   }
-  const from = resolveFolderPath(projectRoot, fromId);
-  const to = resolveFolderPath(projectRoot, toId);
+
+  const resolved = resolveFolderPath(projectRoot, childPath);
+  if ("error" in resolved) return { error: resolved.error };
+  fs.mkdirSync(resolved.absolutePath, { recursive: true });
+  return { ok: true as const, path: childPath };
+}
+
+export function renameFolder(
+  projectRoot: string,
+  fromPath: string,
+  toPath: string,
+) {
+  const fromValidation = validateRelativeFolderPath(fromPath);
+  if (fromValidation) return { error: fromValidation };
+  const toValidation = validateRelativeFolderPath(toPath);
+  if (toValidation) return { error: toValidation };
+  if (!folderExists(projectRoot, fromPath)) {
+    return { error: "フォルダが見つかりません" };
+  }
+  if (folderExists(projectRoot, toPath)) {
+    return { error: "同名のフォルダが既に存在します" };
+  }
+  const from = resolveFolderPath(projectRoot, fromPath);
+  const to = resolveFolderPath(projectRoot, toPath);
   if ("error" in from) return { error: from.error };
   if ("error" in to) return { error: to.error };
   fs.renameSync(from.absolutePath, to.absolutePath);
-  return { ok: true as const, newId: toId };
+  return { ok: true as const, newPath: toPath };
 }
 
-export function deleteFolder(projectRoot: string, folderId: string) {
-  const validation = validateFolderId(folderId);
+export function deleteFolder(projectRoot: string, folderPath: string) {
+  const validation = validateRelativeFolderPath(folderPath);
   if (validation) return { error: validation };
-  if (!folderExists(projectRoot, folderId)) {
+  if (!folderExists(projectRoot, folderPath)) {
     return { error: "フォルダが見つかりません" };
   }
-  if (!isFolderEmpty(projectRoot, folderId)) {
+  if (!isFolderEmpty(projectRoot, folderPath)) {
     return { error: "空のフォルダのみ削除できます" };
   }
-  const resolved = resolveFolderPath(projectRoot, folderId);
+  const resolved = resolveFolderPath(projectRoot, folderPath);
   if ("error" in resolved) return { error: resolved.error };
   fs.rmdirSync(resolved.absolutePath);
   return { ok: true as const };
@@ -98,16 +123,16 @@ export function deleteFolder(projectRoot: string, folderId: string) {
 
 export function createFile(
   projectRoot: string,
-  folderId: string,
+  folderPath: string,
   fileName: string,
   content = "",
 ) {
   const fileValidation = validateFileName(fileName);
   if (fileValidation) return { error: fileValidation };
-  if (!folderExists(projectRoot, folderId)) {
+  if (!folderExists(projectRoot, folderPath)) {
     return { error: "フォルダが見つかりません" };
   }
-  const resolved = resolveFilePath(projectRoot, folderId, fileName);
+  const resolved = resolveFilePath(projectRoot, folderPath, fileName);
   if ("error" in resolved) return { error: resolved.error };
   if (fs.existsSync(resolved.absolutePath)) {
     return { error: "同名のファイルが既に存在します" };
@@ -118,7 +143,7 @@ export function createFile(
 
 export function renameFile(
   projectRoot: string,
-  folderId: string,
+  folderPath: string,
   fromName: string,
   toName: string,
 ) {
@@ -126,8 +151,8 @@ export function renameFile(
   if (fromValidation) return { error: fromValidation };
   const toValidation = validateFileName(toName);
   if (toValidation) return { error: toValidation };
-  const from = resolveFilePath(projectRoot, folderId, fromName);
-  const to = resolveFilePath(projectRoot, folderId, toName);
+  const from = resolveFilePath(projectRoot, folderPath, fromName);
+  const to = resolveFilePath(projectRoot, folderPath, toName);
   if ("error" in from) return { error: from.error };
   if ("error" in to) return { error: to.error };
   if (!fs.existsSync(from.absolutePath)) {
@@ -142,12 +167,12 @@ export function renameFile(
 
 export function deleteFile(
   projectRoot: string,
-  folderId: string,
+  folderPath: string,
   fileName: string,
 ) {
   const fileValidation = validateFileName(fileName);
   if (fileValidation) return { error: fileValidation };
-  const resolved = resolveFilePath(projectRoot, folderId, fileName);
+  const resolved = resolveFilePath(projectRoot, folderPath, fileName);
   if ("error" in resolved) return { error: resolved.error };
   if (!fs.existsSync(resolved.absolutePath)) {
     return { error: "ファイルが見つかりません" };
@@ -158,16 +183,16 @@ export function deleteFile(
 
 export function saveFile(
   projectRoot: string,
-  folderId: string,
+  folderPath: string,
   fileName: string,
   content: string,
 ) {
   const fileValidation = validateFileName(fileName);
   if (fileValidation) return { error: fileValidation };
-  if (!folderExists(projectRoot, folderId)) {
+  if (!folderExists(projectRoot, folderPath)) {
     return { error: "フォルダが見つかりません" };
   }
-  const resolved = resolveFilePath(projectRoot, folderId, fileName);
+  const resolved = resolveFilePath(projectRoot, folderPath, fileName);
   if ("error" in resolved) return { error: resolved.error };
   fs.writeFileSync(resolved.absolutePath, content, "utf-8");
   return { ok: true as const };
@@ -175,12 +200,12 @@ export function saveFile(
 
 export function readFileContent(
   projectRoot: string,
-  folderId: string,
+  folderPath: string,
   fileName: string,
 ): { content: string } | { error: string } {
   const fileValidation = validateFileName(fileName);
   if (fileValidation) return { error: fileValidation };
-  const resolved = resolveFilePath(projectRoot, folderId, fileName);
+  const resolved = resolveFilePath(projectRoot, folderPath, fileName);
   if ("error" in resolved) return { error: resolved.error };
   if (!fs.existsSync(resolved.absolutePath)) {
     return { error: "ファイルが見つかりません" };
@@ -188,8 +213,8 @@ export function readFileContent(
   return { content: fs.readFileSync(resolved.absolutePath, "utf-8") };
 }
 
-export function listFolderFiles(projectRoot: string, folderId: string): string[] {
-  const resolved = resolveFolderPath(projectRoot, folderId);
+export function listFolderFiles(projectRoot: string, folderPath: string): string[] {
+  const resolved = resolveFolderPath(projectRoot, folderPath);
   if ("error" in resolved) return [];
   if (!fs.existsSync(resolved.absolutePath)) return [];
   return fs
@@ -204,17 +229,59 @@ export function listFolderFiles(projectRoot: string, folderId: string): string[]
     .sort((a, b) => a.localeCompare(b, "ja"));
 }
 
+function collectFolderFilesRecursive(
+  absoluteDir: string,
+): Array<{ fileName: string; folderPath: string }> {
+  const results: Array<{ fileName: string; folderPath: string }> = [];
+  if (!fs.existsSync(absoluteDir)) return results;
+
+  function walk(currentAbs: string, currentRel: string) {
+    for (const entry of fs.readdirSync(currentAbs, { withFileTypes: true })) {
+      if (entry.name.startsWith(".")) continue;
+      const entryAbs = path.join(currentAbs, entry.name);
+      const entryRel = currentRel ? `${currentRel}/${entry.name}` : entry.name;
+      if (entry.isDirectory()) {
+        walk(entryAbs, entryRel);
+        continue;
+      }
+      if (entry.isFile() && entry.name !== SESSION_FILENAME) {
+        const slash = entryRel.lastIndexOf("/");
+        if (slash === -1) {
+          results.push({ folderPath: currentRel, fileName: entry.name });
+        } else {
+          results.push({
+            folderPath: entryRel.slice(0, slash),
+            fileName: entry.name,
+          });
+        }
+      }
+    }
+  }
+
+  walk(absoluteDir, "");
+  return results;
+}
+
 export function readFolderTextSample(
   projectRoot: string,
-  folderId: string,
+  folderPath: string,
   maxChars = 2000,
 ): string {
-  const files = listFolderFiles(projectRoot, folderId);
+  const resolved = resolveFolderPath(projectRoot, folderPath);
+  if ("error" in resolved) return "";
+  const files = collectFolderFilesRecursive(resolved.absolutePath);
   let sample = "";
   for (const file of files) {
-    const result = readFileContent(projectRoot, folderId, file);
-    if ("error" in result) continue;
-    sample += `\n# ${file}\n${result.content.slice(0, 500)}\n`;
+    const absoluteFolderPath = file.folderPath
+      ? path.join(resolved.absolutePath, file.folderPath)
+      : resolved.absolutePath;
+    const absoluteFilePath = path.join(absoluteFolderPath, file.fileName);
+    if (!fs.existsSync(absoluteFilePath)) continue;
+    const relativePath = file.folderPath
+      ? `${file.folderPath}/${file.fileName}`
+      : file.fileName;
+    const content = fs.readFileSync(absoluteFilePath, "utf-8");
+    sample += `\n# ${relativePath}\n${content.slice(0, 500)}\n`;
     if (sample.length >= maxChars) break;
   }
   return sample.trim();

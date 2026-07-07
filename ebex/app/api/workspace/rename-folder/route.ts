@@ -2,8 +2,8 @@ import { z } from "zod";
 import { jsonError, parseJsonBody, renameFolder } from "@/lib/workspace-mutations";
 
 const bodySchema = z.object({
-  fromId: z.string().min(1),
-  toId: z.string().min(1),
+  fromPath: z.string().min(1),
+  toPath: z.string().min(1),
 });
 
 export async function POST(req: Request) {
@@ -12,9 +12,9 @@ export async function POST(req: Request) {
 
   const result = renameFolder(
     process.cwd(),
-    parsed.data.fromId,
-    parsed.data.toId,
+    parsed.data.fromPath,
+    parsed.data.toPath,
   );
   if ("error" in result) return jsonError(String(result.error), 400);
-  return Response.json({ ok: true, newId: result.newId });
+  return Response.json({ ok: true, newPath: result.newPath });
 }

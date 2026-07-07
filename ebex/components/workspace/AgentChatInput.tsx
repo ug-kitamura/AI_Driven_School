@@ -194,16 +194,12 @@ export function AgentChatInput({
     return visibleFileOptions.map((file) => ({
       kind: "file" as const,
       key: file.path,
-      primary: file.name,
-      secondary: file.path,
+      primary: file.relativePath ?? file.path,
+      secondary: file.name,
     }));
   }, [filteredCommands, filteredSkills, suggestion?.kind, visibleFileOptions]);
 
   const activeHighlightIndex = clampHighlightIndex(highlightIndex, visibleItems.length);
-
-  useEffect(() => {
-    setHighlightIndex((index) => clampHighlightIndex(index, visibleItems.length));
-  }, [visibleItems.length]);
 
   useEffect(() => {
     if (!suggestion || visibleItems.length === 0) return;
@@ -215,23 +211,16 @@ export function AgentChatInput({
     item?.scrollIntoView({ block: "nearest" });
   }, [activeHighlightIndex, suggestion, visibleItems.length]);
 
-  useEffect(() => {
-    if (suggestion?.kind !== "file") return;
-
-    let cancelled = false;
+  const loadContentFilesForSuggestion = useCallback(() => {
     setFilesLoading(true);
     void onLoadContentFiles()
       .then((files) => {
-        if (!cancelled) setContentFiles(files);
+        setContentFiles(files);
       })
       .finally(() => {
-        if (!cancelled) setFilesLoading(false);
+        setFilesLoading(false);
       });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [suggestion?.kind, onLoadContentFiles]);
+  }, [onLoadContentFiles]);
 
   const suggestionEmptyMessage =
     suggestion?.kind === "file"
@@ -251,6 +240,9 @@ export function AgentChatInput({
     }
     const cursor = textarea.selectionStart ?? textarea.value.length;
     const next = detectSuggestion(textarea.value, cursor);
+    if (next?.kind === "file") {
+      loadContentFilesForSuggestion();
+    }
     setSuggestion((prev) => {
       const unchanged =
         prev?.kind === next?.kind &&
@@ -261,13 +253,17 @@ export function AgentChatInput({
       }
       return next;
     });
-  }, []);
+  }, [loadContentFilesForSuggestion]);
 
   const handleInputChange = (event: React.ChangeEvent<HTMLTextAreaElement>) => {
     const next = event.target.value;
     const cursor = event.target.selectionStart ?? next.length;
+    const detected = next ? detectSuggestion(next, cursor) : null;
     onChange(next);
-    setSuggestion(next ? detectSuggestion(next, cursor) : null);
+    if (detected?.kind === "file") {
+      loadContentFilesForSuggestion();
+    }
+    setSuggestion(detected);
     setHighlightIndex(0);
   };
 

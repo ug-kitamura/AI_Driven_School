@@ -1,48 +1,35 @@
 import fs from "node:fs";
 import path from "node:path";
+import {
+  WORKSPACE_DIR_NAME,
+  validateFileName,
+  validateRelativeFolderPath,
+} from "@/lib/workspace-path-utils";
 
-export const WORKSPACE_DIR_NAME = "workspace";
-export const SESSION_FILENAME = "session.json";
-export const PURPOSE_FILENAME = "purpose.md";
-
-const INVALID_NAME_RE = /[\\/:*?"<>|]/;
+export {
+  PURPOSE_FILENAME,
+  SESSION_FILENAME,
+  WORKSPACE_DIR_NAME,
+  getProjectFolderId,
+  validateFileName,
+  validateFolderId,
+  validateFolderSegment,
+  validateRelativeFolderPath,
+} from "@/lib/workspace-path-utils";
 
 export function getWorkspaceDir(projectRoot: string): string {
   return path.join(projectRoot, WORKSPACE_DIR_NAME);
 }
 
-export function validateFolderId(folderId: string): string | null {
-  const trimmed = folderId.trim();
-  if (!trimmed) return "フォルダ名が空です";
-  if (trimmed.includes("..")) return "不正なフォルダ名です";
-  if (trimmed.includes("/") || trimmed.includes("\\")) {
-    return "不正なフォルダ名です";
-  }
-  if (INVALID_NAME_RE.test(trimmed)) return "不正なフォルダ名です";
-  return null;
-}
-
-export function validateFileName(fileName: string): string | null {
-  const trimmed = fileName.trim();
-  if (!trimmed) return "ファイル名が空です";
-  if (trimmed.includes("..")) return "不正なファイル名です";
-  if (trimmed.includes("/") || trimmed.includes("\\")) {
-    return "不正なファイル名です";
-  }
-  if (INVALID_NAME_RE.test(trimmed)) return "不正なファイル名です";
-  if (trimmed === SESSION_FILENAME) return "予約済みファイル名です";
-  return null;
-}
-
 export function resolveFolderPath(
   projectRoot: string,
-  folderId: string,
+  folderPath: string,
 ): { absolutePath: string } | { error: string } {
-  const validation = validateFolderId(folderId);
+  const validation = validateRelativeFolderPath(folderPath);
   if (validation) return { error: validation };
 
   const workspaceDir = path.resolve(getWorkspaceDir(projectRoot));
-  const absolutePath = path.resolve(workspaceDir, folderId);
+  const absolutePath = path.resolve(workspaceDir, folderPath);
   if (
     !absolutePath.startsWith(workspaceDir + path.sep) &&
     absolutePath !== workspaceDir
@@ -54,10 +41,10 @@ export function resolveFolderPath(
 
 export function resolveFilePath(
   projectRoot: string,
-  folderId: string,
+  folderPath: string,
   fileName: string,
 ): { absolutePath: string; folderPath: string } | { error: string } {
-  const folder = resolveFolderPath(projectRoot, folderId);
+  const folder = resolveFolderPath(projectRoot, folderPath);
   if ("error" in folder) return folder;
 
   const fileValidation = validateFileName(fileName);
@@ -75,27 +62,15 @@ export function ensureWorkspaceDir(projectRoot: string): string {
   return dir;
 }
 
-export function folderExists(projectRoot: string, folderId: string): boolean {
-  const resolved = resolveFolderPath(projectRoot, folderId);
+export function folderExists(projectRoot: string, folderPath: string): boolean {
+  const resolved = resolveFolderPath(projectRoot, folderPath);
   if ("error" in resolved) return false;
   return fs.existsSync(resolved.absolutePath);
 }
 
-export function isFolderEmpty(projectRoot: string, folderId: string): boolean {
-  const resolved = resolveFolderPath(projectRoot, folderId);
+export function isFolderEmpty(projectRoot: string, folderPath: string): boolean {
+  const resolved = resolveFolderPath(projectRoot, folderPath);
   if ("error" in resolved) return false;
   if (!fs.existsSync(resolved.absolutePath)) return false;
   return fs.readdirSync(resolved.absolutePath).length === 0;
-}
-
-export function folderHasSubfolders(
-  projectRoot: string,
-  folderId: string,
-): boolean {
-  const resolved = resolveFolderPath(projectRoot, folderId);
-  if ("error" in resolved) return false;
-  if (!fs.existsSync(resolved.absolutePath)) return false;
-  return fs
-    .readdirSync(resolved.absolutePath, { withFileTypes: true })
-    .some((entry) => entry.isDirectory());
 }

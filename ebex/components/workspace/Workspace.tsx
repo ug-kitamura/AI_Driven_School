@@ -12,22 +12,37 @@ import { PaneResizeHandle } from "@/components/workspace/PaneResizeHandle";
 import { PANE2_MIN_WIDTH } from "@/components/workspace/pane-layout";
 import { useWorkspacePaneWidths } from "@/components/workspace/use-workspace-pane-widths";
 import { useWorkspaceSync } from "@/components/workspace/hooks/use-workspace-sync";
-import type { WorkspaceFolder } from "@/lib/workspace-loader";
+import type { WorkspaceTreeNode } from "@/lib/workspace-loader";
 import type { AgentChatController } from "@/lib/agent-chat-controller";
 import {
   loadLastFileSelection,
   saveLastFileSelection,
 } from "@/lib/workspace-file-selection";
 import { ALLOWED_PREFIX } from "@/lib/workspace-constants";
+import { fileExistsInTree, getProjectFolderId } from "@/lib/workspace-tree";
 
 type WorkspaceProps = {
-  initialFolders: WorkspaceFolder[];
+  initialFolders: WorkspaceTreeNode[];
 };
 
+function resolveInitialSelection(folders: WorkspaceTreeNode[]) {
+  const last = loadLastFileSelection();
+  if (last && fileExistsInTree(folders, last.folderPath, last.fileName)) {
+    return { folderPath: last.folderPath, fileName: last.fileName };
+  }
+  const first = folders[0];
+  return { folderPath: first?.path ?? "", fileName: first?.files[0] ?? "" };
+}
+
 export function Workspace({ initialFolders }: WorkspaceProps) {
-  const [folders, setFolders] = useState<WorkspaceFolder[]>(initialFolders);
-  const [selectedFolderId, setSelectedFolderId] = useState("");
-  const [selectedFileName, setSelectedFileName] = useState("");
+  const initialSelection = resolveInitialSelection(initialFolders);
+  const [folders, setFolders] = useState<WorkspaceTreeNode[]>(initialFolders);
+  const [selectedFolderPath, setSelectedFolderPath] = useState(
+    initialSelection.folderPath,
+  );
+  const [selectedFileName, setSelectedFileName] = useState(
+    initialSelection.fileName,
+  );
   const [fileContent, setFileContent] = useState("");
   const [pendingSave, setPendingSave] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -56,38 +71,14 @@ export function Workspace({ initialFolders }: WorkspaceProps) {
     return () => observer.disconnect();
   }, []);
 
-  useEffect(() => {
-    const last = loadLastFileSelection();
-    if (last) {
-      const folder = initialFolders.find((f) => f.id === last.folderId);
-      if (folder?.files.includes(last.fileName)) {
-        setSelectedFolderId(last.folderId);
-        setSelectedFileName(last.fileName);
-        return;
-      }
-    }
-    const first = initialFolders[0];
-    if (first) {
-      setSelectedFolderId(first.id);
-      setSelectedFileName(first.files[0] ?? "");
-    }
-  }, [initialFolders]);
-
-  const refreshFolders = useCallback(async () => {
-    const res = await fetch("/api/workspace/load", { cache: "no-store" });
-    if (!res.ok) return;
-    const data = (await res.json()) as { folders: WorkspaceFolder[] };
-    setFolders(data.folders);
-  }, []);
-
-  const loadFileContent = useCallback(async (folderId: string, fileName: string) => {
-    if (!folderId || !fileName) {
+  const loadFileContent = useCallback(async (folderPath: string, fileName: string) => {
+    if (!folderPath || !fileName) {
       setFileContent("");
       editingContentRef.current = null;
       return;
     }
     const res = await fetch(
-      `/api/workspace/read-file?folderId=${encodeURIComponent(folderId)}&fileName=${encodeURIComponent(fileName)}`,
+      `/api/workspace/read-file?folderId=${encodeURIComponent(folderPath)}&fileName=${encodeURIComponent(fileName)}`,
       { cache: "no-store" },
     );
     if (!res.ok) {
@@ -98,17 +89,53 @@ export function Workspace({ initialFolders }: WorkspaceProps) {
     const data = (await res.json()) as { content: string };
     setFileContent(data.content);
     editingContentRef.current = data.content;
-    saveLastFileSelection({ folderId, fileName });
+    saveLastFileSelection({ folderPath, fileName });
   }, []);
 
   useEffect(() => {
     if (pendingSave) return;
-    void loadFileContent(selectedFolderId, selectedFileName);
-  }, [selectedFolderId, selectedFileName, loadFileContent, pendingSave]);
+    if (!selectedFolderPath || !selectedFileName) return;
+
+    let cancelled = false;
+    void fetch(
+      `/api/workspace/read-file?folderId=${encodeURIComponent(selectedFolderPath)}&fileName=${encodeURIComponent(selectedFileName)}`,
+      { cache: "no-store" },
+    )
+      .then(async (res) => {
+        if (!res.ok) return null;
+        return (await res.json()) as { content: string };
+      })
+      .then((data) => {
+        if (cancelled || !data) {
+          if (!cancelled && !data) {
+            setFileContent("");
+            editingContentRef.current = null;
+          }
+          return;
+        }
+        setFileContent(data.content);
+        editingContentRef.current = data.content;
+        saveLastFileSelection({
+          folderPath: selectedFolderPath,
+          fileName: selectedFileName,
+        });
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedFolderPath, selectedFileName, pendingSave]);
+
+  const refreshFolders = useCallback(async () => {
+    const res = await fetch("/api/workspace/load", { cache: "no-store" });
+    if (!res.ok) return;
+    const data = (await res.json()) as { folders: WorkspaceTreeNode[] };
+    setFolders(data.folders);
+  }, []);
 
   const handleSelectFile = useCallback(
-    (folderId: string, fileName: string) => {
-      setSelectedFolderId(folderId);
+    (folderPath: string, fileName: string) => {
+      setSelectedFolderPath(folderPath);
       setSelectedFileName(fileName);
     },
     [],
@@ -121,36 +148,41 @@ export function Workspace({ initialFolders }: WorkspaceProps) {
 
   const handleSave = useCallback(
     async (content: string) => {
-      if (!selectedFolderId || !selectedFileName) return;
+      if (!selectedFolderPath || !selectedFileName) return;
       await fetch("/api/workspace/save-file", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          folderId: selectedFolderId,
+          folderId: selectedFolderPath,
           fileName: selectedFileName,
           content,
         }),
       });
+      await loadFileContent(selectedFolderPath, selectedFileName);
     },
-    [selectedFolderId, selectedFileName],
+    [selectedFolderPath, selectedFileName, loadFileContent],
   );
 
   useWorkspaceSync({
     folders,
-    selectedFolderId,
+    selectedFolderPath,
     selectedFileName,
     pendingSave,
     onFoldersLoaded: setFolders,
-    onSelectionChange: ({ folderId, fileName }) => {
-      setSelectedFolderId(folderId);
+    onSelectionChange: ({ folderPath, fileName }) => {
+      setSelectedFolderPath(folderPath);
       setSelectedFileName(fileName);
     },
   });
 
   const currentFilePath =
-    selectedFolderId && selectedFileName
-      ? `${ALLOWED_PREFIX}${selectedFolderId}/${selectedFileName}`
+    selectedFolderPath && selectedFileName
+      ? `${ALLOWED_PREFIX}${selectedFolderPath}/${selectedFileName}`
       : null;
+
+  const projectFolderId = selectedFolderPath
+    ? getProjectFolderId(selectedFolderPath)
+    : "";
 
   return (
     <>
@@ -168,7 +200,7 @@ export function Workspace({ initialFolders }: WorkspaceProps) {
         >
           <FileTreePane
             folders={folders}
-            selectedFolderId={selectedFolderId}
+            selectedFolderPath={selectedFolderPath}
             selectedFileName={selectedFileName}
             onSelectFile={handleSelectFile}
             onRefresh={refreshFolders}
@@ -182,7 +214,7 @@ export function Workspace({ initialFolders }: WorkspaceProps) {
           style={{ minWidth: PANE2_MIN_WIDTH }}
         >
           <EditorPane
-            folderId={selectedFolderId}
+            folderPath={selectedFolderPath}
             fileName={selectedFileName}
             content={fileContent}
             onContentChange={handleContentChange}
@@ -206,7 +238,7 @@ export function Workspace({ initialFolders }: WorkspaceProps) {
           style={{ width: paneWidths.pane3 }}
         >
           <AgentPane
-            folderId={selectedFolderId}
+            folderId={projectFolderId}
             currentFilePath={currentFilePath}
             onOpenSettings={() => setSettingsOpen(true)}
             onOpenPurpose={() => setPurposeOpen(true)}

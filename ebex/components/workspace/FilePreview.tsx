@@ -52,7 +52,7 @@ export function FilePreview({ fileName, content }: Props) {
   if (ext === "csv") {
     const rows = parseCsv(content);
     return (
-      <div className="overflow-auto p-4">
+      <div className="workspace-scrollbar overflow-auto p-4">
         <table className="w-full border-collapse text-sm">
           <tbody>
             {rows.map((row, i) => (
@@ -76,7 +76,9 @@ export function FilePreview({ fileName, content }: Props) {
         {structured?.error ? (
           <p className="text-sm text-destructive">Parse error: {structured.error}</p>
         ) : null}
-        <pre className="overflow-auto text-sm">{structured?.formatted ?? content}</pre>
+        <pre className="workspace-scrollbar overflow-auto text-sm">
+          {structured?.formatted ?? content}
+        </pre>
       </div>
     );
   }
@@ -96,6 +98,8 @@ export function FilePreview({ fileName, content }: Props) {
   }
 
   return (
-    <pre className="overflow-auto p-4 text-sm whitespace-pre-wrap">{content}</pre>
+    <pre className="workspace-scrollbar overflow-auto p-4 text-sm whitespace-pre-wrap">
+      {content}
+    </pre>
   );
 }

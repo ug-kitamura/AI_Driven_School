@@ -204,6 +204,7 @@ export function Workspace({ initialFolders }: WorkspaceProps) {
             selectedFileName={selectedFileName}
             onSelectFile={handleSelectFile}
             onRefresh={refreshFolders}
+            onOpenPurpose={() => setPurposeOpen(true)}
           />
         </div>
 
@@ -239,7 +240,6 @@ export function Workspace({ initialFolders }: WorkspaceProps) {
             folderId={projectFolderId}
             currentFilePath={currentFilePath}
             onOpenSettings={() => setSettingsOpen(true)}
-            onOpenPurpose={() => setPurposeOpen(true)}
             onOverwriteEditor={(markdown) => overwriteCallbackRef.current?.(markdown)}
             agentChatControllerRef={agentChatControllerRef}
           />

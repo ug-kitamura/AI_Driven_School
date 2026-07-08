@@ -57,6 +57,7 @@ type Props = {
   selectedFileName: string;
   onSelectFile: (folderPath: string, fileName: string) => void;
   onRefresh: () => Promise<void>;
+  onOpenPurpose?: () => void;
 };
 
 type DialogMode =
@@ -269,6 +270,7 @@ export function FileTreePane({
   selectedFileName,
   onSelectFile,
   onRefresh,
+  onOpenPurpose,
 }: Props) {
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
   const [filter, setFilter] = useState("");
@@ -470,7 +472,12 @@ export function FileTreePane({
   return (
     <div className="flex h-full min-h-0 flex-col">
       <div className="flex h-12 shrink-0 items-center justify-between border-b px-3 py-0">
-        <div className="flex items-center gap-2">
+        <button
+          type="button"
+          className="flex min-w-0 items-center gap-2 rounded-md text-left hover:bg-muted/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          aria-label="EBE Purpose を開く"
+          onClick={() => onOpenPurpose?.()}
+        >
           <Image
             src={logoSmall}
             alt=""
@@ -480,7 +487,7 @@ export function FileTreePane({
             priority
           />
           <span className="font-semibold tracking-tight">EBEX</span>
-        </div>
+        </button>
         <div className="flex items-center gap-1">
           <Button
             type="button"

@@ -75,6 +75,14 @@ import type { Course, Lesson, Series } from "@/lib/schema";
 import type { SkillSummary } from "@/lib/agent/skill-loader";
 import { ALLOWED_PREFIX } from "@/lib/workspace-constants";
 import { resolveInvokeSkillId } from "@/lib/agent/resolve-invoke-skill";
+import {
+  findOutsideProjectPathHints,
+  listDefaultOutputDestinations,
+  type OutputDestinationChoice,
+  type OutputDestinationOption,
+} from "@/lib/agent/skill-io-boundary";
+import { OutsideProjectPathDialog } from "@/components/workspace/OutsideProjectPathDialog";
+import { OutputDestinationDialog } from "@/components/workspace/OutputDestinationDialog";
 
 function toProjectRelativePath(
   currentFilePath: string | null,
@@ -182,6 +190,22 @@ export function AgentChatPane({
   const [overwriteTarget, setOverwriteTarget] = useState<{
     messageId: string;
     content: string;
+  } | null>(null);
+
+  const [outsidePaths, setOutsidePaths] = useState<string[]>([]);
+  const [outsideDialogOpen, setOutsideDialogOpen] = useState(false);
+  const [outputOptions, setOutputOptions] = useState<OutputDestinationOption[]>(
+    [],
+  );
+  const [outputDialogOpen, setOutputDialogOpen] = useState(false);
+  const [selectedOutputId, setSelectedOutputId] =
+    useState<OutputDestinationChoice | null>(null);
+  const pendingInvokeRef = useRef<{
+    userMessage: AgentChatMessage;
+    history: AgentChatMessage[];
+    skillId: string;
+    outsideConfirmed?: boolean;
+    preferredOutputDir?: string;
   } | null>(null);
 
   const abortRef = useRef<AbortController | null>(null);
@@ -504,6 +528,7 @@ export function AgentChatPane({
       userMessage: AgentChatMessage;
       history: AgentChatMessage[];
       skillId: string;
+      preferredOutputDir?: string;
     }) => {
       const variablesResult = buildVariables(options.skillId);
       if ("error" in variablesResult) {
@@ -541,6 +566,9 @@ export function AgentChatPane({
       abortRef.current = controller;
 
       const settings = loadWorkspaceSettings();
+      const currentRelative = folderId
+        ? toProjectRelativePath(filePath, folderId)
+        : undefined;
       const payload = {
         skillId: options.skillId,
         variables: variablesResult,
@@ -549,6 +577,17 @@ export function AgentChatPane({
           content: message.content,
           ...(message.toolEvents ? { toolEvents: message.toolEvents } : {}),
         })),
+        ...(folderId
+          ? {
+              runtimeFocus: {
+                projectFolderId: folderId,
+                currentFileRelativePath: currentRelative ?? null,
+                ...(options.preferredOutputDir !== undefined
+                  ? { preferredOutputDir: options.preferredOutputDir }
+                  : {}),
+              },
+            }
+          : {}),
       };
 
       const toolEvents: AgentToolEvent[] = [];
@@ -632,7 +671,68 @@ export function AgentChatPane({
         setStreamingAssistantId(null);
       }
     },
-    [buildVariables, maybeGenerateSessionTitle, onOpenSettings],
+    [
+      buildVariables,
+      filePath,
+      folderId,
+      maybeGenerateSessionTitle,
+      onOpenSettings,
+    ],
+  );
+
+  const beginInvokeWithGuards = useCallback(
+    async (options: {
+      userMessage: AgentChatMessage;
+      history: AgentChatMessage[];
+      skillId: string;
+      outsideConfirmed?: boolean;
+      preferredOutputDir?: string;
+    }) => {
+      if (folderId && !options.outsideConfirmed) {
+        const hints = findOutsideProjectPathHints(
+          options.userMessage.content,
+          folderId,
+        );
+        if (hints.length > 0) {
+          pendingInvokeRef.current = options;
+          setOutsidePaths(hints);
+          setOutsideDialogOpen(true);
+          return;
+        }
+      }
+
+      if (
+        folderId &&
+        options.preferredOutputDir === undefined &&
+        options.skillId !== "general-chat" &&
+        /出力|export|書き込|保存先|ファイルに|output/i.test(
+          options.userMessage.content,
+        )
+      ) {
+        const currentRelative = toProjectRelativePath(filePath, folderId);
+        const destinations = listDefaultOutputDestinations(
+          folderId,
+          currentRelative,
+        );
+        if (destinations.length > 1) {
+          pendingInvokeRef.current = options;
+          setOutputOptions(destinations);
+          setSelectedOutputId(destinations[0]?.id ?? null);
+          setOutputDialogOpen(true);
+          return;
+        }
+        if (destinations.length === 1) {
+          await invokeSkill({
+            ...options,
+            preferredOutputDir: destinations[0].relativeDir,
+          });
+          return;
+        }
+      }
+
+      await invokeSkill(options);
+    },
+    [filePath, folderId, invokeSkill],
   );
 
   const handleSend = useCallback(async () => {
@@ -654,21 +754,29 @@ export function AgentChatPane({
     };
     stickToBottomRef.current = true;
     setInput("");
-    await invokeSkill({
+    await beginInvokeWithGuards({
       userMessage,
       history: messages,
       skillId,
     });
-  }, [activeSkillId, input, invokeSkill, isStreaming, lesson, messages]);
+  }, [
+    activeSkillId,
+    beginInvokeWithGuards,
+    folderId,
+    input,
+    isStreaming,
+    lesson,
+    messages,
+  ]);
 
   const handleRetry = useCallback(async () => {
     if (!retryPayload || isStreaming) return;
-    await invokeSkill({
+    await beginInvokeWithGuards({
       userMessage: retryPayload.userMessage,
       history: retryPayload.history,
       skillId: resolveInvokeSkillId(activeSkillId),
     });
-  }, [activeSkillId, invokeSkill, isStreaming, retryPayload]);
+  }, [activeSkillId, beginInvokeWithGuards, isStreaming, retryPayload]);
 
   const applySessionState = useCallback((sessionId: string, storage: AgentChatStorage) => {
     const session = storage.sessions.find((item) => item.id === sessionId);
@@ -1131,7 +1239,6 @@ export function AgentChatPane({
         onActiveSkillChange={setActiveSkillId}
         onLoadContentFiles={loadContentFiles}
         onBuiltinCommand={handleBuiltinCommand}
-        createDraftDisabled={!lesson}
         />
       </div>
 
@@ -1242,6 +1349,63 @@ export function AgentChatPane({
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <OutsideProjectPathDialog
+        open={outsideDialogOpen}
+        paths={outsidePaths}
+        onCancel={() => {
+          const pending = pendingInvokeRef.current;
+          if (pending) {
+            setInput(pending.userMessage.content);
+            pendingInvokeRef.current = null;
+          }
+          setOutsideDialogOpen(false);
+          setOutsidePaths([]);
+        }}
+        onConfirm={() => {
+          const pending = pendingInvokeRef.current;
+          setOutsideDialogOpen(false);
+          setOutsidePaths([]);
+          if (!pending) return;
+          pendingInvokeRef.current = null;
+          void beginInvokeWithGuards({
+            ...pending,
+            outsideConfirmed: true,
+          });
+        }}
+      />
+
+      <OutputDestinationDialog
+        open={outputDialogOpen}
+        options={outputOptions}
+        selectedId={selectedOutputId}
+        onSelect={setSelectedOutputId}
+        onCancel={() => {
+          const pending = pendingInvokeRef.current;
+          if (pending) {
+            setInput(pending.userMessage.content);
+            pendingInvokeRef.current = null;
+          }
+          setOutputDialogOpen(false);
+          setOutputOptions([]);
+          setSelectedOutputId(null);
+        }}
+        onConfirm={() => {
+          const pending = pendingInvokeRef.current;
+          const selected = outputOptions.find(
+            (option) => option.id === selectedOutputId,
+          );
+          setOutputDialogOpen(false);
+          setOutputOptions([]);
+          setSelectedOutputId(null);
+          if (!pending || !selected) return;
+          pendingInvokeRef.current = null;
+          void invokeSkill({
+            ...pending,
+            preferredOutputDir: selected.relativeDir,
+          });
+        }}
+      />
     </div>
   );
 }

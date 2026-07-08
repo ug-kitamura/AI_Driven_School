@@ -46,7 +46,6 @@ type Props = {
   onActiveSkillChange: (skillId: string | null) => void;
   onLoadContentFiles: () => Promise<AgentFileOption[]>;
   onBuiltinCommand?: (command: AgentBuiltinCommand["id"]) => void;
-  createDraftDisabled?: boolean;
 };
 
 function detectSuggestion(value: string, cursor: number): SuggestionState | null {
@@ -116,7 +115,6 @@ export function AgentChatInput({
   onActiveSkillChange,
   onLoadContentFiles,
   onBuiltinCommand,
-  createDraftDisabled = false,
 }: Props) {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const suggestionListRef = useRef<HTMLDivElement>(null);
@@ -159,8 +157,8 @@ export function AgentChatInput({
 
   const filteredSkills = useMemo(() => {
     const query = suggestion?.kind === "skill" ? suggestion.query : "";
-    return filterSkills(skills, query, createDraftDisabled);
-  }, [skills, suggestion, createDraftDisabled]);
+    return filterSkills(skills, query);
+  }, [skills, suggestion]);
 
   const filteredCommands = useMemo(() => {
     if (suggestion?.kind !== "skill") return [];
@@ -389,7 +387,7 @@ export function AgentChatInput({
         {suggestion ? (
           <div
             ref={suggestionListRef}
-            className="absolute inset-x-0 bottom-full z-20 mb-1 overflow-y-auto overscroll-y-contain rounded-md border border-border bg-popover shadow-md"
+            className="workspace-scrollbar absolute inset-x-0 bottom-full z-20 mb-1 overflow-y-auto overscroll-y-contain rounded-md border border-border bg-popover shadow-md"
             style={{ maxHeight: `calc(${SUGGESTION_VISIBLE_COUNT} * 3.5rem)` }}
           >
             {filesLoading || visibleItems.length > 0 ? (

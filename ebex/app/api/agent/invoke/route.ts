@@ -9,6 +9,10 @@ import {
 } from "@/lib/agent/workspace-file-attachments";
 import { createAgentLoopSseStream, runAgentLoop } from "@/lib/agent/agent-loop";
 import { clientMessagesToLlmMessages } from "@/lib/agent/message-history";
+import {
+  buildSkillRuntimeContext,
+  mergeSkillSystemPrompt,
+} from "@/lib/agent/skill-runtime-context";
 
 const toolEventSchema = z.object({
   name: z.string(),
@@ -27,10 +31,17 @@ const messageSchema = z.object({
   toolEvents: z.array(toolEventSchema).optional(),
 });
 
+const runtimeFocusSchema = z.object({
+  projectFolderId: z.string(),
+  currentFileRelativePath: z.string().nullable().optional(),
+  preferredOutputDir: z.string().optional(),
+});
+
 const bodySchema = z.object({
   skillId: z.string().min(1),
   variables: z.record(z.string(), z.string()).optional(),
   messages: z.array(messageSchema).min(1),
+  runtimeFocus: runtimeFocusSchema.optional(),
 });
 
 export async function POST(req: Request) {
@@ -66,6 +77,23 @@ export async function POST(req: Request) {
     );
   }
 
+  const focus = parsed.data.runtimeFocus;
+  let systemPrompt = prompt;
+  if (focus?.projectFolderId) {
+    let runtime = buildSkillRuntimeContext({
+      projectFolderId: focus.projectFolderId,
+      currentFileRelativePath: focus.currentFileRelativePath,
+    });
+    if (focus.preferredOutputDir !== undefined) {
+      const dirLabel =
+        focus.preferredOutputDir === ""
+          ? "プロジェクトフォルダ直下"
+          : focus.preferredOutputDir;
+      runtime += `\n\nユーザが選んだ出力先の優先候補: \`${dirLabel}\`。`;
+    }
+    systemPrompt = mergeSkillSystemPrompt(prompt, runtime);
+  }
+
   const historyMessages = parsed.data.messages.slice(0, -1);
   const latestMessage = parsed.data.messages[parsed.data.messages.length - 1];
   if (!latestMessage || latestMessage.role !== "user") {
@@ -92,7 +120,7 @@ export async function POST(req: Request) {
   const stream = createAgentLoopSseStream((emit) =>
     runAgentLoop({
       req,
-      system: prompt,
+      system: systemPrompt,
       messages: llmMessages,
       toolNames,
       emit,

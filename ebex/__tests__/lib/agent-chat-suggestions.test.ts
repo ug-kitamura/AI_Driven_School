@@ -22,25 +22,26 @@ const skills: SkillSummary[] = [
 
 describe("filterSkills", () => {
   it("matches skill id by substring", () => {
-    expect(filterSkills(skills, "draft", false).map((skill) => skill.id)).toEqual([
+    expect(filterSkills(skills, "draft").map((skill) => skill.id)).toEqual([
       "create-draft",
     ]);
   });
 
   it("matches skill name by substring", () => {
-    expect(filterSkills(skills, "構造", false).map((skill) => skill.id)).toEqual([
+    expect(filterSkills(skills, "構造").map((skill) => skill.id)).toEqual([
       "create-structure",
     ]);
   });
 
-  it("hides create-draft when disabled", () => {
-    expect(filterSkills(skills, "", true).map((skill) => skill.id)).toEqual([
+  it("keeps create-draft visible without skill-specific gate", () => {
+    expect(filterSkills(skills, "").map((skill) => skill.id)).toEqual([
+      "create-draft",
       "create-structure",
     ]);
   });
 
   it("sorts skills alphabetically by id", () => {
-    expect(filterSkills([skills[1], skills[0]], "", false).map((skill) => skill.id)).toEqual([
+    expect(filterSkills([skills[1], skills[0]], "").map((skill) => skill.id)).toEqual([
       "create-draft",
       "create-structure",
     ]);
@@ -59,7 +60,6 @@ describe("filterSkills", () => {
           },
         ],
         "",
-        false,
       ).map((skill) => skill.id),
     ).toEqual(["create-draft", "create-structure"]);
   });

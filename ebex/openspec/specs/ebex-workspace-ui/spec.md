@@ -5,7 +5,7 @@ TBD - created by archiving change ebex-v1-workspace. Update Purpose after archiv
 ## Requirements
 ### Requirement: 3 ペイン構成
 
-ワークスペースは Pane 1（ファイルツリー）、Pane 2（編集+プレビュー）、Pane 3（Agent）の 3 ペインで構成されなければならない（SHALL）。Pane 1 ヘッダーには `images/logo_small.png` とツール名 **EBEX** が左から順に表示されなければならない（SHALL）。
+ワークスペースは Pane 1（ファイルツリー）、Pane 2（編集+プレビュー）、Pane 3（Agent）の 3 ペインで構成されなければならない（SHALL）。Pane 1 ヘッダーには `images/logo_small.png` とツール名 **EBEX** が左から順に表示されなければならない（SHALL）。ロゴまたは「EBEX」はクリック可能であり、クリックで Purpose モーダルを開かなければならない（SHALL）。
 
 #### Scenario: 3 ペインが同時に表示される
 
@@ -16,6 +16,11 @@ TBD - created by archiving change ebex-v1-workspace. Update Purpose after archiv
 
 - **WHEN** ワークスペースが表示される
 - **THEN** Pane 1 のヘッダーにロゴと「EBEX」が表示される
+
+#### Scenario: ロゴまたは EBEX で Purpose を開く
+
+- **WHEN** ユーザーが Pane 1 ヘッダーのロゴまたは「EBEX」をクリックする
+- **THEN** Purpose モーダルが開く
 
 ### Requirement: ペインリサイズ
 

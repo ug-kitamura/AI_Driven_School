@@ -1,16 +1,45 @@
 # ebex-agent-pane Specification
 
 ## Purpose
-TBD - created by archiving change ebex-v1-workspace. Update Purpose after archive.
+Pane 3 Agent ビューの表示・セッション・ヘッダー・出力反映。
 ## Requirements
 ### Requirement: Agent ビューのみ表示
 
-Pane 3 は Agent ビューのみを表示しなければならない（SHALL）。画像マネージャー、Pane4 タブ切替は含めてはならない（MUST NOT）。ヘッダーは Pane 2 と同様にパンくず / EBE Purpose / 設定を配置しなければならない（SHALL）。
+Pane 3 は Agent ビューのみを表示しなければならない（SHALL）。画像マネージャー、Pane4 タブ切替は含めてはならない（MUST NOT）。ヘッダー左には現在の Agent セッション履歴名（`sessionTitle`）を表示しなければならない（SHALL）。ヘッダー右には右から順に設定ボタンと、その左隣に GitHub リポジトリ（`https://github.com/ug-kitamura/AI_Driven_School`）を新しいタブで開くボタンを配置しなければならない（SHALL）。Purpose 導線は Pane 3 に置いてはならない（MUST NOT）。
 
 #### Scenario: Agent のみ表示
 
 - **WHEN** ワークスペースが表示される
 - **THEN** Pane 3 に Agent チャットが表示され画像タブは存在しない
+
+#### Scenario: ヘッダーに履歴名
+
+- **WHEN** アクティブな Agent セッションにタイトルがある
+- **THEN** Pane 3 ヘッダー左にその履歴名が表示される
+
+#### Scenario: GitHub を新しいタブで開く
+
+- **WHEN** ユーザーが Pane 3 ヘッダーの GitHub ボタンをクリックする
+- **THEN** `https://github.com/ug-kitamura/AI_Driven_School` が新しいタブで開く
+
+#### Scenario: 設定ボタン
+
+- **WHEN** ユーザーが Pane 3 ヘッダーの設定ボタンをクリックする
+- **THEN** ワークスペース設定ダイアログが開く
+
+### Requirement: 候補リストのスクロールバー
+
+Agent 入力欄の `/` および `@` 選択窓の縦スクロールバーは、Pane 2 と同じ `workspace-scrollbar` デザインを用いなければならない（SHALL）。
+
+#### Scenario: スラッシュ候補のスクロール外観
+
+- **WHEN** `/` 候補リストが項目数により縦スクロール可能になる
+- **THEN** スクロールバーの見た目は Pane 2 の `workspace-scrollbar` と一致する
+
+#### Scenario: アットマーク候補のスクロール外観
+
+- **WHEN** `@` 候補リストが項目数により縦スクロール可能になる
+- **THEN** スクロールバーの見た目は Pane 2 の `workspace-scrollbar` と一致する
 
 ### Requirement: フォルダ単位セッション永続化
 
@@ -66,4 +95,3 @@ Agent invoke 時の既定入力スコープは選択中プロジェクトフォ�
 
 - **WHEN** スキルの `on_conflict` が `overwrite` である
 - **THEN** 確認なしでファイルが上書きされる
-

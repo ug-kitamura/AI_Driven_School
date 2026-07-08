@@ -1,7 +1,7 @@
 # ebex-agent-files Specification
 
 ## Purpose
-TBD - created by archiving change ebex-v1-workspace. Update Purpose after archive.
+Agent の `@` 参照・ファイル一覧・許可パス。
 ## Requirements
 ### Requirement: フォルダ内ファイル一覧 API
 
@@ -28,21 +28,22 @@ TBD - created by archiving change ebex-v1-workspace. Update Purpose after archiv
 
 ### Requirement: @ オートコンプリート
 
-Agent 入力欄の `@` オートコンプリートは、開いているプロジェクトフォルダ内の **全階層** のファイルを候補にしなければならない（SHALL）。候補表示にはプロジェクトルートからの相対 `path` を用いなければならない（SHALL）。
+Agent 入力欄の `@` オートコンプリートは、開いているプロジェクトフォルダ内の **全階層** のファイルを候補にしなければならない（SHALL）。候補表示にはプロジェクトルートからの相対 `path` を用いなければならない（SHALL）。いまエディタで開いているファイルがある場合、そのファイルを候補の先頭に置かなければならない（SHALL）。プロジェクトフォルダ外のファイルを候補に含めてはならない（MUST NOT）。
 
 #### Scenario: ネストファイルが候補に出る
 
 - **WHEN** ユーザーがプロジェクト `demo` を開き Agent 入力欄で `@` を入力する
 - **THEN** `sub/notes.md` 等のネストパスが候補として表示される
 
-### Requirement: フォルダ外ファイルピッカー
+#### Scenario: 開いているファイルが先頭
 
-`@` メニュー下部に「フォルダ外を参照…」オプションが提供されなければならない（SHALL）。選択時は OS ファイルピッカーが開かれ、選択されたファイルを invoke に添付できなければならない（SHALL）。
+- **WHEN** ユーザーが `demo/sub/notes.md` を開いた状態で `@` を入力する
+- **THEN** 候補の先頭が `sub/notes.md`（または同等の当該ファイル path）である
 
-#### Scenario: フォルダ外参照
+#### Scenario: フォルダ外は候補に出ない
 
-- **WHEN** ユーザーが「フォルダ外を参照…」を選択しファイルを選ぶ
-- **THEN** 選択されたファイルが Agent invoke の添付に含まれる
+- **WHEN** ユーザーが `@` を入力する
+- **THEN** 開いているプロジェクトフォルダ外のパスは候補に含まれない
 
 ### Requirement: スキル側ファイル選定
 
@@ -52,4 +53,3 @@ Agent 入力欄の `@` オートコンプリートは、開いているプロジ
 
 - **WHEN** スキルがファイル選択 UI を表示する
 - **THEN** サブフォルダ内のファイルもリストに含まれる
-

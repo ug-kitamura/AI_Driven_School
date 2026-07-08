@@ -5,21 +5,36 @@ TBD - created by archiving change ebex-v1-workspace. Update Purpose after archiv
 ## Requirements
 ### Requirement: 編集／プレビュー切替
 
-Pane 2 は `PaneSegmentControl` パターンにより編集モードとプレビューモードを切り替えられなければならない（SHALL）。エディタは CodeMirror を使用しなければならない（SHALL）。
+Pane 2 はヘッダー右の下線タブ（dx-training-studio の `ImageTabBar` と同系のスタイル）により編集モードとプレビューモードを切り替えられなければならない（SHALL）。タブには「Edit」「Preview」のラベルと既存と同様のアイコンを含めなければならない（SHALL）。エディタは CodeMirror を使用しなければならない（SHALL）。
 
 #### Scenario: 編集からプレビューへ切替
 
 - **WHEN** ユーザーがプレビュータブを選択する
 - **THEN** 現在のファイル内容がプレビュー表示される
 
+#### Scenario: 切替タブの見た目
+
+- **WHEN** プレビュー対応ファイルを開きヘッダーを確認する
+- **THEN** 編集／プレビュー切替がヘッダー右に下線タブとして表示され、選択中タブは下線と強調色で示される
+
 ### Requirement: プレビュー対応拡張子
 
-以下の拡張子はプレビューを提供しなければならない（SHALL）: md（react-markdown）、html（サンドボックス iframe）、csv（表表示）、json / yml（整形表示、パースエラー時はエラー表示）、vtt（タイムスタンプ付き発話リスト、話者ラベルがあれば表示）。
+以下の拡張子はプレビューを提供しなければならない（SHALL）: md（react-markdown）、html（スクリプト実行を許可したサンドボックス iframe）、csv（表表示）、json / yml（整形表示、パースエラー時はエラー表示）、vtt（タイムスタンプ付き発話リスト、話者ラベルがあれば表示）。プレビュー表示はペイン内で縦スクロール可能でなければならない（SHALL）。
 
 #### Scenario: Markdown プレビュー
 
 - **WHEN** ユーザーが `.md` ファイルのプレビューを表示する
 - **THEN** Markdown がレンダリングされて表示される
+
+#### Scenario: Markdown プレビューのスクロール
+
+- **WHEN** ユーザーがビューポートより長い `.md` のプレビューを表示する
+- **THEN** プレビュー領域を縦スクロールして末尾まで読める
+
+#### Scenario: HTML プレビューでスクリプトが動く
+
+- **WHEN** ユーザーが Tailwind CDN や Lucide 初期化などスクリプトを含む `.html` をプレビューする
+- **THEN** iframe 内でスクリプトが実行され、スタイルおよびアイコンが適用された状態で表示される
 
 #### Scenario: CSV 表プレビュー
 
@@ -47,12 +62,36 @@ Pane 2 は `PaneSegmentControl` パターンにより編集モードとプレビ
 
 ### Requirement: Pane 2 ヘッダー
 
-ヘッダー左にパンくず `フォルダ名 > ファイル名` が表示されなければならない（SHALL）。ヘッダー右に EBE Purpose（🍃）と設定（⚙）が配置されなければならない（SHALL）。
+ヘッダー左には選択中ファイルのファイル名のみを表示しなければならない（SHALL）。表示スタイルは Pane 3 ヘッダー左の「Agent」と同様に `text-sm font-medium` でなければならない（SHALL）。フォルダパスを含むパンくずは表示してはならない（MUST NOT）。プレビュー対応ファイルではヘッダー右に編集／プレビュー切替を配置しなければならない（SHALL）。
 
-#### Scenario: パンくず表示
+#### Scenario: ファイル名表示
 
 - **WHEN** ユーザーがフォルダ `demo` のファイル `notes.md` を開いている
-- **THEN** ヘッダーに `demo > notes.md` が表示される
+- **THEN** ヘッダー左に `notes.md` のみが表示される
+
+#### Scenario: パンくずを出さない
+
+- **WHEN** ユーザーがネストしたフォルダ内のファイルを開いている
+- **THEN** ヘッダー左にフォルダパスや `>` / `/` 区切りのパンくずは表示されない
+
+### Requirement: 編集時の折りたたみ gutter
+
+編集モードの CodeMirror は、行番号列の右側に折りたたみ gutter 列を常に持たなければならない（SHALL）。この列の幅と基本スタイルはファイル種別によらず同一でなければならない（SHALL）。折りたたみ操作（見出し / front matter の折りたたみ、列ホバー時の ▼ 表示）は `.md` ファイルでのみ有効でなければならない（SHALL）。非 `.md` ではマーカーが出ず折りたたみできないが、列自体は維持しなければならない（SHALL）。ホバー挙動は dx-training-studio と同様、折りたたみ列へのマウスオーバーで開状態マーカー（▼）が表示されなければならない（SHALL）。
+
+#### Scenario: Markdown で折りたたみできる
+
+- **WHEN** ユーザーが `.md` を編集し、折りたたみ可能な見出し行の gutter 列にマウスを乗せて ▼ をクリックする
+- **THEN** 対応する本文範囲が折りたたまれる
+
+#### Scenario: 非 Markdown でも gutter 列がある
+
+- **WHEN** ユーザーが `.json` など非 `.md` ファイルを編集する
+- **THEN** 行番号の右に折りたたみ gutter 列が表示され、Markdown 編集時と列幅が変わらない
+
+#### Scenario: 非 Markdown では折れない
+
+- **WHEN** ユーザーが非 `.md` ファイルの折りたたみ gutter 列をホバーまたはクリックする
+- **THEN** 折りたたみマーカーは現れず、本文は折りたたまれない
 
 ### Requirement: ファイル未選択時
 
@@ -76,4 +115,3 @@ Pane 2 は `PaneSegmentControl` パターンにより編集モードとプレビ
 
 - **WHEN** ユーザーがファイルを編集する
 - **THEN** debounce 後にファイル内容がディスクに保存される
-

@@ -161,8 +161,8 @@ function SettingsForm({
   };
 
   const paneLabels = {
-    pane1: "Pane 1（ツリー）",
-    pane3: "Pane 3（Agent）",
+    pane1: "Pane 1",
+    pane3: "Pane 3",
   } as const;
 
   return (

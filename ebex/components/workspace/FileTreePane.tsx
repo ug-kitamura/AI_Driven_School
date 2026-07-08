@@ -486,7 +486,7 @@ export function FileTreePane({
             className="h-6 w-auto shrink-0"
             priority
           />
-          <span className="font-semibold tracking-tight">EBEX</span>
+          <span className="text-lg font-semibold tracking-tight">EBEX</span>
         </button>
         <div className="flex items-center gap-1">
           <Button

@@ -50,23 +50,23 @@ export function PurposeDialog({ open, onOpenChange }: Props) {
       open={open}
       onClose={() => handleOpenChange(false)}
       className={cn(
-        "fixed inset-0 z-50 m-auto max-h-[85vh] w-full max-w-xl rounded-sm border border-[#c4b896] p-0 shadow-xl backdrop:bg-black/50",
+        "fixed inset-0 z-50 m-auto max-h-[92vh] w-full max-w-3xl rounded-sm border border-[#c4b896] p-0 shadow-xl backdrop:bg-black/50",
         "bg-[#e8dfc8] text-[#3d3426]",
       )}
     >
-      <div className="relative flex flex-col gap-8 px-8 py-10 sm:px-12">
+      <div className="relative flex flex-col gap-10 px-10 py-12 sm:px-16 sm:py-14">
         <Button
           type="button"
           variant="ghost"
           size="icon-sm"
           aria-label="閉じる"
-          className="absolute top-3 right-3 text-[#3d3426]/80 hover:bg-[#d4c9a8] hover:text-[#3d3426]"
+          className="absolute top-4 right-4 text-[#3d3426]/80 hover:bg-[#d4c9a8] hover:text-[#3d3426]"
           onClick={() => handleOpenChange(false)}
         >
           <X className="size-4" />
         </Button>
 
-        <h2 className="text-center text-2xl font-semibold tracking-wide text-[#2c2418] sm:text-3xl">
+        <h2 className="text-center text-3xl font-semibold tracking-wide text-[#2c2418] sm:text-4xl">
           EBE Purpose
         </h2>
 
@@ -75,11 +75,12 @@ export function PurposeDialog({ open, onOpenChange }: Props) {
         ) : (
           <div
             className={cn(
-              "purpose-parchment workspace-scrollbar max-h-[60vh] overflow-y-auto text-center",
+              "purpose-parchment workspace-scrollbar max-h-[70vh] overflow-y-auto text-center",
               "[&_h1]:hidden",
-              "[&_ol]:mx-auto [&_ol]:list-decimal [&_ol]:space-y-3 [&_ol]:pl-6 [&_ol]:text-left [&_ol]:text-sm [&_ol]:leading-relaxed sm:[&_ol]:text-base",
-              "[&_ul]:mx-auto [&_ul]:list-decimal [&_ul]:space-y-3 [&_ul]:pl-6 [&_ul]:text-left [&_ul]:text-sm [&_ul]:leading-relaxed sm:[&_ul]:text-base",
-              "[&_p]:mx-auto [&_p]:max-w-prose [&_p]:text-sm [&_p]:leading-relaxed sm:[&_p]:text-base",
+              "[&_ol]:mx-auto [&_ol]:list-decimal [&_ol]:list-inside [&_ol]:space-y-4 [&_ol]:pl-0 [&_ol]:text-center [&_ol]:text-base [&_ol]:leading-relaxed sm:[&_ol]:text-lg",
+              "[&_ul]:mx-auto [&_ul]:list-decimal [&_ul]:list-inside [&_ul]:space-y-4 [&_ul]:pl-0 [&_ul]:text-center [&_ul]:text-base [&_ul]:leading-relaxed sm:[&_ul]:text-lg",
+              "[&_li]:text-center",
+              "[&_p]:mx-auto [&_p]:max-w-prose [&_p]:text-center [&_p]:text-base [&_p]:leading-relaxed sm:[&_p]:text-lg",
             )}
           >
             <ReactMarkdown remarkPlugins={[remarkGfm]}>{markdown}</ReactMarkdown>

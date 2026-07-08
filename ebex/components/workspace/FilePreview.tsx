@@ -42,7 +42,7 @@ export function FilePreview({ fileName, content }: Props) {
     return (
       <iframe
         title="HTML preview"
-        sandbox=""
+        sandbox="allow-scripts"
         srcDoc={content}
         className="size-full border-0 bg-white"
       />

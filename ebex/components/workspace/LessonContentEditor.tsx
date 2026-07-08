@@ -41,6 +41,8 @@ type Props = {
   onChange: (value: string) => void;
   onScrollElementReady?: (element: HTMLElement | null) => void;
   onCursorChange?: (offset: number) => void;
+  /** false のとき折りたたみ操作は無効。gutter 列は常設 */
+  enableFolding?: boolean;
   className?: string;
 };
 
@@ -54,6 +56,7 @@ export const LessonContentEditor = forwardRef<
     onChange,
     onScrollElementReady,
     onCursorChange,
+    enableFolding = true,
     className,
   },
   ref,
@@ -117,6 +120,9 @@ export const LessonContentEditor = forwardRef<
     }),
   ).current;
 
+  const enableFoldingRef = useRef(enableFolding);
+  enableFoldingRef.current = enableFolding;
+
   const buildExtensions = useCallback(
     () =>
       buildLessonEditorStateExtensions(
@@ -125,6 +131,7 @@ export const LessonContentEditor = forwardRef<
         {
           getFontSize: () => fontSizeRef.current,
           onFontSizeChange: handleFontSizeChange,
+          enableFolding: enableFoldingRef.current,
         },
         [updateListenerExtension],
       ),
@@ -154,6 +161,7 @@ export const LessonContentEditor = forwardRef<
         buildLessonEditorExtensions(isDarkRef.current, fontSizeRef.current, {
           getFontSize: () => fontSizeRef.current,
           onFontSizeChange: handleFontSizeChange,
+          enableFolding: enableFoldingRef.current,
         }),
       ),
     });
@@ -209,10 +217,11 @@ export const LessonContentEditor = forwardRef<
         buildLessonEditorExtensions(isDark, fontSizePx, {
           getFontSize: () => fontSizeRef.current,
           onFontSizeChange: handleFontSizeChange,
+          enableFolding: enableFoldingRef.current,
         }),
       ),
     });
-  }, [isDark, fontSizePx, handleFontSizeChange]);
+  }, [isDark, fontSizePx, handleFontSizeChange, enableFolding]);
 
   useEffect(() => {
     const view = viewRef.current;

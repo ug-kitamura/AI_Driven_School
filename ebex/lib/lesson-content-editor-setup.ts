@@ -13,6 +13,8 @@ import {
   LESSON_LINE_NUMBER_DARK,
   LESSON_LINE_NUMBER_LIGHT,
 } from "@/lib/lesson-active-line-number";
+import { lessonFoldGutter } from "@/lib/lesson-fold-gutter";
+import { getFoldRangeAtLine } from "@/lib/markdown-fold-ranges";
 import { clampEditorFontSizePx } from "@/lib/workspace-settings";
 
 /** テーマ・フォントサイズを setState なしで差し替える Compartment（モジュール共有） */
@@ -72,6 +74,9 @@ function createLessonEditorLayout(
         color: `${lineNumberColor} !important`,
         fontSize: `${gutterFontPx}px`,
         lineHeight: `${lineHeightPx}px`,
+      },
+      ".cm-foldGutter.lesson-fold-gutter": {
+        minWidth: `${Math.max(gutterFontPx + 4, 14)}px`,
       },
       ".lesson-fold-gutter .cm-gutterElement": {
         padding: "0 2px",
@@ -148,7 +153,30 @@ const lessonVscodeDark = vscodeDarkInit({
 });
 
 
-const lessonMarkdownFold = foldService.of(() => null);
+function createLessonMarkdownFold(enableFolding: boolean) {
+  if (!enableFolding) return foldService.of(() => null);
+  return foldService.of((state: EditorState, lineStart: number) => {
+    const lineIndex = state.doc.lineAt(lineStart).number - 1;
+    const lines = state.doc.toString().split("\n");
+    const range = getFoldRangeAtLine(lines, lineIndex);
+    if (!range) return null;
+
+    const docLines = state.doc.lines;
+    if (range.fromLineIndex >= docLines) return null;
+    const from = state.doc.line(range.fromLineIndex + 1).from;
+    const toLine = Math.min(range.toLineIndex + 1, docLines);
+    const to = state.doc.line(toLine).to;
+    if (from >= to) return null;
+    return { from, to };
+  });
+}
+
+export type LessonEditorExtensionOptions = {
+  getFontSize?: () => number;
+  onFontSizeChange?: (next: number) => void;
+  /** false のとき折りたたみ操作は無効。gutter 列自体は常設する */
+  enableFolding?: boolean;
+};
 
 /** Ctrl+ホイールでフォントサイズ変更（編集モードのみ） */
 export function editorFontSizeWheelExtension(
@@ -166,23 +194,22 @@ export function editorFontSizeWheelExtension(
   });
 }
 
-/** Pane3 編集モード用 CodeMirror 拡張 */
+/** Pane 2 編集モード用 CodeMirror 拡張 */
 export function buildLessonEditorExtensions(
   isDark = false,
   fontSizePx = 14,
-  options?: {
-    getFontSize?: () => number;
-    onFontSizeChange?: (next: number) => void;
-  },
+  options?: LessonEditorExtensionOptions,
 ) {
   const size = clampEditorFontSizePx(fontSizePx);
   const lineNumberColor = isDark
     ? LESSON_LINE_NUMBER_DARK
     : LESSON_LINE_NUMBER_LIGHT;
+  const enableFolding = options?.enableFolding ?? true;
   const extensions = [
     isDark ? lessonVscodeDark : lessonVscodeLight,
     lineNumbers(),
-    lessonMarkdownFold,
+    ...lessonFoldGutter({ enableFolding }),
+    createLessonMarkdownFold(enableFolding),
     markdown({
       base: markdownLanguage,
       codeLanguages: languages,
@@ -208,10 +235,7 @@ export function buildLessonEditorExtensions(
 export function buildLessonEditorStateExtensions(
   isDark = false,
   fontSizePx = 14,
-  options?: {
-    getFontSize?: () => number;
-    onFontSizeChange?: (next: number) => void;
-  },
+  options?: LessonEditorExtensionOptions,
   extraExtensions: Extension[] = [],
 ): Extension[] {
   return [

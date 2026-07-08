@@ -8,7 +8,7 @@ import {
   type PaneSegmentOption,
 } from "@/components/workspace/PaneSegmentControl";
 import { FilePreview } from "@/components/workspace/FilePreview";
-import { supportsPreview } from "@/lib/file-preview";
+import { fileExtension, supportsPreview } from "@/lib/file-preview";
 import type { LessonContentEditorHandle } from "@/components/workspace/LessonContentEditor";
 
 const LessonContentEditor = dynamic(
@@ -61,6 +61,7 @@ export function EditorPane({
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const fileKey = `${folderPath}/${fileName}`;
+  const enableFolding = fileExtension(fileName) === "md";
 
   const scheduleSave = useCallback(
     (nextContent: string) => {
@@ -107,7 +108,7 @@ export function EditorPane({
   if (!folderPath || !fileName) {
     return (
       <div className="flex h-full flex-col">
-        <EditorHeader breadcrumb="ファイルを選択してください" />
+        <EditorHeader title="ファイルを選択してください" muted />
         <div className="flex flex-1 items-center justify-center text-sm text-muted-foreground">
           Pane 1 からフォルダとファイルを選択してください
         </div>
@@ -118,18 +119,25 @@ export function EditorPane({
   return (
     <div className="flex h-full min-h-0 flex-col">
       <EditorHeader
-        breadcrumb={`${folderPath} / ${fileName}`}
+        title={fileName}
         modeControl={
           supportsPreview(fileName) ? (
             <PaneSegmentControl
               value={mode}
               onChange={setMode}
               options={MODE_TABS}
+              variant="underline"
             />
           ) : null
         }
       />
-      <div className="min-h-0 flex-1 overflow-hidden">
+      <div
+        className={
+          showPreview
+            ? "min-h-0 flex-1 overflow-y-auto"
+            : "min-h-0 flex-1 overflow-hidden"
+        }
+      >
         {showPreview ? (
           <FilePreview fileName={fileName} content={content} />
         ) : (
@@ -139,6 +147,7 @@ export function EditorPane({
             lessonId={fileKey}
             value={content}
             onChange={handleChange}
+            enableFolding={enableFolding}
             className="h-full"
           />
         )}
@@ -148,16 +157,24 @@ export function EditorPane({
 }
 
 function EditorHeader({
-  breadcrumb,
+  title,
   modeControl,
+  muted = false,
 }: {
-  breadcrumb: string;
+  title: string;
   modeControl?: React.ReactNode;
+  muted?: boolean;
 }) {
   return (
     <div className="flex h-12 shrink-0 items-center gap-2 border-b px-3 py-0">
-      <span className="min-w-0 flex-1 truncate text-sm text-muted-foreground">
-        {breadcrumb}
+      <span
+        className={
+          muted
+            ? "mr-auto min-w-0 truncate text-sm text-muted-foreground"
+            : "mr-auto min-w-0 truncate text-sm font-medium"
+        }
+      >
+        {title}
       </span>
       {modeControl}
     </div>

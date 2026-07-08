@@ -16,6 +16,8 @@ type Props<T extends string> = {
   options: ReadonlyArray<PaneSegmentOption<T>>;
   onChange: (value: T) => void;
   compact?: boolean;
+  /** bordered 塗りつぶし（default） / ImageTabBar 風の下線タブ */
+  variant?: "segment" | "underline";
   className?: string;
 };
 
@@ -24,8 +26,38 @@ export function PaneSegmentControl<T extends string>({
   options,
   onChange,
   compact = false,
+  variant = "segment",
   className,
 }: Props<T>) {
+  if (variant === "underline") {
+    return (
+      <div className={cn("flex h-full min-w-0 items-center", className)}>
+        {options.map((option) => {
+          const showIconOnly = compact && option.compactIcon != null;
+          const icon = showIconOnly ? option.compactIcon : option.icon;
+          return (
+            <button
+              key={option.value}
+              type="button"
+              aria-label={showIconOnly ? (option.ariaLabel ?? option.label) : undefined}
+              title={showIconOnly ? option.label : undefined}
+              onClick={() => onChange(option.value)}
+              className={cn(
+                "flex h-full items-center gap-1 px-2 text-[10px] font-medium transition-colors",
+                value === option.value
+                  ? "border-b-2 border-primary text-primary"
+                  : "text-muted-foreground hover:text-foreground",
+              )}
+            >
+              {icon}
+              {!showIconOnly ? option.label : null}
+            </button>
+          );
+        })}
+      </div>
+    );
+  }
+
   return (
     <div
       className={cn(

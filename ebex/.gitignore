@@ -1,0 +1,24 @@
+# workspace
+/workspace/
+!workspace/.gitkeep
+
+# dependencies
+node_modules/
+
+# next.js
+.next/
+
+# debug logs
+*.log
+
+# typescript
+*.tsbuildinfo
+next-env.d.ts
+
+# secret env
+.env.local
+
+# OpenSpec
+.claude/commands/opsx/
+.claude/skills/openspec-*/
+openspec/changes/

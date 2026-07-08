@@ -43,10 +43,10 @@ export function PaneSegmentControl<T extends string>({
               title={showIconOnly ? option.label : undefined}
               onClick={() => onChange(option.value)}
               className={cn(
-                "flex h-full items-center gap-1 px-2 text-[10px] font-medium transition-colors",
+                "flex h-full items-center gap-1.5 border-b-2 px-2.5 text-xs font-medium transition-colors",
                 value === option.value
-                  ? "border-b-2 border-primary text-primary"
-                  : "text-muted-foreground hover:text-foreground",
+                  ? "border-primary text-primary"
+                  : "border-transparent text-muted-foreground hover:text-foreground",
               )}
             >
               {icon}

@@ -29,8 +29,8 @@ const LessonContentEditor = dynamic(
 export type EditorViewMode = "edit" | "preview";
 
 const MODE_TABS: ReadonlyArray<PaneSegmentOption<EditorViewMode>> = [
-  { value: "edit", label: "編集", icon: <Code className="size-3" /> },
-  { value: "preview", label: "プレビュー", icon: <Eye className="size-3" /> },
+  { value: "edit", label: "Edit", icon: <Code className="size-3.5" /> },
+  { value: "preview", label: "Preview", icon: <Eye className="size-3.5" /> },
 ];
 
 type Props = {

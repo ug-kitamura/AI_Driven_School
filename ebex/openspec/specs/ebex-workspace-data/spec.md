@@ -19,12 +19,22 @@ TBD - created by archiving change ebex-v1-workspace. Update Purpose after archiv
 
 ### Requirement: mtime 同期 API
 
-`GET /api/workspace/mtime` エンドポイントが存在し、workspace 全体の fingerprint を返さなければならない（SHALL）。`session.json` の変更は fingerprint に含めてはならない（MUST NOT）。
+`GET /api/workspace/mtime` エンドポイントが存在し、workspace 全体の fingerprint を返さなければならない（SHALL）。`session.json` の変更は fingerprint に含めてはならない（MUST NOT）。fingerprint はファイルの mtime に加えて、`workspace/` 配下の全フォルダの相対パス一覧（ソート済み）も入力として含めなければならない（SHALL）。
 
 #### Scenario: fingerprint 取得
 
 - **WHEN** `GET /api/workspace/mtime` を呼び出す
 - **THEN** workspace の変更検知用 fingerprint が返される
+
+#### Scenario: フォルダ名変更で fingerprint が変化する
+
+- **WHEN** ファイルの mtime に変化がない状態でフォルダ名のみが変更される
+- **THEN** `GET /api/workspace/mtime` が返す fingerprint は変更前と異なる値になる
+
+#### Scenario: 空フォルダ削除で fingerprint が変化する
+
+- **WHEN** ファイルの mtime に変化がない状態で空フォルダが削除される
+- **THEN** `GET /api/workspace/mtime` が返す fingerprint は変更前と異なる値になる
 
 ### Requirement: フォルダ CRUD API
 
@@ -32,7 +42,7 @@ TBD - created by archiving change ebex-v1-workspace. Update Purpose after archiv
 
 - `POST /api/workspace/create-folder` — プロジェクトフォルダ作成（`{ name }`）またはサブフォルダ作成（`{ parentPath, name }`）
 - `POST /api/workspace/rename-folder` — フォルダリネーム（`{ fromPath, toPath }`、`session.json` はプロジェクトルート移動時のみ連動）
-- `POST /api/workspace/delete-folder` — 空フォルダのみ削除（`{ folderPath }`）
+- `POST /api/workspace/delete-folder` — 空フォルダのみ削除（`{ folderPath }`）。フォルダ直下に `session.json` のみが存在する場合も空フォルダとみなし、削除時は `session.json` を含めてフォルダ全体を削除する
 
 #### Scenario: サブフォルダ作成
 
@@ -46,8 +56,13 @@ TBD - created by archiving change ebex-v1-workspace. Update Purpose after archiv
 
 #### Scenario: 空でないフォルダは削除不可
 
-- **WHEN** サブフォルダまたはファイルを含む `folderPath` で削除を試みる
+- **WHEN** `session.json` 以外のサブフォルダまたはファイルを含む `folderPath` で削除を試みる
 - **THEN** HTTP 400 が返される
+
+#### Scenario: session.json のみのフォルダは削除可能
+
+- **WHEN** `session.json` のみが存在する `folderPath` で `POST /api/workspace/delete-folder` を呼び出す
+- **THEN** HTTP 200 が返され、`session.json` を含めてフォルダが削除される
 
 ### Requirement: ファイル CRUD API
 
@@ -69,12 +84,22 @@ TBD - created by archiving change ebex-v1-workspace. Update Purpose after archiv
 
 ### Requirement: mtime ポーリング同期
 
-クライアントは 3 秒間隔で mtime をポーリングし、外部変更を検知した場合に workspace 状態を再読み込みしなければならない（SHALL）。`useContentSync` のパターンを `useWorkspaceSync` として流用しなければならない（SHALL）。
+クライアントは 3 秒間隔で mtime をポーリングし、外部変更を検知した場合に workspace 状態を再読み込みしなければならない（SHALL）。`useContentSync` のパターンを `useWorkspaceSync` として流用しなければならない（SHALL）。フォルダの追加・削除・リネームなど、ファイル mtime が変化しない外部変更も検知して再読み込みしなければならない（SHALL）。
 
 #### Scenario: 外部変更の反映
 
 - **WHEN** IDE 外でファイルが変更される
 - **THEN** 3 秒以内に EBEX の表示が更新される
+
+#### Scenario: 外部でのフォルダリネームが反映される
+
+- **WHEN** IDE 外で `workspace/` 配下のフォルダ名が変更される
+- **THEN** 3 秒以内に EBEX のツリー表示が新しいフォルダ名で更新される
+
+#### Scenario: 外部での空フォルダ削除が反映される
+
+- **WHEN** IDE 外で `session.json` のみを含む空フォルダが削除される
+- **THEN** 3 秒以内に EBEX のツリー表示から当該フォルダが消える
 
 ### Requirement: 編集中保護
 

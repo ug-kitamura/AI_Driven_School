@@ -1,6 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import {
+  SESSION_FILENAME,
   WORKSPACE_DIR_NAME,
   validateFileName,
   validateRelativeFolderPath,
@@ -72,5 +73,7 @@ export function isFolderEmpty(projectRoot: string, folderPath: string): boolean 
   const resolved = resolveFolderPath(projectRoot, folderPath);
   if ("error" in resolved) return false;
   if (!fs.existsSync(resolved.absolutePath)) return false;
-  return fs.readdirSync(resolved.absolutePath).length === 0;
+  const entries = fs.readdirSync(resolved.absolutePath);
+  if (entries.length === 0) return true;
+  return entries.length === 1 && entries[0] === SESSION_FILENAME;
 }

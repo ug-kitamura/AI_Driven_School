@@ -104,14 +104,14 @@ function TreeNode({
     emphasizedFolderPaths.has(node.path) || isFolderSelected;
 
   return (
-    <div className="flex flex-col" style={{ paddingLeft: depth * 16 }}>
+    <div className="flex flex-col">
       <ContextMenu>
         <ContextMenuTrigger
           render={
             <div
               className={cn(
-                "flex items-center gap-1 rounded-md px-1 py-0.5 hover:bg-muted/60",
-                (isFolderSelected || folderEmphasized) && "bg-muted/80",
+                "flex items-center gap-1 rounded-md px-1 py-0.5 hover:bg-muted",
+                (isFolderSelected || folderEmphasized) && "bg-muted",
               )}
               onDragOver={(event) => {
                 event.preventDefault();
@@ -125,22 +125,19 @@ function TreeNode({
             >
               <button
                 type="button"
-                className="flex size-6 shrink-0 items-center justify-center"
+                className="flex size-5 shrink-0 items-center justify-center"
                 onClick={() => onToggleExpanded(node.path, isOpen)}
                 aria-label={isOpen ? "折りたたむ" : "展開する"}
               >
                 {isOpen ? (
-                  <ChevronDown className="size-4" />
+                  <ChevronDown className="size-3.5" />
                 ) : (
-                  <ChevronRight className="size-4" />
+                  <ChevronRight className="size-3.5" />
                 )}
               </button>
               <button
                 type="button"
-                className={cn(
-                  "min-w-0 flex-1 truncate text-left text-sm",
-                  folderEmphasized && "font-semibold",
-                )}
+                className="min-w-0 flex-1 truncate text-left text-sm"
                 onClick={() => {
                   onToggleExpanded(node.path, isOpen);
                   onSelectFile(node.path, node.files[0] ?? "");
@@ -153,6 +150,7 @@ function TreeNode({
         />
         <ContextMenuContent>
           <ContextMenuItem
+            variant="muted"
             onClick={() => {
               onSetNameInput("notes.md");
               onOpenDialog({ type: "add-file", folderPath: node.path });
@@ -161,6 +159,7 @@ function TreeNode({
             ファイル追加
           </ContextMenuItem>
           <ContextMenuItem
+            variant="muted"
             onClick={() => {
               onSetNameInput("");
               onOpenDialog({ type: "add-subfolder", parentPath: node.path });
@@ -169,6 +168,7 @@ function TreeNode({
             フォルダ追加
           </ContextMenuItem>
           <ContextMenuItem
+            variant="muted"
             onClick={() => {
               onSetNameInput(node.path);
               onOpenDialog({ type: "rename-folder", folderPath: node.path });
@@ -188,7 +188,7 @@ function TreeNode({
       </ContextMenu>
 
       {isOpen ? (
-        <div className="flex flex-col">
+        <div className="ml-[9px] flex flex-col border-l border-border pl-[7px]">
           {node.files.map((file) => {
             const isFileSelected =
               selectedFolderPath === node.path && selectedFileName === file;
@@ -198,11 +198,11 @@ function TreeNode({
                   render={
                     <div
                       className={cn(
-                        "flex items-center gap-1 rounded-md px-2 py-0.5 text-sm hover:bg-muted/60",
+                        "flex items-center gap-1 rounded-md px-1 py-0.5 text-sm hover:bg-muted",
                         isFileSelected && "bg-muted font-semibold",
                       )}
-                      style={{ paddingLeft: (depth + 1) * 16 }}
                     >
+                      <span className="size-5 shrink-0" aria-hidden="true" />
                       <button
                         type="button"
                         className="min-w-0 flex-1 truncate text-left"
@@ -215,6 +215,7 @@ function TreeNode({
                 />
                 <ContextMenuContent>
                   <ContextMenuItem
+                    variant="muted"
                     onClick={() => {
                       onSetNameInput(file);
                       onOpenDialog({
@@ -374,6 +375,13 @@ export function FileTreePane({
             toPath: name,
           })) as { newPath?: string };
           const newPath = result.newPath ?? name;
+          setExpanded((prev) => {
+            const next: Record<string, boolean> = {};
+            for (const [key, value] of Object.entries(prev)) {
+              next[remapFolderPath(key, dialog.folderPath, newPath)] = value;
+            }
+            return next;
+          });
           if (selectedFolderPath === dialog.folderPath) {
             onSelectFile(
               remapFolderPath(selectedFolderPath, dialog.folderPath, newPath),
@@ -501,7 +509,7 @@ export function FileTreePane({
         </div>
       </div>
 
-      <div className="flex shrink-0 items-center gap-2 px-2 py-2">
+      <div className="flex shrink-0 items-center gap-2 px-3 py-2">
         <Search className="size-4 shrink-0 text-muted-foreground" />
         <div className="relative min-w-0 flex-1">
           <Input
@@ -515,8 +523,12 @@ export function FileTreePane({
               type="button"
               variant="ghost"
               size="icon-sm"
-              className="absolute top-1/2 right-0.5 -translate-y-1/2"
+              className="absolute inset-y-0 right-0.5 my-auto"
               aria-label="検索をクリア"
+              onMouseDown={(e) => {
+                e.preventDefault();
+                setFilter("");
+              }}
               onClick={() => setFilter("")}
             >
               <X className="size-3.5" />
@@ -529,7 +541,7 @@ export function FileTreePane({
         <p className="px-3 py-2 text-xs text-destructive">{error}</p>
       ) : null}
 
-      <div className="min-h-0 flex-1 overflow-y-auto px-1 py-2">
+      <div className="workspace-scrollbar min-h-0 flex-1 overflow-y-auto px-1 py-2">
         {filteredFolders.length === 0 ? (
           <p className="px-2 py-4 text-center text-sm text-muted-foreground">
             フォルダがありません

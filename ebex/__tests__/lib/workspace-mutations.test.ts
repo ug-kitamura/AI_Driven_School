@@ -13,8 +13,14 @@ import {
   renameFolder,
   saveFile,
 } from "@/lib/workspace-mutations";
-import { loadWorkspace } from "@/lib/workspace-loader";
-import { validateFileName, validateRelativeFolderPath } from "@/lib/workspace-paths";
+import { getWorkspaceFingerprint, loadWorkspace } from "@/lib/workspace-loader";
+import {
+  SESSION_FILENAME,
+  getWorkspaceDir,
+  isFolderEmpty,
+  validateFileName,
+  validateRelativeFolderPath,
+} from "@/lib/workspace-paths";
 
 describe("workspace-paths", () => {
   it("rejects path traversal in folder paths", () => {
@@ -95,6 +101,62 @@ describe("workspace mutations", () => {
     createFile(tmpDir, "tmp", "x.md", "");
     expect(deleteFile(tmpDir, "tmp", "x.md")).toEqual({ ok: true });
     expect(deleteFolder(tmpDir, "tmp")).toEqual({ ok: true });
+  });
+
+  it("treats a folder containing only session.json as empty and deletes it", () => {
+    tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "ebex-ws-"));
+    createFolder(tmpDir, "tmp");
+    fs.writeFileSync(
+      path.join(getWorkspaceDir(tmpDir), "tmp", SESSION_FILENAME),
+      "{}",
+    );
+
+    expect(isFolderEmpty(tmpDir, "tmp")).toBe(true);
+    expect(deleteFolder(tmpDir, "tmp")).toEqual({ ok: true });
+    expect(fs.existsSync(path.join(getWorkspaceDir(tmpDir), "tmp"))).toBe(
+      false,
+    );
+  });
+
+  it("keeps blocking deletion when a folder has files other than session.json", () => {
+    tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "ebex-ws-"));
+    createFolder(tmpDir, "tmp");
+    createFile(tmpDir, "tmp", "notes.md", "");
+    fs.writeFileSync(
+      path.join(getWorkspaceDir(tmpDir), "tmp", SESSION_FILENAME),
+      "{}",
+    );
+
+    expect(isFolderEmpty(tmpDir, "tmp")).toBe(false);
+    expect(deleteFolder(tmpDir, "tmp")).toEqual({
+      error: "空のフォルダのみ削除できます",
+    });
+  });
+
+  it("changes fingerprint when a folder is renamed without touching file mtimes", () => {
+    tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "ebex-ws-"));
+    createFolder(tmpDir, "before");
+    createFile(tmpDir, "before", "notes.md", "hello");
+
+    const beforeFingerprint = getWorkspaceFingerprint(tmpDir);
+    renameFolder(tmpDir, "before", "after");
+    const afterFingerprint = getWorkspaceFingerprint(tmpDir);
+
+    expect(afterFingerprint).not.toBe(beforeFingerprint);
+  });
+
+  it("changes fingerprint when an empty folder is created or deleted", () => {
+    tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "ebex-ws-"));
+    const initialFingerprint = getWorkspaceFingerprint(tmpDir);
+
+    createFolder(tmpDir, "new-empty");
+    const afterCreateFingerprint = getWorkspaceFingerprint(tmpDir);
+    expect(afterCreateFingerprint).not.toBe(initialFingerprint);
+
+    deleteFolder(tmpDir, "new-empty");
+    const afterDeleteFingerprint = getWorkspaceFingerprint(tmpDir);
+    expect(afterDeleteFingerprint).not.toBe(afterCreateFingerprint);
+    expect(afterDeleteFingerprint).toBe(initialFingerprint);
   });
 
   it("saves and reads file content", () => {

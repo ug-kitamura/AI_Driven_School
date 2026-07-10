@@ -117,7 +117,7 @@ export function deleteFolder(projectRoot: string, folderPath: string) {
   }
   const resolved = resolveFolderPath(projectRoot, folderPath);
   if ("error" in resolved) return { error: resolved.error };
-  fs.rmdirSync(resolved.absolutePath);
+  fs.rmSync(resolved.absolutePath, { recursive: true, force: true });
   return { ok: true as const };
 }
 

@@ -170,7 +170,7 @@ describe("resolveLeftNavigation", () => {
     });
   });
 
-  it("returns null for the empty placeholder row", () => {
+  it("collapses the parent folder for an empty placeholder row", () => {
     const result = resolveLeftNavigation(
       { id: emptyRowId("demo/sub"), kind: "empty", folderPath: "demo/sub", depth: 1 },
       {
@@ -179,6 +179,9 @@ describe("resolveLeftNavigation", () => {
         getParentFolderPath,
       },
     );
-    expect(result).toBeNull();
+    expect(result).toEqual({
+      collapsePaths: ["demo/sub"],
+      focusRowId: folderRowId("demo/sub"),
+    });
   });
 });

@@ -17,6 +17,12 @@ import {
   resolveUniqueFolderName,
 } from "@/lib/workspace-unique-name";
 import { getParentFolderPath } from "@/lib/workspace-tree-path";
+import {
+  remapFavoritesOnFolderRename,
+  removeFavoriteFile,
+  removeFavoritesUnderPath,
+  renameFavoriteFile,
+} from "@/lib/workspace-favorites";
 
 export type ConflictPolicy = "error" | "auto-rename";
 
@@ -133,6 +139,7 @@ export function renameFolder(
   if ("error" in from) return { error: from.error };
   if ("error" in to) return { error: to.error };
   fs.renameSync(from.absolutePath, to.absolutePath);
+  remapFavoritesOnFolderRename(projectRoot, fromPath, finalToPath);
   return { ok: true as const, newPath: finalToPath };
 }
 
@@ -149,6 +156,7 @@ export function deleteFolder(projectRoot: string, folderPath: string) {
   const resolved = resolveFolderPath(projectRoot, folderPath);
   if ("error" in resolved) return { error: resolved.error };
   fs.rmSync(resolved.absolutePath, { recursive: true, force: true });
+  removeFavoritesUnderPath(projectRoot, folderPath);
   return { ok: true as const };
 }
 
@@ -314,6 +322,7 @@ export function renameFile(
     return { error: "同名のファイルが既に存在します" };
   }
   fs.renameSync(from.absolutePath, to.absolutePath);
+  renameFavoriteFile(projectRoot, folderPath, fromName, toName);
   return { ok: true as const, newName: toName };
 }
 
@@ -330,6 +339,7 @@ export function deleteFile(
     return { error: "ファイルが見つかりません" };
   }
   fs.unlinkSync(resolved.absolutePath);
+  removeFavoriteFile(projectRoot, folderPath, fileName);
   return { ok: true as const };
 }
 

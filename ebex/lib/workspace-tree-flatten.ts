@@ -143,7 +143,7 @@ export function resolveLeftNavigation(
     };
   }
 
-  if (row.kind === "file") {
+  if (row.kind === "file" || row.kind === "empty") {
     return {
       collapsePaths: [row.folderPath],
       focusRowId: folderRowId(row.folderPath),

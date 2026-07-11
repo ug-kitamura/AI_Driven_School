@@ -9,6 +9,7 @@ import {
   CircleDashed,
   FolderPlus,
   Search,
+  Star,
   X,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -54,10 +55,17 @@ import {
   buildRenamedFolderPath,
   collectProjectFolderPaths,
   filterWorkspaceTree,
+  filterWorkspaceTreeByFileKeys,
+  findTreeNode,
   getAncestorFolderPaths,
   getFolderBaseName,
   remapFolderPath,
 } from "@/lib/workspace-tree";
+import {
+  favoriteKey,
+  filterFavoritesToExisting,
+  type FavoriteEntry,
+} from "@/lib/workspace-favorites";
 import {
   buildVisibleRows,
   emptyRowId,
@@ -76,7 +84,7 @@ import {
 } from "@/lib/workspace-tree-path";
 import logoSmall from "@/images/logo_small.png";
 
-const NO_CHANGE_MESSAGE = "名前が変更されていません";
+const NO_CHANGE_MESSAGE = "????????????";
 const INTERNAL_DRAG_MIME = "application/x-ebex-tree";
 const AUTO_RENAME_ON_CONFLICT = { autoRenameOnConflict: true } as const;
 
@@ -89,11 +97,14 @@ type Props = {
   onOpenPurpose?: () => void;
 };
 
+const CONTENT_SEARCH_DEBOUNCE_MS = 300;
+
 type DialogMode =
   | { type: "add-folder" }
   | { type: "add-subfolder"; parentPath: string }
   | { type: "rename-folder"; folderPath: string }
   | { type: "delete-folder"; folderPath: string }
+  | { type: "blocked-delete-folder"; folderPath: string }
   | { type: "add-file"; folderPath: string }
   | { type: "rename-file"; folderPath: string; fileName: string }
   | { type: "delete-file"; folderPath: string; fileName: string }
@@ -126,6 +137,9 @@ type TreeInteraction = {
   onSetNameInput: (value: string) => void;
   onToggleExpanded: (folderPath: string, isOpen: boolean) => void;
   onSelectFile: (folderPath: string, fileName: string) => void;
+  onOpenDeleteFolderDialog: (folderPath: string) => void;
+  isFavorite: (folderPath: string, fileName: string) => boolean;
+  onToggleFavorite: (folderPath: string, fileName: string) => void;
   rowHighlight: (rowId: string, isFileSelected: boolean) => string;
 };
 
@@ -295,7 +309,7 @@ function TreeNode({ node, depth, expanded, emphasizedFolderPaths, interaction }:
                 onClick={() =>
                   interaction.onToggleExpanded(node.path, isOpen)
                 }
-                aria-label={isOpen ? "折りたたむ" : "展開する"}
+                aria-label={isOpen ? "?????" : "????"}
               >
                 {isOpen ? (
                   <ChevronDown className="size-3.5" />
@@ -362,12 +376,7 @@ function TreeNode({ node, depth, expanded, emphasizedFolderPaths, interaction }:
           </ContextMenuItem>
           <ContextMenuItem
             variant="destructive"
-            onClick={() =>
-              interaction.onOpenDialog({
-                type: "delete-folder",
-                folderPath: node.path,
-              })
-            }
+            onClick={() => interaction.onOpenDeleteFolderDialog(node.path)}
           >
             delete
           </ContextMenuItem>
@@ -440,6 +449,12 @@ function TreeNode({ node, depth, expanded, emphasizedFolderPaths, interaction }:
                       >
                         {file}
                       </button>
+                      {interaction.isFavorite(node.path, file) ? (
+                        <Star
+                          className="size-3.5 shrink-0 fill-yellow-400 text-yellow-400"
+                          aria-hidden="true"
+                        />
+                      ) : null}
                     </div>
                   }
                 />
@@ -476,6 +491,25 @@ function TreeNode({ node, depth, expanded, emphasizedFolderPaths, interaction }:
                   >
                     paste
                   </ContextMenuItem>
+                  {interaction.isFavorite(node.path, file) ? (
+                    <ContextMenuItem
+                      variant="muted"
+                      onClick={() =>
+                        interaction.onToggleFavorite(node.path, file)
+                      }
+                    >
+                      remove favorite
+                    </ContextMenuItem>
+                  ) : (
+                    <ContextMenuItem
+                      variant="muted"
+                      onClick={() =>
+                        interaction.onToggleFavorite(node.path, file)
+                      }
+                    >
+                      add favorite
+                    </ContextMenuItem>
+                  )}
                   <ContextMenuItem
                     variant="destructive"
                     onClick={() =>
@@ -587,8 +621,8 @@ export function FileTreePane({
   const [error, setError] = useState<string | null>(null);
   const [dialogError, setDialogError] = useState<string | null>(null);
   const [focusedRowId, setFocusedRowId] = useState<string | null>(null);
-  // ユーザーが明示的にカーソルを動かすまで、選択ファイル行への自動追従を続ける
-  // focusRow 経由の操作で userMovedFocus が立つ
+  // ?????????????????????????????????????
+  // focusRow ?????? userMovedFocus ???
   const [userMovedFocus, setUserMovedFocus] = useState(false);
   const [lastSyncedSelectionRowId, setLastSyncedSelectionRowId] = useState<
     string | null
@@ -602,16 +636,59 @@ export function FileTreePane({
   );
   const [dropTargetPath, setDropTargetPath] = useState<string | null>(null);
   const [clipboard, setClipboard] = useState<TreeClipboard>(null);
+  const [favorites, setFavorites] = useState<FavoriteEntry[]>([]);
+  const [favoritesOnly, setFavoritesOnly] = useState(false);
+  const [contentMatchKeys, setContentMatchKeys] = useState<Set<string>>(
+    () => new Set(),
+  );
+  const [contentSearching, setContentSearching] = useState(false);
+  const [contentTruncated, setContentTruncated] = useState(false);
+
+  const isContentSearchMode = filter.startsWith("?");
+  const contentQuery = isContentSearchMode ? filter.slice(1).trim() : "";
+  const nameFilter = isContentSearchMode ? "" : filter;
+
+  const favoriteKeys = useMemo(
+    () => new Set(favorites.map(favoriteKey)),
+    [favorites],
+  );
 
   const projectFolderPaths = useMemo(
     () => collectProjectFolderPaths(folders),
     [folders],
   );
 
-  const filteredFolders = useMemo(
-    () => filterWorkspaceTree(folders, filter),
-    [folders, filter],
-  );
+  const filteredFolders = useMemo(() => {
+    let tree = folders;
+
+    if (favoritesOnly) {
+      tree =
+        favoriteKeys.size > 0
+          ? filterWorkspaceTreeByFileKeys(tree, favoriteKeys)
+          : [];
+    }
+
+    if (isContentSearchMode) {
+      if (contentQuery) {
+        tree =
+          contentMatchKeys.size > 0
+            ? filterWorkspaceTreeByFileKeys(tree, contentMatchKeys)
+            : [];
+      }
+    } else {
+      tree = filterWorkspaceTree(tree, nameFilter);
+    }
+
+    return tree;
+  }, [
+    contentMatchKeys,
+    contentQuery,
+    favoriteKeys,
+    favoritesOnly,
+    folders,
+    isContentSearchMode,
+    nameFilter,
+  ]);
 
   const emphasizedFolderPaths = useMemo(() => {
     if (!selectedFolderPath) return new Set<string>();
@@ -624,9 +701,9 @@ export function FileTreePane({
     [filteredFolders, expanded, emphasizedFolderPaths],
   );
 
-  // selectedFolderPath / selectedFileName は localStorage 復元が非同期なため、
-  // 選択が確定するたびにカーソルを同期する（useEffect ではなく render 中の条件付き setState）。
-  // userMovedFocus 成立後はユーザーのカーソル操作を優先する。
+  // selectedFolderPath / selectedFileName ? localStorage ??????????
+  // ????????????????????useEffect ???? render ?????? setState??
+  // userMovedFocus ?????????????????????
   const selectedFileRowId = resolveSelectedFileRowId(
     selectedFolderPath,
     selectedFileName,
@@ -668,6 +745,76 @@ export function FileTreePane({
   const showPaneError = useCallback((message: string) => {
     setError(message);
   }, []);
+
+  const clearSearchFilter = useCallback(() => {
+    clearPaneError();
+    setFilter("");
+    setContentMatchKeys(new Set());
+    setContentSearching(false);
+    setContentTruncated(false);
+  }, [clearPaneError]);
+
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      try {
+        const res = await fetch("/api/workspace/favorites");
+        if (!res.ok || cancelled) return;
+        const data = (await res.json()) as { favorites?: FavoriteEntry[] };
+        if (!cancelled) {
+          setFavorites(
+            filterFavoritesToExisting(data.favorites ?? [], folders),
+          );
+        }
+      } catch {
+        // ignore load errors; favorites are optional UI state
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [folders]);
+
+  useEffect(() => {
+    if (!isContentSearchMode || !contentQuery) {
+      return;
+    }
+
+    const timer = window.setTimeout(() => {
+      void (async () => {
+        try {
+          const params = new URLSearchParams({ q: contentQuery });
+          const res = await fetch(
+            `/api/workspace/search-content?${params.toString()}`,
+          );
+          if (!res.ok) {
+            setContentMatchKeys(new Set());
+            setContentTruncated(false);
+            return;
+          }
+          const data = (await res.json()) as {
+            matches?: Array<{ folderPath: string; fileName: string }>;
+            truncated?: boolean;
+          };
+          setContentMatchKeys(
+            new Set(
+              (data.matches ?? []).map(
+                (match) => `${match.folderPath}/${match.fileName}`,
+              ),
+            ),
+          );
+          setContentTruncated(Boolean(data.truncated));
+        } catch {
+          setContentMatchKeys(new Set());
+          setContentTruncated(false);
+        } finally {
+          setContentSearching(false);
+        }
+      })();
+    }, CONTENT_SEARCH_DEBOUNCE_MS);
+
+    return () => window.clearTimeout(timer);
+  }, [contentQuery, isContentSearchMode]);
 
   const clearSelectionIfUnderPath = useCallback(
     (folderPath: string) => {
@@ -863,6 +1010,53 @@ export function FileTreePane({
     [clearPaneError],
   );
 
+  const openDeleteFolderDialog = useCallback(
+    (folderPath: string) => {
+      if (isProjectFolder(folderPath)) {
+        const node = findTreeNode(folders, folderPath);
+        if (node && (node.files.length > 0 || node.children.length > 0)) {
+          openDialog({ type: "blocked-delete-folder", folderPath });
+          return;
+        }
+      }
+      openDialog({ type: "delete-folder", folderPath });
+    },
+    [folders, openDialog],
+  );
+
+  const handleToggleFavorite = useCallback(
+    async (folderPath: string, fileName: string) => {
+      clearPaneError();
+      const key = favoriteKey({ folderPath, fileName });
+      const previous = favorites;
+      const wasFavorite = favoriteKeys.has(key);
+      setFavorites((current) =>
+        wasFavorite
+          ? current.filter((entry) => favoriteKey(entry) !== key)
+          : [...current, { folderPath, fileName }],
+      );
+      try {
+        const data = (await postJson("/api/workspace/favorites/toggle", {
+          folderPath,
+          fileName,
+        })) as { favorites?: FavoriteEntry[] };
+        setFavorites(
+          filterFavoritesToExisting(data.favorites ?? [], folders),
+        );
+      } catch (err) {
+        setFavorites(previous);
+        showPaneError(err instanceof Error ? err.message : String(err));
+      }
+    },
+    [clearPaneError, favoriteKeys, favorites, folders, postJson, showPaneError],
+  );
+
+  const isFavorite = useCallback(
+    (folderPath: string, fileName: string) =>
+      favoriteKeys.has(favoriteKey({ folderPath, fileName })),
+    [favoriteKeys],
+  );
+
   const handleNameInputChange = useCallback((value: string) => {
     setDialogError(null);
     setNameInput(value);
@@ -926,14 +1120,14 @@ export function FileTreePane({
         body: JSON.stringify({ folderId: folderPath }),
       });
       if (!res.ok) {
-        throw new Error("AI 自動入力に失敗しました");
+        throw new Error("AI ???????????");
       }
       const data = (await res.json()) as { name?: string };
       const suggested = data.name ?? suggestFolderSlug(folderPath);
       const eventDate = resolveEventDatePrefix(folderPath);
       setNameInput(applyEventDateToSuggestedName(suggested, eventDate));
     } catch {
-      setDialogError("AI 自動入力に失敗しました");
+      setDialogError("AI ???????????");
     } finally {
       setBusy(false);
     }
@@ -953,8 +1147,8 @@ export function FileTreePane({
         case "add-folder":
           await postJson("/api/workspace/create-folder", { name });
           setDialog(null);
-          focusRow(folderRowId(name));
           await onRefresh();
+          focusRow(folderRowId(name));
           return;
         case "add-subfolder": {
           const result = (await postJson("/api/workspace/create-folder", {
@@ -967,8 +1161,8 @@ export function FileTreePane({
             [dialog.parentPath]: true,
           }));
           setDialog(null);
-          focusRow(folderRowId(childPath));
           await onRefresh();
+          focusRow(folderRowId(childPath));
           return;
         }
         case "rename-folder": {
@@ -1021,15 +1215,18 @@ export function FileTreePane({
           await onRefresh();
           return;
         }
-        case "add-file":
+        case "add-file": {
+          const folderPath = dialog.folderPath;
           await postJson("/api/workspace/create-file", {
-            folderId: dialog.folderPath,
+            folderId: folderPath,
             fileName: name,
           });
-          handleSelectFile(dialog.folderPath, name);
+          setExpanded((prev) => ({ ...prev, [folderPath]: true }));
           setDialog(null);
           await onRefresh();
+          handleSelectFile(folderPath, name);
           return;
+        }
         case "rename-file": {
           if (name === dialog.fileName) {
             setDialogError(NO_CHANGE_MESSAGE);
@@ -1152,7 +1349,7 @@ export function FileTreePane({
             fileName: row.fileName,
           });
         } else if (row.kind === "folder") {
-          openDialog({ type: "delete-folder", folderPath: row.folderPath });
+          openDeleteFolderDialog(row.folderPath);
         }
         return;
       }
@@ -1186,8 +1383,8 @@ export function FileTreePane({
       const fallbackIndex = fallbackRowId
         ? visibleRows.findIndex((r) => r.id === fallbackRowId)
         : -1;
-      // focusedRowId が visibleRows に無い場合は選択ファイル行をフォールバックし、
-      // それも見つからなければ先頭行を基準にする
+      // focusedRowId ? visibleRows ???????????????????????
+      // ????????????????????
       const index = resolvedIndex >= 0 ? resolvedIndex : fallbackIndex;
 
       if (event.key === "ArrowDown") {
@@ -1256,6 +1453,7 @@ export function FileTreePane({
       handleSelectFile,
       handleToggleExpanded,
       isFolderExpanded,
+      openDeleteFolderDialog,
       openDialog,
       selectedFileName,
       selectedFolderPath,
@@ -1306,6 +1504,11 @@ export function FileTreePane({
       onSetNameInput: handleNameInputChange,
       onToggleExpanded: handleToggleExpanded,
       onSelectFile: handleSelectFile,
+      onOpenDeleteFolderDialog: openDeleteFolderDialog,
+      isFavorite,
+      onToggleFavorite: (folderPath, fileName) => {
+        void handleToggleFavorite(folderPath, fileName);
+      },
       rowHighlight,
     }),
     [
@@ -1320,10 +1523,13 @@ export function FileTreePane({
       handlePaste,
       handleSelectFile,
       handleToggleExpanded,
+      isFavorite,
+      openDeleteFolderDialog,
       openDialog,
       rowHighlight,
       selectedFileName,
       selectedFolderPath,
+      handleToggleFavorite,
     ],
   );
 
@@ -1332,9 +1538,12 @@ export function FileTreePane({
 
   const deleteFolderDescription =
     dialog?.type === "delete-folder"
-      ? isProjectFolder(dialog.folderPath)
-        ? `フォルダ「${dialog.folderPath}」を削除しますか？（空フォルダのみ）`
-        : `フォルダ「${dialog.folderPath}」と配下のすべてのファイル・フォルダが削除されます。実行しますか？`
+      ? (() => {
+          const folderName = getFolderBaseName(dialog.folderPath);
+          return isProjectFolder(dialog.folderPath)
+            ? `?????${folderName}?????????`
+            : `?????${folderName}?????????????????????????????????`;
+        })()
       : "";
 
   return (
@@ -1343,7 +1552,7 @@ export function FileTreePane({
         <button
           type="button"
           className="flex min-w-0 items-center gap-2 rounded-md text-left hover:bg-muted/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-          aria-label="EBE Purpose を開く"
+          aria-label="EBE Purpose ???"
           onClick={() => onOpenPurpose?.()}
         >
           <Image
@@ -1361,7 +1570,7 @@ export function FileTreePane({
             type="button"
             variant="ghost"
             size="icon-sm"
-            aria-label="フォルダ追加"
+            aria-label="??????"
             onClick={openAddFolder}
           >
             <FolderPlus className="size-4" />
@@ -1375,10 +1584,18 @@ export function FileTreePane({
           <Input
             value={filter}
             onChange={(e) => {
+              const value = e.target.value;
               clearPaneError();
-              setFilter(e.target.value);
+              if (!value.startsWith("?") || !value.slice(1).trim()) {
+                setContentMatchKeys(new Set());
+                setContentSearching(false);
+                setContentTruncated(false);
+              } else {
+                setContentSearching(true);
+              }
+              setFilter(value);
             }}
-            placeholder="検索..."
+            placeholder="Filter files... (? to search contents)"
             className="h-8 pr-8"
           />
           {filter ? (
@@ -1387,22 +1604,47 @@ export function FileTreePane({
               variant="ghost"
               size="icon-sm"
               className="absolute inset-y-0 right-0.5 my-auto"
-              aria-label="検索をクリア"
+              aria-label="??????"
               onMouseDown={(e) => {
                 e.preventDefault();
-                clearPaneError();
-                setFilter("");
+                clearSearchFilter();
               }}
-              onClick={() => {
-                clearPaneError();
-                setFilter("");
-              }}
+              onClick={clearSearchFilter}
             >
               <X className="size-3.5" />
             </Button>
           ) : null}
         </div>
+        <Button
+          type="button"
+          variant={favoritesOnly ? "secondary" : "ghost"}
+          size="icon-sm"
+          aria-label={
+            favoritesOnly ? "Show all files" : "Show favorites only"
+          }
+          aria-pressed={favoritesOnly}
+          onClick={() => {
+            clearPaneError();
+            setFavoritesOnly((prev) => !prev);
+          }}
+        >
+          <Star
+            className={cn(
+              "size-4",
+              favoritesOnly && "fill-yellow-400 text-yellow-400",
+            )}
+          />
+        </Button>
       </div>
+
+      {contentSearching ? (
+        <p className="px-3 pb-2 text-sm text-muted-foreground">????</p>
+      ) : null}
+      {!contentSearching && contentTruncated ? (
+        <p className="px-3 pb-2 text-sm text-muted-foreground">
+          200 ???????????????????????????
+        </p>
+      ) : null}
 
       {error ? (
         <div className="mx-3 mb-2 flex items-center gap-2 rounded-lg border border-destructive/20 bg-destructive/10 px-3 py-2">
@@ -1432,7 +1674,13 @@ export function FileTreePane({
       >
         {filteredFolders.length === 0 ? (
           <p className="px-2 py-4 text-center text-sm text-muted-foreground">
-            フォルダがありません
+            {contentSearching
+              ? "????"
+              : isContentSearchMode && contentQuery
+                ? "??????????????"
+                : favoritesOnly
+                  ? "???????????"
+                  : "??????????"}
           </p>
         ) : (
           filteredFolders.map((folder) => (
@@ -1452,7 +1700,8 @@ export function FileTreePane({
         open={
           dialog !== null &&
           dialog.type !== "delete-folder" &&
-          dialog.type !== "delete-file"
+          dialog.type !== "delete-file" &&
+          dialog.type !== "blocked-delete-folder"
         }
         onOpenChange={(open) => !open && setDialog(null)}
       >
@@ -1460,15 +1709,15 @@ export function FileTreePane({
           <form className="flex flex-col gap-4" onSubmit={handleDialogSubmit}>
             <DialogHeader>
               <DialogTitle>
-                {dialog?.type === "add-folder" && "フォルダ追加"}
-                {dialog?.type === "add-subfolder" && "サブフォルダ追加"}
-                {dialog?.type === "rename-folder" && "フォルダリネーム"}
-                {dialog?.type === "add-file" && "ファイル追加"}
-                {dialog?.type === "rename-file" && "ファイルリネーム"}
+                {dialog?.type === "add-folder" && "??????"}
+                {dialog?.type === "add-subfolder" && "????????"}
+                {dialog?.type === "rename-folder" && "????????"}
+                {dialog?.type === "add-file" && "??????"}
+                {dialog?.type === "rename-file" && "????????"}
               </DialogTitle>
             </DialogHeader>
             <div className="flex flex-col gap-2">
-              <Label htmlFor="name-input">名前</Label>
+              <Label htmlFor="name-input">??</Label>
               <Input
                 id="name-input"
                 value={nameInput}
@@ -1486,7 +1735,7 @@ export function FileTreePane({
                 disabled={busy}
                 onClick={() => setDialog(null)}
               >
-                キャンセル
+                ?????
               </Button>
               {dialog?.type === "add-folder" ? (
                 <Button
@@ -1495,7 +1744,7 @@ export function FileTreePane({
                   disabled={busy}
                   onClick={fillUntitledFolderName}
                 >
-                  自動入力
+                  ????
                 </Button>
               ) : null}
               {showAiRenameAutoFill ? (
@@ -1508,16 +1757,37 @@ export function FileTreePane({
                     void fillAiRenameSuggestion(dialog.folderPath)
                   }
                 >
-                  AI 自動入力
+                  AI ????
                 </Button>
               ) : null}
               <Button type="submit" disabled={busy || !nameInput.trim()}>
-                確定
+                ??
               </Button>
             </DialogFooter>
           </form>
         </DialogContent>
       </Dialog>
+
+      <AlertDialog
+        open={dialog?.type === "blocked-delete-folder"}
+        onOpenChange={(open) => !open && setDialog(null)}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>???????</AlertDialogTitle>
+            <AlertDialogDescription>
+              {dialog?.type === "blocked-delete-folder"
+                ? `?????${dialog.folderPath}??????????????????????????????????????????????`
+                : ""}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogAction onClick={() => setDialog(null)}>
+              OK
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <AlertDialog
         open={
@@ -1527,19 +1797,19 @@ export function FileTreePane({
       >
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>削除の確認</AlertDialogTitle>
+            <AlertDialogTitle>?????</AlertDialogTitle>
             <AlertDialogDescription>
               {dialog?.type === "delete-folder"
                 ? deleteFolderDescription
                 : dialog?.type === "delete-file"
-                  ? `ファイル「${dialog.fileName}」を削除しますか？`
+                  ? `?????${dialog.fileName}?????????`
                   : ""}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>キャンセル</AlertDialogCancel>
+            <AlertDialogCancel>?????</AlertDialogCancel>
             <AlertDialogAction onClick={() => void handleDialogConfirm()}>
-              削除
+              ??
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

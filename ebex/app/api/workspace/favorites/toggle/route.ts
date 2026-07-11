@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { toggleFavorite } from "@/lib/workspace-favorites";
+import { toggleFavorite } from "@/lib/workspace-favorites-io";
 import { parseJsonBody } from "@/lib/workspace-mutations";
 
 const bodySchema = z.object({

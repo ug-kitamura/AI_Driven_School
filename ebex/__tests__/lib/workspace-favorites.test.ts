@@ -2,8 +2,8 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
+import { favoriteKey } from "@/lib/workspace-favorites";
 import {
-  favoriteKey,
   readFavorites,
   remapFavoritesOnFolderRename,
   removeFavoriteFile,
@@ -11,7 +11,7 @@ import {
   renameFavoriteFile,
   toggleFavorite,
   writeFavorites,
-} from "@/lib/workspace-favorites";
+} from "@/lib/workspace-favorites-io";
 import { createFile, createFolder } from "@/lib/workspace-mutations";
 
 describe("workspace-favorites", () => {

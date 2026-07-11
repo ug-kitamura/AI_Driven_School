@@ -22,7 +22,7 @@ import {
   removeFavoriteFile,
   removeFavoritesUnderPath,
   renameFavoriteFile,
-} from "@/lib/workspace-favorites";
+} from "@/lib/workspace-favorites-io";
 
 export type ConflictPolicy = "error" | "auto-rename";
 

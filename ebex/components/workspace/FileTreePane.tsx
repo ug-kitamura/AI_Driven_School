@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Image from "next/image";
 import {
   AlertCircle,
@@ -62,8 +62,9 @@ import {
   emptyRowId,
   fileRowId,
   folderRowId,
-  type TreeRow,
+  resolvePasteTarget,
 } from "@/lib/workspace-tree-flatten";
+import type { TreeRow } from "@/lib/workspace-tree-flatten";
 import {
   getParentFolderPath,
   getProjectRoot,
@@ -74,6 +75,7 @@ import logoSmall from "@/images/logo_small.png";
 
 const NO_CHANGE_MESSAGE = "名前が変更されていません";
 const INTERNAL_DRAG_MIME = "application/x-ebex-tree";
+const AUTO_RENAME_ON_CONFLICT = { autoRenameOnConflict: true } as const;
 
 type Props = {
   folders: WorkspaceTreeNode[];
@@ -122,7 +124,6 @@ type TreeInteraction = {
   onToggleExpanded: (folderPath: string, isOpen: boolean) => void;
   onSelectFile: (folderPath: string, fileName: string) => void;
   rowHighlight: (rowId: string, isFileSelected: boolean) => string;
-  canPaste: (row: TreeRow) => boolean;
 };
 
 type TreeNodeProps = {
@@ -181,6 +182,7 @@ async function importFileEntry(
     folderId: folderPath,
     fileName: file.name,
     content: text,
+    ...AUTO_RENAME_ON_CONFLICT,
   });
 }
 
@@ -192,6 +194,7 @@ async function importDirectoryEntry(
   const result = (await postJson("/api/workspace/create-folder", {
     parentPath,
     name: entry.name,
+    ...AUTO_RENAME_ON_CONFLICT,
   })) as { path?: string };
   const childPath = result.path ?? `${parentPath}/${entry.name}`;
   const reader = entry.createReader();
@@ -265,6 +268,7 @@ function TreeNode({ node, depth, expanded, emphasizedFolderPaths, interaction }:
         <ContextMenuTrigger
           render={
             <div
+              data-row-id={folderRow}
               className={interaction.rowHighlight(folderRow, false)}
               draggable={isSubfolder}
               onDragStart={(event) => {
@@ -279,7 +283,6 @@ function TreeNode({ node, depth, expanded, emphasizedFolderPaths, interaction }:
                 );
                 event.dataTransfer.effectAllowed = "move";
               }}
-              onMouseEnter={() => interaction.onFocusRow(folderRow)}
               onClick={() => interaction.onFocusRow(folderRow)}
             >
               <button
@@ -336,6 +339,23 @@ function TreeNode({ node, depth, expanded, emphasizedFolderPaths, interaction }:
           >
             rename
           </ContextMenuItem>
+          {isSubfolder ? (
+            <ContextMenuItem
+              variant="muted"
+              onClick={() =>
+                interaction.onCopy({ kind: "folder", folderPath: node.path })
+              }
+            >
+              copy
+            </ContextMenuItem>
+          ) : null}
+          <ContextMenuItem
+            variant="muted"
+            disabled={!interaction.clipboard}
+            onClick={() => interaction.onPaste(node.path)}
+          >
+            paste
+          </ContextMenuItem>
           <ContextMenuItem
             variant="destructive"
             onClick={() =>
@@ -347,25 +367,6 @@ function TreeNode({ node, depth, expanded, emphasizedFolderPaths, interaction }:
           >
             delete
           </ContextMenuItem>
-          {isSubfolder ? (
-            <>
-              <ContextMenuItem
-                variant="muted"
-                onClick={() =>
-                  interaction.onCopy({ kind: "folder", folderPath: node.path })
-                }
-              >
-                copy
-              </ContextMenuItem>
-              <ContextMenuItem
-                variant="muted"
-                disabled={!interaction.clipboard}
-                onClick={() => interaction.onPaste(node.path)}
-              >
-                paste
-              </ContextMenuItem>
-            </>
-          ) : null}
         </ContextMenuContent>
       </ContextMenu>
 
@@ -396,6 +397,7 @@ function TreeNode({ node, depth, expanded, emphasizedFolderPaths, interaction }:
                 <ContextMenuTrigger
                   render={
                     <div
+                      data-row-id={row}
                       className={interaction.rowHighlight(row, isFileSelected)}
                       draggable
                       onDragStart={(event) => {
@@ -420,14 +422,16 @@ function TreeNode({ node, depth, expanded, emphasizedFolderPaths, interaction }:
                         event.stopPropagation();
                         void interaction.onDrop(node.path, event);
                       }}
-                      onMouseEnter={() => interaction.onFocusRow(row)}
                       onClick={() => interaction.onFocusRow(row)}
                     >
                       <FileRowIcon fileName={file} />
                       <button
                         type="button"
                         className="min-w-0 flex-1 truncate text-left"
-                        onClick={() => interaction.onSelectFile(node.path, file)}
+                        onClick={() => {
+                          interaction.onFocusRow(row);
+                          interaction.onSelectFile(node.path, file);
+                        }}
                       >
                         {file}
                       </button>
@@ -449,18 +453,6 @@ function TreeNode({ node, depth, expanded, emphasizedFolderPaths, interaction }:
                     rename
                   </ContextMenuItem>
                   <ContextMenuItem
-                    variant="destructive"
-                    onClick={() =>
-                      interaction.onOpenDialog({
-                        type: "delete-file",
-                        folderPath: node.path,
-                        fileName: file,
-                      })
-                    }
-                  >
-                    delete
-                  </ContextMenuItem>
-                  <ContextMenuItem
                     variant="muted"
                     onClick={() =>
                       interaction.onCopy({
@@ -471,6 +463,25 @@ function TreeNode({ node, depth, expanded, emphasizedFolderPaths, interaction }:
                     }
                   >
                     copy
+                  </ContextMenuItem>
+                  <ContextMenuItem
+                    variant="muted"
+                    disabled={!interaction.clipboard}
+                    onClick={() => interaction.onPaste(node.path)}
+                  >
+                    paste
+                  </ContextMenuItem>
+                  <ContextMenuItem
+                    variant="destructive"
+                    onClick={() =>
+                      interaction.onOpenDialog({
+                        type: "delete-file",
+                        folderPath: node.path,
+                        fileName: file,
+                      })
+                    }
+                  >
+                    delete
                   </ContextMenuItem>
                 </ContextMenuContent>
               </ContextMenu>
@@ -502,11 +513,11 @@ function EmptyFolderRow({
       <ContextMenuTrigger
         render={
           <div
+            data-row-id={row}
             className={cn(
               interaction.rowHighlight(row, false),
               "text-sm text-muted-foreground",
             )}
-            onMouseEnter={() => interaction.onFocusRow(row)}
             onClick={() => interaction.onFocusRow(row)}
           >
             <span className="pl-6">(no file)</span>
@@ -595,6 +606,16 @@ export function FileTreePane({
     setExpanded((prev) => ({ ...prev, [folderPath]: !isOpen }));
   }, []);
 
+  const clearPaneError = useCallback(() => {
+    setError(null);
+  }, []);
+
+  const isFolderExpanded = useCallback(
+    (folderPath: string) =>
+      expanded[folderPath] ?? emphasizedFolderPaths.has(folderPath),
+    [expanded, emphasizedFolderPaths],
+  );
+
   const postJson = useCallback(async (url: string, body: unknown) => {
     const res = await fetch(url, {
       method: "POST",
@@ -633,16 +654,18 @@ export function FileTreePane({
         if (getProjectRoot(payload.folderPath) !== getProjectRoot(targetPath)) {
           throw new Error("Cannot move items across project folders");
         }
-        await postJson("/api/workspace/move-file", {
+        const result = (await postJson("/api/workspace/move-file", {
           fromFolderId: payload.folderPath,
           fromName: payload.fileName,
           toFolderId: targetPath,
-        });
+          ...AUTO_RENAME_ON_CONFLICT,
+        })) as { newName?: string };
+        const movedName = result.newName ?? payload.fileName;
         if (
           selectedFolderPath === payload.folderPath &&
           selectedFileName === payload.fileName
         ) {
-          onSelectFile(targetPath, payload.fileName);
+          onSelectFile(targetPath, movedName);
         }
         return;
       }
@@ -661,6 +684,7 @@ export function FileTreePane({
       const result = (await postJson("/api/workspace/rename-folder", {
         fromPath: payload.folderPath,
         toPath,
+        ...AUTO_RENAME_ON_CONFLICT,
       })) as { newPath?: string };
       const newPath = result.newPath ?? toPath;
       setExpanded((prev) => {
@@ -691,6 +715,7 @@ export function FileTreePane({
   const handleDropOnFolder = useCallback(
     async (folderPath: string, event: React.DragEvent) => {
       setDropTargetPath(null);
+      clearPaneError();
       setBusy(true);
       try {
         const internalRaw = event.dataTransfer.getData(INTERNAL_DRAG_MIME);
@@ -715,6 +740,7 @@ export function FileTreePane({
             folderId: folderPath,
             fileName: file.name,
             content: text,
+            ...AUTO_RENAME_ON_CONFLICT,
           });
         }
         setExpanded((prev) => ({ ...prev, [folderPath]: true }));
@@ -725,12 +751,13 @@ export function FileTreePane({
         setBusy(false);
       }
     },
-    [handleInternalDrop, onRefresh, postJson, showPaneError],
+    [clearPaneError, handleInternalDrop, onRefresh, postJson, showPaneError],
   );
 
   const handlePaste = useCallback(
     async (targetFolderPath: string) => {
       if (!clipboard) return;
+      clearPaneError();
       setBusy(true);
       try {
         if (clipboard.kind === "file") {
@@ -752,11 +779,13 @@ export function FileTreePane({
             folderId: targetFolderPath,
             fileName: clipboard.fileName,
             content: data.content ?? "",
+            ...AUTO_RENAME_ON_CONFLICT,
           });
         } else {
           await postJson("/api/workspace/copy-folder", {
             fromPath: clipboard.folderPath,
             toParentPath: targetFolderPath,
+            ...AUTO_RENAME_ON_CONFLICT,
           });
         }
         setExpanded((prev) => ({ ...prev, [targetFolderPath]: true }));
@@ -767,13 +796,17 @@ export function FileTreePane({
         setBusy(false);
       }
     },
-    [clipboard, onRefresh, postJson, showPaneError],
+    [clearPaneError, clipboard, onRefresh, postJson, showPaneError],
   );
 
-  const openDialog = useCallback((mode: DialogMode) => {
-    setDialogError(null);
-    setDialog(mode);
-  }, []);
+  const openDialog = useCallback(
+    (mode: DialogMode) => {
+      clearPaneError();
+      setDialogError(null);
+      setDialog(mode);
+    },
+    [clearPaneError],
+  );
 
   const handleNameInputChange = useCallback((value: string) => {
     setDialogError(null);
@@ -781,10 +814,47 @@ export function FileTreePane({
   }, []);
 
   const openAddFolder = useCallback(() => {
-    setError(null);
     setNameInput("");
     openDialog({ type: "add-folder" });
   }, [openDialog]);
+
+  const handleFocusRow = useCallback(
+    (rowId: string) => {
+      clearPaneError();
+      setFocusedRowId(rowId);
+    },
+    [clearPaneError],
+  );
+
+  const handleSelectFile = useCallback(
+    (folderPath: string, fileName: string) => {
+      clearPaneError();
+      if (fileName) {
+        setFocusedRowId(fileRowId(folderPath, fileName));
+      }
+      onSelectFile(folderPath, fileName);
+    },
+    [clearPaneError, onSelectFile],
+  );
+
+  const handleContextMenuChange = useCallback(
+    (rowId: string | null) => {
+      setContextMenuTargetId(rowId);
+      if (rowId) {
+        handleFocusRow(rowId);
+      }
+    },
+    [handleFocusRow],
+  );
+
+  const handleToggleExpanded = useCallback(
+    (folderPath: string, isOpen: boolean) => {
+      clearPaneError();
+      toggleExpanded(folderPath, isOpen);
+      setFocusedRowId(folderRowId(folderPath));
+    },
+    [clearPaneError, toggleExpanded],
+  );
 
   const fillUntitledFolderName = useCallback(() => {
     setDialogError(null);
@@ -893,7 +963,7 @@ export function FileTreePane({
             folderId: dialog.folderPath,
             fileName: name,
           });
-          onSelectFile(dialog.folderPath, name);
+          handleSelectFile(dialog.folderPath, name);
           setDialog(null);
           await onRefresh();
           return;
@@ -941,6 +1011,7 @@ export function FileTreePane({
     busy,
     clearSelectionIfUnderPath,
     dialog,
+    handleSelectFile,
     nameInput,
     onRefresh,
     onSelectFile,
@@ -974,6 +1045,8 @@ export function FileTreePane({
     (event: React.KeyboardEvent<HTMLDivElement>) => {
       if (dialog) return;
 
+      clearPaneError();
+
       const row = getFocusedRow();
 
       if (event.ctrlKey && event.key.toLowerCase() === "c") {
@@ -994,9 +1067,9 @@ export function FileTreePane({
       }
 
       if (event.ctrlKey && event.key.toLowerCase() === "v") {
-        if (!row || !clipboard || row.kind === "file") return;
-        const target =
-          row.kind === "empty" ? row.folderPath : row.folderPath;
+        if (!row || !clipboard) return;
+        const target = resolvePasteTarget(row);
+        if (!target) return;
         event.preventDefault();
         void handlePaste(target);
         return;
@@ -1062,49 +1135,57 @@ export function FileTreePane({
       if (event.key === "Enter") {
         event.preventDefault();
         if (row.kind === "folder") {
-          const isOpen =
-            expanded[row.folderPath] ??
-            emphasizedFolderPaths.has(row.folderPath);
-          toggleExpanded(row.folderPath, isOpen);
+          handleToggleExpanded(row.folderPath, isFolderExpanded(row.folderPath));
         } else if (row.kind === "file" && row.fileName) {
-          onSelectFile(row.folderPath, row.fileName);
+          handleSelectFile(row.folderPath, row.fileName);
         }
         return;
       }
 
       if (event.key === "ArrowRight" && row.kind === "folder") {
-        const isOpen =
-          expanded[row.folderPath] ?? emphasizedFolderPaths.has(row.folderPath);
-        if (!isOpen) {
+        if (!isFolderExpanded(row.folderPath)) {
           event.preventDefault();
           setExpanded((prev) => ({ ...prev, [row.folderPath]: true }));
+          setFocusedRowId(folderRowId(row.folderPath));
         }
         return;
       }
 
       if (event.key === "ArrowLeft" || event.key === "Backspace") {
         event.preventDefault();
-        const parentPath =
-          row.kind === "folder"
-            ? getParentFolderPath(row.folderPath)
-            : row.folderPath;
-        if (parentPath) {
-          collapseFolder(parentPath);
+        if (row.kind === "folder") {
+          if (isFolderExpanded(row.folderPath)) {
+            collapseFolder(row.folderPath);
+            setFocusedRowId(folderRowId(row.folderPath));
+            return;
+          }
+          if (isProjectFolder(row.folderPath)) {
+            return;
+          }
+          const parentPath = getParentFolderPath(row.folderPath);
+          if (parentPath) {
+            setFocusedRowId(folderRowId(parentPath));
+          }
+          return;
+        }
+        if (row.kind === "file") {
+          collapseFolder(row.folderPath);
+          setFocusedRowId(folderRowId(row.folderPath));
         }
       }
     },
     [
       clipboard,
+      clearPaneError,
       collapseFolder,
       dialog,
-      emphasizedFolderPaths,
-      expanded,
       focusedRowId,
       getFocusedRow,
       handlePaste,
-      onSelectFile,
+      handleSelectFile,
+      handleToggleExpanded,
+      isFolderExpanded,
       openDialog,
-      toggleExpanded,
       visibleRows,
     ],
   );
@@ -1128,10 +1209,14 @@ export function FileTreePane({
     [contextMenuTargetId, focusedRowId],
   );
 
-  const canPaste = useCallback(
-    (row: TreeRow) => row.kind !== "file" && clipboard !== null,
-    [clipboard],
-  );
+  useEffect(() => {
+    if (!focusedRowId || !treeRef.current) return;
+    const escaped = CSS.escape(focusedRowId);
+    const element = treeRef.current.querySelector(
+      `[data-row-id="${escaped}"]`,
+    );
+    element?.scrollIntoView({ block: "nearest" });
+  }, [focusedRowId]);
 
   const interaction: TreeInteraction = useMemo(
     () => ({
@@ -1141,8 +1226,8 @@ export function FileTreePane({
       clipboard,
       selectedFolderPath,
       selectedFileName,
-      onFocusRow: setFocusedRowId,
-      onContextMenuChange: setContextMenuTargetId,
+      onFocusRow: handleFocusRow,
+      onContextMenuChange: handleContextMenuChange,
       onSetDropTarget: setDropTargetPath,
       onClearDropTarget: () => setDropTargetPath(null),
       onDrop: handleDropOnFolder,
@@ -1150,26 +1235,26 @@ export function FileTreePane({
       onPaste: (target) => void handlePaste(target),
       onOpenDialog: openDialog,
       onSetNameInput: handleNameInputChange,
-      onToggleExpanded: toggleExpanded,
-      onSelectFile,
+      onToggleExpanded: handleToggleExpanded,
+      onSelectFile: handleSelectFile,
       rowHighlight,
-      canPaste,
     }),
     [
-      canPaste,
       clipboard,
       contextMenuTargetId,
       dropTargetPath,
       focusedRowId,
+      handleContextMenuChange,
       handleDropOnFolder,
+      handleFocusRow,
       handleNameInputChange,
       handlePaste,
-      onSelectFile,
+      handleSelectFile,
+      handleToggleExpanded,
       openDialog,
       rowHighlight,
       selectedFileName,
       selectedFolderPath,
-      toggleExpanded,
     ],
   );
 
@@ -1220,7 +1305,10 @@ export function FileTreePane({
         <div className="relative min-w-0 flex-1">
           <Input
             value={filter}
-            onChange={(e) => setFilter(e.target.value)}
+            onChange={(e) => {
+              clearPaneError();
+              setFilter(e.target.value);
+            }}
             placeholder="検索..."
             className="h-8 pr-8"
           />
@@ -1233,9 +1321,13 @@ export function FileTreePane({
               aria-label="検索をクリア"
               onMouseDown={(e) => {
                 e.preventDefault();
+                clearPaneError();
                 setFilter("");
               }}
-              onClick={() => setFilter("")}
+              onClick={() => {
+                clearPaneError();
+                setFilter("");
+              }}
             >
               <X className="size-3.5" />
             </Button>
@@ -1244,8 +1336,8 @@ export function FileTreePane({
       </div>
 
       {error ? (
-        <div className="mx-3 mb-2 flex items-start gap-2 rounded-lg border border-destructive/20 bg-destructive/10 px-3 py-2">
-          <AlertCircle className="mt-0.5 size-4 shrink-0 text-destructive" />
+        <div className="mx-3 mb-2 flex items-center gap-2 rounded-lg border border-destructive/20 bg-destructive/10 px-3 py-2">
+          <AlertCircle className="size-4 shrink-0 text-destructive" />
           <span className="min-w-0 flex-1 text-sm text-destructive">
             {error}
           </span>
@@ -1253,6 +1345,7 @@ export function FileTreePane({
             type="button"
             variant="ghost"
             size="icon-sm"
+            className="text-destructive"
             aria-label="Dismiss error"
             onClick={() => setError(null)}
           >
@@ -1264,7 +1357,7 @@ export function FileTreePane({
       <div
         ref={treeRef}
         tabIndex={0}
-        className="workspace-scrollbar min-h-0 flex-1 overflow-y-auto px-1 py-2 outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
+        className="workspace-scrollbar min-h-0 flex-1 overflow-y-auto px-1 py-2 outline-none"
         onKeyDown={handleTreeKeyDown}
         onMouseDown={() => treeRef.current?.focus()}
       >

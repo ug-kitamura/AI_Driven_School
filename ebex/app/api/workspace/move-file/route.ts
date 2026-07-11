@@ -6,19 +6,22 @@ const bodySchema = z.object({
   fromName: z.string().min(1),
   toFolderId: z.string().min(1),
   toName: z.string().min(1).optional(),
+  autoRenameOnConflict: z.boolean().optional(),
 });
 
 export async function POST(req: Request) {
   const parsed = await parseJsonBody(req, bodySchema);
   if ("error" in parsed) return parsed.error;
 
-  const { fromFolderId, fromName, toFolderId, toName } = parsed.data;
+  const { fromFolderId, fromName, toFolderId, toName, autoRenameOnConflict } =
+    parsed.data;
   const result = moveFile(
     process.cwd(),
     fromFolderId,
     fromName,
     toFolderId,
     toName,
+    autoRenameOnConflict ? "auto-rename" : "error",
   );
   if ("error" in result) return jsonError(String(result.error), 400);
   return Response.json({ ok: true, newName: result.newName });

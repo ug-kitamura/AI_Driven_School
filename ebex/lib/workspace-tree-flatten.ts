@@ -92,3 +92,10 @@ export function parseRowId(rowId: string): TreeRow | null {
   }
   return null;
 }
+
+export function resolvePasteTarget(row: TreeRow): string | null {
+  if (row.kind === "folder" || row.kind === "file" || row.kind === "empty") {
+    return row.folderPath;
+  }
+  return null;
+}

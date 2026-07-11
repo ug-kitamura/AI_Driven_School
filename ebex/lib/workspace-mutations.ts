@@ -12,6 +12,13 @@ import {
   validateRelativeFolderPath,
   SESSION_FILENAME,
 } from "@/lib/workspace-paths";
+import {
+  resolveUniqueFileName,
+  resolveUniqueFolderName,
+} from "@/lib/workspace-unique-name";
+import { getParentFolderPath } from "@/lib/workspace-tree-path";
+
+export type ConflictPolicy = "error" | "auto-rename";
 
 export function jsonError(message: string, status: number) {
   return Response.json({ error: message }, { status });
@@ -63,47 +70,70 @@ export function createSubFolder(
   projectRoot: string,
   parentPath: string,
   name: string,
+  conflictPolicy: ConflictPolicy = "error",
 ) {
   const parentValidation = validateRelativeFolderPath(parentPath);
   if (parentValidation) return { error: parentValidation };
-  const nameValidation = validateFolderSegment(name);
+  let finalName = name;
+  const nameValidation = validateFolderSegment(finalName);
   if (nameValidation) return { error: nameValidation };
   if (!folderExists(projectRoot, parentPath)) {
     return { error: "親フォルダが見つかりません" };
   }
 
-  const childPath = `${parentPath}/${name}`;
+  const childPath = `${parentPath}/${finalName}`;
   if (folderExists(projectRoot, childPath)) {
-    return { error: "同名のフォルダが既に存在します" };
+    if (conflictPolicy === "error") {
+      return { error: "同名のフォルダが既に存在します" };
+    }
+    finalName = resolveUniqueFolderName(
+      listFolderSubfolderNames(projectRoot, parentPath),
+      finalName,
+    );
   }
+  const resolvedChildPath = `${parentPath}/${finalName}`;
 
-  const resolved = resolveFolderPath(projectRoot, childPath);
+  const resolved = resolveFolderPath(projectRoot, resolvedChildPath);
   if ("error" in resolved) return { error: resolved.error };
   fs.mkdirSync(resolved.absolutePath, { recursive: true });
-  return { ok: true as const, path: childPath };
+  return { ok: true as const, path: resolvedChildPath };
 }
 
 export function renameFolder(
   projectRoot: string,
   fromPath: string,
   toPath: string,
+  conflictPolicy: ConflictPolicy = "error",
 ) {
   const fromValidation = validateRelativeFolderPath(fromPath);
   if (fromValidation) return { error: fromValidation };
-  const toValidation = validateRelativeFolderPath(toPath);
+  let finalToPath = toPath;
+  const toValidation = validateRelativeFolderPath(finalToPath);
   if (toValidation) return { error: toValidation };
   if (!folderExists(projectRoot, fromPath)) {
     return { error: "フォルダが見つかりません" };
   }
-  if (folderExists(projectRoot, toPath)) {
-    return { error: "同名のフォルダが既に存在します" };
+  if (folderExists(projectRoot, finalToPath)) {
+    if (conflictPolicy === "error") {
+      return { error: "同名のフォルダが既に存在します" };
+    }
+    const parentPath = getParentFolderPath(finalToPath);
+    const baseName = getFolderBaseName(finalToPath);
+    if (!parentPath) {
+      return { error: "同名のフォルダが既に存在します" };
+    }
+    const uniqueName = resolveUniqueFolderName(
+      listFolderSubfolderNames(projectRoot, parentPath),
+      baseName,
+    );
+    finalToPath = `${parentPath}/${uniqueName}`;
   }
   const from = resolveFolderPath(projectRoot, fromPath);
-  const to = resolveFolderPath(projectRoot, toPath);
+  const to = resolveFolderPath(projectRoot, finalToPath);
   if ("error" in from) return { error: from.error };
   if ("error" in to) return { error: to.error };
   fs.renameSync(from.absolutePath, to.absolutePath);
-  return { ok: true as const, newPath: toPath };
+  return { ok: true as const, newPath: finalToPath };
 }
 
 export function deleteFolder(projectRoot: string, folderPath: string) {
@@ -122,14 +152,29 @@ export function deleteFolder(projectRoot: string, folderPath: string) {
   return { ok: true as const };
 }
 
+export function listFolderSubfolderNames(
+  projectRoot: string,
+  folderPath: string,
+): string[] {
+  const resolved = resolveFolderPath(projectRoot, folderPath);
+  if ("error" in resolved) return [];
+  if (!fs.existsSync(resolved.absolutePath)) return [];
+  return fs
+    .readdirSync(resolved.absolutePath, { withFileTypes: true })
+    .filter((entry) => entry.isDirectory() && !entry.name.startsWith("."))
+    .map((entry) => entry.name)
+    .sort((a, b) => a.localeCompare(b, "ja"));
+}
+
 export function moveFile(
   projectRoot: string,
   fromFolderId: string,
   fromName: string,
   toFolderId: string,
   toName?: string,
+  conflictPolicy: ConflictPolicy = "error",
 ) {
-  const targetName = toName ?? fromName;
+  let targetName = toName ?? fromName;
   const fromValidation = validateFileName(fromName);
   if (fromValidation) return { error: fromValidation };
   const toValidation = validateFileName(targetName);
@@ -152,7 +197,17 @@ export function moveFile(
     return { error: "ファイルが見つかりません" };
   }
   if (fs.existsSync(to.absolutePath)) {
-    return { error: "同名のファイルが既に存在します" };
+    if (conflictPolicy === "error") {
+      return { error: "同名のファイルが既に存在します" };
+    }
+    targetName = resolveUniqueFileName(
+      listFolderFiles(projectRoot, toFolderId),
+      targetName,
+    );
+    const resolvedUnique = resolveFilePath(projectRoot, toFolderId, targetName);
+    if ("error" in resolvedUnique) return { error: resolvedUnique.error };
+    fs.renameSync(from.absolutePath, resolvedUnique.absolutePath);
+    return { ok: true as const, newName: targetName };
   }
   fs.renameSync(from.absolutePath, to.absolutePath);
   return { ok: true as const, newName: targetName };
@@ -167,6 +222,7 @@ export function copyFolder(
   fromPath: string,
   toParentPath: string,
   toName?: string,
+  conflictPolicy: ConflictPolicy = "error",
 ) {
   const fromValidation = validateRelativeFolderPath(fromPath);
   if (fromValidation) return { error: fromValidation };
@@ -178,13 +234,19 @@ export function copyFolder(
   if (!folderExists(projectRoot, toParentPath)) {
     return { error: "親フォルダが見つかりません" };
   }
-  const baseName = toName ?? getFolderBaseName(fromPath);
+  let baseName = toName ?? getFolderBaseName(fromPath);
   const nameValidation = validateFolderSegment(baseName);
   if (nameValidation) return { error: nameValidation };
-  const toPath = `${toParentPath}/${baseName}`;
-  if (folderExists(projectRoot, toPath)) {
-    return { error: "同名のフォルダが既に存在します" };
+  if (folderExists(projectRoot, `${toParentPath}/${baseName}`)) {
+    if (conflictPolicy === "error") {
+      return { error: "同名のフォルダが既に存在します" };
+    }
+    baseName = resolveUniqueFolderName(
+      listFolderSubfolderNames(projectRoot, toParentPath),
+      baseName,
+    );
   }
+  const toPath = `${toParentPath}/${baseName}`;
   const from = resolveFolderPath(projectRoot, fromPath);
   const to = resolveFolderPath(projectRoot, toPath);
   if ("error" in from) return { error: from.error };
@@ -206,19 +268,29 @@ export function createFile(
   folderPath: string,
   fileName: string,
   content = "",
+  conflictPolicy: ConflictPolicy = "error",
 ) {
-  const fileValidation = validateFileName(fileName);
+  let finalName = fileName;
+  const fileValidation = validateFileName(finalName);
   if (fileValidation) return { error: fileValidation };
   if (!folderExists(projectRoot, folderPath)) {
     return { error: "フォルダが見つかりません" };
   }
-  const resolved = resolveFilePath(projectRoot, folderPath, fileName);
+  const resolved = resolveFilePath(projectRoot, folderPath, finalName);
   if ("error" in resolved) return { error: resolved.error };
   if (fs.existsSync(resolved.absolutePath)) {
-    return { error: "同名のファイルが既に存在します" };
+    if (conflictPolicy === "error") {
+      return { error: "同名のファイルが既に存在します" };
+    }
+    finalName = resolveUniqueFileName(
+      listFolderFiles(projectRoot, folderPath),
+      finalName,
+    );
   }
-  fs.writeFileSync(resolved.absolutePath, content, "utf-8");
-  return { ok: true as const };
+  const finalResolved = resolveFilePath(projectRoot, folderPath, finalName);
+  if ("error" in finalResolved) return { error: finalResolved.error };
+  fs.writeFileSync(finalResolved.absolutePath, content, "utf-8");
+  return { ok: true as const, fileName: finalName };
 }
 
 export function renameFile(

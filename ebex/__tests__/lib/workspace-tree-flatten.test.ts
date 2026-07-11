@@ -5,6 +5,7 @@ import {
   emptyRowId,
   fileRowId,
   folderRowId,
+  resolvePasteTarget,
 } from "@/lib/workspace-tree-flatten";
 
 const sampleTree: WorkspaceTreeNode[] = [
@@ -62,5 +63,19 @@ describe("buildVisibleRows", () => {
     expect(rows.some((r) => r.id === fileRowId("demo/sub", "notes.md"))).toBe(
       true,
     );
+  });
+});
+
+describe("resolvePasteTarget", () => {
+  it("returns parent folder path for file rows", () => {
+    expect(
+      resolvePasteTarget({
+        id: fileRowId("demo/sub", "notes.md"),
+        kind: "file",
+        folderPath: "demo/sub",
+        fileName: "notes.md",
+        depth: 2,
+      }),
+    ).toBe("demo/sub");
   });
 });

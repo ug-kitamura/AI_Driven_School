@@ -4,6 +4,7 @@ import { jsonError, parseJsonBody, renameFolder } from "@/lib/workspace-mutation
 const bodySchema = z.object({
   fromPath: z.string().min(1),
   toPath: z.string().min(1),
+  autoRenameOnConflict: z.boolean().optional(),
 });
 
 export async function POST(req: Request) {
@@ -14,6 +15,7 @@ export async function POST(req: Request) {
     process.cwd(),
     parsed.data.fromPath,
     parsed.data.toPath,
+    parsed.data.autoRenameOnConflict ? "auto-rename" : "error",
   );
   if ("error" in result) return jsonError(String(result.error), 400);
   return Response.json({ ok: true, newPath: result.newPath });

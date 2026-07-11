@@ -9,6 +9,7 @@
     "lint": "eslint",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
+    "pretest": "npm run check:encoding",
     "test": "vitest run",
     "test:watch": "vitest",
     "check:encoding": "node scripts/check-japanese-encoding.mjs"

@@ -47,6 +47,7 @@
   --color-card-foreground: var(--card-foreground);
   --color-card: var(--card);
   --color-canvas: var(--canvas);
+  --color-workspace-tree-row: var(--workspace-tree-row);
   --radius-sm: calc(var(--radius) * 0.6);
   --radius-md: calc(var(--radius) * 0.8);
   --radius-lg: var(--radius);
@@ -83,48 +84,52 @@
 
 :root {
   /* DX Training Studio カラーパレット（custom-colors.xlsx より） */
-  --background: #EFF1F2;        /* Custom_Gray_95: ページ背景 */
-  --foreground: #1A1C1D;        /* Custom_Gray_10: テキスト（メイン） */
-  --card: #FFFFFF;              /* White: カード・ペイン背景 */
-  --card-foreground: #1A1C1D;
-  --canvas: #FFFFFF;
-  --popover: #FFFFFF;
-  --popover-foreground: #1A1C1D;
-  --primary: #007BC0;           /* Custom_Blue_50: プライマリ */
+  --background: #eff1f2; /* Custom_Gray_95: ページ背景 */
+  --foreground: #1a1c1d; /* Custom_Gray_10: テキスト（メイン） */
+  --card: #ffffff; /* White: カード・ペイン背景 */
+  --card-foreground: #1a1c1d;
+  --canvas: #ffffff;
+  --popover: #ffffff;
+  --popover-foreground: #1a1c1d;
+  --primary: #007bc0; /* Custom_Blue_50: プライマリ */
   --primary-hover: color-mix(in oklab, var(--primary) 90%, black);
-  --button-outline-hover: color-mix(in oklab, var(--background) 82%, var(--input));
-  --primary-foreground: #FFFFFF;
-  --secondary: #D1E4FF;         /* Custom_Blue_90: 淡いアクセント */
-  --secondary-foreground: #007BC0;
-  --muted: #EFF1F2;
-  --muted-foreground: #71767C;  /* Custom_Gray_50: テキスト（サブ） */
-  --accent: #D1E4FF;
-  --accent-foreground: #007BC0;
+  --button-outline-hover: color-mix(
+    in oklab,
+    var(--background) 82%,
+    var(--input)
+  );
+  --primary-foreground: #ffffff;
+  --secondary: #d1e4ff; /* Custom_Blue_90: 淡いアクセント */
+  --secondary-foreground: #007bc0;
+  --muted: #eff1f2;
+  --muted-foreground: #71767c; /* Custom_Gray_50: テキスト（サブ） */
+  --accent: #d1e4ff;
+  --accent-foreground: #007bc0;
   --destructive: oklch(0.5624 0.0956 20.5303);
-  --border: #D0D4D8;            /* Custom_Gray_85: ボーダー */
-  --input: #D0D4D8;
-  --ring: #007BC0;
+  --border: #d0d4d8; /* Custom_Gray_85: ボーダー */
+  --input: #d0d4d8;
+  --ring: #007bc0;
   /* ステータスカラー */
-  --status-done: #00884A;       /* Custom_Green_50 */
-  --status-done-fg: #FFFFFF;
-  --status-wip: #EEC100;        /* Custom_Yellow_80 */
-  --status-wip-fg: #FFFFFF;
-  --status-draft: #A4ABB3;      /* Custom_Gray_70 */
-  --status-draft-fg: #FFFFFF;
-  --chart-1: #007BC0;
-  --chart-2: #00884A;
-  --chart-3: #EEC100;
-  --chart-4: #A4ABB3;
-  --chart-5: #D1E4FF;
+  --status-done: #00884a; /* Custom_Green_50 */
+  --status-done-fg: #ffffff;
+  --status-wip: #eec100; /* Custom_Yellow_80 */
+  --status-wip-fg: #ffffff;
+  --status-draft: #a4abb3; /* Custom_Gray_70 */
+  --status-draft-fg: #ffffff;
+  --chart-1: #007bc0;
+  --chart-2: #00884a;
+  --chart-3: #eec100;
+  --chart-4: #a4abb3;
+  --chart-5: #d1e4ff;
   --radius: 0.5rem;
-  --sidebar: #FFFFFF;
-  --sidebar-foreground: #1A1C1D;
-  --sidebar-primary: #007BC0;
-  --sidebar-primary-foreground: #FFFFFF;
-  --sidebar-accent: #D1E4FF;
-  --sidebar-accent-foreground: #007BC0;
-  --sidebar-border: #D0D4D8;
-  --sidebar-ring: #007BC0;
+  --sidebar: #ffffff;
+  --sidebar-foreground: #1a1c1d;
+  --sidebar-primary: #007bc0;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #d1e4ff;
+  --sidebar-accent-foreground: #007bc0;
+  --sidebar-border: #d0d4d8;
+  --sidebar-ring: #007bc0;
   --destructive-foreground: oklch(1 0 0);
   --font-sans:
     var(--font-inter), "Hiragino Sans", "BIZ UDPGothic", "Yu Gothic UI",
@@ -161,6 +166,11 @@
     var(--border)
   );
   --workspace-scrollbar-thumb-hover: var(--muted-foreground);
+  --workspace-tree-row: color-mix(
+    in oklab,
+    var(--foreground) 7%,
+    var(--background)
+  );
   color-scheme: light;
 }
 
@@ -175,13 +185,17 @@
   --popover-foreground: oklch(0.9168 0.0035 67.7802);
   --primary: oklch(0.7441 0.1311 264.2789);
   --primary-hover: color-mix(in oklab, var(--primary) 92%, black);
-  --button-outline-hover: color-mix(in oklab, var(--background) 88%, var(--input));
+  --button-outline-hover: color-mix(
+    in oklab,
+    var(--background) 88%,
+    var(--input)
+  );
   --primary-foreground: oklch(0.2077 0.0398 265.7549);
   --secondary: oklch(0.2972 0 0);
   --secondary-foreground: oklch(0.9168 0.0035 67.7802);
   --muted: oklch(0.2972 0 0);
   --muted-foreground: oklch(0.709 0 0);
-  --accent: oklch(0.2972 0 0);
+  --accent: oklch(0.38 0.03 264);
   --accent-foreground: oklch(0.9168 0.0035 67.7802);
   --destructive: oklch(0.6338 0.1208 21.0422);
   --border: oklch(0.3211 0 0);
@@ -228,6 +242,11 @@
   --shadow-xl:
     0px 10px 20px 0px hsl(0 0% 0% / 0.3), 0px 8px 10px -1px hsl(0 0% 0% / 0.3);
   --shadow-2xl: 0px 10px 20px 0px hsl(0 0% 0% / 0.75);
+  --workspace-tree-row: color-mix(
+    in oklab,
+    var(--foreground) 10%,
+    var(--background)
+  );
 }
 
 @layer base {
@@ -271,7 +290,11 @@
 
 .agent-chat-pane__scroll-fade-top {
   top: 0;
-  background: linear-gradient(to bottom, var(--agent-chat-pane-bg), transparent);
+  background: linear-gradient(
+    to bottom,
+    var(--agent-chat-pane-bg),
+    transparent
+  );
 }
 
 .agent-chat-pane__scroll-fade-bottom {
@@ -301,7 +324,8 @@
 .workspace-scrollbar,
 .lesson-content-editor .cm-scroller {
   scrollbar-width: thin;
-  scrollbar-color: var(--workspace-scrollbar-thumb) var(--workspace-scrollbar-track);
+  scrollbar-color: var(--workspace-scrollbar-thumb)
+    var(--workspace-scrollbar-track);
 }
 
 .workspace-scrollbar::-webkit-scrollbar,
@@ -526,26 +550,45 @@ html:not(.dark) .lesson-content-editor .cm-content {
 }
 
 html:not(.dark) .lesson-content-editor .cm-gutters {
-  background-color: color-mix(in oklab, var(--muted) 20%, transparent) !important;
+  background-color: color-mix(
+    in oklab,
+    var(--muted) 20%,
+    transparent
+  ) !important;
 }
 
 /* FM: @layer 外 + !important（CodeMirror シンタックスハイライトより優先） */
 .lesson-content-editor .cm-frontmatter-fade,
 .lesson-content-editor .cm-frontmatter-fade * {
-  color: color-mix(in oklab, var(--muted-foreground) 88%, transparent) !important;
+  color: color-mix(
+    in oklab,
+    var(--muted-foreground) 88%,
+    transparent
+  ) !important;
 }
 
 /* 折りたたみガター: 行番号と同色（ライト） */
 .lesson-content-editor .cm-foldGutter.lesson-fold-gutter .lesson-fold-icon,
 .lesson-content-editor .cm-foldGutter.lesson-fold-gutter span.lesson-fold-open,
-.lesson-content-editor .cm-foldGutter.lesson-fold-gutter span.lesson-fold-closed {
+.lesson-content-editor
+  .cm-foldGutter.lesson-fold-gutter
+  span.lesson-fold-closed {
   color: #237893 !important;
   -webkit-text-fill-color: #237893 !important;
 }
 
-html.dark .lesson-content-editor .cm-foldGutter.lesson-fold-gutter .lesson-fold-icon,
-html.dark .lesson-content-editor .cm-foldGutter.lesson-fold-gutter span.lesson-fold-open,
-html.dark .lesson-content-editor .cm-foldGutter.lesson-fold-gutter span.lesson-fold-closed {
+html.dark
+  .lesson-content-editor
+  .cm-foldGutter.lesson-fold-gutter
+  .lesson-fold-icon,
+html.dark
+  .lesson-content-editor
+  .cm-foldGutter.lesson-fold-gutter
+  span.lesson-fold-open,
+html.dark
+  .lesson-content-editor
+  .cm-foldGutter.lesson-fold-gutter
+  span.lesson-fold-closed {
   color: #858585 !important;
   -webkit-text-fill-color: #858585 !important;
 }
@@ -588,11 +631,17 @@ html.dark .lesson-content-editor .cm-foldGutter.lesson-fold-gutter span.lesson-f
 /* カーソル行: 行番号・折りガター・本文（CM 標準クラスではなく独自マーカー） */
 .lesson-content-editor .cm-gutterElement.lesson-active-line-gutter,
 .lesson-content-editor .cm-line.lesson-active-line {
-  background-color: color-mix(in oklab, var(--muted) 50%, transparent) !important;
+  background-color: color-mix(
+    in oklab,
+    var(--muted) 50%,
+    transparent
+  ) !important;
 }
 
 /* 行番号のみ太字（テキスト色は変更しない） */
-.lesson-content-editor .cm-lineNumbers .cm-gutterElement.lesson-active-line-number {
+.lesson-content-editor
+  .cm-lineNumbers
+  .cm-gutterElement.lesson-active-line-number {
   font-weight: 700;
 }
 
@@ -690,9 +739,17 @@ input.context-date-input[type="date"]:not([value=""]) {
   color: var(--foreground);
 }
 
-input.context-date-input[type="date"]:not([value=""])::-webkit-datetime-edit-text,
-input.context-date-input[type="date"]:not([value=""])::-webkit-datetime-edit-month-field,
-input.context-date-input[type="date"]:not([value=""])::-webkit-datetime-edit-day-field,
-input.context-date-input[type="date"]:not([value=""])::-webkit-datetime-edit-year-field {
+input.context-date-input[type="date"]:not(
+    [value=""]
+  )::-webkit-datetime-edit-text,
+input.context-date-input[type="date"]:not(
+    [value=""]
+  )::-webkit-datetime-edit-month-field,
+input.context-date-input[type="date"]:not(
+    [value=""]
+  )::-webkit-datetime-edit-day-field,
+input.context-date-input[type="date"]:not(
+    [value=""]
+  )::-webkit-datetime-edit-year-field {
   color: var(--foreground);
 }

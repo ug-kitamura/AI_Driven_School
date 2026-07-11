@@ -106,6 +106,28 @@ function collectWorkspaceMtimes(
   return results;
 }
 
+/**
+ * フォルダ名変更・空フォルダ削除・新規フォルダ作成はファイル mtime を変化させないため、
+ * 外部変更検知用 fingerprint にはフォルダ構成（パス一覧）も別途含める。
+ */
+function collectWorkspaceFolderPaths(projectRoot: string): string[] {
+  ensureWorkspaceDir(projectRoot);
+  const workspaceDir = getWorkspaceDir(projectRoot);
+  const results: string[] = [];
+
+  function walk(dir: string, rel: string) {
+    for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+      if (!entry.isDirectory() || entry.name.startsWith(".")) continue;
+      const relPath = rel ? `${rel}/${entry.name}` : entry.name;
+      results.push(relPath);
+      walk(path.join(dir, entry.name), relPath);
+    }
+  }
+
+  walk(workspaceDir, "");
+  return results;
+}
+
 export function getWorkspaceLatestMtime(projectRoot: string): number {
   const mtimes = collectWorkspaceMtimes(projectRoot);
   if (mtimes.length === 0) return 0;
@@ -114,7 +136,14 @@ export function getWorkspaceLatestMtime(projectRoot: string): number {
 
 export function getWorkspaceFingerprint(projectRoot: string): string {
   const mtimes = collectWorkspaceMtimes(projectRoot);
-  if (mtimes.length === 0) return "empty";
+  const folderPaths = collectWorkspaceFolderPaths(projectRoot).sort((a, b) =>
+    a.localeCompare(b),
+  );
+  const folderSegment = folderPaths.length > 0 ? folderPaths.join(",") : "";
+
+  if (mtimes.length === 0 && folderPaths.length === 0) return "empty";
+
   mtimes.sort((a, b) => a.path.localeCompare(b.path));
-  return mtimes.map((m) => `${m.path}:${m.mtimeMs}`).join("|");
+  const fileSegment = mtimes.map((m) => `${m.path}:${m.mtimeMs}`).join("|");
+  return `folders:${folderSegment}|files:${fileSegment}`;
 }

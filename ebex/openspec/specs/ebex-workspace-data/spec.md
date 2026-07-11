@@ -42,7 +42,9 @@ TBD - created by archiving change ebex-v1-workspace. Update Purpose after archiv
 
 - `POST /api/workspace/create-folder` — プロジェクトフォルダ作成（`{ name }`）またはサブフォルダ作成（`{ parentPath, name }`）。リクエスト body のパースは `parentPath` の有無に依らず `parentPath` フィールドが失われない単一スキーマで行わなければならない（SHALL）
 - `POST /api/workspace/rename-folder` — フォルダリネーム（`{ fromPath, toPath }`、`session.json` はプロジェクトルート移動時のみ連動）
-- `POST /api/workspace/delete-folder` — 空フォルダのみ削除（`{ folderPath }`）。フォルダ直下に `session.json` のみが存在する場合も空フォルダとみなし、削除時は `session.json` を含めてフォルダ全体を削除する
+- `POST /api/workspace/delete-folder` — フォルダ削除（`{ folderId }`）。プロジェクトフォルダ（`folderId` に `/` を含まない）は空フォルダのみ削除可能とし、直下に `session.json` のみが存在する場合も空フォルダとみなし、`session.json` を含めてフォルダ全体を削除する。サブフォルダ（`folderId` に `/` を含む）は配下の内容に関わらず再帰削除を実行できなければならない（SHALL）
+- `POST /api/workspace/move-file` — ファイル移動（`{ fromFolderId, fromName, toFolderId, toName? }`）
+- `POST /api/workspace/copy-folder` — フォルダ再帰コピー（`{ fromPath, toParentPath, toName? }`）
 
 #### Scenario: サブフォルダ作成
 
@@ -54,15 +56,20 @@ TBD - created by archiving change ebex-v1-workspace. Update Purpose after archiv
 - **WHEN** `{ "fromPath": "demo/sub", "toPath": "demo/sub-renamed" }` でリネームする
 - **THEN** フォルダが移動し HTTP 200 が返される
 
-#### Scenario: 空でないフォルダは削除不可
+#### Scenario: 空でないプロジェクトフォルダは削除不可
 
-- **WHEN** `session.json` 以外のサブフォルダまたはファイルを含む `folderPath` で削除を試みる
+- **WHEN** `session.json` 以外のサブフォルダまたはファイルを含むプロジェクトフォルダ `folderId` で削除を試みる
 - **THEN** HTTP 400 が返される
 
-#### Scenario: session.json のみのフォルダは削除可能
+#### Scenario: session.json のみのプロジェクトフォルダは削除可能
 
-- **WHEN** `session.json` のみが存在する `folderPath` で `POST /api/workspace/delete-folder` を呼び出す
+- **WHEN** `session.json` のみが存在するプロジェクトフォルダ `folderId` で `POST /api/workspace/delete-folder` を呼び出す
 - **THEN** HTTP 200 が返され、`session.json` を含めてフォルダが削除される
+
+#### Scenario: 中身ありサブフォルダの再帰削除
+
+- **WHEN** ファイルおよび子フォルダを含む `folderId: "demo/sub"` で `POST /api/workspace/delete-folder` を呼び出す
+- **THEN** HTTP 200 が返され、`demo/sub` および配下がすべて削除される
 
 ### Requirement: ファイル CRUD API
 
@@ -123,4 +130,37 @@ TBD - created by archiving change ebex-v1-workspace. Update Purpose after archiv
 
 - **WHEN** `folderPath` に `demo/sub` を指定する
 - **THEN** HTTP 200 で操作が成功する
+
+### Requirement: ファイル移動 API
+
+`POST /api/workspace/move-file` エンドポイントが存在し、ファイルをフォルダ間で移動できなければならない（SHALL）。リクエスト body は `fromFolderId`、`fromName`、`toFolderId`、および省略可能な `toName`（省略時は `fromName` と同一）を含まなければならない（SHALL）。移動先に同名ファイルが存在する場合、HTTP 400 を返さなければならない（SHALL）。`fromFolderId` と `toFolderId` が異なるプロジェクトフォルダ（パスの第一セグメントが異なる）に属する場合も移動を許可しなければならない（SHALL）。
+
+#### Scenario: 同一フォルダ内のリネーム相当移動
+
+- **WHEN** `{ "fromFolderId": "demo", "fromName": "a.md", "toFolderId": "demo", "toName": "b.md" }` を送信する
+- **THEN** `workspace/demo/b.md` が作成され `a.md` は削除される
+
+#### Scenario: フォルダ間移動
+
+- **WHEN** `{ "fromFolderId": "demo/sub", "fromName": "notes.md", "toFolderId": "demo/other" }` を送信する
+- **THEN** `workspace/demo/other/notes.md` が作成され `workspace/demo/sub/notes.md` は削除される
+
+#### Scenario: 移動先に同名ファイルがある
+
+- **WHEN** 移動先フォルダに既に同名ファイルが存在する状態で move-file を呼び出す
+- **THEN** HTTP 400 が返される
+
+### Requirement: フォルダコピー API
+
+`POST /api/workspace/copy-folder` エンドポイントが存在し、フォルダを再帰的にコピーできなければならない（SHALL）。リクエスト body は `fromPath`、`toParentPath`、および省略可能な `toName`（省略時は `fromPath` の最終セグメント）を含まなければならない（SHALL）。コピー先に同名フォルダが存在する場合、HTTP 400 を返さなければならない（SHALL）。`session.json` はコピーしてはならない（MUST NOT）。ドットファイルはコピーしてはならない（MUST NOT）。
+
+#### Scenario: サブフォルダを別プロジェクトへコピー
+
+- **WHEN** `{ "fromPath": "demo-a/sub", "toParentPath": "demo-b" }` を送信する
+- **THEN** `workspace/demo-b/sub/` が `demo-a/sub/` の内容ごと作成される
+
+#### Scenario: コピー先に同名フォルダがある
+
+- **WHEN** `demo-b/sub` が既に存在する状態で copy-folder を呼び出す
+- **THEN** HTTP 400 が返される
 

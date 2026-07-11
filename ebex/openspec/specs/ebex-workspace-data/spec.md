@@ -40,7 +40,7 @@ TBD - created by archiving change ebex-v1-workspace. Update Purpose after archiv
 
 以下のエンドポイントが存在しなければならない（SHALL）:
 
-- `POST /api/workspace/create-folder` — プロジェクトフォルダ作成（`{ name }`）またはサブフォルダ作成（`{ parentPath, name }`）
+- `POST /api/workspace/create-folder` — プロジェクトフォルダ作成（`{ name }`）またはサブフォルダ作成（`{ parentPath, name }`）。リクエスト body のパースは `parentPath` の有無に依らず `parentPath` フィールドが失われない単一スキーマで行わなければならない（SHALL）
 - `POST /api/workspace/rename-folder` — フォルダリネーム（`{ fromPath, toPath }`、`session.json` はプロジェクトルート移動時のみ連動）
 - `POST /api/workspace/delete-folder` — 空フォルダのみ削除（`{ folderPath }`）。フォルダ直下に `session.json` のみが存在する場合も空フォルダとみなし、削除時は `session.json` を含めてフォルダ全体を削除する
 

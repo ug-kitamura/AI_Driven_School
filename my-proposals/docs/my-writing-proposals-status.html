@@ -1,0 +1,623 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="robots" content="noindex, nofollow, noarchive, nosnippet, noimageindex">
+  <meta name="googlebot" content="noindex, nofollow">
+  <meta property="og:title" content="my-writing-proposals スキル開発の現状">
+  <meta property="og:description" content="社内向け提案文AIスキルの開発経緯・改善点・残課題を図解します。">
+  <meta property="og:type" content="article">
+  <title>my-writing-proposals スキル開発の現状</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%23FFFFFF'/><rect x='8' y='8' width='84' height='84' rx='14' fill='none' stroke='%233B82F6' stroke-width='4'/><circle cx='32' cy='40' r='10' fill='%233B82F6' opacity='0.8'/><circle cx='68' cy='40' r='10' fill='%2360A5FA' opacity='0.8'/><rect x='25' y='62' width='50' height='6' rx='3' fill='%2394A3B8' opacity='0.6'/><rect x='30' y='74' width='40' height='6' rx='3' fill='%2394A3B8' opacity='0.3'/></svg>">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700;900&display=swap" rel="stylesheet">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            custom: {
+              bg: '#FFFFFF',
+              surface: '#F8FAFC',
+              hover: '#F1F5F9',
+              border: '#E2E8F0',
+              accent: '#3B82F6',
+              'accent-light': '#2563EB',
+              text: '#1E293B',
+              muted: '#64748B',
+              dim: '#94A3B8',
+              positive: '#10B981',
+              negative: '#EF4444',
+              warning: '#F59E0B',
+            }
+          },
+          fontFamily: {
+            sans: ['"Noto Sans JP"', '"Hiragino Sans"', '"Hiragino Kaku Gothic ProN"', '"Yu Gothic UI"', '"Meiryo"', 'sans-serif'],
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    @media print {
+      .no-print { display: none !important; }
+      body { border-top: none !important; }
+      .rounded-xl { break-inside: avoid; }
+      .md\:flex-row { flex-direction: row !important; }
+      .md\:hidden { display: none !important; }
+      .hidden.md\:block { display: block !important; }
+      .md\:grid-cols-2 { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; }
+      .sm\:grid-cols-3 { grid-template-columns: repeat(3, minmax(0, 1fr)) !important; }
+      .md\:mb-20 { margin-bottom: 5rem !important; }
+      .md\:py-16 { padding-top: 4rem !important; padding-bottom: 4rem !important; }
+      .bg-clip-text.text-transparent {
+        -webkit-background-clip: initial !important;
+        background-clip: initial !important;
+        color: #2563EB !important;
+        -webkit-text-fill-color: #2563EB !important;
+      }
+    }
+  </style>
+</head>
+<body class="bg-custom-bg text-slate-600 antialiased leading-relaxed border-t-4 border-custom-accent">
+  <div class="no-print max-w-3xl mx-auto px-5 pt-2 flex justify-end">
+    <button onclick="window.print()" class="flex items-center gap-1.5 text-xs text-custom-dim hover:text-custom-accent transition-colors cursor-pointer">
+      <i data-lucide="download" class="w-3.5 h-3.5"></i>
+      PDF
+    </button>
+  </div>
+  <main class="max-w-3xl mx-auto px-5 py-10 md:py-16">
+<!-- CONTENT_START -->
+
+<!-- HERO -->
+<div class="text-center mb-8 md:mb-10">
+  <div class="inline-flex items-center gap-2 bg-custom-accent/10 text-custom-accent-light px-4 py-1.5 rounded-full text-sm font-medium mb-6">
+    <i data-lucide="file-text" class="w-4 h-4"></i>
+    ビジネス
+  </div>
+  <h1 class="text-3xl md:text-4xl font-black text-slate-900 tracking-tight mb-4">
+    <span class="bg-gradient-to-r from-blue-600 to-cyan-600 bg-clip-text text-transparent">my-writing-proposals</span><br>スキル開発の現状
+  </h1>
+  <p class="text-sm text-custom-dim mb-4">mindチーム 北村 / 2026/07/12</p>
+  <p class="text-lg text-custom-muted max-w-xl mx-auto leading-relaxed">
+    社内向け提案文を AI で書くスキルをカスタマイズ中。<br>
+    ひとことで言うと ──
+  </p>
+</div>
+
+<!-- ONE-PAGE SUMMARY -->
+<div class="bg-custom-surface border border-custom-border rounded-2xl p-6 md:p-10 mb-6">
+  <div class="text-center mb-8">
+    <p class="text-xl md:text-2xl font-black text-slate-900 mb-2">
+      短さ・日英・パーパスは達成。<br class="md:hidden"> <span class="text-custom-accent-light">上司向けの品質</span>が次の課題
+    </p>
+    <p class="text-sm text-custom-muted">writing-proposals をベースに会社向けへ進化させたが、短尺化の副作用が出ている</p>
+  </div>
+
+  <!-- 3-step journey flow -->
+  <div class="flex flex-col md:flex-row items-stretch justify-center gap-2 md:gap-1 mb-8">
+    <div class="flex-1 bg-white border border-custom-border rounded-xl p-4 text-center">
+      <div class="w-8 h-8 rounded-full bg-slate-200 text-slate-600 text-sm font-bold flex items-center justify-center mx-auto mb-2">1</div>
+      <i data-lucide="file-input" class="w-5 h-5 text-slate-500 mx-auto mb-2"></i>
+      <div class="font-bold text-slate-900 text-sm mb-1">課題定義</div>
+      <div class="text-[11px] text-custom-muted">my-issue.md</div>
+    </div>
+    <div class="hidden md:flex items-center px-1">
+      <i data-lucide="chevron-right" class="w-4 h-4 text-custom-dim"></i>
+    </div>
+    <div class="flex md:hidden items-center justify-center py-1">
+      <i data-lucide="chevron-down" class="w-4 h-4 text-custom-dim"></i>
+    </div>
+    <div class="flex-1 bg-red-500/5 border border-red-500/20 rounded-xl p-4 text-center">
+      <div class="w-8 h-8 rounded-full bg-red-500/20 text-red-600 text-sm font-bold flex items-center justify-center mx-auto mb-2">2</div>
+      <i data-lucide="pen-line" class="w-5 h-5 text-red-500 mx-auto mb-2"></i>
+      <div class="font-bold text-red-700 text-sm mb-1">初回出力</div>
+      <div class="text-[11px] text-red-600/70">67行・英語なし</div>
+    </div>
+    <div class="hidden md:flex items-center px-1">
+      <i data-lucide="chevron-right" class="w-4 h-4 text-custom-dim"></i>
+    </div>
+    <div class="flex md:hidden items-center justify-center py-1">
+      <i data-lucide="chevron-down" class="w-4 h-4 text-custom-dim"></i>
+    </div>
+    <div class="flex-1 bg-amber-500/5 border border-amber-500/20 rounded-xl p-4 text-center">
+      <div class="w-8 h-8 rounded-full bg-amber-500/20 text-amber-600 text-sm font-bold flex items-center justify-center mx-auto mb-2">3</div>
+      <i data-lucide="messages-square" class="w-5 h-5 text-amber-500 mx-auto mb-2"></i>
+      <div class="font-bold text-amber-700 text-sm mb-1">grill-me 設計</div>
+      <div class="text-[11px] text-amber-600/70">短尺・日英・テンプレ</div>
+    </div>
+    <div class="hidden md:flex items-center px-1">
+      <i data-lucide="chevron-right" class="w-4 h-4 text-custom-dim"></i>
+    </div>
+    <div class="flex md:hidden items-center justify-center py-1">
+      <i data-lucide="chevron-down" class="w-4 h-4 text-custom-dim"></i>
+    </div>
+    <div class="flex-1 bg-emerald-500/5 border border-emerald-500/20 rounded-xl p-4 text-center">
+      <div class="w-8 h-8 rounded-full bg-emerald-500/20 text-emerald-600 text-sm font-bold flex items-center justify-center mx-auto mb-2">4</div>
+      <i data-lucide="sparkles" class="w-5 h-5 text-emerald-500 mx-auto mb-2"></i>
+      <div class="font-bold text-emerald-700 text-sm mb-1">再生成</div>
+      <div class="text-[11px] text-emerald-600/70">各20行・日英併記</div>
+    </div>
+  </div>
+
+  <!-- Key numbers -->
+  <div class="grid grid-cols-3 gap-3 mb-6">
+    <div class="text-center bg-white border border-custom-border rounded-xl p-4">
+      <div class="text-3xl font-black text-red-500 mb-1">67</div>
+      <div class="text-[11px] text-custom-muted">Before（行数）</div>
+    </div>
+    <div class="text-center bg-white border border-custom-border rounded-xl p-4">
+      <div class="text-3xl font-black text-emerald-500 mb-1">20</div>
+      <div class="text-[11px] text-custom-muted">After（各行数）</div>
+    </div>
+    <div class="text-center bg-white border border-custom-border rounded-xl p-4">
+      <div class="text-3xl font-black text-custom-accent-light mb-1">6</div>
+      <div class="text-[11px] text-custom-muted">残課題（件）</div>
+    </div>
+  </div>
+
+  <div class="flex flex-wrap justify-center gap-2">
+    <div class="flex items-center gap-1.5 bg-emerald-500/10 border border-emerald-500/20 rounded-full px-3.5 py-1.5 text-xs text-emerald-700">
+      <i data-lucide="check" class="w-3.5 h-3.5"></i>
+      短尺化
+    </div>
+    <div class="flex items-center gap-1.5 bg-emerald-500/10 border border-emerald-500/20 rounded-full px-3.5 py-1.5 text-xs text-emerald-700">
+      <i data-lucide="check" class="w-3.5 h-3.5"></i>
+      日英併記
+    </div>
+    <div class="flex items-center gap-1.5 bg-emerald-500/10 border border-emerald-500/20 rounded-full px-3.5 py-1.5 text-xs text-emerald-700">
+      <i data-lucide="check" class="w-3.5 h-3.5"></i>
+      パーパス整合
+    </div>
+    <div class="flex items-center gap-1.5 bg-amber-500/10 border border-amber-500/20 rounded-full px-3.5 py-1.5 text-xs text-amber-700">
+      <i data-lucide="alert-triangle" class="w-3.5 h-3.5"></i>
+      丁寧さ・PREP
+    </div>
+  </div>
+</div>
+
+<p class="text-center text-custom-muted mb-16 md:mb-20">
+  ここから先で、経緯・残課題・次の一手をひとつずつ解説していきます。
+</p>
+
+<!-- SECTION 1: 何をやっているか -->
+<section class="mb-16 md:mb-20">
+  <div class="flex items-center gap-3 mb-8">
+    <div class="flex items-center justify-center w-10 h-10 rounded-lg bg-blue-500/10 flex-shrink-0">
+      <i data-lucide="target" class="w-5 h-5 text-blue-600"></i>
+    </div>
+    <h2 class="text-xl md:text-2xl font-bold text-slate-900">何をやっているか</h2>
+  </div>
+
+  <p class="mb-6 leading-relaxed">
+    社内向けの提案文を AI で生成するスキル <strong class="text-slate-900">writing-proposals</strong> を、自分の課題に合わせてカスタマイズしている。カスタム版 <strong class="text-slate-900">my-writing-proposals</strong> は、会社向け・日英・短尺・パーパス整合を加えた汎用提案スキル。
+  </p>
+
+  <div class="bg-custom-surface border border-custom-border rounded-xl p-6 mb-8">
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div class="bg-white border border-custom-border rounded-lg p-4">
+        <div class="text-[10px] text-custom-dim font-medium tracking-widest uppercase mb-2">ベーススキル</div>
+        <div class="font-bold text-slate-900 mb-1">writing-proposals</div>
+        <div class="text-sm text-custom-muted">対話で材料を引き出し、提案文を生成</div>
+      </div>
+      <div class="bg-white border border-custom-border rounded-lg p-4">
+        <div class="text-[10px] text-custom-dim font-medium tracking-widest uppercase mb-2">カスタムスキル</div>
+        <div class="font-bold text-custom-accent-light mb-1">my-writing-proposals</div>
+        <div class="text-sm text-custom-muted">会社向け・日英・短尺・パーパス整合</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 決裁者カード -->
+  <div class="bg-custom-accent/5 border border-custom-accent/20 rounded-xl p-6">
+    <h3 class="font-bold text-slate-900 mb-4 text-center">ゴール：この2人を説得する提案文</h3>
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div class="bg-white border border-custom-border rounded-lg p-4">
+        <div class="flex items-center gap-3 mb-3">
+          <div class="w-10 h-10 rounded-full bg-blue-500/10 flex items-center justify-center">
+            <i data-lucide="user-check" class="w-5 h-5 text-blue-600"></i>
+          </div>
+          <div>
+            <div class="font-bold text-slate-900">課長</div>
+            <div class="text-xs text-custom-muted">ドイツ人・論理・コスト重視</div>
+          </div>
+        </div>
+        <div class="text-sm text-custom-muted">英語説明が必要。数字と論理で説得</div>
+      </div>
+      <div class="bg-white border border-custom-border rounded-lg p-4">
+        <div class="flex items-center gap-3 mb-3">
+          <div class="w-10 h-10 rounded-full bg-emerald-500/10 flex items-center justify-center">
+            <i data-lucide="user-check" class="w-5 h-5 text-emerald-600"></i>
+          </div>
+          <div>
+            <div class="font-bold text-slate-900">部長</div>
+            <div class="text-xs text-custom-muted">日本人・AI推進に積極的</div>
+          </div>
+        </div>
+        <div class="text-sm text-custom-muted">最終承認者。和を大切にする人柄</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- SECTION 2: 開発の3段階 -->
+<section class="mb-16 md:mb-20">
+  <div class="flex items-center gap-3 mb-8">
+    <div class="flex items-center justify-center w-10 h-10 rounded-lg bg-purple-500/10 flex-shrink-0">
+      <i data-lucide="git-branch" class="w-5 h-5 text-purple-600"></i>
+    </div>
+    <h2 class="text-xl md:text-2xl font-bold text-slate-900">開発の3段階</h2>
+  </div>
+
+  <!-- Timeline -->
+  <div class="relative border-l-2 border-custom-border pl-6 ml-3 flex flex-col gap-8">
+    <div class="relative">
+      <div class="absolute -left-[31px] w-4 h-4 rounded-full bg-red-500 border-2 border-white"></div>
+      <div class="bg-red-500/5 border border-red-500/20 rounded-xl p-5">
+        <div class="text-xs font-bold text-red-600 mb-2">Step 1 — Before</div>
+        <div class="font-bold text-slate-900 mb-2">writing-proposals で初回出力</div>
+        <p class="text-sm text-custom-muted mb-3">約67行の日本語のみ。結論は先出しだが情報量が多すぎた。</p>
+        <div class="flex flex-wrap gap-2">
+          <span class="text-[11px] bg-red-500/10 text-red-600 px-2 py-0.5 rounded">長すぎる</span>
+          <span class="text-[11px] bg-red-500/10 text-red-600 px-2 py-0.5 rounded">英語なし</span>
+          <span class="text-[11px] bg-red-500/10 text-red-600 px-2 py-0.5 rounded">パーパスなし</span>
+        </div>
+      </div>
+    </div>
+    <div class="relative">
+      <div class="absolute -left-[31px] w-4 h-4 rounded-full bg-amber-500 border-2 border-white"></div>
+      <div class="bg-amber-500/5 border border-amber-500/20 rounded-xl p-5">
+        <div class="text-xs font-bold text-amber-600 mb-2">Step 2 — 設計</div>
+        <div class="font-bold text-slate-900 mb-2">grill-me で1問ずつ設計を確定</div>
+        <p class="text-sm text-custom-muted mb-3">各言語版15〜20行、日英同論点、固定テンプレート、パーパスは自然な接点のみ。</p>
+        <div class="grid grid-cols-2 gap-2 text-[11px]">
+          <div class="bg-white rounded px-2 py-1.5 border border-custom-border">結論 → コスト vs ベネフィット</div>
+          <div class="bg-white rounded px-2 py-1.5 border border-custom-border">→ 現状 → 推奨 → リスク</div>
+        </div>
+      </div>
+    </div>
+    <div class="relative">
+      <div class="absolute -left-[31px] w-4 h-4 rounded-full bg-emerald-500 border-2 border-white"></div>
+      <div class="bg-emerald-500/5 border border-emerald-500/20 rounded-xl p-5">
+        <div class="text-xs font-bold text-emerald-600 mb-2">Step 3 — After</div>
+        <div class="font-bold text-slate-900 mb-2">my-writing-proposals で再生成</div>
+        <p class="text-sm text-custom-muted mb-3">各言語版約20行。日英併記・パーパス整合・コスト対比の明示を達成。</p>
+        <div class="flex flex-wrap gap-2">
+          <span class="text-[11px] bg-emerald-500/10 text-emerald-600 px-2 py-0.5 rounded">短尺化</span>
+          <span class="text-[11px] bg-emerald-500/10 text-emerald-600 px-2 py-0.5 rounded">日英併記</span>
+          <span class="text-[11px] bg-emerald-500/10 text-emerald-600 px-2 py-0.5 rounded">構造統一</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- SECTION 3: Before / After 比較 -->
+<section class="mb-16 md:mb-20">
+  <div class="flex items-center gap-3 mb-8">
+    <div class="flex items-center justify-center w-10 h-10 rounded-lg bg-cyan-500/10 flex-shrink-0">
+      <i data-lucide="columns-2" class="w-5 h-5 text-cyan-600"></i>
+    </div>
+    <h2 class="text-xl md:text-2xl font-bold text-slate-900">Before / After の違い</h2>
+  </div>
+
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
+    <div class="bg-red-500/5 border border-red-500/20 rounded-xl p-5">
+      <div class="inline-flex items-center gap-1.5 bg-red-500/10 text-red-600 px-3 py-1 rounded-full text-xs font-bold mb-4">
+        <i data-lucide="x-circle" class="w-3.5 h-3.5"></i>
+        BEFORE
+      </div>
+      <ul class="flex flex-col gap-3 text-sm">
+        <li class="flex items-start gap-2"><i data-lucide="x" class="w-4 h-4 text-red-500 mt-0.5 flex-shrink-0"></i><span>約67行（日本語のみ）</span></li>
+        <li class="flex items-start gap-2"><i data-lucide="x" class="w-4 h-4 text-red-500 mt-0.5 flex-shrink-0"></i><span>英語版なし</span></li>
+        <li class="flex items-start gap-2"><i data-lucide="x" class="w-4 h-4 text-red-500 mt-0.5 flex-shrink-0"></i><span>パーパスとの紐づけなし</span></li>
+        <li class="flex items-start gap-2"><i data-lucide="x" class="w-4 h-4 text-red-500 mt-0.5 flex-shrink-0"></i><span>コスト対比が文中に散在</span></li>
+      </ul>
+    </div>
+    <div class="bg-emerald-500/5 border border-emerald-500/20 rounded-xl p-5">
+      <div class="inline-flex items-center gap-1.5 bg-emerald-500/10 text-emerald-600 px-3 py-1 rounded-full text-xs font-bold mb-4">
+        <i data-lucide="check-circle" class="w-3.5 h-3.5"></i>
+        AFTER
+      </div>
+      <ul class="flex flex-col gap-3 text-sm">
+        <li class="flex items-start gap-2"><i data-lucide="check" class="w-4 h-4 text-emerald-500 mt-0.5 flex-shrink-0"></i><span>各言語版15〜20行</span></li>
+        <li class="flex items-start gap-2"><i data-lucide="check" class="w-4 h-4 text-emerald-500 mt-0.5 flex-shrink-0"></i><span>同論点の日英版を併記</span></li>
+        <li class="flex items-start gap-2"><i data-lucide="check" class="w-4 h-4 text-emerald-500 mt-0.5 flex-shrink-0"></i><span>パーパス整合の仕組みを追加</span></li>
+        <li class="flex items-start gap-2"><i data-lucide="check" class="w-4 h-4 text-emerald-500 mt-0.5 flex-shrink-0"></i><span>冒頭直後にコスト vs ベネフィット</span></li>
+      </ul>
+    </div>
+  </div>
+
+  <!-- Document mockup comparison -->
+  <div class="bg-slate-800 rounded-xl overflow-hidden border border-slate-700">
+    <div class="flex items-center gap-2 px-4 py-2.5 bg-slate-900 border-b border-slate-700">
+      <div class="w-3 h-3 rounded-full bg-red-500/80"></div>
+      <div class="w-3 h-3 rounded-full bg-amber-500/80"></div>
+      <div class="w-3 h-3 rounded-full bg-emerald-500/80"></div>
+      <span class="text-[11px] text-slate-400 ml-2">提案文 — 結論文の比較</span>
+    </div>
+    <div class="p-5 flex flex-col gap-4">
+      <div class="bg-slate-700/50 rounded-lg p-4 border-l-4 border-red-500">
+        <div class="text-[10px] text-red-400 font-bold mb-2">BEFORE — 理由つきで丁寧</div>
+        <p class="text-sm text-slate-200 leading-relaxed">部全体でAI APIチームプラン（月250€）の承認と、3ペインワークスペースの部内導入をお願いします。<strong class="text-white">個別のCopilot申請を全員に求めるより、コストと運用の両面で合理的です。</strong></p>
+      </div>
+      <div class="bg-slate-700/50 rounded-lg p-4 border-l-4 border-amber-500">
+        <div class="text-[10px] text-amber-400 font-bold mb-2">AFTER — 短いがぶっきらぼう</div>
+        <p class="text-sm text-slate-200 leading-relaxed">【提案】3ペインAIワークスペースの試験導入（3〜5名・4週間）を承認いただきたい。APIは現行ベーシックのまま進めます。</p>
+        <p class="text-xs text-amber-400/80 mt-2">→ 理由が結論に付いていない（PREPのRが欠落）</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- SECTION 4: 残課題6点 -->
+<section class="mb-16 md:mb-20">
+  <div class="flex items-center gap-3 mb-8">
+    <div class="flex items-center justify-center w-10 h-10 rounded-lg bg-amber-500/10 flex-shrink-0">
+      <i data-lucide="alert-circle" class="w-5 h-5 text-amber-600"></i>
+    </div>
+    <h2 class="text-xl md:text-2xl font-bold text-slate-900">残課題（6点）</h2>
+  </div>
+
+  <p class="mb-6 leading-relaxed">
+    短尺化・日英・パーパス整合は達成したが、<strong class="text-slate-900">上司に出す文章としての品質</strong>にはまだギャップがある。
+  </p>
+
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+    <div class="bg-custom-surface border border-custom-border rounded-xl p-5">
+      <div class="flex items-center gap-2 mb-3">
+        <div class="w-7 h-7 rounded-lg bg-red-500/10 flex items-center justify-center text-red-600 text-sm font-bold">1</div>
+        <h3 class="font-bold text-slate-900">削りすぎでぶっきらぼう</h3>
+      </div>
+      <p class="text-sm text-custom-muted">15〜20行制約で背景・接続を削り、事務的・命令調に。丁寧さと説得力が不足。</p>
+    </div>
+    <div class="bg-custom-surface border border-custom-border rounded-xl p-5">
+      <div class="flex items-center gap-2 mb-3">
+        <div class="w-7 h-7 rounded-lg bg-red-500/10 flex items-center justify-center text-red-600 text-sm font-bold">2</div>
+        <h3 class="font-bold text-slate-900">体言止めが多い</h3>
+      </div>
+      <p class="text-sm text-custom-muted">「配布課題の解消を確認」「判断材料になる」など。上司向け正式文書として不適切な印象。</p>
+    </div>
+    <div class="bg-custom-surface border border-custom-border rounded-xl p-5">
+      <div class="flex items-center gap-2 mb-3">
+        <div class="w-7 h-7 rounded-lg bg-amber-500/10 flex items-center justify-center text-amber-600 text-sm font-bold">3</div>
+        <h3 class="font-bold text-slate-900">計画の観点が弱い</h3>
+      </div>
+      <p class="text-sm text-custom-muted">パイロット→本格展開→判断時期が読み取りにくい。成功基準・判断日がリスク欄に散在。</p>
+    </div>
+    <div class="bg-custom-surface border border-custom-border rounded-xl p-5">
+      <div class="flex items-center gap-2 mb-3">
+        <div class="w-7 h-7 rounded-lg bg-amber-500/10 flex items-center justify-center text-amber-600 text-sm font-bold">4</div>
+        <h3 class="font-bold text-slate-900">論理の流れが追いにくい</h3>
+      </div>
+      <p class="text-sm text-custom-muted">課題→解決→承認依頼のストーリーが弱い。「なぜ今これが必要か」が後からしか分からない。</p>
+    </div>
+    <div class="bg-custom-surface border border-custom-border rounded-xl p-5">
+      <div class="flex items-center gap-2 mb-3">
+        <div class="w-7 h-7 rounded-lg bg-purple-500/10 flex items-center justify-center text-purple-600 text-sm font-bold">5</div>
+        <h3 class="font-bold text-slate-900">PREP構造になっていない</h3>
+      </div>
+      <p class="text-sm text-custom-muted">結論は冒頭にあるが、理由・根拠・結論の再確認が弱い。末尾に結論の再提示がない。</p>
+    </div>
+    <div class="bg-custom-surface border border-custom-border rounded-xl p-5">
+      <div class="flex items-center gap-2 mb-3">
+        <div class="w-7 h-7 rounded-lg bg-purple-500/10 flex items-center justify-center text-purple-600 text-sm font-bold">6</div>
+        <h3 class="font-bold text-slate-900">模範回答例がない</h3>
+      </div>
+      <p class="text-sm text-custom-muted">文章ルールはあるが「最高の回答例」がない。短尺ルールだけでは文体の基準がぶれやすい。</p>
+    </div>
+  </div>
+</section>
+
+<!-- SECTION 5: PREP と論理の流れ -->
+<section class="mb-16 md:mb-20">
+  <div class="flex items-center gap-3 mb-8">
+    <div class="flex items-center justify-center w-10 h-10 rounded-lg bg-indigo-500/10 flex-shrink-0">
+      <i data-lucide="layout-list" class="w-5 h-5 text-indigo-600"></i>
+    </div>
+    <h2 class="text-xl md:text-2xl font-bold text-slate-900">PREP と論理の流れ</h2>
+  </div>
+
+  <p class="mb-6 leading-relaxed">
+    PREP（Point → Reason → Example/Evidence → Point）は、結論を先に示し、理由と根拠で裏付け、最後に結論を再確認する論理展開の型。上司向け提案文では、この構造と「課題から承認依頼までのストーリー」の両方が必要。
+  </p>
+
+  <!-- PREP flow -->
+  <div class="bg-custom-surface border border-custom-border rounded-xl p-6 mb-8">
+    <h3 class="font-bold text-slate-900 text-center mb-6">PREP の4要素 — 現状の達成度</h3>
+    <div class="flex flex-col md:flex-row items-stretch gap-3">
+      <div class="flex-1 bg-amber-500/5 border border-amber-500/20 rounded-xl p-4 text-center">
+        <div class="text-2xl font-black text-amber-600 mb-1">P</div>
+        <div class="font-bold text-slate-900 text-sm mb-1">Point（結論）</div>
+        <div class="text-[11px] text-amber-600 mb-2">△ 冒頭にあるが展開と対応が弱い</div>
+        <div class="text-xs text-custom-muted">何を承認してほしいか</div>
+      </div>
+      <div class="flex items-center justify-center md:py-8">
+        <i data-lucide="arrow-right" class="w-4 h-4 text-custom-dim hidden md:block"></i>
+        <i data-lucide="arrow-down" class="w-4 h-4 text-custom-dim md:hidden"></i>
+      </div>
+      <div class="flex-1 bg-amber-500/5 border border-amber-500/20 rounded-xl p-4 text-center">
+        <div class="text-2xl font-black text-amber-600 mb-1">R</div>
+        <div class="font-bold text-slate-900 text-sm mb-1">Reason（理由）</div>
+        <div class="text-[11px] text-amber-600 mb-2">△ コスト対比に偏る</div>
+        <div class="text-xs text-custom-muted">なぜそう言えるか</div>
+      </div>
+      <div class="flex items-center justify-center md:py-8">
+        <i data-lucide="arrow-right" class="w-4 h-4 text-custom-dim hidden md:block"></i>
+        <i data-lucide="arrow-down" class="w-4 h-4 text-custom-dim md:hidden"></i>
+      </div>
+      <div class="flex-1 bg-amber-500/5 border border-amber-500/20 rounded-xl p-4 text-center">
+        <div class="text-2xl font-black text-amber-600 mb-1">E</div>
+        <div class="font-bold text-slate-900 text-sm mb-1">Evidence（根拠）</div>
+        <div class="text-[11px] text-amber-600 mb-2">△ 数字はあるが体験談が削られた</div>
+        <div class="text-xs text-custom-muted">具体例・実績</div>
+      </div>
+      <div class="flex items-center justify-center md:py-8">
+        <i data-lucide="arrow-right" class="w-4 h-4 text-custom-dim hidden md:block"></i>
+        <i data-lucide="arrow-down" class="w-4 h-4 text-custom-dim md:hidden"></i>
+      </div>
+      <div class="flex-1 bg-red-500/5 border border-red-500/20 rounded-xl p-4 text-center">
+        <div class="text-2xl font-black text-red-500 mb-1">P</div>
+        <div class="font-bold text-slate-900 text-sm mb-1">Point（再確認）</div>
+        <div class="text-[11px] text-red-600 mb-2 font-bold">✕ 末尾にない</div>
+        <div class="text-xs text-custom-muted">結論の再提示</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Story flow -->
+  <div class="bg-custom-accent/5 border border-custom-accent/20 rounded-xl p-6">
+    <h3 class="font-bold text-slate-900 mb-4">読者が辿るべきストーリーライン</h3>
+    <div class="flex flex-col gap-2">
+      <div class="flex items-center gap-3 bg-white rounded-lg px-4 py-2.5 border border-custom-border">
+        <span class="text-xs font-bold text-custom-accent-light w-5">1</span>
+        <span class="text-sm">組織の課題</span>
+        <i data-lucide="arrow-right" class="w-3.5 h-3.5 text-custom-dim ml-auto hidden sm:block"></i>
+      </div>
+      <div class="flex items-center gap-3 bg-white rounded-lg px-4 py-2.5 border border-custom-border">
+        <span class="text-xs font-bold text-custom-accent-light w-5">2</span>
+        <span class="text-sm">解決したいこと</span>
+        <i data-lucide="arrow-right" class="w-3.5 h-3.5 text-custom-dim ml-auto hidden sm:block"></i>
+      </div>
+      <div class="flex items-center gap-3 bg-white rounded-lg px-4 py-2.5 border border-custom-border">
+        <span class="text-xs font-bold text-custom-accent-light w-5">3</span>
+        <span class="text-sm">そのために何をやる</span>
+        <i data-lucide="arrow-right" class="w-3.5 h-3.5 text-custom-dim ml-auto hidden sm:block"></i>
+      </div>
+      <div class="flex items-center gap-3 bg-white rounded-lg px-4 py-2.5 border border-custom-border">
+        <span class="text-xs font-bold text-custom-accent-light w-5">4</span>
+        <span class="text-sm">何が足りない</span>
+        <i data-lucide="arrow-right" class="w-3.5 h-3.5 text-custom-dim ml-auto hidden sm:block"></i>
+      </div>
+      <div class="flex items-center gap-3 bg-white rounded-lg px-4 py-2.5 border border-custom-border">
+        <span class="text-xs font-bold text-custom-accent-light w-5">5</span>
+        <span class="text-sm">何を提案する</span>
+        <i data-lucide="arrow-right" class="w-3.5 h-3.5 text-custom-dim ml-auto hidden sm:block"></i>
+      </div>
+      <div class="flex items-center gap-3 bg-custom-accent/10 rounded-lg px-4 py-2.5 border border-custom-accent/30">
+        <span class="text-xs font-bold text-custom-accent-light w-5">6</span>
+        <span class="text-sm font-bold text-slate-900">何を承認してほしいか</span>
+      </div>
+    </div>
+    <p class="text-xs text-custom-muted mt-4">現状テンプレート（コスト対比・現状・推奨・リスク）では、この流れが読み取りにくい</p>
+  </div>
+</section>
+
+<!-- SECTION 6: スキル構成 -->
+<section class="mb-16 md:mb-20">
+  <div class="flex items-center gap-3 mb-8">
+    <div class="flex items-center justify-center w-10 h-10 rounded-lg bg-slate-500/10 flex-shrink-0">
+      <i data-lucide="folder-tree" class="w-5 h-5 text-slate-600"></i>
+    </div>
+    <h2 class="text-xl md:text-2xl font-bold text-slate-900">スキルの現状構成</h2>
+  </div>
+
+  <!-- Terminal-style file tree -->
+  <div class="bg-slate-800 rounded-xl overflow-hidden border border-slate-700 mb-6">
+    <div class="flex items-center gap-2 px-4 py-2.5 bg-slate-900 border-b border-slate-700">
+      <div class="w-3 h-3 rounded-full bg-red-500/80"></div>
+      <div class="w-3 h-3 rounded-full bg-amber-500/80"></div>
+      <div class="w-3 h-3 rounded-full bg-emerald-500/80"></div>
+      <span class="text-[11px] text-slate-400 ml-2">my-writing-proposals/</span>
+    </div>
+    <div class="p-5 font-mono text-sm leading-relaxed">
+      <div class="text-slate-400">my-proposals/.claude/skills/</div>
+      <div class="text-emerald-400 pl-2">my-writing-proposals/</div>
+      <div class="text-slate-300 pl-4">├── <span class="text-white">SKILL.md</span> <span class="text-slate-500"># 対話フロー・テンプレート</span></div>
+      <div class="text-slate-300 pl-4">└── <span class="text-white">references/</span></div>
+      <div class="text-slate-300 pl-8">├── company-purpose.md <span class="text-slate-500"># 部パーパス</span></div>
+      <div class="text-slate-300 pl-8">├── writing-essence.md <span class="text-slate-500"># 文章ルール</span></div>
+      <div class="text-slate-300 pl-8">└── output-quality.md <span class="text-slate-500"># 品質チェック</span></div>
+      <div class="text-red-400 pl-8 mt-2">✕ model-answer.md <span class="text-red-400/70"># まだない（模範回答例）</span></div>
+    </div>
+  </div>
+</section>
+
+<!-- SECTION 7: 次にやること -->
+<section class="mb-16 md:mb-20">
+  <div class="flex items-center gap-3 mb-8">
+    <div class="flex items-center justify-center w-10 h-10 rounded-lg bg-emerald-500/10 flex-shrink-0">
+      <i data-lucide="list-ordered" class="w-5 h-5 text-emerald-600"></i>
+    </div>
+    <h2 class="text-xl md:text-2xl font-bold text-slate-900">次にやること</h2>
+  </div>
+
+  <div class="flex flex-col gap-3">
+    <div class="flex items-start gap-4 bg-emerald-500/5 border border-emerald-500/20 rounded-xl p-5">
+      <div class="w-8 h-8 rounded-full bg-emerald-500 text-white text-sm font-bold flex items-center justify-center flex-shrink-0">1</div>
+      <div>
+        <div class="font-bold text-slate-900 mb-1">模範回答例を references/ に追加</div>
+        <div class="text-sm text-custom-muted">文体・丁寧さ・PREP の具体基準を AI に示せる</div>
+      </div>
+    </div>
+    <div class="flex items-start gap-4 bg-custom-surface border border-custom-border rounded-xl p-5">
+      <div class="w-8 h-8 rounded-full bg-custom-accent text-white text-sm font-bold flex items-center justify-center flex-shrink-0">2</div>
+      <div>
+        <div class="font-bold text-slate-900 mb-1">テンプレートを PREP + 計画 構造に改修</div>
+        <div class="text-sm text-custom-muted">課題→解決→承認依頼の流れと、パイロット後の判断が読み取れるようにする</div>
+      </div>
+    </div>
+    <div class="flex items-start gap-4 bg-custom-surface border border-custom-border rounded-xl p-5">
+      <div class="w-8 h-8 rounded-full bg-custom-accent text-white text-sm font-bold flex items-center justify-center flex-shrink-0">3</div>
+      <div>
+        <div class="font-bold text-slate-900 mb-1">行数制約の緩和 or 丁寧さ用の行を確保</div>
+        <div class="text-sm text-custom-muted">15〜20行 → 15〜25行など。削りすぎ・ぶっきらぼうさを緩和</div>
+      </div>
+    </div>
+    <div class="flex items-start gap-4 bg-custom-surface border border-custom-border rounded-xl p-5">
+      <div class="w-8 h-8 rounded-full bg-slate-400 text-white text-sm font-bold flex items-center justify-center flex-shrink-0">4</div>
+      <div>
+        <div class="font-bold text-slate-900 mb-1">体言止め禁止・文末の丁寧さを明記</div>
+        <div class="text-sm text-custom-muted">上司向けとして不適切な文体を防ぐ</div>
+      </div>
+    </div>
+    <div class="flex items-start gap-4 bg-custom-surface border border-custom-border rounded-xl p-5">
+      <div class="w-8 h-8 rounded-full bg-slate-400 text-white text-sm font-bold flex items-center justify-center flex-shrink-0">5</div>
+      <div>
+        <div class="font-bold text-slate-900 mb-1">3点比較で効果を確認</div>
+        <div class="text-sm text-custom-muted">Before / After / 改善後を my-issue.md で再生成し比較</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- SUMMARY -->
+<section>
+  <div class="bg-gradient-to-br from-blue-600/5 to-cyan-600/5 border border-custom-accent/20 rounded-2xl p-6 md:p-8">
+    <div class="flex items-center gap-3 mb-4">
+      <i data-lucide="flag" class="w-5 h-5 text-custom-accent-light"></i>
+      <h2 class="text-xl font-bold text-slate-900">まとめ</h2>
+    </div>
+    <ul class="flex flex-col gap-3 text-sm leading-relaxed">
+      <li class="flex items-start gap-2.5">
+        <i data-lucide="check" class="w-4 h-4 text-emerald-500 mt-0.5 flex-shrink-0"></i>
+        <span><strong class="text-slate-900">短さ・日英・パーパス整合</strong>は大きく改善した</span>
+      </li>
+      <li class="flex items-start gap-2.5">
+        <i data-lucide="alert-triangle" class="w-4 h-4 text-amber-500 mt-0.5 flex-shrink-0"></i>
+        <span>短尺化の副作用で<strong class="text-slate-900">丁寧さ・論理の流れ・段階的計画・PREP構造</strong>が失われた</span>
+      </li>
+      <li class="flex items-start gap-2.5">
+        <i data-lucide="target" class="w-4 h-4 text-custom-accent-light mt-0.5 flex-shrink-0"></i>
+        <span>次の焦点は「<strong class="text-slate-900">短く保ちつつ、上司が読んで承認できる品質</strong>」にすること</span>
+      </li>
+      <li class="flex items-start gap-2.5">
+        <i data-lucide="arrow-right" class="w-4 h-4 text-custom-accent-light mt-0.5 flex-shrink-0"></i>
+        <span>最優先は<strong class="text-slate-900">模範回答例の追加</strong>と<strong class="text-slate-900">テンプレート／文章ルールの改修</strong></span>
+      </li>
+    </ul>
+  </div>
+</section>
+
+<!-- CONTENT_END -->
+  </main>
+  <footer class="max-w-3xl mx-auto px-5 pb-10 pt-6 border-t border-custom-border/30">
+    <p class="text-xs text-custom-dim text-center">図解ツールで作成</p>
+  </footer>
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <script>lucide.createIcons();</script>
+</body>
+</html>

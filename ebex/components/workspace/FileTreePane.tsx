@@ -586,9 +586,17 @@ export function FileTreePane({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [dialogError, setDialogError] = useState<string | null>(null);
-  const [focusedRowId, setFocusedRowId] = useState<string | null>(() =>
-    resolveSelectedFileRowId(selectedFolderPath, selectedFileName),
-  );
+  const [focusedRowId, setFocusedRowId] = useState<string | null>(null);
+  // ユーザーが明示的にカーソルを動かすまで、選択ファイル行への自動追従を続ける
+  // focusRow 経由の操作で userMovedFocus が立つ
+  const [userMovedFocus, setUserMovedFocus] = useState(false);
+  const [lastSyncedSelectionRowId, setLastSyncedSelectionRowId] = useState<
+    string | null
+  >(null);
+  const focusRow = useCallback((rowId: string | null) => {
+    setUserMovedFocus(true);
+    setFocusedRowId(rowId);
+  }, []);
   const [contextMenuTargetId, setContextMenuTargetId] = useState<string | null>(
     null,
   );
@@ -615,6 +623,20 @@ export function FileTreePane({
       buildVisibleRows(filteredFolders, expanded, emphasizedFolderPaths),
     [filteredFolders, expanded, emphasizedFolderPaths],
   );
+
+  // selectedFolderPath / selectedFileName は localStorage 復元が非同期なため、
+  // 選択が確定するたびにカーソルを同期する（useEffect ではなく render 中の条件付き setState）。
+  // userMovedFocus 成立後はユーザーのカーソル操作を優先する。
+  const selectedFileRowId = resolveSelectedFileRowId(
+    selectedFolderPath,
+    selectedFileName,
+  );
+  if (!userMovedFocus && lastSyncedSelectionRowId !== selectedFileRowId) {
+    setLastSyncedSelectionRowId(selectedFileRowId);
+    if (selectedFileRowId && selectedFileRowId !== focusedRowId) {
+      setFocusedRowId(selectedFileRowId);
+    }
+  }
 
   const toggleExpanded = useCallback((folderPath: string, isOpen: boolean) => {
     setExpanded((prev) => ({ ...prev, [folderPath]: !isOpen }));
@@ -681,7 +703,7 @@ export function FileTreePane({
         ) {
           onSelectFile(targetPath, movedName);
         }
-        setFocusedRowId(fileRowId(targetPath, movedName));
+        focusRow(fileRowId(targetPath, movedName));
         return;
       }
 
@@ -718,9 +740,10 @@ export function FileTreePane({
           selectedFileName,
         );
       }
-      setFocusedRowId(folderRowId(newPath));
+      focusRow(folderRowId(newPath));
     },
     [
+      focusRow,
       onSelectFile,
       postJson,
       selectedFileName,
@@ -746,7 +769,7 @@ export function FileTreePane({
         if (event.dataTransfer.items.length > 0) {
           await importOsItems(postJson, event.dataTransfer.items, folderPath);
           setExpanded((prev) => ({ ...prev, [folderPath]: true }));
-          setFocusedRowId(folderRowId(folderPath));
+          focusRow(folderRowId(folderPath));
           await onRefresh();
           return;
         }
@@ -761,7 +784,7 @@ export function FileTreePane({
           });
         }
         setExpanded((prev) => ({ ...prev, [folderPath]: true }));
-        setFocusedRowId(folderRowId(folderPath));
+        focusRow(folderRowId(folderPath));
         await onRefresh();
       } catch (err) {
         showPaneError(err instanceof Error ? err.message : String(err));
@@ -769,7 +792,14 @@ export function FileTreePane({
         setBusy(false);
       }
     },
-    [clearPaneError, handleInternalDrop, onRefresh, postJson, showPaneError],
+    [
+      clearPaneError,
+      focusRow,
+      handleInternalDrop,
+      onRefresh,
+      postJson,
+      showPaneError,
+    ],
   );
 
   const handlePaste = useCallback(
@@ -801,7 +831,7 @@ export function FileTreePane({
           })) as { fileName?: string };
           const pastedFileName = result.fileName ?? clipboard.fileName;
           setExpanded((prev) => ({ ...prev, [targetFolderPath]: true }));
-          setFocusedRowId(fileRowId(targetFolderPath, pastedFileName));
+          focusRow(fileRowId(targetFolderPath, pastedFileName));
         } else {
           const result = (await postJson("/api/workspace/copy-folder", {
             fromPath: clipboard.folderPath,
@@ -812,7 +842,7 @@ export function FileTreePane({
             result.path ??
             `${targetFolderPath}/${getFolderBaseName(clipboard.folderPath)}`;
           setExpanded((prev) => ({ ...prev, [targetFolderPath]: true }));
-          setFocusedRowId(folderRowId(pastedPath));
+          focusRow(folderRowId(pastedPath));
         }
         await onRefresh();
       } catch (err) {
@@ -821,7 +851,7 @@ export function FileTreePane({
         setBusy(false);
       }
     },
-    [clearPaneError, clipboard, onRefresh, postJson, showPaneError],
+    [clearPaneError, clipboard, focusRow, onRefresh, postJson, showPaneError],
   );
 
   const openDialog = useCallback(
@@ -846,20 +876,20 @@ export function FileTreePane({
   const handleFocusRow = useCallback(
     (rowId: string) => {
       clearPaneError();
-      setFocusedRowId(rowId);
+      focusRow(rowId);
     },
-    [clearPaneError],
+    [clearPaneError, focusRow],
   );
 
   const handleSelectFile = useCallback(
     (folderPath: string, fileName: string) => {
       clearPaneError();
       if (fileName) {
-        setFocusedRowId(fileRowId(folderPath, fileName));
+        focusRow(fileRowId(folderPath, fileName));
       }
       onSelectFile(folderPath, fileName);
     },
-    [clearPaneError, onSelectFile],
+    [clearPaneError, focusRow, onSelectFile],
   );
 
   const handleContextMenuChange = useCallback(
@@ -876,9 +906,9 @@ export function FileTreePane({
     (folderPath: string, isOpen: boolean) => {
       clearPaneError();
       toggleExpanded(folderPath, isOpen);
-      setFocusedRowId(folderRowId(folderPath));
+      focusRow(folderRowId(folderPath));
     },
-    [clearPaneError, toggleExpanded],
+    [clearPaneError, focusRow, toggleExpanded],
   );
 
   const fillUntitledFolderName = useCallback(() => {
@@ -923,7 +953,7 @@ export function FileTreePane({
         case "add-folder":
           await postJson("/api/workspace/create-folder", { name });
           setDialog(null);
-          setFocusedRowId(folderRowId(name));
+          focusRow(folderRowId(name));
           await onRefresh();
           return;
         case "add-subfolder": {
@@ -937,7 +967,7 @@ export function FileTreePane({
             [dialog.parentPath]: true,
           }));
           setDialog(null);
-          setFocusedRowId(folderRowId(childPath));
+          focusRow(folderRowId(childPath));
           await onRefresh();
           return;
         }
@@ -972,7 +1002,7 @@ export function FileTreePane({
               selectedFileName,
             );
           }
-          setFocusedRowId(folderRowId(newPath));
+          focusRow(folderRowId(newPath));
           setDialog(null);
           return;
         }
@@ -986,9 +1016,7 @@ export function FileTreePane({
             selectedFolderPath,
             selectedFileName,
           );
-          setFocusedRowId(
-            parentPath ? folderRowId(parentPath) : fallbackRowId,
-          );
+          focusRow(parentPath ? folderRowId(parentPath) : fallbackRowId);
           setDialog(null);
           await onRefresh();
           return;
@@ -1019,7 +1047,7 @@ export function FileTreePane({
           ) {
             onSelectFile(dialog.folderPath, renamedFileName);
           }
-          setFocusedRowId(fileRowId(dialog.folderPath, renamedFileName));
+          focusRow(fileRowId(dialog.folderPath, renamedFileName));
           setDialog(null);
           await onRefresh();
           return;
@@ -1035,7 +1063,7 @@ export function FileTreePane({
           ) {
             onSelectFile(dialog.folderPath, "");
           }
-          setFocusedRowId(folderRowId(dialog.folderPath));
+          focusRow(folderRowId(dialog.folderPath));
           setDialog(null);
           await onRefresh();
           return;
@@ -1049,6 +1077,7 @@ export function FileTreePane({
     busy,
     clearSelectionIfUnderPath,
     dialog,
+    focusRow,
     handleSelectFile,
     nameInput,
     onRefresh,
@@ -1157,8 +1186,8 @@ export function FileTreePane({
       const fallbackIndex = fallbackRowId
         ? visibleRows.findIndex((r) => r.id === fallbackRowId)
         : -1;
-      // focusedRowId がフィルタ等で非表示になった場合は、開いているファイル行を
-      // 基準にフォールバックし、それも見つからなければ先頭行を基準にする
+      // focusedRowId が visibleRows に無い場合は選択ファイル行をフォールバックし、
+      // それも見つからなければ先頭行を基準にする
       const index = resolvedIndex >= 0 ? resolvedIndex : fallbackIndex;
 
       if (event.key === "ArrowDown") {
@@ -1167,14 +1196,14 @@ export function FileTreePane({
           index < 0 ? 0 : index + 1,
           visibleRows.length - 1,
         );
-        setFocusedRowId(visibleRows[next]?.id ?? null);
+        focusRow(visibleRows[next]?.id ?? null);
         return;
       }
 
       if (event.key === "ArrowUp") {
         event.preventDefault();
         const next = Math.max(index < 0 ? 0 : index - 1, 0);
-        setFocusedRowId(visibleRows[next]?.id ?? null);
+        focusRow(visibleRows[next]?.id ?? null);
         return;
       }
 
@@ -1194,7 +1223,7 @@ export function FileTreePane({
         if (!isFolderExpanded(row.folderPath)) {
           event.preventDefault();
           setExpanded((prev) => ({ ...prev, [row.folderPath]: true }));
-          setFocusedRowId(folderRowId(row.folderPath));
+          focusRow(folderRowId(row.folderPath));
         }
         return;
       }
@@ -1211,7 +1240,7 @@ export function FileTreePane({
           collapseFolder(path);
         }
         if (navigation.focusRowId) {
-          setFocusedRowId(navigation.focusRowId);
+          focusRow(navigation.focusRowId);
         }
       }
     },
@@ -1220,6 +1249,7 @@ export function FileTreePane({
       clearPaneError,
       collapseFolder,
       dialog,
+      focusRow,
       focusedRowId,
       getFocusedRow,
       handlePaste,
@@ -1304,7 +1334,7 @@ export function FileTreePane({
     dialog?.type === "delete-folder"
       ? isProjectFolder(dialog.folderPath)
         ? `フォルダ「${dialog.folderPath}」を削除しますか？（空フォルダのみ）`
-        : `フォルダ「${dialog.folderPath}」と配下のすべてのファイル・フォルダが削除されます。続行しますか？`
+        : `フォルダ「${dialog.folderPath}」と配下のすべてのファイル・フォルダが削除されます。実行しますか？`
       : "";
 
   return (

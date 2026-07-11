@@ -1630,7 +1630,7 @@ export function FileTreePane({
         >
           <Star
             className={cn(
-              "size-4",
+              "size-4 text-muted-foreground",
               favoritesOnly && "fill-yellow-500 text-yellow-500",
             )}
           />

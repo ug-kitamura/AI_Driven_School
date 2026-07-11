@@ -4,6 +4,7 @@ import { useMemo } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import rehypeHighlight from "rehype-highlight";
+import { HtmlPreviewFrame } from "@/components/workspace/HtmlPreviewFrame";
 import {
   fileExtension,
   formatStructuredPreview,
@@ -15,9 +16,10 @@ import "@/styles/hljs/lesson-preview-hljs.css";
 type Props = {
   fileName: string;
   content: string;
+  isResizing?: boolean;
 };
 
-export function FilePreview({ fileName, content }: Props) {
+export function FilePreview({ fileName, content, isResizing = false }: Props) {
   const ext = fileExtension(fileName);
 
   const structured = useMemo(
@@ -40,11 +42,10 @@ export function FilePreview({ fileName, content }: Props) {
 
   if (ext === "html" || ext === "htm") {
     return (
-      <iframe
-        title="HTML preview"
-        sandbox="allow-scripts"
-        srcDoc={content}
-        className="size-full border-0 bg-white"
+      <HtmlPreviewFrame
+        key={content}
+        content={content}
+        isResizing={isResizing}
       />
     );
   }

@@ -221,6 +221,7 @@ export function Workspace({ initialFolders }: WorkspaceProps) {
             folderPath={selectedFolderPath}
             fileName={selectedFileName}
             content={fileContent}
+            isResizing={isResizing}
             onContentChange={handleContentChange}
             onSave={handleSave}
             onPendingSaveChange={setPendingSave}

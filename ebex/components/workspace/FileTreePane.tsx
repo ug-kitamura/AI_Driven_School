@@ -84,7 +84,7 @@ import {
 } from "@/lib/workspace-tree-path";
 import logoSmall from "@/images/logo_small.png";
 
-const NO_CHANGE_MESSAGE = "????????????";
+const NO_CHANGE_MESSAGE = "名前が変更されていません";
 const INTERNAL_DRAG_MIME = "application/x-ebex-tree";
 const AUTO_RENAME_ON_CONFLICT = { autoRenameOnConflict: true } as const;
 
@@ -309,7 +309,7 @@ function TreeNode({ node, depth, expanded, emphasizedFolderPaths, interaction }:
                 onClick={() =>
                   interaction.onToggleExpanded(node.path, isOpen)
                 }
-                aria-label={isOpen ? "?????" : "????"}
+                aria-label={isOpen ? "折りたたむ" : "展開する"}
               >
                 {isOpen ? (
                   <ChevronDown className="size-3.5" />
@@ -621,8 +621,8 @@ export function FileTreePane({
   const [error, setError] = useState<string | null>(null);
   const [dialogError, setDialogError] = useState<string | null>(null);
   const [focusedRowId, setFocusedRowId] = useState<string | null>(null);
-  // ?????????????????????????????????????
-  // focusRow ?????? userMovedFocus ???
+  // ユーザーが明示的にカーソルを動かすまで、選択ファイル行への自動追従を続ける
+  // focusRow 経由の操作で userMovedFocus が立つ
   const [userMovedFocus, setUserMovedFocus] = useState(false);
   const [lastSyncedSelectionRowId, setLastSyncedSelectionRowId] = useState<
     string | null
@@ -701,9 +701,9 @@ export function FileTreePane({
     [filteredFolders, expanded, emphasizedFolderPaths],
   );
 
-  // selectedFolderPath / selectedFileName ? localStorage ??????????
-  // ????????????????????useEffect ???? render ?????? setState??
-  // userMovedFocus ?????????????????????
+  // selectedFolderPath / selectedFileName は localStorage 復元が非同期なため、
+  // 選択が確定するたびにカーソルを同期する（useEffect ではなく render 中の条件付き setState）、
+  // userMovedFocus 成立後はユーザーのカーソル操作を優先する
   const selectedFileRowId = resolveSelectedFileRowId(
     selectedFolderPath,
     selectedFileName,
@@ -1120,14 +1120,14 @@ export function FileTreePane({
         body: JSON.stringify({ folderId: folderPath }),
       });
       if (!res.ok) {
-        throw new Error("AI ???????????");
+        throw new Error("AI 自動入力に失敗しました");
       }
       const data = (await res.json()) as { name?: string };
       const suggested = data.name ?? suggestFolderSlug(folderPath);
       const eventDate = resolveEventDatePrefix(folderPath);
       setNameInput(applyEventDateToSuggestedName(suggested, eventDate));
     } catch {
-      setDialogError("AI ???????????");
+      setDialogError("AI 自動入力に失敗しました");
     } finally {
       setBusy(false);
     }
@@ -1383,8 +1383,8 @@ export function FileTreePane({
       const fallbackIndex = fallbackRowId
         ? visibleRows.findIndex((r) => r.id === fallbackRowId)
         : -1;
-      // focusedRowId ? visibleRows ???????????????????????
-      // ????????????????????
+      // focusedRowId が visibleRows に無い場合は選択ファイル行をフォールバックし、
+      // それも見つからなければ先頭行を基準にする
       const index = resolvedIndex >= 0 ? resolvedIndex : fallbackIndex;
 
       if (event.key === "ArrowDown") {
@@ -1541,8 +1541,8 @@ export function FileTreePane({
       ? (() => {
           const folderName = getFolderBaseName(dialog.folderPath);
           return isProjectFolder(dialog.folderPath)
-            ? `?????${folderName}?????????`
-            : `?????${folderName}?????????????????????????????????`;
+            ? `フォルダ「${folderName}」を削除しますか？`
+            : `フォルダ「${folderName}」と配下のすべてのファイル・フォルダが削除されます。実行しますか？`;
         })()
       : "";
 
@@ -1552,7 +1552,7 @@ export function FileTreePane({
         <button
           type="button"
           className="flex min-w-0 items-center gap-2 rounded-md text-left hover:bg-muted/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-          aria-label="EBE Purpose ???"
+          aria-label="EBE Purpose を開く"
           onClick={() => onOpenPurpose?.()}
         >
           <Image
@@ -1570,7 +1570,7 @@ export function FileTreePane({
             type="button"
             variant="ghost"
             size="icon-sm"
-            aria-label="??????"
+            aria-label="フォルダ追加"
             onClick={openAddFolder}
           >
             <FolderPlus className="size-4" />
@@ -1604,7 +1604,7 @@ export function FileTreePane({
               variant="ghost"
               size="icon-sm"
               className="absolute inset-y-0 right-0.5 my-auto"
-              aria-label="??????"
+              aria-label="検索をクリア"
               onMouseDown={(e) => {
                 e.preventDefault();
                 clearSearchFilter();
@@ -1620,7 +1620,7 @@ export function FileTreePane({
           variant={favoritesOnly ? "secondary" : "ghost"}
           size="icon-sm"
           aria-label={
-            favoritesOnly ? "Show all files" : "Show favorites only"
+            favoritesOnly ? "すべてのファイルを表示" : "お気に入りのみ表示"
           }
           aria-pressed={favoritesOnly}
           onClick={() => {
@@ -1638,11 +1638,11 @@ export function FileTreePane({
       </div>
 
       {contentSearching ? (
-        <p className="px-3 pb-2 text-sm text-muted-foreground">????</p>
+        <p className="px-3 pb-2 text-sm text-muted-foreground">検索中…</p>
       ) : null}
       {!contentSearching && contentTruncated ? (
         <p className="px-3 pb-2 text-sm text-muted-foreground">
-          200 ???????????????????????????
+          200 件を超える一致がありました。検索を絞り込んでください
         </p>
       ) : null}
 
@@ -1675,12 +1675,12 @@ export function FileTreePane({
         {filteredFolders.length === 0 ? (
           <p className="px-2 py-4 text-center text-sm text-muted-foreground">
             {contentSearching
-              ? "????"
+              ? "検索中…"
               : isContentSearchMode && contentQuery
-                ? "??????????????"
+                ? "一致するファイルがありません"
                 : favoritesOnly
-                  ? "???????????"
-                  : "??????????"}
+                  ? "お気に入りがありません"
+                  : "フォルダがありません"}
           </p>
         ) : (
           filteredFolders.map((folder) => (
@@ -1709,15 +1709,15 @@ export function FileTreePane({
           <form className="flex flex-col gap-4" onSubmit={handleDialogSubmit}>
             <DialogHeader>
               <DialogTitle>
-                {dialog?.type === "add-folder" && "??????"}
-                {dialog?.type === "add-subfolder" && "????????"}
-                {dialog?.type === "rename-folder" && "????????"}
-                {dialog?.type === "add-file" && "??????"}
-                {dialog?.type === "rename-file" && "????????"}
+                {dialog?.type === "add-folder" && "フォルダ追加"}
+                {dialog?.type === "add-subfolder" && "サブフォルダ追加"}
+                {dialog?.type === "rename-folder" && "フォルダリネーム"}
+                {dialog?.type === "add-file" && "ファイル追加"}
+                {dialog?.type === "rename-file" && "ファイルリネーム"}
               </DialogTitle>
             </DialogHeader>
             <div className="flex flex-col gap-2">
-              <Label htmlFor="name-input">??</Label>
+              <Label htmlFor="name-input">名前</Label>
               <Input
                 id="name-input"
                 value={nameInput}
@@ -1735,7 +1735,7 @@ export function FileTreePane({
                 disabled={busy}
                 onClick={() => setDialog(null)}
               >
-                ?????
+                キャンセル
               </Button>
               {dialog?.type === "add-folder" ? (
                 <Button
@@ -1744,7 +1744,7 @@ export function FileTreePane({
                   disabled={busy}
                   onClick={fillUntitledFolderName}
                 >
-                  ????
+                  自動命名
                 </Button>
               ) : null}
               {showAiRenameAutoFill ? (
@@ -1757,11 +1757,11 @@ export function FileTreePane({
                     void fillAiRenameSuggestion(dialog.folderPath)
                   }
                 >
-                  AI ????
+                  AI 自動命名
                 </Button>
               ) : null}
               <Button type="submit" disabled={busy || !nameInput.trim()}>
-                ??
+                確定
               </Button>
             </DialogFooter>
           </form>
@@ -1774,10 +1774,10 @@ export function FileTreePane({
       >
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>???????</AlertDialogTitle>
+            <AlertDialogTitle>削除できません</AlertDialogTitle>
             <AlertDialogDescription>
               {dialog?.type === "blocked-delete-folder"
-                ? `?????${dialog.folderPath}??????????????????????????????????????????????`
+                ? `フォルダ「${dialog.folderPath}」にはファイルまたはサブフォルダが含まれています。空のプロジェクトフォルダのみ削除できます。`
                 : ""}
             </AlertDialogDescription>
           </AlertDialogHeader>
@@ -1797,19 +1797,19 @@ export function FileTreePane({
       >
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>?????</AlertDialogTitle>
+            <AlertDialogTitle>削除の確認</AlertDialogTitle>
             <AlertDialogDescription>
               {dialog?.type === "delete-folder"
                 ? deleteFolderDescription
                 : dialog?.type === "delete-file"
-                  ? `?????${dialog.fileName}?????????`
+                  ? `ファイル「${dialog.fileName}」を削除しますか？`
                   : ""}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>?????</AlertDialogCancel>
+            <AlertDialogCancel>キャンセル</AlertDialogCancel>
             <AlertDialogAction onClick={() => void handleDialogConfirm()}>
-              ??
+              削除
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

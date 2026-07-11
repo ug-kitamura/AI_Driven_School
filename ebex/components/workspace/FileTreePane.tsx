@@ -6,6 +6,7 @@ import {
   AlertCircle,
   ChevronDown,
   ChevronRight,
+  CircleDashed,
   FolderPlus,
   Search,
   X,
@@ -62,7 +63,9 @@ import {
   emptyRowId,
   fileRowId,
   folderRowId,
+  resolveLeftNavigation,
   resolvePasteTarget,
+  resolveSelectedFileRowId,
 } from "@/lib/workspace-tree-flatten";
 import type { TreeRow } from "@/lib/workspace-tree-flatten";
 import {
@@ -269,6 +272,7 @@ function TreeNode({ node, depth, expanded, emphasizedFolderPaths, interaction }:
           render={
             <div
               data-row-id={folderRow}
+              tabIndex={-1}
               className={interaction.rowHighlight(folderRow, false)}
               draggable={isSubfolder}
               onDragStart={(event) => {
@@ -287,7 +291,7 @@ function TreeNode({ node, depth, expanded, emphasizedFolderPaths, interaction }:
             >
               <button
                 type="button"
-                className="flex size-5 shrink-0 items-center justify-center"
+                className="flex size-5 shrink-0 items-center justify-center outline-none"
                 onClick={() =>
                   interaction.onToggleExpanded(node.path, isOpen)
                 }
@@ -398,6 +402,7 @@ function TreeNode({ node, depth, expanded, emphasizedFolderPaths, interaction }:
                   render={
                     <div
                       data-row-id={row}
+                      tabIndex={-1}
                       className={interaction.rowHighlight(row, isFileSelected)}
                       draggable
                       onDragStart={(event) => {
@@ -427,7 +432,7 @@ function TreeNode({ node, depth, expanded, emphasizedFolderPaths, interaction }:
                       <FileRowIcon fileName={file} />
                       <button
                         type="button"
-                        className="min-w-0 flex-1 truncate text-left"
+                        className="min-w-0 flex-1 truncate text-left outline-none"
                         onClick={() => {
                           interaction.onFocusRow(row);
                           interaction.onSelectFile(node.path, file);
@@ -514,13 +519,20 @@ function EmptyFolderRow({
         render={
           <div
             data-row-id={row}
+            tabIndex={-1}
             className={cn(
               interaction.rowHighlight(row, false),
               "text-sm text-muted-foreground",
             )}
             onClick={() => interaction.onFocusRow(row)}
           >
-            <span className="pl-6">(no file)</span>
+            <span
+              className="flex size-5 shrink-0 items-center justify-center"
+              aria-hidden="true"
+            >
+              <CircleDashed className="size-3.5" />
+            </span>
+            <span>no file</span>
           </div>
         }
       />
@@ -574,7 +586,9 @@ export function FileTreePane({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [dialogError, setDialogError] = useState<string | null>(null);
-  const [focusedRowId, setFocusedRowId] = useState<string | null>(null);
+  const [focusedRowId, setFocusedRowId] = useState<string | null>(() =>
+    resolveSelectedFileRowId(selectedFolderPath, selectedFileName),
+  );
   const [contextMenuTargetId, setContextMenuTargetId] = useState<string | null>(
     null,
   );
@@ -667,6 +681,7 @@ export function FileTreePane({
         ) {
           onSelectFile(targetPath, movedName);
         }
+        setFocusedRowId(fileRowId(targetPath, movedName));
         return;
       }
 
@@ -703,6 +718,7 @@ export function FileTreePane({
           selectedFileName,
         );
       }
+      setFocusedRowId(folderRowId(newPath));
     },
     [
       onSelectFile,
@@ -730,6 +746,7 @@ export function FileTreePane({
         if (event.dataTransfer.items.length > 0) {
           await importOsItems(postJson, event.dataTransfer.items, folderPath);
           setExpanded((prev) => ({ ...prev, [folderPath]: true }));
+          setFocusedRowId(folderRowId(folderPath));
           await onRefresh();
           return;
         }
@@ -744,6 +761,7 @@ export function FileTreePane({
           });
         }
         setExpanded((prev) => ({ ...prev, [folderPath]: true }));
+        setFocusedRowId(folderRowId(folderPath));
         await onRefresh();
       } catch (err) {
         showPaneError(err instanceof Error ? err.message : String(err));
@@ -775,20 +793,27 @@ export function FileTreePane({
             throw new Error(data.error ?? "Failed to read file");
           }
           const data = (await res.json()) as { content?: string };
-          await postJson("/api/workspace/create-file", {
+          const result = (await postJson("/api/workspace/create-file", {
             folderId: targetFolderPath,
             fileName: clipboard.fileName,
             content: data.content ?? "",
             ...AUTO_RENAME_ON_CONFLICT,
-          });
+          })) as { fileName?: string };
+          const pastedFileName = result.fileName ?? clipboard.fileName;
+          setExpanded((prev) => ({ ...prev, [targetFolderPath]: true }));
+          setFocusedRowId(fileRowId(targetFolderPath, pastedFileName));
         } else {
-          await postJson("/api/workspace/copy-folder", {
+          const result = (await postJson("/api/workspace/copy-folder", {
             fromPath: clipboard.folderPath,
             toParentPath: targetFolderPath,
             ...AUTO_RENAME_ON_CONFLICT,
-          });
+          })) as { path?: string };
+          const pastedPath =
+            result.path ??
+            `${targetFolderPath}/${getFolderBaseName(clipboard.folderPath)}`;
+          setExpanded((prev) => ({ ...prev, [targetFolderPath]: true }));
+          setFocusedRowId(folderRowId(pastedPath));
         }
-        setExpanded((prev) => ({ ...prev, [targetFolderPath]: true }));
         await onRefresh();
       } catch (err) {
         showPaneError(err instanceof Error ? err.message : String(err));
@@ -897,8 +922,8 @@ export function FileTreePane({
       switch (dialog.type) {
         case "add-folder":
           await postJson("/api/workspace/create-folder", { name });
-          setExpanded((prev) => ({ ...prev, [name]: true }));
           setDialog(null);
+          setFocusedRowId(folderRowId(name));
           await onRefresh();
           return;
         case "add-subfolder": {
@@ -910,9 +935,9 @@ export function FileTreePane({
           setExpanded((prev) => ({
             ...prev,
             [dialog.parentPath]: true,
-            [childPath]: true,
           }));
           setDialog(null);
+          setFocusedRowId(folderRowId(childPath));
           await onRefresh();
           return;
         }
@@ -947,17 +972,27 @@ export function FileTreePane({
               selectedFileName,
             );
           }
+          setFocusedRowId(folderRowId(newPath));
           setDialog(null);
           return;
         }
-        case "delete-folder":
+        case "delete-folder": {
           await postJson("/api/workspace/delete-folder", {
             folderId: dialog.folderPath,
           });
           clearSelectionIfUnderPath(dialog.folderPath);
+          const parentPath = getParentFolderPath(dialog.folderPath);
+          const fallbackRowId = resolveSelectedFileRowId(
+            selectedFolderPath,
+            selectedFileName,
+          );
+          setFocusedRowId(
+            parentPath ? folderRowId(parentPath) : fallbackRowId,
+          );
           setDialog(null);
           await onRefresh();
           return;
+        }
         case "add-file":
           await postJson("/api/workspace/create-file", {
             folderId: dialog.folderPath,
@@ -977,12 +1012,14 @@ export function FileTreePane({
             fromName: dialog.fileName,
             toName: name,
           })) as { newName?: string };
+          const renamedFileName = result.newName ?? name;
           if (
             selectedFolderPath === dialog.folderPath &&
             selectedFileName === dialog.fileName
           ) {
-            onSelectFile(dialog.folderPath, result.newName ?? name);
+            onSelectFile(dialog.folderPath, renamedFileName);
           }
+          setFocusedRowId(fileRowId(dialog.folderPath, renamedFileName));
           setDialog(null);
           await onRefresh();
           return;
@@ -998,6 +1035,7 @@ export function FileTreePane({
           ) {
             onSelectFile(dialog.folderPath, "");
           }
+          setFocusedRowId(folderRowId(dialog.folderPath));
           setDialog(null);
           await onRefresh();
           return;
@@ -1109,9 +1147,19 @@ export function FileTreePane({
 
       if (visibleRows.length === 0) return;
 
-      const index = focusedRowId
+      const resolvedIndex = focusedRowId
         ? visibleRows.findIndex((r) => r.id === focusedRowId)
         : -1;
+      const fallbackRowId = resolveSelectedFileRowId(
+        selectedFolderPath,
+        selectedFileName,
+      );
+      const fallbackIndex = fallbackRowId
+        ? visibleRows.findIndex((r) => r.id === fallbackRowId)
+        : -1;
+      // focusedRowId がフィルタ等で非表示になった場合は、開いているファイル行を
+      // 基準にフォールバックし、それも見つからなければ先頭行を基準にする
+      const index = resolvedIndex >= 0 ? resolvedIndex : fallbackIndex;
 
       if (event.key === "ArrowDown") {
         event.preventDefault();
@@ -1153,24 +1201,17 @@ export function FileTreePane({
 
       if (event.key === "ArrowLeft" || event.key === "Backspace") {
         event.preventDefault();
-        if (row.kind === "folder") {
-          if (isFolderExpanded(row.folderPath)) {
-            collapseFolder(row.folderPath);
-            setFocusedRowId(folderRowId(row.folderPath));
-            return;
-          }
-          if (isProjectFolder(row.folderPath)) {
-            return;
-          }
-          const parentPath = getParentFolderPath(row.folderPath);
-          if (parentPath) {
-            setFocusedRowId(folderRowId(parentPath));
-          }
-          return;
+        const navigation = resolveLeftNavigation(row, {
+          isFolderExpanded,
+          isProjectFolder,
+          getParentFolderPath,
+        });
+        if (!navigation) return;
+        for (const path of navigation.collapsePaths) {
+          collapseFolder(path);
         }
-        if (row.kind === "file") {
-          collapseFolder(row.folderPath);
-          setFocusedRowId(folderRowId(row.folderPath));
+        if (navigation.focusRowId) {
+          setFocusedRowId(navigation.focusRowId);
         }
       }
     },
@@ -1186,6 +1227,8 @@ export function FileTreePane({
       handleToggleExpanded,
       isFolderExpanded,
       openDialog,
+      selectedFileName,
+      selectedFolderPath,
       visibleRows,
     ],
   );
@@ -1196,14 +1239,9 @@ export function FileTreePane({
       const isContext = contextMenuTargetId === rowId;
       const showBg = isFocused || isContext;
       return cn(
-        "flex items-center gap-1 rounded-md px-1 py-0.5 text-sm",
-        isFileSelected && "bg-workspace-tree-row font-semibold",
-        !isFileSelected &&
-          showBg &&
-          "bg-workspace-tree-row",
-        !isFileSelected &&
-          !showBg &&
-          "hover:bg-workspace-tree-row",
+        "flex items-center gap-1 rounded-md px-1 py-0.5 text-sm outline-none",
+        isFileSelected && "font-semibold",
+        showBg ? "bg-workspace-tree-row" : "hover:bg-workspace-tree-row",
       );
     },
     [contextMenuTargetId, focusedRowId],
@@ -1212,10 +1250,11 @@ export function FileTreePane({
   useEffect(() => {
     if (!focusedRowId || !treeRef.current) return;
     const escaped = CSS.escape(focusedRowId);
-    const element = treeRef.current.querySelector(
+    const element = treeRef.current.querySelector<HTMLElement>(
       `[data-row-id="${escaped}"]`,
     );
     element?.scrollIntoView({ block: "nearest" });
+    element?.focus({ preventScroll: true });
   }, [focusedRowId]);
 
   const interaction: TreeInteraction = useMemo(

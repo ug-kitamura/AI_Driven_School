@@ -19,7 +19,7 @@ Pane 2 はヘッダー右の下線タブ（dx-training-studio の `ImageTabBar` 
 
 ### Requirement: プレビュー対応拡張子
 
-以下の拡張子はプレビューを提供しなければならない（SHALL）: md（react-markdown）、html（スクリプト実行を許可したサンドボックス iframe）、csv（表表示）、json / yml（整形表示、パースエラー時はエラー表示）、vtt（タイムスタンプ付き発話リスト、話者ラベルがあれば表示）。プレビュー表示はペイン内で縦スクロール可能でなければならない（SHALL）。
+以下の拡張子はプレビューを提供しなければならない（SHALL）: md（react-markdown）、html（スクリプト実行を許可したサンドボックス iframe）、csv（表表示）、json / yml（整形表示、パースエラー時はエラー表示）、vtt（タイムスタンプ付き発話リスト、話者ラベルがあれば表示）。プレビュー表示はペイン内で縦スクロール可能でなければならない（SHALL）。HTML プレビューは iframe 内ではなく Pane 2 プレビュー領域（`workspace-scrollbar` を適用した外側コンテナ）で縦スクロールしなければならない（SHALL）。HTML プレビューの縦スクロールバーは Markdown プレビューおよび Pane 3 と同じ `workspace-scrollbar` 見た目でなければならない（SHALL）。
 
 #### Scenario: Markdown プレビュー
 
@@ -35,6 +35,16 @@ Pane 2 はヘッダー右の下線タブ（dx-training-studio の `ImageTabBar` 
 
 - **WHEN** ユーザーが Tailwind CDN や Lucide 初期化などスクリプトを含む `.html` をプレビューする
 - **THEN** iframe 内でスクリプトが実行され、スタイルおよびアイコンが適用された状態で表示される
+
+#### Scenario: HTML プレビューのスクロール
+
+- **WHEN** ユーザーがビューポートより長い `.html` のプレビューを表示する
+- **THEN** Pane 2 プレビュー領域（外側コンテナ）を縦スクロールして末尾まで読める
+
+#### Scenario: HTML プレビューのスクロールバー
+
+- **WHEN** ユーザーが `.html` ファイルのプレビューを表示し、内容が溢れて縦スクロールが発生する
+- **THEN** 表示される縦スクロールバーは `workspace-scrollbar` と同じ形状・色である
 
 #### Scenario: CSV 表プレビュー
 
@@ -115,3 +125,4 @@ Pane 2 はヘッダー右の下線タブ（dx-training-studio の `ImageTabBar` 
 
 - **WHEN** ユーザーがファイルを編集する
 - **THEN** debounce 後にファイル内容がディスクに保存される
+

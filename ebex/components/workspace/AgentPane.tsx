@@ -5,6 +5,7 @@ import dynamic from "next/dynamic";
 import { Settings } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAgentSessionChrome } from "@/components/workspace/use-agent-session-chrome";
+import type { WorkspaceTreeNode } from "@/lib/workspace-loader";
 import type { AgentChatController } from "@/lib/agent-chat-controller";
 
 const GITHUB_REPO_URL = "https://github.com/ug-kitamura/AI_Driven_School";
@@ -38,6 +39,7 @@ const AgentChatPane = dynamic(
 type Props = {
   folderId: string;
   currentFilePath: string | null;
+  folders: WorkspaceTreeNode[];
   onOpenSettings: () => void;
   onOverwriteEditor: (markdown: string) => void;
   agentChatControllerRef: React.MutableRefObject<AgentChatController | null>;
@@ -46,6 +48,7 @@ type Props = {
 export function AgentPane({
   folderId,
   currentFilePath,
+  folders,
   onOpenSettings,
   onOverwriteEditor,
   agentChatControllerRef,
@@ -98,6 +101,7 @@ export function AgentPane({
       <div className="min-h-0 flex-1">
         <AgentChatPane
           folderId={folderId || undefined}
+          folders={folders}
           currentFilePath={currentFilePath}
           onOpenSettings={onOpenSettings}
           onOverwriteEditor={onOverwriteEditor}

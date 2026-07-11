@@ -73,26 +73,29 @@ export function Workspace({ initialFolders }: WorkspaceProps) {
     return () => observer.disconnect();
   }, []);
 
-  const loadFileContent = useCallback(async (folderPath: string, fileName: string) => {
-    if (!folderPath || !fileName) {
-      setFileContent("");
-      editingContentRef.current = null;
-      return;
-    }
-    const res = await fetch(
-      `/api/workspace/read-file?folderId=${encodeURIComponent(folderPath)}&fileName=${encodeURIComponent(fileName)}`,
-      { cache: "no-store" },
-    );
-    if (!res.ok) {
-      setFileContent("");
-      editingContentRef.current = null;
-      return;
-    }
-    const data = (await res.json()) as { content: string };
-    setFileContent(data.content);
-    editingContentRef.current = data.content;
-    saveLastFileSelection({ folderPath, fileName });
-  }, []);
+  const loadFileContent = useCallback(
+    async (folderPath: string, fileName: string) => {
+      if (!folderPath || !fileName) {
+        setFileContent("");
+        editingContentRef.current = null;
+        return;
+      }
+      const res = await fetch(
+        `/api/workspace/read-file?folderId=${encodeURIComponent(folderPath)}&fileName=${encodeURIComponent(fileName)}`,
+        { cache: "no-store" },
+      );
+      if (!res.ok) {
+        setFileContent("");
+        editingContentRef.current = null;
+        return;
+      }
+      const data = (await res.json()) as { content: string };
+      setFileContent(data.content);
+      editingContentRef.current = data.content;
+      saveLastFileSelection({ folderPath, fileName });
+    },
+    [],
+  );
 
   useEffect(() => {
     if (pendingSave) return;
@@ -238,9 +241,12 @@ export function Workspace({ initialFolders }: WorkspaceProps) {
         >
           <AgentPane
             folderId={projectFolderId}
+            folders={folders}
             currentFilePath={currentFilePath}
             onOpenSettings={() => setSettingsOpen(true)}
-            onOverwriteEditor={(markdown) => overwriteCallbackRef.current?.(markdown)}
+            onOverwriteEditor={(markdown) =>
+              overwriteCallbackRef.current?.(markdown)
+            }
             agentChatControllerRef={agentChatControllerRef}
           />
         </div>

@@ -2,13 +2,7 @@
 
 import { useCallback, useMemo, useState } from "react";
 import Image from "next/image";
-import {
-  ChevronDown,
-  ChevronRight,
-  FolderPlus,
-  Search,
-  X,
-} from "lucide-react";
+import { ChevronDown, ChevronRight, FolderPlus, Search, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -42,14 +36,23 @@ import {
   resolveEventDatePrefix,
   suggestUntitledFolderName,
 } from "@/lib/workspace-folder-name";
+import {
+  FILE_ICON_COMPONENTS,
+  getFileIconColorClass,
+  resolveFileIconCategory,
+} from "@/lib/workspace-file-icon";
 import { suggestFolderSlug } from "@/lib/workspace-slug";
 import {
+  buildRenamedFolderPath,
   collectProjectFolderPaths,
   filterWorkspaceTree,
   getAncestorFolderPaths,
+  getFolderBaseName,
   remapFolderPath,
 } from "@/lib/workspace-tree";
 import logoSmall from "@/images/logo_small.png";
+
+const NO_CHANGE_MESSAGE = "名前が変更されていません";
 
 type Props = {
   folders: WorkspaceTreeNode[];
@@ -84,6 +87,22 @@ type TreeNodeProps = {
   onDrop: (folderPath: string, files: FileList | File[]) => void;
 };
 
+function FileRowIcon({ fileName }: { fileName: string }) {
+  const category = resolveFileIconCategory(fileName);
+  const Icon = FILE_ICON_COMPONENTS[category];
+  return (
+    <span
+      className={cn(
+        "flex size-5 shrink-0 items-center justify-center",
+        getFileIconColorClass(category),
+      )}
+      aria-hidden="true"
+    >
+      <Icon className="size-3.5" />
+    </span>
+  );
+}
+
 function TreeNode({
   node,
   depth,
@@ -102,6 +121,7 @@ function TreeNode({
     selectedFolderPath === node.path && !selectedFileName;
   const folderEmphasized =
     emphasizedFolderPaths.has(node.path) || isFolderSelected;
+  const folderHighlighted = isFolderSelected || folderEmphasized;
 
   return (
     <div className="flex flex-col">
@@ -110,8 +130,9 @@ function TreeNode({
           render={
             <div
               className={cn(
-                "flex items-center gap-1 rounded-md px-1 py-0.5 hover:bg-muted",
-                (isFolderSelected || folderEmphasized) && "bg-muted",
+                "flex items-center gap-1 rounded-md px-1 py-0.5",
+                !folderHighlighted && "hover:bg-accent/50",
+                folderHighlighted && "bg-accent",
               )}
               onDragOver={(event) => {
                 event.preventDefault();
@@ -152,7 +173,7 @@ function TreeNode({
           <ContextMenuItem
             variant="muted"
             onClick={() => {
-              onSetNameInput("notes.md");
+              onSetNameInput("");
               onOpenDialog({ type: "add-file", folderPath: node.path });
             }}
           >
@@ -170,7 +191,7 @@ function TreeNode({
           <ContextMenuItem
             variant="muted"
             onClick={() => {
-              onSetNameInput(node.path);
+              onSetNameInput(getFolderBaseName(node.path));
               onOpenDialog({ type: "rename-folder", folderPath: node.path });
             }}
           >
@@ -189,6 +210,22 @@ function TreeNode({
 
       {isOpen ? (
         <div className="ml-[9px] flex flex-col border-l border-border pl-[7px]">
+          {node.children.map((child) => (
+            <TreeNode
+              key={child.path}
+              node={child}
+              depth={depth + 1}
+              expanded={expanded}
+              emphasizedFolderPaths={emphasizedFolderPaths}
+              selectedFolderPath={selectedFolderPath}
+              selectedFileName={selectedFileName}
+              onToggleExpanded={onToggleExpanded}
+              onSelectFile={onSelectFile}
+              onOpenDialog={onOpenDialog}
+              onSetNameInput={onSetNameInput}
+              onDrop={onDrop}
+            />
+          ))}
           {node.files.map((file) => {
             const isFileSelected =
               selectedFolderPath === node.path && selectedFileName === file;
@@ -198,11 +235,12 @@ function TreeNode({
                   render={
                     <div
                       className={cn(
-                        "flex items-center gap-1 rounded-md px-1 py-0.5 text-sm hover:bg-muted",
-                        isFileSelected && "bg-muted font-semibold",
+                        "flex items-center gap-1 rounded-md px-1 py-0.5 text-sm",
+                        !isFileSelected && "hover:bg-accent/50",
+                        isFileSelected && "bg-accent font-semibold",
                       )}
                     >
-                      <span className="size-5 shrink-0" aria-hidden="true" />
+                      <FileRowIcon fileName={file} />
                       <button
                         type="button"
                         className="min-w-0 flex-1 truncate text-left"
@@ -243,22 +281,6 @@ function TreeNode({
               </ContextMenu>
             );
           })}
-          {node.children.map((child) => (
-            <TreeNode
-              key={child.path}
-              node={child}
-              depth={depth + 1}
-              expanded={expanded}
-              emphasizedFolderPaths={emphasizedFolderPaths}
-              selectedFolderPath={selectedFolderPath}
-              selectedFileName={selectedFileName}
-              onToggleExpanded={onToggleExpanded}
-              onSelectFile={onSelectFile}
-              onOpenDialog={onOpenDialog}
-              onSetNameInput={onSetNameInput}
-              onDrop={onDrop}
-            />
-          ))}
         </div>
       ) : null}
     </div>
@@ -279,6 +301,7 @@ export function FileTreePane({
   const [nameInput, setNameInput] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [dialogError, setDialogError] = useState<string | null>(null);
 
   const projectFolderPaths = useMemo(
     () => collectProjectFolderPaths(folders),
@@ -312,50 +335,65 @@ export function FileTreePane({
     return res.json();
   }, []);
 
+  const openDialog = useCallback((mode: DialogMode) => {
+    setDialogError(null);
+    setDialog(mode);
+  }, []);
+
+  const handleNameInputChange = useCallback((value: string) => {
+    setDialogError(null);
+    setNameInput(value);
+  }, []);
+
   const openAddFolder = useCallback(() => {
     setError(null);
     setNameInput("");
-    setDialog({ type: "add-folder" });
-  }, []);
+    openDialog({ type: "add-folder" });
+  }, [openDialog]);
 
   const fillUntitledFolderName = useCallback(() => {
+    setDialogError(null);
     setNameInput(suggestUntitledFolderName(projectFolderPaths));
   }, [projectFolderPaths]);
 
   const fillAiRenameSuggestion = useCallback(async (folderPath: string) => {
     setBusy(true);
-    setError(null);
+    setDialogError(null);
     try {
       const res = await fetch("/api/workspace/suggest-folder-name", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ folderId: folderPath }),
       });
+      if (!res.ok) {
+        throw new Error("AI 自動入力に失敗しました");
+      }
       const data = (await res.json()) as { name?: string };
       const suggested = data.name ?? suggestFolderSlug(folderPath);
       const eventDate = resolveEventDatePrefix(folderPath);
       setNameInput(applyEventDateToSuggestedName(suggested, eventDate));
     } catch {
-      const eventDate = resolveEventDatePrefix(folderPath);
-      setNameInput(
-        applyEventDateToSuggestedName(suggestFolderSlug(folderPath), eventDate),
-      );
+      setDialogError("AI 自動入力に失敗しました");
     } finally {
       setBusy(false);
     }
   }, []);
 
   const handleDialogConfirm = useCallback(async () => {
-    if (!dialog) return;
+    if (!dialog || busy) return;
+    const name = nameInput.trim();
+    if (!name) return;
+
     setBusy(true);
-    setError(null);
+    setDialogError(null);
     try {
-      const name = nameInput.trim();
       switch (dialog.type) {
         case "add-folder":
           await postJson("/api/workspace/create-folder", { name });
           setExpanded((prev) => ({ ...prev, [name]: true }));
-          break;
+          setDialog(null);
+          await onRefresh();
+          return;
         case "add-subfolder": {
           const result = (await postJson("/api/workspace/create-folder", {
             parentPath: dialog.parentPath,
@@ -367,14 +405,22 @@ export function FileTreePane({
             [dialog.parentPath]: true,
             [childPath]: true,
           }));
-          break;
+          setDialog(null);
+          await onRefresh();
+          return;
         }
         case "rename-folder": {
+          const originalName = getFolderBaseName(dialog.folderPath);
+          if (name === originalName) {
+            setDialogError(NO_CHANGE_MESSAGE);
+            return;
+          }
+          const toPath = buildRenamedFolderPath(dialog.folderPath, name);
           const result = (await postJson("/api/workspace/rename-folder", {
             fromPath: dialog.folderPath,
-            toPath: name,
+            toPath,
           })) as { newPath?: string };
-          const newPath = result.newPath ?? name;
+          const newPath = result.newPath ?? toPath;
           setExpanded((prev) => {
             const next: Record<string, boolean> = {};
             for (const [key, value] of Object.entries(prev)) {
@@ -382,6 +428,7 @@ export function FileTreePane({
             }
             return next;
           });
+          await onRefresh();
           if (selectedFolderPath === dialog.folderPath) {
             onSelectFile(
               remapFolderPath(selectedFolderPath, dialog.folderPath, newPath),
@@ -393,21 +440,30 @@ export function FileTreePane({
               selectedFileName,
             );
           }
-          break;
+          setDialog(null);
+          return;
         }
         case "delete-folder":
           await postJson("/api/workspace/delete-folder", {
             folderId: dialog.folderPath,
           });
-          break;
+          setDialog(null);
+          await onRefresh();
+          return;
         case "add-file":
           await postJson("/api/workspace/create-file", {
             folderId: dialog.folderPath,
             fileName: name,
           });
           onSelectFile(dialog.folderPath, name);
-          break;
+          setDialog(null);
+          await onRefresh();
+          return;
         case "rename-file": {
+          if (name === dialog.fileName) {
+            setDialogError(NO_CHANGE_MESSAGE);
+            return;
+          }
           const result = (await postJson("/api/workspace/rename-file", {
             folderId: dialog.folderPath,
             fromName: dialog.fileName,
@@ -419,7 +475,9 @@ export function FileTreePane({
           ) {
             onSelectFile(dialog.folderPath, result.newName ?? name);
           }
-          break;
+          setDialog(null);
+          await onRefresh();
+          return;
         }
         case "delete-file":
           await postJson("/api/workspace/delete-file", {
@@ -432,16 +490,17 @@ export function FileTreePane({
           ) {
             onSelectFile(dialog.folderPath, "");
           }
-          break;
+          setDialog(null);
+          await onRefresh();
+          return;
       }
-      setDialog(null);
-      await onRefresh();
     } catch (err) {
-      setError(err instanceof Error ? err.message : String(err));
+      setDialogError(err instanceof Error ? err.message : String(err));
     } finally {
       setBusy(false);
     }
   }, [
+    busy,
     dialog,
     nameInput,
     onRefresh,
@@ -450,6 +509,15 @@ export function FileTreePane({
     selectedFileName,
     selectedFolderPath,
   ]);
+
+  const handleDialogSubmit = useCallback(
+    (event: React.FormEvent) => {
+      event.preventDefault();
+      if (busy || !nameInput.trim()) return;
+      void handleDialogConfirm();
+    },
+    [busy, handleDialogConfirm, nameInput],
+  );
 
   const handleDrop = useCallback(
     async (folderPath: string, files: FileList | File[]) => {
@@ -558,8 +626,8 @@ export function FileTreePane({
               selectedFileName={selectedFileName}
               onToggleExpanded={toggleExpanded}
               onSelectFile={onSelectFile}
-              onOpenDialog={setDialog}
-              onSetNameInput={setNameInput}
+              onOpenDialog={openDialog}
+              onSetNameInput={handleNameInputChange}
               onDrop={handleDrop}
             />
           ))
@@ -575,67 +643,72 @@ export function FileTreePane({
         onOpenChange={(open) => !open && setDialog(null)}
       >
         <DialogContent>
-          <DialogHeader>
-            <DialogTitle>
-              {dialog?.type === "add-folder" && "フォルダ追加"}
-              {dialog?.type === "add-subfolder" && "サブフォルダ追加"}
-              {dialog?.type === "rename-folder" && "フォルダリネーム"}
-              {dialog?.type === "add-file" && "ファイル追加"}
-              {dialog?.type === "rename-file" && "ファイルリネーム"}
-            </DialogTitle>
-          </DialogHeader>
-          <div className="flex flex-col gap-2">
-            <Label htmlFor="name-input">名前</Label>
-            <Input
-              id="name-input"
-              value={nameInput}
-              onChange={(e) => setNameInput(e.target.value)}
-            />
-          </div>
-          <DialogFooter>
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => setDialog(null)}
-            >
-              キャンセル
-            </Button>
-            {dialog?.type === "add-folder" ? (
+          <form className="flex flex-col gap-4" onSubmit={handleDialogSubmit}>
+            <DialogHeader>
+              <DialogTitle>
+                {dialog?.type === "add-folder" && "フォルダ追加"}
+                {dialog?.type === "add-subfolder" && "サブフォルダ追加"}
+                {dialog?.type === "rename-folder" && "フォルダリネーム"}
+                {dialog?.type === "add-file" && "ファイル追加"}
+                {dialog?.type === "rename-file" && "ファイルリネーム"}
+              </DialogTitle>
+            </DialogHeader>
+            <div className="flex flex-col gap-2">
+              <Label htmlFor="name-input">名前</Label>
+              <Input
+                id="name-input"
+                value={nameInput}
+                disabled={busy}
+                onChange={(e) => handleNameInputChange(e.target.value)}
+              />
+              {dialogError ? (
+                <p className="text-xs text-destructive">{dialogError}</p>
+              ) : null}
+            </div>
+            <DialogFooter>
               <Button
                 type="button"
                 variant="outline"
                 disabled={busy}
-                onClick={fillUntitledFolderName}
+                onClick={() => setDialog(null)}
               >
-                自動入力
+                キャンセル
               </Button>
-            ) : null}
-            {showAiRenameAutoFill ? (
-              <Button
-                type="button"
-                variant="outline"
-                disabled={busy}
-                onClick={() =>
-                  dialog?.type === "rename-folder" &&
-                  void fillAiRenameSuggestion(dialog.folderPath)
-                }
-              >
-                AI 自動入力
+              {dialog?.type === "add-folder" ? (
+                <Button
+                  type="button"
+                  variant="outline"
+                  disabled={busy}
+                  onClick={fillUntitledFolderName}
+                >
+                  自動入力
+                </Button>
+              ) : null}
+              {showAiRenameAutoFill ? (
+                <Button
+                  type="button"
+                  variant="outline"
+                  disabled={busy}
+                  onClick={() =>
+                    dialog?.type === "rename-folder" &&
+                    void fillAiRenameSuggestion(dialog.folderPath)
+                  }
+                >
+                  AI 自動入力
+                </Button>
+              ) : null}
+              <Button type="submit" disabled={busy || !nameInput.trim()}>
+                確定
               </Button>
-            ) : null}
-            <Button
-              type="button"
-              disabled={busy || !nameInput.trim()}
-              onClick={() => void handleDialogConfirm()}
-            >
-              確定
-            </Button>
-          </DialogFooter>
+            </DialogFooter>
+          </form>
         </DialogContent>
       </Dialog>
 
       <AlertDialog
-        open={dialog?.type === "delete-folder" || dialog?.type === "delete-file"}
+        open={
+          dialog?.type === "delete-folder" || dialog?.type === "delete-file"
+        }
         onOpenChange={(open) => !open && setDialog(null)}
       >
         <AlertDialogContent>

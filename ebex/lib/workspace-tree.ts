@@ -39,7 +39,9 @@ export function getAncestorFolderPaths(folderPath: string): string[] {
   return ancestors;
 }
 
-export function collectProjectFolderPaths(nodes: WorkspaceTreeNode[]): string[] {
+export function collectProjectFolderPaths(
+  nodes: WorkspaceTreeNode[],
+): string[] {
   return nodes.map((node) => node.path);
 }
 
@@ -89,6 +91,20 @@ export function filterWorkspaceTree(
   return nodes
     .map((node) => filterNode(node))
     .filter((node): node is WorkspaceTreeNode => node !== null);
+}
+
+export function getFolderBaseName(folderPath: string): string {
+  const idx = folderPath.lastIndexOf("/");
+  return idx >= 0 ? folderPath.slice(idx + 1) : folderPath;
+}
+
+export function buildRenamedFolderPath(
+  folderPath: string,
+  newName: string,
+): string {
+  const idx = folderPath.lastIndexOf("/");
+  if (idx < 0) return newName;
+  return `${folderPath.slice(0, idx)}/${newName}`;
 }
 
 export function remapFolderPath(

@@ -22,7 +22,7 @@ export type FileIconCategory =
   | "zip"
   | "other";
 
-const TEXT_EXTENSIONS = new Set([".md", ".txt"]);
+const TEXT_EXTENSIONS = new Set([".md", ".txt", ".html", ".htm"]);
 const CODE_EXTENSIONS = new Set([
   ".ts",
   ".tsx",
@@ -34,8 +34,6 @@ const CODE_EXTENSIONS = new Set([
   ".groovy",
   ".bat",
   ".sh",
-  ".html",
-  ".htm",
   ".json",
   ".yml",
   ".yaml",

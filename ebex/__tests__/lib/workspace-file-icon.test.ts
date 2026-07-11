@@ -11,6 +11,8 @@ import {
 describe("resolveFileIconCategory", () => {
   it("classifies common file types", () => {
     expect(resolveFileIconCategory("notes.md")).toBe("text");
+    expect(resolveFileIconCategory("page.html")).toBe("text");
+    expect(resolveFileIconCategory("index.htm")).toBe("text");
     expect(resolveFileIconCategory("app.ts")).toBe("code");
     expect(resolveFileIconCategory("App.tsx")).toBe("code");
     expect(resolveFileIconCategory("page.jsx")).toBe("code");

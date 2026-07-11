@@ -47,6 +47,7 @@
   --color-card-foreground: var(--card-foreground);
   --color-card: var(--card);
   --color-canvas: var(--canvas);
+  --color-workspace-tree-row: var(--workspace-tree-row);
   --radius-sm: calc(var(--radius) * 0.6);
   --radius-md: calc(var(--radius) * 0.8);
   --radius-lg: var(--radius);
@@ -165,6 +166,11 @@
     var(--border)
   );
   --workspace-scrollbar-thumb-hover: var(--muted-foreground);
+  --workspace-tree-row: color-mix(
+    in oklab,
+    var(--foreground) 7%,
+    var(--background)
+  );
   color-scheme: light;
 }
 
@@ -236,6 +242,11 @@
   --shadow-xl:
     0px 10px 20px 0px hsl(0 0% 0% / 0.3), 0px 8px 10px -1px hsl(0 0% 0% / 0.3);
   --shadow-2xl: 0px 10px 20px 0px hsl(0 0% 0% / 0.75);
+  --workspace-tree-row: color-mix(
+    in oklab,
+    var(--foreground) 10%,
+    var(--background)
+  );
 }
 
 @layer base {

@@ -117,11 +117,6 @@ function TreeNode({
   onDrop,
 }: TreeNodeProps) {
   const isOpen = expanded[node.path] ?? emphasizedFolderPaths.has(node.path);
-  const isFolderSelected =
-    selectedFolderPath === node.path && !selectedFileName;
-  const folderEmphasized =
-    emphasizedFolderPaths.has(node.path) || isFolderSelected;
-  const folderHighlighted = isFolderSelected || folderEmphasized;
 
   return (
     <div className="flex flex-col">
@@ -129,11 +124,7 @@ function TreeNode({
         <ContextMenuTrigger
           render={
             <div
-              className={cn(
-                "flex items-center gap-1 rounded-md px-1 py-0.5",
-                !folderHighlighted && "hover:bg-accent/50",
-                folderHighlighted && "bg-accent",
-              )}
+              className="flex items-center gap-1 rounded-md px-1 py-0.5 hover:bg-workspace-tree-row"
               onDragOver={(event) => {
                 event.preventDefault();
               }}
@@ -156,16 +147,9 @@ function TreeNode({
                   <ChevronRight className="size-3.5" />
                 )}
               </button>
-              <button
-                type="button"
-                className="min-w-0 flex-1 truncate text-left text-sm"
-                onClick={() => {
-                  onToggleExpanded(node.path, isOpen);
-                  onSelectFile(node.path, node.files[0] ?? "");
-                }}
-              >
+              <span className="min-w-0 flex-1 truncate text-left text-sm">
                 {node.name}
-              </button>
+              </span>
             </div>
           }
         />
@@ -236,8 +220,9 @@ function TreeNode({
                     <div
                       className={cn(
                         "flex items-center gap-1 rounded-md px-1 py-0.5 text-sm",
-                        !isFileSelected && "hover:bg-accent/50",
-                        isFileSelected && "bg-accent font-semibold",
+                        isFileSelected
+                          ? "bg-workspace-tree-row font-semibold"
+                          : "hover:bg-workspace-tree-row",
                       )}
                     >
                       <FileRowIcon fileName={file} />

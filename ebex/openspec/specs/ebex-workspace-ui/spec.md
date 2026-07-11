@@ -24,7 +24,7 @@ TBD - created by archiving change ebex-v1-workspace. Update Purpose after archiv
 
 ### Requirement: ペインリサイズ
 
-Pane 1 と Pane 3 は固定幅、Pane 2（エディタ）は残り幅を吸収する可変幅ペインとしなければならない（SHALL）。Pane 1 右のリサイズハンドルは Pane 1 幅を、Pane 2–Pane 3 間のリサイズハンドルは Pane 3（Agent）幅を変更しなければならない（SHALL）。`pane-layout.ts` は pane1 / pane2 / pane3 の 3 ペイン用に定義され、Pane 2 幅は `totalWidth - pane1 - pane3 - ハンドル幅` で算出されなければならない（SHALL）。ペイン幅（pane1 / pane3）は localStorage に永続化されなければならない（SHALL）。3 ペインの合計は常にワークスペース幅いっぱいに広がり、右端に余白を残してはならない（SHALL NOT）。pane1 の既定幅は 300px、最小幅 200px、最大幅 400px でなければならない（SHALL）。pane3 の既定幅は 600px、最小幅 400px、最大幅 800px でなければならない（SHALL）。
+Pane 1 と Pane 3 は固定幅、Pane 2（エディタ）は残り幅を吸収する可変幅ペインとしなければならない（SHALL）。Pane 1 右のリサイズハンドルは Pane 1 幅を、Pane 2–Pane 3 間のリサイズハンドルは Pane 3（Agent）幅を変更しなければならない（SHALL）。`pane-layout.ts` は pane1 / pane2 / pane3 の 3 ペイン用に定義され、Pane 2 幅は `totalWidth - pane1 - pane3 - ハンドル幅` で算出されなければならない（SHALL）。ペイン幅（pane1 / pane3）は localStorage に永続化されなければならない（SHALL）。3 ペインの合計は常にワークスペース幅いっぱいに広がり、右端に余白を残してはならない（SHALL NOT）。pane1 の既定幅は 300px、最小幅 200px、最大幅 400px でなければならない（SHALL）。pane3 の既定幅は 600px、最小幅 400px、最大幅 800px でなければならない（SHALL）。HTML プレビュー表示中であっても、Pane 2–Pane 3 間リサイズハンドルのドラッグによる幅変更は途切れてはならない（SHALL）。
 
 #### Scenario: Pane 1 ハンドルで Pane 1 幅変更
 
@@ -35,6 +35,11 @@ Pane 1 と Pane 3 は固定幅、Pane 2（エディタ）は残り幅を吸収�
 
 - **WHEN** ユーザーが Pane 2 と Pane 3 の間のリサイズハンドルをドラッグする
 - **THEN** Pane 3（Agent）の幅が更新され、Pane 2 が残り幅に自動調整される
+
+#### Scenario: HTML プレビュー中も Pane 2–Pane 3 間をリサイズできる
+
+- **WHEN** ユーザーが `.html` ファイルをプレビュー表示した状態で Pane 2 と Pane 3 の間のリサイズハンドルをドラッグする
+- **THEN** ドラッグ中も Pane 3 幅が連続的に更新され、マウスボタンを離すまでリサイズが途切れない
 
 #### Scenario: 画面右端に余白がない
 

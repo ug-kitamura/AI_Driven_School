@@ -92,3 +92,63 @@ export function parseRowId(rowId: string): TreeRow | null {
   }
   return null;
 }
+
+export function resolvePasteTarget(row: TreeRow): string | null {
+  if (row.kind === "folder" || row.kind === "file" || row.kind === "empty") {
+    return row.folderPath;
+  }
+  return null;
+}
+
+export function resolveSelectedFileRowId(
+  selectedFolderPath: string,
+  selectedFileName: string,
+): string | null {
+  if (!selectedFolderPath || !selectedFileName) return null;
+  return fileRowId(selectedFolderPath, selectedFileName);
+}
+
+export type LeftNavigationResult = {
+  collapsePaths: string[];
+  focusRowId: string | null;
+};
+
+export function resolveLeftNavigation(
+  row: TreeRow,
+  options: {
+    isFolderExpanded: (folderPath: string) => boolean;
+    isProjectFolder: (folderPath: string) => boolean;
+    getParentFolderPath: (folderPath: string) => string | null;
+  },
+): LeftNavigationResult | null {
+  const { isFolderExpanded, isProjectFolder, getParentFolderPath } = options;
+
+  if (row.kind === "folder") {
+    if (isFolderExpanded(row.folderPath)) {
+      return {
+        collapsePaths: [row.folderPath],
+        focusRowId: folderRowId(row.folderPath),
+      };
+    }
+    if (isProjectFolder(row.folderPath)) {
+      return { collapsePaths: [], focusRowId: null };
+    }
+    const parentPath = getParentFolderPath(row.folderPath);
+    if (!parentPath) {
+      return { collapsePaths: [], focusRowId: null };
+    }
+    return {
+      collapsePaths: [parentPath],
+      focusRowId: folderRowId(parentPath),
+    };
+  }
+
+  if (row.kind === "file" || row.kind === "empty") {
+    return {
+      collapsePaths: [row.folderPath],
+      focusRowId: folderRowId(row.folderPath),
+    };
+  }
+
+  return null;
+}

@@ -164,3 +164,72 @@ TBD - created by archiving change ebex-v1-workspace. Update Purpose after archiv
 - **WHEN** `demo-b/sub` が既に存在する状態で copy-folder を呼び出す
 - **THEN** HTTP 400 が返される
 
+### Requirement: お気に入り永続化ファイル
+
+workspace ルート（`process.cwd()` 直下）に `.ebex-favorites.json` を配置し、お気に入りデータの正本としなければならない（SHALL）。ファイル形式は `{ "favorites": [ { "folderPath": string, "fileName": string } ] }` でなければならない（SHALL）。`folderPath` は `workspace/` からの相対フォルダパス、`fileName` は basename としなければならない（SHALL）。ファイルが存在しない場合、お気に入りは空配列として扱わなければならない（SHALL）。`.ebex-favorites.json` は git 管理対象外とするため、プロジェクトの `.gitignore` に追加しなければならない（SHALL）。
+
+#### Scenario: 初回は空のお気に入り
+
+- **WHEN** `.ebex-favorites.json` が存在せず favorites API を呼び出す
+- **THEN** 空の `favorites` 配列が返される
+
+#### Scenario: お気に入りファイルの読み書き
+
+- **WHEN** `{ "folderPath": "demo", "fileName": "notes.md" }` を favorites に追加する
+- **THEN** `.ebex-favorites.json` に当該エントリが永続化される
+
+### Requirement: お気に入り API
+
+以下のエンドポイントが存在しなければならない（SHALL）:
+
+- `GET /api/workspace/favorites` — 現在の favorites 配列を返す
+- `POST /api/workspace/favorites/toggle` — `{ folderPath, fileName }` を受け取り、未登録なら追加・登録済みなら除去し、更新後の favorites 配列を返す
+
+#### Scenario: favorites 一覧取得
+
+- **WHEN** `GET /api/workspace/favorites` を呼び出す
+- **THEN** `{ favorites: [...] }` が返される
+
+#### Scenario: toggle でお気に入り追加
+
+- **WHEN** 未登録の `{ folderPath: "demo", fileName: "notes.md" }` で toggle を呼び出す
+- **THEN** お気に入りに追加され HTTP 200 が返される
+
+#### Scenario: toggle でお気に入り解除
+
+- **WHEN** 登録済みの `{ folderPath: "demo", fileName: "notes.md" }` で toggle を呼び出す
+- **THEN** お気に入りから除去され HTTP 200 が返される
+
+### Requirement: お気に入りのリネーム・削除連鎖
+
+`POST /api/workspace/rename-file` 成功時、当該 `{ folderPath, fileName }` のお気に入りエントリが存在すれば、`fileName` を新名称に更新しなければならない（SHALL）。`POST /api/workspace/rename-folder` 成功時、`folderPath` が旧パスに一致する、または旧パス配下のお気に入りエントリの `folderPath` を新パスへ更新しなければならない（SHALL）。`POST /api/workspace/delete-file` 成功時、当該ファイルのお気に入りエントリを除去しなければならない（SHALL）。`POST /api/workspace/delete-folder` 成功時、削除対象フォルダまたはその配下に属するお気に入りエントリをすべて除去しなければならない（SHALL）。
+
+#### Scenario: ファイルリネームでお気に入りキー更新
+
+- **WHEN** お気に入り登録済みの `demo/notes.md` を `demo/notes-renamed.md` にリネームする
+- **THEN** お気に入りは `{ folderPath: "demo", fileName: "notes-renamed.md" }` になる
+
+#### Scenario: フォルダ削除で配下お気に入り除去
+
+- **WHEN** `demo/sub/notes.md` がお気に入り登録済みで `demo/sub` フォルダを削除する
+- **THEN** 当該お気に入りエントリが除去される
+
+### Requirement: ファイル内容検索 API
+
+`GET /api/workspace/search-content?q=<query>` エンドポイントが存在し、workspace 内のテキストファイル本文を再帰検索してマッチする `{ folderPath, fileName }` の配列を返さなければならない（SHALL）。`q` が空または空白のみの場合、空配列を返さなければならない（SHALL）。検索対象拡張子は `.md`, `.txt`, `.json`, `.yml`, `.yaml`, `.ts`, `.tsx`, `.js`, `.jsx`, `.html`, `.htm`, `.css`, `.xml` とし、`node_modules`、`.next`、ドット始まりディレクトリ、バイナリは走査から除外しなければならない（SHALL）。マッチ判定は大文字小文字を区別しない部分一致としなければならない（SHALL）。結果件数は最大 200 件とし、上限超過時は先頭 200 件を返し、`truncated: true` フラグを含めなければならない（SHALL）。
+
+#### Scenario: 内容検索でマッチファイルを返す
+
+- **WHEN** `demo/notes.md` の本文に `TODO` が含まれ、`GET /api/workspace/search-content?q=TODO` を呼び出す
+- **THEN** 応答に `{ folderPath: "demo", fileName: "notes.md" }` が含まれる
+
+#### Scenario: 空クエリは空結果
+
+- **WHEN** `GET /api/workspace/search-content?q=` を呼び出す
+- **THEN** 空配列が返される
+
+#### Scenario: node_modules は走査しない
+
+- **WHEN** `node_modules/pkg/readme.md` にのみクエリがマッチする
+- **THEN** 応答に当該ファイルは含まれない
+

@@ -37,6 +37,7 @@ type Props = {
   folderPath: string;
   fileName: string;
   content: string;
+  isResizing?: boolean;
   onContentChange: (content: string) => void;
   onSave: (content: string) => Promise<void>;
   onPendingSaveChange: (pending: boolean) => void;
@@ -50,6 +51,7 @@ export function EditorPane({
   folderPath,
   fileName,
   content,
+  isResizing = false,
   onContentChange,
   onSave,
   onPendingSaveChange,
@@ -139,7 +141,11 @@ export function EditorPane({
         }
       >
         {showPreview ? (
-          <FilePreview fileName={fileName} content={content} />
+          <FilePreview
+            fileName={fileName}
+            content={content}
+            isResizing={isResizing}
+          />
         ) : (
           <LessonContentEditor
             key={fileKey}

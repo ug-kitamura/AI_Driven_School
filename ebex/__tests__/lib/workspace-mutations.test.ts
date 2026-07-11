@@ -49,6 +49,7 @@ describe("workspace mutations", () => {
     expect(createFolder(tmpDir, "demo")).toEqual({ ok: true });
     expect(createFile(tmpDir, "demo", "notes.md", "# hello")).toEqual({
       ok: true,
+      fileName: "notes.md",
     });
 
     const loaded = loadWorkspace(tmpDir);
@@ -67,6 +68,7 @@ describe("workspace mutations", () => {
     });
     expect(createFile(tmpDir, "demo/sub", "notes.md", "nested")).toEqual({
       ok: true,
+      fileName: "notes.md",
     });
 
     const loaded = loadWorkspace(tmpDir);
@@ -191,6 +193,39 @@ describe("workspace mutations", () => {
     expect(moveFile(tmpDir, "demo", "a.md", "demo", "b.md")).toEqual({
       error: "同名のファイルが既に存在します",
     });
+  });
+
+  it("auto-renames file on move when policy is auto-rename", () => {
+    tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "ebex-ws-"));
+    createFolder(tmpDir, "demo");
+    createFile(tmpDir, "demo", "a.md", "");
+    createFile(tmpDir, "demo", "b.md", "");
+    expect(
+      moveFile(tmpDir, "demo", "a.md", "demo", "b.md", "auto-rename"),
+    ).toEqual({ ok: true, newName: "b-2.md" });
+  });
+
+  it("auto-renames file on paste-like create", () => {
+    tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "ebex-ws-"));
+    createFolder(tmpDir, "demo");
+    createFile(tmpDir, "demo", "test.md", "v1");
+    expect(
+      createFile(tmpDir, "demo", "test.md", "v2", "auto-rename"),
+    ).toEqual({ ok: true, fileName: "test-2.md" });
+    expect(readFileContent(tmpDir, "demo", "test-2.md")).toEqual({
+      content: "v2",
+    });
+  });
+
+  it("auto-renames folder on copy when policy is auto-rename", () => {
+    tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "ebex-ws-"));
+    createFolder(tmpDir, "src-proj");
+    createFolder(tmpDir, "dst-proj");
+    createSubFolder(tmpDir, "src-proj", "sub");
+    createSubFolder(tmpDir, "dst-proj", "sub");
+    expect(
+      copyFolder(tmpDir, "src-proj/sub", "dst-proj", undefined, "auto-rename"),
+    ).toEqual({ ok: true, path: "dst-proj/sub-2" });
   });
 
   it("copies subfolder recursively", () => {

@@ -9,8 +9,10 @@
     "lint": "eslint",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
+    "pretest": "npm run check:encoding",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "check:encoding": "node scripts/check-japanese-encoding.mjs"
   },
   "dependencies": {
     "@base-ui/react": "^1.4.1",

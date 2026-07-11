@@ -18,6 +18,9 @@ next-env.d.ts
 # secret env
 .env.local
 
+# personal bookmarks
+.ebex-favorites.json
+
 # OpenSpec
 .claude/commands/opsx/
 .claude/skills/openspec-*/

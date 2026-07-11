@@ -93,6 +93,35 @@ export function filterWorkspaceTree(
     .filter((node): node is WorkspaceTreeNode => node !== null);
 }
 
+export function filterWorkspaceTreeByFileKeys(
+  nodes: WorkspaceTreeNode[],
+  fileKeys: Set<string>,
+): WorkspaceTreeNode[] {
+  if (fileKeys.size === 0) return [];
+
+  function filterNode(node: WorkspaceTreeNode): WorkspaceTreeNode | null {
+    const matchingFiles = node.files.filter((file) =>
+      fileKeys.has(`${node.path}/${file}`),
+    );
+    const matchingChildren = node.children
+      .map((child) => filterNode(child))
+      .filter((child): child is WorkspaceTreeNode => child !== null);
+
+    if (matchingFiles.length > 0 || matchingChildren.length > 0) {
+      return {
+        ...node,
+        files: matchingFiles,
+        children: matchingChildren,
+      };
+    }
+    return null;
+  }
+
+  return nodes
+    .map((node) => filterNode(node))
+    .filter((node): node is WorkspaceTreeNode => node !== null);
+}
+
 export function getFolderBaseName(folderPath: string): string {
   const idx = folderPath.lastIndexOf("/");
   return idx >= 0 ? folderPath.slice(idx + 1) : folderPath;

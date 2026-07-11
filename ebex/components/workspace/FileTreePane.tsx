@@ -451,7 +451,7 @@ function TreeNode({ node, depth, expanded, emphasizedFolderPaths, interaction }:
                       </button>
                       {interaction.isFavorite(node.path, file) ? (
                         <Star
-                          className="size-3.5 shrink-0 fill-yellow-400 text-yellow-400"
+                          className="size-3.5 shrink-0 fill-yellow-500 text-yellow-500"
                           aria-hidden="true"
                         />
                       ) : null}
@@ -1631,7 +1631,7 @@ export function FileTreePane({
           <Star
             className={cn(
               "size-4",
-              favoritesOnly && "fill-yellow-400 text-yellow-400",
+              favoritesOnly && "fill-yellow-500 text-yellow-500",
             )}
           />
         </Button>

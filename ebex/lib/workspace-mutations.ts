@@ -112,13 +112,93 @@ export function deleteFolder(projectRoot: string, folderPath: string) {
   if (!folderExists(projectRoot, folderPath)) {
     return { error: "フォルダが見つかりません" };
   }
-  if (!isFolderEmpty(projectRoot, folderPath)) {
+  const isSubfolder = folderPath.includes("/");
+  if (!isSubfolder && !isFolderEmpty(projectRoot, folderPath)) {
     return { error: "空のフォルダのみ削除できます" };
   }
   const resolved = resolveFolderPath(projectRoot, folderPath);
   if ("error" in resolved) return { error: resolved.error };
   fs.rmSync(resolved.absolutePath, { recursive: true, force: true });
   return { ok: true as const };
+}
+
+export function moveFile(
+  projectRoot: string,
+  fromFolderId: string,
+  fromName: string,
+  toFolderId: string,
+  toName?: string,
+) {
+  const targetName = toName ?? fromName;
+  const fromValidation = validateFileName(fromName);
+  if (fromValidation) return { error: fromValidation };
+  const toValidation = validateFileName(targetName);
+  if (toValidation) return { error: toValidation };
+  const fromFolderValidation = validateRelativeFolderPath(fromFolderId);
+  if (fromFolderValidation) return { error: fromFolderValidation };
+  const toFolderValidation = validateRelativeFolderPath(toFolderId);
+  if (toFolderValidation) return { error: toFolderValidation };
+  if (!folderExists(projectRoot, fromFolderId)) {
+    return { error: "フォルダが見つかりません" };
+  }
+  if (!folderExists(projectRoot, toFolderId)) {
+    return { error: "フォルダが見つかりません" };
+  }
+  const from = resolveFilePath(projectRoot, fromFolderId, fromName);
+  const to = resolveFilePath(projectRoot, toFolderId, targetName);
+  if ("error" in from) return { error: from.error };
+  if ("error" in to) return { error: to.error };
+  if (!fs.existsSync(from.absolutePath)) {
+    return { error: "ファイルが見つかりません" };
+  }
+  if (fs.existsSync(to.absolutePath)) {
+    return { error: "同名のファイルが既に存在します" };
+  }
+  fs.renameSync(from.absolutePath, to.absolutePath);
+  return { ok: true as const, newName: targetName };
+}
+
+function shouldSkipCopyEntry(name: string): boolean {
+  return name.startsWith(".") || name === SESSION_FILENAME;
+}
+
+export function copyFolder(
+  projectRoot: string,
+  fromPath: string,
+  toParentPath: string,
+  toName?: string,
+) {
+  const fromValidation = validateRelativeFolderPath(fromPath);
+  if (fromValidation) return { error: fromValidation };
+  const parentValidation = validateRelativeFolderPath(toParentPath);
+  if (parentValidation) return { error: parentValidation };
+  if (!folderExists(projectRoot, fromPath)) {
+    return { error: "フォルダが見つかりません" };
+  }
+  if (!folderExists(projectRoot, toParentPath)) {
+    return { error: "親フォルダが見つかりません" };
+  }
+  const baseName = toName ?? getFolderBaseName(fromPath);
+  const nameValidation = validateFolderSegment(baseName);
+  if (nameValidation) return { error: nameValidation };
+  const toPath = `${toParentPath}/${baseName}`;
+  if (folderExists(projectRoot, toPath)) {
+    return { error: "同名のフォルダが既に存在します" };
+  }
+  const from = resolveFolderPath(projectRoot, fromPath);
+  const to = resolveFolderPath(projectRoot, toPath);
+  if ("error" in from) return { error: from.error };
+  if ("error" in to) return { error: to.error };
+  fs.cpSync(from.absolutePath, to.absolutePath, {
+    recursive: true,
+    filter: (src) => !shouldSkipCopyEntry(path.basename(src)),
+  });
+  return { ok: true as const, path: toPath };
+}
+
+function getFolderBaseName(folderPath: string): string {
+  const idx = folderPath.lastIndexOf("/");
+  return idx >= 0 ? folderPath.slice(idx + 1) : folderPath;
 }
 
 export function createFile(

@@ -3,11 +3,13 @@ import os from "node:os";
 import path from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import {
+  copyFolder,
   createFile,
   createFolder,
   createSubFolder,
   deleteFile,
   deleteFolder,
+  moveFile,
   readFileContent,
   renameFile,
   renameFolder,
@@ -165,5 +167,55 @@ describe("workspace mutations", () => {
     createFile(tmpDir, "proj", "doc.md", "v1");
     saveFile(tmpDir, "proj", "doc.md", "v2");
     expect(readFileContent(tmpDir, "proj", "doc.md")).toEqual({ content: "v2" });
+  });
+
+  it("moves file across folders", () => {
+    tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "ebex-ws-"));
+    createFolder(tmpDir, "demo");
+    createSubFolder(tmpDir, "demo", "from");
+    createSubFolder(tmpDir, "demo", "to");
+    createFile(tmpDir, "demo/from", "notes.md", "hello");
+    expect(
+      moveFile(tmpDir, "demo/from", "notes.md", "demo/to"),
+    ).toEqual({ ok: true, newName: "notes.md" });
+    expect(readFileContent(tmpDir, "demo/to", "notes.md")).toEqual({
+      content: "hello",
+    });
+  });
+
+  it("rejects move when target file exists", () => {
+    tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "ebex-ws-"));
+    createFolder(tmpDir, "demo");
+    createFile(tmpDir, "demo", "a.md", "");
+    createFile(tmpDir, "demo", "b.md", "");
+    expect(moveFile(tmpDir, "demo", "a.md", "demo", "b.md")).toEqual({
+      error: "同名のファイルが既に存在します",
+    });
+  });
+
+  it("copies subfolder recursively", () => {
+    tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "ebex-ws-"));
+    createFolder(tmpDir, "src-proj");
+    createFolder(tmpDir, "dst-proj");
+    createSubFolder(tmpDir, "src-proj", "sub");
+    createFile(tmpDir, "src-proj/sub", "notes.md", "nested");
+    expect(copyFolder(tmpDir, "src-proj/sub", "dst-proj")).toEqual({
+      ok: true,
+      path: "dst-proj/sub",
+    });
+    expect(readFileContent(tmpDir, "dst-proj/sub", "notes.md")).toEqual({
+      content: "nested",
+    });
+  });
+
+  it("recursively deletes subfolder with contents", () => {
+    tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "ebex-ws-"));
+    createFolder(tmpDir, "demo");
+    createSubFolder(tmpDir, "demo", "sub");
+    createFile(tmpDir, "demo/sub", "notes.md", "");
+    expect(deleteFolder(tmpDir, "demo/sub")).toEqual({ ok: true });
+    expect(
+      fs.existsSync(path.join(getWorkspaceDir(tmpDir), "demo", "sub")),
+    ).toBe(false);
   });
 });

@@ -14,7 +14,9 @@ import { cn } from "@/lib/utils";
 import {
   buildLessonEditorExtensions,
   buildLessonEditorStateExtensions,
+  lessonEditorLanguageCompartment,
   lessonEditorThemeCompartment,
+  resolveLessonLanguageExtension,
 } from "@/lib/lesson-content-editor-setup";
 import { getLessonBodyStartOffset } from "@/lib/lesson-frontmatter";
 import {
@@ -43,6 +45,8 @@ type Props = {
   onCursorChange?: (offset: number) => void;
   /** false のとき折りたたみ操作は無効。gutter 列は常設 */
   enableFolding?: boolean;
+  /** 言語解決用のファイル名 */
+  fileName?: string;
   className?: string;
 };
 
@@ -57,6 +61,7 @@ export const LessonContentEditor = forwardRef<
     onScrollElementReady,
     onCursorChange,
     enableFolding = true,
+    fileName = "file.md",
     className,
   },
   ref,
@@ -64,12 +69,14 @@ export const LessonContentEditor = forwardRef<
   const containerRef = useRef<HTMLDivElement>(null);
   const viewRef = useRef<EditorView | null>(null);
   const lessonIdRef = useRef(lessonId);
+  const fileNameRef = useRef(fileName);
   const onChangeRef = useRef(onChange);
   const onCursorChangeRef = useRef(onCursorChange);
   const onScrollElementReadyRef = useRef(onScrollElementReady);
   onChangeRef.current = onChange;
   onCursorChangeRef.current = onCursorChange;
   onScrollElementReadyRef.current = onScrollElementReady;
+  fileNameRef.current = fileName;
 
   const isDark = useResolvedDarkMode();
   const isDarkRef = useRef(isDark);
@@ -132,6 +139,7 @@ export const LessonContentEditor = forwardRef<
           getFontSize: () => fontSizeRef.current,
           onFontSizeChange: handleFontSizeChange,
           enableFolding: enableFoldingRef.current,
+          fileName: fileNameRef.current,
         },
         [updateListenerExtension],
       ),
@@ -143,6 +151,9 @@ export const LessonContentEditor = forwardRef<
     if (!parent) return;
 
     lessonIdRef.current = lessonId;
+    fileNameRef.current = fileName;
+    let cancelled = false;
+
     const cached = getLessonEditorStateCache(lessonId);
     const state =
       cached ??
@@ -162,8 +173,17 @@ export const LessonContentEditor = forwardRef<
           getFontSize: () => fontSizeRef.current,
           onFontSizeChange: handleFontSizeChange,
           enableFolding: enableFoldingRef.current,
+          fileName: fileNameRef.current,
         }),
       ),
+    });
+
+    void resolveLessonLanguageExtension(fileName).then((langExt) => {
+      if (cancelled || viewRef.current !== view) return;
+      view.dispatch({
+        effects: lessonEditorLanguageCompartment.reconfigure(langExt),
+      });
+      setLessonEditorStateCache(lessonIdRef.current, view.state);
     });
 
     if (!cached) {
@@ -171,6 +191,7 @@ export const LessonContentEditor = forwardRef<
     }
 
     return () => {
+      cancelled = true;
       const active = viewRef.current;
       if (active) {
         setLessonEditorStateCache(lessonIdRef.current, active.state);
@@ -192,6 +213,7 @@ export const LessonContentEditor = forwardRef<
 
     setLessonEditorStateCache(prevId, view.state);
 
+    let cancelled = false;
     const cached = getLessonEditorStateCache(lessonId);
     if (cached) {
       view.setState(cached);
@@ -205,8 +227,21 @@ export const LessonContentEditor = forwardRef<
     }
 
     lessonIdRef.current = lessonId;
+    fileNameRef.current = fileName;
     onCursorChangeRef.current?.(view.state.selection.main.head);
-  }, [lessonId, value, buildExtensions]);
+
+    void resolveLessonLanguageExtension(fileName).then((langExt) => {
+      if (cancelled || viewRef.current !== view) return;
+      view.dispatch({
+        effects: lessonEditorLanguageCompartment.reconfigure(langExt),
+      });
+      setLessonEditorStateCache(lessonIdRef.current, view.state);
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [lessonId, fileName, value, buildExtensions]);
 
   useEffect(() => {
     const view = viewRef.current;
@@ -218,6 +253,7 @@ export const LessonContentEditor = forwardRef<
           getFontSize: () => fontSizeRef.current,
           onFontSizeChange: handleFontSizeChange,
           enableFolding: enableFoldingRef.current,
+          fileName: fileNameRef.current,
         }),
       ),
     });

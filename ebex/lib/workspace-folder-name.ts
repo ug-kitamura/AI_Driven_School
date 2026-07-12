@@ -27,14 +27,18 @@ export function suggestUntitledFolderName(
 
 const EVENT_DATE_PREFIX_RE = /^(\d{8})-/;
 
+/** 既存フォルダ名からイベント日（YYYYMMDD）を取得。なければ null */
+export function extractEventDatePrefix(folderId: string): string | null {
+  const match = folderId.match(EVENT_DATE_PREFIX_RE);
+  return match?.[1] ?? null;
+}
+
 /** 既存フォルダ名からイベント日（YYYYMMDD）を取得。なければ今日 */
 export function resolveEventDatePrefix(
   folderId: string,
   date: Date = new Date(),
 ): string {
-  const match = folderId.match(EVENT_DATE_PREFIX_RE);
-  if (match?.[1]) return match[1];
-  return formatDateYmd(date);
+  return extractEventDatePrefix(folderId) ?? formatDateYmd(date);
 }
 
 /** AI 提案名の日付部分を既存イベント日で置き換える */

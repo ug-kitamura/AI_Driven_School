@@ -22,7 +22,7 @@ export type FileIconCategory =
   | "zip"
   | "other";
 
-const TEXT_EXTENSIONS = new Set([".md", ".txt", ".html", ".htm"]);
+const TEXT_EXTENSIONS = new Set([".md", ".txt"]);
 const CODE_EXTENSIONS = new Set([
   ".ts",
   ".tsx",
@@ -38,6 +38,8 @@ const CODE_EXTENSIONS = new Set([
   ".yml",
   ".yaml",
   ".xml",
+  ".html",
+  ".htm",
 ]);
 const TABLE_EXTENSIONS = new Set([".csv", ".xlsx", ".xls"]);
 const IMAGE_EXTENSIONS = new Set([".png", ".jpg", ".jpeg", ".svg", ".webp"]);
@@ -87,19 +89,6 @@ export function resolveFileIconCategory(fileName: string): FileIconCategory {
 }
 
 export function getFileIconColorClass(category: FileIconCategory): string {
-  switch (category) {
-    case "text":
-    case "code":
-    case "table":
-      return "text-chart-1/60";
-    case "image":
-    case "video":
-    case "audio":
-      return "text-chart-2/60";
-    case "secret":
-      return "text-chart-3/60";
-    case "zip":
-    case "other":
-      return "text-chart-4/60";
-  }
+  void category;
+  return "text-chart-1/60";
 }

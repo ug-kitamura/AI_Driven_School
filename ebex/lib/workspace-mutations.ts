@@ -375,6 +375,24 @@ export function readFileContent(
   return { content: fs.readFileSync(resolved.absolutePath, "utf-8") };
 }
 
+export function readFileBinary(
+  projectRoot: string,
+  folderPath: string,
+  fileName: string,
+): { buffer: Buffer; absolutePath: string } | { error: string } {
+  const fileValidation = validateFileName(fileName);
+  if (fileValidation) return { error: fileValidation };
+  const resolved = resolveFilePath(projectRoot, folderPath, fileName);
+  if ("error" in resolved) return { error: resolved.error };
+  if (!fs.existsSync(resolved.absolutePath)) {
+    return { error: "ファイルが見つかりません" };
+  }
+  return {
+    buffer: fs.readFileSync(resolved.absolutePath),
+    absolutePath: resolved.absolutePath,
+  };
+}
+
 export function listFolderFiles(projectRoot: string, folderPath: string): string[] {
   const resolved = resolveFolderPath(projectRoot, folderPath);
   if ("error" in resolved) return [];
@@ -391,7 +409,7 @@ export function listFolderFiles(projectRoot: string, folderPath: string): string
     .sort((a, b) => a.localeCompare(b, "ja"));
 }
 
-function collectFolderFilesRecursive(
+export function collectFolderFilesRecursive(
   absoluteDir: string,
 ): Array<{ fileName: string; folderPath: string }> {
   const results: Array<{ fileName: string; folderPath: string }> = [];
@@ -422,31 +440,6 @@ function collectFolderFilesRecursive(
 
   walk(absoluteDir, "");
   return results;
-}
-
-export function readFolderTextSample(
-  projectRoot: string,
-  folderPath: string,
-  maxChars = 2000,
-): string {
-  const resolved = resolveFolderPath(projectRoot, folderPath);
-  if ("error" in resolved) return "";
-  const files = collectFolderFilesRecursive(resolved.absolutePath);
-  let sample = "";
-  for (const file of files) {
-    const absoluteFolderPath = file.folderPath
-      ? path.join(resolved.absolutePath, file.folderPath)
-      : resolved.absolutePath;
-    const absoluteFilePath = path.join(absoluteFolderPath, file.fileName);
-    if (!fs.existsSync(absoluteFilePath)) continue;
-    const relativePath = file.folderPath
-      ? `${file.folderPath}/${file.fileName}`
-      : file.fileName;
-    const content = fs.readFileSync(absoluteFilePath, "utf-8");
-    sample += `\n# ${relativePath}\n${content.slice(0, 500)}\n`;
-    if (sample.length >= maxChars) break;
-  }
-  return sample.trim();
 }
 
 export { SESSION_FILENAME };

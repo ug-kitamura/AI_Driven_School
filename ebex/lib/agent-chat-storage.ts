@@ -1,11 +1,17 @@
 import type { AgentToolEvent } from "@/lib/agent/llm/types";
 
+export type AgentFileAttachment = {
+  path: string;
+  name: string;
+};
+
 export type AgentChatMessage = {
   id: string;
   role: "user" | "assistant";
   content: string;
   createdAt?: string;
   toolEvents?: AgentToolEvent[];
+  attachments?: AgentFileAttachment[];
 };
 
 export type AgentChatSession = {

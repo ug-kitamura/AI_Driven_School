@@ -32,7 +32,7 @@ export function FilePreview({ fileName, content, isResizing = false }: Props) {
 
   if (ext === "md") {
     return (
-      <div className="lesson-preview prose prose-sm dark:prose-invert max-w-none p-4">
+      <div className="lesson-preview max-w-none p-4">
         <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeHighlight]}>
           {content}
         </ReactMarkdown>

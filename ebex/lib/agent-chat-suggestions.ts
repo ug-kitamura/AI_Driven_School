@@ -7,7 +7,7 @@ export type AgentFileOption = {
 };
 
 export type AgentBuiltinCommand = {
-  id: "clear" | "export";
+  id: "clear" | "export" | "skill";
   name: string;
   description: string;
 };
@@ -23,7 +23,37 @@ export const AGENT_BUILTIN_COMMANDS: AgentBuiltinCommand[] = [
     name: "会話をエクスポート",
     description: "現在のセッションを Markdown でダウンロードします",
   },
+  {
+    id: "skill",
+    name: "スキル一覧",
+    description: "使用可能なスキルを一覧表示します",
+  },
 ];
+
+export function formatSkillCatalogMessage(skills: SkillSummary[]): string {
+  const visible = skills.filter((skill) => !skill.hidden);
+  if (visible.length === 0) {
+    return "使用可能なスキルはありません。";
+  }
+  const lines = [
+    "使用可能なスキル",
+    "",
+    "| スキル | 説明 |",
+    "| --- | --- |",
+  ];
+  for (const skill of visible) {
+    const name = escapeMarkdownTableCell(`/${skill.id}`);
+    const description = escapeMarkdownTableCell(
+      skill.description || "(説明なし)",
+    );
+    lines.push(`| **${name}** | ${description} |`);
+  }
+  return lines.join("\n");
+}
+
+function escapeMarkdownTableCell(value: string): string {
+  return value.replace(/\|/g, "\\|").replace(/\n/g, " ");
+}
 
 export function filterBuiltinCommands(
   query: string,

@@ -1,10 +1,8 @@
 import { z } from "zod";
-import {
-  jsonError,
-  parseJsonBody,
-  readFolderTextSample,
-} from "@/lib/workspace-mutations";
-import { suggestFolderSlug } from "@/lib/workspace-slug";
+import { generateFolderNameFromPaths } from "@/lib/agent/generate-folder-name";
+import { listFolderRelativePathsForNaming } from "@/lib/workspace-folder-path-list";
+import { listFolderTextExcerptsForNaming } from "@/lib/workspace-folder-text-excerpts";
+import { jsonError, parseJsonBody } from "@/lib/workspace-mutations";
 import { folderExists } from "@/lib/workspace-paths";
 
 const bodySchema = z.object({
@@ -16,12 +14,24 @@ export async function POST(req: Request) {
   if ("error" in parsed) return parsed.error;
 
   const { folderId } = parsed.data;
+  if (folderId.includes("/")) {
+    return jsonError("プロジェクトフォルダのみ指定できます", 400);
+  }
   if (!folderExists(process.cwd(), folderId)) {
     return jsonError("フォルダが見つかりません", 404);
   }
 
-  const sample = readFolderTextSample(process.cwd(), folderId);
-  const suggested = sample ? suggestFolderSlug(sample.split("\n")[0] ?? "") : suggestFolderSlug("");
+  const paths = listFolderRelativePathsForNaming(process.cwd(), folderId);
+  const excerpts = listFolderTextExcerptsForNaming(process.cwd(), folderId);
+  const result = await generateFolderNameFromPaths(
+    req,
+    paths,
+    new Date(),
+    excerpts,
+  );
+  if (!result.ok) {
+    return jsonError(result.error, result.status);
+  }
 
-  return Response.json({ name: suggested });
+  return Response.json({ name: result.name });
 }

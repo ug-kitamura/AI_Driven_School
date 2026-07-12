@@ -8,7 +8,16 @@ import {
   type PaneSegmentOption,
 } from "@/components/workspace/PaneSegmentControl";
 import { FilePreview } from "@/components/workspace/FilePreview";
-import { fileExtension, supportsPreview } from "@/lib/file-preview";
+import { ImageFileView } from "@/components/workspace/ImageFileView";
+import { PdfFileView } from "@/components/workspace/PdfFileView";
+import { ZipFileView } from "@/components/workspace/ZipFileView";
+import { UnsupportedFileView } from "@/components/workspace/UnsupportedFileView";
+import {
+  fileExtension,
+  isTextEditableMode,
+  resolvePane2Mode,
+  resolveViewOnlyKind,
+} from "@/lib/file-preview";
 import type { LessonContentEditorHandle } from "@/components/workspace/LessonContentEditor";
 
 const LessonContentEditor = dynamic(
@@ -47,7 +56,25 @@ type Props = {
 
 const SAVE_DEBOUNCE_MS = 800;
 
-export function EditorPane({
+export function EditorPane(props: Props) {
+  const { folderPath, fileName } = props;
+  if (!folderPath || !fileName) {
+    return (
+      <div className="flex h-full flex-col">
+        <EditorHeader title="ファイルを選択してください" muted />
+        <div className="flex flex-1 items-center justify-center text-sm text-muted-foreground">
+          Pane 1 からフォルダとファイルを選択してください
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <EditorPaneActive key={`${folderPath}/${fileName}`} {...props} />
+  );
+}
+
+function EditorPaneActive({
   folderPath,
   fileName,
   content,
@@ -63,67 +90,109 @@ export function EditorPane({
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const fileKey = `${folderPath}/${fileName}`;
+  const pane2Mode = resolvePane2Mode(fileName);
   const enableFolding = fileExtension(fileName) === "md";
+  const canEditText = isTextEditableMode(pane2Mode);
+  const showModeTabs = pane2Mode === "edit-preview";
+  const showPreview = showModeTabs && mode === "preview";
+  const viewKind = resolveViewOnlyKind(fileName);
 
   const scheduleSave = useCallback(
     (nextContent: string) => {
+      if (!canEditText) return;
       if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
       onPendingSaveChange(true);
       saveTimerRef.current = setTimeout(() => {
         void onSave(nextContent).finally(() => onPendingSaveChange(false));
       }, SAVE_DEBOUNCE_MS);
     },
-    [onSave, onPendingSaveChange],
+    [canEditText, onSave, onPendingSaveChange],
   );
 
   const handleChange = useCallback(
     (next: string) => {
+      if (!canEditText) return;
       onContentChange(next);
       scheduleSave(next);
     },
-    [onContentChange, scheduleSave],
+    [canEditText, onContentChange, scheduleSave],
   );
 
   useEffect(() => {
     return () => {
-      if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+      if (saveTimerRef.current) {
+        clearTimeout(saveTimerRef.current);
+        onPendingSaveChange(false);
+      }
     };
-  }, []);
+  }, [onPendingSaveChange]);
 
   useEffect(() => {
     onRegisterInsertCallback((markdown) => {
+      if (!canEditText) return;
       editorRef.current?.insertAtCursor(markdown);
     });
     onRegisterOverwriteCallback((markdown) => {
+      if (!canEditText) return;
       onContentChange(markdown);
       scheduleSave(markdown);
     });
   }, [
+    canEditText,
     onRegisterInsertCallback,
     onRegisterOverwriteCallback,
     onContentChange,
     scheduleSave,
   ]);
 
-  const showPreview = mode === "preview" && supportsPreview(fileName);
-
-  if (!folderPath || !fileName) {
-    return (
-      <div className="flex h-full flex-col">
-        <EditorHeader title="ファイルを選択してください" muted />
-        <div className="flex flex-1 items-center justify-center text-sm text-muted-foreground">
-          Pane 1 からフォルダとファイルを選択してください
-        </div>
-      </div>
+  let body: React.ReactNode;
+  if (pane2Mode === "unsupported") {
+    body = <UnsupportedFileView fileName={fileName} />;
+  } else if (pane2Mode === "view-only") {
+    if (viewKind === "image") {
+      body = <ImageFileView folderPath={folderPath} fileName={fileName} />;
+    } else if (viewKind === "pdf") {
+      body = <PdfFileView folderPath={folderPath} fileName={fileName} />;
+    } else if (viewKind === "zip") {
+      body = <ZipFileView folderPath={folderPath} fileName={fileName} />;
+    } else {
+      body = <UnsupportedFileView fileName={fileName} />;
+    }
+  } else if (showPreview) {
+    body = (
+      <FilePreview
+        fileName={fileName}
+        content={content}
+        isResizing={isResizing}
+      />
+    );
+  } else {
+    body = (
+      <LessonContentEditor
+        key={fileKey}
+        ref={editorRef}
+        lessonId={fileKey}
+        fileName={fileName}
+        value={content}
+        onChange={handleChange}
+        enableFolding={enableFolding}
+        className="h-full"
+      />
     );
   }
+
+  const bodyClassName = showPreview
+    ? "workspace-scrollbar min-h-0 flex-1 overflow-y-auto bg-card"
+    : pane2Mode === "view-only" || pane2Mode === "unsupported"
+      ? "min-h-0 flex-1 overflow-hidden bg-card"
+      : "min-h-0 flex-1 overflow-hidden";
 
   return (
     <div className="flex h-full min-h-0 flex-col">
       <EditorHeader
         title={fileName}
         modeControl={
-          supportsPreview(fileName) ? (
+          showModeTabs ? (
             <PaneSegmentControl
               value={mode}
               onChange={setMode}
@@ -133,31 +202,7 @@ export function EditorPane({
           ) : null
         }
       />
-      <div
-        className={
-          showPreview
-            ? "workspace-scrollbar min-h-0 flex-1 overflow-y-auto"
-            : "min-h-0 flex-1 overflow-hidden"
-        }
-      >
-        {showPreview ? (
-          <FilePreview
-            fileName={fileName}
-            content={content}
-            isResizing={isResizing}
-          />
-        ) : (
-          <LessonContentEditor
-            key={fileKey}
-            ref={editorRef}
-            lessonId={fileKey}
-            value={content}
-            onChange={handleChange}
-            enableFolding={enableFolding}
-            className="h-full"
-          />
-        )}
-      </div>
+      <div className={bodyClassName}>{body}</div>
     </div>
   );
 }

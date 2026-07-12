@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   getFileExtension,
+  getFileIconColorClass,
   resolveFileIconCategory,
 } from "@/lib/workspace-file-icon";
 import {
@@ -11,8 +12,8 @@ import {
 describe("resolveFileIconCategory", () => {
   it("classifies common file types", () => {
     expect(resolveFileIconCategory("notes.md")).toBe("text");
-    expect(resolveFileIconCategory("page.html")).toBe("text");
-    expect(resolveFileIconCategory("index.htm")).toBe("text");
+    expect(resolveFileIconCategory("page.html")).toBe("code");
+    expect(resolveFileIconCategory("index.htm")).toBe("code");
     expect(resolveFileIconCategory("app.ts")).toBe("code");
     expect(resolveFileIconCategory("App.tsx")).toBe("code");
     expect(resolveFileIconCategory("page.jsx")).toBe("code");
@@ -40,6 +41,17 @@ describe("resolveFileIconCategory", () => {
     expect(resolveFileIconCategory(".env.template")).toBe("secret");
     expect(resolveFileIconCategory(".env.example")).toBe("secret");
     expect(resolveFileIconCategory("server.crt")).toBe("secret");
+  });
+});
+
+describe("getFileIconColorClass", () => {
+  it("uses the same chart-1 tone for every file category", () => {
+    expect(getFileIconColorClass("text")).toBe("text-chart-1/60");
+    expect(getFileIconColorClass("code")).toBe("text-chart-1/60");
+    expect(getFileIconColorClass("image")).toBe("text-chart-1/60");
+    expect(getFileIconColorClass("secret")).toBe("text-chart-1/60");
+    expect(getFileIconColorClass("zip")).toBe("text-chart-1/60");
+    expect(getFileIconColorClass("other")).toBe("text-chart-1/60");
   });
 });
 

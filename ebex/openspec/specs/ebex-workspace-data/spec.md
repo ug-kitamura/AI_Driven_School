@@ -82,12 +82,73 @@ TBD - created by archiving change ebex-v1-workspace. Update Purpose after archiv
 
 ### Requirement: AI フォルダ名提案 API
 
-`POST /api/workspace/suggest-folder-name` は `folderPath`（プロジェクトフォルダ ID またはネストパス）を受け取り、**当該フォルダ配下のファイル**（再帰）の内容からスラッグを提案しなければならない（SHALL）。呼び出しはプロジェクトフォルダ（`folderPath` に `/` なし）のリネーム時に限定される（SHALL）。
+`POST /api/workspace/suggest-folder-name` は `folderId`（プロジェクトフォルダ ID）を受け取り、当該フォルダ配下の **相対ファイルパス一覧**（再帰）を LLM 入力に含め、`{YYYYMMDD}-{slug}` 形式の名前を提案しなければならない（SHALL）。呼び出しはプロジェクトフォルダ（`folderId` に `/` なし）のリネーム時に限定される（SHALL）。LLM 呼び出しはセッションタイトル生成と同様に API キー（リクエストヘッダまたは `AI_API_KEY`）を用い、キー未設定時はエラーを返さなければならない（SHALL）。
 
-#### Scenario: ネストファイルを含むスラッグ提案
+パス一覧にはメディア等の通常ファイル名を含めてよい（MAY）が、`session.json`、ドットで始まる名前、およびシークレット/設定カテゴリ（`.env` / `.env.*` / `.pem` / `.key` / `.crt` 等、`resolveFileIconCategory` が `secret` となるもの）のパスを含めてはならない（MUST NOT）。パス一覧は件数および文字数の上限で打ち切らなければならない（SHALL）。パス一覧が空（ユーザー可視ファイルなし）のとき、システムは LLM を呼び出さず `{今日のYYYYMMDD}-untitled` を返さなければならない（SHALL）。
 
-- **WHEN** `demo/sub/meeting.md` が存在し `folderPath: "demo"` で API を呼び出す
-- **THEN** フォルダ配下の内容に基づく `{YYYYMMDD}-{slug}` が提案される
+加えて、システムは次のルールで **テキスト本文抜粋** を収集し、対象が 1 件以上ある場合はパス一覧と **同格の手がかり** として LLM に渡さなければならない（SHALL）。対象が 0 件の場合はパス一覧のみを渡さなければならない（SHALL）。バイナリ内容および zip 内部を読み取ってはならない（MUST NOT）。
+
+本文抜粋の対象は `resolveFileIconCategory` が `text` となるファイル（現行は `.md` / `.txt`）に限らなければならない（SHALL）。次を本文候補から除外しなければならない（MUST NOT の対象とする）: `session.json`、ドットで始まるファイル名、`secret` カテゴリ、ドットで始まるディレクトリ配下、ディレクトリ名 `node_modules`、ディレクトリ名 `.next`。
+
+本文候補の優先順位は `(depth 昇順, tier 昇順, relativePath の辞書順)` としなければならない（SHALL）。`depth` はプロジェクトフォルダからの相対パスにおける `/` の数（直下は 0）とする。`tier` は、basename（拡張子除く）が大小無視で `readme` なら 0、その他の `.md` なら 1、その他の `.txt` なら 2 とする。深さのハード上限は設けてはならない（MUST NOT）。
+
+本文の読み取り上限は次のとおりでなければならない（SHALL）: 最大 10 ファイル、抜粋合計最大 10_000 文字、各ファイルは先頭最大 100 行（全体の文字予算内で切り詰める）。
+
+日付の決定は次のとおりでなければならない（SHALL）:
+
+1. クライアントは、対象フォルダ名に既存の `YYYYMMDD-` プレフィックスがある場合、提案名の日付部分をその値で上書きしなければならない（SHALL）。
+2. 既存プレフィックスがない場合、LLM がパスまたは本文抜粋から日付を判断した値を用いてよい（MAY）。
+3. LLM 応答に有効な `YYYYMMDD` が含まれない場合、システムは今日の日付を用いなければならない（SHALL）。
+
+#### Scenario: ネストファイルのパスからスラッグ提案
+
+- **WHEN** `demo/sub/meeting.md` と `demo/recording.mp4` が存在し、有効な AI API キー付きで `folderId: "demo"` を呼び出す
+- **THEN** パス一覧（メディア名を含む）と、対象テキストの抜粋（存在する場合）に基づく LLM 提案の `{YYYYMMDD}-{slug}` が返される
+
+#### Scenario: 直下にテキストがある場合はパスと本文を同格で渡す
+
+- **WHEN** プロジェクト直下に `notes.md`（本文に主題を含む）と `photo.png` が存在する
+- **THEN** LLM 入力にパス一覧と `notes.md` の先頭抜粋の両方が含まれ、本文をパスより劣後する手がかりとしては扱わない
+
+#### Scenario: 直下にテキストが無くサブにのみある場合はサブを読む
+
+- **WHEN** 直下にメディアのみがあり、`docs/README.md` が存在する
+- **THEN** `docs/README.md` の先頭抜粋が LLM 入力に含まれる
+
+#### Scenario: 本文候補の優先順位は depth と readme が先
+
+- **WHEN** `README.md`、`docs/notes.md`、`memo.txt` が存在する
+- **THEN** 本文収集は `README.md` を `docs/notes.md` および `memo.txt` より先に採用する
+
+#### Scenario: 本文の件数・文字数・行数上限
+
+- **WHEN** 対象テキストが多数または巨大である
+- **THEN** 本文抜粋は最大 10 ファイル・合計 10_000 文字・各先頭 100 行以内に収まる
+
+#### Scenario: node_modules 配下は本文対象外
+
+- **WHEN** `node_modules/pkg/README.md` のみがテキストとして存在する
+- **THEN** 本文抜粋は空となり、パス一覧のみ（または可視パスのルールに従う入力）で提案する
+
+#### Scenario: シークレットパスは入力に含めない
+
+- **WHEN** フォルダ内に `notes.md` と `credentials.pem` が存在する
+- **THEN** LLM へのパス一覧に `credentials.pem` は含まれず、本文対象にもならない
+
+#### Scenario: 空フォルダは untitled フォールバック
+
+- **WHEN** ユーザー可視ファイルが 0 件のプロジェクトフォルダで API を呼び出す
+- **THEN** LLM を呼び出さず `{今日}-untitled` が返される
+
+#### Scenario: 既存日付プレフィックスを保持する
+
+- **WHEN** フォルダ名が `20260115-old-name` であり AI が別日付の名前を返した
+- **THEN** 入力欄に反映される名前の日付部分は `20260115` のままである
+
+#### Scenario: AI が日付を出せない場合は今日
+
+- **WHEN** フォルダ名に日付プレフィックスがなく、LLM 応答に有効な `YYYYMMDD` がない
+- **THEN** 提案名の日付部分は今日の `YYYYMMDD` になる
 
 ### Requirement: mtime ポーリング同期
 
@@ -232,4 +293,18 @@ workspace ルート（`process.cwd()` 直下）に `.ebex-favorites.json` を配
 
 - **WHEN** `node_modules/pkg/readme.md` にのみクエリがマッチする
 - **THEN** 応答に当該ファイルは含まれない
+
+### Requirement: OS ファイルマネージャで対象を表示する API
+
+`POST /api/workspace/reveal-in-os`（名称はこの趣旨を満たせば可）が存在し、`folderPath` のみ、または `folderPath` と `fileName` を受け取り、解決した絶対パスを OS のファイルマネージャで表示しなければならない（SHALL）。ファイル指定時は可能なら当該ファイルを選択表示し、フォルダ指定時は当該フォルダを開かなければならない（SHALL）。パスが workspace 外または不正な場合はエラーを返さなければならない（SHALL）。
+
+#### Scenario: ファイルを reveal する
+
+- **WHEN** `folderPath: "demo"`、`fileName: "notes.md"` で API を呼び出す
+- **THEN** OS のファイルマネージャが `workspace/demo/notes.md` を選択または表示する
+
+#### Scenario: フォルダを reveal する
+
+- **WHEN** `folderPath: "demo/sub"` のみで API を呼び出す
+- **THEN** OS のファイルマネージャが当該フォルダを開く
 

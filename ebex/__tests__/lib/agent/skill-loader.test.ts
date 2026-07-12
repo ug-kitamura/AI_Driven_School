@@ -4,6 +4,7 @@ import path from "node:path";
 import os from "node:os";
 import {
   buildSkillSystemPrompt,
+  getSkillCatalogRoots,
   injectSkillVariables,
   listSkills,
   listVisibleSkills,
@@ -139,5 +140,34 @@ Body`);
     );
     const skill = loadSkill(tmpDir, "general-chat");
     expect(skill?.hidden).toBe(true);
+  });
+
+  it("merges ebex and host skill roots without duplicating the same path", () => {
+    expect(getSkillCatalogRoots(tmpDir, tmpDir)).toEqual([path.resolve(tmpDir)]);
+
+    const ebexRoot = fs.mkdtempSync(path.join(os.tmpdir(), "skill-ebex-"));
+    const hostRoot = fs.mkdtempSync(path.join(os.tmpdir(), "skill-host-"));
+    try {
+      writeSkill(ebexRoot, "create-draft", "name: draft-ebex\ndescription: from ebex", "ebex body");
+      writeSkill(hostRoot, "report", "name: report\ndescription: from host", "host body");
+      writeSkill(hostRoot, "create-draft", "name: draft-host\ndescription: from host", "host draft");
+
+      const roots = getSkillCatalogRoots(hostRoot, ebexRoot);
+      expect(roots).toEqual([path.resolve(ebexRoot), path.resolve(hostRoot)]);
+
+      const skills = listSkills(roots);
+      expect(skills.map((skill) => skill.id).sort()).toEqual([
+        "create-draft",
+        "report",
+      ]);
+      expect(skills.find((skill) => skill.id === "create-draft")?.name).toBe(
+        "draft-host",
+      );
+      expect(loadSkill(roots, "create-draft")?.body).toContain("host draft");
+      expect(loadSkill(roots, "report")?.description).toBe("from host");
+    } finally {
+      fs.rmSync(ebexRoot, { recursive: true, force: true });
+      fs.rmSync(hostRoot, { recursive: true, force: true });
+    }
   });
 });

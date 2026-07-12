@@ -69,4 +69,42 @@ describe("workspace-file-attachments", () => {
     if ("error" in result) return;
     expect(result.attachments[0]?.content).toBe("nested content");
   });
+
+  it("prefers structured attachment paths over message tokens", () => {
+    tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "ebex-agent-attach-struct-"));
+    createFolder(tmpDir, "demo");
+    createSubFolder(tmpDir, "demo", "sub");
+    createFile(tmpDir, "demo/sub", "notes.md", "structured content");
+    createFile(tmpDir, "demo", "other.md", "other content");
+
+    const result = resolveAttachmentsForMessage(
+      tmpDir,
+      "notes.md を要約して @workspace/demo/other.md",
+      ["workspace/demo/sub/notes.md"],
+    );
+    expect("error" in result).toBe(false);
+    if ("error" in result) return;
+    expect(result.attachments).toHaveLength(1);
+    expect(result.attachments[0]?.path).toBe("workspace/demo/sub/notes.md");
+    expect(result.attachments[0]?.content).toBe("structured content");
+  });
+
+  it("falls back to message tokens when structured paths are empty", () => {
+    tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "ebex-agent-attach-fallback-"));
+    createFolder(tmpDir, "demo");
+    createFile(tmpDir, "demo", "notes.md", "fallback content");
+
+    const result = resolveAttachmentsForMessage(tmpDir, "read @workspace/demo/notes.md", []);
+    expect("error" in result).toBe(false);
+    if ("error" in result) return;
+    expect(result.attachments[0]?.content).toBe("fallback content");
+  });
+
+  it("rejects disallowed structured attachment paths", () => {
+    tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "ebex-agent-attach-deny-"));
+    const result = resolveAttachmentsForMessage(tmpDir, "notes.md", [
+      "../secrets.txt",
+    ]);
+    expect("error" in result).toBe(true);
+  });
 });

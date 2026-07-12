@@ -109,3 +109,41 @@ Agent invoke 時の既定入力スコープは選択中プロジェクトフォ�
 
 - **WHEN** スキルの `on_conflict` が `overwrite` である
 - **THEN** 確認なしでファイルが上書きされる
+
+### Requirement: 履歴のファイル参照チップ
+
+ユーザー／アシスタントメッセージの表示において、構造化添付および `@workspace/` 参照はファイル名のみのチップとして描画しなければならない（SHALL）。旧 `@contents/` 前提のチップ検出に依存してはならない（MUST NOT）。
+
+#### Scenario: 構造化添付をチップ表示
+
+- **WHEN** ユーザーメッセージに attachments として `workspace/demo/a/notes.md` が含まれる
+- **THEN** 履歴上に表示ラベル `notes.md` のチップが示される
+
+#### Scenario: 本文の @workspace トークンもチップ化
+
+- **WHEN** 旧セッションの本文に `@workspace/demo/a/notes.md` が残っている
+- **THEN** 履歴表示はそのトークンをファイル名チップとして描画する
+
+### Requirement: /skill builtin でスキル一覧メッセージ
+
+Agent 入力の `/` 候補に builtin コマンド `skill` を含めなければならない（SHALL）。`/skill` 実行時、システムは LLM を呼び出さず、使用可能な可視スキルの name（または id）と description の一覧を、アシスタント風メッセージとして現在セッションの履歴に1通追加して終了しなければならない（SHALL）。一覧に ebex/host などのソースラベルを付けてはならない（MUST NOT）。
+
+#### Scenario: /skill が候補に出る
+
+- **WHEN** ユーザーが Agent 入力欄で `/` または `/sk` を入力する
+- **THEN** `skill` builtin が候補に含まれる
+
+#### Scenario: 一覧メッセージが履歴に残る
+
+- **WHEN** ユーザーが `/skill` を実行する
+- **THEN** アシスタント役割のメッセージが1通追加され、可視スキルの名称と description が一覧される
+
+#### Scenario: LLM を呼ばない
+
+- **WHEN** ユーザーが `/skill` を実行する
+- **THEN** Agent invoke / LLM リクエストは発生しない
+
+#### Scenario: 一覧後に会話を続けられる
+
+- **WHEN** `/skill` の一覧メッセージが表示されたあとユーザーが通常のメッセージを送信する
+- **THEN** そのメッセージは通常の Agent 会話フローで処理される

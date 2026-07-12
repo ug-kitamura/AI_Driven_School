@@ -10,6 +10,7 @@ import {
   ClipboardPaste,
   Copy,
   FilePlus,
+  FolderOpen,
   FolderPlus,
   Pencil,
   Search,
@@ -48,9 +49,11 @@ import { cn } from "@/lib/utils";
 import type { WorkspaceTreeNode } from "@/lib/workspace-loader";
 import {
   applyEventDateToSuggestedName,
-  resolveEventDatePrefix,
+  extractEventDatePrefix,
   suggestUntitledFolderName,
 } from "@/lib/workspace-folder-name";
+import { aiRequestHeaders } from "@/lib/agent-request-headers";
+import { loadWorkspaceSettings } from "@/lib/workspace-settings";
 import {
   FILE_ICON_COMPONENTS,
   getFileIconColorClass,
@@ -144,6 +147,7 @@ type TreeInteraction = {
   onToggleExpanded: (folderPath: string, isOpen: boolean) => void;
   onSelectFile: (folderPath: string, fileName: string) => void;
   onOpenDeleteFolderDialog: (folderPath: string) => void;
+  onRevealInOs: (folderPath: string, fileName?: string) => void;
   isFavorite: (folderPath: string, fileName: string) => boolean;
   onToggleFavorite: (folderPath: string, fileName: string) => void;
   rowHighlight: (rowId: string, isFileSelected: boolean) => string;
@@ -333,15 +337,15 @@ function TreeNode({ node, depth, expanded, emphasizedFolderPaths, interaction }:
           <ContextMenuItem
             variant="muted"
             onClick={() => {
-              interaction.onSetNameInput("");
+              interaction.onSetNameInput(getFolderBaseName(node.path));
               interaction.onOpenDialog({
-                type: "add-subfolder",
-                parentPath: node.path,
+                type: "rename-folder",
+                folderPath: node.path,
               });
             }}
           >
-            <FolderPlus className="size-4" />
-            add folder
+            <Pencil className="size-4" />
+            rename
           </ContextMenuItem>
           <ContextMenuItem
             variant="muted"
@@ -356,15 +360,15 @@ function TreeNode({ node, depth, expanded, emphasizedFolderPaths, interaction }:
           <ContextMenuItem
             variant="muted"
             onClick={() => {
-              interaction.onSetNameInput(getFolderBaseName(node.path));
+              interaction.onSetNameInput("");
               interaction.onOpenDialog({
-                type: "rename-folder",
-                folderPath: node.path,
+                type: "add-subfolder",
+                parentPath: node.path,
               });
             }}
           >
-            <Pencil className="size-4" />
-            rename
+            <FolderPlus className="size-4" />
+            add folder
           </ContextMenuItem>
           {isSubfolder ? (
             <ContextMenuItem
@@ -384,6 +388,13 @@ function TreeNode({ node, depth, expanded, emphasizedFolderPaths, interaction }:
           >
             <ClipboardPaste className="size-4" />
             paste
+          </ContextMenuItem>
+          <ContextMenuItem
+            variant="muted"
+            onClick={() => interaction.onRevealInOs(node.path)}
+          >
+            <FolderOpen className="size-4" />
+            open explorer
           </ContextMenuItem>
           <ContextMenuItem
             variant="destructive"
@@ -528,6 +539,13 @@ function TreeNode({ node, depth, expanded, emphasizedFolderPaths, interaction }:
                     </ContextMenuItem>
                   )}
                   <ContextMenuItem
+                    variant="muted"
+                    onClick={() => interaction.onRevealInOs(node.path, file)}
+                  >
+                    <FolderOpen className="size-4" />
+                    open explorer
+                  </ContextMenuItem>
+                  <ContextMenuItem
                     variant="destructive"
                     onClick={() =>
                       interaction.onOpenDialog({
@@ -593,6 +611,16 @@ function EmptyFolderRow({
           variant="muted"
           onClick={() => {
             interaction.onSetNameInput("");
+            interaction.onOpenDialog({ type: "add-file", folderPath });
+          }}
+        >
+          <FilePlus className="size-4" />
+          add file
+        </ContextMenuItem>
+        <ContextMenuItem
+          variant="muted"
+          onClick={() => {
+            interaction.onSetNameInput("");
             interaction.onOpenDialog({
               type: "add-subfolder",
               parentPath: folderPath,
@@ -601,16 +629,6 @@ function EmptyFolderRow({
         >
           <FolderPlus className="size-4" />
           add folder
-        </ContextMenuItem>
-        <ContextMenuItem
-          variant="muted"
-          onClick={() => {
-            interaction.onSetNameInput("");
-            interaction.onOpenDialog({ type: "add-file", folderPath });
-          }}
-        >
-          <FilePlus className="size-4" />
-          add file
         </ContextMenuItem>
         <ContextMenuItem
           variant="muted"
@@ -1137,22 +1155,46 @@ export function FileTreePane({
     try {
       const res = await fetch("/api/workspace/suggest-folder-name", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: aiRequestHeaders(loadWorkspaceSettings()),
         body: JSON.stringify({ folderId: folderPath }),
       });
       if (!res.ok) {
-        throw new Error("AI 自動入力に失敗しました");
+        const data = (await res.json().catch(() => null)) as {
+          error?: string;
+        } | null;
+        throw new Error(data?.error ?? "AI 自動入力に失敗しました");
       }
       const data = (await res.json()) as { name?: string };
       const suggested = data.name ?? suggestFolderSlug(folderPath);
-      const eventDate = resolveEventDatePrefix(folderPath);
-      setNameInput(applyEventDateToSuggestedName(suggested, eventDate));
-    } catch {
-      setDialogError("AI 自動入力に失敗しました");
+      const existingDate = extractEventDatePrefix(folderPath);
+      setNameInput(
+        existingDate
+          ? applyEventDateToSuggestedName(suggested, existingDate)
+          : suggested,
+      );
+    } catch (err) {
+      setDialogError(
+        err instanceof Error ? err.message : "AI 自動入力に失敗しました",
+      );
     } finally {
       setBusy(false);
     }
   }, []);
+
+  const handleRevealInOs = useCallback(
+    async (folderPath: string, fileName?: string) => {
+      clearPaneError();
+      try {
+        await postJson("/api/workspace/reveal-in-os", {
+          folderPath,
+          ...(fileName ? { fileName } : {}),
+        });
+      } catch (err) {
+        showPaneError(err instanceof Error ? err.message : String(err));
+      }
+    },
+    [clearPaneError, postJson, showPaneError],
+  );
 
   const handleDialogConfirm = useCallback(async () => {
     if (!dialog || busy) return;
@@ -1526,6 +1568,9 @@ export function FileTreePane({
       onToggleExpanded: handleToggleExpanded,
       onSelectFile: handleSelectFile,
       onOpenDeleteFolderDialog: openDeleteFolderDialog,
+      onRevealInOs: (folderPath, fileName) => {
+        void handleRevealInOs(folderPath, fileName);
+      },
       isFavorite,
       onToggleFavorite: (folderPath, fileName) => {
         void handleToggleFavorite(folderPath, fileName);
@@ -1542,6 +1587,7 @@ export function FileTreePane({
       handleFocusRow,
       handleNameInputChange,
       handlePaste,
+      handleRevealInOs,
       handleSelectFile,
       handleToggleExpanded,
       isFavorite,

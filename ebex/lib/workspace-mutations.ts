@@ -391,7 +391,7 @@ export function listFolderFiles(projectRoot: string, folderPath: string): string
     .sort((a, b) => a.localeCompare(b, "ja"));
 }
 
-function collectFolderFilesRecursive(
+export function collectFolderFilesRecursive(
   absoluteDir: string,
 ): Array<{ fileName: string; folderPath: string }> {
   const results: Array<{ fileName: string; folderPath: string }> = [];

@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   applyEventDateToSuggestedName,
+  extractEventDatePrefix,
   resolveEventDatePrefix,
   suggestUntitledFolderName,
 } from "@/lib/workspace-folder-name";
@@ -25,6 +26,16 @@ describe("suggestUntitledFolderName", () => {
         date,
       ),
     ).toBe("20260707-untitled4");
+  });
+});
+
+describe("extractEventDatePrefix", () => {
+  it("returns date when present", () => {
+    expect(extractEventDatePrefix("20260701-old-name")).toBe("20260701");
+  });
+
+  it("returns null when absent", () => {
+    expect(extractEventDatePrefix("my-folder")).toBeNull();
   });
 });
 

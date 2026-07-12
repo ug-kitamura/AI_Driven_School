@@ -1,12 +1,15 @@
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { skillMentionsSubagent } from "@/lib/agent/subagent-fallback";
 
 export type SkillSummary = {
   id: string;
   name: string;
   description: string;
   hidden?: boolean;
+  /** SKILL.md 本文に「サブエージェント」が含まれる */
+  mentionsSubagent?: boolean;
 };
 
 export type LoadedSkill = SkillSummary & {
@@ -27,6 +30,11 @@ export const SKILL_HOST_CONVENTIONS = [
 ] as const;
 
 const FRONTMATTER_RE = /^---\r?\n([\s\S]*?)\r?\n---\r?\n?([\s\S]*)$/;
+
+/** Windows エディタ由来の UTF-8 BOM を除去する（frontmatter 先頭 `---` 照合のため）。 */
+function stripBom(raw: string): string {
+  return raw.charCodeAt(0) === 0xfeff ? raw.slice(1) : raw;
+}
 
 function skillsDirForConvention(
   projectRoot: string,
@@ -153,6 +161,7 @@ export function listSkills(projectRootOrRoots: string | readonly string[]): Skil
         name: skill.name,
         description: skill.description,
         hidden: skill.hidden,
+        mentionsSubagent: skillMentionsSubagent(skill.body),
       });
     }
   }
@@ -226,7 +235,8 @@ export function parseSkillDocument(raw: string): {
   tools: string[];
   body: string;
 } {
-  const match = raw.match(FRONTMATTER_RE);
+  const text = stripBom(raw);
+  const match = text.match(FRONTMATTER_RE);
   if (!match) {
     return {
       name: "",
@@ -234,7 +244,7 @@ export function parseSkillDocument(raw: string): {
       hidden: false,
       variables: [],
       tools: [],
-      body: raw.trim(),
+      body: text.trim(),
     };
   }
 

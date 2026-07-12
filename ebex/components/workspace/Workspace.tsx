@@ -15,6 +15,7 @@ import { useWorkspaceSync } from "@/components/workspace/hooks/use-workspace-syn
 import { useRestoredFileSelection } from "@/components/workspace/hooks/use-restored-file-selection";
 import type { WorkspaceTreeNode } from "@/lib/workspace-loader";
 import type { AgentChatController } from "@/lib/agent-chat-controller";
+import { useAgentSessionChrome } from "@/components/workspace/use-agent-session-chrome";
 import {
   saveLastFileSelection,
   type LastFileSelection,
@@ -55,6 +56,18 @@ export function Workspace({ initialFolders }: WorkspaceProps) {
     null,
   );
   const agentChatControllerRef = useRef<AgentChatController | null>(null);
+  const [agentControllerVersion, setAgentControllerVersion] = useState(0);
+  const agentSessionChrome = useAgentSessionChrome(
+    agentChatControllerRef,
+    agentControllerVersion,
+  );
+  const agentBusyProjectFolderId =
+    agentSessionChrome?.isStreaming && agentSessionChrome.projectFolderId
+      ? agentSessionChrome.projectFolderId
+      : null;
+  const onAgentControllerReady = useCallback(() => {
+    setAgentControllerVersion((v) => v + 1);
+  }, []);
   const insertCallbackRef = useRef<((markdown: string) => void) | null>(null);
   const overwriteCallbackRef = useRef<((markdown: string) => void) | null>(
     null,
@@ -228,6 +241,7 @@ export function Workspace({ initialFolders }: WorkspaceProps) {
             onSelectFile={handleSelectFile}
             onRefresh={refreshFolders}
             onOpenPurpose={() => setPurposeOpen(true)}
+            agentBusyProjectFolderId={agentBusyProjectFolderId}
           />
         </div>
 
@@ -269,6 +283,7 @@ export function Workspace({ initialFolders }: WorkspaceProps) {
               overwriteCallbackRef.current?.(markdown)
             }
             agentChatControllerRef={agentChatControllerRef}
+            onControllerReady={onAgentControllerReady}
           />
         </div>
       </div>

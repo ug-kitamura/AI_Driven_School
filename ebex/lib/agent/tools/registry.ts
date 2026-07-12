@@ -2,6 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 import type { ToolDefinition } from "@/lib/agent/llm/types";
 import { resolveToolTargetPath } from "@/lib/agent/tools/fs-guard";
+import { isLikelySubagentToolName } from "@/lib/agent/subagent-fallback";
 
 export type ToolExecutionDisplay = {
   summary: string;
@@ -468,6 +469,18 @@ function executeMkdir(
  * モデルがこれらの名前でツール呼び出しを試みた場合のフォールバック案内。
  */
 function buildBlockedOutcome(name: string, input: Record<string, unknown>): ToolExecutionOutcome {
+  if (isLikelySubagentToolName(name)) {
+    return {
+      result: {
+        blocked: true,
+        reason: "EBEX はサブエージェントの起動に対応していません",
+        guidance:
+          "同一セッション内で自ら役割を順に実行してください。サブエージェントは起動しません。",
+      },
+      display: display("blocked", `🚫 サブエージェント起動をブロック: ${name}`),
+    };
+  }
+
   const target = typeof input.path === "string" ? input.path : undefined;
   const command =
     typeof input.command === "string"
@@ -502,6 +515,7 @@ function buildBlockedOutcome(name: string, input: Record<string, unknown>): Tool
 const BLOCKED_TOOL_NAME_HINTS = ["delete", "remove", "rm", "unlink", "exec", "run_command", "shell", "script"];
 
 export function isLikelyBlockedToolName(name: string): boolean {
+  if (isLikelySubagentToolName(name)) return true;
   const lower = name.toLowerCase();
   return BLOCKED_TOOL_NAME_HINTS.some((hint) => lower.includes(hint));
 }

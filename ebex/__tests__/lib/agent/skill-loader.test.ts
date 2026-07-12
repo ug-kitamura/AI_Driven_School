@@ -54,6 +54,23 @@ Generate a draft for {{series}} / {{course}}.`);
     expect(parsed.body).toContain("Generate a draft");
   });
 
+  it("parses frontmatter even when SKILL.md starts with UTF-8 BOM", () => {
+    const parsed = parseSkillDocument(
+      `\uFEFF---
+name: minutes-maid
+description: |
+  月例会議の音声文字起こしデータをもとに議事録を生成するスキル。
+  「議事録を作って」と依頼された際に使用する。
+---
+
+# Minutes Maid`,
+    );
+
+    expect(parsed.name).toBe("minutes-maid");
+    expect(parsed.description).toContain("月例会議の音声文字起こし");
+    expect(parsed.description).toContain("議事録を作って");
+  });
+
   it("injects variables into skill body", () => {
     const result = injectSkillVariables("Series: {{series}}", { series: "DX基礎" });
     expect(result).toBe("Series: DX基礎");

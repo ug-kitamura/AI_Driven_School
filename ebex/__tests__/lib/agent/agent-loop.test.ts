@@ -29,8 +29,21 @@ vi.mock("@/lib/agent/tools/registry", async () => {
   };
 });
 
+vi.mock("@/lib/agent/project-folder-guard", async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import("@/lib/agent/project-folder-guard")>();
+  return {
+    ...actual,
+    checkProjectFolderExists: vi.fn(() => null),
+  };
+});
+
 import { resolveLlmProvider } from "@/lib/agent/llm/resolve-provider";
 import { executeRegisteredTool } from "@/lib/agent/tools/registry";
+import {
+  checkProjectFolderExists,
+  AGENT_PROJECT_FOLDER_MISSING_ERROR,
+} from "@/lib/agent/project-folder-guard";
 
 function mockProvider(turns: ProviderTurnResult[]) {
   let index = 0;
@@ -88,6 +101,8 @@ describe("runAgentLoop safety valves", () => {
   beforeEach(() => {
     vi.mocked(resolveLlmProvider).mockReset();
     vi.mocked(executeRegisteredTool).mockReset();
+    vi.mocked(checkProjectFolderExists).mockReset();
+    vi.mocked(checkProjectFolderExists).mockReturnValue(null);
   });
 
   it("stops on broken tool_use without executing the tool", async () => {
@@ -201,5 +216,38 @@ describe("runAgentLoop safety valves", () => {
     if (result.ok) return;
     expect(result.error).toContain(AGENT_REPEATED_TOOL_ERROR);
     expect(result.error).toContain("ファイルが見つかりません");
+  });
+
+  it("aborts immediately when project folder is missing", async () => {
+    vi.mocked(checkProjectFolderExists).mockReturnValue(
+      `${AGENT_PROJECT_FOLDER_MISSING_ERROR} (workspace/demo)`,
+    );
+    vi.mocked(resolveLlmProvider).mockReturnValue({
+      ok: true,
+      model: "claude-sonnet-4-6",
+      provider: mockProvider([
+        {
+          text: "hi",
+          stopReason: "end_turn",
+          toolCalls: [],
+        },
+      ]),
+    });
+
+    const result = await runAgentLoop({
+      req: new Request("http://localhost/api/agent/invoke"),
+      system: "sys",
+      messages: [{ role: "user", content: "hi" }],
+      toolNames: [],
+      emit: vi.fn(),
+      projectFolderId: "demo",
+    });
+
+    expect(result).toEqual({
+      ok: false,
+      error: `${AGENT_PROJECT_FOLDER_MISSING_ERROR} (workspace/demo)`,
+      status: 409,
+    });
+    expect(executeRegisteredTool).not.toHaveBeenCalled();
   });
 });

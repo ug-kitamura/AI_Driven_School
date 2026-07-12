@@ -15,6 +15,8 @@ import {
   buildSkillRuntimeContext,
   mergeSkillSystemPrompt,
 } from "@/lib/agent/skill-runtime-context";
+import { skillMentionsSubagent, SUBAGENT_FALLBACK_MODEL_HINT } from "@/lib/agent/subagent-fallback";
+import { markProjectFolderAgentActive } from "@/lib/agent/active-project-folders";
 
 const toolEventSchema = z.object({
   name: z.string(),
@@ -87,12 +89,14 @@ export async function POST(req: Request) {
   }
 
   const focus = parsed.data.runtimeFocus;
+  const mentionsSubagent = skillMentionsSubagent(skill.body);
   let systemPrompt = prompt;
   if (focus?.projectFolderId) {
     let runtime = buildSkillRuntimeContext({
       projectFolderId: focus.projectFolderId,
       currentFileRelativePath: focus.currentFileRelativePath,
       skillId: skill.id,
+      mentionsSubagent,
     });
     if (focus.preferredOutputDir !== undefined) {
       const dirLabel =
@@ -102,6 +106,11 @@ export async function POST(req: Request) {
       runtime += `\n\nユーザが選んだ出力先の優先候補: \`${dirLabel}\`。`;
     }
     systemPrompt = mergeSkillSystemPrompt(prompt, runtime);
+  } else if (mentionsSubagent) {
+    systemPrompt = mergeSkillSystemPrompt(
+      prompt,
+      `## EBEX ランタイム\n\n${SUBAGENT_FALLBACK_MODEL_HINT}`,
+    );
   }
 
   const historyMessages = parsed.data.messages.slice(0, -1);
@@ -133,19 +142,27 @@ export async function POST(req: Request) {
   const toolNames = skill.tools ?? [];
   const skillDirAbsolute = resolveSkillDir(skillRoots, skill.id) ?? undefined;
 
-  const stream = createAgentLoopSseStream((emit) =>
-    runAgentLoop({
-      req,
-      system: systemPrompt,
-      messages: llmMessages,
-      toolNames,
-      emit,
-      signal: req.signal,
-      projectFolderId: focus?.projectFolderId,
-      skillId: skill.id,
-      skillDirAbsolute,
-    }),
-  );
+  const releaseActiveFolder = focus?.projectFolderId
+    ? markProjectFolderAgentActive(focus.projectFolderId)
+    : () => {};
+
+  const stream = createAgentLoopSseStream(async (emit) => {
+    try {
+      return await runAgentLoop({
+        req,
+        system: systemPrompt,
+        messages: llmMessages,
+        toolNames,
+        emit,
+        signal: req.signal,
+        projectFolderId: focus?.projectFolderId,
+        skillId: skill.id,
+        skillDirAbsolute,
+      });
+    } finally {
+      releaseActiveFolder();
+    }
+  });
 
   return new Response(stream, {
     status: 200,

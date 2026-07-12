@@ -59,6 +59,10 @@ import {
   getFileIconColorClass,
   resolveFileIconCategory,
 } from "@/lib/workspace-file-icon";
+import {
+  AGENT_BUSY_FOLDER_ERROR,
+  isAgentLockedProjectFolder,
+} from "@/lib/agent/active-project-folders";
 import { suggestFolderSlug } from "@/lib/workspace-slug";
 import {
   buildRenamedFolderPath,
@@ -105,6 +109,8 @@ type Props = {
   onSelectFile: (folderPath: string, fileName: string) => void;
   onRefresh: () => Promise<void>;
   onOpenPurpose?: () => void;
+  /** Agent 実行中のプロジェクトフォルダ ID。該当フォルダの rename/delete を拒否する */
+  agentBusyProjectFolderId?: string | null;
 };
 
 const CONTENT_SEARCH_DEBOUNCE_MS = 300;
@@ -115,6 +121,7 @@ type DialogMode =
   | { type: "rename-folder"; folderPath: string }
   | { type: "delete-folder"; folderPath: string }
   | { type: "blocked-delete-folder"; folderPath: string }
+  | { type: "blocked-agent-busy-folder"; folderPath: string }
   | { type: "add-file"; folderPath: string }
   | { type: "rename-file"; folderPath: string; fileName: string }
   | { type: "delete-file"; folderPath: string; fileName: string }
@@ -654,6 +661,7 @@ export function FileTreePane({
   onSelectFile,
   onRefresh,
   onOpenPurpose,
+  agentBusyProjectFolderId = null,
 }: Props) {
   const treeRef = useRef<HTMLDivElement>(null);
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
@@ -1048,13 +1056,27 @@ export function FileTreePane({
     (mode: DialogMode) => {
       clearPaneError();
       setDialogError(null);
+      if (
+        mode?.type === "rename-folder" &&
+        isAgentLockedProjectFolder(mode.folderPath, agentBusyProjectFolderId)
+      ) {
+        setDialog({
+          type: "blocked-agent-busy-folder",
+          folderPath: mode.folderPath,
+        });
+        return;
+      }
       setDialog(mode);
     },
-    [clearPaneError],
+    [agentBusyProjectFolderId, clearPaneError],
   );
 
   const openDeleteFolderDialog = useCallback(
     (folderPath: string) => {
+      if (isAgentLockedProjectFolder(folderPath, agentBusyProjectFolderId)) {
+        openDialog({ type: "blocked-agent-busy-folder", folderPath });
+        return;
+      }
       if (isProjectFolder(folderPath)) {
         const node = findTreeNode(folders, folderPath);
         if (node && (node.files.length > 0 || node.children.length > 0)) {
@@ -1064,7 +1086,7 @@ export function FileTreePane({
       }
       openDialog({ type: "delete-folder", folderPath });
     },
-    [folders, openDialog],
+    [agentBusyProjectFolderId, folders, openDialog],
   );
 
   const handleToggleFavorite = useCallback(
@@ -1786,7 +1808,8 @@ export function FileTreePane({
           dialog !== null &&
           dialog.type !== "delete-folder" &&
           dialog.type !== "delete-file" &&
-          dialog.type !== "blocked-delete-folder"
+          dialog.type !== "blocked-delete-folder" &&
+          dialog.type !== "blocked-agent-busy-folder"
         }
         onOpenChange={(open) => !open && setDialog(null)}
       >
@@ -1852,6 +1875,27 @@ export function FileTreePane({
           </form>
         </DialogContent>
       </Dialog>
+
+      <AlertDialog
+        open={dialog?.type === "blocked-agent-busy-folder"}
+        onOpenChange={(open) => !open && setDialog(null)}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>操作できません</AlertDialogTitle>
+            <AlertDialogDescription>
+              {dialog?.type === "blocked-agent-busy-folder"
+                ? AGENT_BUSY_FOLDER_ERROR
+                : ""}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogAction onClick={() => setDialog(null)}>
+              OK
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <AlertDialog
         open={dialog?.type === "blocked-delete-folder"}

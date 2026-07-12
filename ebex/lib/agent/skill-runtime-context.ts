@@ -1,9 +1,13 @@
+import { SUBAGENT_FALLBACK_MODEL_HINT } from "@/lib/agent/subagent-fallback";
+
 export type SkillRuntimeFocus = {
   projectFolderId: string;
   /** プロジェクトフォルダ根からの相対パス（例: sub/notes.md） */
   currentFileRelativePath?: string | null;
   /** 実行中スキル ID（読取許可ゾーンの案内に使う） */
   skillId?: string;
+  /** スキル本文に「サブエージェント」が含まれるとき true */
+  mentionsSubagent?: boolean;
 };
 
 /**
@@ -42,6 +46,9 @@ export function buildSkillRuntimeContext(focus: SkillRuntimeFocus): string {
     "### Boundary",
     "プロジェクトフォルダ外のパスに触れるときは、推測で進めずユーザ確認を前提とすること。",
     "場の中で出力候補が複数あるときは勝手に確定せず、候補を示して選ばせること。",
+    ...(focus.mentionsSubagent
+      ? ["", "### Subagent", SUBAGENT_FALLBACK_MODEL_HINT]
+      : []),
   ];
 
   return lines.join("\n");

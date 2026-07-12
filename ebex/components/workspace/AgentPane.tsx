@@ -43,6 +43,7 @@ type Props = {
   onOpenSettings: () => void;
   onOverwriteEditor: (markdown: string) => void;
   agentChatControllerRef: React.MutableRefObject<AgentChatController | null>;
+  onControllerReady?: () => void;
 };
 
 export function AgentPane({
@@ -52,6 +53,7 @@ export function AgentPane({
   onOpenSettings,
   onOverwriteEditor,
   agentChatControllerRef,
+  onControllerReady: onControllerReadyProp,
 }: Props) {
   const [controllerVersion, setControllerVersion] = useState(0);
   const sessionChrome = useAgentSessionChrome(
@@ -63,7 +65,8 @@ export function AgentPane({
 
   const onControllerReady = useCallback(() => {
     setControllerVersion((v) => v + 1);
-  }, []);
+    onControllerReadyProp?.();
+  }, [onControllerReadyProp]);
 
   return (
     <div className="flex h-full min-h-0 flex-col">

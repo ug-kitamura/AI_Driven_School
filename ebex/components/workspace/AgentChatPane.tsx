@@ -113,6 +113,7 @@ import {
 } from "@/lib/agent/skill-io-boundary";
 import { OutsideProjectPathDialog } from "@/components/workspace/OutsideProjectPathDialog";
 import { OutputDestinationDialog } from "@/components/workspace/OutputDestinationDialog";
+import { SUBAGENT_FALLBACK_USER_MESSAGE } from "@/lib/agent/subagent-fallback";
 
 function toProjectRelativePath(
   currentFilePath: string | null,
@@ -213,6 +214,7 @@ export function AgentChatPane({
   const [input, setInput] = useState("");
   const [activeSkillId, setActiveSkillId] = useState<string | null>(null);
   const [isStreaming, setIsStreaming] = useState(false);
+  const [subagentNoticeVisible, setSubagentNoticeVisible] = useState(false);
   const [streamingAssistantId, setStreamingAssistantId] = useState<
     string | null
   >(null);
@@ -488,6 +490,7 @@ export function AgentChatPane({
     abortRef.current = null;
     setIsStreaming(false);
     setStreamingAssistantId(null);
+    setSubagentNoticeVisible(false);
     stopContextRef.current = null;
 
     if (assistantId) {
@@ -580,6 +583,7 @@ export function AgentChatPane({
     abortRef.current = null;
     setIsStreaming(false);
     setStreamingAssistantId(null);
+    setSubagentNoticeVisible(false);
     setRetryPayload(null);
     setError(null);
 
@@ -631,6 +635,11 @@ export function AgentChatPane({
       });
       setIsStreaming(true);
       setStreamingAssistantId(assistantId);
+      setSubagentNoticeVisible(
+        Boolean(
+          skills.find((skill) => skill.id === options.skillId)?.mentionsSubagent,
+        ),
+      );
       setError(null);
       setRetryPayload({
         userMessage: options.userMessage,
@@ -754,6 +763,7 @@ export function AgentChatPane({
         }
         setIsStreaming(false);
         setStreamingAssistantId(null);
+        setSubagentNoticeVisible(false);
       }
     },
     [
@@ -762,6 +772,7 @@ export function AgentChatPane({
       folderId,
       maybeGenerateSessionTitle,
       onOpenSettings,
+      skills,
     ],
   );
 
@@ -1039,9 +1050,13 @@ export function AgentChatPane({
   }, [historyOpen]);
 
   useEffect(() => {
-    sessionChromeRef.current = { sessionTitle, isStreaming };
+    sessionChromeRef.current = {
+      sessionTitle,
+      isStreaming,
+      projectFolderId: folderId ?? null,
+    };
     notifyControllerListeners();
-  }, [sessionTitle, isStreaming, notifyControllerListeners]);
+  }, [sessionTitle, isStreaming, folderId, notifyControllerListeners]);
 
   useEffect(() => {
     if (!agentChatControllerRef) return;
@@ -1265,10 +1280,18 @@ export function AgentChatPane({
         ) : null}
       </div>
 
-      <div className="relative min-h-0 flex-1">
+      <div className="relative flex min-h-0 flex-1 flex-col">
+        {subagentNoticeVisible ? (
+          <div
+            className="shrink-0 border-b bg-muted/60 px-3 py-2 text-xs text-muted-foreground"
+            role="status"
+          >
+            {SUBAGENT_FALLBACK_USER_MESSAGE}
+          </div>
+        ) : null}
         <div
           ref={chatScrollRef}
-          className="workspace-scrollbar h-full min-h-0 overflow-y-auto overscroll-y-contain"
+          className="workspace-scrollbar min-h-0 flex-1 overflow-y-auto overscroll-y-contain"
           onScroll={(event) => {
             const element = event.currentTarget;
             const distanceFromBottom =

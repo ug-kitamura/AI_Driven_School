@@ -1,4 +1,4 @@
-﻿---
+---
 name: minutes-maid
 description: |
   月例会議の音声文字起こしデータをもとに議事録を生成するスキル。

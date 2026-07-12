@@ -116,6 +116,22 @@ describe("executeRegisteredTool", () => {
     fs.rmSync(tmpDir, { recursive: true, force: true });
   });
 
+  it("blocks subagent-like tool names", async () => {
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "ebex-tools-"));
+    createFolder(tmpDir, "demo");
+    const outcome = await executeRegisteredTool(
+      "Task",
+      { prompt: "review" },
+      contextFor(tmpDir, "demo"),
+    );
+    expect(outcome.result).toMatchObject({
+      blocked: true,
+      reason: expect.stringContaining("サブエージェント"),
+      guidance: expect.stringContaining("同一セッション"),
+    });
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+  });
+
   it("reads skill references via relative path without writing skill dir", async () => {
     const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "ebex-tools-"));
     createFolder(tmpDir, "demo");

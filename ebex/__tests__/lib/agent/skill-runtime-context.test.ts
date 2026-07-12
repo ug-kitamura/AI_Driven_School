@@ -30,6 +30,15 @@ describe("buildSkillRuntimeContext", () => {
     expect(text).toContain("references/purpose.md");
     expect(text).not.toContain(".claude/skills/");
   });
+
+  it("adds subagent fallback hint when mentionsSubagent is true", () => {
+    const text = buildSkillRuntimeContext({
+      projectFolderId: "demo",
+      mentionsSubagent: true,
+    });
+    expect(text).toContain("サブエージェント");
+    expect(text).toContain("同じセッション");
+  });
 });
 
 describe("mergeSkillSystemPrompt", () => {

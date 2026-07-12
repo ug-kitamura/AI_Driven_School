@@ -22,6 +22,7 @@ import {
 } from "@/lib/agent/tools/registry";
 import { resolveConfirmRequirement } from "@/lib/agent/tools/confirm-gate";
 import { awaitToolConfirmDecision } from "@/lib/agent/tools/tool-confirm-registry";
+import { checkProjectFolderExists } from "@/lib/agent/project-folder-guard";
 import type { ToolDefinition } from "@/lib/agent/llm/types";
 
 export type AgentLoopEmit = (event: string, data: unknown) => void;
@@ -93,10 +94,19 @@ export async function runAgentLoop(
       }
     : undefined;
 
+  const projectRoot = process.cwd();
+
   let consecutiveError: string | null = null;
   let consecutiveErrorCount = 0;
 
   for (let turn = 0; turn < MAX_AGENT_LOOP_TURNS; turn += 1) {
+    if (projectFolderId) {
+      const missing = checkProjectFolderExists(projectRoot, projectFolderId);
+      if (missing) {
+        return { ok: false, error: missing, status: 409 };
+      }
+    }
+
     let turnResult = null;
     for await (const event of providerResult.provider.streamTurn({
       apiKey,
@@ -149,6 +159,13 @@ export async function runAgentLoop(
 
     const toolResults: string[] = [];
     for (const call of turnResult.toolCalls) {
+      if (projectFolderId) {
+        const missing = checkProjectFolderExists(projectRoot, projectFolderId);
+        if (missing) {
+          return { ok: false, error: missing, status: 409 };
+        }
+      }
+
       options.emit("tool_start", { name: call.name, input: call.input, toolUseId: call.id });
       toolEvents.push({
         phase: "start",

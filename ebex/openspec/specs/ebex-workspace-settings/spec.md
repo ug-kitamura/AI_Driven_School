@@ -5,17 +5,32 @@ TBD - created by archiving change ebex-v1-workspace. Update Purpose after archiv
 ## Requirements
 ### Requirement: 設定項目
 
-設定ダイアログ（⚙）には以下の項目のみが含まれなければならない（SHALL）: テーマ（light / dark / system）、編集フォントサイズ、ペイン既定幅（pane1 / pane2 / pane3）、AI モデル、AI API キー。
+設定ダイアログ（⚙）には以下の項目のみが含まれなければならない（SHALL）: テーマ（light / dark / system）、編集フォントサイズ、ペイン既定幅（pane1 / pane2 / pane3）、AI モデル、AI API キー、最大出力トークン（`8192` / `16384` / `32000`、既定 `8192`）。
 
 #### Scenario: 設定項目の表示
 
 - **WHEN** ユーザーが設定ダイアログを開く
-- **THEN** テーマ、フォントサイズ、ペイン幅、AI モデル、AI API キーの入力が表示される
+- **THEN** テーマ、フォントサイズ、ペイン幅、AI モデル、AI API キー、最大出力トークンの入力が表示される
 
 #### Scenario: 除外項目が表示されない
 
 - **WHEN** ユーザーが設定ダイアログを開く
 - **THEN** Pixabay API キー、画像ストレージ、社内コンテキストの設定は表示されない
+
+#### Scenario: 最大出力トークンの既定値
+
+- **WHEN** ユーザーが設定を変更せずに Agent を invoke する
+- **THEN** LLM 呼び出しの `max_tokens` は既定値 `8192` になる
+
+#### Scenario: 最大出力トークンの変更が反映される
+
+- **WHEN** ユーザーが最大出力トークンを `32000` に変更して Agent を invoke する
+- **THEN** LLM 呼び出しの `max_tokens` に `32000` が渡される
+
+#### Scenario: モデル上限でクランプ
+
+- **WHEN** 選択した最大出力トークンが使用中モデルの上限を超える
+- **THEN** 実際に送信される `max_tokens` はモデル上限にクランプされる
 
 ### Requirement: localStorage 永続化
 

@@ -98,17 +98,27 @@ Agent invoke 時の既定入力スコープは選択中プロジェクトフォ�
 
 ### Requirement: スキル出力のファイル書き込み
 
-スキルがファイル出力を指示した場合、出力は同一プロジェクトフォルダ内に直接書き込まれなければならない（SHALL）。同名ファイルが存在する場合、スキル frontmatter の `on_conflict`（`confirm` / `overwrite` / `skip`、デフォルト `confirm`）に従わなければならない（SHALL）。
+スキルがファイル出力を指示した場合、出力は同一プロジェクトフォルダ内に直接書き込まれなければならない（SHALL）。同名ファイルが存在する場合、EBEX ランタイムは常に上書き確認を強制しなければならない（SHALL）。スキル frontmatter に `on_conflict`（`confirm` / `overwrite` / `skip`）が指定されていても、その値は無視してよい（MAY）。ランタイムはユーザーの同意を得たあとにのみ上書きを行わなければならない（SHALL）。
 
-#### Scenario: 同名ファイルの確認
+#### Scenario: 同名ファイルは常に確認
 
-- **WHEN** スキルが既存ファイルと同名の出力を指示し `on_conflict` が `confirm` である
-- **THEN** ユーザーに上書き確認ダイアログが表示される
+- **WHEN** スキルが既存ファイルと同名の出力を指示する
+- **THEN** frontmatter の `on_conflict` の値に関わらずユーザーに上書き確認ダイアログが表示される
 
-#### Scenario: 上書き
+#### Scenario: 同意後に上書き
 
-- **WHEN** スキルの `on_conflict` が `overwrite` である
-- **THEN** 確認なしでファイルが上書きされる
+- **WHEN** ユーザーが上書き確認ダイアログで同意する
+- **THEN** 既存ファイルが新しい内容で上書きされる
+
+#### Scenario: 拒否時は上書きしない
+
+- **WHEN** ユーザーが上書き確認ダイアログで拒否する
+- **THEN** 既存ファイルは変更されない
+
+#### Scenario: on_conflict: overwrite は無視される
+
+- **WHEN** スキルの frontmatter が `on_conflict: overwrite` を指定している
+- **THEN** それでも確認なしでは上書きされず、ランタイムの確認ダイアログが表示される
 
 ### Requirement: 履歴のファイル参照チップ
 

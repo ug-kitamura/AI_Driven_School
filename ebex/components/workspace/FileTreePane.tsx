@@ -312,6 +312,9 @@ function TreeNode({ node, depth, expanded, emphasizedFolderPaths, interaction }:
                 event.dataTransfer.effectAllowed = "move";
               }}
               onClick={() => interaction.onFocusRow(folderRow)}
+              onDoubleClick={() =>
+                interaction.onToggleExpanded(node.path, isOpen)
+              }
             >
               <button
                 type="button"

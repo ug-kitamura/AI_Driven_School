@@ -30,6 +30,8 @@ export type RunAgentLoopOptions = {
   emit: AgentLoopEmit;
   signal?: AbortSignal;
   projectFolderId?: string;
+  skillId?: string;
+  skillDirAbsolute?: string;
 };
 
 export type RunAgentLoopResult =
@@ -58,8 +60,16 @@ export async function runAgentLoop(
   const llmMessages = [...options.messages];
   const toolEvents: AgentToolEvent[] = [];
   const projectFolderId = options.projectFolderId;
+  const skillOptions = {
+    skillId: options.skillId,
+    skillDirAbsolute: options.skillDirAbsolute,
+  };
   const toolContext: ToolExecutionContext | undefined = projectFolderId
-    ? { projectRoot: process.cwd(), projectFolderId }
+    ? {
+        projectRoot: process.cwd(),
+        projectFolderId,
+        ...skillOptions,
+      }
     : undefined;
 
   for (let turn = 0; turn < MAX_AGENT_LOOP_TURNS; turn += 1) {
@@ -106,7 +116,12 @@ export async function runAgentLoop(
       });
 
       const requirement = toolContext
-        ? resolveConfirmRequirement(toolContext.projectRoot, toolContext.projectFolderId, call)
+        ? resolveConfirmRequirement(
+            toolContext.projectRoot,
+            toolContext.projectFolderId,
+            call,
+            skillOptions,
+          )
         : null;
 
       let outcome;

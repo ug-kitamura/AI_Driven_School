@@ -20,6 +20,15 @@ describe("buildSkillRuntimeContext", () => {
     expect(text).toContain("sub/notes.md");
     expect(text).toContain("Boundary");
   });
+
+  it("mentions skill read zone when skillId is set", () => {
+    const text = buildSkillRuntimeContext({
+      projectFolderId: "demo",
+      skillId: "minutes-maid",
+    });
+    expect(text).toContain(".claude/skills/minutes-maid/");
+    expect(text).toContain("references/purpose.md");
+  });
 });
 
 describe("mergeSkillSystemPrompt", () => {

@@ -3,6 +3,7 @@ import {
   buildSkillSystemPrompt,
   getSkillCatalogRoots,
   loadSkill,
+  resolveSkillDir,
 } from "@/lib/agent/skill-loader";
 import {
   enrichUserMessageWithAttachments,
@@ -91,6 +92,7 @@ export async function POST(req: Request) {
     let runtime = buildSkillRuntimeContext({
       projectFolderId: focus.projectFolderId,
       currentFileRelativePath: focus.currentFileRelativePath,
+      skillId: skill.id,
     });
     if (focus.preferredOutputDir !== undefined) {
       const dirLabel =
@@ -129,6 +131,7 @@ export async function POST(req: Request) {
   const invokeMessages = [...historyMessages, enrichedLatest];
   const llmMessages = clientMessagesToLlmMessages(invokeMessages);
   const toolNames = skill.tools ?? [];
+  const skillDirAbsolute = resolveSkillDir(skillRoots, skill.id) ?? undefined;
 
   const stream = createAgentLoopSseStream((emit) =>
     runAgentLoop({
@@ -139,6 +142,8 @@ export async function POST(req: Request) {
       emit,
       signal: req.signal,
       projectFolderId: focus?.projectFolderId,
+      skillId: skill.id,
+      skillDirAbsolute,
     }),
   );
 

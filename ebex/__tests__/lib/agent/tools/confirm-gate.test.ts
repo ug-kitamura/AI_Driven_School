@@ -103,4 +103,29 @@ describe("resolveConfirmRequirement", () => {
     });
     fs.rmSync(tmpDir, { recursive: true, force: true });
   });
+
+  it("does not require confirm for skill-zone reads", () => {
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "ebex-confirm-"));
+    createFolder(tmpDir, "demo");
+    const skillDir = path.join(tmpDir, ".claude", "skills", "minutes-maid");
+    fs.mkdirSync(path.join(skillDir, "references"), { recursive: true });
+    fs.writeFileSync(path.join(skillDir, "references", "purpose.md"), "x");
+    fs.writeFileSync(path.join(skillDir, "SKILL.md"), "---\nname: m\n---\n");
+
+    const req = resolveConfirmRequirement(
+      tmpDir,
+      "demo",
+      {
+        id: "t1",
+        name: "read_file",
+        input: { path: "references/purpose.md" },
+      },
+      {
+        skillId: "minutes-maid",
+        skillDirAbsolute: skillDir,
+      },
+    );
+    expect(req).toBeNull();
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+  });
 });

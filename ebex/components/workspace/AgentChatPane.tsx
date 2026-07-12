@@ -1039,9 +1039,9 @@ export function AgentChatPane({
   }, [historyOpen]);
 
   useEffect(() => {
-    sessionChromeRef.current = { sessionTitle };
+    sessionChromeRef.current = { sessionTitle, isStreaming };
     notifyControllerListeners();
-  }, [sessionTitle, notifyControllerListeners]);
+  }, [sessionTitle, isStreaming, notifyControllerListeners]);
 
   useEffect(() => {
     if (!agentChatControllerRef) return;

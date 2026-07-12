@@ -14,6 +14,7 @@ describe("resolveToolTargetPath", () => {
     if ("error" in resolved) return;
     expect(resolved.relativePath).toBe("workspace/demo/notes.md");
     expect(resolved.insideProject).toBe(true);
+    expect(resolved.insideSkill).toBe(false);
     fs.rmSync(tmpDir, { recursive: true, force: true });
   });
 
@@ -21,7 +22,11 @@ describe("resolveToolTargetPath", () => {
     const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "ebex-fs-guard-"));
     createFolder(tmpDir, "demo");
     createFolder(tmpDir, "other");
-    const resolved = resolveToolTargetPath(tmpDir, "demo", "workspace/other/notes.md");
+    const resolved = resolveToolTargetPath(
+      tmpDir,
+      "demo",
+      "workspace/other/notes.md",
+    );
     expect("error" in resolved).toBe(false);
     if ("error" in resolved) return;
     expect(resolved.relativePath).toBe("workspace/other/notes.md");
@@ -38,7 +43,100 @@ describe("resolveToolTargetPath", () => {
 
   it("rejects absolute paths outside workspace", () => {
     const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "ebex-fs-guard-"));
-    const resolved = resolveToolTargetPath(tmpDir, "demo", "C:/Windows/system.ini");
+    const resolved = resolveToolTargetPath(
+      tmpDir,
+      "demo",
+      "C:/Windows/system.ini",
+    );
+    expect("error" in resolved).toBe(true);
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+  });
+
+  it("resolves skill-relative references when preferSkillIfExists", () => {
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "ebex-fs-guard-"));
+    createFolder(tmpDir, "demo");
+    const skillDir = path.join(tmpDir, ".claude", "skills", "minutes-maid");
+    fs.mkdirSync(path.join(skillDir, "references"), { recursive: true });
+    fs.writeFileSync(path.join(skillDir, "references", "purpose.md"), "purpose");
+    fs.writeFileSync(path.join(skillDir, "SKILL.md"), "---\nname: m\n---\n");
+
+    const resolved = resolveToolTargetPath(tmpDir, "demo", "references/purpose.md", {
+      skillId: "minutes-maid",
+      skillDirAbsolute: skillDir,
+      preferSkillIfExists: true,
+    });
+    expect("error" in resolved).toBe(false);
+    if ("error" in resolved) return;
+    expect(resolved.insideSkill).toBe(true);
+    expect(resolved.insideProject).toBe(false);
+    expect(resolved.relativePath).toBe(
+      ".claude/skills/minutes-maid/references/purpose.md",
+    );
+    expect(fs.readFileSync(resolved.absolutePath, "utf-8")).toBe("purpose");
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+  });
+
+  it("does not steal project root listing via preferSkillIfExists on '.'", () => {
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "ebex-fs-guard-"));
+    createFolder(tmpDir, "demo");
+    const skillDir = path.join(tmpDir, ".claude", "skills", "minutes-maid");
+    fs.mkdirSync(skillDir, { recursive: true });
+    fs.writeFileSync(path.join(skillDir, "SKILL.md"), "---\nname: m\n---\n");
+
+    const resolved = resolveToolTargetPath(tmpDir, "demo", ".", {
+      skillId: "minutes-maid",
+      skillDirAbsolute: skillDir,
+      preferSkillIfExists: true,
+    });
+    expect("error" in resolved).toBe(false);
+    if ("error" in resolved) return;
+    expect(resolved.insideProject).toBe(true);
+    expect(resolved.insideSkill).toBe(false);
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+  });
+
+  it("resolves workspace/<project>/references to skill when missing in project", () => {
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "ebex-fs-guard-"));
+    createFolder(tmpDir, "demo");
+    const skillDir = path.join(tmpDir, ".claude", "skills", "minutes-maid");
+    fs.mkdirSync(path.join(skillDir, "references"), { recursive: true });
+    fs.writeFileSync(path.join(skillDir, "references", "purpose.md"), "purpose");
+    fs.writeFileSync(path.join(skillDir, "SKILL.md"), "---\nname: m\n---\n");
+
+    const resolved = resolveToolTargetPath(
+      tmpDir,
+      "demo",
+      "workspace/demo/references/purpose.md",
+      {
+        skillId: "minutes-maid",
+        skillDirAbsolute: skillDir,
+        preferSkillIfExists: true,
+      },
+    );
+    expect("error" in resolved).toBe(false);
+    if ("error" in resolved) return;
+    expect(resolved.insideSkill).toBe(true);
+    expect(resolved.relativePath).toBe(
+      ".claude/skills/minutes-maid/references/purpose.md",
+    );
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+  });
+
+  it("rejects other skill ids", () => {
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "ebex-fs-guard-"));
+    createFolder(tmpDir, "demo");
+    const skillDir = path.join(tmpDir, ".claude", "skills", "minutes-maid");
+    fs.mkdirSync(skillDir, { recursive: true });
+    const resolved = resolveToolTargetPath(
+      tmpDir,
+      "demo",
+      ".claude/skills/other/references/x.md",
+      {
+        skillId: "minutes-maid",
+        skillDirAbsolute: skillDir,
+        preferSkillIfExists: true,
+      },
+    );
     expect("error" in resolved).toBe(true);
     fs.rmSync(tmpDir, { recursive: true, force: true });
   });

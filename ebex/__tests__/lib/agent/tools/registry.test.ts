@@ -115,6 +115,48 @@ describe("executeRegisteredTool", () => {
     });
     fs.rmSync(tmpDir, { recursive: true, force: true });
   });
+
+  it("reads skill references via relative path without writing skill dir", async () => {
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "ebex-tools-"));
+    createFolder(tmpDir, "demo");
+    const skillDir = path.join(tmpDir, ".claude", "skills", "minutes-maid");
+    fs.mkdirSync(path.join(skillDir, "references"), { recursive: true });
+    fs.writeFileSync(
+      path.join(skillDir, "references", "purpose.md"),
+      "パーパス本文",
+    );
+    fs.writeFileSync(path.join(skillDir, "SKILL.md"), "---\nname: m\n---\n");
+
+    const outcome = await executeRegisteredTool(
+      "read_file",
+      { path: "references/purpose.md" },
+      {
+        projectRoot: tmpDir,
+        projectFolderId: "demo",
+        skillId: "minutes-maid",
+        skillDirAbsolute: skillDir,
+      },
+    );
+    expect(outcome.result).toMatchObject({
+      path: ".claude/skills/minutes-maid/references/purpose.md",
+      content: "パーパス本文",
+    });
+
+    const writeOutcome = await executeRegisteredTool(
+      "write_file",
+      { path: ".claude/skills/minutes-maid/hack.md", content: "nope" },
+      {
+        projectRoot: tmpDir,
+        projectFolderId: "demo",
+        skillId: "minutes-maid",
+        skillDirAbsolute: skillDir,
+      },
+    );
+    expect(writeOutcome.result).toMatchObject({
+      error: expect.stringContaining("スキルディレクトリへの書込"),
+    });
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+  });
 });
 
 describe("isLikelyBlockedToolName", () => {

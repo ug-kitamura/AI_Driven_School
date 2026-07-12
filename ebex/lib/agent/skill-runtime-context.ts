@@ -2,6 +2,8 @@ export type SkillRuntimeFocus = {
   projectFolderId: string;
   /** プロジェクトフォルダ根からの相対パス（例: sub/notes.md） */
   currentFileRelativePath?: string | null;
+  /** 実行中スキル ID（読取許可ゾーンの案内に使う） */
+  skillId?: string;
 };
 
 /**
@@ -10,6 +12,7 @@ export type SkillRuntimeFocus = {
 export function buildSkillRuntimeContext(focus: SkillRuntimeFocus): string {
   const project = focus.projectFolderId.trim() || "(未選択)";
   const current = focus.currentFileRelativePath?.trim();
+  const skillId = focus.skillId?.trim();
   const sameFolder = current?.includes("/")
     ? current.slice(0, current.lastIndexOf("/"))
     : current
@@ -23,6 +26,12 @@ export function buildSkillRuntimeContext(focus: SkillRuntimeFocus): string {
     "",
     "### Scope",
     `既定の舞台はプロジェクトフォルダ \`${project}\`（\`workspace/${project}/\`）である。`,
+    ...(skillId
+      ? [
+          `実行中スキルのファイル（\`SKILL.md\` と同じフォルダ配下、例: \`references/*\`）は \`.claude/skills/${skillId}/\` にあり、確認なしで読み取れる。`,
+          `スキル本文の相対パス（例: \`references/purpose.md\`）はスキル側を優先して読むこと。成果物の書込先は \`workspace/${project}/\` 配下である。`,
+        ]
+      : []),
     "",
     "### Focus",
     current

@@ -17,7 +17,20 @@ export type ToolExecutionOutcome = {
 export type ToolExecutionContext = {
   projectRoot: string;
   projectFolderId: string;
+  skillId?: string;
+  skillDirAbsolute?: string;
 };
+
+function skillPathOptions(
+  context: ToolExecutionContext,
+  preferSkillIfExists: boolean,
+) {
+  return {
+    skillId: context.skillId,
+    skillDirAbsolute: context.skillDirAbsolute,
+    preferSkillIfExists,
+  };
+}
 
 const SEARCH_RESULT_LIMIT = 50;
 const READ_CHAR_LIMIT = 100_000;
@@ -200,6 +213,7 @@ function executeListFiles(
     context.projectRoot,
     context.projectFolderId,
     targetInput || ".",
+    skillPathOptions(context, true),
   );
   if ("error" in resolved) return errorOutcome(resolved.error);
   if (!fs.existsSync(resolved.absolutePath)) {
@@ -240,22 +254,33 @@ function executeGlobFiles(
     context.projectRoot,
     context.projectFolderId,
     ".",
+    skillPathOptions(context, false),
   );
   const baseResolved = resolveToolTargetPath(
     context.projectRoot,
     context.projectFolderId,
     baseInput || ".",
+    skillPathOptions(context, true),
   );
   if ("error" in rootResolved) return errorOutcome(rootResolved.error);
   if ("error" in baseResolved) return errorOutcome(baseResolved.error);
 
+  const walkRoot = baseResolved.insideSkill
+    ? baseResolved.absolutePath
+    : rootResolved.absolutePath;
   const regex = globToRegExp(pattern);
   const matches: string[] = [];
   let truncated = false;
 
-  walkFiles(rootResolved.absolutePath, baseResolved.absolutePath, (relative) => {
-    if (regex.test(relative)) {
-      matches.push(relative);
+  walkFiles(walkRoot, baseResolved.absolutePath, (relative) => {
+    const displayPath = baseResolved.insideSkill
+      ? `${baseResolved.relativePath.replace(/\/$/, "")}/${relative}`.replace(
+          /\/+/g,
+          "/",
+        )
+      : relative;
+    if (regex.test(relative) || regex.test(displayPath)) {
+      matches.push(baseResolved.insideSkill ? displayPath : relative);
       if (matches.length >= SEARCH_RESULT_LIMIT) {
         truncated = true;
         return false;
@@ -285,30 +310,45 @@ function executeSearchContent(
     context.projectRoot,
     context.projectFolderId,
     ".",
+    skillPathOptions(context, false),
   );
   const baseResolved = resolveToolTargetPath(
     context.projectRoot,
     context.projectFolderId,
     baseInput || ".",
+    skillPathOptions(context, true),
   );
   if ("error" in rootResolved) return errorOutcome(rootResolved.error);
   if ("error" in baseResolved) return errorOutcome(baseResolved.error);
 
+  const walkRoot = baseResolved.insideSkill
+    ? baseResolved.absolutePath
+    : rootResolved.absolutePath;
   const needle = query.toLowerCase();
   const hits: Array<{ path: string; line: number; text: string }> = [];
   let truncated = false;
 
-  walkFiles(rootResolved.absolutePath, baseResolved.absolutePath, (relative, absolute) => {
+  walkFiles(walkRoot, baseResolved.absolutePath, (relative, absolute) => {
     let content: string;
     try {
       content = fs.readFileSync(absolute, "utf-8");
     } catch {
       return true;
     }
+    const displayPath = baseResolved.insideSkill
+      ? `${baseResolved.relativePath.replace(/\/$/, "")}/${relative}`.replace(
+          /\/+/g,
+          "/",
+        )
+      : relative;
     const lines = content.split(/\r?\n/);
     for (let i = 0; i < lines.length; i++) {
       if (lines[i].toLowerCase().includes(needle)) {
-        hits.push({ path: relative, line: i + 1, text: lines[i].trim().slice(0, 300) });
+        hits.push({
+          path: displayPath,
+          line: i + 1,
+          text: lines[i].trim().slice(0, 300),
+        });
         if (hits.length >= SEARCH_RESULT_LIMIT) {
           truncated = true;
           return false;
@@ -333,7 +373,12 @@ function executeReadFile(
 ): ToolExecutionOutcome {
   const inputPath = typeof input.path === "string" ? input.path : "";
   if (!inputPath.trim()) return errorOutcome("path が空です");
-  const resolved = resolveToolTargetPath(context.projectRoot, context.projectFolderId, inputPath);
+  const resolved = resolveToolTargetPath(
+    context.projectRoot,
+    context.projectFolderId,
+    inputPath,
+    skillPathOptions(context, true),
+  );
   if ("error" in resolved) return errorOutcome(resolved.error);
   if (!fs.existsSync(resolved.absolutePath)) {
     return errorOutcome(`ファイルが見つかりません: ${resolved.relativePath}`);
@@ -368,8 +413,18 @@ function executeWriteFile(
   const inputPath = typeof input.path === "string" ? input.path : "";
   const content = typeof input.content === "string" ? input.content : "";
   if (!inputPath.trim()) return errorOutcome("path が空です");
-  const resolved = resolveToolTargetPath(context.projectRoot, context.projectFolderId, inputPath);
+  const resolved = resolveToolTargetPath(
+    context.projectRoot,
+    context.projectFolderId,
+    inputPath,
+    skillPathOptions(context, false),
+  );
   if ("error" in resolved) return errorOutcome(resolved.error);
+  if (resolved.insideSkill) {
+    return errorOutcome(
+      `スキルディレクトリへの書込はできません: ${resolved.relativePath}`,
+    );
+  }
 
   fs.mkdirSync(path.dirname(resolved.absolutePath), { recursive: true });
   fs.writeFileSync(resolved.absolutePath, content, "utf-8");
@@ -387,8 +442,18 @@ function executeMkdir(
 ): ToolExecutionOutcome {
   const inputPath = typeof input.path === "string" ? input.path : "";
   if (!inputPath.trim()) return errorOutcome("path が空です");
-  const resolved = resolveToolTargetPath(context.projectRoot, context.projectFolderId, inputPath);
+  const resolved = resolveToolTargetPath(
+    context.projectRoot,
+    context.projectFolderId,
+    inputPath,
+    skillPathOptions(context, false),
+  );
   if ("error" in resolved) return errorOutcome(resolved.error);
+  if (resolved.insideSkill) {
+    return errorOutcome(
+      `スキルディレクトリへの作成はできません: ${resolved.relativePath}`,
+    );
+  }
 
   fs.mkdirSync(resolved.absolutePath, { recursive: true });
 

@@ -1,5 +1,6 @@
 export type AgentSessionChrome = {
   sessionTitle: string;
+  isStreaming: boolean;
 };
 
 export type AgentChatController = {

@@ -1,12 +1,16 @@
 import fs from "node:fs";
-import { resolveToolTargetPath, type ToolPathError } from "@/lib/agent/tools/fs-guard";
+import {
+  resolveToolTargetPath,
+  type ResolveToolPathOptions,
+  type ToolPathError,
+} from "@/lib/agent/tools/fs-guard";
 import type { ToolCall } from "@/lib/agent/llm/types";
 
 export type ConfirmKind = "overwrite" | "outside-project-read" | "outside-project-write";
 
 export type ConfirmRequirement = {
   kind: ConfirmKind;
-  /** `workspace/...` 形式の対象パス */
+  /** 表示用の対象パス */
   path: string;
   /** 書込ツールで、既存ファイルへの上書きかどうか */
   isNew: boolean;
@@ -23,6 +27,7 @@ function extractPathInput(call: ToolCall): string | null {
 /**
  * ツール呼び出しがユーザー確認を要するかどうかを判定する。
  * - プロジェクト内の新規書込・L1/L2 発見/読取は確認不要
+ * - 実行中スキル配下の読取は確認不要（書込は実行時に拒否）
  * - プロジェクト内の既存ファイルへの上書きは確認必要（`overwrite`）
  * - プロジェクト外（`workspace/` 配下だが対象プロジェクト外）は読取/書込とも確認必要
  */
@@ -30,6 +35,7 @@ export function resolveConfirmRequirement(
   projectRoot: string,
   projectFolderId: string,
   call: ToolCall,
+  skillOptions: ResolveToolPathOptions = {},
 ): ConfirmRequirement | null {
   const isRead = READ_TOOL_NAMES.has(call.name);
   const isWrite = WRITE_TOOL_NAMES.has(call.name);
@@ -38,15 +44,20 @@ export function resolveConfirmRequirement(
   const inputPath = extractPathInput(call);
   if (!inputPath) return null;
 
-  const resolved = resolveToolTargetPath(projectRoot, projectFolderId, inputPath);
+  const resolved = resolveToolTargetPath(projectRoot, projectFolderId, inputPath, {
+    ...skillOptions,
+    preferSkillIfExists: isRead,
+  });
   if ("error" in resolved) return null; // 実行時にエラーとして処理される
 
   if (isRead) {
-    if (resolved.insideProject) return null;
+    if (resolved.insideProject || resolved.insideSkill) return null;
     return { kind: "outside-project-read", path: resolved.relativePath, isNew: false };
   }
 
-  // write_file / mkdir
+  // write_file / mkdir — スキル配下への書込は実行時拒否（確認ダイアログにはしない）
+  if (resolved.insideSkill) return null;
+
   const exists = fs.existsSync(resolved.absolutePath);
   if (!resolved.insideProject) {
     return {

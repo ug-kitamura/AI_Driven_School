@@ -140,6 +140,19 @@ export function loadSkill(
   return null;
 }
 
+/** 実行中スキルのディレクトリ絶対パス（SKILL.md があるフォルダ）。見つからなければ null。 */
+export function resolveSkillDir(
+  projectRootOrRoots: string | readonly string[],
+  skillId: string,
+): string | null {
+  const roots = normalizeRoots(projectRootOrRoots);
+  for (let i = roots.length - 1; i >= 0; i--) {
+    const dir = path.join(getSkillsDir(roots[i]!), skillId);
+    if (fs.existsSync(path.join(dir, "SKILL.md"))) return dir;
+  }
+  return null;
+}
+
 export function injectSkillVariables(
   template: string,
   variables: Record<string, string>,

@@ -1,4 +1,5 @@
 import type { WorkspaceTreeNode } from "@/lib/workspace-loader";
+import { getParentFolderPath } from "@/lib/workspace-tree-path";
 
 export type TreeRowKind = "folder" | "file" | "empty";
 
@@ -151,4 +152,55 @@ export function resolveLeftNavigation(
   }
 
   return null;
+}
+
+/** 兄弟判定用の親キー。プロジェクト行は null。 */
+export function getRowParentKey(row: TreeRow): string | null {
+  if (row.kind === "folder") {
+    return getParentFolderPath(row.folderPath);
+  }
+  return row.folderPath;
+}
+
+export type HomeEndNavigationResult = {
+  /** null は no-op（すでに端、または無効な index） */
+  focusRowId: string | null;
+};
+
+/**
+ * Home / End / Ctrl+Home / Ctrl+End の移動先を解決する。
+ * Ctrl なし: 同一親の visible な兄弟の先頭／末尾。
+ * Ctrl あり: visibleRows 全体の先頭／末尾。
+ */
+export function resolveHomeEndNavigation(
+  rows: TreeRow[],
+  index: number,
+  key: "Home" | "End",
+  ctrlKey: boolean,
+): HomeEndNavigationResult {
+  if (rows.length === 0 || index < 0 || index >= rows.length) {
+    return { focusRowId: null };
+  }
+
+  const current = rows[index];
+  if (!current) {
+    return { focusRowId: null };
+  }
+
+  if (ctrlKey) {
+    const target = key === "Home" ? rows[0] : rows[rows.length - 1];
+    if (!target || target.id === current.id) {
+      return { focusRowId: null };
+    }
+    return { focusRowId: target.id };
+  }
+
+  const parentKey = getRowParentKey(current);
+  const siblings = rows.filter((row) => getRowParentKey(row) === parentKey);
+  const target =
+    key === "Home" ? siblings[0] : siblings[siblings.length - 1];
+  if (!target || target.id === current.id) {
+    return { focusRowId: null };
+  }
+  return { focusRowId: target.id };
 }

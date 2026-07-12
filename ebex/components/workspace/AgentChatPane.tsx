@@ -64,7 +64,12 @@ import {
   updateSessionTitle,
   type AgentChatMessage,
   type AgentChatStorage,
+  type AgentFileAttachment,
 } from "@/lib/agent-chat-storage";
+import {
+  formatSkillCatalogMessage,
+  type AgentBuiltinCommand,
+} from "@/lib/agent-chat-suggestions";
 import {
   loadLessonSession,
   saveLessonSession,
@@ -142,6 +147,7 @@ function computeSessionFingerprint(
       role: message.role,
       content: message.content,
       toolEvents: message.toolEvents,
+      attachments: message.attachments,
     })),
     activeSkillId: nextSkillId,
   });
@@ -633,6 +639,7 @@ export function AgentChatPane({
           role: message.role,
           content: message.content,
           ...(message.toolEvents ? { toolEvents: message.toolEvents } : {}),
+          ...(message.attachments ? { attachments: message.attachments } : {}),
         })),
         ...(folderId
           ? {
@@ -794,39 +801,43 @@ export function AgentChatPane({
     [filePath, folderId, invokeSkill],
   );
 
-  const handleSend = useCallback(async () => {
-    const trimmed = input.trim();
-    if (!trimmed || isStreaming) return;
+  const handleSend = useCallback(
+    async (attachments: AgentFileAttachment[] = []) => {
+      const trimmed = input.trim();
+      if (!trimmed || isStreaming) return;
 
-    const skillId = resolveInvokeSkillId(activeSkillId);
+      const skillId = resolveInvokeSkillId(activeSkillId);
 
-    if (skillId === "create-draft" && !lesson && !folderId) {
-      setError("create-draft スキルはレッスン選択が必要です");
-      return;
-    }
+      if (skillId === "create-draft" && !lesson && !folderId) {
+        setError("create-draft スキルはレッスン選択が必要です");
+        return;
+      }
 
-    const userMessage: AgentChatMessage = {
-      id: createMessageId(),
-      role: "user",
-      content: trimmed,
-      createdAt: new Date().toISOString(),
-    };
-    stickToBottomRef.current = true;
-    setInput("");
-    await beginInvokeWithGuards({
-      userMessage,
-      history: messages,
-      skillId,
-    });
-  }, [
-    activeSkillId,
-    beginInvokeWithGuards,
-    folderId,
-    input,
-    isStreaming,
-    lesson,
-    messages,
-  ]);
+      const userMessage: AgentChatMessage = {
+        id: createMessageId(),
+        role: "user",
+        content: trimmed,
+        createdAt: new Date().toISOString(),
+        ...(attachments.length > 0 ? { attachments } : {}),
+      };
+      stickToBottomRef.current = true;
+      setInput("");
+      await beginInvokeWithGuards({
+        userMessage,
+        history: messages,
+        skillId,
+      });
+    },
+    [
+      activeSkillId,
+      beginInvokeWithGuards,
+      folderId,
+      input,
+      isStreaming,
+      lesson,
+      messages,
+    ],
+  );
 
   const handleRetry = useCallback(async () => {
     if (!retryPayload || isStreaming) return;
@@ -1031,22 +1042,45 @@ export function AgentChatPane({
   ]);
 
   const handleBuiltinCommand = useCallback(
-    (command: "clear" | "export") => {
+    (command: AgentBuiltinCommand["id"]) => {
       if (command === "clear") {
         if (chatStorage) {
           setDeleteSessionTargetId(chatStorage.activeSessionId);
         }
         return;
       }
-      if (activeSession) {
-        downloadSessionMarkdown({
-          ...activeSession,
-          messages,
-          activeSkillId,
-        });
+      if (command === "export") {
+        if (activeSession) {
+          downloadSessionMarkdown({
+            ...activeSession,
+            messages,
+            activeSkillId,
+          });
+        }
+        return;
+      }
+      if (command === "skill") {
+        const catalogMessage: AgentChatMessage = {
+          id: createMessageId(),
+          role: "assistant",
+          content: formatSkillCatalogMessage(skills),
+          createdAt: new Date().toISOString(),
+        };
+        stickToBottomRef.current = true;
+        setMessages((prev) => [...prev, catalogMessage]);
+        setError(null);
+        setRetryPayload(null);
+        requestAnimationFrame(() => scrollChatToBottom());
       }
     },
-    [activeSession, activeSkillId, chatStorage, messages],
+    [
+      activeSession,
+      activeSkillId,
+      chatStorage,
+      messages,
+      scrollChatToBottom,
+      skills,
+    ],
   );
 
   const deleteSessionTarget = useMemo(
@@ -1226,6 +1260,7 @@ export function AgentChatPane({
                               content={message.content}
                               variant="user"
                               richMarkdown={richMarkdown}
+                              attachments={message.attachments}
                             />
                           </div>
                         </div>
@@ -1337,7 +1372,7 @@ export function AgentChatPane({
         <AgentChatInput
           value={input}
           onChange={setInput}
-          onSend={() => void handleSend()}
+          onSend={(attachments) => void handleSend(attachments)}
           onAfterSend={() => {
             stickToBottomRef.current = true;
             requestAnimationFrame(() => scrollChatToBottom());

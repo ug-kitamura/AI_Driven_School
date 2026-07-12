@@ -3,6 +3,7 @@ import {
   filterBuiltinCommands,
   filterContentFiles,
   filterSkills,
+  formatSkillCatalogMessage,
   orderSlashSuggestionItems,
 } from "@/lib/agent-chat-suggestions";
 import type { SkillSummary } from "@/lib/agent/skill-loader";
@@ -82,11 +83,19 @@ describe("filterContentFiles", () => {
 
 describe("filterBuiltinCommands", () => {
   it("lists commands when query empty", () => {
-    expect(filterBuiltinCommands("").map((command) => command.id)).toEqual(["clear", "export"]);
+    expect(filterBuiltinCommands("").map((command) => command.id)).toEqual([
+      "clear",
+      "export",
+      "skill",
+    ]);
   });
 
   it("filters commands by name substring", () => {
     expect(filterBuiltinCommands("export").map((command) => command.id)).toEqual(["export"]);
+  });
+
+  it("filters skill builtin by id substring", () => {
+    expect(filterBuiltinCommands("sk").map((command) => command.id)).toEqual(["skill"]);
   });
 });
 
@@ -98,8 +107,25 @@ describe("orderSlashSuggestionItems", () => {
       "create-structure",
       "clear",
       "export",
+      "skill",
     ]);
     expect(ordered.slice(0, 2).every((entry) => entry.kind === "skill")).toBe(true);
     expect(ordered.slice(2).every((entry) => entry.kind === "command")).toBe(true);
+  });
+});
+
+describe("formatSkillCatalogMessage", () => {
+  it("formats visible skills as a bold-name markdown table", () => {
+    const message = formatSkillCatalogMessage(skills);
+    expect(message).toContain("使用可能なスキル");
+    expect(message).toContain("| スキル | 説明 |");
+    expect(message).toContain("| **/create-draft** | レッスン本文の草稿を生成します |");
+    expect(message).toContain("| **/create-structure** | シリーズ構成を設計します |");
+    expect(message).not.toContain("host");
+    expect(message).not.toContain("ebex");
+  });
+
+  it("reports when no skills are available", () => {
+    expect(formatSkillCatalogMessage([])).toBe("使用可能なスキルはありません。");
   });
 });

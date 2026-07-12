@@ -1,6 +1,7 @@
 import { z } from "zod";
 import {
   buildSkillSystemPrompt,
+  getSkillCatalogRoots,
   loadSkill,
 } from "@/lib/agent/skill-loader";
 import {
@@ -25,10 +26,16 @@ const toolEventSchema = z.object({
   tags: z.array(z.string()).optional(),
 });
 
+const attachmentSchema = z.object({
+  path: z.string().min(1),
+  name: z.string().min(1),
+});
+
 const messageSchema = z.object({
   role: z.enum(["user", "assistant"]),
   content: z.string(),
   toolEvents: z.array(toolEventSchema).optional(),
+  attachments: z.array(attachmentSchema).optional(),
 });
 
 const runtimeFocusSchema = z.object({
@@ -58,7 +65,8 @@ export async function POST(req: Request) {
   }
 
   const projectRoot = process.cwd();
-  const skill = loadSkill(projectRoot, parsed.data.skillId);
+  const skillRoots = getSkillCatalogRoots(projectRoot);
+  const skill = loadSkill(skillRoots, parsed.data.skillId);
   if (!skill) {
     return Response.json(
       { error: `スキルが見つかりません: ${parsed.data.skillId}` },
@@ -100,7 +108,12 @@ export async function POST(req: Request) {
     return Response.json({ error: "Last message must be from user" }, { status: 400 });
   }
 
-  const attachments = resolveAttachmentsForMessage(projectRoot, latestMessage.content);
+  const structuredPaths = latestMessage.attachments?.map((item) => item.path);
+  const attachments = resolveAttachmentsForMessage(
+    projectRoot,
+    latestMessage.content,
+    structuredPaths,
+  );
   if ("error" in attachments) {
     return Response.json({ error: attachments.error }, { status: 400 });
   }

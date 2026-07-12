@@ -5,6 +5,7 @@ import { ArrowUp, Square, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import type { SkillSummary } from "@/lib/agent/skill-loader";
+import type { AgentFileAttachment } from "@/lib/agent-chat-storage";
 import {
   filterBuiltinCommands,
   filterContentFiles,
@@ -13,6 +14,8 @@ import {
   type AgentBuiltinCommand,
   type AgentFileOption,
 } from "@/lib/agent-chat-suggestions";
+import { WorkspaceTooltip } from "@/components/workspace/WorkspaceTooltip";
+import { ALLOWED_PREFIX } from "@/lib/workspace-constants";
 
 export type { AgentFileOption };
 
@@ -29,12 +32,13 @@ type SuggestionItem = {
   key: string;
   primary: string;
   secondary: string;
+  file?: AgentFileOption;
 };
 
 type Props = {
   value: string;
   onChange: (value: string) => void;
-  onSend: () => void;
+  onSend: (attachments: AgentFileAttachment[]) => void;
   onAfterSend?: () => void;
   onStop?: () => void;
   disabled?: boolean;
@@ -71,6 +75,12 @@ function detectSuggestion(value: string, cursor: number): SuggestionState | null
   }
 
   return null;
+}
+
+function workspaceRelativePath(filePath: string): string {
+  return filePath.startsWith(ALLOWED_PREFIX)
+    ? filePath.slice(ALLOWED_PREFIX.length)
+    : filePath;
 }
 
 const SUGGESTION_VISIBLE_COUNT = 5;
@@ -122,6 +132,9 @@ export function AgentChatInput({
   const [contentFiles, setContentFiles] = useState<AgentFileOption[]>([]);
   const [filesLoading, setFilesLoading] = useState(false);
   const [highlightIndex, setHighlightIndex] = useState(0);
+  const [fileAttachments, setFileAttachments] = useState<AgentFileAttachment[]>(
+    [],
+  );
 
   const syncTextareaHeight = useCallback(() => {
     const textarea = textareaRef.current;
@@ -194,6 +207,7 @@ export function AgentChatInput({
       key: file.path,
       primary: file.relativePath ?? file.path,
       secondary: file.name,
+      file,
     }));
   }, [filteredCommands, filteredSkills, suggestion?.kind, visibleFileOptions]);
 
@@ -226,7 +240,7 @@ export function AgentChatInput({
         ? "ファイル一覧を読み込み中..."
         : suggestion.query
           ? "一致するファイルがありません"
-          : "contents/ 内に .md ファイルがありません"
+          : "プロジェクト内にファイルがありません"
       : "一致するスキルまたはコマンドがありません";
 
   const updateSuggestionFromCursor = useCallback(() => {
@@ -292,14 +306,18 @@ export function AgentChatInput({
   );
 
   const applyFileSelection = useCallback(
-    (filePath: string) => {
+    (file: AgentFileOption) => {
       const textarea = textareaRef.current;
       if (!textarea || !suggestion || suggestion.kind !== "file") return;
-      const token = `@${filePath}`;
+      const token = file.name;
       const before = value.slice(0, suggestion.start);
       const after = value.slice(textarea.selectionStart);
       const next = `${before}${token} ${after}`;
       onChange(next);
+      setFileAttachments((prev) => {
+        if (prev.some((item) => item.path === file.path)) return prev;
+        return [...prev, { path: file.path, name: file.name }];
+      });
       setSuggestion(null);
       requestAnimationFrame(() => {
         textarea.focus();
@@ -310,15 +328,29 @@ export function AgentChatInput({
     [onChange, suggestion, value],
   );
 
+  const removeFileAttachment = useCallback((filePath: string) => {
+    setFileAttachments((prev) => prev.filter((item) => item.path !== filePath));
+  }, []);
+
   const submitMessage = useCallback(() => {
     if (disabled || isLoading || !value.trim()) return;
-    onSend();
+    const attachments = [...fileAttachments];
+    onSend(attachments);
+    setFileAttachments([]);
     onAfterSend?.();
     requestAnimationFrame(() => {
       textareaRef.current?.focus();
       syncTextareaHeight();
     });
-  }, [disabled, isLoading, onAfterSend, onSend, syncTextareaHeight, value]);
+  }, [
+    disabled,
+    fileAttachments,
+    isLoading,
+    onAfterSend,
+    onSend,
+    syncTextareaHeight,
+    value,
+  ]);
 
   const handleKeyDown = (event: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (suggestion) {
@@ -344,8 +376,8 @@ export function AgentChatInput({
             applySkillSelection(item.key);
           } else if (item.kind === "command") {
             applyCommandSelection(item.key as AgentBuiltinCommand["id"]);
-          } else {
-            applyFileSelection(item.key);
+          } else if (item.file) {
+            applyFileSelection(item.file);
           }
           return;
         }
@@ -363,23 +395,44 @@ export function AgentChatInput({
     }
   };
 
+  const showChipRow = Boolean(activeSkillId) || fileAttachments.length > 0;
+
   return (
     <div className="flex shrink-0 flex-col gap-2 py-3">
-      {activeSkillId ? (
-        <div className="flex items-center gap-2">
-          <span className="rounded-full bg-primary/10 px-2 py-0.5 text-xs text-primary">
-            {activeSkillName ?? activeSkillId}
-          </span>
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon"
-            className="size-6"
-            aria-label="スキル選択を解除"
-            onClick={() => onActiveSkillChange(null)}
-          >
-            <X className="size-3" />
-          </Button>
+      {showChipRow ? (
+        <div className="flex flex-wrap items-center gap-2">
+          {activeSkillId ? (
+            <span className="inline-flex items-center gap-0.5 rounded-full bg-primary/10 py-0.5 pl-2 pr-1 text-xs text-primary">
+              <span>{activeSkillName ?? activeSkillId}</span>
+              <button
+                type="button"
+                className="inline-flex size-4 items-center justify-center rounded-full text-inherit hover:bg-primary/15"
+                aria-label="スキル選択を解除"
+                onClick={() => onActiveSkillChange(null)}
+              >
+                <X className="size-3" />
+              </button>
+            </span>
+          ) : null}
+          {fileAttachments.map((file) => (
+            <span
+              key={file.path}
+              className="inline-flex items-center gap-0.5 rounded-full bg-violet-500/10 py-0.5 pl-2 pr-1 text-xs text-violet-700 dark:text-violet-300"
+            >
+              <WorkspaceTooltip
+                label={workspaceRelativePath(file.path)}
+                render={<span>{file.name}</span>}
+              />
+              <button
+                type="button"
+                className="inline-flex size-4 items-center justify-center rounded-full text-inherit hover:bg-violet-500/15"
+                aria-label={`${file.name} の添付を解除`}
+                onClick={() => removeFileAttachment(file.path)}
+              >
+                <X className="size-3" />
+              </button>
+            </span>
+          ))}
         </div>
       ) : null}
 
@@ -413,8 +466,8 @@ export function AgentChatInput({
                         applySkillSelection(item.key);
                       } else if (item.kind === "command") {
                         applyCommandSelection(item.key as AgentBuiltinCommand["id"]);
-                      } else {
-                        applyFileSelection(item.key);
+                      } else if (item.file) {
+                        applyFileSelection(item.file);
                       }
                     }}
                   >

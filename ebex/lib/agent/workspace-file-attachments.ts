@@ -143,11 +143,15 @@ export function readAttachmentContents(
 export function resolveAttachmentsForMessage(
   projectRoot: string,
   message: string,
+  structuredPaths?: ReadonlyArray<string>,
 ): { attachments: Array<{ path: string; content: string }> } | { error: string } {
-  const tokens = extractAttachmentTokens(message);
+  const paths =
+    structuredPaths && structuredPaths.length > 0
+      ? [...new Set(structuredPaths.map((p) => p.replace(/\\/g, "/")))]
+      : extractAttachmentTokens(message);
   const attachments: Array<{ path: string; content: string }> = [];
-  for (const token of tokens) {
-    const result = readAttachmentContents(projectRoot, token);
+  for (const relativePath of paths) {
+    const result = readAttachmentContents(projectRoot, relativePath);
     if ("error" in result) return { error: result.error };
     attachments.push(result);
   }

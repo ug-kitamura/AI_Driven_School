@@ -10,7 +10,14 @@ import {
   MAX_AGENT_LOOP_TURNS,
 } from "@/lib/agent/llm/types";
 import { resolveLlmProvider } from "@/lib/agent/llm/resolve-provider";
-import { executeRegisteredTool, resolveToolDefinitions } from "@/lib/agent/tools/registry";
+import { resolveMaxOutputTokens } from "@/lib/resolve-max-output-tokens";
+import {
+  executeRegisteredTool,
+  resolveToolDefinitions,
+  type ToolExecutionContext,
+} from "@/lib/agent/tools/registry";
+import { resolveConfirmRequirement } from "@/lib/agent/tools/confirm-gate";
+import { awaitToolConfirmDecision } from "@/lib/agent/tools/tool-confirm-registry";
 import type { ToolDefinition } from "@/lib/agent/llm/types";
 
 export type AgentLoopEmit = (event: string, data: unknown) => void;
@@ -22,6 +29,7 @@ export type RunAgentLoopOptions = {
   toolNames: string[];
   emit: AgentLoopEmit;
   signal?: AbortSignal;
+  projectFolderId?: string;
 };
 
 export type RunAgentLoopResult =
@@ -46,8 +54,13 @@ export async function runAgentLoop(
   }
 
   const tools: ToolDefinition[] = resolveToolDefinitions(options.toolNames);
+  const maxTokens = resolveMaxOutputTokens(options.req, providerResult.model);
   const llmMessages = [...options.messages];
   const toolEvents: AgentToolEvent[] = [];
+  const projectFolderId = options.projectFolderId;
+  const toolContext: ToolExecutionContext | undefined = projectFolderId
+    ? { projectRoot: process.cwd(), projectFolderId }
+    : undefined;
 
   for (let turn = 0; turn < MAX_AGENT_LOOP_TURNS; turn += 1) {
     let turnResult = null;
@@ -57,6 +70,7 @@ export async function runAgentLoop(
       system: options.system,
       messages: llmMessages,
       tools,
+      maxTokens,
       signal: options.signal,
     })) {
       if (event.type === "text_delta") {
@@ -91,7 +105,38 @@ export async function runAgentLoop(
         display: call.name,
       });
 
-      const outcome = await executeRegisteredTool(call.name);
+      const requirement = toolContext
+        ? resolveConfirmRequirement(toolContext.projectRoot, toolContext.projectFolderId, call)
+        : null;
+
+      let outcome;
+      if (requirement) {
+        options.emit("confirm_required", {
+          toolUseId: call.id,
+          kind: requirement.kind,
+          path: requirement.path,
+          isNew: requirement.isNew,
+        });
+        const decision = await awaitToolConfirmDecision(call.id);
+        if (decision === "reject") {
+          outcome = {
+            result: {
+              rejected: true,
+              path: requirement.path,
+              reason: "ユーザーが確認ダイアログで拒否しました",
+            },
+            display: {
+              summary: "拒否",
+              display: `✗ ユーザーが拒否: ${requirement.path}`,
+            },
+          };
+        } else {
+          outcome = await executeRegisteredTool(call.name, call.input, toolContext);
+        }
+      } else {
+        outcome = await executeRegisteredTool(call.name, call.input, toolContext);
+      }
+
       const resultJson = JSON.stringify(outcome.result);
       toolResults.push(resultJson);
 

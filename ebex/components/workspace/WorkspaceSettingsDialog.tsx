@@ -47,8 +47,10 @@ import {
 } from "@/lib/workspace-settings";
 import {
   AI_MODEL_OPTIONS,
+  MAX_OUTPUT_TOKEN_OPTIONS,
   UNSUPPORTED_MODEL_ERROR,
   isUnsupportedAiModel,
+  type MaxOutputTokens,
 } from "@/lib/ai-models";
 import { cn } from "@/lib/utils";
 
@@ -314,6 +316,40 @@ function SettingsForm({
             {modelError ? (
               <p className="text-xs text-destructive">{modelError}</p>
             ) : null}
+          </MetaDialogField>
+        </section>
+
+        <section className="flex flex-col gap-3">
+          <h3 className="text-sm font-semibold text-foreground">最大出力トークン</h3>
+          <MetaDialogField>
+            <Select
+              items={MAX_OUTPUT_TOKEN_OPTIONS.map((value) => ({
+                value: String(value),
+                label: String(value),
+              }))}
+              value={String(draft.maxOutputTokens)}
+              onValueChange={(v) => {
+                if (!v) return;
+                setDraft((prev) => ({
+                  ...prev,
+                  maxOutputTokens: Number(v) as MaxOutputTokens,
+                }));
+              }}
+            >
+              <SelectTrigger className={cn(META_DIALOG_CONTROL, "w-full")}>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {MAX_OUTPUT_TOKEN_OPTIONS.map((value) => (
+                  <SelectItem key={value} value={String(value)}>
+                    {value}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <p className="text-[10px] text-muted-foreground">
+              モデル上限を超える値は自動的にクランプされます
+            </p>
           </MetaDialogField>
         </section>
 

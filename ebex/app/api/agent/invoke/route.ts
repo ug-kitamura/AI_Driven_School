@@ -138,6 +138,7 @@ export async function POST(req: Request) {
       toolNames,
       emit,
       signal: req.signal,
+      projectFolderId: focus?.projectFolderId,
     }),
   );
 

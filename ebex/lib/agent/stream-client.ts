@@ -2,10 +2,23 @@
 
 import type { AgentToolEvent } from "@/lib/agent/llm/types";
 
+export type ToolConfirmKind =
+  | "overwrite"
+  | "outside-project-read"
+  | "outside-project-write";
+
+export type ToolConfirmRequiredEvent = {
+  toolUseId: string;
+  kind: ToolConfirmKind;
+  path: string;
+  isNew: boolean;
+};
+
 export type AgentStreamCallbacks = {
   onDelta: (text: string) => void;
   onToolStart?: (event: AgentToolEvent) => void;
   onToolEnd?: (event: AgentToolEvent) => void;
+  onConfirmRequired?: (event: ToolConfirmRequiredEvent) => void;
 };
 
 /**
@@ -90,6 +103,24 @@ export async function consumeAgentStream(
                 : undefined,
             });
             break;
+          case "confirm_required": {
+            const kind = data.kind;
+            if (
+              typeof data.toolUseId === "string" &&
+              (kind === "overwrite" ||
+                kind === "outside-project-read" ||
+                kind === "outside-project-write") &&
+              typeof data.path === "string"
+            ) {
+              callbacks.onConfirmRequired?.({
+                toolUseId: data.toolUseId,
+                kind,
+                path: data.path,
+                isNew: Boolean(data.isNew),
+              });
+            }
+            break;
+          }
           case "error": {
             const message =
               typeof data.message === "string" ? data.message : "スキル実行に失敗しました";

@@ -44,7 +44,11 @@ import {
   buildCreateStructureVariables,
 } from "@/lib/agent/invoke-context";
 import { extractMarkdownBlock } from "@/lib/extract-markdown-block";
-import { consumeAgentStream } from "@/lib/agent/stream-client";
+import {
+  consumeAgentStream,
+  type ToolConfirmRequiredEvent,
+} from "@/lib/agent/stream-client";
+import { ToolConfirmDialog } from "@/components/workspace/ToolConfirmDialog";
 import type { AgentToolEvent } from "@/lib/agent/llm/types";
 import {
   addSession,
@@ -176,7 +180,10 @@ function isAbortError(error: unknown): boolean {
 }
 
 function createMessageId(): string {
-  return `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+  if (typeof crypto !== "undefined" && "randomUUID" in crypto) {
+    return crypto.randomUUID();
+  }
+  return `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
 }
 
 function readModelLabelFromSettings(): string {
@@ -229,6 +236,9 @@ export function AgentChatPane({
     messageId: string;
     content: string;
   } | null>(null);
+
+  const [pendingToolConfirm, setPendingToolConfirm] =
+    useState<ToolConfirmRequiredEvent | null>(null);
 
   const [outsidePaths, setOutsidePaths] = useState<string[]>([]);
   const [outsideDialogOpen, setOutsideDialogOpen] = useState(false);
@@ -602,17 +612,23 @@ export function AgentChatPane({
       const assistantId = createMessageId();
       const assistantCreatedAt = new Date().toISOString();
 
-      setMessages((prev) => [
-        ...prev,
-        options.userMessage,
-        {
-          id: assistantId,
-          role: "assistant",
-          content: "",
-          createdAt: assistantCreatedAt,
-          toolEvents: [],
-        },
-      ]);
+      // 再送時は同じ userMessage が既に残っている（失敗時に assistant のみ削除するため）。
+      // 同じ id を再追加すると React の key 重複になるので、未追加のときだけ足す。
+      setMessages((prev) => {
+        const hasUser = prev.some(
+          (message) => message.id === options.userMessage.id,
+        );
+        return [
+          ...(hasUser ? prev : [...prev, options.userMessage]),
+          {
+            id: assistantId,
+            role: "assistant",
+            content: "",
+            createdAt: assistantCreatedAt,
+            toolEvents: [],
+          },
+        ];
+      });
       setIsStreaming(true);
       setStreamingAssistantId(assistantId);
       setError(null);
@@ -709,6 +725,9 @@ export function AgentChatPane({
                     : message,
                 ),
               );
+            },
+            onConfirmRequired: (event) => {
+              setPendingToolConfirm(event);
             },
           },
           controller.signal,
@@ -853,7 +872,14 @@ export function AgentChatPane({
       const session = storage.sessions.find((item) => item.id === sessionId);
       if (!session) return;
       sessionSwitchRef.current = session.id;
-      setMessages(session.messages);
+      // 過去の再送バグ等で同 id が残っていても描画キーが衝突しないよう、先勝ちで重複を落とす
+      const seen = new Set<string>();
+      const deduped = session.messages.filter((message) => {
+        if (seen.has(message.id)) return false;
+        seen.add(message.id);
+        return true;
+      });
+      setMessages(deduped);
       setActiveSkillId(session.activeSkillId);
       setInput("");
       setError(null);
@@ -1100,6 +1126,24 @@ export function AgentChatPane({
       setError("クリップボードへのコピーに失敗しました");
     }
   }, []);
+
+  const handleToolConfirmDecision = useCallback(
+    async (decision: "approve" | "reject") => {
+      const request = pendingToolConfirm;
+      if (!request) return;
+      setPendingToolConfirm(null);
+      try {
+        await fetch("/api/agent/tool-confirm", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ toolUseId: request.toolUseId, decision }),
+        });
+      } catch {
+        // ストリーム側は TTL タイムアウトで安全側（拒否）に確定する
+      }
+    },
+    [pendingToolConfirm],
+  );
 
   const handleConfirmOverwrite = useCallback(() => {
     if (!overwriteTarget || !onOverwriteEditor || !lesson) return;
@@ -1378,7 +1422,7 @@ export function AgentChatPane({
             requestAnimationFrame(() => scrollChatToBottom());
           }}
           onStop={handleStop}
-          disabled={false}
+          disabled={pendingToolConfirm !== null}
           isLoading={isStreaming}
           modelLabel={modelLabel}
           skills={skills}
@@ -1498,6 +1542,12 @@ export function AgentChatPane({
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <ToolConfirmDialog
+        request={pendingToolConfirm}
+        onApprove={() => void handleToolConfirmDecision("approve")}
+        onReject={() => void handleToolConfirmDecision("reject")}
+      />
 
       <OutsideProjectPathDialog
         open={outsideDialogOpen}

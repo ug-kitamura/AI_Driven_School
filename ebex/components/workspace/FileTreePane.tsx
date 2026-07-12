@@ -7,9 +7,15 @@ import {
   ChevronDown,
   ChevronRight,
   CircleDashed,
+  ClipboardPaste,
+  Copy,
+  FilePlus,
   FolderPlus,
+  Pencil,
   Search,
   Star,
+  StarOff,
+  Trash2,
   X,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -334,6 +340,7 @@ function TreeNode({ node, depth, expanded, emphasizedFolderPaths, interaction }:
               });
             }}
           >
+            <FolderPlus className="size-4" />
             add folder
           </ContextMenuItem>
           <ContextMenuItem
@@ -343,6 +350,7 @@ function TreeNode({ node, depth, expanded, emphasizedFolderPaths, interaction }:
               interaction.onOpenDialog({ type: "add-file", folderPath: node.path });
             }}
           >
+            <FilePlus className="size-4" />
             add file
           </ContextMenuItem>
           <ContextMenuItem
@@ -355,6 +363,7 @@ function TreeNode({ node, depth, expanded, emphasizedFolderPaths, interaction }:
               });
             }}
           >
+            <Pencil className="size-4" />
             rename
           </ContextMenuItem>
           {isSubfolder ? (
@@ -364,6 +373,7 @@ function TreeNode({ node, depth, expanded, emphasizedFolderPaths, interaction }:
                 interaction.onCopy({ kind: "folder", folderPath: node.path })
               }
             >
+              <Copy className="size-4" />
               copy
             </ContextMenuItem>
           ) : null}
@@ -372,12 +382,14 @@ function TreeNode({ node, depth, expanded, emphasizedFolderPaths, interaction }:
             disabled={!interaction.clipboard}
             onClick={() => interaction.onPaste(node.path)}
           >
+            <ClipboardPaste className="size-4" />
             paste
           </ContextMenuItem>
           <ContextMenuItem
             variant="destructive"
             onClick={() => interaction.onOpenDeleteFolderDialog(node.path)}
           >
+            <Trash2 className="size-4" />
             delete
           </ContextMenuItem>
         </ContextMenuContent>
@@ -470,6 +482,7 @@ function TreeNode({ node, depth, expanded, emphasizedFolderPaths, interaction }:
                       });
                     }}
                   >
+                    <Pencil className="size-4" />
                     rename
                   </ContextMenuItem>
                   <ContextMenuItem
@@ -482,6 +495,7 @@ function TreeNode({ node, depth, expanded, emphasizedFolderPaths, interaction }:
                       })
                     }
                   >
+                    <Copy className="size-4" />
                     copy
                   </ContextMenuItem>
                   <ContextMenuItem
@@ -489,6 +503,7 @@ function TreeNode({ node, depth, expanded, emphasizedFolderPaths, interaction }:
                     disabled={!interaction.clipboard}
                     onClick={() => interaction.onPaste(node.path)}
                   >
+                    <ClipboardPaste className="size-4" />
                     paste
                   </ContextMenuItem>
                   {interaction.isFavorite(node.path, file) ? (
@@ -498,6 +513,7 @@ function TreeNode({ node, depth, expanded, emphasizedFolderPaths, interaction }:
                         interaction.onToggleFavorite(node.path, file)
                       }
                     >
+                      <StarOff className="size-4" />
                       remove favorite
                     </ContextMenuItem>
                   ) : (
@@ -507,6 +523,7 @@ function TreeNode({ node, depth, expanded, emphasizedFolderPaths, interaction }:
                         interaction.onToggleFavorite(node.path, file)
                       }
                     >
+                      <Star className="size-4" />
                       add favorite
                     </ContextMenuItem>
                   )}
@@ -520,6 +537,7 @@ function TreeNode({ node, depth, expanded, emphasizedFolderPaths, interaction }:
                       })
                     }
                   >
+                    <Trash2 className="size-4" />
                     delete
                   </ContextMenuItem>
                 </ContextMenuContent>
@@ -581,6 +599,7 @@ function EmptyFolderRow({
             });
           }}
         >
+          <FolderPlus className="size-4" />
           add folder
         </ContextMenuItem>
         <ContextMenuItem
@@ -590,6 +609,7 @@ function EmptyFolderRow({
             interaction.onOpenDialog({ type: "add-file", folderPath });
           }}
         >
+          <FilePlus className="size-4" />
           add file
         </ContextMenuItem>
         <ContextMenuItem
@@ -597,6 +617,7 @@ function EmptyFolderRow({
           disabled={!interaction.clipboard}
           onClick={() => interaction.onPaste(folderPath)}
         >
+          <ClipboardPaste className="size-4" />
           paste
         </ContextMenuItem>
       </ContextMenuContent>

@@ -424,29 +424,4 @@ export function collectFolderFilesRecursive(
   return results;
 }
 
-export function readFolderTextSample(
-  projectRoot: string,
-  folderPath: string,
-  maxChars = 2000,
-): string {
-  const resolved = resolveFolderPath(projectRoot, folderPath);
-  if ("error" in resolved) return "";
-  const files = collectFolderFilesRecursive(resolved.absolutePath);
-  let sample = "";
-  for (const file of files) {
-    const absoluteFolderPath = file.folderPath
-      ? path.join(resolved.absolutePath, file.folderPath)
-      : resolved.absolutePath;
-    const absoluteFilePath = path.join(absoluteFolderPath, file.fileName);
-    if (!fs.existsSync(absoluteFilePath)) continue;
-    const relativePath = file.folderPath
-      ? `${file.folderPath}/${file.fileName}`
-      : file.fileName;
-    const content = fs.readFileSync(absoluteFilePath, "utf-8");
-    sample += `\n# ${relativePath}\n${content.slice(0, 500)}\n`;
-    if (sample.length >= maxChars) break;
-  }
-  return sample.trim();
-}
-
 export { SESSION_FILENAME };

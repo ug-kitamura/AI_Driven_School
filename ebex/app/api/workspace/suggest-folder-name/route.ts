@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { generateFolderNameFromPaths } from "@/lib/agent/generate-folder-name";
 import { listFolderRelativePathsForNaming } from "@/lib/workspace-folder-path-list";
+import { listFolderTextExcerptsForNaming } from "@/lib/workspace-folder-text-excerpts";
 import { jsonError, parseJsonBody } from "@/lib/workspace-mutations";
 import { folderExists } from "@/lib/workspace-paths";
 
@@ -21,7 +22,13 @@ export async function POST(req: Request) {
   }
 
   const paths = listFolderRelativePathsForNaming(process.cwd(), folderId);
-  const result = await generateFolderNameFromPaths(req, paths);
+  const excerpts = listFolderTextExcerptsForNaming(process.cwd(), folderId);
+  const result = await generateFolderNameFromPaths(
+    req,
+    paths,
+    new Date(),
+    excerpts,
+  );
   if (!result.ok) {
     return jsonError(result.error, result.status);
   }

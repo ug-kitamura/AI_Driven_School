@@ -62,32 +62,44 @@ Pane 1 の検索行に下方向の区切り線（`border-b`）を表示しては
 
 ### Requirement: 右クリックコンテキストメニュー
 
-フォルダ行の右クリックメニュー項目は、表示順を **add folder → add file → rename → copy（該当時）→ paste（該当時）→ delete** とし、**delete は常に最後**でなければならない（SHALL）。プロジェクトフォルダ（`folderPath` に `/` を含まない）の場合は「add folder」「add file」「rename」「paste」「delete」としなければならない（SHALL）。サブフォルダ行の場合は「add folder」「add file」「rename」「copy」「paste」「delete」としなければならない（SHALL）。ファイル行のメニュー項目は「rename」「copy」「paste」、**add favorite または remove favorite（状態に応じて排他）**、「delete」としなければならない（SHALL）。`(no file)` 行のメニュー項目は「add folder」「add file」「paste」としなければならない（SHALL）。メニュー項目の表示言語は英語でなければならない（SHALL）。「add folder」「add file」「rename」「copy」「paste」「add favorite」「remove favorite」の hover 背景色・文字色は、ツリー行の選択・強調時と同じグレー系トークンでなければならない（SHALL）。「delete」項目の hover 配色は destructive（赤系）のまま維持しなければならない（SHALL）。クリップボードが空のとき paste は無効（disabled）でなければならない（SHALL）。
+フォルダ行の右クリックメニュー項目は、表示順を **add folder → add file → rename → copy（該当時）→ paste（該当時）→ delete** とし、**delete は常に最後**でなければならない（SHALL）。プロジェクトフォルダ（`folderPath` に `/` を含まない）の場合は「add folder」「add file」「rename」「paste」「delete」としなければならない（SHALL）。サブフォルダ行の場合は「add folder」「add file」「rename」「copy」「paste」「delete」としなければならない（SHALL）。ファイル行のメニュー項目は「rename」「copy」「paste」、**add favorite または remove favorite（状態に応じて排他）**、「delete」としなければならない（SHALL）。`(no file)` 行のメニュー項目は「add folder」「add file」「paste」としなければならない（SHALL）。メニュー項目の表示言語は英語でなければならない（SHALL）。「add folder」「add file」「rename」「copy」「paste」「add favorite」「remove favorite」の hover 背景色・文字色は、ツリー行の選択・強調時と同じグレー系トークンでなければならない（SHALL）。「delete」項目の hover 配色は destructive（赤系）のまま維持しなければならない（SHALL）。クリップボードが空のとき paste は無効（disabled）でなければならない（SHALL）。各メニュー項目はラベルテキストの前に、項目に対応する lucide アイコンを表示しなければならない（SHALL）：add folder は `FolderPlus`、add file は `FilePlus`、rename は `Pencil`、copy は `Copy`、paste は `ClipboardPaste`、delete は `Trash2`、add favorite は `Star`（アウトライン）、remove favorite は `StarOff`。アイコンの色は個別指定してはならず（MUST NOT）、`ContextMenuItem` の `variant` に連動した既存の自動配色（muted はグレー系、destructive は赤系）に従わなければならない（SHALL）。
 
 #### Scenario: サブフォルダ行の右クリックメニュー
 
 - **WHEN** ユーザーが `demo/sub` フォルダ行を右クリックする
-- **THEN** add folder、add file、rename、copy、paste、delete の順で英語メニューが表示される
+- **THEN** add folder、add file、rename、copy、paste、delete の順で、それぞれ対応するアイコン付きの英語メニューが表示される
 
 #### Scenario: プロジェクトフォルダ行の右クリックメニュー
 
 - **WHEN** ユーザーが `demo` プロジェクトフォルダ行を右クリックする
-- **THEN** add folder、add file、rename、paste、delete の順で英語メニューが表示され、copy は含まれない
+- **THEN** add folder、add file、rename、paste、delete の順で、それぞれ対応するアイコン付きの英語メニューが表示され、copy は含まれない
 
 #### Scenario: ネストファイルの右クリックメニュー
 
 - **WHEN** ユーザーが `sub/deep.md` ファイル行を右クリックする
-- **THEN** rename、copy、paste、add favorite または remove favorite、delete の順で英語メニューが表示される
+- **THEN** rename、copy、paste、add favorite または remove favorite、delete の順で、それぞれ対応するアイコン付きの英語メニューが表示される
+
+#### Scenario: no file 行の右クリックメニュー
+
+- **WHEN** ユーザーが `no file` 行を右クリックする
+- **THEN** add folder、add file、paste の順で、それぞれ対応するアイコン付きの英語メニューが表示される
 
 #### Scenario: 通常項目の hover はグレー
 
 - **WHEN** ユーザーが右クリックメニューの rename 項目にマウスを重ねる
-- **THEN** 背景色・文字色は青系ではなくグレー系トークンで表示される
+- **THEN** アイコンを含む背景色・文字色は青系ではなくグレー系トークンで表示される
 
 #### Scenario: 削除項目の hover は赤系のまま
 
 - **WHEN** ユーザーが右クリックメニューの delete 項目にマウスを重ねる
-- **THEN** 背景色・文字色は destructive（赤系）で表示される
+- **THEN** `Trash2` アイコンを含む背景色・文字色は destructive（赤系）で表示される
+
+#### Scenario: favorite 項目のアイコンが状態に応じて切り替わる
+
+- **WHEN** ユーザーがお気に入り未登録のファイル行を右クリックする
+- **THEN** `Star`（アウトライン）アイコン付きの add favorite が表示される
+- **WHEN** ユーザーがお気に入り登録済みのファイル行を右クリックする
+- **THEN** `StarOff` アイコン付きの remove favorite が表示される
 
 ### Requirement: ツリー行の視覚フィードバック
 
@@ -346,22 +358,27 @@ Pane 1 ヘッダー右上のフォルダ追加ボタンからモーダルが開�
 
 ### Requirement: ファイル一覧に拡張子カテゴリに応じたアイコンを表示する
 
-ファイルツリーの各ファイル行には、ファイル名から判定したカテゴリ（テキスト、コード、表、画像、動画、音声、シークレット/設定、zip、その他）に対応する控えめな lucide-react アイコンを表示しなければならない（SHALL）。カテゴリ判定は拡張子（大文字小文字を区別しない）に基づくが、`.env` や `.env.local` のように拡張子を持たない、または拡張子だけでは判別できないファイル名は、ファイル名そのものとの一致で判定しなければならない（SHALL）。テキストカテゴリには `.md`、`.txt`、`.html`、`.htm` を含めなければならない（SHALL）。コードカテゴリには `.yaml`、`.tsx`、`.jsx`、`.groovy`、`.bat`、`.sh`、`.json`、`.yml`、`.xml` を含めなければならない（SHALL）。画像カテゴリには `.jpeg`、`.svg` を含めなければならない（SHALL）。シークレット/設定カテゴリには `.crt` および `.env`、`.env.*` パターン（例: `.env.local`、`.env.template`、`.env.example`）を含めなければならない（SHALL）。その他カテゴリには `.pptx` を含めなければならない（SHALL）。`.gif` は動画カテゴリ、`.vtt` は音声カテゴリとして扱わなければならない（SHALL）。各カテゴリのアイコンは、視認性を保ちつつ主張しすぎない薄いトーンの色を持たなければならない（SHALL）。用途が近いカテゴリ（テキスト/コード/表、画像/動画/音声）は同じ色調を共有してよい（MAY）が、その場合もアイコンの形状でカテゴリを区別できなければならない（SHALL）。
+ファイルツリーの各ファイル行には、ファイル名から判定したカテゴリ（テキスト、コード、表、画像、動画、音声、シークレット/設定、zip、その他）に対応する控えめな lucide-react アイコンを表示しなければならない（SHALL）。カテゴリ判定は拡張子（大文字小文字を区別しない）に基づくが、`.env` や `.env.local` のように拡張子を持たない、または拡張子だけでは判別できないファイル名は、ファイル名そのものとの一致で判定しなければならない（SHALL）。テキストカテゴリには `.md`、`.txt` を含めなければならない（SHALL）。コードカテゴリには `.html`、`.htm`、`.yaml`、`.tsx`、`.jsx`、`.groovy`、`.bat`、`.sh`、`.json`、`.yml`、`.xml` を含め、HTML/HTM は `Code` アイコンで表示しなければならない（SHALL）。画像カテゴリには `.jpeg`、`.svg` を含めなければならない（SHALL）。シークレット/設定カテゴリには `.crt` および `.env`、`.env.*` パターン（例: `.env.local`、`.env.template`、`.env.example`）を含めなければならない（SHALL）。その他カテゴリには `.pptx` を含めなければならない（SHALL）。`.gif` は動画カテゴリ、`.vtt` は音声カテゴリとして扱わなければならない（SHALL）。**ファイル行**のアイコン色は、カテゴリに関わらず Markdown（テキスト）と同じ `text-chart-1/60` に統一しなければならない（SHALL）。`(no file)` 行のアイコン（`CircleDashed`）およびラベルの色は、従来どおり muted 系のまま変更してはならない（MUST NOT）。
 
 #### Scenario: Markdown ファイルにテキストアイコンが表示される
 
 - **WHEN** フォルダ内に `notes.md` が存在する
-- **THEN** ファイル一覧の該当行の左側に、テキストカテゴリのアイコンが控えめな色で表示される
+- **THEN** ファイル一覧の該当行の左側に、テキストカテゴリのアイコンが `text-chart-1/60` で表示される
 
-#### Scenario: HTML ファイルにテキストアイコンが表示される
+#### Scenario: HTML ファイルにコードアイコンが表示される
 
 - **WHEN** フォルダ内に `page.html` が存在する
-- **THEN** ファイル一覧の該当行の左側に、テキストカテゴリ（`FileText`）のアイコンが表示される
+- **THEN** ファイル一覧の該当行の左側に、コードカテゴリ（`Code`）のアイコンが `text-chart-1/60` で表示される
+
+#### Scenario: 画像ファイルも Markdown と同じ青色
+
+- **WHEN** フォルダ内に `photo.png` が存在する
+- **THEN** ファイル一覧の該当行の左側に、画像カテゴリのアイコン形状で、色は `text-chart-1/60` で表示される
 
 #### Scenario: 拡張子不明のファイルには汎用アイコンが表示される
 
 - **WHEN** フォルダ内に既知のカテゴリに該当しない拡張子のファイルが存在する
-- **THEN** ファイル一覧の該当行の左側に、その他カテゴリの汎用ファイルアイコンが表示される
+- **THEN** ファイル一覧の該当行の左側に、その他カテゴリの汎用ファイルアイコンが `text-chart-1/60` で表示される
 
 #### Scenario: env 系の派生ファイル名もシークレットカテゴリになる
 
@@ -372,6 +389,11 @@ Pane 1 ヘッダー右上のフォルダ追加ボタンからモーダルが開�
 
 - **WHEN** フォルダ内に `.gif` ファイルが存在する
 - **THEN** ファイル一覧の該当行の左側に、動画カテゴリのアイコンが表示される
+
+#### Scenario: no file アイコン色は変更しない
+
+- **WHEN** 空フォルダに `no file` 行が表示される
+- **THEN** `CircleDashed` アイコンは muted 系の色のままである
 
 ### Requirement: フォルダツリーはフォルダを先にファイルを後に表示する
 

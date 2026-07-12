@@ -2,20 +2,22 @@ import { resolveAiApiKey } from "@/lib/api-keys";
 import { AI_KEY_ERROR } from "@/lib/agent/llm/anthropic";
 import type { LlmMessage } from "@/lib/agent/llm/types";
 import { resolveLlmProvider } from "@/lib/agent/llm/resolve-provider";
+import type { FolderTextExcerpt } from "@/lib/workspace-folder-text-excerpts";
 
 export const FOLDER_NAME_MAX_TOKENS = 60;
 export const FOLDER_NAME_SLUG_MAX = 40;
 
 export const FOLDER_NAME_SYSTEM_PROMPT = `あなたはプロジェクトフォルダ名の生成器です。
-与えられたファイルパス一覧だけを手がかりに、フォルダ名を1行だけ出力してください。
+与えられたファイルパス一覧と、ある場合は直下〜配下テキスト抜粋の両方を同じ重みの手がかりとして使い、フォルダ名を1行だけ出力してください。
 
 ルール:
 - 形式は必ず {YYYYMMDD}-{slug}
 - slug は半角英小文字・数字・ハイフン中心（日本語を含めてもよいが短く）
 - 最大40文字程度の slug
 - 引用符・説明・箇条書きは不要
-- ファイルの中身は渡されない。パス名から主題を推定すること
-- 日付はパス名から読み取れる場合のみその日付を使い、判断できない場合は今日の日付（ユーザーメッセージに記載）を使う`;
+- パス一覧とテキスト抜粋は同格。片方だけを優先してはならない
+- 抜粋が無い場合はパス名から主題を推定すること
+- 日付はパスまたは抜粋から読み取れる場合のみその日付を使い、判断できない場合は今日の日付（ユーザーメッセージに記載）を使う`;
 
 function formatDateYmd(date: Date): string {
   const y = date.getFullYear();
@@ -58,26 +60,40 @@ export function normalizeSuggestedFolderName(
   return `${todayYmd}-${sanitizeFolderSlug(singleLine)}`;
 }
 
+function formatPathList(relativePaths: string[]): string {
+  return relativePaths.length > 0
+    ? relativePaths.map((p) => `- ${p}`).join("\n")
+    : "(empty)";
+}
+
+function formatTextExcerpts(excerpts: FolderTextExcerpt[]): string {
+  return excerpts
+    .map((excerpt) => `### ${excerpt.relativePath}\n${excerpt.content}`)
+    .join("\n\n");
+}
+
 export function buildFolderNameUserPrompt(
   relativePaths: string[],
   today: Date = new Date(),
+  textExcerpts: FolderTextExcerpt[] = [],
 ): string {
   const todayYmd = formatDateYmd(today);
-  const list =
-    relativePaths.length > 0
-      ? relativePaths.map((p) => `- ${p}`).join("\n")
-      : "(empty)";
-  return `今日の日付: ${todayYmd}\n\nファイルパス一覧:\n${list}`;
+  const pathSection = `今日の日付: ${todayYmd}\n\nファイルパス一覧:\n${formatPathList(relativePaths)}`;
+  if (textExcerpts.length === 0) {
+    return pathSection;
+  }
+  return `${pathSection}\n\nテキスト抜粋（パス一覧と同格の手がかり）:\n${formatTextExcerpts(textExcerpts)}`;
 }
 
 export function buildFolderNameMessages(
   relativePaths: string[],
   today: Date = new Date(),
+  textExcerpts: FolderTextExcerpt[] = [],
 ): LlmMessage[] {
   return [
     {
       role: "user",
-      content: buildFolderNameUserPrompt(relativePaths, today),
+      content: buildFolderNameUserPrompt(relativePaths, today, textExcerpts),
     },
   ];
 }
@@ -90,6 +106,7 @@ export async function generateFolderNameFromPaths(
   req: Request,
   relativePaths: string[],
   today: Date = new Date(),
+  textExcerpts: FolderTextExcerpt[] = [],
 ): Promise<GenerateFolderNameResult> {
   if (relativePaths.length === 0) {
     return { ok: true, name: `${formatDateYmd(today)}-untitled` };
@@ -113,7 +130,7 @@ export async function generateFolderNameFromPaths(
     apiKey,
     model: providerResult.model,
     system: FOLDER_NAME_SYSTEM_PROMPT,
-    messages: buildFolderNameMessages(relativePaths, today),
+    messages: buildFolderNameMessages(relativePaths, today, textExcerpts),
     tools: [],
     maxTokens: FOLDER_NAME_MAX_TOKENS,
     signal: req.signal,

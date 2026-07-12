@@ -21,6 +21,7 @@ import {
 } from "@/lib/workspace-file-selection";
 import { ALLOWED_PREFIX } from "@/lib/workspace-constants";
 import { getProjectFolderId } from "@/lib/workspace-tree";
+import { isTextEditableMode, resolvePane2Mode } from "@/lib/file-preview";
 
 type WorkspaceProps = {
   initialFolders: WorkspaceTreeNode[];
@@ -80,6 +81,12 @@ export function Workspace({ initialFolders }: WorkspaceProps) {
         editingContentRef.current = null;
         return;
       }
+      if (!isTextEditableMode(resolvePane2Mode(fileName))) {
+        setFileContent("");
+        editingContentRef.current = null;
+        saveLastFileSelection({ folderPath, fileName });
+        return;
+      }
       const res = await fetch(
         `/api/workspace/read-file?folderId=${encodeURIComponent(folderPath)}&fileName=${encodeURIComponent(fileName)}`,
         { cache: "no-store" },
@@ -100,6 +107,14 @@ export function Workspace({ initialFolders }: WorkspaceProps) {
   useEffect(() => {
     if (pendingSave) return;
     if (!selectedFolderPath || !selectedFileName) return;
+
+    if (!isTextEditableMode(resolvePane2Mode(selectedFileName))) {
+      saveLastFileSelection({
+        folderPath: selectedFolderPath,
+        fileName: selectedFileName,
+      });
+      return;
+    }
 
     let cancelled = false;
     void fetch(
@@ -141,6 +156,10 @@ export function Workspace({ initialFolders }: WorkspaceProps) {
   const handleSelectFile = useCallback(
     (folderPath: string, fileName: string) => {
       setUserSelection({ folderPath, fileName });
+      if (!isTextEditableMode(resolvePane2Mode(fileName))) {
+        setFileContent("");
+        editingContentRef.current = null;
+      }
     },
     [],
   );
@@ -153,6 +172,7 @@ export function Workspace({ initialFolders }: WorkspaceProps) {
   const handleSave = useCallback(
     async (content: string) => {
       if (!selectedFolderPath || !selectedFileName) return;
+      if (!isTextEditableMode(resolvePane2Mode(selectedFileName))) return;
       await fetch("/api/workspace/save-file", {
         method: "POST",
         headers: { "Content-Type": "application/json" },

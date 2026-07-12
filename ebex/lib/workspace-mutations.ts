@@ -375,6 +375,24 @@ export function readFileContent(
   return { content: fs.readFileSync(resolved.absolutePath, "utf-8") };
 }
 
+export function readFileBinary(
+  projectRoot: string,
+  folderPath: string,
+  fileName: string,
+): { buffer: Buffer; absolutePath: string } | { error: string } {
+  const fileValidation = validateFileName(fileName);
+  if (fileValidation) return { error: fileValidation };
+  const resolved = resolveFilePath(projectRoot, folderPath, fileName);
+  if ("error" in resolved) return { error: resolved.error };
+  if (!fs.existsSync(resolved.absolutePath)) {
+    return { error: "ファイルが見つかりません" };
+  }
+  return {
+    buffer: fs.readFileSync(resolved.absolutePath),
+    absolutePath: resolved.absolutePath,
+  };
+}
+
 export function listFolderFiles(projectRoot: string, folderPath: string): string[] {
   const resolved = resolveFolderPath(projectRoot, folderPath);
   if ("error" in resolved) return [];

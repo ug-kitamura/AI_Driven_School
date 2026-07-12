@@ -3,7 +3,7 @@ import { defaultKeymap, history, historyKeymap } from "@codemirror/commands";
 import { Compartment, type Extension } from "@codemirror/state";
 import { keymap } from "@codemirror/view";
 import { languages } from "@codemirror/language-data";
-import { foldService } from "@codemirror/language";
+import { LanguageDescription, foldService } from "@codemirror/language";
 import { EditorView, lineNumbers } from "@codemirror/view";
 import type { EditorState } from "@codemirror/state";
 import { vscodeDarkInit, vscodeLightInit } from "@uiw/codemirror-theme-vscode";
@@ -16,9 +16,13 @@ import {
 import { lessonFoldGutter } from "@/lib/lesson-fold-gutter";
 import { getFoldRangeAtLine } from "@/lib/markdown-fold-ranges";
 import { clampEditorFontSizePx } from "@/lib/workspace-settings";
+import { fileExtension } from "@/lib/file-preview";
 
 /** テーマ・フォントサイズを setState なしで差し替える Compartment（モジュール共有） */
 export const lessonEditorThemeCompartment = new Compartment();
+
+/** 言語サポートを差し替える Compartment */
+export const lessonEditorLanguageCompartment = new Compartment();
 
 /** Pane3 編集ビュー: テキスト選択の背景・文字色（VS Code 既定 #add6ff を上書き） */
 const LESSON_EDITOR_SELECTION_BG = "#3367d1";
@@ -176,7 +180,45 @@ export type LessonEditorExtensionOptions = {
   onFontSizeChange?: (next: number) => void;
   /** false のとき折りたたみ操作は無効。gutter 列自体は常設する */
   enableFolding?: boolean;
+  /** 言語解決用のファイル名（拡張子マッチ） */
+  fileName?: string;
 };
+
+/** 拡張子から LanguageDescription を解決（.bat は Shell にフォールバック） */
+export function matchLessonLanguageDescription(
+  fileName: string,
+): LanguageDescription | null {
+  const matched = LanguageDescription.matchFilename(languages, fileName);
+  if (matched) return matched;
+  const ext = fileExtension(fileName);
+  if (ext === "bat" || ext === "cmd") {
+    return LanguageDescription.matchLanguageName(languages, "Shell");
+  }
+  return null;
+}
+
+/** Markdown または language-data 由来の LanguageSupport を返す */
+export async function resolveLessonLanguageExtension(
+  fileName: string,
+): Promise<Extension> {
+  const ext = fileExtension(fileName);
+  if (ext === "md" || ext === "markdown" || ext === "mkd") {
+    return [
+      markdown({
+        base: markdownLanguage,
+        codeLanguages: languages,
+      }),
+      keymap.of(markdownKeymap),
+    ];
+  }
+  const desc = matchLessonLanguageDescription(fileName);
+  if (!desc) return [];
+  try {
+    return await desc.load();
+  } catch {
+    return [];
+  }
+}
 
 /** Ctrl+ホイールでフォントサイズ変更（編集モードのみ） */
 export function editorFontSizeWheelExtension(
@@ -194,7 +236,7 @@ export function editorFontSizeWheelExtension(
   });
 }
 
-/** Pane 2 編集モード用 CodeMirror 拡張 */
+/** Pane 2 編集モード用 CodeMirror 拡張（言語は language compartment 側） */
 export function buildLessonEditorExtensions(
   isDark = false,
   fontSizePx = 14,
@@ -210,11 +252,6 @@ export function buildLessonEditorExtensions(
     lineNumbers(),
     ...lessonFoldGutter({ enableFolding }),
     createLessonMarkdownFold(enableFolding),
-    markdown({
-      base: markdownLanguage,
-      codeLanguages: languages,
-    }),
-    keymap.of(markdownKeymap),
     EditorView.lineWrapping,
     ...activeLineRowHighlight(),
     createLessonEditorLayout(size, lineNumberColor, isDark),
@@ -231,17 +268,19 @@ export function buildLessonEditorExtensions(
   return extensions;
 }
 
-/** EditorState 生成用: history / keymap + 差し替え可能テーマ */
+/** EditorState 生成用: history / keymap + 差し替え可能テーマ／言語 */
 export function buildLessonEditorStateExtensions(
   isDark = false,
   fontSizePx = 14,
   options?: LessonEditorExtensionOptions,
   extraExtensions: Extension[] = [],
+  languageExtension: Extension = [],
 ): Extension[] {
   return [
     lessonEditorThemeCompartment.of(
       buildLessonEditorExtensions(isDark, fontSizePx, options),
     ),
+    lessonEditorLanguageCompartment.of(languageExtension),
     history(),
     keymap.of([...defaultKeymap, ...historyKeymap]),
     ...extraExtensions,

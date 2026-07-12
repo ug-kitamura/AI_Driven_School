@@ -5,6 +5,7 @@ import {
   emptyRowId,
   fileRowId,
   folderRowId,
+  resolveHomeEndNavigation,
   resolveLeftNavigation,
   resolvePasteTarget,
   resolveSelectedFileRowId,
@@ -183,5 +184,127 @@ describe("resolveLeftNavigation", () => {
       collapsePaths: ["demo/sub"],
       focusRowId: folderRowId("demo/sub"),
     });
+  });
+});
+
+describe("resolveHomeEndNavigation", () => {
+  const multiProjectTree: WorkspaceTreeNode[] = [
+    {
+      name: "demo",
+      path: "demo",
+      files: ["root.md"],
+      children: [
+        {
+          name: "sub",
+          path: "demo/sub",
+          files: ["notes.md"],
+          children: [
+            {
+              name: "empty",
+              path: "demo/sub/empty",
+              files: [],
+              children: [],
+            },
+          ],
+        },
+      ],
+    },
+    {
+      name: "other",
+      path: "other",
+      files: ["a.md"],
+      children: [],
+    },
+  ];
+
+  const expandedAll = {
+    demo: true,
+    "demo/sub": true,
+    "demo/sub/empty": true,
+    other: true,
+  };
+
+  function rowsOf(tree = multiProjectTree, expanded = expandedAll) {
+    return buildVisibleRows(tree, expanded, new Set());
+  }
+
+  function indexOf(rows: ReturnType<typeof rowsOf>, id: string) {
+    const index = rows.findIndex((row) => row.id === id);
+    expect(index).toBeGreaterThanOrEqual(0);
+    return index;
+  }
+
+  it("moves Home to the first sibling under the same parent", () => {
+    const rows = rowsOf();
+    const index = indexOf(rows, fileRowId("demo", "root.md"));
+    expect(
+      resolveHomeEndNavigation(rows, index, "Home", false),
+    ).toEqual({ focusRowId: folderRowId("demo/sub") });
+  });
+
+  it("moves End to the last sibling under the same parent", () => {
+    const rows = rowsOf();
+    const index = indexOf(rows, folderRowId("demo/sub"));
+    expect(
+      resolveHomeEndNavigation(rows, index, "End", false),
+    ).toEqual({ focusRowId: fileRowId("demo", "root.md") });
+  });
+
+  it("applies the sibling algorithm to empty placeholder rows", () => {
+    const rows = rowsOf();
+    const emptyIndex = indexOf(rows, emptyRowId("demo/sub/empty"));
+    expect(
+      resolveHomeEndNavigation(rows, emptyIndex, "Home", false),
+    ).toEqual({ focusRowId: null });
+    expect(
+      resolveHomeEndNavigation(rows, emptyIndex, "End", false),
+    ).toEqual({ focusRowId: null });
+
+    const notesIndex = indexOf(rows, fileRowId("demo/sub", "notes.md"));
+    expect(
+      resolveHomeEndNavigation(rows, notesIndex, "Home", false),
+    ).toEqual({ focusRowId: folderRowId("demo/sub/empty") });
+  });
+
+  it("is a no-op when already at the sibling edge", () => {
+    const rows = rowsOf();
+    const first = indexOf(rows, folderRowId("demo/sub"));
+    expect(
+      resolveHomeEndNavigation(rows, first, "Home", false),
+    ).toEqual({ focusRowId: null });
+  });
+
+  it("treats project folders as siblings of each other", () => {
+    const rows = rowsOf();
+    const index = indexOf(rows, folderRowId("other"));
+    expect(
+      resolveHomeEndNavigation(rows, index, "Home", false),
+    ).toEqual({ focusRowId: folderRowId("demo") });
+    expect(
+      resolveHomeEndNavigation(rows, index, "End", false),
+    ).toEqual({ focusRowId: null });
+  });
+
+  it("moves Ctrl+Home to the first visible row", () => {
+    const rows = rowsOf();
+    const index = indexOf(rows, fileRowId("demo/sub", "notes.md"));
+    expect(
+      resolveHomeEndNavigation(rows, index, "Home", true),
+    ).toEqual({ focusRowId: folderRowId("demo") });
+  });
+
+  it("moves Ctrl+End to the last visible row", () => {
+    const rows = rowsOf();
+    const index = indexOf(rows, folderRowId("demo"));
+    expect(
+      resolveHomeEndNavigation(rows, index, "End", true),
+    ).toEqual({ focusRowId: fileRowId("other", "a.md") });
+  });
+
+  it("is a no-op for Ctrl+Home when already at the first row", () => {
+    const rows = rowsOf();
+    expect(
+      resolveHomeEndNavigation(rows, 0, "Home", true),
+    ).toEqual({ focusRowId: null });
   });
 });

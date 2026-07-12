@@ -80,6 +80,7 @@ import {
   emptyRowId,
   fileRowId,
   folderRowId,
+  resolveHomeEndNavigation,
   resolveLeftNavigation,
   resolvePasteTarget,
   resolveSelectedFileRowId,
@@ -1452,6 +1453,20 @@ export function FileTreePane({
       // focusedRowId が visibleRows に無い場合は選択ファイル行をフォールバックし、
       // それも見つからなければ先頭行を基準にする
       const index = resolvedIndex >= 0 ? resolvedIndex : fallbackIndex;
+
+      if (event.key === "Home" || event.key === "End") {
+        event.preventDefault();
+        const navigation = resolveHomeEndNavigation(
+          visibleRows,
+          index < 0 ? 0 : index,
+          event.key,
+          event.ctrlKey,
+        );
+        if (navigation.focusRowId) {
+          focusRow(navigation.focusRowId);
+        }
+        return;
+      }
 
       if (event.key === "ArrowDown") {
         event.preventDefault();

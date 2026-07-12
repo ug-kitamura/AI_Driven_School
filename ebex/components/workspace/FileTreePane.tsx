@@ -153,6 +153,8 @@ type TreeInteraction = {
   onOpenDialog: (dialog: DialogMode) => void;
   onSetNameInput: (value: string) => void;
   onToggleExpanded: (folderPath: string, isOpen: boolean) => void;
+  /** コンテキストメニュー操作直後のポインター開閉（誤 dblclick 等）を無視する */
+  shouldIgnorePointerToggle: () => boolean;
   onSelectFile: (folderPath: string, fileName: string) => void;
   onOpenDeleteFolderDialog: (folderPath: string) => void;
   onRevealInOs: (folderPath: string, fileName?: string) => void;
@@ -160,6 +162,26 @@ type TreeInteraction = {
   onToggleFavorite: (folderPath: string, fileName: string) => void;
   rowHighlight: (rowId: string, isFileSelected: boolean) => string;
 };
+
+/** メニュー操作とフォーカス用クリックが dblclick になるのを防ぐ */
+const POINTER_TOGGLE_SUPPRESS_MS = 1000;
+
+function dialogFolderPath(dialog: DialogMode): string | null {
+  if (!dialog) return null;
+  if (
+    dialog.type === "rename-folder" ||
+    dialog.type === "add-file" ||
+    dialog.type === "delete-folder" ||
+    dialog.type === "blocked-delete-folder" ||
+    dialog.type === "blocked-agent-busy-folder"
+  ) {
+    return dialog.folderPath;
+  }
+  if (dialog.type === "add-subfolder") {
+    return dialog.parentPath;
+  }
+  return null;
+}
 
 type TreeNodeProps = {
   node: WorkspaceTreeNode;
@@ -305,6 +327,7 @@ function TreeNode({ node, depth, expanded, emphasizedFolderPaths, interaction }:
             <div
               data-row-id={folderRow}
               tabIndex={-1}
+              aria-expanded={isOpen}
               className={interaction.rowHighlight(folderRow, false)}
               draggable={isSubfolder}
               onDragStart={(event) => {
@@ -320,16 +343,29 @@ function TreeNode({ node, depth, expanded, emphasizedFolderPaths, interaction }:
                 event.dataTransfer.effectAllowed = "move";
               }}
               onClick={() => interaction.onFocusRow(folderRow)}
-              onDoubleClick={() =>
-                interaction.onToggleExpanded(node.path, isOpen)
-              }
+              onDoubleClick={(event) => {
+                if (interaction.shouldIgnorePointerToggle()) {
+                  event.preventDefault();
+                  return;
+                }
+                interaction.onToggleExpanded(node.path, isOpen);
+              }}
             >
               <button
                 type="button"
+                tabIndex={-1}
                 className="flex size-5 shrink-0 items-center justify-center outline-none"
-                onClick={() =>
-                  interaction.onToggleExpanded(node.path, isOpen)
-                }
+                onPointerDown={(event) => {
+                  if (interaction.shouldIgnorePointerToggle()) {
+                    event.preventDefault();
+                    event.stopPropagation();
+                  }
+                }}
+                onClick={(event) => {
+                  event.stopPropagation();
+                  if (interaction.shouldIgnorePointerToggle()) return;
+                  interaction.onToggleExpanded(node.path, isOpen);
+                }}
                 aria-label={isOpen ? "折りたたむ" : "展開する"}
               >
                 {isOpen ? (
@@ -665,6 +701,8 @@ export function FileTreePane({
 }: Props) {
   const treeRef = useRef<HTMLDivElement>(null);
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
+  const suppressPointerToggleUntilRef = useRef(0);
+  const dialogRef = useRef<DialogMode>(null);
   const [filter, setFilter] = useState("");
   const [dialog, setDialog] = useState<DialogMode>(null);
   const [nameInput, setNameInput] = useState("");
@@ -1060,12 +1098,20 @@ export function FileTreePane({
         mode?.type === "rename-folder" &&
         isAgentLockedProjectFolder(mode.folderPath, agentBusyProjectFolderId)
       ) {
-        setDialog({
-          type: "blocked-agent-busy-folder",
+        const blocked = {
+          type: "blocked-agent-busy-folder" as const,
           folderPath: mode.folderPath,
-        });
+        };
+        dialogRef.current = blocked;
+        setDialog(blocked);
         return;
       }
+      // メニュー閉鎖直後の誤 toggle で、今開いているフォルダが閉じるのを防ぐ
+      if (dialogFolderPath(mode)) {
+        suppressPointerToggleUntilRef.current =
+          Date.now() + POINTER_TOGGLE_SUPPRESS_MS;
+      }
+      dialogRef.current = mode;
       setDialog(mode);
     },
     [agentBusyProjectFolderId, clearPaneError],
@@ -1154,6 +1200,20 @@ export function FileTreePane({
   const handleContextMenuChange = useCallback(
     (rowId: string | null) => {
       setContextMenuTargetId(rowId);
+      // Shift+F10 等でメニューを出した直後のクリックが、フォーカス用クリックと
+      // 合わさって dblclick 扱いになりフォルダが閉じるのを防ぐ
+      suppressPointerToggleUntilRef.current =
+        Date.now() + POINTER_TOGGLE_SUPPRESS_MS;
+      if (!rowId && treeRef.current) {
+        // メニュー閉鎖時の貫通クリックをツリーが受け取らないようにする
+        const el = treeRef.current;
+        el.style.pointerEvents = "none";
+        requestAnimationFrame(() => {
+          requestAnimationFrame(() => {
+            el.style.pointerEvents = "";
+          });
+        });
+      }
       if (rowId) {
         handleFocusRow(rowId);
       }
@@ -1161,8 +1221,15 @@ export function FileTreePane({
     [handleFocusRow],
   );
 
+  const shouldIgnorePointerToggle = useCallback(
+    () => Date.now() < suppressPointerToggleUntilRef.current,
+    [],
+  );
+
   const handleToggleExpanded = useCallback(
     (folderPath: string, isOpen: boolean) => {
+      // 当該フォルダのダイアログ表示中は展開状態を変えない
+      if (dialogFolderPath(dialogRef.current) === folderPath) return;
       clearPaneError();
       toggleExpanded(folderPath, isOpen);
       focusRow(folderRowId(folderPath));
@@ -1387,16 +1454,19 @@ export function FileTreePane({
     return visibleRows.find((row) => row.id === focusedRowId) ?? null;
   }, [focusedRowId, visibleRows]);
 
-  const collapseFolder = useCallback(
-    (folderPath: string) => {
-      setExpanded((prev) => ({ ...prev, [folderPath]: false }));
-    },
-    [],
-  );
+  const collapseFolder = useCallback((folderPath: string) => {
+    if (dialogFolderPath(dialogRef.current) === folderPath) return;
+    setExpanded((prev) => ({ ...prev, [folderPath]: false }));
+  }, []);
+
+  // dialog の同期 ref（keydown ガード用）。展開状態は変更しない
+  useEffect(() => {
+    dialogRef.current = dialog;
+  }, [dialog]);
 
   const handleTreeKeyDown = useCallback(
     (event: React.KeyboardEvent<HTMLDivElement>) => {
-      if (dialog) return;
+      if (dialog || dialogRef.current) return;
 
       clearPaneError();
 
@@ -1606,6 +1676,7 @@ export function FileTreePane({
       onOpenDialog: openDialog,
       onSetNameInput: handleNameInputChange,
       onToggleExpanded: handleToggleExpanded,
+      shouldIgnorePointerToggle,
       onSelectFile: handleSelectFile,
       onOpenDeleteFolderDialog: openDeleteFolderDialog,
       onRevealInOs: (folderPath, fileName) => {
@@ -1636,6 +1707,7 @@ export function FileTreePane({
       rowHighlight,
       selectedFileName,
       selectedFolderPath,
+      shouldIgnorePointerToggle,
       handleToggleFavorite,
     ],
   );
@@ -1777,7 +1849,10 @@ export function FileTreePane({
         tabIndex={0}
         className="workspace-scrollbar min-h-0 flex-1 overflow-y-auto px-1 py-2 outline-none"
         onKeyDown={handleTreeKeyDown}
-        onMouseDown={() => treeRef.current?.focus()}
+        onMouseDown={() => {
+          if (dialogRef.current) return;
+          treeRef.current?.focus();
+        }}
       >
         {filteredFolders.length === 0 ? (
           <p className="px-2 py-4 text-center text-sm text-muted-foreground">

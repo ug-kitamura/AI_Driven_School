@@ -138,13 +138,13 @@ describe("executeRegisteredTool", () => {
       },
     );
     expect(outcome.result).toMatchObject({
-      path: ".claude/skills/minutes-maid/references/purpose.md",
+      path: "skill/minutes-maid/references/purpose.md",
       content: "パーパス本文",
     });
 
     const writeOutcome = await executeRegisteredTool(
       "write_file",
-      { path: ".claude/skills/minutes-maid/hack.md", content: "nope" },
+      { path: "skill/minutes-maid/hack.md", content: "nope" },
       {
         projectRoot: tmpDir,
         projectFolderId: "demo",

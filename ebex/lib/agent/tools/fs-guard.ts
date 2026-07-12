@@ -8,7 +8,7 @@ export type ToolPathZone = "project" | "skill";
 export type ResolvedToolPath = {
   /** 実ファイルシステム上の絶対パス */
   absolutePath: string;
-  /** 表示用パス（`workspace/...` または `.claude/skills/<id>/...`） */
+  /** 表示用パス（`workspace/...` または `skill/<id>/...`） */
   relativePath: string;
   /** プロジェクトフォルダ（`workspace/<projectFolderId>/`）配下かどうか */
   insideProject: boolean;
@@ -29,7 +29,10 @@ export type ResolveToolPathOptions = {
   preferSkillIfExists?: boolean;
 };
 
-const SKILL_PREFIX = ".claude/skills/";
+/** ホスト非依存の論理プレフィックス（表示・入力の正本） */
+export const SKILL_LOGICAL_PREFIX = "skill/";
+/** 旧形式入力の互換（実行中スキル id のみ受理） */
+export const SKILL_LEGACY_PREFIX = ".claude/skills/";
 
 function isUnsafePath(raw: string): boolean {
   return (
@@ -62,8 +65,8 @@ function resolveInsideSkillDir(
   }
 
   const displayRel = rel
-    ? `${SKILL_PREFIX}${skillId}/${rel}`
-    : `${SKILL_PREFIX}${skillId}`;
+    ? `${SKILL_LOGICAL_PREFIX}${skillId}/${rel}`
+    : `${SKILL_LOGICAL_PREFIX}${skillId}`;
   return {
     absolutePath,
     relativePath: displayRel,
@@ -71,6 +74,31 @@ function resolveInsideSkillDir(
     insideSkill: true,
     zone: "skill",
   };
+}
+
+/**
+ * 明示スキルパス（論理 `skill/<id>/...` または旧 `.claude/skills/<id>/...`）を解釈する。
+ * 実行中スキル以外は拒否。該当しなければ null。
+ */
+function tryResolveExplicitSkillPath(
+  raw: string,
+  skillId: string,
+  skillDir: string,
+): ResolvedToolPath | ToolPathError | null {
+  for (const prefix of [SKILL_LOGICAL_PREFIX, SKILL_LEGACY_PREFIX] as const) {
+    const skillRootPrefix = `${prefix}${skillId}`;
+    if (raw === skillRootPrefix || raw.startsWith(`${skillRootPrefix}/`)) {
+      const within = raw.slice(skillRootPrefix.length).replace(/^\//, "");
+      return resolveInsideSkillDir(skillId, skillDir, within);
+    }
+    // 他スキルへの明示パスは拒否（確認ダイアログにも回さない）
+    if (raw.startsWith(prefix)) {
+      return {
+        error: `実行中スキル（${skillId}）以外のスキルファイルは参照できません: ${raw}`,
+      };
+    }
+  }
+  return null;
 }
 
 function tryResolveSkillPath(
@@ -82,19 +110,9 @@ function tryResolveSkillPath(
   if (!skillId || !skillDir) return null;
 
   const raw = inputPath.replace(/\\/g, "/").trim();
-  const skillRootPrefix = `${SKILL_PREFIX}${skillId}`;
 
-  if (raw === skillRootPrefix || raw.startsWith(`${skillRootPrefix}/`)) {
-    const within = raw.slice(skillRootPrefix.length).replace(/^\//, "");
-    return resolveInsideSkillDir(skillId, skillDir, within);
-  }
-
-  // 他スキルへの明示パスは拒否（確認ダイアログにも回さない）
-  if (raw.startsWith(SKILL_PREFIX)) {
-    return {
-      error: `実行中スキル（${skillId}）以外のスキルファイルは参照できません: ${inputPath}`,
-    };
-  }
+  const explicit = tryResolveExplicitSkillPath(raw, skillId, skillDir);
+  if (explicit) return explicit;
 
   if (!options.preferSkillIfExists) return null;
   if (raw.startsWith(ALLOWED_PREFIX)) return null;
@@ -116,7 +134,8 @@ function tryResolveSkillPath(
  * 対応する入力形式:
  * - プロジェクト相対（例: `output/minutes.md`) → `workspace/<projectFolderId>/...`
  * - `workspace/...` 形式 → `workspace/` 配下として解釈
- * - `.claude/skills/<実行中skillId>/...` → スキルディレクトリ（読取許可ゾーン）
+ * - `skill/<実行中skillId>/...` → skillDirAbsolute（読取許可ゾーン）
+ * - `.claude/skills/<実行中skillId>/...` → 互換マップ（同上）
  * - 相対パスがスキル側に実在する場合（preferSkillIfExists）→ スキル側を優先
  */
 export function resolveToolTargetPath(

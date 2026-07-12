@@ -6,7 +6,7 @@ import type {
   ToolCall,
 } from "@/lib/agent/llm/types";
 import type { LlmProvider, LlmProviderRunOptions } from "@/lib/agent/llm/provider";
-import { DEFAULT_AI_MODEL } from "@/lib/ai-models";
+import { DEFAULT_AI_MODEL, DEFAULT_MAX_OUTPUT_TOKENS } from "@/lib/ai-models";
 import { resolveAiModel } from "@/lib/resolve-ai-model";
 
 export const DEFAULT_MODEL = DEFAULT_AI_MODEL;
@@ -105,7 +105,7 @@ export function buildAssistantToolUseMessage(result: ProviderTurnResult): LlmMes
   return { role: "assistant", content };
 }
 
-async function* parseAnthropicStream(
+export async function* parseAnthropicStream(
   body: ReadableStream<Uint8Array>,
   signal?: AbortSignal,
 ): AsyncGenerator<StreamEvent> {
@@ -118,6 +118,7 @@ async function* parseAnthropicStream(
     name: string;
     inputJson: string;
     input?: Record<string, unknown>;
+    inputParseError?: boolean;
   }> = [];
   let stopReason: ProviderTurnResult["stopReason"] = "unknown";
 
@@ -188,6 +189,7 @@ async function* parseAnthropicStream(
                 block.input = JSON.parse(block.inputJson) as Record<string, unknown>;
               } catch {
                 block.input = {};
+                block.inputParseError = true;
               }
             }
             break;
@@ -214,6 +216,7 @@ async function* parseAnthropicStream(
       id: block.id,
       name: block.name,
       input: block.input ?? {},
+      ...(block.inputParseError ? { inputParseError: true as const } : {}),
     }));
 
   if (calls.length > 0 && stopReason === "unknown") {
@@ -239,7 +242,7 @@ async function runAnthropicTurn(options: LlmProviderRunOptions): Promise<Respons
     },
     body: JSON.stringify({
       model: options.model,
-      max_tokens: options.maxTokens ?? 8192,
+      max_tokens: options.maxTokens ?? DEFAULT_MAX_OUTPUT_TOKENS,
       stream: true,
       system: options.system,
       messages: toAnthropicMessages(options.messages),
@@ -309,7 +312,7 @@ export async function streamAnthropicMessages(options: {
     },
     body: JSON.stringify({
       model: modelResult.model,
-      max_tokens: options.maxTokens ?? 8192,
+      max_tokens: options.maxTokens ?? DEFAULT_MAX_OUTPUT_TOKENS,
       stream: true,
       system: options.system,
       messages: options.messages,

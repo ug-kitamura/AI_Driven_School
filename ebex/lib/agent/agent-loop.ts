@@ -4,10 +4,14 @@ import {
   buildAssistantToolUseMessage,
   buildToolResultMessages,
 } from "@/lib/agent/llm/anthropic";
-import type { LlmMessage, AgentToolEvent } from "@/lib/agent/llm/types";
+import type { LlmMessage, AgentToolEvent, ToolCall } from "@/lib/agent/llm/types";
 import {
+  AGENT_BROKEN_TOOL_USE_ERROR,
   AGENT_LOOP_LIMIT_ERROR,
+  AGENT_MISSING_PATH_ERROR,
+  AGENT_REPEATED_TOOL_ERROR,
   MAX_AGENT_LOOP_TURNS,
+  MAX_CONSECUTIVE_IDENTICAL_TOOL_ERRORS,
 } from "@/lib/agent/llm/types";
 import { resolveLlmProvider } from "@/lib/agent/llm/resolve-provider";
 import { resolveMaxOutputTokens } from "@/lib/resolve-max-output-tokens";
@@ -38,8 +42,25 @@ export type RunAgentLoopResult =
   | { ok: true; toolEvents: AgentToolEvent[] }
   | { ok: false; error: string; status: number };
 
-function parseContextModeFromRequest(_req: Request): "local" | "database" {
-  return "local";
+const PATH_REQUIRED_TOOLS = new Set(["read_file", "write_file", "mkdir"]);
+
+export function isBrokenToolUse(call: ToolCall): string | null {
+  if (call.inputParseError) {
+    return AGENT_BROKEN_TOOL_USE_ERROR;
+  }
+  if (PATH_REQUIRED_TOOLS.has(call.name)) {
+    const pathValue = call.input?.path;
+    if (typeof pathValue !== "string" || !pathValue.trim()) {
+      return AGENT_MISSING_PATH_ERROR;
+    }
+  }
+  return null;
+}
+
+export function extractToolErrorMessage(result: unknown): string | null {
+  if (!result || typeof result !== "object") return null;
+  const error = (result as { error?: unknown }).error;
+  return typeof error === "string" && error.trim() ? error : null;
 }
 
 export async function runAgentLoop(
@@ -72,6 +93,9 @@ export async function runAgentLoop(
       }
     : undefined;
 
+  let consecutiveError: string | null = null;
+  let consecutiveErrorCount = 0;
+
   for (let turn = 0; turn < MAX_AGENT_LOOP_TURNS; turn += 1) {
     let turnResult = null;
     for await (const event of providerResult.provider.streamTurn({
@@ -97,6 +121,25 @@ export async function runAgentLoop(
     if (turnResult.toolCalls.length === 0) {
       options.emit("done", {});
       return { ok: true, toolEvents };
+    }
+
+    for (const call of turnResult.toolCalls) {
+      const broken = isBrokenToolUse(call);
+      if (broken) {
+        options.emit("tool_start", {
+          name: call.name,
+          input: call.input,
+          toolUseId: call.id,
+        });
+        options.emit("tool_end", {
+          name: call.name,
+          toolUseId: call.id,
+          summary: "error",
+          display: `✗ ${broken}`,
+          result: JSON.stringify({ error: broken }),
+        });
+        return { ok: false, error: broken, status: 422 };
+      }
     }
 
     const assistantMessage = buildAssistantToolUseMessage(turnResult);
@@ -172,6 +215,23 @@ export async function runAgentLoop(
         result: resultJson,
         tags: outcome.display.tags,
       });
+
+      const errorMessage = extractToolErrorMessage(outcome.result);
+      if (errorMessage) {
+        if (errorMessage === consecutiveError) {
+          consecutiveErrorCount += 1;
+        } else {
+          consecutiveError = errorMessage;
+          consecutiveErrorCount = 1;
+        }
+        if (consecutiveErrorCount > MAX_CONSECUTIVE_IDENTICAL_TOOL_ERRORS) {
+          const message = `${AGENT_REPEATED_TOOL_ERROR}: ${errorMessage}`;
+          return { ok: false, error: message, status: 422 };
+        }
+      } else {
+        consecutiveError = null;
+        consecutiveErrorCount = 0;
+      }
     }
 
     llmMessages.push(...buildToolResultMessages(turnResult.toolCalls, toolResults));

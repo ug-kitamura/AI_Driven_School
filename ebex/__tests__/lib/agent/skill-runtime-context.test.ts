@@ -26,8 +26,9 @@ describe("buildSkillRuntimeContext", () => {
       projectFolderId: "demo",
       skillId: "minutes-maid",
     });
-    expect(text).toContain(".claude/skills/minutes-maid/");
+    expect(text).toContain("references/*");
     expect(text).toContain("references/purpose.md");
+    expect(text).not.toContain(".claude/skills/");
   });
 });
 

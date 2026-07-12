@@ -28,7 +28,7 @@ export function buildSkillRuntimeContext(focus: SkillRuntimeFocus): string {
     `既定の舞台はプロジェクトフォルダ \`${project}\`（\`workspace/${project}/\`）である。`,
     ...(skillId
       ? [
-          `実行中スキルのファイル（\`SKILL.md\` と同じフォルダ配下、例: \`references/*\`）は \`.claude/skills/${skillId}/\` にあり、確認なしで読み取れる。`,
+          `実行中スキルのファイル（\`SKILL.md\` と同じフォルダ配下、例: \`references/*\`）は確認なしで読み取れる。`,
           `スキル本文の相対パス（例: \`references/purpose.md\`）はスキル側を優先して読むこと。成果物の書込先は \`workspace/${project}/\` 配下である。`,
         ]
       : []),

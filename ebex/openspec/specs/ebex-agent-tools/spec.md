@@ -33,12 +33,17 @@ Agent invoke 時、システムは `lib/agent/tools/registry.ts` の `resolveToo
 
 ### Requirement: L2 読取ツール
 
-システムはプロジェクトフォルダ配下限定の `read_file` ツールを実装しなければならない（SHALL）。読取対象の文字数には上限（既定 約10万文字）を設けなければならない（SHALL）。上限を超えるファイルは切り詰めて返し、切り詰められた旨を結果に含めなければならない（SHALL）。プロジェクト内の読取はユーザー確認なしで実行できなければならない（SHALL）。
+システムはプロジェクトフォルダ配下、および実行中スキルの `skillDirAbsolute` 配下（読取専用ゾーン）を対象とする `read_file` ツールを実装しなければならない（SHALL）。読取対象の文字数には上限（既定 約10万文字）を設けなければならない（SHALL）。上限を超えるファイルは切り詰めて返し、切り詰められた旨を結果に含めなければならない（SHALL）。プロジェクト内および実行中スキル配下の読取はユーザー確認なしで実行できなければならない（SHALL）。
 
 #### Scenario: プロジェクト内読取は確認不要
 
 - **WHEN** スキルがプロジェクトフォルダ内のファイルに対し `read_file` を呼び出す
 - **THEN** 確認ダイアログなしでファイル内容が返る
+
+#### Scenario: スキル配下の読取は確認不要
+
+- **WHEN** スキルが `references/base.html` など実行中スキル配下のファイルに対し `read_file` を呼び出す
+- **THEN** 確認ダイアログなしで当該スキルディレクトリ上の内容が返る
 
 #### Scenario: 上限超のファイル
 
@@ -128,3 +133,50 @@ Agent invoke 時、システムは `lib/agent/tools/registry.ts` の `resolveToo
 
 - **WHEN** agent loop が確認待ちで一時停止している
 - **THEN** チャット入力欄は新規メッセージ送信を受け付けない
+
+### Requirement: スキルゾーンのホスト非依存パス解決
+
+発見・読取ツールは、実行中スキルの `skillDirAbsolute` を用いてスキル相対パスを解決できなければならない（SHALL）。ツール結果に含めるスキル配下の表示パスは、ホスト規約（`.claude` / `.cursor` 等）に依存しない論理形式（例: `skill/<skillId>/...`）でなければならない（SHALL）。実行中スキルに限り、旧形式 `.claude/skills/<実行中skillId>/...` 入力は `skillDirAbsolute` へマップして受け付けてよい（MAY）。他スキル id への明示パスは拒否しなければならない（SHALL）。
+
+#### Scenario: スキル相対読取の表示がホスト非依存
+
+- **WHEN** `read_file` が `references/purpose.md` をスキルゾーンから読む
+- **THEN** tool_result の path は `skill/<skillId>/references/purpose.md` 形式（または同等のホスト非依存形式）である
+
+#### Scenario: 旧 .claude パスも実行中スキルなら受理
+
+- **WHEN** `read_file` が `.claude/skills/<実行中skillId>/references/purpose.md` を要求し、実体は別ホスト規約ディレクトリにある
+- **THEN** `skillDirAbsolute` 配下の当該ファイルが読まれる
+
+#### Scenario: 他スキルへの明示パスは拒否
+
+- **WHEN** `read_file` が実行中以外のスキル id を含む明示スキルパスを要求する
+- **THEN** 読取は行われずエラーが返る
+
+### Requirement: 壊れた tool_use での loop 停止
+
+agent loop は、`tool_use` の入力 JSON パースに失敗した場合、または `read_file` / `write_file` / `mkdir` で必須の `path` が欠落または空の場合、空の入力オブジェクトへフォールバックして実行を続けてはならない（MUST NOT）。このとき loop はユーザーとモデルに理由が分かるエラーで停止しなければならない（SHALL）。
+
+#### Scenario: JSON パース失敗で停止
+
+- **WHEN** ストリームされた `tool_use` の input JSON が破損しパースできない
+- **THEN** agent loop は当該ツールを成功扱いで実行せず、壊れた tool_use である旨を示して停止する
+
+#### Scenario: path 欠落で停止
+
+- **WHEN** `write_file` の tool_use に `path` が無い、または空文字である
+- **THEN** agent loop は「path が空です」を通常エラーとしてモデルへ返して再試行させず、必須入力欠落として停止する
+
+### Requirement: 同一ツールエラー連続時の loop 停止
+
+agent loop は、連続するツール実行結果が同一のエラー内容である場合、2 回まではモデルに結果を返して続行してよい（MAY）が、3 回目には loop を停止し、同一エラーが繰り返された旨を示さなければならない（SHALL）。
+
+#### Scenario: 同一エラーが3回目で停止
+
+- **WHEN** ツールが同じエラー結果を連続して返し、それが3回目に達する
+- **THEN** agent loop はそれ以上のターンを実行せず停止する
+
+#### Scenario: 2回までは続行
+
+- **WHEN** 同一ツールエラーが2回連続した時点である
+- **THEN** agent loop はまだ停止せず、モデルに結果を返して次ターンへ進める

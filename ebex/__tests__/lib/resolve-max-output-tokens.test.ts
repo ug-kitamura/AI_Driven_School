@@ -6,9 +6,9 @@ function requestWithHeaders(headers: Record<string, string>): Request {
 }
 
 describe("resolveMaxOutputTokens", () => {
-  it("defaults to 8192 when header is absent", () => {
+  it("defaults to 32000 when header is absent", () => {
     const req = requestWithHeaders({});
-    expect(resolveMaxOutputTokens(req, "claude-sonnet-4-6")).toBe(8192);
+    expect(resolveMaxOutputTokens(req, "claude-sonnet-4-6")).toBe(32000);
   });
 
   it("uses header value when within model limit", () => {

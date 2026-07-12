@@ -43,7 +43,7 @@ export function isUnsupportedAiModel(model: string): boolean {
 
 export const MAX_OUTPUT_TOKEN_OPTIONS = [8192, 16384, 32000] as const;
 export type MaxOutputTokens = (typeof MAX_OUTPUT_TOKEN_OPTIONS)[number];
-export const DEFAULT_MAX_OUTPUT_TOKENS: MaxOutputTokens = 8192;
+export const DEFAULT_MAX_OUTPUT_TOKENS: MaxOutputTokens = 32000;
 
 /** モデル別の最大出力トークン上限。未掲載のモデルは既定値を上限とする。 */
 const MODEL_MAX_OUTPUT_TOKENS: Partial<Record<AiModelSlug, number>> = {

@@ -7,6 +7,12 @@ import {
   checkScriptSyntax,
   runScriptInSandbox,
 } from "@/lib/agent/tools/script-sandbox";
+import {
+  SEARCH_UNAVAILABLE_NOTICE,
+  SEARCH_UNCONFIGURED_NOTICE,
+  type SearchProvider,
+  type SearchSessionState,
+} from "@/lib/agent/tools/search-provider";
 import { WORKSPACE_DIR_NAME } from "@/lib/workspace-constants";
 
 export type ToolExecutionDisplay = {
@@ -25,6 +31,11 @@ export type ToolExecutionContext = {
   projectFolderId: string;
   skillId?: string;
   skillDirAbsolute?: string;
+  /** web_search のバックエンドとサーキットブレーカー状態（agent loop が構築） */
+  search?: {
+    provider: SearchProvider | null;
+    session: SearchSessionState;
+  };
 };
 
 function skillPathOptions(
@@ -288,6 +299,26 @@ const TOOL_SCHEMAS = {
         },
       },
       required: ["script_path", "purpose"],
+    },
+  },
+  web_search: {
+    name: "web_search",
+    description:
+      "web 検索を実行し、タイトル・URL・スニペットの一覧を返す。実行前にユーザー確認が入る。検索が利用できない環境では、その旨の案内が返る（再試行しないこと）。",
+    input_schema: {
+      type: "object",
+      properties: {
+        query: {
+          type: "string",
+          description: "検索クエリ（ユーザー確認ダイアログに全文表示される）",
+        },
+        purpose: {
+          type: "string",
+          description:
+            "何のために検索するかの一文（ユーザー確認ダイアログに表示される）",
+        },
+      },
+      required: ["query", "purpose"],
     },
   },
 } as const satisfies Record<string, ToolDefinition>;
@@ -1230,6 +1261,52 @@ async function executeRunSkillScript(
   };
 }
 
+/** 劣化契約の返却（error キーを持たせず、安全停止カウンタに乗せない） */
+function searchUnavailableOutcome(notice: string): ToolExecutionOutcome {
+  return {
+    result: { unavailable: true, notice },
+    display: display("利用不可", `🔎 web 検索は利用できません`),
+  };
+}
+
+async function executeWebSearch(
+  context: ToolExecutionContext,
+  input: Record<string, unknown>,
+): Promise<ToolExecutionOutcome> {
+  const query = typeof input.query === "string" ? input.query.trim() : "";
+  if (!query) return errorOutcome("query が空です");
+
+  const search = context.search;
+  if (!search || !search.provider) {
+    if (search) search.session.unavailable = true;
+    return searchUnavailableOutcome(SEARCH_UNCONFIGURED_NOTICE);
+  }
+  if (search.session.unavailable) {
+    return searchUnavailableOutcome(SEARCH_UNAVAILABLE_NOTICE);
+  }
+
+  const outcome = await search.provider.search(query);
+  if (!outcome.ok) {
+    // 最初の失敗でセッション内の検索を閉じる（サーキットブレーカー）
+    search.session.unavailable = true;
+    return {
+      result: {
+        unavailable: true,
+        notice: `${SEARCH_UNAVAILABLE_NOTICE}（詳細: ${outcome.error}）`,
+      },
+      display: display("失敗", `🔎 web 検索に失敗: ${outcome.error}`),
+    };
+  }
+
+  return {
+    result: { query, results: outcome.results },
+    display: display(
+      `${outcome.results.length} 件`,
+      `🔎 web 検索: ${query} — ${outcome.results.length} 件`,
+    ),
+  };
+}
+
 /**
  * スクリプト系ツールの事前検査（ユーザー確認ダイアログより先に行う）。
  * - run_script: 構文チェック。壊れたコードの承認をユーザーに求めない
@@ -1379,6 +1456,8 @@ export async function executeRegisteredTool(
       return executeRunScript(context, input);
     case "run_skill_script":
       return executeRunSkillScript(context, input);
+    case "web_search":
+      return executeWebSearch(context, input);
     default:
       if (isLikelyBlockedToolName(name)) {
         return buildBlockedOutcome(name, input);

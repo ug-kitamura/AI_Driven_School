@@ -12,7 +12,8 @@ export type ConfirmKind =
   | "outside-project-read"
   | "outside-project-write"
   | "run-script"
-  | "run-skill-script";
+  | "run-skill-script"
+  | "web-search";
 
 /** スクリプト実行確認の表示ペイロード */
 export type ConfirmScriptInfo = {
@@ -30,6 +31,14 @@ export type ConfirmScriptInfo = {
   args?: string[];
 };
 
+/** web 検索確認の表示ペイロード */
+export type ConfirmSearchInfo = {
+  /** 外部へ送信される検索クエリ全文 */
+  query: string;
+  /** 何のために検索するか（モデル申告） */
+  purpose: string;
+};
+
 export type ConfirmRequirement = {
   kind: ConfirmKind;
   /** 表示用の対象パス */
@@ -38,6 +47,8 @@ export type ConfirmRequirement = {
   isNew: boolean;
   /** スクリプト実行確認（kind: run-script / run-skill-script）の表示情報 */
   script?: ConfirmScriptInfo;
+  /** web 検索確認（kind: web-search）の表示情報 */
+  search?: ConfirmSearchInfo;
 };
 
 export type ConfirmGateOptions = ResolveToolPathOptions & {
@@ -46,6 +57,11 @@ export type ConfirmGateOptions = ResolveToolPathOptions & {
    * AI が今セッションで作成したファイル、またはユーザーが一度許可したファイル。
    */
   skipOverwritePaths?: ReadonlySet<string>;
+  /**
+   * web 検索が利用不可（キー未設定・サーキットブレーカー作動後）のとき true。
+   * この場合 web_search の確認ダイアログは出さず、実行側が劣化契約を返す。
+   */
+  searchUnavailable?: boolean;
 };
 
 const READ_TOOL_NAMES = new Set([
@@ -245,6 +261,22 @@ export function resolveConfirmRequirement(
 ): ConfirmRequirement | null {
   if (call.name === "run_script" || call.name === "run_skill_script") {
     return resolveScriptConfirm(projectRoot, projectFolderId, call, options);
+  }
+
+  if (call.name === "web_search") {
+    // 利用不可の環境では確認を出さず、実行側が劣化契約を返す
+    if (options.searchUnavailable) return null;
+    const query =
+      typeof call.input?.query === "string" ? call.input.query.trim() : "";
+    if (!query) return null;
+    const purpose =
+      typeof call.input?.purpose === "string" ? call.input.purpose : "";
+    return {
+      kind: "web-search",
+      path: query,
+      isNew: false,
+      search: { query, purpose },
+    };
   }
 
   if (call.name === "copy_file") {

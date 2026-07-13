@@ -37,6 +37,11 @@ import {
   normalizeConfirmPath,
 } from "@/lib/agent/tools/confirm-gate";
 import { awaitToolConfirmDecision } from "@/lib/agent/tools/tool-confirm-registry";
+import {
+  resolveSearchProvider,
+  SEARCH_REJECTED_GUIDANCE,
+  type SearchSessionState,
+} from "@/lib/agent/tools/search-provider";
 import { checkProjectFolderExists } from "@/lib/agent/project-folder-guard";
 import type { ToolDefinition } from "@/lib/agent/llm/types";
 
@@ -154,11 +159,14 @@ export async function runAgentLoop(
     skillId: options.skillId,
     skillDirAbsolute: options.skillDirAbsolute,
   };
+  const searchProvider = resolveSearchProvider(options.req);
+  const searchSession: SearchSessionState = { unavailable: false };
   const toolContext: ToolExecutionContext | undefined = projectFolderId
     ? {
         projectRoot: process.cwd(),
         projectFolderId,
         ...skillOptions,
+        search: { provider: searchProvider, session: searchSession },
       }
     : undefined;
 
@@ -262,7 +270,11 @@ export async function runAgentLoop(
               toolContext.projectRoot,
               toolContext.projectFolderId,
               call,
-              { ...skillOptions, skipOverwritePaths },
+              {
+                ...skillOptions,
+                skipOverwritePaths,
+                searchUnavailable: !searchProvider || searchSession.unavailable,
+              },
             )
           : null;
 
@@ -273,6 +285,7 @@ export async function runAgentLoop(
             path: requirement.path,
             isNew: requirement.isNew,
             ...(requirement.script ? { script: requirement.script } : {}),
+            ...(requirement.search ? { search: requirement.search } : {}),
           });
           const decision = await awaitToolConfirmDecision(call.id);
           if (decision === "reject") {
@@ -281,6 +294,9 @@ export async function runAgentLoop(
                 rejected: true,
                 path: requirement.path,
                 reason: "ユーザーが確認ダイアログで拒否しました",
+                ...(call.name === "web_search"
+                  ? { guidance: SEARCH_REJECTED_GUIDANCE }
+                  : {}),
               },
               display: {
                 summary: "拒否",

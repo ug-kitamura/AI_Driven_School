@@ -57,6 +57,15 @@ function describeRequest(request: ToolConfirmRequiredEvent): {
         description: `${request.script?.purpose?.trim() || "スキルに同梱されたスクリプトを実行しようとしています。"}\n\nスクリプト: ${request.script?.scriptPath ?? request.path}`,
         actionLabel: "実行を許可",
       };
+    case "web-search": {
+      const query = request.search?.query ?? request.path;
+      const purpose = request.search?.purpose?.trim();
+      return {
+        title: "web 検索を実行しますか？",
+        description: `「${query}」について web 検索しますが、よろしいですか？${purpose ? `\n\n目的: ${purpose}` : ""}\n\nこのクエリは外部の検索サービスへ送信されます。`,
+        actionLabel: "検索を許可",
+      };
+    }
   }
 }
 

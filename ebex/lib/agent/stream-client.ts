@@ -7,7 +7,8 @@ export type ToolConfirmKind =
   | "outside-project-read"
   | "outside-project-write"
   | "run-script"
-  | "run-skill-script";
+  | "run-skill-script"
+  | "web-search";
 
 export type ToolConfirmScriptInfo = {
   purpose: string;
@@ -18,12 +19,18 @@ export type ToolConfirmScriptInfo = {
   args?: string[];
 };
 
+export type ToolConfirmSearchInfo = {
+  query: string;
+  purpose: string;
+};
+
 export type ToolConfirmRequiredEvent = {
   toolUseId: string;
   kind: ToolConfirmKind;
   path: string;
   isNew: boolean;
   script?: ToolConfirmScriptInfo;
+  search?: ToolConfirmSearchInfo;
 };
 
 export type AgentStreamCallbacks = {
@@ -164,7 +171,8 @@ export async function consumeAgentStream(
                 kind === "outside-project-read" ||
                 kind === "outside-project-write" ||
                 kind === "run-script" ||
-                kind === "run-skill-script") &&
+                kind === "run-skill-script" ||
+                kind === "web-search") &&
               typeof data.path === "string"
             ) {
               const rawScript =
@@ -210,12 +218,27 @@ export async function consumeAgentStream(
                       : {}),
                   }
                 : undefined;
+              const rawSearch =
+                data.search && typeof data.search === "object"
+                  ? (data.search as Record<string, unknown>)
+                  : null;
+              const search: ToolConfirmSearchInfo | undefined =
+                rawSearch && typeof rawSearch.query === "string"
+                  ? {
+                      query: rawSearch.query,
+                      purpose:
+                        typeof rawSearch.purpose === "string"
+                          ? rawSearch.purpose
+                          : "",
+                    }
+                  : undefined;
               callbacks.onConfirmRequired?.({
                 toolUseId: data.toolUseId,
                 kind,
                 path: data.path,
                 isNew: Boolean(data.isNew),
                 ...(script ? { script } : {}),
+                ...(search ? { search } : {}),
               });
             }
             break;

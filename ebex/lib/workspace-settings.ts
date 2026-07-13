@@ -32,6 +32,7 @@ export const WORKSPACE_SETTINGS_CHANGED_EVENT =
 
 export type WorkspaceSettings = {
   aiApiKey: string | null;
+  searchApiKey: string | null;
   aiModel: AiModelSlug;
   maxOutputTokens: MaxOutputTokens;
   theme: ThemeMode;
@@ -49,6 +50,7 @@ const STORAGE_KEY = STORAGE_KEYS.settings;
 
 export const DEFAULT_WORKSPACE_SETTINGS: WorkspaceSettings = {
   aiApiKey: null,
+  searchApiKey: null,
   aiModel: DEFAULT_AI_MODEL,
   maxOutputTokens: DEFAULT_MAX_OUTPUT_TOKENS,
   theme: "system",
@@ -83,8 +85,9 @@ export function loadWorkspaceSettings(): WorkspaceSettings {
           }
         : undefined;
     return {
-      aiApiKey:
-        typeof parsed.aiApiKey === "string" ? parsed.aiApiKey : null,
+      aiApiKey: typeof parsed.aiApiKey === "string" ? parsed.aiApiKey : null,
+      searchApiKey:
+        typeof parsed.searchApiKey === "string" ? parsed.searchApiKey : null,
       aiModel: normalizeAiModel(parsed.aiModel),
       maxOutputTokens: normalizeMaxOutputTokens(parsed.maxOutputTokens),
       theme:

@@ -101,7 +101,11 @@ function ApiKeyField({
           aria-pressed={visible}
           onClick={() => setVisible((v) => !v)}
         >
-          {visible ? <EyeOff className="size-3.5" /> : <Eye className="size-3.5" />}
+          {visible ? (
+            <EyeOff className="size-3.5" />
+          ) : (
+            <Eye className="size-3.5" />
+          )}
         </Button>
         <Button
           type="button"
@@ -131,6 +135,9 @@ function SettingsForm({
   const initial = loadWorkspaceSettings();
   const [draft, setDraft] = useState<WorkspaceSettings>(initial);
   const [apiKeyInput, setApiKeyInput] = useState(initial.aiApiKey ?? "");
+  const [searchApiKeyInput, setSearchApiKeyInput] = useState(
+    initial.searchApiKey ?? "",
+  );
   const [paneDraft, setPaneDraft] = useState<WorkspacePaneWidths>(() =>
     snapPaneWidths(currentPaneWidths),
   );
@@ -149,6 +156,7 @@ function SettingsForm({
     const next: WorkspaceSettings = {
       ...draft,
       aiApiKey: apiKeyInput.trim() || null,
+      searchApiKey: searchApiKeyInput.trim() || null,
       editorFontSizePx: clampEditorFontSizePx(fontDraft),
       paneDefaults: snapPaneWidths(paneDraft),
     };
@@ -201,7 +209,9 @@ function SettingsForm({
         </section>
 
         <section className="flex flex-col gap-3">
-          <h3 className="text-sm font-semibold text-foreground">フォントサイズ</h3>
+          <h3 className="text-sm font-semibold text-foreground">
+            フォントサイズ
+          </h3>
           <MetaDialogField>
             <div className="flex items-center gap-1.5">
               <Input
@@ -320,7 +330,9 @@ function SettingsForm({
         </section>
 
         <section className="flex flex-col gap-3">
-          <h3 className="text-sm font-semibold text-foreground">最大出力トークン</h3>
+          <h3 className="text-sm font-semibold text-foreground">
+            最大出力トークン
+          </h3>
           <MetaDialogField>
             <Select
               items={MAX_OUTPUT_TOKEN_OPTIONS.map((value) => ({
@@ -362,6 +374,14 @@ function SettingsForm({
             onChange={setApiKeyInput}
             placeholder="AI API key"
             hint="未入力時は環境変数 AI_API_KEY を取得"
+          />
+          <ApiKeyField
+            id="settings-search-api-key"
+            label="Web 検索 API キー"
+            value={searchApiKeyInput}
+            onChange={setSearchApiKeyInput}
+            placeholder="Search API key (Tavily)"
+            hint="未入力時は環境変数 SEARCH_API_KEY を取得。未設定でも他機能に影響なし"
           />
         </section>
       </div>

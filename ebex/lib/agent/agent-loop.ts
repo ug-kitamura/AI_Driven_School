@@ -19,12 +19,15 @@ import {
   LARGE_FILE_WRITE_GUIDANCE,
   MAX_AGENT_LOOP_TURNS,
   MAX_CONSECUTIVE_IDENTICAL_TOOL_ERRORS,
+  MAX_TOKENS_TRUNCATION_NOTE,
+  SCRIPT_INPUT_GUIDANCE,
 } from "@/lib/agent/llm/types";
 import { resolveLlmProvider } from "@/lib/agent/llm/resolve-provider";
 import { resolveMaxOutputTokens } from "@/lib/resolve-max-output-tokens";
 import {
   executeRegisteredTool,
   isScriptToolName,
+  normalizeScriptToolCall,
   preflightScriptToolCall,
   resolveToolDefinitions,
   type ToolExecutionContext,
@@ -118,12 +121,24 @@ export function extractToolErrorMessage(result: unknown): string | null {
   return typeof error === "string" && error.trim() ? error : null;
 }
 
-function brokenToolOutcome(message: string): ToolExecutionOutcome {
+function brokenToolOutcome(
+  message: string,
+  options?: { truncatedByMaxTokens?: boolean },
+): ToolExecutionOutcome {
+  // script 系の入力不備には schema を再提示する（LARGE_FILE_WRITE_GUIDANCE は
+  // 「run_script を使え」という案内のため、run_script 自体の失敗には循環して役立たない）
+  const baseGuidance =
+    message === AGENT_MISSING_SCRIPT_INPUT_ERROR
+      ? SCRIPT_INPUT_GUIDANCE
+      : LARGE_FILE_WRITE_GUIDANCE;
+  const guidance = options?.truncatedByMaxTokens
+    ? `${MAX_TOKENS_TRUNCATION_NOTE} ${baseGuidance}`
+    : baseGuidance;
   return {
     result: {
       error: message,
       recoverable: true,
-      guidance: LARGE_FILE_WRITE_GUIDANCE,
+      guidance,
     },
     display: {
       summary: "error",
@@ -237,6 +252,13 @@ export async function runAgentLoop(
         }
       }
 
+      // モデルの入力ゆらぎ（code の別名キー・run_script / run_skill_script の取り違え）を救済する
+      if (isScriptToolName(call.name)) {
+        const normalized = normalizeScriptToolCall(call.name, call.input ?? {});
+        call.name = normalized.name;
+        call.input = normalized.input;
+      }
+
       options.emit("tool_start", {
         name: call.name,
         input: call.input,
@@ -261,7 +283,9 @@ export async function runAgentLoop(
           : null;
 
       if (broken) {
-        outcome = brokenToolOutcome(broken);
+        outcome = brokenToolOutcome(broken, {
+          truncatedByMaxTokens: turnResult.stopReason === "max_tokens",
+        });
       } else if (preflight) {
         outcome = preflight;
       } else {

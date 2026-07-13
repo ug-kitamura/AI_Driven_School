@@ -5,6 +5,7 @@ import path from "node:path";
 import {
   executeRegisteredTool,
   isLikelyBlockedToolName,
+  normalizeScriptToolCall,
   preflightScriptToolCall,
   resolveToolDefinitions,
 } from "@/lib/agent/tools/registry";
@@ -227,5 +228,59 @@ describe("preflightScriptToolCall", () => {
     );
     expect(outcome).toBeNull();
     fs.rmSync(tmpDir, { recursive: true, force: true });
+  });
+});
+
+describe("normalizeScriptToolCall", () => {
+  it("keeps valid run_script input unchanged", () => {
+    const input = { purpose: "p", code: "const fs = 1;", writes: [] };
+    const normalized = normalizeScriptToolCall("run_script", input);
+    expect(normalized.name).toBe("run_script");
+    expect(normalized.input).toBe(input);
+  });
+
+  it("salvages code from alias keys", () => {
+    for (const alias of ["script", "content", "source", "js"]) {
+      const normalized = normalizeScriptToolCall("run_script", {
+        purpose: "p",
+        [alias]: "const x = 1;",
+        writes: [],
+      });
+      expect(normalized.name).toBe("run_script");
+      expect(normalized.input.code).toBe("const x = 1;");
+    }
+  });
+
+  it("redirects run_script with script_path to run_skill_script", () => {
+    const normalized = normalizeScriptToolCall("run_script", {
+      purpose: "p",
+      script_path: "scripts/build.cjs",
+    });
+    expect(normalized.name).toBe("run_skill_script");
+  });
+
+  it("redirects run_skill_script with code to run_script", () => {
+    const normalized = normalizeScriptToolCall("run_skill_script", {
+      purpose: "p",
+      code: "const x = 1;",
+      writes: [],
+    });
+    expect(normalized.name).toBe("run_script");
+    expect(normalized.input.code).toBe("const x = 1;");
+  });
+
+  it("leaves truly empty input for the broken tool_use path", () => {
+    const normalized = normalizeScriptToolCall("run_script", {
+      purpose: "p",
+      writes: ["out.html"],
+    });
+    expect(normalized.name).toBe("run_script");
+    expect(normalized.input.code).toBeUndefined();
+  });
+
+  it("does not touch non-script tools", () => {
+    const input = { path: "a.md", content: "x" };
+    const normalized = normalizeScriptToolCall("write_file", input);
+    expect(normalized).toEqual({ name: "write_file", input });
   });
 });

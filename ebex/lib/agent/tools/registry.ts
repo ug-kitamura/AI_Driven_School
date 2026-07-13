@@ -1092,6 +1092,58 @@ export function isScriptToolName(name: string): boolean {
   return SCRIPT_TOOL_NAMES.has(name);
 }
 
+/** run_script の code として受理する別名キー（モデルの入力ゆらぎ救済） */
+const RUN_SCRIPT_CODE_ALIASES = ["script", "content", "source", "js"] as const;
+
+function nonEmptyString(value: unknown): string | null {
+  return typeof value === "string" && value.trim() ? value : null;
+}
+
+export type NormalizedScriptToolCall = {
+  name: string;
+  input: Record<string, unknown>;
+};
+
+/**
+ * スクリプト系ツール呼び出しの入力ゆらぎを救済する（broken 判定・確認・実行より前に適用）。
+ * - run_script: code が別名キー（script / content / source / js）にある場合は code へ移す
+ * - run_script: code が無く script_path だけがある場合は run_skill_script として扱う
+ * - run_skill_script: script_path が無く code 相当がある場合は run_script として扱う
+ */
+export function normalizeScriptToolCall(
+  name: string,
+  input: Record<string, unknown>,
+): NormalizedScriptToolCall {
+  if (!isScriptToolName(name)) return { name, input };
+
+  const code =
+    nonEmptyString(input.code) ??
+    RUN_SCRIPT_CODE_ALIASES.reduce<string | null>(
+      (found, alias) => found ?? nonEmptyString(input[alias]),
+      null,
+    );
+  const scriptPath = nonEmptyString(input.script_path);
+
+  if (name === "run_script") {
+    if (code) {
+      return code === input.code
+        ? { name, input }
+        : { name, input: { ...input, code } };
+    }
+    if (scriptPath) {
+      return { name: "run_skill_script", input };
+    }
+    return { name, input };
+  }
+
+  // run_skill_script
+  if (scriptPath) return { name, input };
+  if (code) {
+    return { name: "run_script", input: { ...input, code } };
+  }
+  return { name, input };
+}
+
 const SKILL_SCRIPT_ZONE_ERROR =
   "run_skill_script は実行中スキルの scripts/ 配下のスクリプトのみ実行できます";
 

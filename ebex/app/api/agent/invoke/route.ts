@@ -29,6 +29,20 @@ const toolEventSchema = z.object({
   tags: z.array(z.string()).optional(),
 });
 
+const logicalTurnSchema = z.object({
+  text: z.string().optional(),
+  toolCalls: z
+    .array(
+      z.object({
+        id: z.string(),
+        name: z.string(),
+        input: z.record(z.string(), z.unknown()),
+        result: z.string(),
+      }),
+    )
+    .optional(),
+});
+
 const attachmentSchema = z.object({
   path: z.string().min(1),
   name: z.string().min(1),
@@ -38,6 +52,7 @@ const messageSchema = z.object({
   role: z.enum(["user", "assistant"]),
   content: z.string(),
   toolEvents: z.array(toolEventSchema).optional(),
+  toolTurns: z.array(logicalTurnSchema).optional(),
   attachments: z.array(attachmentSchema).optional(),
 });
 

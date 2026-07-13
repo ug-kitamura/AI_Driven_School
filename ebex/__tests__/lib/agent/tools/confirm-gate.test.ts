@@ -128,4 +128,47 @@ describe("resolveConfirmRequirement", () => {
     expect(req).toBeNull();
     fs.rmSync(tmpDir, { recursive: true, force: true });
   });
+
+  it("requires overwrite confirm when copy_file target exists", () => {
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "ebex-confirm-"));
+    createFolder(tmpDir, "demo");
+    createFile(tmpDir, "demo", "dest.html", "old");
+    const skillDir = path.join(tmpDir, ".claude", "skills", "minutes-maid");
+    fs.mkdirSync(path.join(skillDir, "references"), { recursive: true });
+    fs.writeFileSync(path.join(skillDir, "references", "base.html"), "base");
+
+    const req = resolveConfirmRequirement(
+      tmpDir,
+      "demo",
+      {
+        id: "t1",
+        name: "copy_file",
+        input: { from: "references/base.html", to: "dest.html" },
+      },
+      { skillId: "minutes-maid", skillDirAbsolute: skillDir },
+    );
+    expect(req).toEqual({
+      kind: "overwrite",
+      path: "workspace/demo/dest.html",
+      isNew: false,
+    });
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+  });
+
+  it("requires overwrite confirm for replace_in_file on existing file", () => {
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "ebex-confirm-"));
+    createFolder(tmpDir, "demo");
+    createFile(tmpDir, "demo", "out.html", "{{TITLE}}");
+    const req = resolveConfirmRequirement(tmpDir, "demo", {
+      id: "t1",
+      name: "replace_in_file",
+      input: { path: "out.html", replacements: { TITLE: "x" } },
+    });
+    expect(req).toEqual({
+      kind: "overwrite",
+      path: "workspace/demo/out.html",
+      isNew: false,
+    });
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+  });
 });

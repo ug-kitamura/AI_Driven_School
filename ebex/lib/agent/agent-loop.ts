@@ -4,7 +4,7 @@ import {
   buildAssistantToolUseMessage,
   buildToolResultMessages,
 } from "@/lib/agent/llm/anthropic";
-import type { LlmMessage, AgentToolEvent, ToolCall } from "@/lib/agent/llm/types";
+import type { LlmMessage, AgentToolEvent, AgentLogicalTurn, ToolCall } from "@/lib/agent/llm/types";
 import {
   AGENT_BROKEN_TOOL_USE_ERROR,
   AGENT_LOOP_LIMIT_ERROR,
@@ -40,14 +40,27 @@ export type RunAgentLoopOptions = {
 };
 
 export type RunAgentLoopResult =
-  | { ok: true; toolEvents: AgentToolEvent[] }
+  | { ok: true; toolEvents: AgentToolEvent[]; toolTurns: AgentLogicalTurn[] }
   | { ok: false; error: string; status: number };
 
-const PATH_REQUIRED_TOOLS = new Set(["read_file", "write_file", "mkdir"]);
+const PATH_REQUIRED_TOOLS = new Set([
+  "read_file",
+  "write_file",
+  "mkdir",
+  "replace_in_file",
+]);
 
 export function isBrokenToolUse(call: ToolCall): string | null {
   if (call.inputParseError) {
     return AGENT_BROKEN_TOOL_USE_ERROR;
+  }
+  if (call.name === "copy_file") {
+    const from = call.input?.from;
+    const to = call.input?.to;
+    if (typeof from !== "string" || !from.trim() || typeof to !== "string" || !to.trim()) {
+      return AGENT_MISSING_PATH_ERROR;
+    }
+    return null;
   }
   if (PATH_REQUIRED_TOOLS.has(call.name)) {
     const pathValue = call.input?.path;
@@ -81,6 +94,7 @@ export async function runAgentLoop(
   const maxTokens = resolveMaxOutputTokens(options.req, providerResult.model);
   const llmMessages = [...options.messages];
   const toolEvents: AgentToolEvent[] = [];
+  const toolTurns: AgentLogicalTurn[] = [];
   const projectFolderId = options.projectFolderId;
   const skillOptions = {
     skillId: options.skillId,
@@ -98,6 +112,15 @@ export async function runAgentLoop(
 
   let consecutiveError: string | null = null;
   let consecutiveErrorCount = 0;
+  let turnText = "";
+
+  const emitLogicalTurn = (turn: AgentLogicalTurn) => {
+    if (!turn.text?.trim() && !(turn.toolCalls && turn.toolCalls.length > 0)) {
+      return;
+    }
+    toolTurns.push(turn);
+    options.emit("logical_turn", turn);
+  };
 
   for (let turn = 0; turn < MAX_AGENT_LOOP_TURNS; turn += 1) {
     if (projectFolderId) {
@@ -107,6 +130,7 @@ export async function runAgentLoop(
       }
     }
 
+    turnText = "";
     let turnResult = null;
     for await (const event of providerResult.provider.streamTurn({
       apiKey,
@@ -118,6 +142,7 @@ export async function runAgentLoop(
       signal: options.signal,
     })) {
       if (event.type === "text_delta") {
+        turnText += event.text;
         options.emit("text_delta", { text: event.text });
       } else if (event.type === "turn_complete") {
         turnResult = event.result;
@@ -129,8 +154,9 @@ export async function runAgentLoop(
     }
 
     if (turnResult.toolCalls.length === 0) {
+      emitLogicalTurn({ text: turnText || undefined });
       options.emit("done", {});
-      return { ok: true, toolEvents };
+      return { ok: true, toolEvents, toolTurns };
     }
 
     for (const call of turnResult.toolCalls) {
@@ -250,6 +276,16 @@ export async function runAgentLoop(
         consecutiveErrorCount = 0;
       }
     }
+
+    emitLogicalTurn({
+      text: turnText || undefined,
+      toolCalls: turnResult.toolCalls.map((call, index) => ({
+        id: call.id,
+        name: call.name,
+        input: call.input,
+        result: toolResults[index] ?? "{}",
+      })),
+    });
 
     llmMessages.push(...buildToolResultMessages(turnResult.toolCalls, toolResults));
   }

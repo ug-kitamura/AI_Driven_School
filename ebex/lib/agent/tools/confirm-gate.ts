@@ -17,11 +17,39 @@ export type ConfirmRequirement = {
 };
 
 const READ_TOOL_NAMES = new Set(["list_files", "glob_files", "search_content", "read_file"]);
-const WRITE_TOOL_NAMES = new Set(["write_file", "mkdir"]);
+const WRITE_TOOL_NAMES = new Set(["write_file", "mkdir", "replace_in_file"]);
 
 function extractPathInput(call: ToolCall): string | null {
   const value = call.input?.path;
   return typeof value === "string" && value.trim() ? value : null;
+}
+
+function resolveWriteConfirm(
+  projectRoot: string,
+  projectFolderId: string,
+  inputPath: string,
+  skillOptions: ResolveToolPathOptions,
+  requireExistsForOverwrite: boolean,
+): ConfirmRequirement | null {
+  const resolved = resolveToolTargetPath(projectRoot, projectFolderId, inputPath, {
+    ...skillOptions,
+    preferSkillIfExists: false,
+  });
+  if ("error" in resolved) return null;
+  if (resolved.insideSkill) return null;
+
+  const exists = fs.existsSync(resolved.absolutePath);
+  if (!resolved.insideProject) {
+    return {
+      kind: "outside-project-write",
+      path: resolved.relativePath,
+      isNew: !exists,
+    };
+  }
+  if (exists && requireExistsForOverwrite) {
+    return { kind: "overwrite", path: resolved.relativePath, isNew: false };
+  }
+  return null;
 }
 
 /**
@@ -37,6 +65,34 @@ export function resolveConfirmRequirement(
   call: ToolCall,
   skillOptions: ResolveToolPathOptions = {},
 ): ConfirmRequirement | null {
+  if (call.name === "copy_file") {
+    const from =
+      typeof call.input?.from === "string" && call.input.from.trim()
+        ? call.input.from
+        : null;
+    const to =
+      typeof call.input?.to === "string" && call.input.to.trim()
+        ? call.input.to
+        : null;
+    if (!from || !to) return null;
+
+    const fromResolved = resolveToolTargetPath(projectRoot, projectFolderId, from, {
+      ...skillOptions,
+      preferSkillIfExists: true,
+    });
+    if (!("error" in fromResolved)) {
+      if (!fromResolved.insideProject && !fromResolved.insideSkill) {
+        return {
+          kind: "outside-project-read",
+          path: fromResolved.relativePath,
+          isNew: false,
+        };
+      }
+    }
+
+    return resolveWriteConfirm(projectRoot, projectFolderId, to, skillOptions, true);
+  }
+
   const isRead = READ_TOOL_NAMES.has(call.name);
   const isWrite = WRITE_TOOL_NAMES.has(call.name);
   if (!isRead && !isWrite) return null;
@@ -44,32 +100,28 @@ export function resolveConfirmRequirement(
   const inputPath = extractPathInput(call);
   if (!inputPath) return null;
 
-  const resolved = resolveToolTargetPath(projectRoot, projectFolderId, inputPath, {
-    ...skillOptions,
-    preferSkillIfExists: isRead,
-  });
-  if ("error" in resolved) return null; // 実行時にエラーとして処理される
-
   if (isRead) {
+    const resolved = resolveToolTargetPath(projectRoot, projectFolderId, inputPath, {
+      ...skillOptions,
+      preferSkillIfExists: true,
+    });
+    if ("error" in resolved) return null;
     if (resolved.insideProject || resolved.insideSkill) return null;
     return { kind: "outside-project-read", path: resolved.relativePath, isNew: false };
   }
 
-  // write_file / mkdir — スキル配下への書込は実行時拒否（確認ダイアログにはしない）
-  if (resolved.insideSkill) return null;
-
-  const exists = fs.existsSync(resolved.absolutePath);
-  if (!resolved.insideProject) {
-    return {
-      kind: "outside-project-write",
-      path: resolved.relativePath,
-      isNew: !exists,
-    };
-  }
-  if (exists && call.name === "write_file") {
-    return { kind: "overwrite", path: resolved.relativePath, isNew: false };
-  }
-  return null;
+  // write_file / mkdir / replace_in_file
+  const requireOverwrite =
+    call.name === "write_file" ||
+    call.name === "replace_in_file" ||
+    call.name === "copy_file";
+  return resolveWriteConfirm(
+    projectRoot,
+    projectFolderId,
+    inputPath,
+    skillOptions,
+    requireOverwrite || call.name === "replace_in_file",
+  );
 }
 
 export type { ToolPathError };

@@ -49,7 +49,7 @@ import {
   type ToolConfirmRequiredEvent,
 } from "@/lib/agent/stream-client";
 import { ToolConfirmDialog } from "@/components/workspace/ToolConfirmDialog";
-import type { AgentToolEvent } from "@/lib/agent/llm/types";
+import type { AgentLogicalTurn, AgentToolEvent } from "@/lib/agent/llm/types";
 import {
   addSession,
   DEFAULT_SESSION_TITLE,
@@ -152,6 +152,7 @@ function computeSessionFingerprint(
       role: message.role,
       content: message.content,
       toolEvents: message.toolEvents,
+      toolTurns: message.toolTurns,
       attachments: message.attachments,
     })),
     activeSkillId: nextSkillId,
@@ -219,6 +220,7 @@ export function AgentChatPane({
     string | null
   >(null);
   const [error, setError] = useState<string | null>(null);
+  const [storageWarning, setStorageWarning] = useState<string | null>(null);
   const [modelLabel, setModelLabel] = useState("");
   const [historyOpen, setHistoryOpen] = useState(false);
   const [deleteSessionTargetId, setDeleteSessionTargetId] = useState<
@@ -310,11 +312,19 @@ export function AgentChatPane({
   }, []);
 
   const flushSessionToStorage = useCallback(
-    async (lessonId: string) => {
-      if (!canPersistToFolder(lessonId)) return;
+    async (lessonId: string): Promise<boolean> => {
+      if (!canPersistToFolder(lessonId)) return true;
       const snapshot = buildStorageSnapshot();
-      if (!snapshot) return;
-      await saveLessonSession(lessonId, snapshot);
+      if (!snapshot) return true;
+      const ok = await saveLessonSession(lessonId, snapshot);
+      if (!ok) {
+        setStorageWarning(
+          "セッションの保存に失敗しました。容量不足の可能性があります。会話を続けると履歴が失われることがあります。",
+        );
+      } else {
+        setStorageWarning(null);
+      }
+      return ok;
     },
     [buildStorageSnapshot, canPersistToFolder],
   );
@@ -664,6 +674,7 @@ export function AgentChatPane({
           role: message.role,
           content: message.content,
           ...(message.toolEvents ? { toolEvents: message.toolEvents } : {}),
+          ...(message.toolTurns ? { toolTurns: message.toolTurns } : {}),
           ...(message.attachments ? { attachments: message.attachments } : {}),
         })),
         ...(folderId
@@ -680,6 +691,7 @@ export function AgentChatPane({
       };
 
       const toolEvents: AgentToolEvent[] = [];
+      const toolTurns: AgentLogicalTurn[] = [];
 
       try {
         const res = await fetch("/api/agent/invoke", {
@@ -731,6 +743,16 @@ export function AgentChatPane({
                 prev.map((message) =>
                   message.id === assistantId
                     ? { ...message, toolEvents: [...toolEvents] }
+                    : message,
+                ),
+              );
+            },
+            onLogicalTurn: (turn) => {
+              toolTurns.push(turn);
+              setMessages((prev) =>
+                prev.map((message) =>
+                  message.id === assistantId
+                    ? { ...message, toolTurns: [...toolTurns] }
                     : message,
                 ),
               );
@@ -1417,6 +1439,20 @@ export function AgentChatPane({
           className="agent-chat-pane__scroll-fade agent-chat-pane__scroll-fade-bottom"
         />
       </div>
+
+      {storageWarning ? (
+        <div className="flex items-center justify-between gap-2 bg-secondary px-12 py-2 text-xs text-secondary-foreground">
+          <span>{storageWarning}</span>
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            onClick={() => setStorageWarning(null)}
+          >
+            閉じる
+          </Button>
+        </div>
+      ) : null}
 
       {error ? (
         <div className="flex items-center justify-between gap-2 bg-destructive/10 px-12 py-2 text-xs text-destructive">

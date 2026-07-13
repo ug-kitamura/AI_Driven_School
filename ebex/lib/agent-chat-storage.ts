@@ -1,4 +1,4 @@
-import type { AgentToolEvent } from "@/lib/agent/llm/types";
+import type { AgentToolEvent, AgentLogicalTurn } from "@/lib/agent/llm/types";
 
 export type AgentFileAttachment = {
   path: string;
@@ -11,6 +11,7 @@ export type AgentChatMessage = {
   content: string;
   createdAt?: string;
   toolEvents?: AgentToolEvent[];
+  toolTurns?: AgentLogicalTurn[];
   attachments?: AgentFileAttachment[];
 };
 

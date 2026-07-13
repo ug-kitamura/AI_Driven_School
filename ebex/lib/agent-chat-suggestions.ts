@@ -42,7 +42,7 @@ export function formatSkillCatalogMessage(skills: SkillSummary[]): string {
     "| --- | --- |",
   ];
   for (const skill of visible) {
-    const name = escapeMarkdownTableCell(`/${skill.id}`);
+    const name = escapeMarkdownTableCell(skill.id);
     const description = escapeMarkdownTableCell(
       skill.description || "(説明なし)",
     );
@@ -51,8 +51,15 @@ export function formatSkillCatalogMessage(skills: SkillSummary[]): string {
   return lines.join("\n");
 }
 
-function escapeMarkdownTableCell(value: string): string {
-  return value.replace(/\|/g, "\\|").replace(/\n/g, " ");
+/** Markdown 表セル用。CRLF／改行／連続空白を畳み、セル割れを防ぐ。 */
+export function escapeMarkdownTableCell(value: string): string {
+  return value
+    .replace(/\r\n/g, "\n")
+    .replace(/\r/g, "\n")
+    .replace(/\n/g, " ")
+    .replace(/\|/g, "\\|")
+    .replace(/\s+/g, " ")
+    .trim();
 }
 
 export function filterBuiltinCommands(

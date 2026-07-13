@@ -1,6 +1,6 @@
 "use client";
 
-import type { AgentToolEvent } from "@/lib/agent/llm/types";
+import type { AgentLogicalTurn, AgentToolEvent } from "@/lib/agent/llm/types";
 
 export type ToolConfirmKind =
   | "overwrite"
@@ -18,11 +18,12 @@ export type AgentStreamCallbacks = {
   onDelta: (text: string) => void;
   onToolStart?: (event: AgentToolEvent) => void;
   onToolEnd?: (event: AgentToolEvent) => void;
+  onLogicalTurn?: (turn: AgentLogicalTurn) => void;
   onConfirmRequired?: (event: ToolConfirmRequiredEvent) => void;
 };
 
 /**
- * Agent invoke SSE parser (text_delta / tool_start / tool_end / done / error).
+ * Agent invoke SSE parser (text_delta / tool_start / tool_end / logical_turn / done / error).
  */
 export async function consumeAgentStream(
   response: Response,
@@ -103,6 +104,37 @@ export async function consumeAgentStream(
                 : undefined,
             });
             break;
+          case "logical_turn": {
+            const text = typeof data.text === "string" ? data.text : undefined;
+            const rawCalls = Array.isArray(data.toolCalls) ? data.toolCalls : [];
+            const toolCalls = rawCalls
+              .map((item) => {
+                if (!item || typeof item !== "object") return null;
+                const call = item as Record<string, unknown>;
+                if (
+                  typeof call.id !== "string" ||
+                  typeof call.name !== "string" ||
+                  typeof call.result !== "string"
+                ) {
+                  return null;
+                }
+                return {
+                  id: call.id,
+                  name: call.name,
+                  input:
+                    call.input && typeof call.input === "object"
+                      ? (call.input as Record<string, unknown>)
+                      : {},
+                  result: call.result,
+                };
+              })
+              .filter((call): call is NonNullable<typeof call> => call !== null);
+            callbacks.onLogicalTurn?.({
+              ...(text ? { text } : {}),
+              ...(toolCalls.length > 0 ? { toolCalls } : {}),
+            });
+            break;
+          }
           case "confirm_required": {
             const kind = data.kind;
             if (

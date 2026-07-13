@@ -276,7 +276,8 @@ function parseSkillFrontmatter(yaml: string): {
   let inTools = false;
   let descriptionIndent = 0;
 
-  const lines = yaml.split("\n");
+  // Windows CRLF を LF に正規化し、description 行末の \r 残留を防ぐ
+  const lines = yaml.replace(/\r\n/g, "\n").replace(/\r/g, "\n").split("\n");
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i];
     const trimmed = line.trim();

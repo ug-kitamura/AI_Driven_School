@@ -118,6 +118,51 @@ const TOOL_SCHEMAS = {
       required: ["path", "content"],
     },
   },
+  copy_file: {
+    name: "copy_file",
+    description:
+      "ファイルをコピーする。コピー元はプロジェクトまたは実行中スキル配下、コピー先はプロジェクト配下のみ。既存先への上書きはユーザー確認を経る。",
+    input_schema: {
+      type: "object",
+      properties: {
+        from: {
+          type: "string",
+          description: "コピー元パス（プロジェクト相対、または skill/<id>/... / references/...）",
+        },
+        to: {
+          type: "string",
+          description: "コピー先パス（プロジェクト相対）",
+        },
+      },
+      required: ["from", "to"],
+    },
+  },
+  replace_in_file: {
+    name: "replace_in_file",
+    description:
+      "プロジェクト内ファイルの文字列を置換する。replacements（プレースホルダ map）または old_string/new_string を指定する。",
+    input_schema: {
+      type: "object",
+      properties: {
+        path: { type: "string", description: "対象ファイルのパス（プロジェクト相対）" },
+        replacements: {
+          type: "object",
+          description:
+            "プレースホルダ名（MEETING_TITLE または {{MEETING_TITLE}}）から置換文字列への map",
+          additionalProperties: { type: "string" },
+        },
+        old_string: {
+          type: "string",
+          description: "置換前の文字列（replacements の代わりに単発置換する場合）",
+        },
+        new_string: {
+          type: "string",
+          description: "置換後の文字列（old_string とセット）",
+        },
+      },
+      required: ["path"],
+    },
+  },
   mkdir: {
     name: "mkdir",
     description: "指定パスのディレクトリを作成する（再帰的に作成する）。",
@@ -437,6 +482,140 @@ function executeWriteFile(
   };
 }
 
+function executeCopyFile(
+  context: ToolExecutionContext,
+  input: Record<string, unknown>,
+): ToolExecutionOutcome {
+  const fromPath = typeof input.from === "string" ? input.from : "";
+  const toPath = typeof input.to === "string" ? input.to : "";
+  if (!fromPath.trim() || !toPath.trim()) {
+    return errorOutcome("from / to が空です");
+  }
+
+  const fromResolved = resolveToolTargetPath(
+    context.projectRoot,
+    context.projectFolderId,
+    fromPath,
+    skillPathOptions(context, true),
+  );
+  if ("error" in fromResolved) return errorOutcome(fromResolved.error);
+
+  const toResolved = resolveToolTargetPath(
+    context.projectRoot,
+    context.projectFolderId,
+    toPath,
+    skillPathOptions(context, false),
+  );
+  if ("error" in toResolved) return errorOutcome(toResolved.error);
+  if (toResolved.insideSkill) {
+    return errorOutcome(
+      `スキルディレクトリへのコピーはできません: ${toResolved.relativePath}`,
+    );
+  }
+
+  if (!fs.existsSync(fromResolved.absolutePath)) {
+    return errorOutcome(`ファイルが見つかりません: ${fromResolved.relativePath}`);
+  }
+  const fromStat = fs.statSync(fromResolved.absolutePath);
+  if (!fromStat.isFile()) {
+    return errorOutcome(`ファイルではありません: ${fromResolved.relativePath}`);
+  }
+
+  fs.mkdirSync(path.dirname(toResolved.absolutePath), { recursive: true });
+  fs.copyFileSync(fromResolved.absolutePath, toResolved.absolutePath);
+  const bytes = fromStat.size;
+
+  return {
+    result: {
+      from: fromResolved.relativePath,
+      to: toResolved.relativePath,
+      bytes,
+    },
+    display: display(
+      `${bytes} bytes`,
+      `📋 コピー: ${fromResolved.relativePath} → ${toResolved.relativePath}（${bytes} bytes）`,
+    ),
+  };
+}
+
+function executeReplaceInFile(
+  context: ToolExecutionContext,
+  input: Record<string, unknown>,
+): ToolExecutionOutcome {
+  const inputPath = typeof input.path === "string" ? input.path : "";
+  if (!inputPath.trim()) return errorOutcome("path が空です");
+
+  const resolved = resolveToolTargetPath(
+    context.projectRoot,
+    context.projectFolderId,
+    inputPath,
+    skillPathOptions(context, false),
+  );
+  if ("error" in resolved) return errorOutcome(resolved.error);
+  if (resolved.insideSkill) {
+    return errorOutcome(
+      `スキルディレクトリへの置換はできません: ${resolved.relativePath}`,
+    );
+  }
+  if (!fs.existsSync(resolved.absolutePath)) {
+    return errorOutcome(`ファイルが見つかりません: ${resolved.relativePath}`);
+  }
+  if (!fs.statSync(resolved.absolutePath).isFile()) {
+    return errorOutcome(`ファイルではありません: ${resolved.relativePath}`);
+  }
+
+  let content = fs.readFileSync(resolved.absolutePath, "utf-8");
+  let replacementsCount = 0;
+
+  const map =
+    input.replacements &&
+    typeof input.replacements === "object" &&
+    !Array.isArray(input.replacements)
+      ? (input.replacements as Record<string, unknown>)
+      : null;
+
+  if (map) {
+    for (const [key, value] of Object.entries(map)) {
+      if (typeof value !== "string") continue;
+      const placeholder =
+        key.includes("{{") || key.includes("}}") ? key : `{{${key}}}`;
+      if (!content.includes(placeholder)) continue;
+      const parts = content.split(placeholder);
+      replacementsCount += parts.length - 1;
+      content = parts.join(value);
+    }
+  } else {
+    const oldString = typeof input.old_string === "string" ? input.old_string : "";
+    const newString = typeof input.new_string === "string" ? input.new_string : "";
+    if (!oldString) {
+      return errorOutcome("replacements または old_string が必要です");
+    }
+    if (!content.includes(oldString)) {
+      return errorOutcome(`置換対象が見つかりません: ${oldString.slice(0, 80)}`);
+    }
+    const parts = content.split(oldString);
+    replacementsCount = parts.length - 1;
+    content = parts.join(newString);
+  }
+
+  if (replacementsCount === 0) {
+    return errorOutcome("置換対象が見つかりません（0 件）");
+  }
+
+  fs.writeFileSync(resolved.absolutePath, content, "utf-8");
+
+  return {
+    result: {
+      path: resolved.relativePath,
+      replacements: replacementsCount,
+    },
+    display: display(
+      `${replacementsCount} 件`,
+      `✏️ 置換: ${resolved.relativePath}（${replacementsCount} 件）`,
+    ),
+  };
+}
+
 function executeMkdir(
   context: ToolExecutionContext,
   input: Record<string, unknown>,
@@ -540,6 +719,10 @@ export async function executeRegisteredTool(
       return executeReadFile(context, input);
     case "write_file":
       return executeWriteFile(context, input);
+    case "copy_file":
+      return executeCopyFile(context, input);
+    case "replace_in_file":
+      return executeReplaceInFile(context, input);
     case "mkdir":
       return executeMkdir(context, input);
     default:

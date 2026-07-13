@@ -71,6 +71,25 @@ description: |
     expect(parsed.description).toContain("議事録を作って");
   });
 
+  it("normalizes CRLF in multiline description without leftover CR", () => {
+    const parsed = parseSkillDocument(
+      [
+        "---",
+        "name: minutes-maid",
+        "description: |",
+        "  月例会議の音声文字起こしデータをもとに議事録を生成するスキル。",
+        "  「議事録を作って」と依頼された際に使用する。",
+        "---",
+        "",
+        "# Body",
+      ].join("\r\n"),
+    );
+
+    expect(parsed.description).toContain("月例会議の音声文字起こし");
+    expect(parsed.description).toContain("議事録を作って");
+    expect(parsed.description).not.toMatch(/\r/);
+  });
+
   it("injects variables into skill body", () => {
     const result = injectSkillVariables("Series: {{series}}", { series: "DX基礎" });
     expect(result).toBe("Series: DX基礎");

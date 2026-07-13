@@ -22,6 +22,8 @@ describe("resolveToolDefinitions", () => {
     expect(names).toContain("read_file");
     expect(names).toContain("write_file");
     expect(names).toContain("list_files");
+    expect(names).toContain("copy_file");
+    expect(names).toContain("replace_in_file");
     expect(names).not.toContain("delete_file");
   });
 });
@@ -170,6 +172,97 @@ describe("executeRegisteredTool", () => {
     );
     expect(writeOutcome.result).toMatchObject({
       error: expect.stringContaining("スキルディレクトリへの書込"),
+    });
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+  });
+
+  it("copies skill reference into project folder", async () => {
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "ebex-tools-"));
+    createFolder(tmpDir, "demo");
+    const skillDir = path.join(tmpDir, ".claude", "skills", "minutes-maid");
+    fs.mkdirSync(path.join(skillDir, "references"), { recursive: true });
+    fs.writeFileSync(
+      path.join(skillDir, "references", "base.html"),
+      "<html>{{TITLE}}</html>",
+    );
+
+    const outcome = await executeRegisteredTool(
+      "copy_file",
+      { from: "references/base.html", to: "output/minutes.html" },
+      {
+        projectRoot: tmpDir,
+        projectFolderId: "demo",
+        skillId: "minutes-maid",
+        skillDirAbsolute: skillDir,
+      },
+    );
+    expect(outcome.result).toMatchObject({
+      from: "skill/minutes-maid/references/base.html",
+      to: "workspace/demo/output/minutes.html",
+    });
+    const written = fs.readFileSync(
+      path.join(getWorkspaceDir(tmpDir), "demo", "output", "minutes.html"),
+      "utf-8",
+    );
+    expect(written).toBe("<html>{{TITLE}}</html>");
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+  });
+
+  it("rejects copy into skill directory", async () => {
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "ebex-tools-"));
+    createFolder(tmpDir, "demo");
+    createFile(tmpDir, "demo", "a.md", "a");
+    const skillDir = path.join(tmpDir, ".claude", "skills", "minutes-maid");
+    fs.mkdirSync(skillDir, { recursive: true });
+
+    const outcome = await executeRegisteredTool(
+      "copy_file",
+      { from: "a.md", to: "skill/minutes-maid/out.md" },
+      {
+        projectRoot: tmpDir,
+        projectFolderId: "demo",
+        skillId: "minutes-maid",
+        skillDirAbsolute: skillDir,
+      },
+    );
+    expect(outcome.result).toMatchObject({
+      error: expect.stringContaining("スキルディレクトリへのコピー"),
+    });
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+  });
+
+  it("replaces placeholders in project file", async () => {
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "ebex-tools-"));
+    createFolder(tmpDir, "demo");
+    createFile(tmpDir, "demo", "out.html", "<h1>{{TITLE}}</h1>");
+
+    const outcome = await executeRegisteredTool(
+      "replace_in_file",
+      { path: "out.html", replacements: { TITLE: "月例" } },
+      contextFor(tmpDir, "demo"),
+    );
+    expect(outcome.result).toEqual({
+      path: "workspace/demo/out.html",
+      replacements: 1,
+    });
+    expect(
+      fs.readFileSync(path.join(getWorkspaceDir(tmpDir), "demo", "out.html"), "utf-8"),
+    ).toBe("<h1>月例</h1>");
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+  });
+
+  it("errors when replace finds no matches", async () => {
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "ebex-tools-"));
+    createFolder(tmpDir, "demo");
+    createFile(tmpDir, "demo", "out.html", "<h1>x</h1>");
+
+    const outcome = await executeRegisteredTool(
+      "replace_in_file",
+      { path: "out.html", replacements: { TITLE: "月例" } },
+      contextFor(tmpDir, "demo"),
+    );
+    expect(outcome.result).toMatchObject({
+      error: expect.stringContaining("置換対象が見つかりません"),
     });
     fs.rmSync(tmpDir, { recursive: true, force: true });
   });

@@ -119,10 +119,28 @@ describe("formatSkillCatalogMessage", () => {
     const message = formatSkillCatalogMessage(skills);
     expect(message).toContain("使用可能なスキル");
     expect(message).toContain("| スキル | 説明 |");
-    expect(message).toContain("| **/create-draft** | レッスン本文の草稿を生成します |");
-    expect(message).toContain("| **/create-structure** | シリーズ構成を設計します |");
+    expect(message).toContain("| **create-draft** | レッスン本文の草稿を生成します |");
+    expect(message).toContain("| **create-structure** | シリーズ構成を設計します |");
     expect(message).not.toContain("host");
     expect(message).not.toContain("ebex");
+  });
+
+  it("keeps multiline CRLF description on a single table row", () => {
+    const message = formatSkillCatalogMessage([
+      {
+        id: "minutes-maid",
+        name: "minutes-maid",
+        description:
+          "月例会議の音声文字起こしデータをもとに議事録を生成するスキル。\r\n「議事録を作って」「minutes」と依頼された際に使用する。",
+      },
+    ]);
+    const rows = message.split("\n").filter((line) => line.startsWith("| **"));
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toContain("minutes-maid");
+    expect(rows[0]).not.toContain("/minutes-maid");
+    expect(rows[0]).toContain("月例会議の音声文字起こし");
+    expect(rows[0]).toContain("議事録を作って");
+    expect(rows[0]).not.toMatch(/\r/);
   });
 
   it("reports when no skills are available", () => {

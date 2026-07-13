@@ -60,6 +60,17 @@ export type AgentToolEvent = {
   tags?: string[];
 };
 
+/** 1 回の LLM turn（text および／または tool_use + tool_result） */
+export type AgentLogicalTurn = {
+  text?: string;
+  toolCalls?: Array<{
+    id: string;
+    name: string;
+    input: Record<string, unknown>;
+    result: string;
+  }>;
+};
+
 export const MAX_AGENT_LOOP_TURNS = 10;
 
 export const AGENT_LOOP_LIMIT_ERROR = "Agent loop limit exceeded";

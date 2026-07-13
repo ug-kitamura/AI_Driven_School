@@ -73,7 +73,7 @@ export type AgentLogicalTurn = {
   }>;
 };
 
-export const MAX_AGENT_LOOP_TURNS = 10;
+export const MAX_AGENT_LOOP_TURNS = 24;
 
 export const AGENT_LOOP_LIMIT_ERROR = "Agent loop limit exceeded";
 
@@ -87,6 +87,10 @@ export const AGENT_MISSING_PATH_ERROR =
 /** 巨大 write 失敗時にモデルへ返す汎用案内（スキル固有ロジックではない） */
 export const LARGE_FILE_WRITE_GUIDANCE =
   "大きな HTML やテンプレート成果物は write_file 一発で書かず、copy_file で references/base.html 等のテンプレートを output へコピーし、replace_in_file で {{PLACEHOLDER}} を置換してください。CSS が必要なら style.css を読み、<style> へのインライン化は置換で行ってください。";
+
+/** 同一 HTML への write 再試行を止めるときの案内 */
+export const HTML_WRITE_ALREADY_COPIED_ERROR =
+  "この HTML は既にテンプレートからコピー済みです。write_file を繰り返さず、replace_in_file のみで {{PLACEHOLDER}} を埋めてください。";
 
 export const AGENT_REPEATED_TOOL_ERROR =
   "同一のツールエラーが連続したためエージェントを停止しました";

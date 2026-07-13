@@ -171,4 +171,41 @@ describe("resolveConfirmRequirement", () => {
     });
     fs.rmSync(tmpDir, { recursive: true, force: true });
   });
+
+  it("skips overwrite when path was agent-created (skipOverwritePaths)", () => {
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "ebex-confirm-"));
+    createFolder(tmpDir, "demo");
+    createFile(tmpDir, "demo", "out.html", "{{TITLE}}");
+    const skip = new Set(["workspace/demo/out.html"]);
+    const req = resolveConfirmRequirement(
+      tmpDir,
+      "demo",
+      {
+        id: "t1",
+        name: "replace_in_file",
+        input: { path: "out.html", replacements: { TITLE: "x" } },
+      },
+      { skipOverwritePaths: skip },
+    );
+    expect(req).toBeNull();
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+  });
+
+  it("skips overwrite for write_file after user approved once", () => {
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "ebex-confirm-"));
+    createFolder(tmpDir, "demo");
+    createFile(tmpDir, "demo", "notes.md", "old");
+    const req = resolveConfirmRequirement(
+      tmpDir,
+      "demo",
+      {
+        id: "t1",
+        name: "write_file",
+        input: { path: "notes.md", content: "new" },
+      },
+      { skipOverwritePaths: new Set(["workspace/demo/notes.md"]) },
+    );
+    expect(req).toBeNull();
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+  });
 });

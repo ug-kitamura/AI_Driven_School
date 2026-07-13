@@ -10,6 +10,7 @@ import {
   AGENT_LOOP_LIMIT_ERROR,
   AGENT_MISSING_PATH_ERROR,
   AGENT_REPEATED_TOOL_ERROR,
+  HTML_WRITE_ALREADY_COPIED_ERROR,
   LARGE_FILE_WRITE_GUIDANCE,
   MAX_AGENT_LOOP_TURNS,
   MAX_CONSECUTIVE_IDENTICAL_TOOL_ERRORS,
@@ -22,7 +23,7 @@ import {
   type ToolExecutionContext,
   type ToolExecutionOutcome,
 } from "@/lib/agent/tools/registry";
-import { resolveConfirmRequirement } from "@/lib/agent/tools/confirm-gate";
+import { resolveConfirmRequirement, seedSkipOverwritePathsFromHistory, collectWrittenPathsFromToolResult, normalizeConfirmPath } from "@/lib/agent/tools/confirm-gate";
 import { awaitToolConfirmDecision } from "@/lib/agent/tools/tool-confirm-registry";
 import { checkProjectFolderExists } from "@/lib/agent/project-folder-guard";
 import {
@@ -98,6 +99,10 @@ function brokenToolOutcome(message: string): ToolExecutionOutcome {
   };
 }
 
+function normalizeTrackedPath(filePath: string): string {
+  return filePath.replace(/\\/g, "/").replace(/^\.\//, "").trim();
+}
+
 export async function runAgentLoop(
   options: RunAgentLoopOptions,
 ): Promise<RunAgentLoopResult> {
@@ -134,6 +139,10 @@ export async function runAgentLoop(
   let consecutiveError: string | null = null;
   let consecutiveErrorCount = 0;
   let turnText = "";
+  /** この invoke 内でテンプレ自動コピー済みの HTML パス */
+  const templateCopiedPaths = new Set<string>();
+  /** AI 作成済み／上書き許可済み → 以降の overwrite 確認をスキップ */
+  const skipOverwritePaths = seedSkipOverwritePathsFromHistory(llmMessages);
 
   const emitLogicalTurn = (turn: AgentLogicalTurn) => {
     if (!turn.text?.trim() && !(turn.toolCalls && turn.toolCalls.length > 0)) {
@@ -211,17 +220,45 @@ export async function runAgentLoop(
         shouldForceTemplateHtmlCopy(call, options.skillDirAbsolute);
       if (forceTemplate) {
         const dest = resolveWriteFileTargetPath(call);
-        const recovered = dest
-          ? await executeTemplateHtmlCopyWrite(toolContext, dest)
-          : null;
-        if (recovered) {
-          outcome = recovered;
-        } else if (broken) {
-          outcome = brokenToolOutcome(broken);
+        const tracked = dest ? normalizeTrackedPath(dest) : "";
+        if (tracked && templateCopiedPaths.has(tracked)) {
+          outcome = {
+            result: {
+              error: HTML_WRITE_ALREADY_COPIED_ERROR,
+              recoverable: true,
+              path: dest,
+              guidance:
+                "replace_in_file の replacements または old_string/new_string だけでプレースホルダを埋めてください。",
+            },
+            display: {
+              summary: "error",
+              display: `✗ ${HTML_WRITE_ALREADY_COPIED_ERROR}`,
+            },
+          };
         } else {
-          outcome = brokenToolOutcome(
-            "HTML の write_file をテンプレートコピーへ変換できませんでした",
-          );
+          const recovered = dest
+            ? await executeTemplateHtmlCopyWrite(toolContext, dest)
+            : null;
+          if (recovered) {
+            outcome = recovered;
+            if (
+              tracked &&
+              recovered.result &&
+              typeof recovered.result === "object" &&
+              (recovered.result as { autoTemplateCopy?: boolean }).autoTemplateCopy
+            ) {
+              templateCopiedPaths.add(tracked);
+              for (const written of collectWrittenPathsFromToolResult(recovered.result)) {
+                skipOverwritePaths.add(written);
+              }
+            }
+          } else if (broken) {
+            outcome = brokenToolOutcome(broken);
+          } else {
+            outcome = brokenToolOutcome(
+              "HTML の write_file をテンプレートコピーへ変換できませんでした",
+            );
+          }
         }
       } else if (broken) {
         outcome = brokenToolOutcome(broken);
@@ -231,7 +268,7 @@ export async function runAgentLoop(
               toolContext.projectRoot,
               toolContext.projectFolderId,
               call,
-              skillOptions,
+              { ...skillOptions, skipOverwritePaths },
             )
           : null;
 
@@ -256,6 +293,9 @@ export async function runAgentLoop(
               },
             };
           } else {
+            if (requirement.kind === "overwrite") {
+              skipOverwritePaths.add(normalizeConfirmPath(requirement.path));
+            }
             outcome = await executeRegisteredTool(call.name, call.input, toolContext);
           }
         } else {
@@ -265,6 +305,12 @@ export async function runAgentLoop(
 
       const resultJson = JSON.stringify(outcome.result);
       toolResults.push(resultJson);
+
+      if (!extractToolErrorMessage(outcome.result)) {
+        for (const written of collectWrittenPathsFromToolResult(outcome.result)) {
+          skipOverwritePaths.add(written);
+        }
+      }
 
       options.emit("tool_end", {
         name: call.name,

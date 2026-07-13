@@ -59,10 +59,10 @@ export function buildSkillRuntimeContext(focus: SkillRuntimeFocus): string {
           "",
           "### HTML template outputs（必須）",
           "このスキルには `references/base.html` がある。`.html` 成果物を作るときは次を **必ず** 守ること。",
-          "1. `write_file` で HTML 全文を書いてはならない（ランタイムがテンプレートコピーへ変換する場合がある）。",
+          "1. `write_file` で HTML 全文を書いてはならない（ランタイムが初回のみテンプレートコピーへ変換する）。",
           "2. 明示的に行うなら `copy_file` で `references/base.html` を出力先へコピーする。",
-          "3. 続けて `replace_in_file` だけで `{{PLACEHOLDER}}` を埋める。",
-          "4. 大きな本文を再度 `write_file` しない。",
+          "3. 続けて `replace_in_file` だけで `{{PLACEHOLDER}}` を埋める（複数プレースホルダはできるだけ1回の replacements にまとめる）。",
+          "4. コピー後に同じ HTML へ `write_file` を繰り返してはならない。",
         ]
       : []),
     ...(focus.mentionsSubagent

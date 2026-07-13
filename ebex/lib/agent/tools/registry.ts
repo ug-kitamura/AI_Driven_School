@@ -108,7 +108,7 @@ const TOOL_SCHEMAS = {
   write_file: {
     name: "write_file",
     description:
-      "指定パスにファイルを書き込む。既存ファイルへの上書きはユーザー確認を経てから実行される。",
+      "指定パスにファイルを書き込む。既存ファイルへの上書きはユーザー確認を経てから実行される。大きな HTML やテンプレート全文の一発書き込みには向かない（入力が途中で切れやすい）。テンプレートがある場合は copy_file でコピーし、replace_in_file でプレースホルダを置換すること。",
     input_schema: {
       type: "object",
       properties: {
@@ -121,7 +121,7 @@ const TOOL_SCHEMAS = {
   copy_file: {
     name: "copy_file",
     description:
-      "ファイルをコピーする。コピー元はプロジェクトまたは実行中スキル配下、コピー先はプロジェクト配下のみ。既存先への上書きはユーザー確認を経る。",
+      "ファイルをコピーする。スキルの references/base.html など大きなテンプレートを成果物先へ置くときに write_file での再生成より優先する。コピー元はプロジェクトまたは実行中スキル配下、コピー先はプロジェクト配下のみ。既存先への上書きはユーザー確認を経る。",
     input_schema: {
       type: "object",
       properties: {
@@ -140,7 +140,7 @@ const TOOL_SCHEMAS = {
   replace_in_file: {
     name: "replace_in_file",
     description:
-      "プロジェクト内ファイルの文字列を置換する。replacements（プレースホルダ map）または old_string/new_string を指定する。",
+      "プロジェクト内ファイルの文字列を置換する。copy_file 後に {{PLACEHOLDER}} を埋める用途を想定。replacements（プレースホルダ map）または old_string/new_string を指定する。大きな本文を write_file で書き直す代わりにこれを使う。",
     input_schema: {
       type: "object",
       properties: {

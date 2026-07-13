@@ -103,6 +103,8 @@ export async function POST(req: Request) {
     );
   }
 
+  const skillDirAbsolute = resolveSkillDir(skillRoots, skill.id) ?? undefined;
+
   const focus = parsed.data.runtimeFocus;
   const mentionsSubagent = skillMentionsSubagent(skill.body);
   let systemPrompt = prompt;
@@ -111,6 +113,7 @@ export async function POST(req: Request) {
       projectFolderId: focus.projectFolderId,
       currentFileRelativePath: focus.currentFileRelativePath,
       skillId: skill.id,
+      skillDirAbsolute,
       mentionsSubagent,
     });
     if (focus.preferredOutputDir !== undefined) {
@@ -155,7 +158,6 @@ export async function POST(req: Request) {
   const invokeMessages = [...historyMessages, enrichedLatest];
   const llmMessages = clientMessagesToLlmMessages(invokeMessages);
   const toolNames = skill.tools ?? [];
-  const skillDirAbsolute = resolveSkillDir(skillRoots, skill.id) ?? undefined;
 
   const releaseActiveFolder = focus?.projectFolderId
     ? markProjectFolderAgentActive(focus.projectFolderId)

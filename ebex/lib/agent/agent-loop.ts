@@ -10,6 +10,7 @@ import {
   AGENT_LOOP_LIMIT_ERROR,
   AGENT_MISSING_PATH_ERROR,
   AGENT_REPEATED_TOOL_ERROR,
+  LARGE_FILE_WRITE_GUIDANCE,
   MAX_AGENT_LOOP_TURNS,
   MAX_CONSECUTIVE_IDENTICAL_TOOL_ERRORS,
 } from "@/lib/agent/llm/types";
@@ -19,10 +20,16 @@ import {
   executeRegisteredTool,
   resolveToolDefinitions,
   type ToolExecutionContext,
+  type ToolExecutionOutcome,
 } from "@/lib/agent/tools/registry";
 import { resolveConfirmRequirement } from "@/lib/agent/tools/confirm-gate";
 import { awaitToolConfirmDecision } from "@/lib/agent/tools/tool-confirm-registry";
 import { checkProjectFolderExists } from "@/lib/agent/project-folder-guard";
+import {
+  executeTemplateHtmlCopyWrite,
+  resolveWriteFileTargetPath,
+  shouldForceTemplateHtmlCopy,
+} from "@/lib/agent/tools/template-write-recovery";
 import type { ToolDefinition } from "@/lib/agent/llm/types";
 
 export type AgentLoopEmit = (event: string, data: unknown) => void;
@@ -75,6 +82,20 @@ export function extractToolErrorMessage(result: unknown): string | null {
   if (!result || typeof result !== "object") return null;
   const error = (result as { error?: unknown }).error;
   return typeof error === "string" && error.trim() ? error : null;
+}
+
+function brokenToolOutcome(message: string): ToolExecutionOutcome {
+  return {
+    result: {
+      error: message,
+      recoverable: true,
+      guidance: LARGE_FILE_WRITE_GUIDANCE,
+    },
+    display: {
+      summary: "error",
+      display: `✗ ${message}`,
+    },
+  };
 }
 
 export async function runAgentLoop(
@@ -159,25 +180,6 @@ export async function runAgentLoop(
       return { ok: true, toolEvents, toolTurns };
     }
 
-    for (const call of turnResult.toolCalls) {
-      const broken = isBrokenToolUse(call);
-      if (broken) {
-        options.emit("tool_start", {
-          name: call.name,
-          input: call.input,
-          toolUseId: call.id,
-        });
-        options.emit("tool_end", {
-          name: call.name,
-          toolUseId: call.id,
-          summary: "error",
-          display: `✗ ${broken}`,
-          result: JSON.stringify({ error: broken }),
-        });
-        return { ok: false, error: broken, status: 422 };
-      }
-    }
-
     const assistantMessage = buildAssistantToolUseMessage(turnResult);
     if (assistantMessage) {
       llmMessages.push(assistantMessage);
@@ -201,41 +203,64 @@ export async function runAgentLoop(
         display: call.name,
       });
 
-      const requirement = toolContext
-        ? resolveConfirmRequirement(
-            toolContext.projectRoot,
-            toolContext.projectFolderId,
-            call,
-            skillOptions,
-          )
-        : null;
+      const broken = isBrokenToolUse(call);
+      let outcome: ToolExecutionOutcome;
 
-      let outcome;
-      if (requirement) {
-        options.emit("confirm_required", {
-          toolUseId: call.id,
-          kind: requirement.kind,
-          path: requirement.path,
-          isNew: requirement.isNew,
-        });
-        const decision = await awaitToolConfirmDecision(call.id);
-        if (decision === "reject") {
-          outcome = {
-            result: {
-              rejected: true,
-              path: requirement.path,
-              reason: "ユーザーが確認ダイアログで拒否しました",
-            },
-            display: {
-              summary: "拒否",
-              display: `✗ ユーザーが拒否: ${requirement.path}`,
-            },
-          };
+      const forceTemplate =
+        toolContext &&
+        shouldForceTemplateHtmlCopy(call, options.skillDirAbsolute);
+      if (forceTemplate) {
+        const dest = resolveWriteFileTargetPath(call);
+        const recovered = dest
+          ? await executeTemplateHtmlCopyWrite(toolContext, dest)
+          : null;
+        if (recovered) {
+          outcome = recovered;
+        } else if (broken) {
+          outcome = brokenToolOutcome(broken);
+        } else {
+          outcome = brokenToolOutcome(
+            "HTML の write_file をテンプレートコピーへ変換できませんでした",
+          );
+        }
+      } else if (broken) {
+        outcome = brokenToolOutcome(broken);
+      } else {
+        const requirement = toolContext
+          ? resolveConfirmRequirement(
+              toolContext.projectRoot,
+              toolContext.projectFolderId,
+              call,
+              skillOptions,
+            )
+          : null;
+
+        if (requirement) {
+          options.emit("confirm_required", {
+            toolUseId: call.id,
+            kind: requirement.kind,
+            path: requirement.path,
+            isNew: requirement.isNew,
+          });
+          const decision = await awaitToolConfirmDecision(call.id);
+          if (decision === "reject") {
+            outcome = {
+              result: {
+                rejected: true,
+                path: requirement.path,
+                reason: "ユーザーが確認ダイアログで拒否しました",
+              },
+              display: {
+                summary: "拒否",
+                display: `✗ ユーザーが拒否: ${requirement.path}`,
+              },
+            };
+          } else {
+            outcome = await executeRegisteredTool(call.name, call.input, toolContext);
+          }
         } else {
           outcome = await executeRegisteredTool(call.name, call.input, toolContext);
         }
-      } else {
-        outcome = await executeRegisteredTool(call.name, call.input, toolContext);
       }
 
       const resultJson = JSON.stringify(outcome.result);

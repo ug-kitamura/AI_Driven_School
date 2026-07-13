@@ -1,4 +1,7 @@
 import { describe, expect, it } from "vitest";
+import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
 import {
   buildSkillRuntimeContext,
   mergeSkillSystemPrompt,
@@ -31,13 +34,21 @@ describe("buildSkillRuntimeContext", () => {
     expect(text).not.toContain(".claude/skills/");
   });
 
-  it("adds subagent fallback hint when mentionsSubagent is true", () => {
+  it("adds HTML template must rules when skill has base.html", () => {
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "ebex-runtime-"));
+    const skillDir = path.join(tmpDir, "skill");
+    fs.mkdirSync(path.join(skillDir, "references"), { recursive: true });
+    fs.writeFileSync(path.join(skillDir, "references", "base.html"), "<html></html>");
+
     const text = buildSkillRuntimeContext({
       projectFolderId: "demo",
-      mentionsSubagent: true,
+      skillId: "minutes-maid",
+      skillDirAbsolute: skillDir,
     });
-    expect(text).toContain("サブエージェント");
-    expect(text).toContain("同じセッション");
+    expect(text).toContain("HTML template outputs");
+    expect(text).toContain("replace_in_file");
+    expect(text).toContain("HTML 全文を書いてはならない");
+    fs.rmSync(tmpDir, { recursive: true, force: true });
   });
 });
 

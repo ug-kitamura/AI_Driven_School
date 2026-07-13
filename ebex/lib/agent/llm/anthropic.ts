@@ -217,6 +217,9 @@ export async function* parseAnthropicStream(
       name: block.name,
       input: block.input ?? {},
       ...(block.inputParseError ? { inputParseError: true as const } : {}),
+      ...(block.inputParseError && block.inputJson
+        ? { partialJson: block.inputJson }
+        : {}),
     }));
 
   if (calls.length > 0 && stopReason === "unknown") {

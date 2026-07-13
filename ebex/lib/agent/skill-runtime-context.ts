@@ -1,4 +1,5 @@
 import { SUBAGENT_FALLBACK_MODEL_HINT } from "@/lib/agent/subagent-fallback";
+import { skillHasBaseHtml } from "@/lib/agent/tools/template-write-recovery";
 
 export type SkillRuntimeFocus = {
   projectFolderId: string;
@@ -6,6 +7,8 @@ export type SkillRuntimeFocus = {
   currentFileRelativePath?: string | null;
   /** 実行中スキル ID（読取許可ゾーンの案内に使う） */
   skillId?: string;
+  /** 実行中スキルの絶対ディレクトリ（テンプレ強制の判定に使う） */
+  skillDirAbsolute?: string | null;
   /** スキル本文に「サブエージェント」が含まれるとき true */
   mentionsSubagent?: boolean;
 };
@@ -22,6 +25,11 @@ export function buildSkillRuntimeContext(focus: SkillRuntimeFocus): string {
     : current
       ? "."
       : ".";
+
+  const hasBaseHtml = Boolean(
+    focus.skillDirAbsolute &&
+      skillHasBaseHtml(focus.skillDirAbsolute),
+  );
 
   const lines = [
     "## EBEX ランタイム（場の約束）",
@@ -46,6 +54,17 @@ export function buildSkillRuntimeContext(focus: SkillRuntimeFocus): string {
     "### Boundary",
     "プロジェクトフォルダ外のパスに触れるときは、推測で進めずユーザ確認を前提とすること。",
     "場の中で出力候補が複数あるときは勝手に確定せず、候補を示して選ばせること。",
+    ...(hasBaseHtml
+      ? [
+          "",
+          "### HTML template outputs（必須）",
+          "このスキルには `references/base.html` がある。`.html` 成果物を作るときは次を **必ず** 守ること。",
+          "1. `write_file` で HTML 全文を書いてはならない（ランタイムがテンプレートコピーへ変換する場合がある）。",
+          "2. 明示的に行うなら `copy_file` で `references/base.html` を出力先へコピーする。",
+          "3. 続けて `replace_in_file` だけで `{{PLACEHOLDER}}` を埋める。",
+          "4. 大きな本文を再度 `write_file` しない。",
+        ]
+      : []),
     ...(focus.mentionsSubagent
       ? ["", "### Subagent", SUBAGENT_FALLBACK_MODEL_HINT]
       : []),

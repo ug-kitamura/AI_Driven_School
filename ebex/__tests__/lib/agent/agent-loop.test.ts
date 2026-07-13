@@ -105,7 +105,7 @@ describe("runAgentLoop safety valves", () => {
     vi.mocked(checkProjectFolderExists).mockReturnValue(null);
   });
 
-  it("stops on broken tool_use without executing the tool", async () => {
+  it("returns broken tool_use as recoverable tool_result and continues", async () => {
     vi.mocked(resolveLlmProvider).mockReturnValue({
       ok: true,
       model: "claude-sonnet-4-6",
@@ -122,6 +122,11 @@ describe("runAgentLoop safety valves", () => {
             },
           ],
         },
+        {
+          text: "switched approach",
+          stopReason: "end_turn",
+          toolCalls: [],
+        },
       ]),
     });
 
@@ -135,15 +140,24 @@ describe("runAgentLoop safety valves", () => {
       projectFolderId: "demo",
     });
 
-    expect(result).toEqual({
-      ok: false,
-      error: AGENT_BROKEN_TOOL_USE_ERROR,
-      status: 422,
-    });
+    expect(result.ok).toBe(true);
     expect(executeRegisteredTool).not.toHaveBeenCalled();
+    expect(emit).toHaveBeenCalledWith(
+      "tool_end",
+      expect.objectContaining({
+        toolUseId: "tu1",
+        result: expect.stringContaining("recoverable"),
+      }),
+    );
+    expect(emit).toHaveBeenCalledWith(
+      "tool_end",
+      expect.objectContaining({
+        result: expect.stringContaining("copy_file"),
+      }),
+    );
   });
 
-  it("stops on missing path without treating it as retryable tool error", async () => {
+  it("returns missing path as recoverable tool_result without executing", async () => {
     vi.mocked(resolveLlmProvider).mockReturnValue({
       ok: true,
       model: "claude-sonnet-4-6",
@@ -152,6 +166,11 @@ describe("runAgentLoop safety valves", () => {
           text: "",
           stopReason: "tool_use",
           toolCalls: [{ id: "tu1", name: "write_file", input: { content: "x" } }],
+        },
+        {
+          text: "ok",
+          stopReason: "end_turn",
+          toolCalls: [],
         },
       ]),
     });
@@ -165,11 +184,7 @@ describe("runAgentLoop safety valves", () => {
       projectFolderId: "demo",
     });
 
-    expect(result).toEqual({
-      ok: false,
-      error: AGENT_MISSING_PATH_ERROR,
-      status: 422,
-    });
+    expect(result.ok).toBe(true);
     expect(executeRegisteredTool).not.toHaveBeenCalled();
   });
 

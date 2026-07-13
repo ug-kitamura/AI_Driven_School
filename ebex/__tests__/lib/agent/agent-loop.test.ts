@@ -7,6 +7,7 @@ import {
 import {
   AGENT_BROKEN_TOOL_USE_ERROR,
   AGENT_MISSING_PATH_ERROR,
+  AGENT_MISSING_SCRIPT_INPUT_ERROR,
   AGENT_REPEATED_TOOL_ERROR,
 } from "@/lib/agent/llm/types";
 import type { ProviderTurnResult, StreamEvent } from "@/lib/agent/llm/types";
@@ -20,9 +21,9 @@ vi.mock("@/lib/agent/llm/resolve-provider", () => ({
 }));
 
 vi.mock("@/lib/agent/tools/registry", async () => {
-  const actual = await vi.importActual<typeof import("@/lib/agent/tools/registry")>(
-    "@/lib/agent/tools/registry",
-  );
+  const actual = await vi.importActual<
+    typeof import("@/lib/agent/tools/registry")
+  >("@/lib/agent/tools/registry");
   return {
     ...actual,
     executeRegisteredTool: vi.fn(),
@@ -76,14 +77,37 @@ describe("isBrokenToolUse", () => {
   });
 
   it("detects missing path on path-required tools", () => {
-    expect(
-      isBrokenToolUse({ id: "1", name: "write_file", input: {} }),
-    ).toBe(AGENT_MISSING_PATH_ERROR);
+    expect(isBrokenToolUse({ id: "1", name: "write_file", input: {} })).toBe(
+      AGENT_MISSING_PATH_ERROR,
+    );
     expect(
       isBrokenToolUse({ id: "1", name: "read_file", input: { path: "  " } }),
     ).toBe(AGENT_MISSING_PATH_ERROR);
     expect(
       isBrokenToolUse({ id: "1", name: "list_files", input: {} }),
+    ).toBeNull();
+  });
+
+  it("detects missing code / script_path on script tools", () => {
+    expect(
+      isBrokenToolUse({ id: "1", name: "run_script", input: { writes: [] } }),
+    ).toBe(AGENT_MISSING_SCRIPT_INPUT_ERROR);
+    expect(
+      isBrokenToolUse({ id: "1", name: "run_skill_script", input: {} }),
+    ).toBe(AGENT_MISSING_SCRIPT_INPUT_ERROR);
+    expect(
+      isBrokenToolUse({
+        id: "1",
+        name: "run_script",
+        input: { code: 'const fs = require("fs");', writes: [] },
+      }),
+    ).toBeNull();
+    expect(
+      isBrokenToolUse({
+        id: "1",
+        name: "run_skill_script",
+        input: { script_path: "scripts/build.cjs" },
+      }),
     ).toBeNull();
   });
 });
@@ -155,6 +179,12 @@ describe("runAgentLoop safety valves", () => {
         result: expect.stringContaining("copy_file"),
       }),
     );
+    expect(emit).toHaveBeenCalledWith(
+      "tool_end",
+      expect.objectContaining({
+        result: expect.stringContaining("replace_between"),
+      }),
+    );
   });
 
   it("returns missing path as recoverable tool_result without executing", async () => {
@@ -165,7 +195,9 @@ describe("runAgentLoop safety valves", () => {
         {
           text: "",
           stopReason: "tool_use",
-          toolCalls: [{ id: "tu1", name: "write_file", input: { content: "x" } }],
+          toolCalls: [
+            { id: "tu1", name: "write_file", input: { content: "x" } },
+          ],
         },
         {
           text: "ok",
@@ -189,7 +221,9 @@ describe("runAgentLoop safety valves", () => {
   });
 
   it("continues after 2 identical tool errors then stops on the 3rd", async () => {
-    const errorResult = { error: "ファイルが見つかりません: workspace/demo/x.md" };
+    const errorResult = {
+      error: "ファイルが見つかりません: workspace/demo/x.md",
+    };
     vi.mocked(executeRegisteredTool).mockResolvedValue({
       result: errorResult,
       display: { summary: "error", display: "✗ err" },

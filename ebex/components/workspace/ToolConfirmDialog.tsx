@@ -10,6 +10,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { Badge } from "@/components/ui/badge";
 import type { ToolConfirmRequiredEvent } from "@/lib/agent/stream-client";
 
 type Props = {
@@ -42,7 +43,70 @@ function describeRequest(request: ToolConfirmRequiredEvent): {
         description: `開いているプロジェクトフォルダの外へ${request.isNew ? "新規ファイルを作成" : "既存ファイルを上書き"}しようとしています。\n\n対象: ${request.path}\n区別: ${request.isNew ? "新規作成" : "上書き"}`,
         actionLabel: request.isNew ? "作成を許可" : "上書きを許可",
       };
+    case "run-script":
+      return {
+        title: "スクリプトを実行しますか？",
+        description:
+          request.script?.purpose?.trim() ||
+          "AI が生成したスクリプトを実行しようとしています。",
+        actionLabel: "実行を許可",
+      };
+    case "run-skill-script":
+      return {
+        title: "スキルのスクリプトを実行しますか？",
+        description: `${request.script?.purpose?.trim() || "スキルに同梱されたスクリプトを実行しようとしています。"}\n\nスクリプト: ${request.script?.scriptPath ?? request.path}`,
+        actionLabel: "実行を許可",
+      };
   }
+}
+
+function ScriptConfirmDetails({
+  script,
+}: {
+  script: NonNullable<ToolConfirmRequiredEvent["script"]>;
+}) {
+  return (
+    <div className="flex max-h-[50vh] flex-col gap-3 overflow-y-auto text-sm">
+      {script.networkWarning ? (
+        <Badge variant="destructive">
+          ネットワークアクセスの可能性があるコードを含みます
+        </Badge>
+      ) : null}
+      {script.writes.length > 0 ? (
+        <div className="flex flex-col gap-1">
+          <span className="text-muted-foreground text-xs">書き込み予定</span>
+          <ul className="flex flex-col gap-1">
+            {script.writes.map((write) => (
+              <li key={write.path} className="flex items-center gap-2">
+                <span className="truncate font-mono text-xs">{write.path}</span>
+                {write.exists ? (
+                  <Badge variant="destructive">上書き</Badge>
+                ) : (
+                  <Badge variant="secondary">新規</Badge>
+                )}
+              </li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
+      {script.args && script.args.length > 0 ? (
+        <div className="flex flex-col gap-1">
+          <span className="text-muted-foreground text-xs">引数</span>
+          <span className="font-mono text-xs">{script.args.join(" ")}</span>
+        </div>
+      ) : null}
+      {script.code ? (
+        <details>
+          <summary className="text-muted-foreground cursor-pointer text-xs select-none">
+            コード全文を表示
+          </summary>
+          <pre className="bg-muted mt-2 max-h-60 overflow-auto rounded-md p-2 font-mono text-xs whitespace-pre-wrap">
+            {script.code}
+          </pre>
+        </details>
+      ) : null}
+    </div>
+  );
 }
 
 export function ToolConfirmDialog({ request, onApprove, onReject }: Props) {
@@ -56,7 +120,7 @@ export function ToolConfirmDialog({ request, onApprove, onReject }: Props) {
         if (!next) onReject();
       }}
     >
-      {info ? (
+      {request && info ? (
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>{info.title}</AlertDialogTitle>
@@ -64,6 +128,9 @@ export function ToolConfirmDialog({ request, onApprove, onReject }: Props) {
               {info.description}
             </AlertDialogDescription>
           </AlertDialogHeader>
+          {request.script ? (
+            <ScriptConfirmDetails script={request.script} />
+          ) : null}
           <AlertDialogFooter>
             <AlertDialogCancel onClick={onReject}>拒否する</AlertDialogCancel>
             <AlertDialogAction onClick={onApprove}>

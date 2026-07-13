@@ -24,17 +24,19 @@ describe("buildSkillRuntimeContext", () => {
     expect(text).toContain("Boundary");
   });
 
-  it("mentions skill read zone when skillId is set", () => {
+  it("mentions skill discovery and read zone when skillId is set", () => {
     const text = buildSkillRuntimeContext({
       projectFolderId: "demo",
       skillId: "minutes-maid",
     });
     expect(text).toContain("references/*");
     expect(text).toContain("references/purpose.md");
+    expect(text).toMatch(/発見|list\/glob\/search/);
+    expect(text).toContain("replace_between");
     expect(text).not.toContain(".claude/skills/");
   });
 
-  it("adds HTML template must rules when skill has base.html", () => {
+  it("does not force HTML template copy steps even when base.html exists", () => {
     const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "ebex-runtime-"));
     const skillDir = path.join(tmpDir, "skill");
     fs.mkdirSync(path.join(skillDir, "references"), { recursive: true });
@@ -45,9 +47,9 @@ describe("buildSkillRuntimeContext", () => {
       skillId: "minutes-maid",
       skillDirAbsolute: skillDir,
     });
-    expect(text).toContain("HTML template outputs");
-    expect(text).toContain("replace_in_file");
-    expect(text).toContain("HTML 全文を書いてはならない");
+    expect(text).not.toContain("HTML template outputs");
+    expect(text).not.toContain("HTML 全文を書いてはならない");
+    expect(text).toContain("replace_between");
     fs.rmSync(tmpDir, { recursive: true, force: true });
   });
 });

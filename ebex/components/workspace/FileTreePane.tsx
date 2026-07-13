@@ -79,6 +79,7 @@ import {
   filterFavoritesToExisting,
   type FavoriteEntry,
 } from "@/lib/workspace-favorites";
+import { NO_FILE_SENTINEL } from "@/lib/workspace-file-selection";
 import {
   buildVisibleRows,
   emptyRowId,
@@ -626,6 +627,9 @@ function EmptyFolderRow({
   interaction: TreeInteraction;
 }) {
   const row = emptyRowId(folderPath);
+  const isSelected =
+    interaction.selectedFolderPath === folderPath &&
+    interaction.selectedFileName === NO_FILE_SENTINEL;
   return (
     <ContextMenu
       onOpenChange={(open) =>
@@ -638,10 +642,12 @@ function EmptyFolderRow({
             data-row-id={row}
             tabIndex={-1}
             className={cn(
-              interaction.rowHighlight(row, false),
+              interaction.rowHighlight(row, isSelected),
               "text-sm text-muted-foreground",
             )}
-            onClick={() => interaction.onFocusRow(row)}
+            onClick={() =>
+              interaction.onSelectFile(folderPath, NO_FILE_SENTINEL)
+            }
           >
             <span
               className="flex size-5 shrink-0 items-center justify-center"
@@ -649,7 +655,7 @@ function EmptyFolderRow({
             >
               <CircleDashed className="size-3.5" />
             </span>
-            <span>no file</span>
+            <span>{NO_FILE_SENTINEL}</span>
           </div>
         }
       />
@@ -1190,7 +1196,8 @@ export function FileTreePane({
     (folderPath: string, fileName: string) => {
       clearPaneError();
       if (fileName) {
-        focusRow(fileRowId(folderPath, fileName));
+        const rowId = resolveSelectedFileRowId(folderPath, fileName);
+        if (rowId) focusRow(rowId);
       }
       onSelectFile(folderPath, fileName);
     },
@@ -1585,6 +1592,8 @@ export function FileTreePane({
           handleToggleExpanded(row.folderPath, isFolderExpanded(row.folderPath));
         } else if (row.kind === "file" && row.fileName) {
           handleSelectFile(row.folderPath, row.fileName);
+        } else if (row.kind === "empty") {
+          handleSelectFile(row.folderPath, NO_FILE_SENTINEL);
         }
         return;
       }

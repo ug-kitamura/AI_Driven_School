@@ -1,4 +1,5 @@
 import type { WorkspaceTreeNode } from "@/lib/workspace-loader";
+import { isNoFileSentinel } from "@/lib/workspace-file-selection";
 import { getParentFolderPath } from "@/lib/workspace-tree-path";
 
 export type TreeRowKind = "folder" | "file" | "empty";
@@ -106,6 +107,9 @@ export function resolveSelectedFileRowId(
   selectedFileName: string,
 ): string | null {
   if (!selectedFolderPath || !selectedFileName) return null;
+  if (isNoFileSentinel(selectedFileName)) {
+    return emptyRowId(selectedFolderPath);
+  }
   return fileRowId(selectedFolderPath, selectedFileName);
 }
 

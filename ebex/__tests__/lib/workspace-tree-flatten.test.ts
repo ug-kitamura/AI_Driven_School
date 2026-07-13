@@ -90,6 +90,12 @@ describe("resolveSelectedFileRowId", () => {
     );
   });
 
+  it("returns the empty row id for the no file sentinel", () => {
+    expect(resolveSelectedFileRowId("demo/sub/empty", "no file")).toBe(
+      emptyRowId("demo/sub/empty"),
+    );
+  });
+
   it("returns null when no file is selected", () => {
     expect(resolveSelectedFileRowId("demo/sub", "")).toBeNull();
     expect(resolveSelectedFileRowId("", "")).toBeNull();

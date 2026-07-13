@@ -4,9 +4,31 @@ import {
   type ResolveToolPathOptions,
   type ToolPathError,
 } from "@/lib/agent/tools/fs-guard";
+import { detectNetworkAccessHint } from "@/lib/agent/tools/script-sandbox";
 import type { LlmMessage, ToolCall } from "@/lib/agent/llm/types";
 
-export type ConfirmKind = "overwrite" | "outside-project-read" | "outside-project-write";
+export type ConfirmKind =
+  | "overwrite"
+  | "outside-project-read"
+  | "outside-project-write"
+  | "run-script"
+  | "run-skill-script";
+
+/** スクリプト実行確認の表示ペイロード */
+export type ConfirmScriptInfo = {
+  /** 何のために実行するか（モデル申告） */
+  purpose: string;
+  /** 実行されるコード全文（折りたたみ表示用） */
+  code: string;
+  /** 書き込み予定パスと、既存ファイル（上書き）かどうか */
+  writes: Array<{ path: string; exists: boolean }>;
+  /** ネットワークアクセスの兆候を静的検出したか（警告表示用、ブロックはしない） */
+  networkWarning: boolean;
+  /** run_skill_script のスクリプトパス（表示用） */
+  scriptPath?: string;
+  /** run_skill_script の引数 */
+  args?: string[];
+};
 
 export type ConfirmRequirement = {
   kind: ConfirmKind;
@@ -14,6 +36,8 @@ export type ConfirmRequirement = {
   path: string;
   /** 書込ツールで、既存ファイルへの上書きかどうか */
   isNew: boolean;
+  /** スクリプト実行確認（kind: run-script / run-skill-script）の表示情報 */
+  script?: ConfirmScriptInfo;
 };
 
 export type ConfirmGateOptions = ResolveToolPathOptions & {
@@ -24,8 +48,19 @@ export type ConfirmGateOptions = ResolveToolPathOptions & {
   skipOverwritePaths?: ReadonlySet<string>;
 };
 
-const READ_TOOL_NAMES = new Set(["list_files", "glob_files", "search_content", "read_file"]);
-const WRITE_TOOL_NAMES = new Set(["write_file", "mkdir", "replace_in_file"]);
+const READ_TOOL_NAMES = new Set([
+  "list_files",
+  "glob_files",
+  "search_content",
+  "read_file",
+]);
+const WRITE_TOOL_NAMES = new Set([
+  "write_file",
+  "mkdir",
+  "replace_in_file",
+  "replace_between",
+  "append_file",
+]);
 
 function extractPathInput(call: ToolCall): string | null {
   const value = call.input?.path;
@@ -46,7 +81,10 @@ function shouldSkipOverwrite(
   // input が project 相対（notes.md）で set が workspace/demo/notes.md の場合など
   for (const skipped of skipOverwritePaths) {
     if (skipped === normalized) return true;
-    if (skipped.endsWith(`/${normalized}`) || normalized.endsWith(`/${skipped}`)) {
+    if (
+      skipped.endsWith(`/${normalized}`) ||
+      normalized.endsWith(`/${skipped}`)
+    ) {
       return true;
     }
   }
@@ -61,10 +99,15 @@ function resolveWriteConfirm(
   requireExistsForOverwrite: boolean,
 ): ConfirmRequirement | null {
   const { skipOverwritePaths, ...skillOptions } = options;
-  const resolved = resolveToolTargetPath(projectRoot, projectFolderId, inputPath, {
-    ...skillOptions,
-    preferSkillIfExists: false,
-  });
+  const resolved = resolveToolTargetPath(
+    projectRoot,
+    projectFolderId,
+    inputPath,
+    {
+      ...skillOptions,
+      preferSkillIfExists: false,
+    },
+  );
   if ("error" in resolved) return null;
   if (resolved.insideSkill) return null;
 
@@ -93,12 +136,117 @@ function resolveWriteConfirm(
  *   ただし AI 作成済み／一度許可済みパス（skipOverwritePaths）は不要
  * - プロジェクト外（`workspace/` 配下だが対象プロジェクト外）は読取/書込とも確認必要
  */
+const SCRIPT_CODE_DISPLAY_CHAR_LIMIT = 20_000;
+
+function resolveScriptWrites(
+  projectRoot: string,
+  projectFolderId: string,
+  writesInput: unknown,
+  options: ConfirmGateOptions,
+): Array<{ path: string; exists: boolean }> {
+  const raw = Array.isArray(writesInput) ? writesInput : [];
+  const writes: Array<{ path: string; exists: boolean }> = [];
+  for (const entry of raw) {
+    if (typeof entry !== "string" || !entry.trim()) continue;
+    const resolved = resolveToolTargetPath(
+      projectRoot,
+      projectFolderId,
+      entry,
+      {
+        ...options,
+        preferSkillIfExists: false,
+      },
+    );
+    if ("error" in resolved) continue;
+    writes.push({
+      path: resolved.relativePath,
+      exists: fs.existsSync(resolved.absolutePath),
+    });
+  }
+  return writes;
+}
+
+/**
+ * run_script / run_skill_script の確認要求を組み立てる。
+ * スクリプト実行は毎回確認する（skipOverwritePaths によるスキップはしない）。
+ */
+function resolveScriptConfirm(
+  projectRoot: string,
+  projectFolderId: string,
+  call: ToolCall,
+  options: ConfirmGateOptions,
+): ConfirmRequirement | null {
+  const purpose =
+    typeof call.input?.purpose === "string" ? call.input.purpose : "";
+
+  if (call.name === "run_script") {
+    const code = typeof call.input?.code === "string" ? call.input.code : "";
+    if (!code.trim()) return null; // broken tool_use 経路で処理される
+    const writes = resolveScriptWrites(
+      projectRoot,
+      projectFolderId,
+      call.input?.writes,
+      options,
+    );
+    return {
+      kind: "run-script",
+      path: writes[0]?.path ?? "(スクリプト実行)",
+      isNew: false,
+      script: {
+        purpose,
+        code: code.slice(0, SCRIPT_CODE_DISPLAY_CHAR_LIMIT),
+        writes,
+        networkWarning: detectNetworkAccessHint(code),
+      },
+    };
+  }
+
+  const scriptPathInput =
+    typeof call.input?.script_path === "string" ? call.input.script_path : "";
+  if (!scriptPathInput.trim()) return null;
+  const resolved = resolveToolTargetPath(
+    projectRoot,
+    projectFolderId,
+    scriptPathInput,
+    { ...options, preferSkillIfExists: true },
+  );
+  if ("error" in resolved) return null; // 実行時に拒否される
+  let code = "";
+  try {
+    code = fs
+      .readFileSync(resolved.absolutePath, "utf-8")
+      .slice(0, SCRIPT_CODE_DISPLAY_CHAR_LIMIT);
+  } catch {
+    // 存在しない場合は preflight で拒否される
+  }
+  const args = Array.isArray(call.input?.args)
+    ? call.input.args.filter((arg): arg is string => typeof arg === "string")
+    : [];
+  return {
+    kind: "run-skill-script",
+    path: resolved.relativePath,
+    isNew: false,
+    script: {
+      purpose,
+      code,
+      writes: [],
+      networkWarning: detectNetworkAccessHint(code),
+      scriptPath: resolved.relativePath,
+      args,
+    },
+  };
+}
+
 export function resolveConfirmRequirement(
   projectRoot: string,
   projectFolderId: string,
   call: ToolCall,
   options: ConfirmGateOptions = {},
 ): ConfirmRequirement | null {
+  if (call.name === "run_script" || call.name === "run_skill_script") {
+    return resolveScriptConfirm(projectRoot, projectFolderId, call, options);
+  }
+
   if (call.name === "copy_file") {
     const from =
       typeof call.input?.from === "string" && call.input.from.trim()
@@ -110,10 +258,15 @@ export function resolveConfirmRequirement(
         : null;
     if (!from || !to) return null;
 
-    const fromResolved = resolveToolTargetPath(projectRoot, projectFolderId, from, {
-      ...options,
-      preferSkillIfExists: true,
-    });
+    const fromResolved = resolveToolTargetPath(
+      projectRoot,
+      projectFolderId,
+      from,
+      {
+        ...options,
+        preferSkillIfExists: true,
+      },
+    );
     if (!("error" in fromResolved)) {
       if (!fromResolved.insideProject && !fromResolved.insideSkill) {
         return {
@@ -135,25 +288,39 @@ export function resolveConfirmRequirement(
   if (!inputPath) return null;
 
   if (isRead) {
-    const resolved = resolveToolTargetPath(projectRoot, projectFolderId, inputPath, {
-      ...options,
-      preferSkillIfExists: true,
-    });
+    const resolved = resolveToolTargetPath(
+      projectRoot,
+      projectFolderId,
+      inputPath,
+      {
+        ...options,
+        preferSkillIfExists: true,
+      },
+    );
     if ("error" in resolved) return null;
     if (resolved.insideProject || resolved.insideSkill) return null;
-    return { kind: "outside-project-read", path: resolved.relativePath, isNew: false };
+    return {
+      kind: "outside-project-read",
+      path: resolved.relativePath,
+      isNew: false,
+    };
   }
 
   const requireOverwrite =
     call.name === "write_file" ||
     call.name === "replace_in_file" ||
+    call.name === "replace_between" ||
+    call.name === "append_file" ||
     call.name === "copy_file";
   return resolveWriteConfirm(
     projectRoot,
     projectFolderId,
     inputPath,
     options,
-    requireOverwrite || call.name === "replace_in_file",
+    requireOverwrite ||
+      call.name === "replace_in_file" ||
+      call.name === "replace_between" ||
+      call.name === "append_file",
   );
 }
 
@@ -168,11 +335,20 @@ export function collectWrittenPathsFromToolResult(result: unknown): string[] {
   if (typeof record.to === "string" && record.to.trim()) {
     paths.push(normalizeConfirmPath(record.to));
   }
+  if (Array.isArray(record.writes)) {
+    for (const entry of record.writes) {
+      if (typeof entry === "string" && entry.trim()) {
+        paths.push(normalizeConfirmPath(entry));
+      }
+    }
+  }
   return paths;
 }
 
 /** 過去ターンの tool_result から AI が書いたパスを復元する */
-export function seedSkipOverwritePathsFromHistory(messages: LlmMessage[]): Set<string> {
+export function seedSkipOverwritePathsFromHistory(
+  messages: LlmMessage[],
+): Set<string> {
   const paths = new Set<string>();
   for (const message of messages) {
     if (typeof message.content === "string") continue;
@@ -187,8 +363,10 @@ export function seedSkipOverwritePathsFromHistory(messages: LlmMessage[]): Set<s
             typeof parsed === "object" &&
             ("bytes" in parsed ||
               "replacements" in parsed ||
-              "autoTemplateCopy" in parsed ||
+              "replacedChars" in parsed ||
+              "insertedChars" in parsed ||
               "to" in parsed ||
+              ("writes" in parsed && !("error" in parsed)) ||
               ("path" in parsed && !("error" in parsed)))
           ) {
             paths.add(path);

@@ -136,7 +136,7 @@ Agent invoke 時の既定入力スコープは選択中プロジェクトフォ�
 
 ### Requirement: /skill builtin でスキル一覧メッセージ
 
-Agent 入力の `/` 候補に builtin コマンド `skill` を含めなければならない（SHALL）。`/skill` 実行時、システムは LLM を呼び出さず、使用可能な可視スキルの name（または id）と description の一覧を、アシスタント風メッセージとして現在セッションの履歴に1通追加して終了しなければならない（SHALL）。一覧に ebex/host などのソースラベルを付けてはならない（MUST NOT）。
+Agent 入力の `/` 候補に builtin コマンド `skill` を含めなければならない（SHALL）。`/skill` 実行時、システムは LLM を呼び出さず、使用可能な可視スキルの name（または id）と description の一覧を、アシスタント風メッセージとして現在セッションの履歴に1通追加して終了しなければならない（SHALL）。一覧は Markdown の表形式（スキル列・説明列）でよいが、各スキルは表の **1 行** に収まらなければならない（SHALL）。description に含まれる改行（`\n` / `\r` / CRLF）およびセル区切りを壊す文字は、表セル用に正規化またはエスケープしなければならない（SHALL）。一覧に ebex/host などのソースラベルを付けてはならない（MUST NOT）。
 
 #### Scenario: /skill が候補に出る
 
@@ -147,6 +147,11 @@ Agent 入力の `/` 候補に builtin コマンド `skill` を含めなければ
 
 - **WHEN** ユーザーが `/skill` を実行する
 - **THEN** アシスタント役割のメッセージが1通追加され、可視スキルの名称と description が一覧される
+
+#### Scenario: 複数行 description でも表が割れない
+
+- **WHEN** 可視スキルの description が YAML `|` 由来の複数行（CRLF を含む）である
+- **THEN** カタログ表ではそのスキルが1行に表示され、説明列に description の内容が続き、次行のスキル列へ説明文がはみ出さない
 
 #### Scenario: LLM を呼ばない
 
@@ -180,3 +185,4 @@ Agent がストリーミング実行中であるかどうかと、その実行�
 
 - **WHEN** Agent のストリーミングが完了または中断する
 - **THEN** ワークスペース上の当該フォルダの実行中状態は解除される
+

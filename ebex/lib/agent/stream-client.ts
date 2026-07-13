@@ -5,13 +5,25 @@ import type { AgentLogicalTurn, AgentToolEvent } from "@/lib/agent/llm/types";
 export type ToolConfirmKind =
   | "overwrite"
   | "outside-project-read"
-  | "outside-project-write";
+  | "outside-project-write"
+  | "run-script"
+  | "run-skill-script";
+
+export type ToolConfirmScriptInfo = {
+  purpose: string;
+  code: string;
+  writes: Array<{ path: string; exists: boolean }>;
+  networkWarning: boolean;
+  scriptPath?: string;
+  args?: string[];
+};
 
 export type ToolConfirmRequiredEvent = {
   toolUseId: string;
   kind: ToolConfirmKind;
   path: string;
   isNew: boolean;
+  script?: ToolConfirmScriptInfo;
 };
 
 export type AgentStreamCallbacks = {
@@ -87,7 +99,8 @@ export async function consumeAgentStream(
                 data.input && typeof data.input === "object"
                   ? (data.input as Record<string, unknown>)
                   : undefined,
-              toolUseId: typeof data.toolUseId === "string" ? data.toolUseId : undefined,
+              toolUseId:
+                typeof data.toolUseId === "string" ? data.toolUseId : undefined,
               display: String(data.display ?? data.name ?? ""),
             });
             break;
@@ -95,18 +108,24 @@ export async function consumeAgentStream(
             callbacks.onToolEnd?.({
               phase: "end",
               name: String(data.name ?? ""),
-              toolUseId: typeof data.toolUseId === "string" ? data.toolUseId : undefined,
-              summary: typeof data.summary === "string" ? data.summary : undefined,
+              toolUseId:
+                typeof data.toolUseId === "string" ? data.toolUseId : undefined,
+              summary:
+                typeof data.summary === "string" ? data.summary : undefined,
               display: String(data.display ?? data.name ?? ""),
               result: typeof data.result === "string" ? data.result : undefined,
               tags: Array.isArray(data.tags)
-                ? data.tags.filter((tag): tag is string => typeof tag === "string")
+                ? data.tags.filter(
+                    (tag): tag is string => typeof tag === "string",
+                  )
                 : undefined,
             });
             break;
           case "logical_turn": {
             const text = typeof data.text === "string" ? data.text : undefined;
-            const rawCalls = Array.isArray(data.toolCalls) ? data.toolCalls : [];
+            const rawCalls = Array.isArray(data.toolCalls)
+              ? data.toolCalls
+              : [];
             const toolCalls = rawCalls
               .map((item) => {
                 if (!item || typeof item !== "object") return null;
@@ -128,7 +147,9 @@ export async function consumeAgentStream(
                   result: call.result,
                 };
               })
-              .filter((call): call is NonNullable<typeof call> => call !== null);
+              .filter(
+                (call): call is NonNullable<typeof call> => call !== null,
+              );
             callbacks.onLogicalTurn?.({
               ...(text ? { text } : {}),
               ...(toolCalls.length > 0 ? { toolCalls } : {}),
@@ -141,21 +162,69 @@ export async function consumeAgentStream(
               typeof data.toolUseId === "string" &&
               (kind === "overwrite" ||
                 kind === "outside-project-read" ||
-                kind === "outside-project-write") &&
+                kind === "outside-project-write" ||
+                kind === "run-script" ||
+                kind === "run-skill-script") &&
               typeof data.path === "string"
             ) {
+              const rawScript =
+                data.script && typeof data.script === "object"
+                  ? (data.script as Record<string, unknown>)
+                  : null;
+              const script: ToolConfirmScriptInfo | undefined = rawScript
+                ? {
+                    purpose:
+                      typeof rawScript.purpose === "string"
+                        ? rawScript.purpose
+                        : "",
+                    code:
+                      typeof rawScript.code === "string" ? rawScript.code : "",
+                    writes: Array.isArray(rawScript.writes)
+                      ? rawScript.writes
+                          .filter(
+                            (
+                              entry,
+                            ): entry is { path: string; exists: boolean } =>
+                              Boolean(
+                                entry &&
+                                typeof entry === "object" &&
+                                typeof (entry as { path?: unknown }).path ===
+                                  "string",
+                              ),
+                          )
+                          .map((entry) => ({
+                            path: entry.path,
+                            exists: Boolean(entry.exists),
+                          }))
+                      : [],
+                    networkWarning: Boolean(rawScript.networkWarning),
+                    ...(typeof rawScript.scriptPath === "string"
+                      ? { scriptPath: rawScript.scriptPath }
+                      : {}),
+                    ...(Array.isArray(rawScript.args)
+                      ? {
+                          args: rawScript.args.filter(
+                            (arg): arg is string => typeof arg === "string",
+                          ),
+                        }
+                      : {}),
+                  }
+                : undefined;
               callbacks.onConfirmRequired?.({
                 toolUseId: data.toolUseId,
                 kind,
                 path: data.path,
                 isNew: Boolean(data.isNew),
+                ...(script ? { script } : {}),
               });
             }
             break;
           }
           case "error": {
             const message =
-              typeof data.message === "string" ? data.message : "スキル実行に失敗しました";
+              typeof data.message === "string"
+                ? data.message
+                : "スキル実行に失敗しました";
             throw new Error(message);
           }
           case "done":

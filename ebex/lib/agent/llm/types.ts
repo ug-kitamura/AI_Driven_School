@@ -18,7 +18,10 @@ export type LlmToolResultBlock = {
   content: string;
 };
 
-export type LlmContentBlock = LlmTextBlock | LlmToolUseBlock | LlmToolResultBlock;
+export type LlmContentBlock =
+  | LlmTextBlock
+  | LlmToolUseBlock
+  | LlmToolResultBlock;
 
 export type LlmMessage = {
   role: LlmRole;
@@ -84,13 +87,12 @@ export const AGENT_BROKEN_TOOL_USE_ERROR =
 export const AGENT_MISSING_PATH_ERROR =
   "必須の path（または from/to）が欠落または空です";
 
+export const AGENT_MISSING_SCRIPT_INPUT_ERROR =
+  "必須の code（または script_path）が欠落または空です";
+
 /** 巨大 write 失敗時にモデルへ返す汎用案内（スキル固有ロジックではない） */
 export const LARGE_FILE_WRITE_GUIDANCE =
-  "大きな HTML やテンプレート成果物は write_file 一発で書かず、copy_file で references/base.html 等のテンプレートを output へコピーし、replace_in_file で {{PLACEHOLDER}} を置換してください。CSS が必要なら style.css を読み、<style> へのインライン化は置換で行ってください。";
-
-/** 同一 HTML への write 再試行を止めるときの案内 */
-export const HTML_WRITE_ALREADY_COPIED_ERROR =
-  "この HTML は既にテンプレートからコピー済みです。write_file を繰り返さず、replace_in_file のみで {{PLACEHOLDER}} を埋めてください。";
+  "大きな成果物は write_file 一発で書かず、run_script を最優先で使ってください: 本文を tool 引数に載せず、ディスク上のデータ（md ドラフト・テンプレート等）を読んで変換・書込する短い Node.js コードを実行します。補助として copy_file でテンプレートをコピーし、replace_in_file / replace_between（大きな本文は from_path）で差し込み、必要なら append_file で partial を積む方法も使えます。";
 
 export const AGENT_REPEATED_TOOL_ERROR =
   "同一のツールエラーが連続したためエージェントを停止しました";

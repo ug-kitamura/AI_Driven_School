@@ -2,7 +2,10 @@ import { describe, expect, it } from "vitest";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { resolveConfirmRequirement } from "@/lib/agent/tools/confirm-gate";
+import {
+  collectWrittenPathsFromToolResult,
+  resolveConfirmRequirement,
+} from "@/lib/agent/tools/confirm-gate";
 import { createFile, createFolder } from "@/lib/workspace-mutations";
 import { getWorkspaceDir } from "@/lib/workspace-paths";
 
@@ -207,5 +210,159 @@ describe("resolveConfirmRequirement", () => {
     );
     expect(req).toBeNull();
     fs.rmSync(tmpDir, { recursive: true, force: true });
+  });
+
+  it("requires overwrite for replace_between and append_file on existing files", () => {
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "ebex-confirm-"));
+    createFolder(tmpDir, "demo");
+    createFile(tmpDir, "demo", "out.html", "x");
+    createFile(tmpDir, "demo", "partial.txt", "a");
+
+    expect(
+      resolveConfirmRequirement(tmpDir, "demo", {
+        id: "t1",
+        name: "replace_between",
+        input: {
+          path: "out.html",
+          start_marker: "a",
+          end_marker: "b",
+          content: "c",
+        },
+      }),
+    ).toEqual({
+      kind: "overwrite",
+      path: "workspace/demo/out.html",
+      isNew: false,
+    });
+
+    expect(
+      resolveConfirmRequirement(tmpDir, "demo", {
+        id: "t2",
+        name: "append_file",
+        input: { path: "partial.txt", content: "b" },
+      }),
+    ).toEqual({
+      kind: "overwrite",
+      path: "workspace/demo/partial.txt",
+      isNew: false,
+    });
+
+    expect(
+      resolveConfirmRequirement(
+        tmpDir,
+        "demo",
+        {
+          id: "t3",
+          name: "append_file",
+          input: { path: "partial.txt", content: "b" },
+        },
+        { skipOverwritePaths: new Set(["workspace/demo/partial.txt"]) },
+      ),
+    ).toBeNull();
+
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+  });
+});
+
+describe("resolveConfirmRequirement for script tools", () => {
+  it("requires confirmation for run_script every time (no skip)", () => {
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "ebex-confirm-"));
+    createFolder(tmpDir, "demo");
+    createFile(tmpDir, "demo", "out.html", "old");
+    const call = {
+      id: "t1",
+      name: "run_script",
+      input: {
+        purpose: "HTML の組み立て",
+        code: 'const fs = require("fs");',
+        writes: ["out.html", "new.txt"],
+      },
+    };
+    const req = resolveConfirmRequirement(tmpDir, "demo", call, {
+      skipOverwritePaths: new Set(["workspace/demo/out.html"]),
+    });
+    expect(req).not.toBeNull();
+    expect(req?.kind).toBe("run-script");
+    expect(req?.script?.purpose).toBe("HTML の組み立て");
+    expect(req?.script?.writes).toEqual([
+      { path: "workspace/demo/out.html", exists: true },
+      { path: "workspace/demo/new.txt", exists: false },
+    ]);
+    expect(req?.script?.networkWarning).toBe(false);
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+  });
+
+  it("flags network access hints in run_script code", () => {
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "ebex-confirm-"));
+    createFolder(tmpDir, "demo");
+    const req = resolveConfirmRequirement(tmpDir, "demo", {
+      id: "t1",
+      name: "run_script",
+      input: {
+        purpose: "テスト",
+        code: 'const https = require("https"); fetch("https://example.com");',
+        writes: [],
+      },
+    });
+    expect(req?.script?.networkWarning).toBe(true);
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+  });
+
+  it("returns null for run_script with empty code (broken tool_use path)", () => {
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "ebex-confirm-"));
+    createFolder(tmpDir, "demo");
+    const req = resolveConfirmRequirement(tmpDir, "demo", {
+      id: "t1",
+      name: "run_script",
+      input: { purpose: "テスト", code: "", writes: [] },
+    });
+    expect(req).toBeNull();
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+  });
+
+  it("builds run-skill-script confirmation with script code preview", () => {
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "ebex-confirm-"));
+    createFolder(tmpDir, "demo");
+    const skillDir = path.join(tmpDir, "skill-zone", "my-skill");
+    fs.mkdirSync(path.join(skillDir, "scripts"), { recursive: true });
+    fs.writeFileSync(
+      path.join(skillDir, "scripts", "build.cjs"),
+      'const fs = require("fs");',
+      "utf-8",
+    );
+    const req = resolveConfirmRequirement(
+      tmpDir,
+      "demo",
+      {
+        id: "t1",
+        name: "run_skill_script",
+        input: {
+          script_path: "scripts/build.cjs",
+          args: ["out.html"],
+          purpose: "スキルスクリプト",
+        },
+      },
+      { skillId: "my-skill", skillDirAbsolute: skillDir },
+    );
+    expect(req?.kind).toBe("run-skill-script");
+    expect(req?.path).toBe("skill/my-skill/scripts/build.cjs");
+    expect(req?.script?.scriptPath).toBe("skill/my-skill/scripts/build.cjs");
+    expect(req?.script?.code).toContain("require");
+    expect(req?.script?.args).toEqual(["out.html"]);
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+  });
+});
+
+describe("collectWrittenPathsFromToolResult with writes", () => {
+  it("collects run_script writes for overwrite skip", () => {
+    const paths = collectWrittenPathsFromToolResult({
+      writes: ["workspace/demo/out.html", "workspace/demo/new.txt"],
+      stdout: "",
+      durationMs: 10,
+    });
+    expect(paths).toEqual([
+      "workspace/demo/out.html",
+      "workspace/demo/new.txt",
+    ]);
   });
 });

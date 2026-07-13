@@ -4,13 +4,18 @@ import {
   buildAssistantToolUseMessage,
   buildToolResultMessages,
 } from "@/lib/agent/llm/anthropic";
-import type { LlmMessage, AgentToolEvent, AgentLogicalTurn, ToolCall } from "@/lib/agent/llm/types";
+import type {
+  LlmMessage,
+  AgentToolEvent,
+  AgentLogicalTurn,
+  ToolCall,
+} from "@/lib/agent/llm/types";
 import {
   AGENT_BROKEN_TOOL_USE_ERROR,
   AGENT_LOOP_LIMIT_ERROR,
   AGENT_MISSING_PATH_ERROR,
+  AGENT_MISSING_SCRIPT_INPUT_ERROR,
   AGENT_REPEATED_TOOL_ERROR,
-  HTML_WRITE_ALREADY_COPIED_ERROR,
   LARGE_FILE_WRITE_GUIDANCE,
   MAX_AGENT_LOOP_TURNS,
   MAX_CONSECUTIVE_IDENTICAL_TOOL_ERRORS,
@@ -19,18 +24,20 @@ import { resolveLlmProvider } from "@/lib/agent/llm/resolve-provider";
 import { resolveMaxOutputTokens } from "@/lib/resolve-max-output-tokens";
 import {
   executeRegisteredTool,
+  isScriptToolName,
+  preflightScriptToolCall,
   resolveToolDefinitions,
   type ToolExecutionContext,
   type ToolExecutionOutcome,
 } from "@/lib/agent/tools/registry";
-import { resolveConfirmRequirement, seedSkipOverwritePathsFromHistory, collectWrittenPathsFromToolResult, normalizeConfirmPath } from "@/lib/agent/tools/confirm-gate";
+import {
+  resolveConfirmRequirement,
+  seedSkipOverwritePathsFromHistory,
+  collectWrittenPathsFromToolResult,
+  normalizeConfirmPath,
+} from "@/lib/agent/tools/confirm-gate";
 import { awaitToolConfirmDecision } from "@/lib/agent/tools/tool-confirm-registry";
 import { checkProjectFolderExists } from "@/lib/agent/project-folder-guard";
-import {
-  executeTemplateHtmlCopyWrite,
-  resolveWriteFileTargetPath,
-  shouldForceTemplateHtmlCopy,
-} from "@/lib/agent/tools/template-write-recovery";
 import type { ToolDefinition } from "@/lib/agent/llm/types";
 
 export type AgentLoopEmit = (event: string, data: unknown) => void;
@@ -56,6 +63,8 @@ const PATH_REQUIRED_TOOLS = new Set([
   "write_file",
   "mkdir",
   "replace_in_file",
+  "replace_between",
+  "append_file",
 ]);
 
 export function isBrokenToolUse(call: ToolCall): string | null {
@@ -65,8 +74,27 @@ export function isBrokenToolUse(call: ToolCall): string | null {
   if (call.name === "copy_file") {
     const from = call.input?.from;
     const to = call.input?.to;
-    if (typeof from !== "string" || !from.trim() || typeof to !== "string" || !to.trim()) {
+    if (
+      typeof from !== "string" ||
+      !from.trim() ||
+      typeof to !== "string" ||
+      !to.trim()
+    ) {
       return AGENT_MISSING_PATH_ERROR;
+    }
+    return null;
+  }
+  if (call.name === "run_script") {
+    const code = call.input?.code;
+    if (typeof code !== "string" || !code.trim()) {
+      return AGENT_MISSING_SCRIPT_INPUT_ERROR;
+    }
+    return null;
+  }
+  if (call.name === "run_skill_script") {
+    const scriptPath = call.input?.script_path;
+    if (typeof scriptPath !== "string" || !scriptPath.trim()) {
+      return AGENT_MISSING_SCRIPT_INPUT_ERROR;
     }
     return null;
   }
@@ -99,10 +127,6 @@ function brokenToolOutcome(message: string): ToolExecutionOutcome {
   };
 }
 
-function normalizeTrackedPath(filePath: string): string {
-  return filePath.replace(/\\/g, "/").replace(/^\.\//, "").trim();
-}
-
 export async function runAgentLoop(
   options: RunAgentLoopOptions,
 ): Promise<RunAgentLoopResult> {
@@ -113,7 +137,11 @@ export async function runAgentLoop(
 
   const providerResult = resolveLlmProvider(options.req);
   if (!providerResult.ok) {
-    return { ok: false, error: providerResult.error, status: providerResult.status };
+    return {
+      ok: false,
+      error: providerResult.error,
+      status: providerResult.status,
+    };
   }
 
   const tools: ToolDefinition[] = resolveToolDefinitions(options.toolNames);
@@ -139,8 +167,6 @@ export async function runAgentLoop(
   let consecutiveError: string | null = null;
   let consecutiveErrorCount = 0;
   let turnText = "";
-  /** この invoke 内でテンプレ自動コピー済みの HTML パス */
-  const templateCopiedPaths = new Set<string>();
   /** AI 作成済み／上書き許可済み → 以降の overwrite 確認をスキップ */
   const skipOverwritePaths = seedSkipOverwritePathsFromHistory(llmMessages);
 
@@ -203,7 +229,11 @@ export async function runAgentLoop(
         }
       }
 
-      options.emit("tool_start", { name: call.name, input: call.input, toolUseId: call.id });
+      options.emit("tool_start", {
+        name: call.name,
+        input: call.input,
+        toolUseId: call.id,
+      });
       toolEvents.push({
         phase: "start",
         name: call.name,
@@ -215,53 +245,17 @@ export async function runAgentLoop(
       const broken = isBrokenToolUse(call);
       let outcome: ToolExecutionOutcome;
 
-      const forceTemplate =
-        toolContext &&
-        shouldForceTemplateHtmlCopy(call, options.skillDirAbsolute);
-      if (forceTemplate) {
-        const dest = resolveWriteFileTargetPath(call);
-        const tracked = dest ? normalizeTrackedPath(dest) : "";
-        if (tracked && templateCopiedPaths.has(tracked)) {
-          outcome = {
-            result: {
-              error: HTML_WRITE_ALREADY_COPIED_ERROR,
-              recoverable: true,
-              path: dest,
-              guidance:
-                "replace_in_file の replacements または old_string/new_string だけでプレースホルダを埋めてください。",
-            },
-            display: {
-              summary: "error",
-              display: `✗ ${HTML_WRITE_ALREADY_COPIED_ERROR}`,
-            },
-          };
-        } else {
-          const recovered = dest
-            ? await executeTemplateHtmlCopyWrite(toolContext, dest)
-            : null;
-          if (recovered) {
-            outcome = recovered;
-            if (
-              tracked &&
-              recovered.result &&
-              typeof recovered.result === "object" &&
-              (recovered.result as { autoTemplateCopy?: boolean }).autoTemplateCopy
-            ) {
-              templateCopiedPaths.add(tracked);
-              for (const written of collectWrittenPathsFromToolResult(recovered.result)) {
-                skipOverwritePaths.add(written);
-              }
-            }
-          } else if (broken) {
-            outcome = brokenToolOutcome(broken);
-          } else {
-            outcome = brokenToolOutcome(
-              "HTML の write_file をテンプレートコピーへ変換できませんでした",
-            );
-          }
-        }
-      } else if (broken) {
+      // スクリプト系は確認ダイアログより先に事前検査する
+      // （構文エラーや存在しないスクリプトの承認をユーザーに求めない）
+      const preflight =
+        !broken && toolContext && isScriptToolName(call.name)
+          ? await preflightScriptToolCall(call.name, call.input, toolContext)
+          : null;
+
+      if (broken) {
         outcome = brokenToolOutcome(broken);
+      } else if (preflight) {
+        outcome = preflight;
       } else {
         const requirement = toolContext
           ? resolveConfirmRequirement(
@@ -278,6 +272,7 @@ export async function runAgentLoop(
             kind: requirement.kind,
             path: requirement.path,
             isNew: requirement.isNew,
+            ...(requirement.script ? { script: requirement.script } : {}),
           });
           const decision = await awaitToolConfirmDecision(call.id);
           if (decision === "reject") {
@@ -296,10 +291,18 @@ export async function runAgentLoop(
             if (requirement.kind === "overwrite") {
               skipOverwritePaths.add(normalizeConfirmPath(requirement.path));
             }
-            outcome = await executeRegisteredTool(call.name, call.input, toolContext);
+            outcome = await executeRegisteredTool(
+              call.name,
+              call.input,
+              toolContext,
+            );
           }
         } else {
-          outcome = await executeRegisteredTool(call.name, call.input, toolContext);
+          outcome = await executeRegisteredTool(
+            call.name,
+            call.input,
+            toolContext,
+          );
         }
       }
 
@@ -307,7 +310,9 @@ export async function runAgentLoop(
       toolResults.push(resultJson);
 
       if (!extractToolErrorMessage(outcome.result)) {
-        for (const written of collectWrittenPathsFromToolResult(outcome.result)) {
+        for (const written of collectWrittenPathsFromToolResult(
+          outcome.result,
+        )) {
           skipOverwritePaths.add(written);
         }
       }
@@ -358,7 +363,9 @@ export async function runAgentLoop(
       })),
     });
 
-    llmMessages.push(...buildToolResultMessages(turnResult.toolCalls, toolResults));
+    llmMessages.push(
+      ...buildToolResultMessages(turnResult.toolCalls, toolResults),
+    );
   }
 
   return { ok: false, error: AGENT_LOOP_LIMIT_ERROR, status: 422 };

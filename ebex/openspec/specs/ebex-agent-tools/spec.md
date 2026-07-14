@@ -371,7 +371,7 @@ Agent loop は invoke 時の `projectFolderId` に対応するプロジェクト
 
 ### Requirement: スキル固有 HTML 強制コピーの禁止
 
-agent loop およびツール層は、宛先拡張子やスキル内の `references/base.html` の有無だけを理由に、`write_file` の内容を破棄してテンプレート強制コピーへ置き換えてはならない（MUST NOT）。大きな成果物向けの案内は「成果物の形→経路の一意対応」（額縁テンプレートがあれば `copy_file` でコピーして `replace_in_file` / `replace_between` で断片を差し込む、モデルが創作する長文は `generate_and_write` で partial に生成して `replace_between`（`from_path`）で差し込む、大量レコードの機械変換は `run_script`）として示さなければならず（SHALL）、複数経路を「失敗したら乗り換える」フォールバック列として示してはならない（MUST NOT）。案内は特定スキル名や HTML 専用の必須手順をランタイムが強制してはならない（MUST NOT）。
+agent loop およびツール層は、宛先拡張子やスキル内の `references/base.html` の有無を理由に、モデルのツール呼び出しを改変してはならない（MUST NOT）。すなわち `write_file` の内容を破棄してテンプレート強制コピーへ置き換える、宛先やツール種別を差し替える等の介入を行ってはならない（MUST NOT）。大きな成果物向けの案内は「成果物の形→経路の一意対応」（額縁テンプレートがあれば `copy_file` でコピーして `replace_in_file` / `replace_between` で断片を差し込む、モデルが創作する長文なら `generate_and_write` で partial に生成して `replace_between`（`from_path`）で差し込む、大量レコードの機械変換は `run_script`）として示さなければならず（SHALL）、複数経路を「失敗したら乗り換える」フォールバック列として示してはならない（MUST NOT）。場の説明において、実在する額縁候補（ファイル名・サイズ）を列挙してコピー先行を推奨することは全スキル共通の一般規則として行ってよい（MAY）が、特定スキル名による分岐を持ってはならず（MUST NOT）、推奨に従わないツール呼び出しもそのまま実行しなければならない（SHALL）。
 
 #### Scenario: HTML への write_file は内容どおり書く
 
@@ -383,6 +383,11 @@ agent loop およびツール層は、宛先拡張子やスキル内の `referen
 - **WHEN** 大きな `write_file` がサイズ上限等で失敗する
 - **THEN** tool_result の案内は「額縁があれば `copy_file`＋`replace_*` で断片を差し込む／創作長文は `generate_and_write`／データ変換は `run_script`」という形→経路の対応を示し、特定スキル名やフォールバック順序（「◯◯が失敗したら△△」）を含まない
 
+#### Scenario: 額縁候補の推奨はツール実行に介入しない
+
+- **WHEN** 場の説明で額縁候補としてコピー先行が推奨された状態で、モデルが推奨と異なる経路（`generate_and_write` 等）を選ぶ
+- **THEN** ランタイムはツール呼び出しを改変せず、選ばれた経路をそのまま実行する
+
 ### Requirement: 新ツール定義の提供（区間置換）
 
 `resolveToolDefinitions` が返すツール一覧には、`replace_between` および `append_file` を含めなければならない（SHALL）。これらのツールは空の偽テキストではなく実ツールとして実行されなければならない（SHALL）。
@@ -391,4 +396,23 @@ agent loop およびツール層は、宛先拡張子やスキル内の `referen
 
 - **WHEN** Agent がファイル演算ツール付きで invoke される
 - **THEN** LLM リクエストの tools に `replace_between` と `append_file` が含まれる
+
+### Requirement: max_tokens 打ち切りターンの自動継続
+
+agent loop は、ターンの `stopReason` が `max_tokens` かつツール呼び出しが 0 件の場合、当該ターンを完了として扱ってはならない（MUST NOT）。システムは生成済みテキストを assistant メッセージとして履歴へ積み、「既出部分を繰り返さず続きのみを出力する」内部指示で自動継続しなければならない（SHALL）。継続テキストは同一 logical turn の続きとしてストリーム配信されなければならない（SHALL）。自動継続には上限（4 回）を設け、上限到達時は本文が打ち切られた旨をユーザーへ明示してループを終了しなければならない（SHALL）。ツール呼び出しがある場合、または `stopReason` が `max_tokens` 以外の場合の既存動作を変更してはならない（MUST NOT）。
+
+#### Scenario: 途切れた本文が自動でつながる
+
+- **WHEN** ターンの本文出力が max_tokens で途切れ、ツール呼び出しがない
+- **THEN** ユーザーが「つづき」と促さなくても続きが自動生成され、UI 上は 1 つの応答としてつながって表示される
+
+#### Scenario: 継続上限で明示終了する
+
+- **WHEN** 自動継続が上限（4 回）に達してもなお max_tokens で途切れる
+- **THEN** ループは打ち切られた旨をユーザーへ明示して終了し、無限に継続しない
+
+#### Scenario: 通常完了ターンは従来どおり
+
+- **WHEN** ターンが `end_turn` 等で正常に完了しツール呼び出しがない
+- **THEN** 自動継続は行われず、従来どおり done としてループが終了する
 

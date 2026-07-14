@@ -5,7 +5,7 @@ TBD - created by archiving change ebex-agent-script-runtime. Update Purpose afte
 ## Requirements
 ### Requirement: サンドボックス実行基盤
 
-システムはスクリプトを Node 子プロセスとして実行し、Node Permission Model により fs 読取を「プロジェクトフォルダ・実行中スキルディレクトリ・スクリプト自身」に、fs 書込を「プロジェクトフォルダ内」に制限しなければならない（MUST）。実行は `cwd` をプロジェクトフォルダに固定し、タイムアウトと stdout/stderr のサイズ上限を設けなければならない（MUST）。
+システムはスクリプトを Node 子プロセスとして実行し、Node Permission Model により fs 読取を「プロジェクトフォルダ・実行中スキルディレクトリ・スクリプト自身」に、fs 書込を「プロジェクトフォルダ内」に制限しなければならない（MUST）。実行は `cwd` をプロジェクトフォルダに固定し、タイムアウトと stdout/stderr のサイズ上限を設けなければならない（MUST）。子プロセスへ渡す環境変数は allowlist 方式で最小構成（実行に必要な `PATH` 等の必須項目）とし、サーバプロセスの秘密情報（API キー等）を継承させてはならない（MUST NOT）。システムは子プロセスへ `EBEX_PROJECT_DIR`（プロジェクトフォルダの絶対パス）を注入し、スキル実行中は `EBEX_SKILL_DIR`（実行中スキルの `skillDirAbsolute`）も注入しなければならない（SHALL）。`EBEX_SKILL_DIR` の値は fs 読取許可（`--allow-fs-read`）に渡す値と同一の `skillDirAbsolute` から導出しなければならない（SHALL）。
 
 #### Scenario: プロジェクト外への書込はプロセスレベルで失敗する
 
@@ -31,6 +31,26 @@ TBD - created by archiving change ebex-agent-script-runtime. Update Purpose afte
 
 - **WHEN** 実行環境の Node が Permission Model のフラグを受理しない
 - **THEN** スクリプトは実行されず、Node のバージョン要件を満たさない旨のエラーが返る
+
+#### Scenario: 環境変数でスキルファイルを直接読める
+
+- **WHEN** スキル実行中のスクリプトが `path.join(process.env.EBEX_SKILL_DIR, "references", "style.css")` を読み取る
+- **THEN** 実行中スキルの当該ファイルが読取に成功する
+
+#### Scenario: env と読取許可は同一のスキルディレクトリを指す
+
+- **WHEN** 同一 `skill.id` のスキルがホストルートと ebex ルートの両方に存在する状態でスクリプトが実行される
+- **THEN** `EBEX_SKILL_DIR` の値と `--allow-fs-read` の対象は、ホスト優先で解決された同一の `skillDirAbsolute` である
+
+#### Scenario: スキル外実行では EBEX_SKILL_DIR が未設定
+
+- **WHEN** スキルを実行していない通常チャットから `run_script` が実行される
+- **THEN** 子プロセスの `EBEX_SKILL_DIR` は未設定であり、`EBEX_PROJECT_DIR` は設定されている
+
+#### Scenario: サーバの秘密情報は継承されない
+
+- **WHEN** サーバプロセスの環境に API キー等の秘密情報が設定された状態でスクリプトが実行される
+- **THEN** 子プロセスの環境変数に当該秘密情報は含まれない
 
 ### Requirement: run_script ツール
 
@@ -122,4 +142,18 @@ TBD - created by archiving change ebex-agent-script-runtime. Update Purpose afte
 
 - **WHEN** 実行されたスクリプトが実行時エラーで異常終了する
 - **THEN** stderr の要約（サイズ上限あり）と exit code が tool_result で返り、モデルは修正版で再試行できる
+
+### Requirement: スクリプトからのスキルファイル参照経路の案内
+
+`run_script` / `run_skill_script` のツール定義 description は、スキルの参照ファイルを `process.env.EBEX_SKILL_DIR` 基準（`path.join` 使用）で読む旨を含まなければならない（SHALL）。スキル同梱スクリプト（`run_skill_script`）の規約として、スキル側ファイルの読取は `__dirname` または `EBEX_SKILL_DIR` 基準、成果物の書込は cwd（プロジェクト）基準の相対パスまたは `EBEX_PROJECT_DIR` 基準としなければならない（SHALL）。ツール結果の論理パス（`skill/<skillId>/...`）をスクリプト内の fs パスとして案内してはならない（MUST NOT）。
+
+#### Scenario: description が参照経路を案内する
+
+- **WHEN** `run_script` のツール定義が LLM へ渡される
+- **THEN** description に `EBEX_SKILL_DIR` によるスキルファイル読取の案内が含まれる
+
+#### Scenario: 同梱スクリプトは __dirname で参照できる
+
+- **WHEN** スキルの `scripts/build.cjs` が `path.join(__dirname, "..", "references", "base.html")` を読み取る
+- **THEN** 読取は成功する（`run_skill_script` はスキル内の絶対パスで実行されるため `__dirname` はスキルの `scripts/` を指す）
 

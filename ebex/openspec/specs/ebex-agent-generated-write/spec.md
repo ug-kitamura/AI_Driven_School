@@ -52,12 +52,17 @@ TBD - created by archiving change ebex-agent-large-write-runtime. Update Purpose
 
 ### Requirement: 実行前ユーザー確認
 
-`generate_and_write` の実行前に、システムはユーザー確認を求めなければならない（SHALL）。確認表示には `purpose`、書込先 `path`（既存ファイルの場合は上書きである旨）、`instruction`、および `sections` を含めなければならない（SHALL）。ユーザーが拒否した場合、子 LLM 呼び出しと書き込みを行わず、拒否された旨を tool_result としてモデルに返さなければならない（SHALL）。承認は当該 `path` への書込許可を兼ね、成功時には以降の同一パス上書き再確認を求めてはならない（MUST NOT）。
+`generate_and_write` の実行前に、システムはユーザー確認を求めなければならない（SHALL）。確認表示には `purpose`、書込先 `path`（既存ファイルの場合は上書きである旨）、`instruction`、および `sections` を含めなければならない（SHALL）。サーバが emit した `confirm_required`（`kind: "generate-write"`）はクライアントのストリーム消費層で破棄されることなく確認ダイアログとして表示されなければならず（SHALL）、`generate` ペイロード（purpose / instruction / sections / contextPaths）はダイアログまで転送されなければならない（SHALL）。ユーザーが拒否した場合、子 LLM 呼び出しと書き込みを行わず、拒否された旨を tool_result としてモデルに返さなければならない（SHALL）。承認は当該 `path` への書込許可を兼ね、成功時には以降の同一パス上書き再確認を求めてはならない（MUST NOT）。
 
 #### Scenario: 確認内容の表示
 
 - **WHEN** モデルが `generate_and_write` を呼び出す
 - **THEN** 子 LLM 呼び出しの前に、purpose・書込先パス（新規／上書きの区別）・生成指示・セクション一覧を含む確認ダイアログが表示される
+
+#### Scenario: 確認イベントはクライアントで破棄されない
+
+- **WHEN** サーバが `kind: "generate-write"` の `confirm_required` イベントを emit する
+- **THEN** クライアントのストリームパーサはイベントを `onConfirmRequired` へ転送し、ダイアログが表示されないままサーバ側の確認待ちがタイムアウトすることはない
 
 #### Scenario: 拒否時は生成も書込もしない
 

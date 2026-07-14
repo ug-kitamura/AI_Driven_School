@@ -36,6 +36,8 @@ SKILL.md に置く情報と references/ に置く情報を分離する。
 
 → [patterns.md](references/patterns.md)（ディレクトリパターン、3段階ローディング）
 
+額縁テンプレート（HTML/CSS 等）を配る場合は、同ファイルの「額縁・配布物パターン」（自己完結・コピー先行・`assets:`・`_work/`）も読む。
+
 ### Step 3: 洗練
 
 核心原則に基づいてスキルの内容を精査する。

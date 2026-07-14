@@ -68,13 +68,15 @@
       </div>
     </div>
 
-    <!-- FILL: 要確認が1件以上の場合のみ表示。件数・説明を記入 -->
+    <!-- FILL: 要確認が1件以上の場合のみ {{PENDING_ALERT_START}}〜{{PENDING_ALERT_END}} に注意書きを入れる。0件なら区間を空にする -->
+{{PENDING_ALERT_START}}
     <div class="flex items-start gap-3 rounded-xl p-4 mb-8" style="background:var(--red-95);border:1px solid var(--red-85)">
       <i data-lucide="triangle-alert" class="w-5 h-5 flex-shrink-0 mt-0.5" style="color:var(--red-50)"></i>
       <p class="text-sm" style="color:var(--red-30)">
         <strong>「要確認」が{{PENDING_COUNT}}件あります。</strong>担当者または期限が会議中に確定しなかった項目です。今週中に関係者間で確認・決定してください。
       </p>
     </div>
+{{PENDING_ALERT_END}}
 
     <!-- ②───────────────────────────────────────── -->
     <!-- 議題リスト                                    -->
@@ -92,22 +94,10 @@
           <p class="text-sm" style="color:var(--gray-50)">タイトルをクリックすると詳細にジャンプします</p>
         </div>
       </div>
-      <!-- FILL: <li> を議題数だけ繰り返す。href="#topic-N" で対応する議題の詳細ブロックへリンク -->
+      <!-- FILL: {{AGENDA_ITEMS_START}}〜{{AGENDA_ITEMS_END}} に議題 <li> を入れる -->
       <ol class="relative ml-3 border-l-2" style="border-color:var(--blue-85)">
-
-        <li class="mb-5 ml-7">
-          <span class="absolute flex items-center justify-center w-7 h-7 rounded-full -left-3.5 text-sm font-bold text-white" style="background:var(--blue-35)">1</span>
-          <a href="#topic-1" class="font-semibold hover:underline" style="color:var(--blue-30)">{{TOPIC_TITLE_1}}</a>
-          <span class="text-xs ml-2" style="color:var(--gray-60)">{{REPORTER_1}}</span>
-        </li>
-
-        <!-- FILL: 最後の <li> は mb-5 を外す（末尾余白なし） -->
-        <li class="ml-7">
-          <span class="absolute flex items-center justify-center w-7 h-7 rounded-full -left-3.5 text-sm font-bold text-white" style="background:var(--blue-35)">N</span>
-          <a href="#topic-N" class="font-semibold hover:underline" style="color:var(--blue-30)">{{TOPIC_TITLE_N}}</a>
-          <span class="text-xs ml-2" style="color:var(--gray-60)">{{REPORTER_N}}</span>
-        </li>
-
+{{AGENDA_ITEMS_START}}
+{{AGENDA_ITEMS_END}}
       </ol>
     </div>
 
@@ -129,46 +119,8 @@
         </div>
       </div>
 
-      <!-- FILL: 議題1ブロック（id="topic-N" を付けて議題リストからのジャンプ先にする）-->
-      <div class="mb-8" id="topic-1">
-        <h3 class="text-lg font-bold flex items-center gap-2 mb-3" style="color:var(--gray-20)">
-          <!-- FILL: 番号・議題名・報告者/担当者 -->
-          <span class="w-7 h-7 text-white rounded-full flex items-center justify-center text-sm font-bold flex-shrink-0" style="background:var(--blue-35)">1</span>
-          {{TOPIC_TITLE}}
-          <span class="text-sm font-normal" style="color:var(--gray-60)">{{REPORTER_AND_OWNERS}}</span>
-        </h3>
-
-        <!-- FILL: 概要・背景（常に含める） -->
-        <div class="detail-box">
-          <div class="font-semibold mb-2 flex items-center gap-2" style="color:var(--gray-30)">
-            <i data-lucide="info" class="w-4 h-4" style="color:var(--blue-50)"></i>{{BOX_TITLE}}
-          </div>
-          <p class="text-sm" style="color:var(--gray-40)">{{BOX_CONTENT}}</p>
-        </div>
-
-        <!-- FILL: 注意点・懸念（ある場合のみ）-->
-        <div class="detail-box caution">
-          <div class="font-semibold mb-2 flex items-center gap-2" style="color:var(--gray-30)">
-            <i data-lucide="triangle-alert" class="w-4 h-4" style="color:var(--yellow-70)"></i>注意点・懸念
-          </div>
-          <ul class="text-sm space-y-1" style="color:var(--gray-40)">
-            <li>・{{CAUTION_ITEM}}</li>
-          </ul>
-        </div>
-
-        <!-- FILL: 決定事項（ある場合のみ）→ <li> を決定数だけ繰り返す -->
-        <div class="detail-box decided">
-          <div class="font-semibold mb-2 flex items-center gap-2" style="color:var(--gray-30)">
-            <i data-lucide="circle-check" class="w-4 h-4" style="color:var(--teal-50)"></i>決定事項
-          </div>
-          <ul class="text-sm space-y-1" style="color:var(--gray-40)">
-            <li class="flex items-start gap-2">
-              <i data-lucide="check" class="w-4 h-4 flex-shrink-0 mt-0.5" style="color:var(--teal-50)"></i>
-              <strong>{{OWNER}}</strong>が<strong>{{DEADLINE}}</strong>までに{{DECISION_CONTENT}}
-            </li>
-          </ul>
-        </div>
-      </div>
+{{DETAILS_START}}
+{{DETAILS_END}}
 
     </div>
 
@@ -189,38 +141,8 @@
         </div>
       </div>
 
-      <!-- FILL: 確定アクション（action-row） -->
-      <div class="action-row">
-        <div class="flex flex-wrap items-start justify-between gap-2">
-          <div class="flex items-start gap-2">
-            <i data-lucide="check-square" class="w-5 h-5 flex-shrink-0 mt-0.5" style="color:var(--blue-45)"></i>
-            <span class="font-semibold" style="color:var(--gray-30)">{{ACTION_CONTENT}}</span>
-          </div>
-          <span class="badge-decided">確定</span>
-        </div>
-        <div class="flex flex-wrap gap-4 mt-2 text-sm" style="color:var(--gray-40)">
-          <span class="flex items-center gap-1"><i data-lucide="user" class="w-4 h-4"></i>担当：{{OWNER}}</span>
-          <span class="flex items-center gap-1"><i data-lucide="calendar-check" class="w-4 h-4"></i>期限：{{DEADLINE}}</span>
-          <span class="flex items-center gap-1" style="color:var(--gray-60)"><i data-lucide="tag" class="w-4 h-4"></i><a href="#topic-{{TOPIC_NO}}" class="hover:underline" style="color:var(--gray-60)">議題{{TOPIC_NO}}</a></span>
-        </div>
-      </div>
-
-      <!-- FILL: 要確認アクション（action-row needs-check） -->
-      <!-- badge-pending のラベルは「要確認：期限」「要確認：担当者」など具体的に -->
-      <div class="action-row needs-check">
-        <div class="flex flex-wrap items-start justify-between gap-2">
-          <div class="flex items-start gap-2">
-            <i data-lucide="alert-circle" class="w-5 h-5 flex-shrink-0 mt-0.5" style="color:var(--red-50)"></i>
-            <span class="font-semibold" style="color:var(--gray-30)">{{ACTION_CONTENT}}</span>
-          </div>
-          <span class="badge-pending">要確認：{{PENDING_REASON}}</span>
-        </div>
-        <div class="flex flex-wrap gap-4 mt-2 text-sm">
-          <span class="flex items-center gap-1" style="color:var(--gray-40)"><i data-lucide="user" class="w-4 h-4"></i>担当：{{OWNER}}</span>
-          <span class="flex items-center gap-1" style="color:var(--gray-40)"><i data-lucide="calendar-x" class="w-4 h-4"></i>期限：{{DEADLINE_STATUS}}</span>
-          <span class="flex items-center gap-1" style="color:var(--gray-60)"><i data-lucide="tag" class="w-4 h-4"></i><a href="#topic-{{TOPIC_NO}}" class="hover:underline" style="color:var(--gray-60)">議題{{TOPIC_NO}}</a></span>
-        </div>
-      </div>
+{{ACTIONS_START}}
+{{ACTIONS_END}}
 
     </div>
 
@@ -240,19 +162,8 @@
         </div>
       </div>
 
-      <!-- FILL: purpose-item を議題順に繰り返す（複数の label-item を並べてよい） -->
-      <div class="purpose-item">
-        <div class="flex flex-wrap items-center gap-2 mb-2">
-          <!-- FILL: 戦略項目に合うアイコン（icon-list.md の早見表を参照） -->
-          <i data-lucide="{{ICON}}" class="w-4 h-4" style="color:var(--blue-35)"></i>
-          <!-- FILL: href="#topic-N" で対応する議題の詳細へリンク -->
-          <a href="#topic-{{TOPIC_NO}}" class="font-semibold hover:underline" style="color:var(--blue-20)">{{TOPIC_TITLE}}</a>
-          <span class="label-item">({{NO}}) {{STRATEGY_NAME}}</span>
-          <!-- FILL: 追加ラベルがあれば <span class="label-item"> を並べる -->
-        </div>
-        <!-- FILL: 戦略名キーワード（例: Sunshine Management、Pouring Water 等）は <span class="purpose-highlight"> でハイライトする -->
-        <p class="text-sm" style="color:var(--gray-30)">{{PURPOSE_CONNECTION}}</p>
-      </div>
+{{PURPOSE_ITEMS_START}}
+{{PURPOSE_ITEMS_END}}
 
       <!-- FILL: 締めの言葉（パーパス貢献セクションの末尾に必ず入れる） -->
       <div class="italic font-bold text-center leading-relaxed m-10" style="color:var(--gray-30)">

@@ -36,7 +36,10 @@ describe("buildSkillRuntimeContext", () => {
     expect(text).toContain("references/purpose.md");
     expect(text).toMatch(/発見|list\/glob\/search/);
     expect(text).toContain("replace_between");
+    expect(text).toContain("明示の開始・終了トークン");
     expect(text).not.toContain(".claude/skills/");
+    expect(text).not.toMatch(/Jinja|Django|Vue/);
+    expect(text).not.toContain("minutes-maid 専用");
   });
 
   it("presents form→route mapping and the read-restraint note", () => {

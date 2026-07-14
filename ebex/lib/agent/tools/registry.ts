@@ -16,6 +16,11 @@ import {
   type SearchSessionState,
 } from "@/lib/agent/tools/search-provider";
 import { WORKSPACE_DIR_NAME } from "@/lib/workspace-constants";
+import {
+  findResidualFillTokens,
+  formatNotFoundError,
+  residualFillWarningMessage,
+} from "@/lib/agent/tools/replace-feedback";
 
 export type ToolExecutionDisplay = {
   summary: string;
@@ -431,9 +436,36 @@ function display(
 }
 
 function errorOutcome(message: string): ToolExecutionOutcome {
+  const firstLine = message.split("\n")[0] ?? message;
   return {
     result: { error: message },
-    display: display("error", `✗ ${message}`),
+    display: display("error", `✗ ${firstLine}`),
+  };
+}
+
+function withResidualFillWarning(
+  content: string,
+  outcome: ToolExecutionOutcome,
+): ToolExecutionOutcome {
+  const tokens = findResidualFillTokens(content);
+  const warning = residualFillWarningMessage(tokens);
+  if (!warning) return outcome;
+
+  const result =
+    outcome.result &&
+    typeof outcome.result === "object" &&
+    !Array.isArray(outcome.result)
+      ? { ...(outcome.result as Record<string, unknown>), warning, residualFillTokens: tokens }
+      : { warning, residualFillTokens: tokens };
+
+  const tags = [...(outcome.display.tags ?? []), "warning"];
+  return {
+    result,
+    display: display(
+      outcome.display.summary,
+      `${outcome.display.display}\n⚠ ${warning}`,
+      tags,
+    ),
   };
 }
 
@@ -1020,7 +1052,7 @@ function executeReplaceInFile(
     }
     if (!content.includes(oldString)) {
       return errorOutcome(
-        `置換対象が見つかりません: ${oldString.slice(0, 80)}`,
+        formatNotFoundError("置換対象が見つかりません", oldString, content),
       );
     }
     const parts = content.split(oldString);
@@ -1029,12 +1061,28 @@ function executeReplaceInFile(
   }
 
   if (replacementsCount === 0) {
+    const firstKey =
+      map &&
+      Object.keys(map).find((key) => {
+        const placeholder =
+          key.includes("{{") || key.includes("}}") ? key : `{{${key}}}`;
+        return !content.includes(placeholder);
+      });
+    if (firstKey) {
+      const placeholder =
+        firstKey.includes("{{") || firstKey.includes("}}")
+          ? firstKey
+          : `{{${firstKey}}}`;
+      return errorOutcome(
+        formatNotFoundError("置換対象が見つかりません", placeholder, content),
+      );
+    }
     return errorOutcome("置換対象が見つかりません（0 件）");
   }
 
   fs.writeFileSync(resolved.absolutePath, content, "utf-8");
 
-  return {
+  return withResidualFillWarning(content, {
     result: {
       path: resolved.relativePath,
       replacements: replacementsCount,
@@ -1043,7 +1091,7 @@ function executeReplaceInFile(
       `${replacementsCount} 件`,
       `✏️ 置換: ${resolved.relativePath}（${replacementsCount} 件）`,
     ),
-  };
+  });
 }
 
 function executeReplaceBetween(
@@ -1122,14 +1170,14 @@ function executeReplaceBetween(
   const startIndex = original.indexOf(startMarker);
   if (startIndex < 0) {
     return errorOutcome(
-      `start_marker が見つかりません: ${startMarker.slice(0, 80)}`,
+      formatNotFoundError("start_marker が見つかりません", startMarker, original),
     );
   }
   const afterStart = startIndex + startMarker.length;
   const endIndex = original.indexOf(endMarker, afterStart);
   if (endIndex < 0) {
     return errorOutcome(
-      `end_marker が見つかりません: ${endMarker.slice(0, 80)}`,
+      formatNotFoundError("end_marker が見つかりません", endMarker, original),
     );
   }
 
@@ -1139,7 +1187,7 @@ function executeReplaceBetween(
   const replacedChars = endIndex - afterStart;
   const insertedChars = insertContent.length;
 
-  return {
+  return withResidualFillWarning(next, {
     result: {
       path: resolved.relativePath,
       replacedChars,
@@ -1150,7 +1198,7 @@ function executeReplaceBetween(
       `${insertedChars} 文字`,
       `✏️ 区間置換: ${resolved.relativePath}（${replacedChars} → ${insertedChars} 文字）`,
     ),
-  };
+  });
 }
 
 function executeAppendFile(

@@ -155,11 +155,12 @@ Phase 2 の分類結果をもとに、以下の構造で Markdown ファイル�
 
 ユーザーから OK をもらったら `output/minutes-YYYY-MM-DD.md` を読み込み、その内容をもとに HTML を生成する。
 
-**[references/base.html](references/base.html)** をベースフレームとして使い、`{{PLACEHOLDER}}` の部分を実際のコンテンツで埋める。
+**[references/base.html](references/base.html)** をベースフレームとして使い、作業フォルダーへコピーしてから埋める。
 
-品質の目標イメージは **[references/model-answer.html](references/model-answer.html)** を参照（`<body>` の構造のみ参照すること）。
+- 短スロット（`{{MEETING_TITLE}}` 等）は `replace_in_file`
+- 可変長ブロックは明示区間（`{{AGENDA_ITEMS_START}}`〜`{{AGENDA_ITEMS_END}}` など）を `replace_between` で差し込む。構造サンプルは **[references/model-answer.html](references/model-answer.html)** の `<body>` を参照
 
-**プレースホルダーの置換（必須）:**
+品質の目標イメージは model-answer を参照（`<body>` の構造のみ）。
 
 **スタイルのインライン化**: `base.html` の `<link rel="stylesheet" href="style.css">` を、**[references/style.css](references/style.css)** の内容を `<style>` タグとしてインライン化したものに置き換える。外部CSSリンクは残さない。
 

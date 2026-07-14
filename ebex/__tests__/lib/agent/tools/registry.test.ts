@@ -533,6 +533,111 @@ describe("executeRegisteredTool", () => {
     fs.rmSync(tmpDir, { recursive: true, force: true });
   });
 
+  it("hints whitespace-only near miss on replace_in_file miss", async () => {
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "ebex-tools-"));
+    createFolder(tmpDir, "demo");
+    createFile(tmpDir, "demo", "out.html", "</ol>\n    </div>");
+
+    const outcome = await executeRegisteredTool(
+      "replace_in_file",
+      {
+        path: "out.html",
+        old_string: "</ol> </div>",
+        new_string: "x",
+      },
+      contextFor(tmpDir, "demo"),
+    );
+    expect(outcome.result).toMatchObject({
+      error: expect.stringContaining("近い候補（空白差のみ）"),
+    });
+    expect(String((outcome.result as { error: string }).error)).toContain(
+      "</ol>",
+    );
+    expect(
+      fs.readFileSync(
+        path.join(getWorkspaceDir(tmpDir), "demo", "out.html"),
+        "utf-8",
+      ),
+    ).toBe("</ol>\n    </div>");
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+  });
+
+  it("does not replace when miss has no whitespace-only candidate", async () => {
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "ebex-tools-"));
+    createFolder(tmpDir, "demo");
+    createFile(tmpDir, "demo", "out.html", "<p>hello</p>");
+
+    const outcome = await executeRegisteredTool(
+      "replace_in_file",
+      {
+        path: "out.html",
+        old_string: "</ol> </div>",
+        new_string: "x",
+      },
+      contextFor(tmpDir, "demo"),
+    );
+    expect(outcome.result).toMatchObject({
+      error: expect.stringContaining("置換対象が見つかりません"),
+    });
+    expect(String((outcome.result as { error: string }).error)).not.toContain(
+      "近い候補",
+    );
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+  });
+
+  it("warns on residual fill tokens after successful replace", async () => {
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "ebex-tools-"));
+    createFolder(tmpDir, "demo");
+    createFile(
+      tmpDir,
+      "demo",
+      "out.html",
+      "<h1>{{TITLE}}</h1><p>{{TOPIC_TITLE_N}}</p>",
+    );
+
+    const outcome = await executeRegisteredTool(
+      "replace_in_file",
+      { path: "out.html", replacements: { TITLE: "月例" } },
+      contextFor(tmpDir, "demo"),
+    );
+    expect(outcome.result).toMatchObject({
+      path: "workspace/demo/out.html",
+      replacements: 1,
+      warning: expect.stringContaining("{{TOPIC_TITLE_N}}"),
+    });
+    expect(outcome.display.tags).toContain("warning");
+    expect(outcome.display.display).toContain("⚠");
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+  });
+
+  it("does not warn on HTML comments or span markers alone", async () => {
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "ebex-tools-"));
+    createFolder(tmpDir, "demo");
+    createFile(
+      tmpDir,
+      "demo",
+      "out.html",
+      "<!-- FILL: note -->{{AGENDA_START}}\n{{AGENDA_END}}",
+    );
+
+    const outcome = await executeRegisteredTool(
+      "replace_between",
+      {
+        path: "out.html",
+        start_marker: "{{AGENDA_START}}",
+        end_marker: "{{AGENDA_END}}",
+        content: "\n<li>ok</li>\n",
+      },
+      contextFor(tmpDir, "demo"),
+    );
+    expect(outcome.result).toMatchObject({
+      path: "workspace/demo/out.html",
+    });
+    expect(outcome.result).not.toHaveProperty("warning");
+    expect(outcome.display.tags ?? []).not.toContain("warning");
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+  });
+
   it("globs skill references/* with path omitted", async () => {
     const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "ebex-tools-"));
     createFolder(tmpDir, "demo");
@@ -644,6 +749,60 @@ describe("executeRegisteredTool", () => {
     fs.rmSync(tmpDir, { recursive: true, force: true });
   });
 
+  it("minutes-like frame: span replace + residual warning + whitespace hint", async () => {
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "ebex-tools-"));
+    createFolder(tmpDir, "demo");
+    createFile(
+      tmpDir,
+      "demo",
+      "minutes.html",
+      [
+        "<ol>",
+        "{{AGENDA_ITEMS_START}}",
+        "{{AGENDA_ITEMS_END}}",
+        "</ol>",
+        "<h1>{{MEETING_TITLE}}</h1>",
+      ].join("\n"),
+    );
+
+    const miss = await executeRegisteredTool(
+      "replace_between",
+      {
+        path: "minutes.html",
+        start_marker: "{{AGENDA_ITEMS_START}}",
+        end_marker: "{{AGENDA_ITEMS_END}}\n</ol> </div>",
+        content: "\n<li>x</li>\n",
+      },
+      contextFor(tmpDir, "demo"),
+    );
+    expect(miss.result).toMatchObject({
+      error: expect.stringContaining("end_marker"),
+    });
+
+    const ok = await executeRegisteredTool(
+      "replace_between",
+      {
+        path: "minutes.html",
+        start_marker: "{{AGENDA_ITEMS_START}}",
+        end_marker: "{{AGENDA_ITEMS_END}}",
+        content: "\n<li>部長挨拶</li>\n",
+      },
+      contextFor(tmpDir, "demo"),
+    );
+    expect(ok.result).toMatchObject({
+      path: "workspace/demo/minutes.html",
+      warning: expect.stringContaining("{{MEETING_TITLE}}"),
+    });
+    expect(ok.display.tags).toContain("warning");
+    const written = fs.readFileSync(
+      path.join(getWorkspaceDir(tmpDir), "demo", "minutes.html"),
+      "utf-8",
+    );
+    expect(written).toContain("<li>部長挨拶</li>");
+    expect(written).not.toContain("{{TOPIC_TITLE_N}}");
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+  });
+
   it("replaces between markers with content", async () => {
     const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "ebex-tools-"));
     createFolder(tmpDir, "demo");
@@ -726,6 +885,26 @@ describe("executeRegisteredTool", () => {
     );
     expect(missing.result).toMatchObject({
       error: expect.stringContaining("start_marker"),
+    });
+
+    createFile(
+      tmpDir,
+      "demo",
+      "marked.html",
+      "<ol>\n</ol>\n    </div>",
+    );
+    const whitespaceMiss = await executeRegisteredTool(
+      "replace_between",
+      {
+        path: "marked.html",
+        start_marker: "<ol>",
+        end_marker: "</ol> </div>",
+        content: "x",
+      },
+      contextFor(tmpDir, "demo"),
+    );
+    expect(whitespaceMiss.result).toMatchObject({
+      error: expect.stringContaining("近い候補（空白差のみ）"),
     });
 
     const both = await executeRegisteredTool(

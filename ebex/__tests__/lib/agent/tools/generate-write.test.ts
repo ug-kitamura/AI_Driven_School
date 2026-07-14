@@ -170,6 +170,36 @@ describe("executeGenerateAndWrite", () => {
     fs.rmSync(base.tmpDir, { recursive: true, force: true });
   });
 
+  it("does not rewrite generate_and_write output when skill base.html exists", async () => {
+    const base = makeProject();
+    fs.writeFileSync(
+      path.join(base.skillDir, "references", "base.html"),
+      "<html>TEMPLATE</html>",
+    );
+    const { provider } = makeProvider([
+      { text: "<html>GENERATED</html>", stopReason: "end_turn" },
+    ]);
+    const outcome = await executeGenerateAndWrite(
+      makeContext(base, provider),
+      {
+        purpose: "創作",
+        path: "output/creative.html",
+        instruction: "本文を書く",
+        sections: ["全体"],
+      },
+    );
+    expect(outcome.result).toMatchObject({
+      path: "workspace/demo/output/creative.html",
+    });
+    const written = fs.readFileSync(
+      path.join(base.projectDir, "output", "creative.html"),
+      "utf-8",
+    );
+    expect(written).toBe("<html>GENERATED</html>");
+    expect(written).not.toContain("TEMPLATE");
+    fs.rmSync(base.tmpDir, { recursive: true, force: true });
+  });
+
   it("keeps the invariant prefix block byte-identical across sections and continuations", async () => {
     const base = makeProject();
     const { provider, calls } = makeProvider([

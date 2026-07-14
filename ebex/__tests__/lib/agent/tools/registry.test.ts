@@ -259,6 +259,37 @@ describe("executeRegisteredTool", () => {
     fs.rmSync(tmpDir, { recursive: true, force: true });
   });
 
+  it("writes html content as-is even when skill references/base.html exists", async () => {
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "ebex-tools-"));
+    createFolder(tmpDir, "demo");
+    const skillDir = path.join(tmpDir, "skill-zone", "any-skill");
+    fs.mkdirSync(path.join(skillDir, "references"), { recursive: true });
+    fs.writeFileSync(
+      path.join(skillDir, "references", "base.html"),
+      "<html>TEMPLATE</html>",
+    );
+    const content = "<html>MODEL CONTENT</html>";
+    const outcome = await executeRegisteredTool(
+      "write_file",
+      { path: "output/out.html", content },
+      {
+        ...contextFor(tmpDir, "demo"),
+        skillId: "any-skill",
+        skillDirAbsolute: skillDir,
+      },
+    );
+    expect(outcome.result).toMatchObject({
+      path: "workspace/demo/output/out.html",
+    });
+    const written = fs.readFileSync(
+      path.join(getWorkspaceDir(tmpDir), "demo", "output", "out.html"),
+      "utf-8",
+    );
+    expect(written).toBe(content);
+    expect(written).not.toContain("TEMPLATE");
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+  });
+
   it("rejects write_file content over the size limit without writing", async () => {
     const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "ebex-tools-"));
     createFolder(tmpDir, "demo");

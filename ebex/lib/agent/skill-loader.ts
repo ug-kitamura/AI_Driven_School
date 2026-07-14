@@ -16,6 +16,8 @@ export type LoadedSkill = SkillSummary & {
   body: string;
   variables: string[];
   tools: string[];
+  /** プロジェクトへコピーして使う材料（スキル相対パス）。未宣言・不正は空配列 */
+  assets: string[];
 };
 
 /**
@@ -144,6 +146,7 @@ function loadSkillFromRoot(projectRoot: string, skillId: string): LoadedSkill | 
     hidden: parsed.hidden,
     variables: parsed.variables,
     tools: parsed.tools,
+    assets: parsed.assets,
     body: parsed.body,
   };
 }
@@ -233,6 +236,7 @@ export function parseSkillDocument(raw: string): {
   hidden: boolean;
   variables: string[];
   tools: string[];
+  assets: string[];
   body: string;
 } {
   const text = stripBom(raw);
@@ -244,6 +248,7 @@ export function parseSkillDocument(raw: string): {
       hidden: false,
       variables: [],
       tools: [],
+      assets: [],
       body: text.trim(),
     };
   }
@@ -255,8 +260,26 @@ export function parseSkillDocument(raw: string): {
     hidden: frontmatter.hidden,
     variables: frontmatter.variables,
     tools: frontmatter.tools,
+    assets: frontmatter.assets,
     body: match[2].trim(),
   };
+}
+
+/** YAML インライン配列 `[a, b]` をパース。非文字列・空要素は捨てる。不正なら null。 */
+function parseInlineStringList(inline: string): string[] | null {
+  const trimmed = inline.trim();
+  if (!trimmed.startsWith("[") || !trimmed.endsWith("]")) return null;
+  const inner = trimmed.slice(1, -1).trim();
+  if (!inner) return [];
+  const values: string[] = [];
+  for (const item of inner.split(",")) {
+    const value = stripQuotes(item.trim());
+    if (!value) continue;
+    // オブジェクト等の不正要素は無視して空扱い（配列自体は採用しない）
+    if (value.startsWith("{") || value.includes(":")) return null;
+    values.push(value);
+  }
+  return values;
 }
 
 function parseSkillFrontmatter(yaml: string): {
@@ -265,15 +288,19 @@ function parseSkillFrontmatter(yaml: string): {
   hidden: boolean;
   variables: string[];
   tools: string[];
+  assets: string[];
 } {
   let name = "";
   let description = "";
   let hidden = false;
   const variables: string[] = [];
   const tools: string[] = [];
+  const assets: string[] = [];
   let inDescription = false;
   let inVariables = false;
   let inTools = false;
+  let inAssets = false;
+  let assetsValid = true;
   let descriptionIndent = 0;
 
   // Windows CRLF を LF に正規化し、description 行末の \r 残留を防ぐ
@@ -308,6 +335,19 @@ function parseSkillFrontmatter(yaml: string): {
       inTools = false;
     }
 
+    if (inAssets) {
+      if (/^-\s+/.test(trimmed)) {
+        const item = stripQuotes(trimmed.slice(2).trim());
+        if (!item || item.startsWith("{") || item.includes(": ")) {
+          assetsValid = false;
+        } else if (assetsValid) {
+          assets.push(item);
+        }
+        continue;
+      }
+      inAssets = false;
+    }
+
     if (trimmed.startsWith("variables:")) {
       const inline = trimmed.slice("variables:".length).trim();
       if (inline.startsWith("[") && inline.endsWith("]")) {
@@ -332,6 +372,22 @@ function parseSkillFrontmatter(yaml: string): {
         }
       } else if (!inline) {
         inTools = true;
+      }
+      continue;
+    }
+
+    if (trimmed.startsWith("assets:")) {
+      const inline = trimmed.slice("assets:".length).trim();
+      if (inline) {
+        const parsed = parseInlineStringList(inline);
+        if (parsed) {
+          assets.push(...parsed);
+        } else {
+          // スカラー・不正インラインは無視（空扱い）
+          assetsValid = false;
+        }
+      } else {
+        inAssets = true;
       }
       continue;
     }
@@ -363,7 +419,14 @@ function parseSkillFrontmatter(yaml: string): {
     }
   }
 
-  return { name, description: description.trim(), hidden, variables, tools };
+  return {
+    name,
+    description: description.trim(),
+    hidden,
+    variables,
+    tools,
+    assets: assetsValid ? assets : [],
+  };
 }
 
 function stripQuotes(value: string): string {

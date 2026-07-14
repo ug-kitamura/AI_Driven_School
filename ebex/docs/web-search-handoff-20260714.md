@@ -1,0 +1,111 @@
+# EBEX — web_search 引き継ぎ / 今後やるべきこと
+
+**作成日**: 2026-07-14
+**目的**: `web_search` 機能の実装状況と残タスクを、別 PC / 別担当でも引き継げるように記録する
+**ステータス**: 実装・アーカイブ済み ✅ / 残るは社内正規検索経路の確定待ち ⏳
+**関連**:
+- openspec change（アーカイブ済み）: `openspec/changes/archive/2026-07-14-ebex-agent-web-search/`
+- canonical spec: `openspec/specs/ebex-agent-web-search/spec.md`
+
+---
+
+## 背景 / これまでの経緯
+
+`creating-visual-explainers` スキル（図解生成）はトピックの下調べに web 検索を前提とする手順を含むが、EBEX には検索経路がなく、検索が **いつの間にかスキップされて** 出典なしの図解が生成されていた。
+
+原因は、`web_search` ツールのバックエンドである Tavily API のキー（`SEARCH_API_KEY`）が未設定で、未設定時に **確認ダイアログを出さず黙って劣化応答を返していた** こと。
+
+これを受けて 2 つの対応を行った:
+
+1. **挙動変更（実装・アーカイブ済み）** — 「常に確認を出し、承認後にスキップ理由を明示する」方式へ改修
+2. **検索経路の方針決定** — Tavily は監査懸念で不採用。社内正規経路の確定を待つ
+
+---
+
+## 実装済みの内容（このリポジトリに反映済み）
+
+「いつの間にかスキップされる」不透明さを排除するため、**確認は常に出し、スキップ判定は承認後に行う** 方式へ改訂した。
+
+| ファイル | 変更内容 |
+| --- | --- |
+| [lib/agent/tools/confirm-gate.ts](../lib/agent/tools/confirm-gate.ts) | `searchUnavailable` オプションを削除。`web_search` は利用可否にかかわらず、`query` が非空なら**常に確認ダイアログ**を出す |
+| [lib/agent/tools/registry.ts](../lib/agent/tools/registry.ts) | 承認後に検索できない場合、理由付きスキップ表示を返す（後述） |
+| [lib/agent/agent-loop.ts](../lib/agent/agent-loop.ts) | 上記に伴い `searchUnavailable` の受け渡しを削除 |
+| [__tests__/lib/agent/tools/web-search-tool.test.ts](../__tests__/lib/agent/tools/web-search-tool.test.ts) | 「利用不可でも確認は出す」新仕様に合わせて更新 |
+
+### 新しい挙動
+
+1. `web_search` が呼ばれるたびに必ず確認ダイアログを表示する:
+   `「『{query}』について web 検索しますが、よろしいですか？」`（＋ purpose を補助表示）
+2. ユーザーが承認した後に、実際に検索できるか判定する
+   - 検索できる → 通常どおり結果（タイトル・URL・スニペット）を返す
+   - 検索できない → ツール実行ログに理由付きで表示:
+     `「{理由}のためweb検索できません。web検索をスキップします。」`
+
+理由の 3 区分（[registry.ts](../lib/agent/tools/registry.ts) の `executeWebSearch`）:
+- キー未設定 → 「検索APIキーが未設定」
+- サーキットブレーカー作動中（直前の検索が失敗済み） → 「直前の検索が失敗した」
+- 実際の検索リクエスト失敗 → エラー内容そのもの
+
+サーキットブレーカーのフラグ自体は残している。役割は「一度失敗した後に実 API を再度叩かない（無駄なタイムアウト待ちを避ける）」ことに限定。承認後にフラグが立っていれば、プロバイダを呼ばずに即スキップ表示を返す。スコープはセッション（1 回のスキル実行）内で、次のセッションではリセットされる。
+
+---
+
+## 検索バックエンドの方針決定
+
+### Tavily は正規採用しない（確定）
+
+- 初期実装のバックエンドは Tavily（[lib/agent/tools/search-provider.ts](../lib/agent/tools/search-provider.ts)）
+- 社内から `api.tavily.com` への疎通は確認済み（HTTP 200）
+- ただし **Tavily の API キーは個人アカウントでのサインアップが必要** で、社内ツールとして横展開する際に **監査対象となりうる** ため、正規バックエンドには採用しない
+- 当面は「検索未設定」を既定とし、劣化契約で返す（キー未設定でもスキル実行は壊れない）
+
+### なぜ「普通の web 検索」ではダメか（前提の共有）
+
+- 検索を実行するのはモデル（LLM）ではなく **EBEX の Next.js サーバー（プログラム）**。LLM 自体はインターネットに接続できない
+- プログラムから Google 等を機械的に叩くのは規約違反・bot 検出でブロックされる。個人の Google アカウントを借りることもできない
+- そのため、プログラムから検索するには **検索専用の API**（Tavily / Bing / Azure AI Foundry の Grounding with Bing 等）が必要
+- Cursor / Claude Code が社内でも検索できるのは、**検索を社外のクラウド側で実行している** ため（既に許可済みの通信経路を使っている）。EBEX で同等にするには「既に通信が許可されている経路で検索を代行させる」構図が必要
+
+---
+
+## 今後やるべきこと（残タスク）
+
+### 1.（最優先）社内で正規の検索経路が使えるか確認する
+
+アーカイブした change のタスク 5.4 に相当。以下を確認する:
+
+- [ ] 既存の **Azure 契約内で完結する検索** が使えるか
+  - Azure OpenAI の Responses API の web search ツール
+  - Azure AI Foundry の **Grounding with Bing**
+  - ※ Bing Search API 単体は 2025-08 に廃止済み。後継は Azure AI Foundry 経由
+- [ ] 上記が **GPT-5 nano のデプロイ / リージョン / 契約** で有効か（社内 Azure 管理者かポータルで要確認）
+- [ ] EBEX サーバーから当該 Azure エンドポイントへの outbound が通るか（LLM 用エンドポイントと同じなら既に許可されているはず）
+
+**確認できた場合の進め方:**
+- Azure 用の `SearchProvider` アダプタを **新規の小 change として起票** して実装する（今回アーカイブした change には追記しない）
+- [search-provider.ts](../lib/agent/tools/search-provider.ts) はアダプタ差し替え前提の設計なので、追加するのは新アダプタ実装 + 設定値のみ。ツール契約・確認 UX・agent loop は不変
+
+**確認できなかった場合:**
+- 下記の代替案（案B / 案C）を検討する
+
+### 2.（代替案・温存中）検索経路が通らない場合
+
+- **案B: ユーザー代行検索** — 検索不可時にエージェントがクエリを提示 → ユーザーがブラウザで検索し結果を貼る → エージェントが出典として採用。ネットワーク要件ゼロで実現できる。未実装
+- **案C: 資料持ち込み運用** — 検索不可時にプロジェクト内の参考資料を使うようスキルの記述（発火コメント/手順）を変える。コード変更不要、スキルの文言変更のみ。すぐ着手できる
+
+---
+
+## 関連するアーキテクチャ上の前提（重要）
+
+- EBEX は現状 **Anthropic API 専用**。[lib/agent/llm/resolve-provider.ts](../lib/agent/llm/resolve-provider.ts) が `claude-*` 以外のモデルを拒否する
+- 社内では **Azure OpenAI (GPT-5 nano)** を使う想定だが、**Azure 対応の LLM プロバイダ実装がそもそも存在しない**
+- したがって検索経路の話とは別に、**社内展開には Azure OpenAI プロバイダ対応自体が別途必要** になる可能性が高い。検索アダプタより大きい作業なので、ロードマップ上は分けて考える
+
+---
+
+## 次に着手するときの起点
+
+1. この docs と、アーカイブ済み change（`openspec/changes/archive/2026-07-14-ebex-agent-web-search/`）の `design.md` / `proposal.md` を読む
+2. 上記「1. 社内で正規の検索経路が使えるか確認する」のチェックリストから開始
+3. 使えると判明したら、Azure アダプタ追加の openspec change を新規 propose する

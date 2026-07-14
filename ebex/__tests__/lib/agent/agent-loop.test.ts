@@ -3,6 +3,7 @@ import {
   extractToolErrorMessage,
   isBrokenToolUse,
   runAgentLoop,
+  runTurnWithMaxTokensContinuation,
 } from "@/lib/agent/agent-loop";
 import {
   AGENT_BROKEN_TOOL_USE_ERROR,
@@ -10,8 +11,11 @@ import {
   AGENT_MISSING_PATH_ERROR,
   AGENT_MISSING_SCRIPT_INPUT_ERROR,
   AGENT_REPEATED_TOOL_ERROR,
+  AGENT_TEXT_CONTINUATION_LIMIT_NOTICE,
+  MAX_TEXT_CONTINUATIONS_PER_TURN,
 } from "@/lib/agent/llm/types";
 import type { ProviderTurnResult, StreamEvent } from "@/lib/agent/llm/types";
+import type { LlmProvider } from "@/lib/agent/llm/provider";
 
 vi.mock("@/lib/api-keys", () => ({
   resolveAiApiKey: () => "test-key",
@@ -143,6 +147,168 @@ describe("extractToolErrorMessage", () => {
       "path が空です",
     );
     expect(extractToolErrorMessage({ path: "ok" })).toBeNull();
+  });
+});
+
+type Step = {
+  text: string;
+  stopReason: ProviderTurnResult["stopReason"];
+  toolCalls?: ProviderTurnResult["toolCalls"];
+};
+
+/** streamTurn が text_delta → turn_complete を順に返す最小のプロバイダスタブ */
+function streamingProvider(steps: Step[]): {
+  provider: LlmProvider;
+  callCount: () => number;
+} {
+  let index = 0;
+  const provider: LlmProvider = {
+    async runTurn() {
+      throw new Error("not used");
+    },
+    async *streamTurn(): AsyncGenerator<StreamEvent> {
+      const step = steps[Math.min(index, steps.length - 1)];
+      index += 1;
+      if (step.text) {
+        yield { type: "text_delta", text: step.text };
+      }
+      yield {
+        type: "turn_complete",
+        result: {
+          text: step.text,
+          toolCalls: step.toolCalls ?? [],
+          stopReason: step.stopReason,
+        },
+      };
+    },
+  };
+  return { provider, callCount: () => index };
+}
+
+describe("runTurnWithMaxTokensContinuation", () => {
+  it("continues automatically after a max_tokens turn and stitches the text", async () => {
+    const { provider, callCount } = streamingProvider([
+      { text: "first-half", stopReason: "max_tokens" },
+      { text: "-second-half", stopReason: "end_turn" },
+    ]);
+    const emit = vi.fn();
+
+    const outcome = await runTurnWithMaxTokensContinuation({
+      provider,
+      apiKey: "key",
+      model: "claude-test",
+      system: "sys",
+      baseMessages: [{ role: "user", content: "hi" }],
+      tools: [],
+      emit,
+    });
+
+    expect(outcome.ok).toBe(true);
+    if (!outcome.ok) return;
+    expect(outcome.text).toBe("first-half-second-half");
+    expect(outcome.result.stopReason).toBe("end_turn");
+    expect(callCount()).toBe(2);
+    expect(emit).toHaveBeenCalledWith("text_delta", { text: "first-half" });
+    expect(emit).toHaveBeenCalledWith("text_delta", { text: "-second-half" });
+    expect(outcome.text).not.toContain(AGENT_TEXT_CONTINUATION_LIMIT_NOTICE);
+  });
+
+  it("stops after the continuation limit and appends a truncation notice", async () => {
+    const steps: Step[] = Array.from(
+      { length: MAX_TEXT_CONTINUATIONS_PER_TURN + 1 },
+      (_, i) => ({ text: `chunk${i}`, stopReason: "max_tokens" as const }),
+    );
+    const { provider, callCount } = streamingProvider(steps);
+    const emit = vi.fn();
+
+    const outcome = await runTurnWithMaxTokensContinuation({
+      provider,
+      apiKey: "key",
+      model: "claude-test",
+      system: "sys",
+      baseMessages: [{ role: "user", content: "hi" }],
+      tools: [],
+      emit,
+    });
+
+    expect(outcome.ok).toBe(true);
+    if (!outcome.ok) return;
+    // 初回 + 継続 4 回 = 5 回で打ち切り、6 回目は呼ばれない
+    expect(callCount()).toBe(MAX_TEXT_CONTINUATIONS_PER_TURN + 1);
+    expect(outcome.text).toContain("chunk0");
+    expect(outcome.text).toContain(`chunk${MAX_TEXT_CONTINUATIONS_PER_TURN}`);
+    expect(outcome.text).toContain(AGENT_TEXT_CONTINUATION_LIMIT_NOTICE);
+    expect(emit).toHaveBeenCalledWith("text_delta", {
+      text: AGENT_TEXT_CONTINUATION_LIMIT_NOTICE,
+    });
+  });
+
+  it("does not continue when the turn completes normally without tool calls", async () => {
+    const { provider, callCount } = streamingProvider([
+      { text: "done", stopReason: "end_turn" },
+    ]);
+    const outcome = await runTurnWithMaxTokensContinuation({
+      provider,
+      apiKey: "key",
+      model: "claude-test",
+      system: "sys",
+      baseMessages: [{ role: "user", content: "hi" }],
+      tools: [],
+      emit: vi.fn(),
+    });
+
+    expect(outcome.ok).toBe(true);
+    if (!outcome.ok) return;
+    expect(outcome.text).toBe("done");
+    expect(callCount()).toBe(1);
+  });
+
+  it("does not continue when a max_tokens turn already carries tool calls", async () => {
+    const toolCalls: ProviderTurnResult["toolCalls"] = [
+      { id: "t1", name: "read_file", input: { path: "a.md" } },
+    ];
+    const { provider, callCount } = streamingProvider([
+      { text: "planning", stopReason: "max_tokens", toolCalls },
+    ]);
+    const outcome = await runTurnWithMaxTokensContinuation({
+      provider,
+      apiKey: "key",
+      model: "claude-test",
+      system: "sys",
+      baseMessages: [{ role: "user", content: "hi" }],
+      tools: [],
+      emit: vi.fn(),
+    });
+
+    expect(outcome.ok).toBe(true);
+    if (!outcome.ok) return;
+    expect(callCount()).toBe(1);
+    expect(outcome.result.toolCalls).toEqual(toolCalls);
+  });
+
+  it("stops continuing once a later continuation turn returns tool calls", async () => {
+    const toolCalls: ProviderTurnResult["toolCalls"] = [
+      { id: "t1", name: "write_file", input: { path: "out.md", content: "x" } },
+    ];
+    const { provider, callCount } = streamingProvider([
+      { text: "first-half", stopReason: "max_tokens" },
+      { text: "", stopReason: "tool_use", toolCalls },
+    ]);
+    const outcome = await runTurnWithMaxTokensContinuation({
+      provider,
+      apiKey: "key",
+      model: "claude-test",
+      system: "sys",
+      baseMessages: [{ role: "user", content: "hi" }],
+      tools: [],
+      emit: vi.fn(),
+    });
+
+    expect(outcome.ok).toBe(true);
+    if (!outcome.ok) return;
+    expect(callCount()).toBe(2);
+    expect(outcome.text).toBe("first-half");
+    expect(outcome.result.toolCalls).toEqual(toolCalls);
   });
 });
 

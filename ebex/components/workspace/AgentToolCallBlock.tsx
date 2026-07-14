@@ -92,12 +92,15 @@ function ToolEventDetails({
               ))}
             </ul>
           ) : null}
-          {end?.tags && end.tags.length > 0 ? (
-            <span>tags: {end.tags.join(", ")}</span>
-          ) : null}
         </>
       ) : null}
       {error ? <span>error: {error}</span> : null}
+      {!error && typeof result?.warning === "string" ? (
+        <span>warning: {result.warning}</span>
+      ) : null}
+      {!error && end?.tags && end.tags.length > 0 ? (
+        <span>tags: {end.tags.join(", ")}</span>
+      ) : null}
       {!error && end?.summary ? <span>result: {end.summary}</span> : null}
     </div>
   );

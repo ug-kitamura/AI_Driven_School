@@ -1,13 +1,17 @@
 import type {
+  LlmCacheControl,
   LlmContentBlock,
   LlmMessage,
   ProviderTurnResult,
   StreamEvent,
   ToolCall,
+  ToolDefinition,
 } from "@/lib/agent/llm/types";
 import type { LlmProvider, LlmProviderRunOptions } from "@/lib/agent/llm/provider";
 import { DEFAULT_AI_MODEL, DEFAULT_MAX_OUTPUT_TOKENS } from "@/lib/ai-models";
 import { resolveAiModel } from "@/lib/resolve-ai-model";
+
+const EPHEMERAL_CACHE_CONTROL: LlmCacheControl = { type: "ephemeral" };
 
 export const DEFAULT_MODEL = DEFAULT_AI_MODEL;
 export const AI_KEY_ERROR =
@@ -27,14 +31,27 @@ export function resolveAnthropicModel(req?: Request): string {
 }
 
 type AnthropicContentBlock =
-  | { type: "text"; text: string }
-  | { type: "tool_use"; id: string; name: string; input: Record<string, unknown> }
-  | { type: "tool_result"; tool_use_id: string; content: string };
+  | { type: "text"; text: string; cache_control?: LlmCacheControl }
+  | {
+      type: "tool_use";
+      id: string;
+      name: string;
+      input: Record<string, unknown>;
+      cache_control?: LlmCacheControl;
+    }
+  | {
+      type: "tool_result";
+      tool_use_id: string;
+      content: string;
+      cache_control?: LlmCacheControl;
+    };
 
 type AnthropicApiMessage = {
   role: "user" | "assistant";
   content: string | AnthropicContentBlock[];
 };
+
+type AnthropicSystemBlock = { type: "text"; text: string; cache_control?: LlmCacheControl };
 
 function toAnthropicMessages(messages: LlmMessage[]): AnthropicApiMessage[] {
   return messages.map((message) => {
@@ -46,24 +63,86 @@ function toAnthropicMessages(messages: LlmMessage[]): AnthropicApiMessage[] {
       content: message.content.map((block) => {
         switch (block.type) {
           case "text":
-            return { type: "text" as const, text: block.text };
+            return {
+              type: "text" as const,
+              text: block.text,
+              ...(block.cache_control
+                ? { cache_control: block.cache_control }
+                : {}),
+            };
           case "tool_use":
             return {
               type: "tool_use" as const,
               id: block.id,
               name: block.name,
               input: block.input,
+              ...(block.cache_control
+                ? { cache_control: block.cache_control }
+                : {}),
             };
           case "tool_result":
             return {
               type: "tool_result" as const,
               tool_use_id: block.tool_use_id,
               content: block.content,
+              ...(block.cache_control
+                ? { cache_control: block.cache_control }
+                : {}),
             };
         }
       }),
     };
   });
+}
+
+/** system 文字列を prompt caching 対応のブロック配列へ変換する（空文字は従来どおり文字列のまま） */
+function withSystemCacheControl(
+  system: string,
+): string | AnthropicSystemBlock[] {
+  if (!system.trim()) return system;
+  return [{ type: "text", text: system, cache_control: EPHEMERAL_CACHE_CONTROL }];
+}
+
+/** 末尾のツール定義にのみ cache_control を付与する（元の配列は変更しない） */
+function withToolsCacheControl(
+  tools: ToolDefinition[],
+): ToolDefinition[] | undefined {
+  if (tools.length === 0) return undefined;
+  const lastIndex = tools.length - 1;
+  return [
+    ...tools.slice(0, lastIndex),
+    { ...tools[lastIndex], cache_control: EPHEMERAL_CACHE_CONTROL },
+  ];
+}
+
+/**
+ * 最新メッセージの最終コンテンツブロックへ cache_control を付与する。
+ * `toAnthropicMessages` が毎回新しい配列・オブジェクトを作るため、呼び出し元の
+ * `LlmMessage[]` を破壊せず、過去ターンへ古いブレークポイントが蓄積することもない。
+ */
+function withMessagesCacheControl(
+  messages: AnthropicApiMessage[],
+): AnthropicApiMessage[] {
+  if (messages.length === 0) return messages;
+  const lastIndex = messages.length - 1;
+  const last = messages[lastIndex];
+  const content: AnthropicContentBlock[] =
+    typeof last.content === "string"
+      ? last.content
+        ? [{ type: "text", text: last.content }]
+        : []
+      : last.content;
+  if (content.length === 0) return messages;
+
+  const lastBlockIndex = content.length - 1;
+  const updatedContent = [
+    ...content.slice(0, lastBlockIndex),
+    { ...content[lastBlockIndex], cache_control: EPHEMERAL_CACHE_CONTROL },
+  ];
+  return [
+    ...messages.slice(0, lastIndex),
+    { ...last, content: updatedContent },
+  ];
 }
 
 function buildAssistantContent(result: ProviderTurnResult): LlmContentBlock[] {
@@ -103,6 +182,36 @@ export function buildAssistantToolUseMessage(result: ProviderTurnResult): LlmMes
   const content = buildAssistantContent(result);
   if (content.length === 0) return null;
   return { role: "assistant", content };
+}
+
+/**
+ * `message_start` イベントの usage から prompt caching の効果を観測し、サーバログへ出力する。
+ * 効果検証のみが目的のため、取得・パースに失敗してもストリーム処理には一切影響させない。
+ */
+function logCacheUsage(event: Record<string, unknown>): void {
+  try {
+    const message = event.message as { usage?: Record<string, unknown> } | undefined;
+    const usage = message?.usage;
+    if (!usage) return;
+    const cacheRead =
+      typeof usage.cache_read_input_tokens === "number"
+        ? usage.cache_read_input_tokens
+        : 0;
+    const cacheCreation =
+      typeof usage.cache_creation_input_tokens === "number"
+        ? usage.cache_creation_input_tokens
+        : 0;
+    const inputTokens =
+      typeof usage.input_tokens === "number" ? usage.input_tokens : undefined;
+    if (cacheRead === 0 && cacheCreation === 0 && inputTokens === undefined) {
+      return;
+    }
+    console.log(
+      `[anthropic] prompt cache usage: read=${cacheRead} creation=${cacheCreation} input=${inputTokens ?? "?"}`,
+    );
+  } catch {
+    // 観測の失敗はリクエスト処理に影響させない
+  }
 }
 
 export async function* parseAnthropicStream(
@@ -147,6 +256,10 @@ export async function* parseAnthropicStream(
         }
 
         switch (event.type) {
+          case "message_start": {
+            logCacheUsage(event);
+            break;
+          }
           case "content_block_start": {
             const index = event.index as number | undefined;
             const contentBlock = event.content_block as
@@ -236,6 +349,7 @@ export async function* parseAnthropicStream(
 }
 
 async function runAnthropicTurn(options: LlmProviderRunOptions): Promise<Response> {
+  const messages = withMessagesCacheControl(toAnthropicMessages(options.messages));
   return fetch("https://api.anthropic.com/v1/messages", {
     method: "POST",
     headers: {
@@ -247,9 +361,9 @@ async function runAnthropicTurn(options: LlmProviderRunOptions): Promise<Respons
       model: options.model,
       max_tokens: options.maxTokens ?? DEFAULT_MAX_OUTPUT_TOKENS,
       stream: true,
-      system: options.system,
-      messages: toAnthropicMessages(options.messages),
-      tools: options.tools.length > 0 ? options.tools : undefined,
+      system: withSystemCacheControl(options.system),
+      messages,
+      tools: withToolsCacheControl(options.tools),
     }),
     signal: options.signal,
   });
@@ -354,4 +468,10 @@ export async function streamAnthropicMessages(options: {
   });
 }
 
-export { toAnthropicMessages, buildAssistantContent };
+export {
+  toAnthropicMessages,
+  buildAssistantContent,
+  withSystemCacheControl,
+  withToolsCacheControl,
+  withMessagesCacheControl,
+};

@@ -6,6 +6,8 @@ import {
   executeRegisteredTool,
   isLikelyBlockedToolName,
   resolveToolDefinitions,
+  skillHasScriptsDir,
+  WRITE_FILE_CHAR_LIMIT,
 } from "@/lib/agent/tools/registry";
 import { createFile, createFolder } from "@/lib/workspace-mutations";
 import { getWorkspaceDir } from "@/lib/workspace-paths";
@@ -27,6 +29,174 @@ describe("resolveToolDefinitions", () => {
     expect(names).toContain("replace_between");
     expect(names).toContain("append_file");
     expect(names).not.toContain("delete_file");
+  });
+
+  it("excludes run_skill_script when skill has no scripts/", () => {
+    const names = resolveToolDefinitions([], { hasSkillScripts: false }).map(
+      (d) => d.name,
+    );
+    expect(names).not.toContain("run_skill_script");
+    // run_script（プロジェクト実行）は常に残る
+    expect(names).toContain("run_script");
+  });
+
+  it("excludes run_skill_script by default (no skill running)", () => {
+    const names = resolveToolDefinitions([]).map((d) => d.name);
+    expect(names).not.toContain("run_skill_script");
+  });
+
+  it("includes run_skill_script when skill has scripts/", () => {
+    const names = resolveToolDefinitions([], { hasSkillScripts: true }).map(
+      (d) => d.name,
+    );
+    expect(names).toContain("run_skill_script");
+  });
+});
+
+describe("skillHasScriptsDir", () => {
+  it("returns false without a skill dir", () => {
+    expect(skillHasScriptsDir(undefined)).toBe(false);
+    expect(skillHasScriptsDir("")).toBe(false);
+  });
+
+  it("detects an existing scripts/ directory", () => {
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "ebex-skill-"));
+    expect(skillHasScriptsDir(tmpDir)).toBe(false);
+    fs.mkdirSync(path.join(tmpDir, "scripts"));
+    expect(skillHasScriptsDir(tmpDir)).toBe(true);
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+  });
+
+  it("returns false when scripts is a file, not a directory", () => {
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "ebex-skill-"));
+    fs.writeFileSync(path.join(tmpDir, "scripts"), "not a dir");
+    expect(skillHasScriptsDir(tmpDir)).toBe(false);
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+  });
+});
+
+describe("L1 discovery with file-scope path", () => {
+  const setup = () => {
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "ebex-l1-file-"));
+    createFolder(tmpDir, "demo");
+    const outputDir = path.join(getWorkspaceDir(tmpDir), "demo", "output");
+    fs.mkdirSync(outputDir, { recursive: true });
+    fs.writeFileSync(
+      path.join(outputDir, "minutes.html"),
+      "<html>PLACEHOLDER target</html>",
+    );
+    fs.writeFileSync(path.join(outputDir, "other.html"), "<html>target</html>");
+    return { tmpDir, context: contextFor(tmpDir, "demo") };
+  };
+
+  it("search_content with file path searches only that file (no ENOTDIR)", async () => {
+    const { tmpDir, context } = setup();
+    const outcome = await executeRegisteredTool(
+      "search_content",
+      { query: "target", path: "output/minutes.html" },
+      context,
+    );
+    const result = outcome.result as {
+      hits: Array<{ path: string }>;
+    };
+    expect(result.hits).toHaveLength(1);
+    expect(result.hits[0].path).toBe("output/minutes.html");
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+  });
+
+  it("glob_files with file path returns 1 on relative-path match, excluding siblings", async () => {
+    const { tmpDir, context } = setup();
+    const outcome = await executeRegisteredTool(
+      "glob_files",
+      { pattern: "output/*.html", path: "output/minutes.html" },
+      context,
+    );
+    expect(outcome.result).toMatchObject({
+      matches: ["output/minutes.html"],
+    });
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+  });
+
+  it("glob_files with file path matches by basename too", async () => {
+    const { tmpDir, context } = setup();
+    // "*" は "/" を跨がないためフルパスには不一致だが、basename で一致する
+    const outcome = await executeRegisteredTool(
+      "glob_files",
+      { pattern: "*.html", path: "output/minutes.html" },
+      context,
+    );
+    expect(outcome.result).toMatchObject({
+      matches: ["output/minutes.html"],
+    });
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+  });
+
+  it("glob_files with file path returns 0 without throwing when pattern mismatches", async () => {
+    const { tmpDir, context } = setup();
+    const outcome = await executeRegisteredTool(
+      "glob_files",
+      { pattern: "*.md", path: "output/minutes.html" },
+      context,
+    );
+    expect(outcome.result).toMatchObject({ matches: [] });
+    expect(outcome.result).not.toHaveProperty("error");
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+  });
+
+  it("list_files with file path returns a single file entry", async () => {
+    const { tmpDir, context } = setup();
+    const outcome = await executeRegisteredTool(
+      "list_files",
+      { path: "output/minutes.html" },
+      context,
+    );
+    expect(outcome.result).toMatchObject({
+      entries: [{ name: "minutes.html", type: "file" }],
+    });
+    expect(outcome.result).not.toHaveProperty("error");
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+  });
+
+  it("search_content scopes to a skill file with host-independent display path", async () => {
+    const { tmpDir, context } = setup();
+    const skillDir = path.join(tmpDir, "skill-zone", "my-skill");
+    fs.mkdirSync(path.join(skillDir, "references"), { recursive: true });
+    fs.writeFileSync(
+      path.join(skillDir, "references", "base.html"),
+      "<title>{{MEETING_TITLE}}</title>",
+    );
+    const outcome = await executeRegisteredTool(
+      "search_content",
+      { query: "{{MEETING_TITLE}}", path: "references/base.html" },
+      { ...context, skillId: "my-skill", skillDirAbsolute: skillDir },
+    );
+    const result = outcome.result as { hits: Array<{ path: string }> };
+    expect(result.hits).toHaveLength(1);
+    expect(result.hits[0].path).toBe("skill/my-skill/references/base.html");
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+  });
+
+  it("does not throw for nonexistent paths (glob/search return 0, list errors)", async () => {
+    const { tmpDir, context } = setup();
+    const glob = await executeRegisteredTool(
+      "glob_files",
+      { pattern: "*", path: "nope" },
+      context,
+    );
+    expect(glob.result).toMatchObject({ matches: [] });
+    const search = await executeRegisteredTool(
+      "search_content",
+      { query: "x", path: "nope" },
+      context,
+    );
+    expect(search.result).toMatchObject({ hits: [] });
+    const list = await executeRegisteredTool(
+      "list_files",
+      { path: "nope" },
+      context,
+    );
+    expect(list.result).toHaveProperty("error");
+    fs.rmSync(tmpDir, { recursive: true, force: true });
   });
 });
 
@@ -86,6 +256,95 @@ describe("executeRegisteredTool", () => {
       "utf-8",
     );
     expect(written).toBe(content);
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+  });
+
+  it("writes html content as-is even when skill references/base.html exists", async () => {
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "ebex-tools-"));
+    createFolder(tmpDir, "demo");
+    const skillDir = path.join(tmpDir, "skill-zone", "any-skill");
+    fs.mkdirSync(path.join(skillDir, "references"), { recursive: true });
+    fs.writeFileSync(
+      path.join(skillDir, "references", "base.html"),
+      "<html>TEMPLATE</html>",
+    );
+    const content = "<html>MODEL CONTENT</html>";
+    const outcome = await executeRegisteredTool(
+      "write_file",
+      { path: "output/out.html", content },
+      {
+        ...contextFor(tmpDir, "demo"),
+        skillId: "any-skill",
+        skillDirAbsolute: skillDir,
+      },
+    );
+    expect(outcome.result).toMatchObject({
+      path: "workspace/demo/output/out.html",
+    });
+    const written = fs.readFileSync(
+      path.join(getWorkspaceDir(tmpDir), "demo", "output", "out.html"),
+      "utf-8",
+    );
+    expect(written).toBe(content);
+    expect(written).not.toContain("TEMPLATE");
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+  });
+
+  it("rejects write_file content over the size limit without writing", async () => {
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "ebex-tools-"));
+    createFolder(tmpDir, "demo");
+    const oversized = "x".repeat(WRITE_FILE_CHAR_LIMIT + 1);
+    const outcome = await executeRegisteredTool(
+      "write_file",
+      { path: "output/big.html", content: oversized },
+      contextFor(tmpDir, "demo"),
+    );
+    expect(outcome.result).toMatchObject({
+      recoverable: true,
+      guidance: expect.stringContaining("copy_file"),
+    });
+    expect((outcome.result as { error: string }).error).toContain(
+      String(WRITE_FILE_CHAR_LIMIT),
+    );
+    expect(
+      fs.existsSync(
+        path.join(getWorkspaceDir(tmpDir), "demo", "output", "big.html"),
+      ),
+    ).toBe(false);
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+  });
+
+  it("does not overwrite an existing file when content exceeds the limit", async () => {
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "ebex-tools-"));
+    createFolder(tmpDir, "demo");
+    createFile(tmpDir, "demo", "keep.html", "original");
+    const oversized = "y".repeat(WRITE_FILE_CHAR_LIMIT + 1);
+    const outcome = await executeRegisteredTool(
+      "write_file",
+      { path: "keep.html", content: oversized },
+      contextFor(tmpDir, "demo"),
+    );
+    expect(outcome.result).toMatchObject({ recoverable: true });
+    const kept = fs.readFileSync(
+      path.join(getWorkspaceDir(tmpDir), "demo", "keep.html"),
+      "utf-8",
+    );
+    expect(kept).toBe("original");
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+  });
+
+  it("writes content exactly at the size limit", async () => {
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "ebex-tools-"));
+    createFolder(tmpDir, "demo");
+    const atLimit = "z".repeat(WRITE_FILE_CHAR_LIMIT);
+    const outcome = await executeRegisteredTool(
+      "write_file",
+      { path: "output/edge.md", content: atLimit },
+      contextFor(tmpDir, "demo"),
+    );
+    expect(outcome.result).toMatchObject({
+      path: "workspace/demo/output/edge.md",
+    });
     fs.rmSync(tmpDir, { recursive: true, force: true });
   });
 
@@ -274,6 +533,111 @@ describe("executeRegisteredTool", () => {
     fs.rmSync(tmpDir, { recursive: true, force: true });
   });
 
+  it("hints whitespace-only near miss on replace_in_file miss", async () => {
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "ebex-tools-"));
+    createFolder(tmpDir, "demo");
+    createFile(tmpDir, "demo", "out.html", "</ol>\n    </div>");
+
+    const outcome = await executeRegisteredTool(
+      "replace_in_file",
+      {
+        path: "out.html",
+        old_string: "</ol> </div>",
+        new_string: "x",
+      },
+      contextFor(tmpDir, "demo"),
+    );
+    expect(outcome.result).toMatchObject({
+      error: expect.stringContaining("近い候補（空白差のみ）"),
+    });
+    expect(String((outcome.result as { error: string }).error)).toContain(
+      "</ol>",
+    );
+    expect(
+      fs.readFileSync(
+        path.join(getWorkspaceDir(tmpDir), "demo", "out.html"),
+        "utf-8",
+      ),
+    ).toBe("</ol>\n    </div>");
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+  });
+
+  it("does not replace when miss has no whitespace-only candidate", async () => {
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "ebex-tools-"));
+    createFolder(tmpDir, "demo");
+    createFile(tmpDir, "demo", "out.html", "<p>hello</p>");
+
+    const outcome = await executeRegisteredTool(
+      "replace_in_file",
+      {
+        path: "out.html",
+        old_string: "</ol> </div>",
+        new_string: "x",
+      },
+      contextFor(tmpDir, "demo"),
+    );
+    expect(outcome.result).toMatchObject({
+      error: expect.stringContaining("置換対象が見つかりません"),
+    });
+    expect(String((outcome.result as { error: string }).error)).not.toContain(
+      "近い候補",
+    );
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+  });
+
+  it("warns on residual fill tokens after successful replace", async () => {
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "ebex-tools-"));
+    createFolder(tmpDir, "demo");
+    createFile(
+      tmpDir,
+      "demo",
+      "out.html",
+      "<h1>{{TITLE}}</h1><p>{{TOPIC_TITLE_N}}</p>",
+    );
+
+    const outcome = await executeRegisteredTool(
+      "replace_in_file",
+      { path: "out.html", replacements: { TITLE: "月例" } },
+      contextFor(tmpDir, "demo"),
+    );
+    expect(outcome.result).toMatchObject({
+      path: "workspace/demo/out.html",
+      replacements: 1,
+      warning: expect.stringContaining("{{TOPIC_TITLE_N}}"),
+    });
+    expect(outcome.display.tags).toContain("warning");
+    expect(outcome.display.display).toContain("⚠");
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+  });
+
+  it("does not warn on HTML comments or span markers alone", async () => {
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "ebex-tools-"));
+    createFolder(tmpDir, "demo");
+    createFile(
+      tmpDir,
+      "demo",
+      "out.html",
+      "<!-- FILL: note -->{{AGENDA_START}}\n{{AGENDA_END}}",
+    );
+
+    const outcome = await executeRegisteredTool(
+      "replace_between",
+      {
+        path: "out.html",
+        start_marker: "{{AGENDA_START}}",
+        end_marker: "{{AGENDA_END}}",
+        content: "\n<li>ok</li>\n",
+      },
+      contextFor(tmpDir, "demo"),
+    );
+    expect(outcome.result).toMatchObject({
+      path: "workspace/demo/out.html",
+    });
+    expect(outcome.result).not.toHaveProperty("warning");
+    expect(outcome.display.tags ?? []).not.toContain("warning");
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+  });
+
   it("globs skill references/* with path omitted", async () => {
     const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "ebex-tools-"));
     createFolder(tmpDir, "demo");
@@ -385,6 +749,60 @@ describe("executeRegisteredTool", () => {
     fs.rmSync(tmpDir, { recursive: true, force: true });
   });
 
+  it("minutes-like frame: span replace + residual warning + whitespace hint", async () => {
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "ebex-tools-"));
+    createFolder(tmpDir, "demo");
+    createFile(
+      tmpDir,
+      "demo",
+      "minutes.html",
+      [
+        "<ol>",
+        "{{AGENDA_ITEMS_START}}",
+        "{{AGENDA_ITEMS_END}}",
+        "</ol>",
+        "<h1>{{MEETING_TITLE}}</h1>",
+      ].join("\n"),
+    );
+
+    const miss = await executeRegisteredTool(
+      "replace_between",
+      {
+        path: "minutes.html",
+        start_marker: "{{AGENDA_ITEMS_START}}",
+        end_marker: "{{AGENDA_ITEMS_END}}\n</ol> </div>",
+        content: "\n<li>x</li>\n",
+      },
+      contextFor(tmpDir, "demo"),
+    );
+    expect(miss.result).toMatchObject({
+      error: expect.stringContaining("end_marker"),
+    });
+
+    const ok = await executeRegisteredTool(
+      "replace_between",
+      {
+        path: "minutes.html",
+        start_marker: "{{AGENDA_ITEMS_START}}",
+        end_marker: "{{AGENDA_ITEMS_END}}",
+        content: "\n<li>部長挨拶</li>\n",
+      },
+      contextFor(tmpDir, "demo"),
+    );
+    expect(ok.result).toMatchObject({
+      path: "workspace/demo/minutes.html",
+      warning: expect.stringContaining("{{MEETING_TITLE}}"),
+    });
+    expect(ok.display.tags).toContain("warning");
+    const written = fs.readFileSync(
+      path.join(getWorkspaceDir(tmpDir), "demo", "minutes.html"),
+      "utf-8",
+    );
+    expect(written).toContain("<li>部長挨拶</li>");
+    expect(written).not.toContain("{{TOPIC_TITLE_N}}");
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+  });
+
   it("replaces between markers with content", async () => {
     const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "ebex-tools-"));
     createFolder(tmpDir, "demo");
@@ -467,6 +885,26 @@ describe("executeRegisteredTool", () => {
     );
     expect(missing.result).toMatchObject({
       error: expect.stringContaining("start_marker"),
+    });
+
+    createFile(
+      tmpDir,
+      "demo",
+      "marked.html",
+      "<ol>\n</ol>\n    </div>",
+    );
+    const whitespaceMiss = await executeRegisteredTool(
+      "replace_between",
+      {
+        path: "marked.html",
+        start_marker: "<ol>",
+        end_marker: "</ol> </div>",
+        content: "x",
+      },
+      contextFor(tmpDir, "demo"),
+    );
+    expect(whitespaceMiss.result).toMatchObject({
+      error: expect.stringContaining("近い候補（空白差のみ）"),
     });
 
     const both = await executeRegisteredTool(

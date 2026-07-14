@@ -19,7 +19,7 @@ Agent invoke 時、システムは `lib/agent/tools/registry.ts` の `resolveToo
 
 ### Requirement: L1 発見ツール
 
-システムはプロジェクトフォルダ配下、および実行中スキルの `skillDirAbsolute` 配下（読取専用ゾーン）を対象とする発見ツール（一覧・glob・grep 相当、例: `list_files` / `glob_files` / `search_content`）を実装しなければならない（SHALL）。`path` が省略または `.` のときはプロジェクトフォルダ直下を既定の walk 根としなければならない（SHALL）。`path` または検索対象が実行中スキル配下に解決される場合（スキル相対が実在する、または明示の `skill/<実行中skillId>/...`）は、当該スキルディレクトリを walk し、ヒットを返さなければならない（SHALL）。`path` 省略時でも、pattern の第一パスセグメントが実行中スキル直下に実在しプロジェクト側に該当ヒットが無い（または同等の skill 優先規則）ときは、スキルゾーンを検索対象に含め、`references/*` やスキル内にのみ存在する `**/base.html` が 0 件にならないようにしなければならない（SHALL）。プロジェクト内および実行中スキル配下の発見はユーザー確認なしで実行できなければならない（SHALL）。検索系ツールのヒット件数には上限（既定 50 件程度）を設けなければならない（SHALL）。スキルゾーンへの書込を発見ツールが行ってはならない（MUST NOT）。
+システムはプロジェクトフォルダ配下、および実行中スキルの `skillDirAbsolute` 配下（読取専用ゾーン）を対象とする発見ツール（一覧・glob・grep 相当、例: `list_files` / `glob_files` / `search_content`）を実装しなければならない（SHALL）。`path` が省略または `.` のときはプロジェクトフォルダ直下を既定の scope 根としなければならない（SHALL）。`path` は **scope 根**として解釈しなければならず（SHALL）、解決先がディレクトリなら配下を walk / list し、解決先がファイルならその 1 ファイルだけを対象としなければならない（SHALL）。親ディレクトリへの暗黙フォールバックをしてはならない（MUST NOT）。ファイル scope 時の各ツールは次のとおりでなければならない（SHALL）: `search_content` はそのファイルだけを grep する、`glob_files` はその相対パスまたはファイル名（basename）が `pattern` に一致するかだけを判定し一致なら 1 件・不一致なら 0 件を返す、`list_files` はそのファイルを `{ name, type: "file" }` の 1 エントリとして返す。`path` が存在するファイルまたはディレクトリを指す場合、発見ツールは `readdir` / scandir 由来の未捕捉例外で agent ターンを abort してはならない（MUST NOT）。欠落パスは明確な tool result error として返さなければならない（SHALL）。`path` または検索対象が実行中スキル配下に解決される場合（スキル相対が実在する、または明示の `skill/<実行中skillId>/...`）は、当該スキル配下を scope とし、ヒットを返さなければならない（SHALL）。`path` 省略時でも、pattern の第一パスセグメントが実行中スキル直下に実在しプロジェクト側に該当ヒットが無い（または同等の skill 優先規則）ときは、スキルゾーンを検索対象に含め、`references/*` やスキル内にのみ存在する `**/base.html` が 0 件にならないようにしなければならない（SHALL）。プロジェクト内および実行中スキル配下の発見はユーザー確認なしで実行できなければならない（SHALL）。検索系ツールのヒット件数には上限（既定 50 件程度）を設けなければならない（SHALL）。スキルゾーンへの書込を発見ツールが行ってはならない（MUST NOT）。
 
 #### Scenario: プロジェクト内一覧は確認不要
 
@@ -46,6 +46,31 @@ Agent invoke 時、システムは `lib/agent/tools/registry.ts` の `resolveToo
 - **WHEN** grep 相当のツール呼び出しでヒット件数が上限を超える
 - **THEN** 応答は上限件数に切り詰められ、切り詰められた旨が結果に含まれる
 
+#### Scenario: path がファイルのとき search_content はそのファイルだけを検索する
+
+- **WHEN** `search_content` の `path` が既存ファイル（例: `output/minutes.html`）に解決される
+- **THEN** そのファイルのみが検索対象となり、未捕捉の `ENOTDIR` でターンは abort せず、ヒットは従来形式の配列で返る
+
+#### Scenario: path がファイルのとき glob_files は 0 または 1 件を返す
+
+- **WHEN** `glob_files` の `path` が既存ファイルに解決され、`pattern` がそのファイルの相対パスまたはファイル名に一致する
+- **THEN** matches は 1 件であり、親ディレクトリ配下の他ファイルは含まれない
+
+#### Scenario: path がファイルのとき basename でも pattern 照合される
+
+- **WHEN** `glob_files` が `path: "output/minutes.html"`、`pattern: "*.html"` で呼ばれる（`*` は `/` を跨がないためフルパスには不一致）
+- **THEN** ファイル名 `minutes.html` が `*.html` に一致するため matches は 1 件である
+
+#### Scenario: path がファイルで pattern 不一致なら glob は 0 件
+
+- **WHEN** `glob_files` の `path` が既存ファイルに解決され、`pattern` がそのファイルの相対パスにもファイル名にも一致しない
+- **THEN** matches は空配列であり、例外は投げられない
+
+#### Scenario: path がファイルのとき list_files は単一エントリを返す
+
+- **WHEN** `list_files` の `path` が既存ファイルに解決される
+- **THEN** entries は当該ファイルの `{ name, type: "file" }` 1 件のみであり、「ディレクトリではありません」エラーにはならない
+
 ### Requirement: L2 読取ツール
 
 システムはプロジェクトフォルダ配下、および実行中スキルの `skillDirAbsolute` 配下（読取専用ゾーン）を対象とする `read_file` ツールを実装しなければならない（SHALL）。読取対象の文字数には上限（既定 約10万文字）を設けなければならない（SHALL）。上限を超えるファイルは切り詰めて返し、切り詰められた旨を結果に含めなければならない（SHALL）。プロジェクト内および実行中スキル配下の読取はユーザー確認なしで実行できなければならない（SHALL）。
@@ -67,7 +92,7 @@ Agent invoke 時、システムは `lib/agent/tools/registry.ts` の `resolveToo
 
 ### Requirement: L3 書込ツール
 
-システムはプロジェクトフォルダ配下限定の `write_file`（必要なら `mkdir`）ツールを実装しなければならない（SHALL）。書込先が新規パスであればプロジェクト内は確認なしで書き込まなければならない（SHALL）。書込先が既存ファイルと同名の場合は「プロジェクト内上書きの確認ゲート」要件に従わなければならない（SHALL）。書込成功時の tool_result にはパスとバイト数のみを含めなければならず（SHALL）、書き込んだ本文をモデル履歴に戻してはならない（MUST NOT）。
+システムはプロジェクトフォルダ配下限定の `write_file`（必要なら `mkdir`）ツールを実装しなければならない（SHALL）。書込先が新規パスであればプロジェクト内は確認なしで書き込まなければならない（SHALL）。書込先が既存ファイルと同名の場合は「プロジェクト内上書きの確認ゲート」要件に従わなければならない（SHALL）。書込成功時の tool_result にはパスとバイト数のみを含めなければならず（SHALL）、書き込んだ本文をモデル履歴に戻してはならない（MUST NOT）。`content` が上限（`WRITE_FILE_CHAR_LIMIT` = 30,000 文字）を超える場合は書き込まず、リトライ可能なエラー（`recoverable: true` と、成果物の形→経路の対応を要約した guidance を含む）を返さなければならない（SHALL）。
 
 #### Scenario: 新規ファイルは確認不要
 
@@ -78,6 +103,16 @@ Agent invoke 時、システムは `lib/agent/tools/registry.ts` の `resolveToo
 
 - **WHEN** `write_file` が成功する
 - **THEN** tool_result にはパスとバイト数のみが含まれ、書き込んだ本文全体は含まれない
+
+#### Scenario: 上限超の content は書き込まない
+
+- **WHEN** `write_file` の `content` が 30,000 文字を超える
+- **THEN** ファイルは書き込まれず（既存ファイルも変更されず）、`recoverable: true` と経路対応の guidance（額縁があれば `copy_file`＋`replace_*`、創作長文は `generate_and_write`、データ変換は `run_script`）を含むエラーが tool_result で返り、loop は継続する
+
+#### Scenario: 上限以内の content は従来どおり書ける
+
+- **WHEN** `write_file` の `content` が 30,000 文字以内である
+- **THEN** 従来どおり書き込みが行われる
 
 ### Requirement: プロジェクト内上書きの確認ゲート
 
@@ -133,12 +168,17 @@ Agent invoke 時、システムは `lib/agent/tools/registry.ts` の `resolveToo
 
 ### Requirement: L6 コマンド実行のブロック
 
-システムは任意のシェルコマンド・スクリプト実行をツールとして実行してはならない（MUST NOT）。実行が要求された場合、実行しようとしたコマンド全文、ブロックした理由、必要であればユーザー自身のターミナルで実行する旨を含む結果をモデルに返さなければならない（SHALL）。
+システムは任意のシェルコマンド・スクリプト実行をツールとして実行してはならない（MUST NOT）。ただし専用ツール（`run_script` / `run_skill_script`）経由のサンドボックス化された Node スクリプト実行は例外とし、ユーザー確認を経て許可する。任意コマンドの実行が要求された場合、実行しようとしたコマンド全文、ブロックした理由、大きな成果物の生成であれば `run_script`（サンドボックス化 Node スクリプト）を使用する旨の案内を含む結果をモデルに返さなければならない（SHALL）。
 
 #### Scenario: コマンド実行要求のブロック
 
-- **WHEN** モデルがシェルコマンドまたはスクリプトの実行を要求する
-- **THEN** コマンドは実行されず、コマンド全文とブロック理由、ユーザー自身のターミナルでの実行案内を含む結果が返る
+- **WHEN** モデルがシェルコマンド（`bash` / `exec` / `shell` 等）の実行を要求する
+- **THEN** コマンドは実行されず、コマンド全文とブロック理由、`run_script` への誘導を含む結果が返る
+
+#### Scenario: 専用ツール経由のスクリプト実行は許可される
+
+- **WHEN** モデルが `run_script` または `run_skill_script` でスクリプト実行を要求し、ユーザーが確認を許可する
+- **THEN** スクリプトはサンドボックス内で実行される
 
 ### Requirement: 確認待ち中の agent loop 一時停止
 
@@ -185,7 +225,7 @@ Agent invoke 時、システムは `lib/agent/tools/registry.ts` の `resolveToo
 
 ### Requirement: 壊れた tool_use での loop 停止
 
-agent loop は、`tool_use` の入力 JSON パースに失敗した場合、または `read_file` / `write_file` / `mkdir` / `copy_file` / `replace_in_file` / `replace_between` / `append_file` で必須パスが欠落または空の場合、空の入力のままツールを実行してはならない（MUST NOT）。当該呼び出しは失敗の tool_result（理由と、大きな成果物では `copy_file` / `replace_between`（`from_path`）/ `append_file` を使う旨の案内を含んでよい）としてモデルへ返し、同一エラーの連続上限に達するまで loop を続行しなければならない（SHALL）。空 path を成功扱いで実行してはならない（MUST NOT）。案内は特定スキル名や HTML 専用の強制手順に依存してはならない（MUST NOT）。
+agent loop は、`tool_use` の入力 JSON パースに失敗した場合、または `read_file` / `write_file` / `mkdir` / `copy_file` / `replace_in_file` / `replace_between` / `append_file` で必須パスが欠落または空の場合、空の入力のままツールを実行してはならない（MUST NOT）。当該呼び出しは失敗の tool_result（理由と、大きな成果物では成果物の形→経路の対応（額縁があれば `copy_file`＋`replace_*`、創作長文は `generate_and_write`、データ変換は `run_script`）の案内を含んでよい）としてモデルへ返し、同一エラーの連続上限に達するまで loop を続行しなければならない（SHALL）。空 path を成功扱いで実行してはならない（MUST NOT）。案内は特定スキル名や HTML 専用の強制手順に依存してはならない（MUST NOT）。
 
 #### Scenario: JSON パース失敗でもモデルへ返して続行
 
@@ -195,7 +235,7 @@ agent loop は、`tool_use` の入力 JSON パースに失敗した場合、ま�
 #### Scenario: path 欠落でもモデルへ返して続行
 
 - **WHEN** `write_file` の tool_use に `path` が無い、または空文字である
-- **THEN** agent loop はツールを実行せず、欠落である旨と大きなファイル向けの代替手段案内を tool_result としてモデルへ返し、次ターンへ進める
+- **THEN** agent loop はツールを実行せず、欠落である旨と形→経路の対応案内を tool_result としてモデルへ返し、次ターンへ進める
 
 ### Requirement: 同一ツールエラー連続時の loop 停止
 
@@ -255,7 +295,7 @@ Agent loop は invoke 時の `projectFolderId` に対応するプロジェクト
 
 ### Requirement: replace_in_file ツール
 
-システムはプロジェクトフォルダ内ファイルを対象とする `replace_in_file` ツールを実装しなければならない（SHALL）。入力は対象 `path` と、1 つ以上の置換指定（プレースホルダ名から置換文字列への map、または `old_string` / `new_string`）を含まなければならない（SHALL）。スキルディレクトリ内ファイルへの置換は拒否しなければならない（MUST NOT）。置換対象文字列が 1 件も見つからない場合はファイルを変更せずエラーを返さなければならない（SHALL）。既存ファイルの内容を書き換えるため、プロジェクト内上書き確認ゲートに従わなければならない（SHALL）。成功時の tool_result にはパスと置換件数（または同等の要約）のみを含め、ファイル全文を戻してはならない（MUST NOT）。
+システムはプロジェクトフォルダ内ファイルを対象とする `replace_in_file` ツールを実装しなければならない（SHALL）。入力は対象 `path` と、1 つ以上の置換指定（プレースホルダ名から置換文字列への map、または `old_string` / `new_string`）を含まなければならない（SHALL）。スキルディレクトリ内ファイルへの置換は拒否しなければならない（MUST NOT）。置換対象文字列が 1 件も見つからない場合はファイルを変更せずエラーを返さなければならない（SHALL）。当該エラーには、要件「置換不一致時の空白差ヒント」に従い空白差のみの近傍候補があればそれを含めなければならない（SHALL）。既存ファイルの内容を書き換えるため、プロジェクト内上書き確認ゲートに従わなければならない（SHALL）。成功時の tool_result にはパスと置換件数（または同等の要約）のみを含め、ファイル全文を戻してはならない（MUST NOT）。成功後は要件「差し込み成功後の埋める印残留ワーニング」に従い、残留があれば成功のままワーニングを表示しなければならない（SHALL）。
 
 #### Scenario: プレースホルダを一括置換
 
@@ -283,7 +323,7 @@ Agent loop は invoke 時の `projectFolderId` に対応するプロジェクト
 
 ### Requirement: replace_between ツール
 
-システムはプロジェクトフォルダ内ファイルを対象とする `replace_between` ツールを実装しなければならない（SHALL）。入力は少なくとも対象 `path`、`start_marker`、`end_marker`、および差し込み本文の供給元として `content` または `from_path` のいずれか一方を含まなければならない（SHALL）。両方指定または両方省略は拒否しなければならない（MUST NOT）。ファイル内で `start_marker` の後に `end_marker` が現れる最初の組について、両マーカーの間の内容だけを差し込み本文で置き換え、マーカー自体は残さなければならない（SHALL）。組が 0 のときはファイルを変更せずエラーを返さなければならない（SHALL）。`from_path` はプロジェクト配下（および実行中スキル配下の読取）から本文を読み、その全文を差し込みに用いなければならない（SHALL）。スキルディレクトリ内ファイルへの置換は拒否しなければならない（MUST NOT）。既存のプロジェクト内上書き確認ゲートに従わなければならない（SHALL）。成功時の tool_result にはパスと要約（置換バイト数または文字数等）のみを含め、差し込み本文を戻してはならない（MUST NOT）。
+システムはプロジェクトフォルダ内ファイルを対象とする `replace_between` ツールを実装しなければならない（SHALL）。入力は少なくとも対象 `path`、`start_marker`、`end_marker`、および差し込み本文の供給元として `content` または `from_path` のいずれか一方を含まなければならない（SHALL）。両方指定または両方省略は拒否しなければならない（MUST NOT）。ファイル内で `start_marker` の後に `end_marker` が現れる最初の組について、両マーカーの間の内容だけを差し込み本文で置き換え、マーカー自体は残さなければならない（SHALL）。組が 0 のときはファイルを変更せずエラーを返さなければならない（SHALL）。当該エラーには、要件「置換不一致時の空白差ヒント」に従い空白差のみの近傍候補があればそれを含めなければならない（SHALL）。`from_path` はプロジェクト配下（および実行中スキル配下の読取）から本文を読み、その全文を差し込みに用いなければならない（SHALL）。スキルディレクトリ内ファイルへの置換は拒否しなければならない（MUST NOT）。既存のプロジェクト内上書き確認ゲートに従わなければならない（SHALL）。成功時の tool_result にはパスと要約（置換バイト数または文字数等）のみを含め、差し込み本文を戻してはならない（MUST NOT）。成功後は要件「差し込み成功後の埋める印残留ワーニング」に従い、残留があれば成功のままワーニングを表示しなければならない（SHALL）。
 
 #### Scenario: コメント区切りの間を content で置換
 
@@ -331,17 +371,22 @@ Agent loop は invoke 時の `projectFolderId` に対応するプロジェクト
 
 ### Requirement: スキル固有 HTML 強制コピーの禁止
 
-agent loop およびツール層は、宛先拡張子やスキル内の `references/base.html` の有無だけを理由に、`write_file` の内容を破棄してテンプレート強制コピーへ置き換えてはならない（MUST NOT）。大きな成果物向けの案内は `copy_file` / `replace_in_file` / `replace_between` / `append_file` など汎用 primitive に限り、特定スキル名や HTML 専用の必須手順をランタイムが強制してはならない（MUST NOT）。
+agent loop およびツール層は、宛先拡張子やスキル内の `references/base.html` の有無を理由に、モデルのツール呼び出しを改変してはならない（MUST NOT）。すなわち `write_file` の内容を破棄してテンプレート強制コピーへ置き換える、宛先やツール種別を差し替える等の介入を行ってはならない（MUST NOT）。大きな成果物向けの案内は「成果物の形→経路の一意対応」（額縁テンプレートがあれば `copy_file` でコピーして `replace_in_file` / `replace_between` で断片を差し込む、モデルが創作する長文なら `generate_and_write` で partial に生成して `replace_between`（`from_path`）で差し込む、大量レコードの機械変換は `run_script`）として示さなければならず（SHALL）、複数経路を「失敗したら乗り換える」フォールバック列として示してはならない（MUST NOT）。場の説明において、実在する額縁候補（ファイル名・サイズ）を列挙してコピー先行を推奨することは全スキル共通の一般規則として行ってよい（MAY）が、特定スキル名による分岐を持ってはならず（MUST NOT）、推奨に従わないツール呼び出しもそのまま実行しなければならない（SHALL）。
 
 #### Scenario: HTML への write_file は内容どおり書く
 
 - **WHEN** スキルに `references/base.html` があっても、モデルがプロジェクト内の新規 `.html` へ `write_file` で content を渡す
-- **THEN** ランタイムはテンプレート強制コピーに差し替えず、渡された content で書き込む（または通常のバリデーション／サイズエラーのみ）
+- **THEN** ランタイムはテンプレート強制コピーに差し替えず、渡された content で書き込む（または通常のバリデーション／サイズ上限エラーのみ）
 
-#### Scenario: 巨大 write 案内は汎用である
+#### Scenario: 巨大 write 案内は形→経路の対応表である
 
-- **WHEN** 大きな `write_file` が途中切れ等で失敗する
-- **THEN** tool_result の案内は copy / replace_between（from_path）/ append 等の汎用手段を示し、特定スキル名を含まない
+- **WHEN** 大きな `write_file` がサイズ上限等で失敗する
+- **THEN** tool_result の案内は「額縁があれば `copy_file`＋`replace_*` で断片を差し込む／創作長文は `generate_and_write`／データ変換は `run_script`」という形→経路の対応を示し、特定スキル名やフォールバック順序（「◯◯が失敗したら△△」）を含まない
+
+#### Scenario: 額縁候補の推奨はツール実行に介入しない
+
+- **WHEN** 場の説明で額縁候補としてコピー先行が推奨された状態で、モデルが推奨と異なる経路（`generate_and_write` 等）を選ぶ
+- **THEN** ランタイムはツール呼び出しを改変せず、選ばれた経路をそのまま実行する
 
 ### Requirement: 新ツール定義の提供（区間置換）
 
@@ -351,4 +396,51 @@ agent loop およびツール層は、宛先拡張子やスキル内の `referen
 
 - **WHEN** Agent がファイル演算ツール付きで invoke される
 - **THEN** LLM リクエストの tools に `replace_between` と `append_file` が含まれる
+
+### Requirement: max_tokens 打ち切りターンの自動継続
+
+agent loop は、ターンの `stopReason` が `max_tokens` かつツール呼び出しが 0 件の場合、当該ターンを完了として扱ってはならない（MUST NOT）。システムは生成済みテキストを assistant メッセージとして履歴へ積み、「既出部分を繰り返さず続きのみを出力する」内部指示で自動継続しなければならない（SHALL）。継続テキストは同一 logical turn の続きとしてストリーム配信されなければならない（SHALL）。自動継続には上限（4 回）を設け、上限到達時は本文が打ち切られた旨をユーザーへ明示してループを終了しなければならない（SHALL）。ツール呼び出しがある場合、または `stopReason` が `max_tokens` 以外の場合の既存動作を変更してはならない（MUST NOT）。
+
+#### Scenario: 途切れた本文が自動でつながる
+
+- **WHEN** ターンの本文出力が max_tokens で途切れ、ツール呼び出しがない
+- **THEN** ユーザーが「つづき」と促さなくても続きが自動生成され、UI 上は 1 つの応答としてつながって表示される
+
+#### Scenario: 継続上限で明示終了する
+
+- **WHEN** 自動継続が上限（4 回）に達してもなお max_tokens で途切れる
+- **THEN** ループは打ち切られた旨をユーザーへ明示して終了し、無限に継続しない
+
+#### Scenario: 通常完了ターンは従来どおり
+
+- **WHEN** ターンが `end_turn` 等で正常に完了しツール呼び出しがない
+- **THEN** 自動継続は行われず、従来どおり done としてループが終了する
+
+### Requirement: 置換不一致時の空白差ヒント
+
+システムは `replace_in_file` および `replace_between` で、指定文字列（`old_string` / 置換キーに対応するプレースホルダ / `start_marker` / `end_marker`）がファイル内で厳密一致しないとき、ファイルを変更せずエラーを返さなければならない（SHALL）。その際、探索文字列とファイル内の断片を空白類（スペース・タブ・改行）の差だけを無視して比較し、空白差のみで一致する候補が見つかった場合は、当該候補（またはその要約）をエラー内容に含めなければならない（SHALL）。空白差以外の不一致まで自動でマッチして置換してはならない（MUST NOT）。テンプレ方言やスキル名に依存した解釈を行ってはならない（MUST NOT）。
+
+#### Scenario: 改行を含む end_marker の近傍がヒントになる
+
+- **WHEN** ファイルに `</ol>` と `</div>` が改行・インデントを挟んで並び、`replace_between` の `end_marker` が同一タグを空白 1 つでつないだ文字列である
+- **THEN** ファイルは変更されず、エラーに空白差のある近傍候補（または同等のヒント）が含まれる
+
+#### Scenario: 空白差以外ではヒントのために置換しない
+
+- **WHEN** 探索文字列がファイルに無く、空白を畳んでも一致する断片も無い
+- **THEN** ファイルは変更されず、従来どおり未検出エラーとなり、誤った箇所への自動置換は行われない
+
+### Requirement: 差し込み成功後の埋める印残留ワーニング
+
+システムは `replace_in_file` および `replace_between` がファイル更新に成功したあと、更新後ファイルを走査し、埋める印らしい残留（ホストが定める狭いパターン。少なくとも識別子めいた `{{...}}` を含んでよい）を検出した場合、ツール実行は成功のままとし、tool の表示（および result に含める場合は警告フィールド）にワーニングを含めなければならない（SHALL）。残留検出を理由にファイルをロールバックしたり、エラー結果に切り替えたりしてはならない（MUST NOT）。HTML コメント構文全体を埋める印として扱ってはならない（MUST NOT）。特定スキル名による分岐を持ってはならない（MUST NOT）。
+
+#### Scenario: 残留があっても成功＋ワーニング
+
+- **WHEN** `replace_between` が成功し、更新後ファイルに `{{TOPIC_TITLE_N}}` のような埋める印が残っている
+- **THEN** tool_result は成功であり、表示に残留を示すワーニングが含まれる
+
+#### Scenario: 残留が無ければワーニングを付けない
+
+- **WHEN** `replace_in_file` が成功し、更新後ファイルに埋める印らしい残留が無い
+- **THEN** 成功表示に残留ワーニングを含めない
 

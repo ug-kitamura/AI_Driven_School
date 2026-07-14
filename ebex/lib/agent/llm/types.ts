@@ -1,8 +1,12 @@
 export type LlmRole = "user" | "assistant";
 
+/** Anthropic prompt caching のブレークポイント指定（現状 ephemeral のみ） */
+export type LlmCacheControl = { type: "ephemeral" };
+
 export type LlmTextBlock = {
   type: "text";
   text: string;
+  cache_control?: LlmCacheControl;
 };
 
 export type LlmToolUseBlock = {
@@ -10,12 +14,14 @@ export type LlmToolUseBlock = {
   id: string;
   name: string;
   input: Record<string, unknown>;
+  cache_control?: LlmCacheControl;
 };
 
 export type LlmToolResultBlock = {
   type: "tool_result";
   tool_use_id: string;
   content: string;
+  cache_control?: LlmCacheControl;
 };
 
 export type LlmContentBlock =
@@ -42,6 +48,8 @@ export type ToolDefinition = {
   name: string;
   description: string;
   input_schema: Record<string, unknown>;
+  /** プロバイダ層が末尾のツール定義にのみ付与する（呼び出し側は設定しない） */
+  cache_control?: LlmCacheControl;
 };
 
 export type ProviderTurnResult = {
@@ -80,6 +88,17 @@ export const MAX_AGENT_LOOP_TURNS = 24;
 
 export const AGENT_LOOP_LIMIT_ERROR = "Agent loop limit exceeded";
 
+/** ツール呼び出しなしで max_tokens 打ち切りとなったターンの自動継続回数の上限 */
+export const MAX_TEXT_CONTINUATIONS_PER_TURN = 4;
+
+/** max_tokens 自動継続時、モデルへ送る内部指示（既出部分を繰り返させない） */
+export const AGENT_TEXT_CONTINUATION_PROMPT =
+  "出力が上限で途中終了しました。直前の出力の続きだけを、既出部分を一切繰り返さずに出力してください。";
+
+/** 自動継続が上限に達したとき、応答本文へ追記してユーザーへ明示する注記 */
+export const AGENT_TEXT_CONTINUATION_LIMIT_NOTICE =
+  "\n\n（出力が上限に達したため自動継続を打ち切りました。続きが必要な場合は「つづき」とお伝えください。）";
+
 /** tool_result および連続失敗時に使う（実行はしない） */
 export const AGENT_BROKEN_TOOL_USE_ERROR =
   "tool_use の入力 JSON を解釈できません（出力が途中で切れた可能性があります）";
@@ -107,11 +126,11 @@ export const SCRIPT_INPUT_GUIDANCE =
 
 /** 応答が max_tokens で途中終了した場合に付す注記 */
 export const MAX_TOKENS_TRUNCATION_NOTE =
-  "直前の応答は出力トークン上限で途中終了しました。コードを短くする（本文の埋め込みをやめてディスクから読む・処理を分割する）ことで 1 回の応答に収めてください。";
+  "直前の応答は出力トークン上限で途中終了しました。1 回の tool 引数に本文を載せず（ディスクから読む・断片に分けて差し込む）1 回の応答を短く保ってください。";
 
 /** 巨大 write 失敗時にモデルへ返す汎用案内（スキル固有ロジックではない） */
 export const LARGE_FILE_WRITE_GUIDANCE =
-  "大きな成果物は write_file 一発で書かず、本文を tool 引数に載せないでください。本文がディスク上のデータ（md ドラフト・テンプレート等）から機械的に作れるなら run_script で変換・書込します。モデルが新たに創作する長文（図解 HTML の本文等）なら generate_and_write を使います: 材料をファイルへ書き出して context_paths で渡し、sections で分割してサーバ内生成に任せます。補助として copy_file でテンプレートをコピーし、replace_in_file / replace_between（大きな本文は from_path）で差し込み、必要なら append_file で partial を積む方法も使えます。";
+  "大きな成果物は本文を 1 つの tool 引数に載せないでください（write_file の content は 30,000 文字まで）。成果物の形で経路を選びます。(1) 額縁テンプレートがスキルにあるなら copy_file でプロジェクト内へコピーし、replace_in_file / replace_between（大きな本文は from_path）で 1 回数 KB の断片を順に差し込みます。必要なら append_file で partial を積みます。(2) モデルが新たに創作する長文（図解 HTML の本文等）なら generate_and_write で partial に生成し、replace_between（from_path）で差し込みます。材料はファイルへ書き出して context_paths で渡します。(3) 大量レコードの機械変換なら run_script。額縁や模範回答など大きな参照ファイルは、差し込み位置の把握に必要な範囲を超えて読み込まないでください。";
 
 export const AGENT_REPEATED_TOOL_ERROR =
   "同一のツールエラーが連続したためエージェントを停止しました";

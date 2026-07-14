@@ -114,6 +114,7 @@ export async function POST(req: Request) {
       currentFileRelativePath: focus.currentFileRelativePath,
       skillId: skill.id,
       skillDirAbsolute,
+      skillAssets: skill.assets,
       mentionsSubagent,
     });
     if (focus.preferredOutputDir !== undefined) {

@@ -1,15 +1,9 @@
 "use client";
 
 import type { AgentLogicalTurn, AgentToolEvent } from "@/lib/agent/llm/types";
+import { CONFIRM_KINDS, isConfirmKind } from "@/lib/agent/tools/confirm-kind";
 
-export type ToolConfirmKind =
-  | "overwrite"
-  | "outside-project-read"
-  | "outside-project-write"
-  | "run-script"
-  | "run-skill-script"
-  | "generate-write"
-  | "web-search";
+export type ToolConfirmKind = (typeof CONFIRM_KINDS)[number];
 
 export type ToolConfirmScriptInfo = {
   purpose: string;
@@ -48,6 +42,12 @@ export type AgentStreamCallbacks = {
   onToolEnd?: (event: AgentToolEvent) => void;
   onLogicalTurn?: (turn: AgentLogicalTurn) => void;
   onConfirmRequired?: (event: ToolConfirmRequiredEvent) => void;
+  /**
+   * サーバが送った confirm_required の kind をクライアントが解釈できない場合に呼ばれる。
+   * ダイアログは表示できないため、呼び出し側は toolUseId へ即時拒否を送り、
+   * サーバ側の確認待ち（5 分 TTL）を無言で待たせないようにすること。
+   */
+  onUnknownConfirmKind?: (event: { toolUseId: string; kind: string }) => void;
 };
 
 /**
@@ -174,16 +174,17 @@ export async function consumeAgentStream(
           }
           case "confirm_required": {
             const kind = data.kind;
-            if (
-              typeof data.toolUseId === "string" &&
-              (kind === "overwrite" ||
-                kind === "outside-project-read" ||
-                kind === "outside-project-write" ||
-                kind === "run-script" ||
-                kind === "run-skill-script" ||
-                kind === "web-search") &&
-              typeof data.path === "string"
-            ) {
+            if (typeof data.toolUseId !== "string") break;
+
+            if (!isConfirmKind(kind)) {
+              callbacks.onUnknownConfirmKind?.({
+                toolUseId: data.toolUseId,
+                kind: typeof kind === "string" ? kind : String(kind),
+              });
+              break;
+            }
+
+            if (typeof data.path === "string") {
               const rawScript =
                 data.script && typeof data.script === "object"
                   ? (data.script as Record<string, unknown>)
@@ -241,6 +242,32 @@ export async function consumeAgentStream(
                           : "",
                     }
                   : undefined;
+              const rawGenerate =
+                data.generate && typeof data.generate === "object"
+                  ? (data.generate as Record<string, unknown>)
+                  : null;
+              const generate: ToolConfirmGenerateInfo | undefined = rawGenerate
+                ? {
+                    purpose:
+                      typeof rawGenerate.purpose === "string"
+                        ? rawGenerate.purpose
+                        : "",
+                    instruction:
+                      typeof rawGenerate.instruction === "string"
+                        ? rawGenerate.instruction
+                        : "",
+                    sections: Array.isArray(rawGenerate.sections)
+                      ? rawGenerate.sections.filter(
+                          (entry): entry is string => typeof entry === "string",
+                        )
+                      : [],
+                    contextPaths: Array.isArray(rawGenerate.contextPaths)
+                      ? rawGenerate.contextPaths.filter(
+                          (entry): entry is string => typeof entry === "string",
+                        )
+                      : [],
+                  }
+                : undefined;
               callbacks.onConfirmRequired?.({
                 toolUseId: data.toolUseId,
                 kind,
@@ -248,6 +275,7 @@ export async function consumeAgentStream(
                 isNew: Boolean(data.isNew),
                 ...(script ? { script } : {}),
                 ...(search ? { search } : {}),
+                ...(generate ? { generate } : {}),
               });
             }
             break;

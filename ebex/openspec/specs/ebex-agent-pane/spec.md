@@ -186,3 +186,22 @@ Agent がストリーミング実行中であるかどうかと、その実行�
 - **WHEN** Agent のストリーミングが完了または中断する
 - **THEN** ワークスペース上の当該フォルダの実行中状態は解除される
 
+### Requirement: 確認要求イベントの非破棄
+
+クライアントのストリーム消費層（`consumeAgentStream` 相当）は、サーバが定義するすべての `ConfirmKind` の `confirm_required` イベントを確認ダイアログへ転送できなければならない（SHALL）。受理する kind の一覧はサーバ定義と単一の共有定数から導出しなければならず（SHALL）、リテラル列挙の重複によって乖離が生じる構造にしてはならない（MUST NOT）。サーバとクライアントの kind 一覧の一致は自動テストで検証されなければならない（SHALL）。クライアントが解釈できない未知の kind を受信した場合、イベントを黙って破棄してはならず（MUST NOT）、`POST /api/agent/tool-confirm` へ即時に拒否応答を送信してサーバ側の確認待ちを解放しなければならない（SHALL）。
+
+#### Scenario: 全 ConfirmKind がダイアログへ到達する
+
+- **WHEN** サーバ定義の各 `ConfirmKind`（`overwrite` / `outside-project-read` / `outside-project-write` / `run-script` / `run-skill-script` / `generate-write` / `web-search`）で `confirm_required` イベントが届く
+- **THEN** すべての kind で `onConfirmRequired` が呼び出され、対応するダイアログ表示が可能である
+
+#### Scenario: kind 一覧の乖離をテストが検出する
+
+- **WHEN** サーバ側に新しい `ConfirmKind` が追加され、クライアント側の受理処理が未対応のままである
+- **THEN** kind パリティを検証する自動テストが失敗する
+
+#### Scenario: 未知 kind は即時拒否でサーバを解放する
+
+- **WHEN** クライアントが解釈できない kind の `confirm_required` イベントを受信する
+- **THEN** イベントは黙殺されず、拒否応答が即時にサーバへ送信され、確認待ちがタイムアウト（5 分）まで放置されることはない
+

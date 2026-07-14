@@ -1,6 +1,6 @@
 import fs from "node:fs";
 import path from "node:path";
-import type { ToolDefinition } from "@/lib/agent/llm/types";
+import { LARGE_FILE_WRITE_GUIDANCE, type ToolDefinition } from "@/lib/agent/llm/types";
 import type { LlmProvider } from "@/lib/agent/llm/provider";
 import { resolveToolTargetPath } from "@/lib/agent/tools/fs-guard";
 import { executeGenerateAndWrite } from "@/lib/agent/tools/generate-write";
@@ -16,6 +16,11 @@ import {
   type SearchSessionState,
 } from "@/lib/agent/tools/search-provider";
 import { WORKSPACE_DIR_NAME } from "@/lib/workspace-constants";
+import {
+  findResidualFillTokens,
+  formatNotFoundError,
+  residualFillWarningMessage,
+} from "@/lib/agent/tools/replace-feedback";
 
 export type ToolExecutionDisplay = {
   summary: string;
@@ -61,6 +66,13 @@ function skillPathOptions(
 
 const SEARCH_RESULT_LIMIT = 50;
 export const READ_CHAR_LIMIT = 100_000;
+/**
+ * write_file の content 文字数上限。
+ * 正当な用途（Markdown ドラフト等、実測 5〜15KB）を妨げず、
+ * 成果物本文全体を 1 引数に載せる事故（数十 KB の HTML 全文投棄）を弾く水準。
+ * 超過時は書き込まず、経路対応を含む recoverable エラーを返す。
+ */
+export const WRITE_FILE_CHAR_LIMIT = 30_000;
 const IGNORED_DIR_NAMES = new Set([
   "node_modules",
   ".git",
@@ -73,14 +85,14 @@ const TOOL_SCHEMAS = {
   list_files: {
     name: "list_files",
     description:
-      "プロジェクトフォルダ、または実行中スキル配下のディレクトリ内のファイル・サブフォルダを一覧する。path 省略時はプロジェクト直下を対象とする。スキル相対（例: references）はスキル側を優先する。",
+      "プロジェクトフォルダ、または実行中スキル配下のディレクトリ内のファイル・サブフォルダを一覧する。path 省略時はプロジェクト直下を対象とする。path がファイルのときはその 1 エントリだけを返す。スキル相対（例: references）はスキル側を優先する。",
     input_schema: {
       type: "object",
       properties: {
         path: {
           type: "string",
           description:
-            "一覧するディレクトリのパス（プロジェクト相対、またはスキル相対。省略時はプロジェクト直下）",
+            "一覧する scope のパス（ディレクトリまたはファイル。プロジェクト相対またはスキル相対。省略時はプロジェクト直下。ファイル時はその 1 件のみ返る）",
         },
       },
     },
@@ -99,7 +111,7 @@ const TOOL_SCHEMAS = {
         path: {
           type: "string",
           description:
-            "検索基点のディレクトリ（プロジェクト相対またはスキル相対、省略時はプロジェクト直下）",
+            "検索基点の scope（ディレクトリまたはファイル。プロジェクト相対またはスキル相対、省略時はプロジェクト直下。ファイル時はそのパス／ファイル名が pattern に一致するかの 0/1 判定）",
         },
       },
       required: ["pattern"],
@@ -116,7 +128,7 @@ const TOOL_SCHEMAS = {
         path: {
           type: "string",
           description:
-            "検索基点のディレクトリ（プロジェクト相対またはスキル相対、省略時はプロジェクト直下）",
+            "検索基点の scope（ディレクトリまたはファイル。プロジェクト相対またはスキル相対、省略時はプロジェクト直下。ファイル時はそのファイルだけを検索する）",
         },
       },
       required: ["query"],
@@ -140,7 +152,7 @@ const TOOL_SCHEMAS = {
   write_file: {
     name: "write_file",
     description:
-      "指定パスにファイルを書き込む。既存ファイルへの上書きはユーザー確認を経てから実行される。大きな成果物の一発書き込みには向かない（入力が途中で切れやすい）。テンプレートがある場合は copy_file し、replace_in_file / replace_between（大きな本文は from_path）/ append_file で組み立てること。",
+      "指定パスにファイルを書き込む。既存ファイルへの上書きはユーザー確認を経てから実行される。content には上限（30,000 文字）があり、超えると書き込まれず経路案内が返る。大きな成果物の一発書き込みには使わない（額縁テンプレートがあれば copy_file → replace_in_file / replace_between（大きな本文は from_path）/ append_file で組み立て、モデルが創作する長文は generate_and_write を使う）。",
     input_schema: {
       type: "object",
       properties: {
@@ -262,7 +274,7 @@ const TOOL_SCHEMAS = {
   run_script: {
     name: "run_script",
     description:
-      "Node.js（CommonJS）スクリプトをサンドボックスで実行する。大きな成果物（HTML 等）の生成に最優先で使うこと: 本文を tool 引数に書かず、ディスク上のデータ（md ドラフト・テンプレート等）を読んで変換・書込するロジックだけをコードにする。fs 読取はプロジェクトと実行中スキル、書込はプロジェクト内のみ。ネットワークアクセスは禁止。実行前にユーザー確認が入る。",
+      "Node.js（CommonJS）スクリプトをサンドボックスで実行する。大量レコードの機械変換・整形など、ディスク上のデータからロジック（ループ等）で機械的に膨らむ成果物に使う: 本文を tool 引数に書かず、ディスク上のデータ（md ドラフト・テンプレート等）を読んで変換・書込するロジックだけをコードにする。額縁テンプレートへの断片差し込みは copy_file → replace_in_file / replace_between が主経路。fs 読取はプロジェクトと実行中スキル、書込はプロジェクト内のみ。スキルの参照ファイルは、ツール結果に表示される論理パス（skill/<id>/...）ではなく path.join(process.env.EBEX_SKILL_DIR, \"references\", \"...\") で読むこと（スキル実行中のみ設定される）。ネットワークアクセスは禁止。実行前にユーザー確認が入る。",
     input_schema: {
       type: "object",
       properties: {
@@ -288,7 +300,7 @@ const TOOL_SCHEMAS = {
   run_skill_script: {
     name: "run_skill_script",
     description:
-      "実行中スキルに同梱されたスクリプト（scripts/ 配下）をサンドボックスで実行する。スキルに scripts/ がある場合は run_script より優先する。fs 読取はプロジェクトと実行中スキル、書込はプロジェクト内のみ。実行前にユーザー確認が入る。",
+      "実行中スキルに同梱されたスクリプト（scripts/ 配下）をサンドボックスで実行する。スキルに scripts/ がある場合は run_script より優先する。fs 読取はプロジェクトと実行中スキル、書込はプロジェクト内のみ。スキル側ファイルの読取は __dirname（または process.env.EBEX_SKILL_DIR）基準、成果物の書込はプロジェクト相対（または process.env.EBEX_PROJECT_DIR）基準で行うこと。実行前にユーザー確認が入る。",
     input_schema: {
       type: "object",
       properties: {
@@ -376,18 +388,43 @@ export function isRegisteredToolName(name: string): name is RegisteredToolName {
   return name in TOOL_SCHEMAS;
 }
 
+export type ResolveToolDefinitionsOptions = {
+  /**
+   * 実行中スキルに `scripts/` ディレクトリが実在するか。
+   * false（スキル未実行を含む）のとき `run_skill_script` を定義から除外し、
+   * 存在しないスクリプトの推測実行という失敗クラスを構造的に排除する。
+   */
+  hasSkillScripts?: boolean;
+};
+
+/** 実行中スキルの `scripts/` ディレクトリが実在するかを判定する（run_skill_script の公開条件） */
+export function skillHasScriptsDir(skillDirAbsolute?: string): boolean {
+  const dir = skillDirAbsolute?.trim();
+  if (!dir) return false;
+  const scriptsDir = path.join(dir, "scripts");
+  return fs.existsSync(scriptsDir) && fs.statSync(scriptsDir).isDirectory();
+}
+
 /**
  * L1-L3 の実ファイル I/O ツールは、スキル frontmatter の `tools` 自己申告に関わらず
  * 常に LLM へ渡す（EBEX ランタイムが提供する基盤ツールのため）。
  * `names` に含まれるその他のツール名（例: `search_company_context`）は、
  * 実装されていれば追加で解決される。
+ * `run_skill_script` は実行中スキルに `scripts/` が実在する場合のみ渡す。
  */
-export function resolveToolDefinitions(names: string[]): ToolDefinition[] {
+export function resolveToolDefinitions(
+  names: string[],
+  options: ResolveToolDefinitionsOptions = {},
+): ToolDefinition[] {
   const requested = new Set(names);
-  return Object.values(TOOL_SCHEMAS).filter(
-    (definition) =>
-      isRegisteredToolName(definition.name) || requested.has(definition.name),
-  );
+  return Object.values(TOOL_SCHEMAS).filter((definition) => {
+    if (definition.name === "run_skill_script" && !options.hasSkillScripts) {
+      return false;
+    }
+    return (
+      isRegisteredToolName(definition.name) || requested.has(definition.name)
+    );
+  });
 }
 
 function display(
@@ -399,9 +436,36 @@ function display(
 }
 
 function errorOutcome(message: string): ToolExecutionOutcome {
+  const firstLine = message.split("\n")[0] ?? message;
   return {
     result: { error: message },
-    display: display("error", `✗ ${message}`),
+    display: display("error", `✗ ${firstLine}`),
+  };
+}
+
+function withResidualFillWarning(
+  content: string,
+  outcome: ToolExecutionOutcome,
+): ToolExecutionOutcome {
+  const tokens = findResidualFillTokens(content);
+  const warning = residualFillWarningMessage(tokens);
+  if (!warning) return outcome;
+
+  const result =
+    outcome.result &&
+    typeof outcome.result === "object" &&
+    !Array.isArray(outcome.result)
+      ? { ...(outcome.result as Record<string, unknown>), warning, residualFillTokens: tokens }
+      : { warning, residualFillTokens: tokens };
+
+  const tags = [...(outcome.display.tags ?? []), "warning"];
+  return {
+    result,
+    display: display(
+      outcome.display.summary,
+      `${outcome.display.display}\n⚠ ${warning}`,
+      tags,
+    ),
   };
 }
 
@@ -433,6 +497,14 @@ function walkFiles(
   baseAbsolute: string,
   onFile: (relativePath: string, absolutePath: string) => boolean,
 ): void {
+  // path がファイルに解決された場合は単一 scope として 1 件だけ通知する（readdir しない）
+  if (fs.existsSync(baseAbsolute) && fs.statSync(baseAbsolute).isFile()) {
+    const relative = path
+      .relative(rootAbsolute, baseAbsolute)
+      .replace(/\\/g, "/");
+    onFile(relative, baseAbsolute);
+    return;
+  }
   const stack: string[] = [baseAbsolute];
   while (stack.length > 0) {
     const dir = stack.pop();
@@ -562,30 +634,52 @@ function executeListFiles(
       `ディレクトリが見つかりません: ${resolved.relativePath}`,
     );
   }
-  const stat = fs.statSync(resolved.absolutePath);
-  if (!stat.isDirectory()) {
-    return errorOutcome(`ディレクトリではありません: ${resolved.relativePath}`);
+  // stat / readdir の fs 例外（TOCTOU 等）で agent ターンを abort させない薄い containment
+  try {
+    const stat = fs.statSync(resolved.absolutePath);
+    if (stat.isFile()) {
+      // ファイル scope: その 1 エントリだけを返す（親ディレクトリの一覧にフォールバックしない）
+      const entry = {
+        name: path.basename(resolved.absolutePath),
+        type: "file" as const,
+      };
+      return {
+        result: { path: resolved.relativePath, entries: [entry] },
+        display: display(
+          "1 件",
+          `📁 ${resolved.relativePath} — 1 件（ファイル）`,
+        ),
+      };
+    }
+    if (!stat.isDirectory()) {
+      return errorOutcome(
+        `ディレクトリではありません: ${resolved.relativePath}`,
+      );
+    }
+
+    const entries = fs
+      .readdirSync(resolved.absolutePath, { withFileTypes: true })
+      .filter(
+        (entry) =>
+          !entry.name.startsWith(".") && !IGNORED_DIR_NAMES.has(entry.name),
+      )
+      .map((entry) => ({
+        name: entry.name,
+        type: entry.isDirectory() ? ("dir" as const) : ("file" as const),
+      }))
+      .sort((a, b) => a.name.localeCompare(b.name, "ja"));
+
+    return {
+      result: { path: resolved.relativePath, entries },
+      display: display(
+        `${entries.length} 件`,
+        `📁 ${resolved.relativePath} — ${entries.length} 件`,
+      ),
+    };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    return errorOutcome(`発見ツールの実行に失敗しました: ${message}`);
   }
-
-  const entries = fs
-    .readdirSync(resolved.absolutePath, { withFileTypes: true })
-    .filter(
-      (entry) =>
-        !entry.name.startsWith(".") && !IGNORED_DIR_NAMES.has(entry.name),
-    )
-    .map((entry) => ({
-      name: entry.name,
-      type: entry.isDirectory() ? ("dir" as const) : ("file" as const),
-    }))
-    .sort((a, b) => a.name.localeCompare(b.name, "ja"));
-
-  return {
-    result: { path: resolved.relativePath, entries },
-    display: display(
-      `${entries.length} 件`,
-      `📁 ${resolved.relativePath} — ${entries.length} 件`,
-    ),
-  };
 }
 
 function matchGlobPath(
@@ -598,6 +692,15 @@ function matchGlobPath(
   const fromBase = path
     .relative(baseAbsolute, absolutePath)
     .replace(/\\/g, "/");
+  if (fromBase === "") {
+    // ファイル scope（base がファイル自身）: * は / を跨がないため basename も照合候補に加える。
+    // ディレクトリ walk では fromBase が空にならないので既存判定には影響しない
+    return (
+      regex.test(relativeFromRoot) ||
+      regex.test(displayPath) ||
+      regex.test(path.basename(absolutePath))
+    );
+  }
   return (
     regex.test(relativeFromRoot) ||
     regex.test(fromBase) ||
@@ -647,16 +750,22 @@ function executeGlobFiles(
     }
   };
 
-  collectFromZones(zones);
+  // walk 中の fs 例外（TOCTOU 等）で agent ターンを abort させない薄い containment
+  try {
+    collectFromZones(zones);
 
-  if (
-    shouldFallbackToSkillZone(pathOmitted, matches.length, context) &&
-    !zones.some((z) => z.rootAbsolute === context.skillDirAbsolute)
-  ) {
-    const skillZone = buildSkillWalkZone(context, context.skillDirAbsolute!);
-    if (skillZone) {
-      collectFromZones([skillZone]);
+    if (
+      shouldFallbackToSkillZone(pathOmitted, matches.length, context) &&
+      !zones.some((z) => z.rootAbsolute === context.skillDirAbsolute)
+    ) {
+      const skillZone = buildSkillWalkZone(context, context.skillDirAbsolute!);
+      if (skillZone) {
+        collectFromZones([skillZone]);
+      }
     }
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    return errorOutcome(`発見ツールの実行に失敗しました: ${message}`);
   }
 
   return {
@@ -715,16 +824,22 @@ function executeSearchContent(
     }
   };
 
-  searchZones(zones);
+  // walk 中の fs 例外（TOCTOU 等）で agent ターンを abort させない薄い containment
+  try {
+    searchZones(zones);
 
-  if (
-    shouldFallbackToSkillZone(pathOmitted, hits.length, context) &&
-    !zones.some((z) => z.rootAbsolute === context.skillDirAbsolute)
-  ) {
-    const skillZone = buildSkillWalkZone(context, context.skillDirAbsolute!);
-    if (skillZone) {
-      searchZones([skillZone]);
+    if (
+      shouldFallbackToSkillZone(pathOmitted, hits.length, context) &&
+      !zones.some((z) => z.rootAbsolute === context.skillDirAbsolute)
+    ) {
+      const skillZone = buildSkillWalkZone(context, context.skillDirAbsolute!);
+      if (skillZone) {
+        searchZones([skillZone]);
+      }
     }
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    return errorOutcome(`発見ツールの実行に失敗しました: ${message}`);
   }
 
   return {
@@ -782,6 +897,21 @@ function executeWriteFile(
   const inputPath = typeof input.path === "string" ? input.path : "";
   const content = typeof input.content === "string" ? input.content : "";
   if (!inputPath.trim()) return errorOutcome("path が空です");
+
+  if (content.length > WRITE_FILE_CHAR_LIMIT) {
+    return {
+      result: {
+        error: `content が write_file の上限（${WRITE_FILE_CHAR_LIMIT} 文字）を超えています（${content.length} 文字）。成果物本文を tool 引数に載せずに組み立ててください`,
+        recoverable: true,
+        guidance: LARGE_FILE_WRITE_GUIDANCE,
+      },
+      display: display(
+        "error",
+        `✗ write_file 上限超過（${content.length} 文字 > ${WRITE_FILE_CHAR_LIMIT}）`,
+      ),
+    };
+  }
+
   const resolved = resolveToolTargetPath(
     context.projectRoot,
     context.projectFolderId,
@@ -922,7 +1052,7 @@ function executeReplaceInFile(
     }
     if (!content.includes(oldString)) {
       return errorOutcome(
-        `置換対象が見つかりません: ${oldString.slice(0, 80)}`,
+        formatNotFoundError("置換対象が見つかりません", oldString, content),
       );
     }
     const parts = content.split(oldString);
@@ -931,12 +1061,28 @@ function executeReplaceInFile(
   }
 
   if (replacementsCount === 0) {
+    const firstKey =
+      map &&
+      Object.keys(map).find((key) => {
+        const placeholder =
+          key.includes("{{") || key.includes("}}") ? key : `{{${key}}}`;
+        return !content.includes(placeholder);
+      });
+    if (firstKey) {
+      const placeholder =
+        firstKey.includes("{{") || firstKey.includes("}}")
+          ? firstKey
+          : `{{${firstKey}}}`;
+      return errorOutcome(
+        formatNotFoundError("置換対象が見つかりません", placeholder, content),
+      );
+    }
     return errorOutcome("置換対象が見つかりません（0 件）");
   }
 
   fs.writeFileSync(resolved.absolutePath, content, "utf-8");
 
-  return {
+  return withResidualFillWarning(content, {
     result: {
       path: resolved.relativePath,
       replacements: replacementsCount,
@@ -945,7 +1091,7 @@ function executeReplaceInFile(
       `${replacementsCount} 件`,
       `✏️ 置換: ${resolved.relativePath}（${replacementsCount} 件）`,
     ),
-  };
+  });
 }
 
 function executeReplaceBetween(
@@ -1024,14 +1170,14 @@ function executeReplaceBetween(
   const startIndex = original.indexOf(startMarker);
   if (startIndex < 0) {
     return errorOutcome(
-      `start_marker が見つかりません: ${startMarker.slice(0, 80)}`,
+      formatNotFoundError("start_marker が見つかりません", startMarker, original),
     );
   }
   const afterStart = startIndex + startMarker.length;
   const endIndex = original.indexOf(endMarker, afterStart);
   if (endIndex < 0) {
     return errorOutcome(
-      `end_marker が見つかりません: ${endMarker.slice(0, 80)}`,
+      formatNotFoundError("end_marker が見つかりません", endMarker, original),
     );
   }
 
@@ -1041,7 +1187,7 @@ function executeReplaceBetween(
   const replacedChars = endIndex - afterStart;
   const insertedChars = insertContent.length;
 
-  return {
+  return withResidualFillWarning(next, {
     result: {
       path: resolved.relativePath,
       replacedChars,
@@ -1052,7 +1198,7 @@ function executeReplaceBetween(
       `${insertedChars} 文字`,
       `✏️ 区間置換: ${resolved.relativePath}（${replacedChars} → ${insertedChars} 文字）`,
     ),
-  };
+  });
 }
 
 function executeAppendFile(
@@ -1361,10 +1507,16 @@ async function executeRunSkillScript(
 }
 
 /** 劣化契約の返却（error キーを持たせず、安全停止カウンタに乗せない） */
-function searchUnavailableOutcome(notice: string): ToolExecutionOutcome {
+function searchUnavailableOutcome(
+  notice: string,
+  reason: string,
+): ToolExecutionOutcome {
   return {
     result: { unavailable: true, notice },
-    display: display("利用不可", `🔎 web 検索は利用できません`),
+    display: display(
+      "スキップ",
+      `✗ ${reason}のためweb検索できません。web検索をスキップします。`,
+    ),
   };
 }
 
@@ -1378,10 +1530,16 @@ async function executeWebSearch(
   const search = context.search;
   if (!search || !search.provider) {
     if (search) search.session.unavailable = true;
-    return searchUnavailableOutcome(SEARCH_UNCONFIGURED_NOTICE);
+    return searchUnavailableOutcome(
+      SEARCH_UNCONFIGURED_NOTICE,
+      "検索APIキーが未設定",
+    );
   }
   if (search.session.unavailable) {
-    return searchUnavailableOutcome(SEARCH_UNAVAILABLE_NOTICE);
+    return searchUnavailableOutcome(
+      SEARCH_UNAVAILABLE_NOTICE,
+      "直前の検索が失敗した",
+    );
   }
 
   const outcome = await search.provider.search(query);
@@ -1393,7 +1551,10 @@ async function executeWebSearch(
         unavailable: true,
         notice: `${SEARCH_UNAVAILABLE_NOTICE}（詳細: ${outcome.error}）`,
       },
-      display: display("失敗", `🔎 web 検索に失敗: ${outcome.error}`),
+      display: display(
+        "スキップ",
+        `✗ ${outcome.error}のためweb検索できません。web検索をスキップします。`,
+      ),
     };
   }
 

@@ -119,6 +119,7 @@ description: |
       description: "",
       variables: ["series", "course"],
       tools: ["search_company_context"],
+      assets: [],
       body: "{{series}}",
     };
     const { missingVariables } = buildSkillSystemPrompt(skill, {
@@ -140,6 +141,78 @@ tools:
 
 Body`);
     expect(parsed.tools).toEqual(["search_company_context", "select_company_context"]);
+  });
+
+  it("parses assets frontmatter as a string list", () => {
+    const parsed = parseSkillDocument(`---
+name: demo
+description: d
+assets:
+  - references/base.html
+  - references/style.css
+---
+
+Body`);
+    expect(parsed.assets).toEqual([
+      "references/base.html",
+      "references/style.css",
+    ]);
+  });
+
+  it("parses inline assets array", () => {
+    const parsed = parseSkillDocument(`---
+name: demo
+description: d
+assets: [references/base.html, templates/card.svg]
+---
+
+Body`);
+    expect(parsed.assets).toEqual([
+      "references/base.html",
+      "templates/card.svg",
+    ]);
+  });
+
+  it("treats missing or invalid assets as empty", () => {
+    expect(
+      parseSkillDocument(`---
+name: demo
+description: d
+---
+
+Body`).assets,
+    ).toEqual([]);
+    expect(
+      parseSkillDocument(`---
+name: demo
+description: d
+assets: true
+---
+
+Body`).assets,
+    ).toEqual([]);
+    expect(
+      parseSkillDocument(`---
+name: demo
+description: d
+assets:
+  - { path: references/base.html }
+---
+
+Body`).assets,
+    ).toEqual([]);
+  });
+
+  it("loads assets onto LoadedSkill", () => {
+    writeSkill(
+      tmpDir,
+      "with-assets",
+      "name: a\ndescription: d\nassets:\n  - references/base.html",
+      "body",
+    );
+    expect(loadSkill(tmpDir, "with-assets")?.assets).toEqual([
+      "references/base.html",
+    ]);
   });
 
   it("parses hidden frontmatter", () => {

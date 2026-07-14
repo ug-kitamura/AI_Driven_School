@@ -63,7 +63,7 @@ type ExecOutcome = {
 
 function execNode(
   args: string[],
-  options: { cwd?: string; timeout?: number },
+  options: { cwd?: string; timeout?: number; env?: NodeJS.ProcessEnv },
 ): Promise<ExecOutcome> {
   return new Promise((resolve) => {
     execFile(
@@ -74,6 +74,7 @@ function execNode(
         timeout: options.timeout,
         maxBuffer: SCRIPT_MAX_BUFFER_BYTES,
         windowsHide: true,
+        ...(options.env ? { env: options.env } : {}),
       },
       (error, stdout, stderr) => {
         resolve({
@@ -84,6 +85,38 @@ function execNode(
       },
     );
   });
+}
+
+/**
+ * サンドボックス子プロセスへ継承させる環境変数のホワイトリスト。
+ * node 実行そのものに必要な最小項目のみとし、サーバプロセスの秘密情報
+ * （API キー等）は渡さない。
+ */
+const ENV_ALLOWLIST = [
+  "PATH",
+  "SystemRoot",
+  "windir",
+  "TEMP",
+  "TMP",
+  "HOME",
+  "TMPDIR",
+  "LANG",
+  "LC_ALL",
+];
+
+/** allowlist 済みの継承項目 + サンドボックス専用の追加変数から env を組み立てる */
+function buildSandboxEnv(
+  extra: Record<string, string>,
+): NodeJS.ProcessEnv {
+  // NODE_ENV は Next.js の型拡張で必須のため明示的に継承する（allowlist の対象外）
+  const env: NodeJS.ProcessEnv = {
+    NODE_ENV: process.env.NODE_ENV ?? "development",
+  };
+  for (const key of ENV_ALLOWLIST) {
+    const value = process.env[key];
+    if (value !== undefined) env[key] = value;
+  }
+  return { ...env, ...extra };
 }
 
 let permissionModelSupported: boolean | null = null;
@@ -154,6 +187,17 @@ function directoryPermissionPatterns(dirAbsolute: string): string[] {
   return [normalized, path.join(normalized, "*")];
 }
 
+/**
+ * `--allow-fs-read` と `EBEX_SKILL_DIR` の両方がここを経由することで、
+ * 読取許可と env が別々の変数から組み立てられて食い違う事故を防ぐ。
+ */
+function resolveSkillDirForSandbox(
+  options: Pick<ScriptSandboxOptions, "skillDirAbsolute">,
+): string | undefined {
+  const raw = options.skillDirAbsolute?.trim();
+  return raw ? path.resolve(raw) : undefined;
+}
+
 function buildPermissionArgs(
   scriptPathAbsolute: string,
   options: ScriptSandboxOptions,
@@ -162,8 +206,9 @@ function buildPermissionArgs(
     ...directoryPermissionPatterns(options.projectDirAbsolute),
     scriptPathAbsolute,
   ];
-  if (options.skillDirAbsolute?.trim()) {
-    readTargets.push(...directoryPermissionPatterns(options.skillDirAbsolute));
+  const resolvedSkillDir = resolveSkillDirForSandbox(options);
+  if (resolvedSkillDir) {
+    readTargets.push(...directoryPermissionPatterns(resolvedSkillDir));
   }
   const writeTargets = directoryPermissionPatterns(options.projectDirAbsolute);
 
@@ -227,6 +272,12 @@ export async function runScriptInSandbox(
     args = target.args ?? [];
   }
 
+  const resolvedSkillDir = resolveSkillDirForSandbox(options);
+  const sandboxEnv = buildSandboxEnv({
+    EBEX_PROJECT_DIR: path.resolve(options.projectDirAbsolute),
+    ...(resolvedSkillDir ? { EBEX_SKILL_DIR: resolvedSkillDir } : {}),
+  });
+
   const startedAt = Date.now();
   try {
     const outcome = await execNode(
@@ -234,6 +285,7 @@ export async function runScriptInSandbox(
       {
         cwd: options.projectDirAbsolute,
         timeout: options.timeoutMs ?? SCRIPT_TIMEOUT_MS,
+        env: sandboxEnv,
       },
     );
     if (outcome.error) {

@@ -6,15 +6,9 @@ import {
 } from "@/lib/agent/tools/fs-guard";
 import { detectNetworkAccessHint } from "@/lib/agent/tools/script-sandbox";
 import type { LlmMessage, ToolCall } from "@/lib/agent/llm/types";
+import type { ConfirmKind } from "@/lib/agent/tools/confirm-kind";
 
-export type ConfirmKind =
-  | "overwrite"
-  | "outside-project-read"
-  | "outside-project-write"
-  | "run-script"
-  | "run-skill-script"
-  | "generate-write"
-  | "web-search";
+export type { ConfirmKind };
 
 /** スクリプト実行確認の表示ペイロード */
 export type ConfirmScriptInfo = {

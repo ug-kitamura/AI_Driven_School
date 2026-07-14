@@ -170,4 +170,89 @@ describe("script-sandbox", () => {
     expect(truncated).toContain("切り詰め");
     expect(truncated.length).toBeLessThan(long.length + 100);
   });
+
+  it("reads a skill file directly via EBEX_SKILL_DIR", async () => {
+    const { base, projectDir, skillDir } = makeSandboxDirs();
+    fs.writeFileSync(
+      path.join(skillDir, "style.css"),
+      "body { color: red; }",
+      "utf-8",
+    );
+    const result = await runScriptInSandbox(
+      {
+        kind: "code",
+        code: `
+          const fs = require("fs");
+          const path = require("path");
+          const css = fs.readFileSync(
+            path.join(process.env.EBEX_SKILL_DIR, "style.css"),
+            "utf-8",
+          );
+          fs.writeFileSync("out.css", css);
+          console.log("read via env");
+        `,
+      },
+      { projectDirAbsolute: projectDir, skillDirAbsolute: skillDir },
+    );
+    expect(result.ok).toBe(true);
+    expect(fs.readFileSync(path.join(projectDir, "out.css"), "utf-8")).toBe(
+      "body { color: red; }",
+    );
+    fs.rmSync(base, { recursive: true, force: true });
+  });
+
+  it("sets EBEX_PROJECT_DIR and leaves EBEX_SKILL_DIR unset outside a skill", async () => {
+    const { base, projectDir } = makeSandboxDirs();
+    const result = await runScriptInSandbox(
+      {
+        kind: "code",
+        code: `
+          const fs = require("fs");
+          fs.writeFileSync(
+            "env.json",
+            JSON.stringify({
+              projectDir: process.env.EBEX_PROJECT_DIR ?? null,
+              hasSkillDir: "EBEX_SKILL_DIR" in process.env,
+            }),
+          );
+        `,
+      },
+      { projectDirAbsolute: projectDir },
+    );
+    expect(result.ok).toBe(true);
+    const written = JSON.parse(
+      fs.readFileSync(path.join(projectDir, "env.json"), "utf-8"),
+    ) as { projectDir: string | null; hasSkillDir: boolean };
+    expect(written.projectDir).toBe(path.resolve(projectDir));
+    expect(written.hasSkillDir).toBe(false);
+    fs.rmSync(base, { recursive: true, force: true });
+  });
+
+  it("does not inherit the server process's secret environment variables", async () => {
+    const { base, projectDir } = makeSandboxDirs();
+    process.env.EBEX_TEST_SECRET = "super-secret-value";
+    try {
+      const result = await runScriptInSandbox(
+        {
+          kind: "code",
+          code: `
+            const fs = require("fs");
+            fs.writeFileSync(
+              "secret.json",
+              JSON.stringify({ leaked: "EBEX_TEST_SECRET" in process.env }),
+            );
+          `,
+        },
+        { projectDirAbsolute: projectDir },
+      );
+      expect(result.ok).toBe(true);
+      const written = JSON.parse(
+        fs.readFileSync(path.join(projectDir, "secret.json"), "utf-8"),
+      ) as { leaked: boolean };
+      expect(written.leaked).toBe(false);
+    } finally {
+      delete process.env.EBEX_TEST_SECRET;
+      fs.rmSync(base, { recursive: true, force: true });
+    }
+  });
 });

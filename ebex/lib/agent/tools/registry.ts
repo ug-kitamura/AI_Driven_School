@@ -269,7 +269,7 @@ const TOOL_SCHEMAS = {
   run_script: {
     name: "run_script",
     description:
-      "Node.js（CommonJS）スクリプトをサンドボックスで実行する。大量レコードの機械変換・整形など、ディスク上のデータからロジック（ループ等）で機械的に膨らむ成果物に使う: 本文を tool 引数に書かず、ディスク上のデータ（md ドラフト・テンプレート等）を読んで変換・書込するロジックだけをコードにする。額縁テンプレートへの断片差し込みは copy_file → replace_in_file / replace_between が主経路。fs 読取はプロジェクトと実行中スキル、書込はプロジェクト内のみ。ネットワークアクセスは禁止。実行前にユーザー確認が入る。",
+      "Node.js（CommonJS）スクリプトをサンドボックスで実行する。大量レコードの機械変換・整形など、ディスク上のデータからロジック（ループ等）で機械的に膨らむ成果物に使う: 本文を tool 引数に書かず、ディスク上のデータ（md ドラフト・テンプレート等）を読んで変換・書込するロジックだけをコードにする。額縁テンプレートへの断片差し込みは copy_file → replace_in_file / replace_between が主経路。fs 読取はプロジェクトと実行中スキル、書込はプロジェクト内のみ。スキルの参照ファイルは、ツール結果に表示される論理パス（skill/<id>/...）ではなく path.join(process.env.EBEX_SKILL_DIR, \"references\", \"...\") で読むこと（スキル実行中のみ設定される）。ネットワークアクセスは禁止。実行前にユーザー確認が入る。",
     input_schema: {
       type: "object",
       properties: {
@@ -295,7 +295,7 @@ const TOOL_SCHEMAS = {
   run_skill_script: {
     name: "run_skill_script",
     description:
-      "実行中スキルに同梱されたスクリプト（scripts/ 配下）をサンドボックスで実行する。スキルに scripts/ がある場合は run_script より優先する。fs 読取はプロジェクトと実行中スキル、書込はプロジェクト内のみ。実行前にユーザー確認が入る。",
+      "実行中スキルに同梱されたスクリプト（scripts/ 配下）をサンドボックスで実行する。スキルに scripts/ がある場合は run_script より優先する。fs 読取はプロジェクトと実行中スキル、書込はプロジェクト内のみ。スキル側ファイルの読取は __dirname（または process.env.EBEX_SKILL_DIR）基準、成果物の書込はプロジェクト相対（または process.env.EBEX_PROJECT_DIR）基準で行うこと。実行前にユーザー確認が入る。",
     input_schema: {
       type: "object",
       properties: {

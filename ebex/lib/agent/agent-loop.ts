@@ -8,6 +8,7 @@ import type {
   LlmMessage,
   AgentToolEvent,
   AgentLogicalTurn,
+  ProviderTurnResult,
   ToolCall,
 } from "@/lib/agent/llm/types";
 import {
@@ -17,15 +18,19 @@ import {
   AGENT_MISSING_PATH_ERROR,
   AGENT_MISSING_SCRIPT_INPUT_ERROR,
   AGENT_REPEATED_TOOL_ERROR,
+  AGENT_TEXT_CONTINUATION_LIMIT_NOTICE,
+  AGENT_TEXT_CONTINUATION_PROMPT,
   GENERATE_REJECTED_GUIDANCE,
   GENERATE_WRITE_INPUT_GUIDANCE,
   LARGE_FILE_WRITE_GUIDANCE,
   MAX_AGENT_LOOP_TURNS,
   MAX_CONSECUTIVE_IDENTICAL_TOOL_ERRORS,
+  MAX_TEXT_CONTINUATIONS_PER_TURN,
   MAX_TOKENS_TRUNCATION_NOTE,
   SCRIPT_INPUT_GUIDANCE,
 } from "@/lib/agent/llm/types";
 import { resolveLlmProvider } from "@/lib/agent/llm/resolve-provider";
+import type { LlmProvider } from "@/lib/agent/llm/provider";
 import { resolveMaxOutputTokens } from "@/lib/resolve-max-output-tokens";
 import {
   executeRegisteredTool,
@@ -166,6 +171,95 @@ function brokenToolOutcome(
   };
 }
 
+export type TurnWithContinuationOptions = {
+  provider: LlmProvider;
+  apiKey: string;
+  model: string;
+  system: string;
+  /** 継続なしの通常ターンに使う会話履歴（このまま変更しない） */
+  baseMessages: LlmMessage[];
+  tools: ToolDefinition[];
+  maxTokens?: number;
+  signal?: AbortSignal;
+  emit: AgentLoopEmit;
+};
+
+export type TurnWithContinuationResult =
+  | { ok: true; text: string; result: ProviderTurnResult }
+  | { ok: false; error: string; status: number };
+
+/**
+ * ツール呼び出しなしで `stopReason: "max_tokens"` となったターンを、
+ * 「つづき」の手動催促なしに自動継続する。継続用の scratch メッセージ
+ * （assistant の途中経過 + 続き指示）は `baseMessages` を書き換えずローカルに
+ * 組み立てるため、確定した会話履歴には最終的な 1 通の assistant メッセージのみが残る
+ * （generate_and_write の子生成と同じ考え方）。
+ */
+export async function runTurnWithMaxTokensContinuation(
+  options: TurnWithContinuationOptions,
+): Promise<TurnWithContinuationResult> {
+  let accumulatedText = "";
+  let latestResult: ProviderTurnResult | null = null;
+  let continuations = 0;
+
+  for (;;) {
+    const messages: LlmMessage[] =
+      continuations === 0
+        ? options.baseMessages
+        : [
+            ...options.baseMessages,
+            { role: "assistant", content: accumulatedText },
+            { role: "user", content: AGENT_TEXT_CONTINUATION_PROMPT },
+          ];
+
+    let stepText = "";
+    let stepResult: ProviderTurnResult | null = null;
+    for await (const event of options.provider.streamTurn({
+      apiKey: options.apiKey,
+      model: options.model,
+      system: options.system,
+      messages,
+      tools: options.tools,
+      maxTokens: options.maxTokens,
+      signal: options.signal,
+    })) {
+      if (event.type === "text_delta") {
+        stepText += event.text;
+        options.emit("text_delta", { text: event.text });
+      } else if (event.type === "turn_complete") {
+        stepResult = event.result;
+      }
+    }
+
+    if (!stepResult) {
+      return { ok: false, error: "Empty model response", status: 502 };
+    }
+
+    accumulatedText += stepText;
+    latestResult = stepResult;
+
+    const shouldContinue =
+      stepResult.toolCalls.length === 0 &&
+      stepResult.stopReason === "max_tokens";
+    if (!shouldContinue) break;
+
+    if (continuations >= MAX_TEXT_CONTINUATIONS_PER_TURN) {
+      accumulatedText += AGENT_TEXT_CONTINUATION_LIMIT_NOTICE;
+      options.emit("text_delta", {
+        text: AGENT_TEXT_CONTINUATION_LIMIT_NOTICE,
+      });
+      break;
+    }
+    continuations += 1;
+  }
+
+  return {
+    ok: true,
+    text: accumulatedText,
+    result: { ...latestResult!, text: accumulatedText },
+  };
+}
+
 export async function runAgentLoop(
   options: RunAgentLoopOptions,
 ): Promise<RunAgentLoopResult> {
@@ -237,28 +331,24 @@ export async function runAgentLoop(
       }
     }
 
-    turnText = "";
-    let turnResult = null;
-    for await (const event of providerResult.provider.streamTurn({
+    const stepOutcome = await runTurnWithMaxTokensContinuation({
+      provider: providerResult.provider,
       apiKey,
       model: providerResult.model,
       system: options.system,
-      messages: llmMessages,
+      baseMessages: llmMessages,
       tools,
       maxTokens,
       signal: options.signal,
-    })) {
-      if (event.type === "text_delta") {
-        turnText += event.text;
-        options.emit("text_delta", { text: event.text });
-      } else if (event.type === "turn_complete") {
-        turnResult = event.result;
-      }
+      emit: options.emit,
+    });
+
+    if (!stepOutcome.ok) {
+      return { ok: false, error: stepOutcome.error, status: stepOutcome.status };
     }
 
-    if (!turnResult) {
-      return { ok: false, error: "Empty model response", status: 502 };
-    }
+    turnText = stepOutcome.text;
+    const turnResult = stepOutcome.result;
 
     if (turnResult.toolCalls.length === 0) {
       emitLogicalTurn({ text: turnText || undefined });

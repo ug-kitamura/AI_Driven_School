@@ -1,8 +1,12 @@
 export type LlmRole = "user" | "assistant";
 
+/** Anthropic prompt caching のブレークポイント指定（現状 ephemeral のみ） */
+export type LlmCacheControl = { type: "ephemeral" };
+
 export type LlmTextBlock = {
   type: "text";
   text: string;
+  cache_control?: LlmCacheControl;
 };
 
 export type LlmToolUseBlock = {
@@ -10,12 +14,14 @@ export type LlmToolUseBlock = {
   id: string;
   name: string;
   input: Record<string, unknown>;
+  cache_control?: LlmCacheControl;
 };
 
 export type LlmToolResultBlock = {
   type: "tool_result";
   tool_use_id: string;
   content: string;
+  cache_control?: LlmCacheControl;
 };
 
 export type LlmContentBlock =
@@ -42,6 +48,8 @@ export type ToolDefinition = {
   name: string;
   description: string;
   input_schema: Record<string, unknown>;
+  /** プロバイダ層が末尾のツール定義にのみ付与する（呼び出し側は設定しない） */
+  cache_control?: LlmCacheControl;
 };
 
 export type ProviderTurnResult = {
@@ -79,6 +87,17 @@ export type AgentLogicalTurn = {
 export const MAX_AGENT_LOOP_TURNS = 24;
 
 export const AGENT_LOOP_LIMIT_ERROR = "Agent loop limit exceeded";
+
+/** ツール呼び出しなしで max_tokens 打ち切りとなったターンの自動継続回数の上限 */
+export const MAX_TEXT_CONTINUATIONS_PER_TURN = 4;
+
+/** max_tokens 自動継続時、モデルへ送る内部指示（既出部分を繰り返させない） */
+export const AGENT_TEXT_CONTINUATION_PROMPT =
+  "出力が上限で途中終了しました。直前の出力の続きだけを、既出部分を一切繰り返さずに出力してください。";
+
+/** 自動継続が上限に達したとき、応答本文へ追記してユーザーへ明示する注記 */
+export const AGENT_TEXT_CONTINUATION_LIMIT_NOTICE =
+  "\n\n（出力が上限に達したため自動継続を打ち切りました。続きが必要な場合は「つづき」とお伝えください。）";
 
 /** tool_result および連続失敗時に使う（実行はしない） */
 export const AGENT_BROKEN_TOOL_USE_ERROR =

@@ -192,6 +192,21 @@ function readModelLabelFromSettings(): string {
   return resolveModelLabel(loadWorkspaceSettings().aiModel);
 }
 
+async function postToolConfirmDecision(
+  toolUseId: string,
+  decision: "approve" | "reject",
+): Promise<void> {
+  try {
+    await fetch("/api/agent/tool-confirm", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ toolUseId, decision }),
+    });
+  } catch {
+    // ストリーム側は TTL タイムアウトで安全側（拒否）に確定する
+  }
+}
+
 export function AgentChatPane({
   folderId,
   currentFilePath,
@@ -760,6 +775,11 @@ export function AgentChatPane({
             onConfirmRequired: (event) => {
               setPendingToolConfirm(event);
             },
+            onUnknownConfirmKind: (event) => {
+              // クライアントが表示できない確認種別。ダイアログを出せないまま
+              // サーバ側の確認待ち（5 分 TTL）を無言で待たせないよう即時拒否する。
+              void postToolConfirmDecision(event.toolUseId, "reject");
+            },
           },
           controller.signal,
         );
@@ -1169,15 +1189,7 @@ export function AgentChatPane({
       const request = pendingToolConfirm;
       if (!request) return;
       setPendingToolConfirm(null);
-      try {
-        await fetch("/api/agent/tool-confirm", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ toolUseId: request.toolUseId, decision }),
-        });
-      } catch {
-        // ストリーム側は TTL タイムアウトで安全側（拒否）に確定する
-      }
+      await postToolConfirmDecision(request.toolUseId, decision);
     },
     [pendingToolConfirm],
   );

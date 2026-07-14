@@ -1,7 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { resolveToolTargetPath } from "@/lib/agent/tools/fs-guard";
-import type { LlmMessage } from "@/lib/agent/llm/types";
+import type { LlmContentBlock, LlmMessage } from "@/lib/agent/llm/types";
 import type {
   ToolExecutionContext,
   ToolExecutionOutcome,
@@ -128,11 +128,14 @@ export function resolveGenerateContextFiles(
   return files;
 }
 
-function buildSectionPrompt(
+/**
+ * セクション間・max_tokens 継続間で不変の prefix（instruction + context + 全体構成）。
+ * `cache_control` をこのブロックへ付与し、同一 generate_and_write 呼び出し内の
+ * 全子呼び出しでキャッシュ再利用させる。
+ */
+function buildInvariantPrefix(
   input: GenerateWriteInput,
   contextFiles: ResolvedContextFile[],
-  sectionIndex: number,
-  previousTail: string,
 ): string {
   const lines: string[] = ["# 生成指示", input.instruction.trim()];
 
@@ -152,7 +155,22 @@ function buildSectionPrompt(
       "",
       "# 全体のセクション構成",
       ...input.sections.map((section, i) => `${i + 1}. ${section}`),
-      "",
+    );
+  }
+
+  return lines.join("\n");
+}
+
+/** セクション・継続ごとに変化する部分（今回の出力範囲・直前生成の末尾抜粋） */
+function buildVariablePart(
+  input: GenerateWriteInput,
+  sectionIndex: number,
+  previousTail: string,
+): string {
+  const lines: string[] = [];
+
+  if (input.sections.length > 0) {
+    lines.push(
       "# 今回出力する範囲",
       `セクション ${sectionIndex + 1}: ${input.sections[sectionIndex]}`,
       "このセクションの本文のみを出力すること。他のセクションの内容を出力してはならない。",
@@ -168,6 +186,28 @@ function buildSectionPrompt(
   }
 
   return lines.join("\n");
+}
+
+/**
+ * 不変 prefix と可変部を 2 ブロックに分けたメッセージ content を組み立てる。
+ * prefix 末尾に `cache_control` を付け、セクション間・継続間でのキャッシュ再利用を狙う。
+ */
+function buildSectionMessageContent(
+  input: GenerateWriteInput,
+  contextFiles: ResolvedContextFile[],
+  sectionIndex: number,
+  previousTail: string,
+): LlmContentBlock[] {
+  const prefix = buildInvariantPrefix(input, contextFiles);
+  const variable = buildVariablePart(input, sectionIndex, previousTail);
+
+  const blocks: LlmContentBlock[] = [
+    { type: "text", text: prefix, cache_control: { type: "ephemeral" } },
+  ];
+  if (variable) {
+    blocks.push({ type: "text", text: variable });
+  }
+  return blocks;
 }
 
 /** 出力全体がコードフェンスで囲まれている場合のみ剥がす（防御的救済） */
@@ -250,7 +290,7 @@ export async function executeGenerateAndWrite(
   for (let i = 0; i < sectionCount; i += 1) {
     const generatedSoFar = sectionTexts.join("\n\n");
     const previousTail = generatedSoFar.slice(-PREVIOUS_TAIL_CHAR_LIMIT);
-    const firstPrompt = buildSectionPrompt(
+    const firstMessageContent = buildSectionMessageContent(
       parsed,
       contextFiles,
       i,
@@ -261,7 +301,9 @@ export async function executeGenerateAndWrite(
     let continuations = 0;
 
     try {
-      let messages: LlmMessage[] = [{ role: "user", content: firstPrompt }];
+      let messages: LlmMessage[] = [
+        { role: "user", content: firstMessageContent },
+      ];
       for (;;) {
         const turn = await generate.provider.runTurn({
           apiKey: generate.apiKey,
@@ -295,7 +337,7 @@ export async function executeGenerateAndWrite(
         continuations += 1;
         totalContinuations += 1;
         messages = [
-          { role: "user", content: firstPrompt },
+          { role: "user", content: firstMessageContent },
           { role: "assistant", content: sectionText },
           { role: "user", content: CONTINUE_PROMPT },
         ];

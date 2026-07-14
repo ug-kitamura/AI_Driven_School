@@ -3,7 +3,15 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import type { LlmProvider, LlmProviderRunOptions } from "@/lib/agent/llm/provider";
-import type { ProviderTurnResult } from "@/lib/agent/llm/types";
+import type { LlmMessage, ProviderTurnResult } from "@/lib/agent/llm/types";
+
+/** メッセージ content（文字列またはブロック配列）からテキストを結合して取り出す */
+function contentText(content: LlmMessage["content"]): string {
+  if (typeof content === "string") return content;
+  return content
+    .map((block) => (block.type === "text" ? block.text : ""))
+    .join("\n");
+}
 import {
   executeGenerateAndWrite,
   GENERATE_MAX_CONTINUATIONS_PER_SECTION,
@@ -157,8 +165,45 @@ describe("executeGenerateAndWrite", () => {
     expect(JSON.stringify(outcome.result)).not.toContain("<section>");
     // 2 セクション = 2 回の子呼び出し、各呼び出しにセクション指示が載る
     expect(calls).toHaveLength(2);
-    expect(String(calls[0].messages[0].content)).toContain("導入");
-    expect(String(calls[1].messages[0].content)).toContain("本論");
+    expect(contentText(calls[0].messages[0].content)).toContain("導入");
+    expect(contentText(calls[1].messages[0].content)).toContain("本論");
+    fs.rmSync(base.tmpDir, { recursive: true, force: true });
+  });
+
+  it("keeps the invariant prefix block byte-identical across sections and continuations", async () => {
+    const base = makeProject();
+    const { provider, calls } = makeProvider([
+      { text: "one", stopReason: "max_tokens" },
+      { text: "-continued", stopReason: "end_turn" },
+      { text: "two", stopReason: "end_turn" },
+    ]);
+    await executeGenerateAndWrite(makeContext(base, provider), {
+      purpose: "p",
+      path: "out.html",
+      instruction: "共通の指示",
+      sections: ["導入", "本論"],
+    });
+    // section0(max_tokens) -> continuation -> section1 = 3 呼び出し
+    expect(calls).toHaveLength(3);
+
+    function firstBlockOf(content: LlmMessage["content"]) {
+      if (typeof content === "string") {
+        throw new Error("expected block array content");
+      }
+      return content[0];
+    }
+
+    const prefixes = calls.map((call) => {
+      const block = firstBlockOf(call.messages[0].content);
+      return block.type === "text" ? block.text : "";
+    });
+    // 不変 prefix はセクション・継続をまたいでバイト同一である
+    expect(new Set(prefixes).size).toBe(1);
+
+    for (const call of calls) {
+      const block = firstBlockOf(call.messages[0].content);
+      expect(block.cache_control).toEqual({ type: "ephemeral" });
+    }
     fs.rmSync(base.tmpDir, { recursive: true, force: true });
   });
 
@@ -285,7 +330,7 @@ describe("executeGenerateAndWrite", () => {
     );
     const record = outcome.result as Record<string, unknown>;
     expect(record.error).toBeUndefined();
-    const prompt = String(calls[0].messages[0].content);
+    const prompt = contentText(calls[0].messages[0].content);
     expect(prompt).toContain("outline-content");
     expect(prompt).toContain("model-answer-content");
     fs.rmSync(base.tmpDir, { recursive: true, force: true });

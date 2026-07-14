@@ -133,12 +133,17 @@ Agent invoke 時、システムは `lib/agent/tools/registry.ts` の `resolveToo
 
 ### Requirement: L6 コマンド実行のブロック
 
-システムは任意のシェルコマンド・スクリプト実行をツールとして実行してはならない（MUST NOT）。実行が要求された場合、実行しようとしたコマンド全文、ブロックした理由、必要であればユーザー自身のターミナルで実行する旨を含む結果をモデルに返さなければならない（SHALL）。
+システムは任意のシェルコマンド・スクリプト実行をツールとして実行してはならない（MUST NOT）。ただし専用ツール（`run_script` / `run_skill_script`）経由のサンドボックス化された Node スクリプト実行は例外とし、ユーザー確認を経て許可する。任意コマンドの実行が要求された場合、実行しようとしたコマンド全文、ブロックした理由、大きな成果物の生成であれば `run_script`（サンドボックス化 Node スクリプト）を使用する旨の案内を含む結果をモデルに返さなければならない（SHALL）。
 
 #### Scenario: コマンド実行要求のブロック
 
-- **WHEN** モデルがシェルコマンドまたはスクリプトの実行を要求する
-- **THEN** コマンドは実行されず、コマンド全文とブロック理由、ユーザー自身のターミナルでの実行案内を含む結果が返る
+- **WHEN** モデルがシェルコマンド（`bash` / `exec` / `shell` 等）の実行を要求する
+- **THEN** コマンドは実行されず、コマンド全文とブロック理由、`run_script` への誘導を含む結果が返る
+
+#### Scenario: 専用ツール経由のスクリプト実行は許可される
+
+- **WHEN** モデルが `run_script` または `run_skill_script` でスクリプト実行を要求し、ユーザーが確認を許可する
+- **THEN** スクリプトはサンドボックス内で実行される
 
 ### Requirement: 確認待ち中の agent loop 一時停止
 
@@ -185,7 +190,7 @@ Agent invoke 時、システムは `lib/agent/tools/registry.ts` の `resolveToo
 
 ### Requirement: 壊れた tool_use での loop 停止
 
-agent loop は、`tool_use` の入力 JSON パースに失敗した場合、または `read_file` / `write_file` / `mkdir` / `copy_file` / `replace_in_file` / `replace_between` / `append_file` で必須パスが欠落または空の場合、空の入力のままツールを実行してはならない（MUST NOT）。当該呼び出しは失敗の tool_result（理由と、大きな成果物では `copy_file` / `replace_between`（`from_path`）/ `append_file` を使う旨の案内を含んでよい）としてモデルへ返し、同一エラーの連続上限に達するまで loop を続行しなければならない（SHALL）。空 path を成功扱いで実行してはならない（MUST NOT）。案内は特定スキル名や HTML 専用の強制手順に依存してはならない（MUST NOT）。
+agent loop は、`tool_use` の入力 JSON パースに失敗した場合、または `read_file` / `write_file` / `mkdir` / `copy_file` / `replace_in_file` / `replace_between` / `append_file` で必須パスが欠落または空の場合、空の入力のままツールを実行してはならない（MUST NOT）。当該呼び出しは失敗の tool_result（理由と、大きな成果物では本文がディスク上のデータから作れるなら `run_script`、モデルが新たに創作する長文なら `generate_and_write`、補助として `copy_file` / `replace_between`（`from_path`）/ `append_file` を使う旨の案内を含んでよい）としてモデルへ返し、同一エラーの連続上限に達するまで loop を続行しなければならない（SHALL）。空 path を成功扱いで実行してはならない（MUST NOT）。案内は特定スキル名や HTML 専用の強制手順に依存してはならない（MUST NOT）。
 
 #### Scenario: JSON パース失敗でもモデルへ返して続行
 
@@ -195,7 +200,7 @@ agent loop は、`tool_use` の入力 JSON パースに失敗した場合、ま�
 #### Scenario: path 欠落でもモデルへ返して続行
 
 - **WHEN** `write_file` の tool_use に `path` が無い、または空文字である
-- **THEN** agent loop はツールを実行せず、欠落である旨と大きなファイル向けの代替手段案内を tool_result としてモデルへ返し、次ターンへ進める
+- **THEN** agent loop はツールを実行せず、欠落である旨と大きなファイル向けの代替手段案内（`run_script` / `generate_and_write` を含む）を tool_result としてモデルへ返し、次ターンへ進める
 
 ### Requirement: 同一ツールエラー連続時の loop 停止
 
@@ -331,7 +336,7 @@ Agent loop は invoke 時の `projectFolderId` に対応するプロジェクト
 
 ### Requirement: スキル固有 HTML 強制コピーの禁止
 
-agent loop およびツール層は、宛先拡張子やスキル内の `references/base.html` の有無だけを理由に、`write_file` の内容を破棄してテンプレート強制コピーへ置き換えてはならない（MUST NOT）。大きな成果物向けの案内は `copy_file` / `replace_in_file` / `replace_between` / `append_file` など汎用 primitive に限り、特定スキル名や HTML 専用の必須手順をランタイムが強制してはならない（MUST NOT）。
+agent loop およびツール層は、宛先拡張子やスキル内の `references/base.html` の有無だけを理由に、`write_file` の内容を破棄してテンプレート強制コピーへ置き換えてはならない（MUST NOT）。大きな成果物向けの案内は `run_script` / `generate_and_write` / `copy_file` / `replace_in_file` / `replace_between` / `append_file` など汎用 primitive に限り、特定スキル名や HTML 専用の必須手順をランタイムが強制してはならない（MUST NOT）。
 
 #### Scenario: HTML への write_file は内容どおり書く
 
@@ -341,7 +346,7 @@ agent loop およびツール層は、宛先拡張子やスキル内の `referen
 #### Scenario: 巨大 write 案内は汎用である
 
 - **WHEN** 大きな `write_file` が途中切れ等で失敗する
-- **THEN** tool_result の案内は copy / replace_between（from_path）/ append 等の汎用手段を示し、特定スキル名を含まない
+- **THEN** tool_result の案内は「データ由来なら run_script、創作長文なら generate_and_write」の使い分けと、copy / replace_between（from_path）/ append 等の汎用手段を示し、特定スキル名を含まない
 
 ### Requirement: 新ツール定義の提供（区間置換）
 

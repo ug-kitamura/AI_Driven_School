@@ -415,7 +415,6 @@ export async function runAgentLoop(
               {
                 ...skillOptions,
                 skipOverwritePaths,
-                searchUnavailable: !searchProvider || searchSession.unavailable,
               },
             )
           : null;

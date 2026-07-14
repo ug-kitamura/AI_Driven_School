@@ -1507,10 +1507,16 @@ async function executeRunSkillScript(
 }
 
 /** 劣化契約の返却（error キーを持たせず、安全停止カウンタに乗せない） */
-function searchUnavailableOutcome(notice: string): ToolExecutionOutcome {
+function searchUnavailableOutcome(
+  notice: string,
+  reason: string,
+): ToolExecutionOutcome {
   return {
     result: { unavailable: true, notice },
-    display: display("利用不可", `🔎 web 検索は利用できません`),
+    display: display(
+      "スキップ",
+      `✗ ${reason}のためweb検索できません。web検索をスキップします。`,
+    ),
   };
 }
 
@@ -1524,10 +1530,16 @@ async function executeWebSearch(
   const search = context.search;
   if (!search || !search.provider) {
     if (search) search.session.unavailable = true;
-    return searchUnavailableOutcome(SEARCH_UNCONFIGURED_NOTICE);
+    return searchUnavailableOutcome(
+      SEARCH_UNCONFIGURED_NOTICE,
+      "検索APIキーが未設定",
+    );
   }
   if (search.session.unavailable) {
-    return searchUnavailableOutcome(SEARCH_UNAVAILABLE_NOTICE);
+    return searchUnavailableOutcome(
+      SEARCH_UNAVAILABLE_NOTICE,
+      "直前の検索が失敗した",
+    );
   }
 
   const outcome = await search.provider.search(query);
@@ -1539,7 +1551,10 @@ async function executeWebSearch(
         unavailable: true,
         notice: `${SEARCH_UNAVAILABLE_NOTICE}（詳細: ${outcome.error}）`,
       },
-      display: display("失敗", `🔎 web 検索に失敗: ${outcome.error}`),
+      display: display(
+        "スキップ",
+        `✗ ${outcome.error}のためweb検索できません。web検索をスキップします。`,
+      ),
     };
   }
 

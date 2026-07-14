@@ -66,11 +66,6 @@ export type ConfirmGateOptions = ResolveToolPathOptions & {
    * AI が今セッションで作成したファイル、またはユーザーが一度許可したファイル。
    */
   skipOverwritePaths?: ReadonlySet<string>;
-  /**
-   * web 検索が利用不可（キー未設定・サーキットブレーカー作動後）のとき true。
-   * この場合 web_search の確認ダイアログは出さず、実行側が劣化契約を返す。
-   */
-  searchUnavailable?: boolean;
 };
 
 const READ_TOOL_NAMES = new Set([
@@ -334,8 +329,7 @@ export function resolveConfirmRequirement(
   }
 
   if (call.name === "web_search") {
-    // 利用不可の環境では確認を出さず、実行側が劣化契約を返す
-    if (options.searchUnavailable) return null;
+    // 利用不可の環境でも確認は出す（承認後に実行側が「検索できずスキップした」旨を返す）
     const query =
       typeof call.input?.query === "string" ? call.input.query.trim() : "";
     if (!query) return null;

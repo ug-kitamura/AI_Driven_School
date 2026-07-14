@@ -151,20 +151,18 @@ describe("resolveConfirmRequirement for web_search", () => {
     fs.rmSync(tmpDir, { recursive: true, force: true });
   });
 
-  it("skips confirmation when search is unavailable", () => {
+  it("still requires confirmation even when search is unavailable (skip happens after approval)", () => {
     const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "ebex-web-search-"));
     createFolder(tmpDir, "demo");
-    const req = resolveConfirmRequirement(
-      tmpDir,
-      "demo",
-      {
-        id: "t1",
-        name: "web_search",
-        input: { query: "部のパーパス", purpose: "図解の下調べ" },
-      },
-      { searchUnavailable: true },
-    );
-    expect(req).toBeNull();
+    const req = resolveConfirmRequirement(tmpDir, "demo", {
+      id: "t1",
+      name: "web_search",
+      input: { query: "部のパーパス", purpose: "図解の下調べ" },
+    });
+    expect(req).toMatchObject({
+      kind: "web-search",
+      search: { query: "部のパーパス", purpose: "図解の下調べ" },
+    });
     fs.rmSync(tmpDir, { recursive: true, force: true });
   });
 

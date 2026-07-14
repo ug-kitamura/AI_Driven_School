@@ -75,6 +75,131 @@ describe("skillHasScriptsDir", () => {
   });
 });
 
+describe("L1 discovery with file-scope path", () => {
+  const setup = () => {
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "ebex-l1-file-"));
+    createFolder(tmpDir, "demo");
+    const outputDir = path.join(getWorkspaceDir(tmpDir), "demo", "output");
+    fs.mkdirSync(outputDir, { recursive: true });
+    fs.writeFileSync(
+      path.join(outputDir, "minutes.html"),
+      "<html>PLACEHOLDER target</html>",
+    );
+    fs.writeFileSync(path.join(outputDir, "other.html"), "<html>target</html>");
+    return { tmpDir, context: contextFor(tmpDir, "demo") };
+  };
+
+  it("search_content with file path searches only that file (no ENOTDIR)", async () => {
+    const { tmpDir, context } = setup();
+    const outcome = await executeRegisteredTool(
+      "search_content",
+      { query: "target", path: "output/minutes.html" },
+      context,
+    );
+    const result = outcome.result as {
+      hits: Array<{ path: string }>;
+    };
+    expect(result.hits).toHaveLength(1);
+    expect(result.hits[0].path).toBe("output/minutes.html");
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+  });
+
+  it("glob_files with file path returns 1 on relative-path match, excluding siblings", async () => {
+    const { tmpDir, context } = setup();
+    const outcome = await executeRegisteredTool(
+      "glob_files",
+      { pattern: "output/*.html", path: "output/minutes.html" },
+      context,
+    );
+    expect(outcome.result).toMatchObject({
+      matches: ["output/minutes.html"],
+    });
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+  });
+
+  it("glob_files with file path matches by basename too", async () => {
+    const { tmpDir, context } = setup();
+    // "*" は "/" を跨がないためフルパスには不一致だが、basename で一致する
+    const outcome = await executeRegisteredTool(
+      "glob_files",
+      { pattern: "*.html", path: "output/minutes.html" },
+      context,
+    );
+    expect(outcome.result).toMatchObject({
+      matches: ["output/minutes.html"],
+    });
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+  });
+
+  it("glob_files with file path returns 0 without throwing when pattern mismatches", async () => {
+    const { tmpDir, context } = setup();
+    const outcome = await executeRegisteredTool(
+      "glob_files",
+      { pattern: "*.md", path: "output/minutes.html" },
+      context,
+    );
+    expect(outcome.result).toMatchObject({ matches: [] });
+    expect(outcome.result).not.toHaveProperty("error");
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+  });
+
+  it("list_files with file path returns a single file entry", async () => {
+    const { tmpDir, context } = setup();
+    const outcome = await executeRegisteredTool(
+      "list_files",
+      { path: "output/minutes.html" },
+      context,
+    );
+    expect(outcome.result).toMatchObject({
+      entries: [{ name: "minutes.html", type: "file" }],
+    });
+    expect(outcome.result).not.toHaveProperty("error");
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+  });
+
+  it("search_content scopes to a skill file with host-independent display path", async () => {
+    const { tmpDir, context } = setup();
+    const skillDir = path.join(tmpDir, "skill-zone", "my-skill");
+    fs.mkdirSync(path.join(skillDir, "references"), { recursive: true });
+    fs.writeFileSync(
+      path.join(skillDir, "references", "base.html"),
+      "<title>{{MEETING_TITLE}}</title>",
+    );
+    const outcome = await executeRegisteredTool(
+      "search_content",
+      { query: "{{MEETING_TITLE}}", path: "references/base.html" },
+      { ...context, skillId: "my-skill", skillDirAbsolute: skillDir },
+    );
+    const result = outcome.result as { hits: Array<{ path: string }> };
+    expect(result.hits).toHaveLength(1);
+    expect(result.hits[0].path).toBe("skill/my-skill/references/base.html");
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+  });
+
+  it("does not throw for nonexistent paths (glob/search return 0, list errors)", async () => {
+    const { tmpDir, context } = setup();
+    const glob = await executeRegisteredTool(
+      "glob_files",
+      { pattern: "*", path: "nope" },
+      context,
+    );
+    expect(glob.result).toMatchObject({ matches: [] });
+    const search = await executeRegisteredTool(
+      "search_content",
+      { query: "x", path: "nope" },
+      context,
+    );
+    expect(search.result).toMatchObject({ hits: [] });
+    const list = await executeRegisteredTool(
+      "list_files",
+      { path: "nope" },
+      context,
+    );
+    expect(list.result).toHaveProperty("error");
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+  });
+});
+
 describe("executeRegisteredTool", () => {
   it("lists files in project folder", async () => {
     const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "ebex-tools-"));

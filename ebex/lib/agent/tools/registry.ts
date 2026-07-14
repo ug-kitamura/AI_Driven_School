@@ -80,14 +80,14 @@ const TOOL_SCHEMAS = {
   list_files: {
     name: "list_files",
     description:
-      "プロジェクトフォルダ、または実行中スキル配下のディレクトリ内のファイル・サブフォルダを一覧する。path 省略時はプロジェクト直下を対象とする。スキル相対（例: references）はスキル側を優先する。",
+      "プロジェクトフォルダ、または実行中スキル配下のディレクトリ内のファイル・サブフォルダを一覧する。path 省略時はプロジェクト直下を対象とする。path がファイルのときはその 1 エントリだけを返す。スキル相対（例: references）はスキル側を優先する。",
     input_schema: {
       type: "object",
       properties: {
         path: {
           type: "string",
           description:
-            "一覧するディレクトリのパス（プロジェクト相対、またはスキル相対。省略時はプロジェクト直下）",
+            "一覧する scope のパス（ディレクトリまたはファイル。プロジェクト相対またはスキル相対。省略時はプロジェクト直下。ファイル時はその 1 件のみ返る）",
         },
       },
     },
@@ -106,7 +106,7 @@ const TOOL_SCHEMAS = {
         path: {
           type: "string",
           description:
-            "検索基点のディレクトリ（プロジェクト相対またはスキル相対、省略時はプロジェクト直下）",
+            "検索基点の scope（ディレクトリまたはファイル。プロジェクト相対またはスキル相対、省略時はプロジェクト直下。ファイル時はそのパス／ファイル名が pattern に一致するかの 0/1 判定）",
         },
       },
       required: ["pattern"],
@@ -123,7 +123,7 @@ const TOOL_SCHEMAS = {
         path: {
           type: "string",
           description:
-            "検索基点のディレクトリ（プロジェクト相対またはスキル相対、省略時はプロジェクト直下）",
+            "検索基点の scope（ディレクトリまたはファイル。プロジェクト相対またはスキル相対、省略時はプロジェクト直下。ファイル時はそのファイルだけを検索する）",
         },
       },
       required: ["query"],
@@ -465,6 +465,14 @@ function walkFiles(
   baseAbsolute: string,
   onFile: (relativePath: string, absolutePath: string) => boolean,
 ): void {
+  // path がファイルに解決された場合は単一 scope として 1 件だけ通知する（readdir しない）
+  if (fs.existsSync(baseAbsolute) && fs.statSync(baseAbsolute).isFile()) {
+    const relative = path
+      .relative(rootAbsolute, baseAbsolute)
+      .replace(/\\/g, "/");
+    onFile(relative, baseAbsolute);
+    return;
+  }
   const stack: string[] = [baseAbsolute];
   while (stack.length > 0) {
     const dir = stack.pop();
@@ -594,30 +602,52 @@ function executeListFiles(
       `ディレクトリが見つかりません: ${resolved.relativePath}`,
     );
   }
-  const stat = fs.statSync(resolved.absolutePath);
-  if (!stat.isDirectory()) {
-    return errorOutcome(`ディレクトリではありません: ${resolved.relativePath}`);
+  // stat / readdir の fs 例外（TOCTOU 等）で agent ターンを abort させない薄い containment
+  try {
+    const stat = fs.statSync(resolved.absolutePath);
+    if (stat.isFile()) {
+      // ファイル scope: その 1 エントリだけを返す（親ディレクトリの一覧にフォールバックしない）
+      const entry = {
+        name: path.basename(resolved.absolutePath),
+        type: "file" as const,
+      };
+      return {
+        result: { path: resolved.relativePath, entries: [entry] },
+        display: display(
+          "1 件",
+          `📁 ${resolved.relativePath} — 1 件（ファイル）`,
+        ),
+      };
+    }
+    if (!stat.isDirectory()) {
+      return errorOutcome(
+        `ディレクトリではありません: ${resolved.relativePath}`,
+      );
+    }
+
+    const entries = fs
+      .readdirSync(resolved.absolutePath, { withFileTypes: true })
+      .filter(
+        (entry) =>
+          !entry.name.startsWith(".") && !IGNORED_DIR_NAMES.has(entry.name),
+      )
+      .map((entry) => ({
+        name: entry.name,
+        type: entry.isDirectory() ? ("dir" as const) : ("file" as const),
+      }))
+      .sort((a, b) => a.name.localeCompare(b.name, "ja"));
+
+    return {
+      result: { path: resolved.relativePath, entries },
+      display: display(
+        `${entries.length} 件`,
+        `📁 ${resolved.relativePath} — ${entries.length} 件`,
+      ),
+    };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    return errorOutcome(`発見ツールの実行に失敗しました: ${message}`);
   }
-
-  const entries = fs
-    .readdirSync(resolved.absolutePath, { withFileTypes: true })
-    .filter(
-      (entry) =>
-        !entry.name.startsWith(".") && !IGNORED_DIR_NAMES.has(entry.name),
-    )
-    .map((entry) => ({
-      name: entry.name,
-      type: entry.isDirectory() ? ("dir" as const) : ("file" as const),
-    }))
-    .sort((a, b) => a.name.localeCompare(b.name, "ja"));
-
-  return {
-    result: { path: resolved.relativePath, entries },
-    display: display(
-      `${entries.length} 件`,
-      `📁 ${resolved.relativePath} — ${entries.length} 件`,
-    ),
-  };
 }
 
 function matchGlobPath(
@@ -630,6 +660,15 @@ function matchGlobPath(
   const fromBase = path
     .relative(baseAbsolute, absolutePath)
     .replace(/\\/g, "/");
+  if (fromBase === "") {
+    // ファイル scope（base がファイル自身）: * は / を跨がないため basename も照合候補に加える。
+    // ディレクトリ walk では fromBase が空にならないので既存判定には影響しない
+    return (
+      regex.test(relativeFromRoot) ||
+      regex.test(displayPath) ||
+      regex.test(path.basename(absolutePath))
+    );
+  }
   return (
     regex.test(relativeFromRoot) ||
     regex.test(fromBase) ||
@@ -679,16 +718,22 @@ function executeGlobFiles(
     }
   };
 
-  collectFromZones(zones);
+  // walk 中の fs 例外（TOCTOU 等）で agent ターンを abort させない薄い containment
+  try {
+    collectFromZones(zones);
 
-  if (
-    shouldFallbackToSkillZone(pathOmitted, matches.length, context) &&
-    !zones.some((z) => z.rootAbsolute === context.skillDirAbsolute)
-  ) {
-    const skillZone = buildSkillWalkZone(context, context.skillDirAbsolute!);
-    if (skillZone) {
-      collectFromZones([skillZone]);
+    if (
+      shouldFallbackToSkillZone(pathOmitted, matches.length, context) &&
+      !zones.some((z) => z.rootAbsolute === context.skillDirAbsolute)
+    ) {
+      const skillZone = buildSkillWalkZone(context, context.skillDirAbsolute!);
+      if (skillZone) {
+        collectFromZones([skillZone]);
+      }
     }
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    return errorOutcome(`発見ツールの実行に失敗しました: ${message}`);
   }
 
   return {
@@ -747,16 +792,22 @@ function executeSearchContent(
     }
   };
 
-  searchZones(zones);
+  // walk 中の fs 例外（TOCTOU 等）で agent ターンを abort させない薄い containment
+  try {
+    searchZones(zones);
 
-  if (
-    shouldFallbackToSkillZone(pathOmitted, hits.length, context) &&
-    !zones.some((z) => z.rootAbsolute === context.skillDirAbsolute)
-  ) {
-    const skillZone = buildSkillWalkZone(context, context.skillDirAbsolute!);
-    if (skillZone) {
-      searchZones([skillZone]);
+    if (
+      shouldFallbackToSkillZone(pathOmitted, hits.length, context) &&
+      !zones.some((z) => z.rootAbsolute === context.skillDirAbsolute)
+    ) {
+      const skillZone = buildSkillWalkZone(context, context.skillDirAbsolute!);
+      if (skillZone) {
+        searchZones([skillZone]);
+      }
     }
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    return errorOutcome(`発見ツールの実行に失敗しました: ${message}`);
   }
 
   return {

@@ -25,3 +25,6 @@ next-env.d.ts
 .claude/commands/opsx/
 .claude/skills/openspec-*/
 openspec/changes/
+
+.claude/skills/minutes-maid/
+*.vtt

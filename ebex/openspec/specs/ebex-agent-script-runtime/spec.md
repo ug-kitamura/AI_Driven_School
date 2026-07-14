@@ -53,7 +53,22 @@ TBD - created by archiving change ebex-agent-script-runtime. Update Purpose afte
 
 ### Requirement: run_skill_script ツール
 
-システムは `run_skill_script` ツールを提供しなければならない（MUST）。入力はスキル相対のスクリプトパス `script_path`（`scripts/` 配下）、任意の引数 `args`、目的説明 `purpose` とする。実行できるのは実行中スキルのディレクトリ配下に実在するスクリプトのみとし（MUST）、他スキルやプロジェクト外のスクリプト指定は拒否しなければならない（MUST）。
+システムは `run_skill_script` ツールを提供しなければならない（MUST）。ただしツール定義を LLM へ渡すのは、実行中スキルのディレクトリ配下に `scripts/` ディレクトリが実在する場合のみとし（SHALL）、実在しない場合は `resolveToolDefinitions` の結果に `run_skill_script` を含めてはならない（MUST NOT）。公開判定は `scripts/` ディレクトリの実在のみを条件とし、スキル名・スクリプト内容による分岐を持ってはならない（MUST NOT）。入力はスキル相対のスクリプトパス `script_path`（`scripts/` 配下）、任意の引数 `args`、目的説明 `purpose` とする。実行できるのは実行中スキルのディレクトリ配下に実在するスクリプトのみとし（MUST）、他スキルやプロジェクト外のスクリプト指定は拒否しなければならない（MUST）。
+
+#### Scenario: scripts が実在するスキルではツール定義に含まれる
+
+- **WHEN** 実行中スキルのディレクトリ配下に `scripts/` ディレクトリが存在する状態で agent が invoke される
+- **THEN** LLM へ渡されるツール定義に `run_skill_script` が含まれる
+
+#### Scenario: scripts が無いスキルではツール定義に含まれない
+
+- **WHEN** 実行中スキルのディレクトリ配下に `scripts/` ディレクトリが存在しない状態で agent が invoke される
+- **THEN** LLM へ渡されるツール定義に `run_skill_script` が含まれず、モデルは当該ツールを呼び出せない
+
+#### Scenario: スキル実行中でない場合もツール定義に含まれない
+
+- **WHEN** スキルを実行していない通常のチャットで agent が invoke される
+- **THEN** LLM へ渡されるツール定義に `run_skill_script` が含まれない
 
 #### Scenario: スキル同梱スクリプトを実行する
 
@@ -67,7 +82,7 @@ TBD - created by archiving change ebex-agent-script-runtime. Update Purpose afte
 
 #### Scenario: 存在しないスクリプトはエラー
 
-- **WHEN** `script_path` に存在しないパスが指定される
+- **WHEN** `script_path` に存在しないパスが指定される（例: `scripts/` は実在するがファイルが無い）
 - **THEN** 実行されず、ファイルが見つからない旨のエラーが返る
 
 ### Requirement: スクリプト実行の確認ゲート

@@ -68,15 +68,15 @@
       </div>
     </div>
 
-    <!-- FILL: 要確認が1件以上の場合のみ {{PENDING_ALERT_START}}〜{{PENDING_ALERT_END}} に注意書きを入れる。0件なら区間を空にする -->
-{{PENDING_ALERT_START}}
+    <!-- FILL: 要確認が1件以上の場合のみ注意書き区間に入れる。0件なら区間を空にする -->
+<!-- PENDING_ALERT_START -->
     <div class="flex items-start gap-3 rounded-xl p-4 mb-8" style="background:var(--red-95);border:1px solid var(--red-85)">
       <i data-lucide="triangle-alert" class="w-5 h-5 flex-shrink-0 mt-0.5" style="color:var(--red-50)"></i>
       <p class="text-sm" style="color:var(--red-30)">
         <strong>「要確認」が{{PENDING_COUNT}}件あります。</strong>担当者または期限が会議中に確定しなかった項目です。今週中に関係者間で確認・決定してください。
       </p>
     </div>
-{{PENDING_ALERT_END}}
+<!-- PENDING_ALERT_END -->
 
     <!-- ②───────────────────────────────────────── -->
     <!-- 議題リスト                                    -->
@@ -94,10 +94,10 @@
           <p class="text-sm" style="color:var(--gray-50)">タイトルをクリックすると詳細にジャンプします</p>
         </div>
       </div>
-      <!-- FILL: {{AGENDA_ITEMS_START}}〜{{AGENDA_ITEMS_END}} に議題 <li> を入れる -->
+      <!-- FILL: 議題リスト区間に議題 <li> を入れる -->
       <ol class="relative ml-3 border-l-2" style="border-color:var(--blue-85)">
-{{AGENDA_ITEMS_START}}
-{{AGENDA_ITEMS_END}}
+<!-- AGENDA_ITEMS_START -->
+<!-- AGENDA_ITEMS_END -->
       </ol>
     </div>
 
@@ -119,8 +119,8 @@
         </div>
       </div>
 
-{{DETAILS_START}}
-{{DETAILS_END}}
+<!-- DETAILS_START -->
+<!-- DETAILS_END -->
 
     </div>
 
@@ -141,8 +141,8 @@
         </div>
       </div>
 
-{{ACTIONS_START}}
-{{ACTIONS_END}}
+<!-- ACTIONS_START -->
+<!-- ACTIONS_END -->
 
     </div>
 
@@ -162,8 +162,8 @@
         </div>
       </div>
 
-{{PURPOSE_ITEMS_START}}
-{{PURPOSE_ITEMS_END}}
+<!-- PURPOSE_ITEMS_START -->
+<!-- PURPOSE_ITEMS_END -->
 
       <!-- FILL: 締めの言葉（パーパス貢献セクションの末尾に必ず入れる） -->
       <div class="italic font-bold text-center leading-relaxed m-10" style="color:var(--gray-30)">

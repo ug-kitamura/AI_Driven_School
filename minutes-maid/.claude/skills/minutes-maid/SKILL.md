@@ -158,7 +158,7 @@ Phase 2 の分類結果をもとに、以下の構造で Markdown ファイル�
 **[references/base.html](references/base.html)** をベースフレームとして使い、作業フォルダーへコピーしてから埋める。
 
 - 短スロット（`{{MEETING_TITLE}}` 等）は `replace_in_file`
-- 可変長ブロックは明示区間（`{{AGENDA_ITEMS_START}}`〜`{{AGENDA_ITEMS_END}}` など）を `replace_between` で差し込む。構造サンプルは **[references/model-answer.html](references/model-answer.html)** の `<body>` を参照
+- 可変長ブロックは明示区間（`<!-- AGENDA_ITEMS_START -->`〜`<!-- AGENDA_ITEMS_END -->` など）を `replace_between` で差し込む。構造サンプルは **[references/model-answer.html](references/model-answer.html)** の `<body>` を参照
 
 品質の目標イメージは model-answer を参照（`<body>` の構造のみ）。
 

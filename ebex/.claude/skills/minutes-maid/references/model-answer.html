@@ -1,0 +1,554 @@
+<!-- このファイルは minutes-maid スキルの模範解答（model answer）です -->
+<!-- スタイルのSOT: references/style.css（ローカルプレビュー用に<link>で参照） -->
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ABC/XYZ 月例会議 議事録 - 2026年3月</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body class="min-h-screen">
+
+  <!-- 目次（フローティング） -->
+  <nav class="toc">
+    <img src="data:image/png;base64,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" alt="ロゴ" style="display:block;width:50%;margin:0 auto 1.25rem;">
+    <div class="text-xs font-bold mb-2 uppercase tracking-wide" style="color:var(--gray-60)">目次</div>
+    <ul class="space-y-1 text-sm">
+      <li><a href="#summary" style="color:var(--gray-45)" class="hover:underline">サマリー</a></li>
+      <li><a href="#agenda" style="color:var(--gray-45)" class="hover:underline">議題リスト</a></li>
+      <li><a href="#details" style="color:var(--gray-45)" class="hover:underline">議題の詳細</a></li>
+      <li><a href="#actions" style="color:var(--gray-45)" class="hover:underline">アクションプラン</a></li>
+      <li><a href="#purpose" style="color:var(--gray-45)" class="hover:underline">パーパスへの貢献</a></li>
+    </ul>
+  </nav>
+
+  <!-- ヘッダー -->
+  <header class="header-gradient text-white py-8 px-4">
+    <div class="max-w-4xl mx-auto">
+      <div class="flex items-center gap-3 mb-2">
+        <i data-lucide="clipboard-list" class="w-8 h-8 flex-shrink-0"></i>
+        <h1 class="text-2xl md:text-3xl font-bold">ABC/XYZ 月例会議 議事録</h1>
+      </div>
+      <div class="flex flex-wrap gap-x-6 gap-y-2 text-sm opacity-80 mt-3">
+        <span class="flex items-center gap-1"><i data-lucide="calendar" class="w-4 h-4"></i>2026年3月30日</span>
+        <span class="flex items-center gap-1"><i data-lucide="users" class="w-4 h-4"></i>参加：21名 ／ 欠席：2名（松本さん・橋本さん）</span>
+        <span class="flex items-center gap-1"><i data-lucide="user" class="w-4 h-4"></i>議事録担当：北村さん</span>
+      </div>
+    </div>
+  </header>
+
+  <main class="max-w-4xl mx-auto px-4 py-8">
+
+    <!-- ① サマリーカード -->
+    <div id="summary" class="grid grid-cols-3 gap-4 mb-8">
+      <div class="rounded-xl p-4 text-center shadow-sm" style="color:var(--teal-30);background-color:var(--teal-95);border:2px solid var(--teal-50)">
+        <div class="text-4xl font-bold">8</div>
+        <div class="text-sm mt-1 opacity-80">決定事項</div>
+      </div>
+      <div class="rounded-xl p-4 text-center shadow-sm" style="color:var(--blue-30);background-color:var(--blue-95);border:2px solid var(--blue-50)">
+        <div class="text-4xl font-bold">9</div>
+        <div class="text-sm mt-1 opacity-80">アクション</div>
+      </div>
+      <div class="rounded-xl p-4 text-center shadow-sm" style="color:var(--red-30);background-color:var(--red-95);border:2px solid var(--red-40)">
+        <div class="text-4xl font-bold">4</div>
+        <div class="text-sm mt-1 opacity-80">要確認</div>
+      </div>
+    </div>
+
+    <!-- 要確認の注意書き -->
+    <div class="flex items-start gap-3 rounded-xl p-4 mb-8" style="background:var(--red-95);border:1px solid var(--red-85)">
+      <i data-lucide="triangle-alert" class="w-5 h-5 flex-shrink-0 mt-0.5" style="color:var(--red-50)"></i>
+      <p class="text-sm" style="color:var(--red-30)">
+        <strong>「要確認」が4件あります。</strong>担当者または期限が会議中に確定しなかった項目です。今週中に関係者間で確認・決定してください。
+      </p>
+    </div>
+
+    <!-- ② 議題リスト -->
+    <div class="section-card" id="agenda">
+      <div class="flex items-center gap-3 mb-5">
+        <div class="w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0" style="background:var(--gray-90)">
+          <i data-lucide="list" class="w-6 h-6" style="color:var(--gray-40)"></i>
+        </div>
+        <div>
+          <h2 class="text-xl font-bold" style="color:var(--gray-15)">議題リスト</h2>
+          <p class="text-sm" style="color:var(--gray-50)">タイトルをクリックすると詳細にジャンプします</p>
+        </div>
+      </div>
+      <ol class="relative ml-3 border-l-2" style="border-color:var(--blue-85)">
+
+        <li class="mb-5 ml-7">
+          <span class="absolute flex items-center justify-center w-7 h-7 rounded-full -left-3.5 text-sm font-bold text-white" style="background:var(--blue-35)">1</span>
+          <a href="#topic-1" class="font-semibold hover:underline" style="color:var(--blue-30)">効率アップの見える化活動の進捗報告</a>
+          <span class="text-xs ml-2" style="color:var(--gray-60)">報告：田中さん</span>
+        </li>
+
+        <li class="mb-5 ml-7">
+          <span class="absolute flex items-center justify-center w-7 h-7 rounded-full -left-3.5 text-sm font-bold text-white" style="background:var(--blue-35)">2</span>
+          <a href="#topic-2" class="font-semibold hover:underline" style="color:var(--blue-30)">部紹介メルマガ作成活動の進捗報告</a>
+          <span class="text-xs ml-2" style="color:var(--gray-60)">報告：渡辺さん</span>
+        </li>
+
+        <li class="mb-5 ml-7">
+          <span class="absolute flex items-center justify-center w-7 h-7 rounded-full -left-3.5 text-sm font-bold text-white" style="background:var(--blue-35)">3</span>
+          <a href="#topic-3" class="font-semibold hover:underline" style="color:var(--blue-30)">ツール開発の紹介</a>
+          <span class="text-xs ml-2" style="color:var(--gray-60)">報告：伊藤さん（DXチーム）</span>
+        </li>
+
+        <li class="mb-5 ml-7">
+          <span class="absolute flex items-center justify-center w-7 h-7 rounded-full -left-3.5 text-sm font-bold text-white" style="background:var(--blue-35)">4</span>
+          <a href="#topic-4" class="font-semibold hover:underline" style="color:var(--blue-30)">1on1ミーティング実施のお知らせ</a>
+          <span class="text-xs ml-2" style="color:var(--gray-60)">山田さんから全メンバーへ</span>
+        </li>
+
+        <li class="ml-7">
+          <span class="absolute flex items-center justify-center w-7 h-7 rounded-full -left-3.5 text-sm font-bold text-white" style="background:var(--blue-35)">5</span>
+          <a href="#topic-5" class="font-semibold hover:underline" style="color:var(--blue-30)">ハラスメント防止のためのディスカッション</a>
+          <span class="text-xs ml-2" style="color:var(--gray-60)">全員参加</span>
+        </li>
+
+      </ol>
+    </div>
+
+    <!-- ③ 議題の詳細（決定事項を含む） -->
+    <div class="section-card" id="details">
+      <div class="flex items-center gap-3 mb-6">
+        <div class="w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0" style="background:var(--gray-90)">
+          <i data-lucide="file-text" class="w-6 h-6" style="color:var(--gray-40)"></i>
+        </div>
+        <div>
+          <h2 class="text-xl font-bold" style="color:var(--gray-15)">議題の詳細</h2>
+          <p class="text-sm" style="color:var(--gray-50)">背景・議論の内容・決定事項</p>
+        </div>
+      </div>
+
+      <!-- 議題1 -->
+      <div class="mb-8" id="topic-1">
+        <h3 class="text-lg font-bold flex items-center gap-2 mb-3" style="color:var(--gray-20)">
+          <span class="w-7 h-7 text-white rounded-full flex items-center justify-center text-sm font-bold flex-shrink-0" style="background:var(--blue-35)">1</span>
+          効率アップの見える化活動の進捗報告
+          <span class="text-sm font-normal" style="color:var(--gray-60)">報告：田中さん　担当：田中さん・鈴木さん・佐藤さん・北村さん</span>
+        </h3>
+        <div class="detail-box">
+          <div class="font-semibold mb-2 flex items-center gap-2" style="color:var(--gray-30)">
+            <i data-lucide="info" class="w-4 h-4" style="color:var(--blue-50)"></i>活動の概要と現状
+          </div>
+          <p class="text-sm" style="color:var(--gray-40)">開発部門全体の作業効率をダッシュボードで可視化するプロジェクトです。田中さん・鈴木さん・佐藤さん・北村さんの4名で取り組んでいます。先月はデータ収集の仕組みを構築し、週次の作業時間と完了タスク数をグラフで表示できるようになりました。現在はDXチームでパイロット利用中で、将来的には全チームへの展開を計画しています。</p>
+        </div>
+        <div class="detail-box caution">
+          <div class="font-semibold mb-2 flex items-center gap-2" style="color:var(--gray-30)">
+            <i data-lucide="triangle-alert" class="w-4 h-4" style="color:var(--yellow-70)"></i>現在の課題
+          </div>
+          <ul class="text-sm space-y-1" style="color:var(--gray-40)">
+            <li>・グラフの見せ方がわかりにくいというフィードバックが、複数チームから寄せられています。</li>
+            <li>・チームごとにKPIの定義が異なるため、データを横並びで比較しにくい状況です。KPI定義の統一が必要です。</li>
+          </ul>
+        </div>
+        <div class="detail-box">
+          <div class="font-semibold mb-2 flex items-center gap-2" style="color:var(--gray-30)">
+            <i data-lucide="arrow-right" class="w-4 h-4" style="color:var(--blue-50)"></i>今後の方向
+          </div>
+          <p class="text-sm" style="color:var(--gray-40)">田中さんがダッシュボードの改善案をまとめて4月15日までに提出します。鈴木さんが各チームへのヒアリングを経てKPI定義書を4月末までに整備する予定です。現場ヒアリングは佐藤さんと北村さんが担当し、期限は田中さんと会議後に調整します。全チームへの展開時期は、ロードマップとして別途共有される予定です。</p>
+        </div>
+        <div class="detail-box decided">
+          <div class="font-semibold mb-2 flex items-center gap-2" style="color:var(--gray-30)">
+            <i data-lucide="circle-check" class="w-4 h-4" style="color:var(--teal-50)"></i>決定事項
+          </div>
+          <ul class="text-sm space-y-1" style="color:var(--gray-40)">
+            <li class="flex items-start gap-2"><i data-lucide="check" class="w-4 h-4 flex-shrink-0 mt-0.5" style="color:var(--teal-50)"></i>ダッシュボード改善案を<strong>4月15日</strong>までに<strong>田中さん</strong>が提出します</li>
+            <li class="flex items-start gap-2"><i data-lucide="check" class="w-4 h-4 flex-shrink-0 mt-0.5" style="color:var(--teal-50)"></i>KPI定義書の整備を<strong>鈴木さん</strong>が担当し、<strong>4月末</strong>を目標とします</li>
+            <li class="flex items-start gap-2"><i data-lucide="check" class="w-4 h-4 flex-shrink-0 mt-0.5" style="color:var(--teal-50)"></i>現場ヒアリングは<strong>佐藤さん・北村さん</strong>が担当します（期限は田中さんと会議後に調整）</li>
+          </ul>
+        </div>
+      </div>
+
+      <!-- 議題2 -->
+      <div class="mb-8" id="topic-2">
+        <h3 class="text-lg font-bold flex items-center gap-2 mb-3" style="color:var(--gray-20)">
+          <span class="w-7 h-7 text-white rounded-full flex items-center justify-center text-sm font-bold flex-shrink-0" style="background:var(--blue-35)">2</span>
+          部紹介メルマガ作成活動の進捗報告
+          <span class="text-sm font-normal" style="color:var(--gray-60)">報告：渡辺さん　担当：渡辺さん・小林さん・加藤さん・吉田さん・山口さん</span>
+        </h3>
+        <div class="detail-box">
+          <div class="font-semibold mb-2 flex items-center gap-2" style="color:var(--gray-30)">
+            <i data-lucide="info" class="w-4 h-4" style="color:var(--blue-50)"></i>活動の概要と実績
+          </div>
+          <p class="text-sm" style="color:var(--gray-40)">設計開発エリアの他部門に向けた社内広報活動です。渡辺さんをはじめ5名のチームで運営しています。先月に創刊号を発行し、読者数47名・開封率68%と好調なスタートを切りました。「各チームの活動が初めてわかった」という反響もいただいています。次号は4月中の発行を目標にしています。</p>
+        </div>
+        <div class="detail-box caution">
+          <div class="font-semibold mb-2 flex items-center gap-2" style="color:var(--gray-30)">
+            <i data-lucide="triangle-alert" class="w-4 h-4" style="color:var(--yellow-70)"></i>注意点・懸念
+          </div>
+          <ul class="text-sm space-y-1" style="color:var(--gray-40)">
+            <li>・ビジュアル素材（写真・図解）が不足しています。各チームへの写真提供依頼が必要です。</li>
+            <li>・加藤さんが別プロジェクトとの兼務になり、読者リストの更新が滞っています。サポート体制について、渡辺さんと加藤さんで別途調整する予定です。</li>
+            <li>・テンプレートのデザインをモバイル対応に改善する必要があります（吉田さんが対応予定。期限は後日メールでご連絡いただきます）。</li>
+          </ul>
+        </div>
+        <div class="detail-box decided">
+          <div class="font-semibold mb-2 flex items-center gap-2" style="color:var(--gray-30)">
+            <i data-lucide="circle-check" class="w-4 h-4" style="color:var(--teal-50)"></i>決定事項
+          </div>
+          <ul class="text-sm space-y-1" style="color:var(--gray-40)">
+            <li class="flex items-start gap-2"><i data-lucide="check" class="w-4 h-4 flex-shrink-0 mt-0.5" style="color:var(--teal-50)"></i>メルマガ用の写真素材を各チームから<strong>4月8日</strong>までに<strong>小林さん</strong>が収集します</li>
+          </ul>
+        </div>
+      </div>
+
+      <!-- 議題3 -->
+      <div class="mb-8" id="topic-3">
+        <h3 class="text-lg font-bold flex items-center gap-2 mb-3" style="color:var(--gray-20)">
+          <span class="w-7 h-7 text-white rounded-full flex items-center justify-center text-sm font-bold flex-shrink-0" style="background:var(--blue-35)">3</span>
+          ツール開発の紹介
+          <span class="text-sm font-normal" style="color:var(--gray-60)">報告：伊藤さん（DXチーム）</span>
+        </h3>
+        <div class="detail-box">
+          <div class="font-semibold mb-2 flex items-center gap-2" style="color:var(--gray-30)">
+            <i data-lucide="info" class="w-4 h-4" style="color:var(--blue-50)"></i>開発中ツールの概要
+          </div>
+          <p class="text-sm" style="color:var(--gray-40)">DXチームの伊藤さんから、新しいツール開発の紹介がありました。会議の録音データをテキストに変換し、そこから決定事項・アクションプランを自動で整理して議事録を生成するツールです。人工知能（大規模言語モデル）を活用しています。「毎回議事録作りに苦労している」という声への応えにもなる、期待の高い取り組みです。</p>
+        </div>
+        <div class="detail-box">
+          <div class="font-semibold mb-2 flex items-center gap-2" style="color:var(--gray-30)">
+            <i data-lucide="arrow-right" class="w-4 h-4" style="color:var(--blue-50)"></i>今後の計画
+          </div>
+          <p class="text-sm" style="color:var(--gray-40)">4月中にまずDXチーム内でテストを実施し、品質を確認した上で部内へのパイロット展開を進める予定です。詳細については次回（5月）の会議でご報告いただきます。</p>
+        </div>
+      </div>
+
+      <!-- 議題4 -->
+      <div class="mb-8" id="topic-4">
+        <h3 class="text-lg font-bold flex items-center gap-2 mb-3" style="color:var(--gray-20)">
+          <span class="w-7 h-7 text-white rounded-full flex items-center justify-center text-sm font-bold flex-shrink-0" style="background:var(--blue-35)">4</span>
+          1on1ミーティング実施のお知らせ
+          <span class="text-sm font-normal" style="color:var(--gray-60)">山田さんから全メンバーへ</span>
+        </h3>
+        <div class="detail-box">
+          <div class="font-semibold mb-2 flex items-center gap-2" style="color:var(--gray-30)">
+            <i data-lucide="info" class="w-4 h-4" style="color:var(--blue-50)"></i>内容と申し込み方法
+          </div>
+          <ul class="text-sm space-y-1" style="color:var(--gray-40)">
+            <li>・<strong>目的</strong>：各メンバーの状況・課題・やりがいを個別に聞きます。業務相談もキャリア相談も何でも歓迎しています。</li>
+            <li>・<strong>実施時期</strong>：4月〜5月</li>
+            <li>・<strong>所要時間</strong>：一人あたり30分程度</li>
+            <li>・<strong>形式</strong>：対面・オンラインどちらも可</li>
+            <li>・<strong>申込方法</strong>：希望日時を2〜3候補、山田さんにメールでご連絡ください（フォーマット不問）</li>
+            <li>・<strong>締切</strong>：4月8日</li>
+          </ul>
+        </div>
+        <div class="detail-box decided">
+          <div class="font-semibold mb-2 flex items-center gap-2" style="color:var(--gray-30)">
+            <i data-lucide="circle-check" class="w-4 h-4" style="color:var(--teal-50)"></i>決定事項
+          </div>
+          <ul class="text-sm space-y-1" style="color:var(--gray-40)">
+            <li class="flex items-start gap-2"><i data-lucide="check" class="w-4 h-4 flex-shrink-0 mt-0.5" style="color:var(--teal-50)"></i>1on1ミーティングを<strong>4月〜5月</strong>に実施します（一人30分、対面・オンラインどちらも可）</li>
+            <li class="flex items-start gap-2"><i data-lucide="check" class="w-4 h-4 flex-shrink-0 mt-0.5" style="color:var(--teal-50)"></i>全メンバーは<strong>4月8日</strong>までに希望日時を山田さんにメールでご連絡ください</li>
+          </ul>
+        </div>
+      </div>
+
+      <!-- 議題5 -->
+      <div class="mb-2" id="topic-5">
+        <h3 class="text-lg font-bold flex items-center gap-2 mb-3" style="color:var(--gray-20)">
+          <span class="w-7 h-7 text-white rounded-full flex items-center justify-center text-sm font-bold flex-shrink-0" style="background:var(--blue-35)">5</span>
+          ハラスメント防止のためのディスカッション
+          <span class="text-sm font-normal" style="color:var(--gray-60)">全員参加</span>
+        </h3>
+        <div class="detail-box">
+          <div class="font-semibold mb-2 flex items-center gap-2" style="color:var(--gray-30)">
+            <i data-lucide="info" class="w-4 h-4" style="color:var(--blue-50)"></i>背景と現状
+          </div>
+          <p class="text-sm" style="color:var(--gray-40)">先月、会社全体からハラスメント防止の取り組み強化に関する通達がありました。会社全体のガイドラインは存在しますが、部内の具体的な運用方針はまだ整備されていない状況です。今回はその第一歩として、メンバー全員でアイデアを出し合いました。</p>
+        </div>
+        <div class="detail-box">
+          <div class="font-semibold mb-2 flex items-center gap-2" style="color:var(--gray-30)">
+            <i data-lucide="message-circle" class="w-4 h-4" style="color:var(--blue-50)"></i>会議で出た意見・アイデア
+          </div>
+          <ul class="text-sm space-y-1" style="color:var(--gray-40)">
+            <li>・堅苦しくない研修の場を設けてはどうかというご意見がありました。普段の会話から気をつけられるような内容が良いとのことです（村田さん）。</li>
+            <li>・まず部内のガイドラインの有無を確認することが先決とのご意見もありました（池田さん）。</li>
+            <li>・気軽に話せる相談窓口を部内に設けることで、問題を早期に発見できるというアイデアが共有されました（山崎さん）。</li>
+          </ul>
+        </div>
+        <div class="detail-box caution">
+          <div class="font-semibold mb-2 flex items-center gap-2" style="color:var(--gray-30)">
+            <i data-lucide="triangle-alert" class="w-4 h-4" style="color:var(--yellow-70)"></i>引き続き検討が必要な事項
+          </div>
+          <ul class="text-sm space-y-1" style="color:var(--gray-40)">
+            <li>・推進委員会の追加メンバー（井上さん以外）はまだ未定です。参加希望の方は会議後に井上さんへお声がけください。</li>
+            <li>・研修の具体的な内容・実施方法は、委員会設立後に検討していきます。</li>
+            <li>・相談窓口の設置については、委員会の中で議論する予定です。</li>
+          </ul>
+        </div>
+        <div class="detail-box decided">
+          <div class="font-semibold mb-2 flex items-center gap-2" style="color:var(--gray-30)">
+            <i data-lucide="circle-check" class="w-4 h-4" style="color:var(--teal-50)"></i>決定事項
+          </div>
+          <ul class="text-sm space-y-1" style="color:var(--gray-40)">
+            <li class="flex items-start gap-2"><i data-lucide="check" class="w-4 h-4 flex-shrink-0 mt-0.5" style="color:var(--teal-50)"></i>ハラスメント防止推進委員会を立ち上げます（<strong>井上さん</strong>が中心。追加メンバーを募集中）</li>
+            <li class="flex items-start gap-2"><i data-lucide="check" class="w-4 h-4 flex-shrink-0 mt-0.5" style="color:var(--teal-50)"></i><strong>吉田さん</strong>がハラスメント防止ガイドラインを人事部に確認し、<strong>5月（次回会議）</strong>で共有します</li>
+          </ul>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- ④ アクションプラン -->
+    <div class="section-card" id="actions">
+      <div class="flex items-center gap-3 mb-6">
+        <div class="w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0" style="background:var(--gray-90)">
+          <i data-lucide="list-checks" class="w-6 h-6" style="color:var(--gray-40)"></i>
+        </div>
+        <div>
+          <h2 class="text-xl font-bold" style="color:var(--gray-15)">アクションプラン</h2>
+          <p class="text-sm" style="color:var(--gray-50)">誰が・いつまでに・何をするか（TODOリスト）</p>
+        </div>
+      </div>
+
+      <!-- A1 -->
+      <div class="action-row">
+        <div class="flex flex-wrap items-start justify-between gap-2">
+          <div class="flex items-start gap-2">
+            <i data-lucide="check-square" class="w-5 h-5 flex-shrink-0 mt-0.5" style="color:var(--blue-45)"></i>
+            <span class="font-semibold" style="color:var(--gray-30)">ダッシュボードの改善案をまとめて提出する</span>
+          </div>
+          <span class="badge-decided">確定</span>
+        </div>
+        <div class="flex flex-wrap gap-4 mt-2 text-sm" style="color:var(--gray-40)">
+          <span class="flex items-center gap-1"><i data-lucide="user" class="w-4 h-4"></i>担当：田中さん</span>
+          <span class="flex items-center gap-1"><i data-lucide="calendar-check" class="w-4 h-4"></i>期限：4月15日</span>
+          <span class="flex items-center gap-1" style="color:var(--gray-60)"><i data-lucide="tag" class="w-4 h-4"></i><a href="#topic-1" class="hover:underline" style="color:var(--gray-60)">議題1</a></span>
+        </div>
+      </div>
+
+      <!-- A2 -->
+      <div class="action-row">
+        <div class="flex flex-wrap items-start justify-between gap-2">
+          <div class="flex items-start gap-2">
+            <i data-lucide="check-square" class="w-5 h-5 flex-shrink-0 mt-0.5" style="color:var(--blue-45)"></i>
+            <span class="font-semibold" style="color:var(--gray-30)">KPI定義書を整備する（全チームでKPIの定義を統一する）</span>
+          </div>
+          <span class="badge-decided">確定</span>
+        </div>
+        <div class="flex flex-wrap gap-4 mt-2 text-sm" style="color:var(--gray-40)">
+          <span class="flex items-center gap-1"><i data-lucide="user" class="w-4 h-4"></i>担当：鈴木さん</span>
+          <span class="flex items-center gap-1"><i data-lucide="calendar-check" class="w-4 h-4"></i>期限：4月末</span>
+          <span class="flex items-center gap-1" style="color:var(--gray-60)"><i data-lucide="tag" class="w-4 h-4"></i><a href="#topic-1" class="hover:underline" style="color:var(--gray-60)">議題1</a></span>
+        </div>
+      </div>
+
+      <!-- A3（要確認） -->
+      <div class="action-row needs-check">
+        <div class="flex flex-wrap items-start justify-between gap-2">
+          <div class="flex items-start gap-2">
+            <i data-lucide="alert-circle" class="w-5 h-5 flex-shrink-0 mt-0.5" style="color:var(--red-50)"></i>
+            <span class="font-semibold" style="color:var(--gray-30)">各チームへの現場ヒアリングを実施する</span>
+          </div>
+          <span class="badge-pending">要確認：期限</span>
+        </div>
+        <div class="flex flex-wrap gap-4 mt-2 text-sm">
+          <span class="flex items-center gap-1" style="color:var(--gray-40)"><i data-lucide="users" class="w-4 h-4"></i>担当：佐藤さん・北村さん</span>
+          <span class="flex items-center gap-1" style="color:var(--gray-40)"><i data-lucide="calendar-x" class="w-4 h-4"></i>期限：未確定（田中さんと会議後に調整）</span>
+          <span class="flex items-center gap-1" style="color:var(--gray-60)"><i data-lucide="tag" class="w-4 h-4"></i><a href="#topic-1" class="hover:underline" style="color:var(--gray-60)">議題1</a></span>
+        </div>
+      </div>
+
+      <!-- A4 -->
+      <div class="action-row">
+        <div class="flex flex-wrap items-start justify-between gap-2">
+          <div class="flex items-start gap-2">
+            <i data-lucide="check-square" class="w-5 h-5 flex-shrink-0 mt-0.5" style="color:var(--blue-45)"></i>
+            <span class="font-semibold" style="color:var(--gray-30)">各チームから活動の写真・ビジュアル素材を収集する</span>
+          </div>
+          <span class="badge-decided">確定</span>
+        </div>
+        <div class="flex flex-wrap gap-4 mt-2 text-sm" style="color:var(--gray-40)">
+          <span class="flex items-center gap-1"><i data-lucide="user" class="w-4 h-4"></i>担当：小林さん（各チームリーダーに依頼）</span>
+          <span class="flex items-center gap-1"><i data-lucide="calendar-check" class="w-4 h-4"></i>期限：4月8日</span>
+          <span class="flex items-center gap-1" style="color:var(--gray-60)"><i data-lucide="tag" class="w-4 h-4"></i><a href="#topic-2" class="hover:underline" style="color:var(--gray-60)">議題2</a></span>
+        </div>
+      </div>
+
+      <!-- A5（要確認） -->
+      <div class="action-row needs-check">
+        <div class="flex flex-wrap items-start justify-between gap-2">
+          <div class="flex items-start gap-2">
+            <i data-lucide="alert-circle" class="w-5 h-5 flex-shrink-0 mt-0.5" style="color:var(--red-50)"></i>
+            <span class="font-semibold" style="color:var(--gray-30)">メルマガの読者リストを最新の状態に更新する</span>
+          </div>
+          <span class="badge-pending">要確認：期限</span>
+        </div>
+        <div class="flex flex-wrap gap-4 mt-2 text-sm">
+          <span class="flex items-center gap-1" style="color:var(--gray-40)"><i data-lucide="user" class="w-4 h-4"></i>担当：加藤さん（サポート体制は渡辺さんと別途調整）</span>
+          <span class="flex items-center gap-1" style="color:var(--gray-40)"><i data-lucide="calendar-x" class="w-4 h-4"></i>期限：未確定（加藤さんから来週中に連絡予定）</span>
+          <span class="flex items-center gap-1" style="color:var(--gray-60)"><i data-lucide="tag" class="w-4 h-4"></i><a href="#topic-2" class="hover:underline" style="color:var(--gray-60)">議題2</a></span>
+        </div>
+      </div>
+
+      <!-- A6（要確認） -->
+      <div class="action-row needs-check">
+        <div class="flex flex-wrap items-start justify-between gap-2">
+          <div class="flex items-start gap-2">
+            <i data-lucide="alert-circle" class="w-5 h-5 flex-shrink-0 mt-0.5" style="color:var(--red-50)"></i>
+            <span class="font-semibold" style="color:var(--gray-30)">メルマガのテンプレートデザインの改善案を提出する</span>
+          </div>
+          <span class="badge-pending">要確認：期限</span>
+        </div>
+        <div class="flex flex-wrap gap-4 mt-2 text-sm">
+          <span class="flex items-center gap-1" style="color:var(--gray-40)"><i data-lucide="user" class="w-4 h-4"></i>担当：吉田さん</span>
+          <span class="flex items-center gap-1" style="color:var(--gray-40)"><i data-lucide="calendar-x" class="w-4 h-4"></i>期限：未確定（吉田さんから後日メールで連絡予定）</span>
+          <span class="flex items-center gap-1" style="color:var(--gray-60)"><i data-lucide="tag" class="w-4 h-4"></i><a href="#topic-2" class="hover:underline" style="color:var(--gray-60)">議題2</a></span>
+        </div>
+      </div>
+
+      <!-- A7 -->
+      <div class="action-row">
+        <div class="flex flex-wrap items-start justify-between gap-2">
+          <div class="flex items-start gap-2">
+            <i data-lucide="check-square" class="w-5 h-5 flex-shrink-0 mt-0.5" style="color:var(--blue-45)"></i>
+            <span class="font-semibold" style="color:var(--gray-30)">1on1ミーティングの希望日時（2〜3候補）を山田さんにメールで連絡する</span>
+          </div>
+          <span class="badge-decided">確定</span>
+        </div>
+        <div class="flex flex-wrap gap-4 mt-2 text-sm" style="color:var(--gray-40)">
+          <span class="flex items-center gap-1"><i data-lucide="users" class="w-4 h-4"></i>担当：全メンバー</span>
+          <span class="flex items-center gap-1"><i data-lucide="calendar-check" class="w-4 h-4"></i>期限：4月8日</span>
+          <span class="flex items-center gap-1" style="color:var(--gray-60)"><i data-lucide="tag" class="w-4 h-4"></i><a href="#topic-4" class="hover:underline" style="color:var(--gray-60)">議題4</a></span>
+        </div>
+      </div>
+
+      <!-- A8 -->
+      <div class="action-row">
+        <div class="flex flex-wrap items-start justify-between gap-2">
+          <div class="flex items-start gap-2">
+            <i data-lucide="check-square" class="w-5 h-5 flex-shrink-0 mt-0.5" style="color:var(--blue-45)"></i>
+            <span class="font-semibold" style="color:var(--gray-30)">会社のハラスメント防止ガイドラインを人事部に確認し、次回会議で共有する</span>
+          </div>
+          <span class="badge-decided">確定</span>
+        </div>
+        <div class="flex flex-wrap gap-4 mt-2 text-sm" style="color:var(--gray-40)">
+          <span class="flex items-center gap-1"><i data-lucide="user" class="w-4 h-4"></i>担当：吉田さん</span>
+          <span class="flex items-center gap-1"><i data-lucide="calendar-check" class="w-4 h-4"></i>期限：5月（次回会議）まで</span>
+          <span class="flex items-center gap-1" style="color:var(--gray-60)"><i data-lucide="tag" class="w-4 h-4"></i><a href="#topic-5" class="hover:underline" style="color:var(--gray-60)">議題5</a></span>
+        </div>
+      </div>
+
+      <!-- A9（要確認） -->
+      <div class="action-row needs-check">
+        <div class="flex flex-wrap items-start justify-between gap-2">
+          <div class="flex items-start gap-2">
+            <i data-lucide="alert-circle" class="w-5 h-5 flex-shrink-0 mt-0.5" style="color:var(--red-50)"></i>
+            <span class="font-semibold" style="color:var(--gray-30)">ハラスメント防止推進委員会のメンバーを確定し、活動を開始する</span>
+          </div>
+          <span class="badge-pending">要確認：担当者</span>
+        </div>
+        <div class="flex flex-wrap gap-4 mt-2 text-sm">
+          <span class="flex items-center gap-1" style="color:var(--gray-40)"><i data-lucide="user-x" class="w-4 h-4"></i>担当：井上さん（中心）＋追加メンバー未定（会議後に井上さんへお声がけください）</span>
+          <span class="flex items-center gap-1" style="color:var(--gray-60)"><i data-lucide="tag" class="w-4 h-4"></i><a href="#topic-5" class="hover:underline" style="color:var(--gray-60)">議題5</a></span>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- ⑤ パーパスへの貢献 -->
+    <div class="section-card" id="purpose">
+      <div class="flex items-center gap-3 mb-6">
+        <div class="w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0" style="background:var(--gray-90)">
+          <i data-lucide="compass" class="w-6 h-6" style="color:var(--gray-40)"></i>
+        </div>
+        <div>
+          <h2 class="text-xl font-bold" style="color:var(--gray-15)">パーパスへの貢献</h2>
+          <p class="text-sm" style="color:var(--gray-50)">今回の会議内容が「Empower every associate to be efficient」にどうつながるか</p>
+        </div>
+      </div>
+
+      <div class="purpose-item">
+        <div class="flex flex-wrap items-center gap-2 mb-2">
+          <i data-lucide="layers" class="w-4 h-4" style="color:var(--blue-35)"></i>
+          <a href="#topic-1" class="font-semibold hover:underline" style="color:var(--blue-20)">効率アップの見える化活動</a>
+          <span class="label-item">(6) Maintain right content PMT</span>
+          <span class="label-item">(7) Keep healthy Efficiency</span>
+        </div>
+        <p class="text-sm" style="color:var(--gray-30)">
+          KPI定義を統一することで部門横断の正確な業務情報が整備され、『<span class="purpose-highlight">Maintain right content PMT（適切なコンテンツのPMTを維持する）</span>』に直接貢献します。
+          さらに、作業効率の可視化によってムダを発見・排除し、『<span class="purpose-highlight">Keep healthy Efficiency（健全な効率性を保つ）</span>』の推進にもつながります。
+          データに基づいた継続的な改善サイクルを確立できる、とても重要な取り組みです！
+        </p>
+      </div>
+
+      <div class="purpose-item">
+        <div class="flex flex-wrap items-center gap-2 mb-2">
+          <i data-lucide="share-2" class="w-4 h-4" style="color:var(--blue-35)"></i>
+          <a href="#topic-2" class="font-semibold hover:underline" style="color:var(--blue-20)">部紹介メルマガ作成活動</a>
+          <span class="label-item">(9) We are One ABC</span>
+          <span class="label-item">(7) Keep healthy Efficiency</span>
+        </div>
+        <p class="text-sm" style="color:var(--gray-30)">
+          設計開発エリアの他部門に私たちの取り組みを発信することで、組織間の風通しを高め、効率化の好事例を横展開できる土台をつくっています。
+          これは『<span class="purpose-highlight">We are One ABC（私たちは一つのABCである）</span>』の実践そのものです。
+          また、部の活動が広く知られることで、他部門との協力が生まれ、『<span class="purpose-highlight">Keep healthy Efficiency（健全な効率性を保つ）</span>』の環境整備にも寄与します。
+          メルマガを通じて、部の存在感と影響力をどんどん高めていきましょう！
+        </p>
+      </div>
+
+      <div class="purpose-item">
+        <div class="flex flex-wrap items-center gap-2 mb-2">
+          <i data-lucide="graduation-cap" class="w-4 h-4" style="color:var(--blue-35)"></i>
+          <a href="#topic-3" class="font-semibold hover:underline" style="color:var(--blue-20)">ツール開発の紹介</a>
+          <span class="label-item">(3) Sunshine Management</span>
+          <span class="label-item">(7) Keep healthy Efficiency</span>
+        </div>
+        <p class="text-sm" style="color:var(--gray-30)">
+          議事録自動生成ツールの導入により、会議後の手作業の負担を大幅に削減し、メンバー一人ひとりがより本質的な業務に集中できる環境をつくることができます。
+          知識・情報を「実際に使える形」に変換する『<span class="purpose-highlight">Sunshine Management（太陽の光）</span>』の体現であり、同時に繰り返し作業のムダを排除することで『<span class="purpose-highlight">Keep healthy Efficiency（健全な効率性を保つ）</span>』の向上にも直結します。
+          全員が恩恵を受けられる、部の生産性を変える可能性を秘めた取り組みです！
+        </p>
+      </div>
+
+      <div class="purpose-item">
+        <div class="flex flex-wrap items-center gap-2 mb-2">
+          <i data-lucide="heart-handshake" class="w-4 h-4" style="color:var(--blue-35)"></i>
+          <a href="#topic-4" class="font-semibold hover:underline" style="color:var(--blue-20)">1on1ミーティングの実施</a>
+          <span class="label-item">(4) Pouring Water</span>
+          <span class="label-item">(5) Leaf</span>
+        </div>
+        <p class="text-sm" style="color:var(--gray-30)">
+          山田さんが一人ひとりの状況・課題を個別に把握し、その方に合ったサポートを届けるこの取り組みは、『<span class="purpose-highlight">Pouring Water（水やり）</span>』そのものです。
+          また、メンバーが自分の課題や目標を言語化する機会にもなり、自発的な学びや実践意欲を育てる『<span class="purpose-highlight">Leaf（葉）</span>』の成長を力強く後押しします。
+          全員の成長と自立を支える、部の大切な文化になっていくと確信しています！
+        </p>
+      </div>
+
+      <div class="purpose-item">
+        <div class="flex flex-wrap items-center gap-2 mb-2">
+          <i data-lucide="sprout" class="w-4 h-4" style="color:var(--blue-35)"></i>
+          <a href="#topic-5" class="font-semibold hover:underline" style="color:var(--blue-20)">ハラスメント防止のためのディスカッション</a>
+          <span class="label-item">(5) Leaf</span>
+          <span class="label-item">(7) Keep healthy Efficiency</span>
+        </div>
+        <p class="text-sm" style="color:var(--gray-30)">
+          安心して働ける職場環境を整備することは、メンバーが自発的に学び・実践しようとする意志『<span class="purpose-highlight">Leaf（葉）</span>』を育てる、何より大切な基盤です。
+          さらに、心理的安全性の高い職場はコンプライアンスを伴った健全な組織文化を生み、『<span class="purpose-highlight">Keep healthy Efficiency（健全な効率性を保つ）</span>』の維持にも不可欠な取り組みです。
+          この取り組みが根づくことで、部全体がより生き生きと力を発揮できるようになると、心から期待しています！
+        </p>
+      </div>
+
+      <div class="italic font-bold text-center leading-relaxed m-10" style="color:var(--gray-30)">
+        私たちは、これらの活動を通じて、パーパス実現に向けて力強く前進し続けます。<br>
+        ありがとうございました！
+      </div>
+
+    </div>
+
+  </main>
+
+  <footer class="text-center text-sm py-6" style="color:var(--gray-60)">
+    ABC/XYZ 月例会議 議事録 ／ 2026年3月30日 ／ 担当：北村さん
+  </footer>
+
+  <script>lucide.createIcons();</script>
+</body>
+</html>

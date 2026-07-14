@@ -1,4 +1,5 @@
 import { SUBAGENT_FALLBACK_MODEL_HINT } from "@/lib/agent/subagent-fallback";
+import { skillHasScriptsDir } from "@/lib/agent/tools/registry";
 
 export type SkillRuntimeFocus = {
   projectFolderId: string;
@@ -36,7 +37,8 @@ export function buildSkillRuntimeContext(focus: SkillRuntimeFocus): string {
       ? [
           `実行中スキルの参照ファイル（\`SKILL.md\` と同じフォルダ配下、例: \`references/*\`）は確認なしで発見（list/glob/search）および読取できる。`,
           `スキル本文の相対パス（例: \`references/purpose.md\`）はスキル側を優先して読むこと。成果物の書込先は \`workspace/${project}/\` 配下である。`,
-          "大きな成果物（HTML 等）は本文を tool 引数に書かないこと。本文がディスク上のデータから機械的に作れるなら `run_script`（スキルに `scripts/` があれば `run_skill_script`）、新たに創作する長文なら `generate_and_write`（材料をファイルへ書き出して `context_paths` で渡し、`sections` で分割）を使う。補助として `copy_file` / `replace_in_file` / `replace_between`（大きな本文は `from_path`）/ `append_file` も使える。",
+          `大きな成果物は本文を tool 引数に載せず、成果物の形で経路を選ぶこと。(1) 額縁テンプレートがスキルにあるなら \`copy_file\` でプロジェクト内へコピーし、\`replace_in_file\` / \`replace_between\`（大きな本文は \`from_path\`）で 1 回数 KB の断片を差し込む（必要なら \`append_file\` で partial を積む）。(2) モデルが新たに創作する長文なら \`generate_and_write\`（材料をファイルへ書き出して \`context_paths\` で渡し、\`sections\` で分割）。(3) 大量レコードの機械変換なら \`run_script\`${skillHasScriptsDir(focus.skillDirAbsolute ?? undefined) ? "（スキルの `scripts/` にスクリプトがあれば `run_skill_script`）" : ""}。`,
+          "額縁や模範回答など大きな参照ファイルは、差し込み位置の把握に必要な範囲を超えて読み込まないこと。子生成へ渡す材料は `context_paths` を使う。",
         ]
       : []),
     "",

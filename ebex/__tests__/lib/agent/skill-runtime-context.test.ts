@@ -36,6 +36,44 @@ describe("buildSkillRuntimeContext", () => {
     expect(text).not.toContain(".claude/skills/");
   });
 
+  it("presents form→route mapping and the read-restraint note", () => {
+    const text = buildSkillRuntimeContext({
+      projectFolderId: "demo",
+      skillId: "minutes-maid",
+    });
+    // 形→経路の一意対応（copy_file 主経路・generate_and_write・run_script）
+    expect(text).toContain("copy_file");
+    expect(text).toContain("generate_and_write");
+    expect(text).toContain("run_script");
+    // 読み込み抑制と context_paths 案内
+    expect(text).toContain("context_paths");
+    expect(text).toMatch(/超えて読み込まない/);
+    // フォールバック順序の表現を含まない
+    expect(text).not.toContain("失敗したら");
+  });
+
+  it("does not mention run_skill_script when the skill has no scripts/", () => {
+    const text = buildSkillRuntimeContext({
+      projectFolderId: "demo",
+      skillId: "minutes-maid",
+    });
+    expect(text).not.toContain("run_skill_script");
+  });
+
+  it("mentions run_skill_script only when the skill has scripts/", () => {
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "ebex-runtime-"));
+    const skillDir = path.join(tmpDir, "skill");
+    fs.mkdirSync(path.join(skillDir, "scripts"), { recursive: true });
+
+    const text = buildSkillRuntimeContext({
+      projectFolderId: "demo",
+      skillId: "with-scripts",
+      skillDirAbsolute: skillDir,
+    });
+    expect(text).toContain("run_skill_script");
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+  });
+
   it("does not force HTML template copy steps even when base.html exists", () => {
     const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "ebex-runtime-"));
     const skillDir = path.join(tmpDir, "skill");

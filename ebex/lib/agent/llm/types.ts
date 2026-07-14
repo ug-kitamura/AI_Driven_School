@@ -107,11 +107,11 @@ export const SCRIPT_INPUT_GUIDANCE =
 
 /** 応答が max_tokens で途中終了した場合に付す注記 */
 export const MAX_TOKENS_TRUNCATION_NOTE =
-  "直前の応答は出力トークン上限で途中終了しました。コードを短くする（本文の埋め込みをやめてディスクから読む・処理を分割する）ことで 1 回の応答に収めてください。";
+  "直前の応答は出力トークン上限で途中終了しました。1 回の tool 引数に本文を載せず（ディスクから読む・断片に分けて差し込む）1 回の応答を短く保ってください。";
 
 /** 巨大 write 失敗時にモデルへ返す汎用案内（スキル固有ロジックではない） */
 export const LARGE_FILE_WRITE_GUIDANCE =
-  "大きな成果物は write_file 一発で書かず、本文を tool 引数に載せないでください。本文がディスク上のデータ（md ドラフト・テンプレート等）から機械的に作れるなら run_script で変換・書込します。モデルが新たに創作する長文（図解 HTML の本文等）なら generate_and_write を使います: 材料をファイルへ書き出して context_paths で渡し、sections で分割してサーバ内生成に任せます。補助として copy_file でテンプレートをコピーし、replace_in_file / replace_between（大きな本文は from_path）で差し込み、必要なら append_file で partial を積む方法も使えます。";
+  "大きな成果物は本文を 1 つの tool 引数に載せないでください（write_file の content は 30,000 文字まで）。成果物の形で経路を選びます。(1) 額縁テンプレートがスキルにあるなら copy_file でプロジェクト内へコピーし、replace_in_file / replace_between（大きな本文は from_path）で 1 回数 KB の断片を順に差し込みます。必要なら append_file で partial を積みます。(2) モデルが新たに創作する長文（図解 HTML の本文等）なら generate_and_write で partial に生成し、replace_between（from_path）で差し込みます。材料はファイルへ書き出して context_paths で渡します。(3) 大量レコードの機械変換なら run_script。額縁や模範回答など大きな参照ファイルは、差し込み位置の把握に必要な範囲を超えて読み込まないでください。";
 
 export const AGENT_REPEATED_TOOL_ERROR =
   "同一のツールエラーが連続したためエージェントを停止しました";

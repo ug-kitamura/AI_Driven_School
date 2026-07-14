@@ -6,6 +6,8 @@ import {
   executeRegisteredTool,
   isLikelyBlockedToolName,
   resolveToolDefinitions,
+  skillHasScriptsDir,
+  WRITE_FILE_CHAR_LIMIT,
 } from "@/lib/agent/tools/registry";
 import { createFile, createFolder } from "@/lib/workspace-mutations";
 import { getWorkspaceDir } from "@/lib/workspace-paths";
@@ -27,6 +29,49 @@ describe("resolveToolDefinitions", () => {
     expect(names).toContain("replace_between");
     expect(names).toContain("append_file");
     expect(names).not.toContain("delete_file");
+  });
+
+  it("excludes run_skill_script when skill has no scripts/", () => {
+    const names = resolveToolDefinitions([], { hasSkillScripts: false }).map(
+      (d) => d.name,
+    );
+    expect(names).not.toContain("run_skill_script");
+    // run_script（プロジェクト実行）は常に残る
+    expect(names).toContain("run_script");
+  });
+
+  it("excludes run_skill_script by default (no skill running)", () => {
+    const names = resolveToolDefinitions([]).map((d) => d.name);
+    expect(names).not.toContain("run_skill_script");
+  });
+
+  it("includes run_skill_script when skill has scripts/", () => {
+    const names = resolveToolDefinitions([], { hasSkillScripts: true }).map(
+      (d) => d.name,
+    );
+    expect(names).toContain("run_skill_script");
+  });
+});
+
+describe("skillHasScriptsDir", () => {
+  it("returns false without a skill dir", () => {
+    expect(skillHasScriptsDir(undefined)).toBe(false);
+    expect(skillHasScriptsDir("")).toBe(false);
+  });
+
+  it("detects an existing scripts/ directory", () => {
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "ebex-skill-"));
+    expect(skillHasScriptsDir(tmpDir)).toBe(false);
+    fs.mkdirSync(path.join(tmpDir, "scripts"));
+    expect(skillHasScriptsDir(tmpDir)).toBe(true);
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+  });
+
+  it("returns false when scripts is a file, not a directory", () => {
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "ebex-skill-"));
+    fs.writeFileSync(path.join(tmpDir, "scripts"), "not a dir");
+    expect(skillHasScriptsDir(tmpDir)).toBe(false);
+    fs.rmSync(tmpDir, { recursive: true, force: true });
   });
 });
 
@@ -86,6 +131,64 @@ describe("executeRegisteredTool", () => {
       "utf-8",
     );
     expect(written).toBe(content);
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+  });
+
+  it("rejects write_file content over the size limit without writing", async () => {
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "ebex-tools-"));
+    createFolder(tmpDir, "demo");
+    const oversized = "x".repeat(WRITE_FILE_CHAR_LIMIT + 1);
+    const outcome = await executeRegisteredTool(
+      "write_file",
+      { path: "output/big.html", content: oversized },
+      contextFor(tmpDir, "demo"),
+    );
+    expect(outcome.result).toMatchObject({
+      recoverable: true,
+      guidance: expect.stringContaining("copy_file"),
+    });
+    expect((outcome.result as { error: string }).error).toContain(
+      String(WRITE_FILE_CHAR_LIMIT),
+    );
+    expect(
+      fs.existsSync(
+        path.join(getWorkspaceDir(tmpDir), "demo", "output", "big.html"),
+      ),
+    ).toBe(false);
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+  });
+
+  it("does not overwrite an existing file when content exceeds the limit", async () => {
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "ebex-tools-"));
+    createFolder(tmpDir, "demo");
+    createFile(tmpDir, "demo", "keep.html", "original");
+    const oversized = "y".repeat(WRITE_FILE_CHAR_LIMIT + 1);
+    const outcome = await executeRegisteredTool(
+      "write_file",
+      { path: "keep.html", content: oversized },
+      contextFor(tmpDir, "demo"),
+    );
+    expect(outcome.result).toMatchObject({ recoverable: true });
+    const kept = fs.readFileSync(
+      path.join(getWorkspaceDir(tmpDir), "demo", "keep.html"),
+      "utf-8",
+    );
+    expect(kept).toBe("original");
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+  });
+
+  it("writes content exactly at the size limit", async () => {
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "ebex-tools-"));
+    createFolder(tmpDir, "demo");
+    const atLimit = "z".repeat(WRITE_FILE_CHAR_LIMIT);
+    const outcome = await executeRegisteredTool(
+      "write_file",
+      { path: "output/edge.md", content: atLimit },
+      contextFor(tmpDir, "demo"),
+    );
+    expect(outcome.result).toMatchObject({
+      path: "workspace/demo/output/edge.md",
+    });
     fs.rmSync(tmpDir, { recursive: true, force: true });
   });
 

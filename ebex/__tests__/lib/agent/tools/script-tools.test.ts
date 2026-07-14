@@ -28,10 +28,15 @@ function makeProject() {
 }
 
 describe("script tool definitions", () => {
-  it("includes run_script and run_skill_script", () => {
-    const names = resolveToolDefinitions([]).map((d) => d.name);
-    expect(names).toContain("run_script");
-    expect(names).toContain("run_skill_script");
+  it("always includes run_script but gates run_skill_script on scripts/", () => {
+    const withoutScripts = resolveToolDefinitions([]).map((d) => d.name);
+    expect(withoutScripts).toContain("run_script");
+    expect(withoutScripts).not.toContain("run_skill_script");
+
+    const withScripts = resolveToolDefinitions([], {
+      hasSkillScripts: true,
+    }).map((d) => d.name);
+    expect(withScripts).toContain("run_skill_script");
   });
 
   it("does not treat registered script tools as blocked names", () => {

@@ -1,6 +1,6 @@
 import fs from "node:fs";
 import path from "node:path";
-import type { ToolDefinition } from "@/lib/agent/llm/types";
+import { LARGE_FILE_WRITE_GUIDANCE, type ToolDefinition } from "@/lib/agent/llm/types";
 import type { LlmProvider } from "@/lib/agent/llm/provider";
 import { resolveToolTargetPath } from "@/lib/agent/tools/fs-guard";
 import { executeGenerateAndWrite } from "@/lib/agent/tools/generate-write";
@@ -61,6 +61,13 @@ function skillPathOptions(
 
 const SEARCH_RESULT_LIMIT = 50;
 export const READ_CHAR_LIMIT = 100_000;
+/**
+ * write_file の content 文字数上限。
+ * 正当な用途（Markdown ドラフト等、実測 5〜15KB）を妨げず、
+ * 成果物本文全体を 1 引数に載せる事故（数十 KB の HTML 全文投棄）を弾く水準。
+ * 超過時は書き込まず、経路対応を含む recoverable エラーを返す。
+ */
+export const WRITE_FILE_CHAR_LIMIT = 30_000;
 const IGNORED_DIR_NAMES = new Set([
   "node_modules",
   ".git",
@@ -140,7 +147,7 @@ const TOOL_SCHEMAS = {
   write_file: {
     name: "write_file",
     description:
-      "指定パスにファイルを書き込む。既存ファイルへの上書きはユーザー確認を経てから実行される。大きな成果物の一発書き込みには向かない（入力が途中で切れやすい）。テンプレートがある場合は copy_file し、replace_in_file / replace_between（大きな本文は from_path）/ append_file で組み立てること。",
+      "指定パスにファイルを書き込む。既存ファイルへの上書きはユーザー確認を経てから実行される。content には上限（30,000 文字）があり、超えると書き込まれず経路案内が返る。大きな成果物の一発書き込みには使わない（額縁テンプレートがあれば copy_file → replace_in_file / replace_between（大きな本文は from_path）/ append_file で組み立て、モデルが創作する長文は generate_and_write を使う）。",
     input_schema: {
       type: "object",
       properties: {
@@ -262,7 +269,7 @@ const TOOL_SCHEMAS = {
   run_script: {
     name: "run_script",
     description:
-      "Node.js（CommonJS）スクリプトをサンドボックスで実行する。大きな成果物（HTML 等）の生成に最優先で使うこと: 本文を tool 引数に書かず、ディスク上のデータ（md ドラフト・テンプレート等）を読んで変換・書込するロジックだけをコードにする。fs 読取はプロジェクトと実行中スキル、書込はプロジェクト内のみ。ネットワークアクセスは禁止。実行前にユーザー確認が入る。",
+      "Node.js（CommonJS）スクリプトをサンドボックスで実行する。大量レコードの機械変換・整形など、ディスク上のデータからロジック（ループ等）で機械的に膨らむ成果物に使う: 本文を tool 引数に書かず、ディスク上のデータ（md ドラフト・テンプレート等）を読んで変換・書込するロジックだけをコードにする。額縁テンプレートへの断片差し込みは copy_file → replace_in_file / replace_between が主経路。fs 読取はプロジェクトと実行中スキル、書込はプロジェクト内のみ。ネットワークアクセスは禁止。実行前にユーザー確認が入る。",
     input_schema: {
       type: "object",
       properties: {
@@ -376,18 +383,43 @@ export function isRegisteredToolName(name: string): name is RegisteredToolName {
   return name in TOOL_SCHEMAS;
 }
 
+export type ResolveToolDefinitionsOptions = {
+  /**
+   * 実行中スキルに `scripts/` ディレクトリが実在するか。
+   * false（スキル未実行を含む）のとき `run_skill_script` を定義から除外し、
+   * 存在しないスクリプトの推測実行という失敗クラスを構造的に排除する。
+   */
+  hasSkillScripts?: boolean;
+};
+
+/** 実行中スキルの `scripts/` ディレクトリが実在するかを判定する（run_skill_script の公開条件） */
+export function skillHasScriptsDir(skillDirAbsolute?: string): boolean {
+  const dir = skillDirAbsolute?.trim();
+  if (!dir) return false;
+  const scriptsDir = path.join(dir, "scripts");
+  return fs.existsSync(scriptsDir) && fs.statSync(scriptsDir).isDirectory();
+}
+
 /**
  * L1-L3 の実ファイル I/O ツールは、スキル frontmatter の `tools` 自己申告に関わらず
  * 常に LLM へ渡す（EBEX ランタイムが提供する基盤ツールのため）。
  * `names` に含まれるその他のツール名（例: `search_company_context`）は、
  * 実装されていれば追加で解決される。
+ * `run_skill_script` は実行中スキルに `scripts/` が実在する場合のみ渡す。
  */
-export function resolveToolDefinitions(names: string[]): ToolDefinition[] {
+export function resolveToolDefinitions(
+  names: string[],
+  options: ResolveToolDefinitionsOptions = {},
+): ToolDefinition[] {
   const requested = new Set(names);
-  return Object.values(TOOL_SCHEMAS).filter(
-    (definition) =>
-      isRegisteredToolName(definition.name) || requested.has(definition.name),
-  );
+  return Object.values(TOOL_SCHEMAS).filter((definition) => {
+    if (definition.name === "run_skill_script" && !options.hasSkillScripts) {
+      return false;
+    }
+    return (
+      isRegisteredToolName(definition.name) || requested.has(definition.name)
+    );
+  });
 }
 
 function display(
@@ -782,6 +814,21 @@ function executeWriteFile(
   const inputPath = typeof input.path === "string" ? input.path : "";
   const content = typeof input.content === "string" ? input.content : "";
   if (!inputPath.trim()) return errorOutcome("path が空です");
+
+  if (content.length > WRITE_FILE_CHAR_LIMIT) {
+    return {
+      result: {
+        error: `content が write_file の上限（${WRITE_FILE_CHAR_LIMIT} 文字）を超えています（${content.length} 文字）。成果物本文を tool 引数に載せずに組み立ててください`,
+        recoverable: true,
+        guidance: LARGE_FILE_WRITE_GUIDANCE,
+      },
+      display: display(
+        "error",
+        `✗ write_file 上限超過（${content.length} 文字 > ${WRITE_FILE_CHAR_LIMIT}）`,
+      ),
+    };
+  }
+
   const resolved = resolveToolTargetPath(
     context.projectRoot,
     context.projectFolderId,

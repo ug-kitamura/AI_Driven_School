@@ -33,6 +33,7 @@ import {
   normalizeScriptToolCall,
   preflightScriptToolCall,
   resolveToolDefinitions,
+  skillHasScriptsDir,
   type ToolExecutionContext,
   type ToolExecutionOutcome,
 } from "@/lib/agent/tools/registry";
@@ -182,7 +183,9 @@ export async function runAgentLoop(
     };
   }
 
-  const tools: ToolDefinition[] = resolveToolDefinitions(options.toolNames);
+  const tools: ToolDefinition[] = resolveToolDefinitions(options.toolNames, {
+    hasSkillScripts: skillHasScriptsDir(options.skillDirAbsolute),
+  });
   const maxTokens = resolveMaxOutputTokens(options.req, providerResult.model);
   const llmMessages = [...options.messages];
   const toolEvents: AgentToolEvent[] = [];

@@ -7,6 +7,7 @@ import {
   folderExistsInTree,
   getAncestorFolderPaths,
   getFolderBaseName,
+  isEmptyFolderInTree,
   remapFolderPath,
 } from "@/lib/workspace-tree";
 
@@ -30,6 +31,27 @@ describe("workspace-tree", () => {
   it("finds nested files", () => {
     expect(fileExistsInTree(sampleTree, "demo/sub", "deep.md")).toBe(true);
     expect(fileExistsInTree(sampleTree, "demo", "missing.md")).toBe(false);
+  });
+
+  it("detects empty folders in the tree", () => {
+    const treeWithEmpty: WorkspaceTreeNode[] = [
+      {
+        name: "demo",
+        path: "demo",
+        files: ["root.md"],
+        children: [
+          {
+            name: "empty",
+            path: "demo/empty",
+            files: [],
+            children: [],
+          },
+        ],
+      },
+    ];
+    expect(isEmptyFolderInTree(treeWithEmpty, "demo/empty")).toBe(true);
+    expect(isEmptyFolderInTree(treeWithEmpty, "demo")).toBe(false);
+    expect(isEmptyFolderInTree(treeWithEmpty, "missing")).toBe(false);
   });
 
   it("returns ancestor folder paths", () => {

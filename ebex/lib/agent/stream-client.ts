@@ -1,15 +1,57 @@
 "use client";
 
-import type { AgentToolEvent } from "@/lib/agent/llm/types";
+import type { AgentLogicalTurn, AgentToolEvent } from "@/lib/agent/llm/types";
+
+export type ToolConfirmKind =
+  | "overwrite"
+  | "outside-project-read"
+  | "outside-project-write"
+  | "run-script"
+  | "run-skill-script"
+  | "generate-write"
+  | "web-search";
+
+export type ToolConfirmScriptInfo = {
+  purpose: string;
+  code: string;
+  writes: Array<{ path: string; exists: boolean }>;
+  networkWarning: boolean;
+  scriptPath?: string;
+  args?: string[];
+};
+
+export type ToolConfirmSearchInfo = {
+  query: string;
+  purpose: string;
+};
+
+export type ToolConfirmGenerateInfo = {
+  purpose: string;
+  instruction: string;
+  sections: string[];
+  contextPaths: string[];
+};
+
+export type ToolConfirmRequiredEvent = {
+  toolUseId: string;
+  kind: ToolConfirmKind;
+  path: string;
+  isNew: boolean;
+  script?: ToolConfirmScriptInfo;
+  search?: ToolConfirmSearchInfo;
+  generate?: ToolConfirmGenerateInfo;
+};
 
 export type AgentStreamCallbacks = {
   onDelta: (text: string) => void;
   onToolStart?: (event: AgentToolEvent) => void;
   onToolEnd?: (event: AgentToolEvent) => void;
+  onLogicalTurn?: (turn: AgentLogicalTurn) => void;
+  onConfirmRequired?: (event: ToolConfirmRequiredEvent) => void;
 };
 
 /**
- * Agent invoke SSE parser (text_delta / tool_start / tool_end / done / error).
+ * Agent invoke SSE parser (text_delta / tool_start / tool_end / logical_turn / done / error).
  */
 export async function consumeAgentStream(
   response: Response,
@@ -73,7 +115,8 @@ export async function consumeAgentStream(
                 data.input && typeof data.input === "object"
                   ? (data.input as Record<string, unknown>)
                   : undefined,
-              toolUseId: typeof data.toolUseId === "string" ? data.toolUseId : undefined,
+              toolUseId:
+                typeof data.toolUseId === "string" ? data.toolUseId : undefined,
               display: String(data.display ?? data.name ?? ""),
             });
             break;
@@ -81,18 +124,139 @@ export async function consumeAgentStream(
             callbacks.onToolEnd?.({
               phase: "end",
               name: String(data.name ?? ""),
-              toolUseId: typeof data.toolUseId === "string" ? data.toolUseId : undefined,
-              summary: typeof data.summary === "string" ? data.summary : undefined,
+              toolUseId:
+                typeof data.toolUseId === "string" ? data.toolUseId : undefined,
+              summary:
+                typeof data.summary === "string" ? data.summary : undefined,
               display: String(data.display ?? data.name ?? ""),
               result: typeof data.result === "string" ? data.result : undefined,
               tags: Array.isArray(data.tags)
-                ? data.tags.filter((tag): tag is string => typeof tag === "string")
+                ? data.tags.filter(
+                    (tag): tag is string => typeof tag === "string",
+                  )
                 : undefined,
             });
             break;
+          case "logical_turn": {
+            const text = typeof data.text === "string" ? data.text : undefined;
+            const rawCalls = Array.isArray(data.toolCalls)
+              ? data.toolCalls
+              : [];
+            const toolCalls = rawCalls
+              .map((item) => {
+                if (!item || typeof item !== "object") return null;
+                const call = item as Record<string, unknown>;
+                if (
+                  typeof call.id !== "string" ||
+                  typeof call.name !== "string" ||
+                  typeof call.result !== "string"
+                ) {
+                  return null;
+                }
+                return {
+                  id: call.id,
+                  name: call.name,
+                  input:
+                    call.input && typeof call.input === "object"
+                      ? (call.input as Record<string, unknown>)
+                      : {},
+                  result: call.result,
+                };
+              })
+              .filter(
+                (call): call is NonNullable<typeof call> => call !== null,
+              );
+            callbacks.onLogicalTurn?.({
+              ...(text ? { text } : {}),
+              ...(toolCalls.length > 0 ? { toolCalls } : {}),
+            });
+            break;
+          }
+          case "confirm_required": {
+            const kind = data.kind;
+            if (
+              typeof data.toolUseId === "string" &&
+              (kind === "overwrite" ||
+                kind === "outside-project-read" ||
+                kind === "outside-project-write" ||
+                kind === "run-script" ||
+                kind === "run-skill-script" ||
+                kind === "web-search") &&
+              typeof data.path === "string"
+            ) {
+              const rawScript =
+                data.script && typeof data.script === "object"
+                  ? (data.script as Record<string, unknown>)
+                  : null;
+              const script: ToolConfirmScriptInfo | undefined = rawScript
+                ? {
+                    purpose:
+                      typeof rawScript.purpose === "string"
+                        ? rawScript.purpose
+                        : "",
+                    code:
+                      typeof rawScript.code === "string" ? rawScript.code : "",
+                    writes: Array.isArray(rawScript.writes)
+                      ? rawScript.writes
+                          .filter(
+                            (
+                              entry,
+                            ): entry is { path: string; exists: boolean } =>
+                              Boolean(
+                                entry &&
+                                typeof entry === "object" &&
+                                typeof (entry as { path?: unknown }).path ===
+                                  "string",
+                              ),
+                          )
+                          .map((entry) => ({
+                            path: entry.path,
+                            exists: Boolean(entry.exists),
+                          }))
+                      : [],
+                    networkWarning: Boolean(rawScript.networkWarning),
+                    ...(typeof rawScript.scriptPath === "string"
+                      ? { scriptPath: rawScript.scriptPath }
+                      : {}),
+                    ...(Array.isArray(rawScript.args)
+                      ? {
+                          args: rawScript.args.filter(
+                            (arg): arg is string => typeof arg === "string",
+                          ),
+                        }
+                      : {}),
+                  }
+                : undefined;
+              const rawSearch =
+                data.search && typeof data.search === "object"
+                  ? (data.search as Record<string, unknown>)
+                  : null;
+              const search: ToolConfirmSearchInfo | undefined =
+                rawSearch && typeof rawSearch.query === "string"
+                  ? {
+                      query: rawSearch.query,
+                      purpose:
+                        typeof rawSearch.purpose === "string"
+                          ? rawSearch.purpose
+                          : "",
+                    }
+                  : undefined;
+              callbacks.onConfirmRequired?.({
+                toolUseId: data.toolUseId,
+                kind,
+                path: data.path,
+                isNew: Boolean(data.isNew),
+                ...(script ? { script } : {}),
+                ...(search ? { search } : {}),
+              });
+            }
+            break;
+          }
           case "error": {
             const message =
-              typeof data.message === "string" ? data.message : "スキル実行に失敗しました";
+              typeof data.message === "string"
+                ? data.message
+                : "スキル実行に失敗しました";
             throw new Error(message);
           }
           case "done":

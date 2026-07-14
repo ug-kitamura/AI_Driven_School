@@ -45,13 +45,13 @@ describe("resolveFileIconCategory", () => {
 });
 
 describe("getFileIconColorClass", () => {
-  it("uses the same chart-1 tone for every file category", () => {
-    expect(getFileIconColorClass("text")).toBe("text-chart-1/60");
-    expect(getFileIconColorClass("code")).toBe("text-chart-1/60");
-    expect(getFileIconColorClass("image")).toBe("text-chart-1/60");
-    expect(getFileIconColorClass("secret")).toBe("text-chart-1/60");
-    expect(getFileIconColorClass("zip")).toBe("text-chart-1/60");
-    expect(getFileIconColorClass("other")).toBe("text-chart-1/60");
+  it("uses chart-1 with higher dark-mode contrast for every file category", () => {
+    expect(getFileIconColorClass("text")).toBe("text-chart-1/60 dark:text-chart-1");
+    expect(getFileIconColorClass("code")).toBe("text-chart-1/60 dark:text-chart-1");
+    expect(getFileIconColorClass("image")).toBe("text-chart-1/60 dark:text-chart-1");
+    expect(getFileIconColorClass("secret")).toBe("text-chart-1/60 dark:text-chart-1");
+    expect(getFileIconColorClass("zip")).toBe("text-chart-1/60 dark:text-chart-1");
+    expect(getFileIconColorClass("other")).toBe("text-chart-1/60 dark:text-chart-1");
   });
 });
 

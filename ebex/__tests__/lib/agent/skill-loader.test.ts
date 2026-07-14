@@ -10,6 +10,7 @@ import {
   listVisibleSkills,
   loadSkill,
   parseSkillDocument,
+  resolveSkillDir,
 } from "@/lib/agent/skill-loader";
 
 function writeSkill(
@@ -17,8 +18,9 @@ function writeSkill(
   id: string,
   frontmatter: string,
   body: string,
+  convention: ".claude" | ".cursor" | ".agent" | ".github" = ".claude",
 ) {
-  const dir = path.join(root, ".claude", "skills", id);
+  const dir = path.join(root, convention, "skills", id);
   fs.mkdirSync(dir, { recursive: true });
   fs.writeFileSync(path.join(dir, "SKILL.md"), `---\n${frontmatter}\n---\n\n${body}`, "utf-8");
 }
@@ -50,6 +52,42 @@ Generate a draft for {{series}} / {{course}}.`);
     expect(parsed.description).toBe("選択中レッスンの草稿を生成する");
     expect(parsed.variables).toEqual(["series", "course"]);
     expect(parsed.body).toContain("Generate a draft");
+  });
+
+  it("parses frontmatter even when SKILL.md starts with UTF-8 BOM", () => {
+    const parsed = parseSkillDocument(
+      `\uFEFF---
+name: minutes-maid
+description: |
+  月例会議の音声文字起こしデータをもとに議事録を生成するスキル。
+  「議事録を作って」と依頼された際に使用する。
+---
+
+# Minutes Maid`,
+    );
+
+    expect(parsed.name).toBe("minutes-maid");
+    expect(parsed.description).toContain("月例会議の音声文字起こし");
+    expect(parsed.description).toContain("議事録を作って");
+  });
+
+  it("normalizes CRLF in multiline description without leftover CR", () => {
+    const parsed = parseSkillDocument(
+      [
+        "---",
+        "name: minutes-maid",
+        "description: |",
+        "  月例会議の音声文字起こしデータをもとに議事録を生成するスキル。",
+        "  「議事録を作って」と依頼された際に使用する。",
+        "---",
+        "",
+        "# Body",
+      ].join("\r\n"),
+    );
+
+    expect(parsed.description).toContain("月例会議の音声文字起こし");
+    expect(parsed.description).toContain("議事録を作って");
+    expect(parsed.description).not.toMatch(/\r/);
   });
 
   it("injects variables into skill body", () => {
@@ -169,5 +207,29 @@ Body`);
       fs.rmSync(ebexRoot, { recursive: true, force: true });
       fs.rmSync(hostRoot, { recursive: true, force: true });
     }
+  });
+
+  it("discovers skills under .cursor/skills", () => {
+    writeSkill(
+      tmpDir,
+      "minutes-maid",
+      "name: minutes\ndescription: from cursor",
+      "cursor body",
+      ".cursor",
+    );
+    expect(listSkills(tmpDir).map((s) => s.id)).toEqual(["minutes-maid"]);
+    expect(loadSkill(tmpDir, "minutes-maid")?.body).toContain("cursor body");
+    expect(resolveSkillDir(tmpDir, "minutes-maid")).toBe(
+      path.join(tmpDir, ".cursor", "skills", "minutes-maid"),
+    );
+  });
+
+  it("prefers .claude over .cursor for same id in one root", () => {
+    writeSkill(tmpDir, "demo", "name: claude\ndescription: c", "claude body", ".claude");
+    writeSkill(tmpDir, "demo", "name: cursor\ndescription: u", "cursor body", ".cursor");
+    expect(loadSkill(tmpDir, "demo")?.name).toBe("claude");
+    expect(resolveSkillDir(tmpDir, "demo")).toBe(
+      path.join(tmpDir, ".claude", "skills", "demo"),
+    );
   });
 });

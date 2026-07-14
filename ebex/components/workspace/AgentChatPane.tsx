@@ -44,8 +44,12 @@ import {
   buildCreateStructureVariables,
 } from "@/lib/agent/invoke-context";
 import { extractMarkdownBlock } from "@/lib/extract-markdown-block";
-import { consumeAgentStream } from "@/lib/agent/stream-client";
-import type { AgentToolEvent } from "@/lib/agent/llm/types";
+import {
+  consumeAgentStream,
+  type ToolConfirmRequiredEvent,
+} from "@/lib/agent/stream-client";
+import { ToolConfirmDialog } from "@/components/workspace/ToolConfirmDialog";
+import type { AgentLogicalTurn, AgentToolEvent } from "@/lib/agent/llm/types";
 import {
   addSession,
   DEFAULT_SESSION_TITLE,
@@ -109,6 +113,7 @@ import {
 } from "@/lib/agent/skill-io-boundary";
 import { OutsideProjectPathDialog } from "@/components/workspace/OutsideProjectPathDialog";
 import { OutputDestinationDialog } from "@/components/workspace/OutputDestinationDialog";
+import { SUBAGENT_FALLBACK_USER_MESSAGE } from "@/lib/agent/subagent-fallback";
 
 function toProjectRelativePath(
   currentFilePath: string | null,
@@ -147,6 +152,7 @@ function computeSessionFingerprint(
       role: message.role,
       content: message.content,
       toolEvents: message.toolEvents,
+      toolTurns: message.toolTurns,
       attachments: message.attachments,
     })),
     activeSkillId: nextSkillId,
@@ -176,7 +182,10 @@ function isAbortError(error: unknown): boolean {
 }
 
 function createMessageId(): string {
-  return `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+  if (typeof crypto !== "undefined" && "randomUUID" in crypto) {
+    return crypto.randomUUID();
+  }
+  return `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
 }
 
 function readModelLabelFromSettings(): string {
@@ -206,10 +215,12 @@ export function AgentChatPane({
   const [input, setInput] = useState("");
   const [activeSkillId, setActiveSkillId] = useState<string | null>(null);
   const [isStreaming, setIsStreaming] = useState(false);
+  const [subagentNoticeVisible, setSubagentNoticeVisible] = useState(false);
   const [streamingAssistantId, setStreamingAssistantId] = useState<
     string | null
   >(null);
   const [error, setError] = useState<string | null>(null);
+  const [storageWarning, setStorageWarning] = useState<string | null>(null);
   const [modelLabel, setModelLabel] = useState("");
   const [historyOpen, setHistoryOpen] = useState(false);
   const [deleteSessionTargetId, setDeleteSessionTargetId] = useState<
@@ -229,6 +240,9 @@ export function AgentChatPane({
     messageId: string;
     content: string;
   } | null>(null);
+
+  const [pendingToolConfirm, setPendingToolConfirm] =
+    useState<ToolConfirmRequiredEvent | null>(null);
 
   const [outsidePaths, setOutsidePaths] = useState<string[]>([]);
   const [outsideDialogOpen, setOutsideDialogOpen] = useState(false);
@@ -298,11 +312,19 @@ export function AgentChatPane({
   }, []);
 
   const flushSessionToStorage = useCallback(
-    async (lessonId: string) => {
-      if (!canPersistToFolder(lessonId)) return;
+    async (lessonId: string): Promise<boolean> => {
+      if (!canPersistToFolder(lessonId)) return true;
       const snapshot = buildStorageSnapshot();
-      if (!snapshot) return;
-      await saveLessonSession(lessonId, snapshot);
+      if (!snapshot) return true;
+      const ok = await saveLessonSession(lessonId, snapshot);
+      if (!ok) {
+        setStorageWarning(
+          "セッションの保存に失敗しました。容量不足の可能性があります。会話を続けると履歴が失われることがあります。",
+        );
+      } else {
+        setStorageWarning(null);
+      }
+      return ok;
     },
     [buildStorageSnapshot, canPersistToFolder],
   );
@@ -478,6 +500,7 @@ export function AgentChatPane({
     abortRef.current = null;
     setIsStreaming(false);
     setStreamingAssistantId(null);
+    setSubagentNoticeVisible(false);
     stopContextRef.current = null;
 
     if (assistantId) {
@@ -570,6 +593,7 @@ export function AgentChatPane({
     abortRef.current = null;
     setIsStreaming(false);
     setStreamingAssistantId(null);
+    setSubagentNoticeVisible(false);
     setRetryPayload(null);
     setError(null);
 
@@ -602,19 +626,30 @@ export function AgentChatPane({
       const assistantId = createMessageId();
       const assistantCreatedAt = new Date().toISOString();
 
-      setMessages((prev) => [
-        ...prev,
-        options.userMessage,
-        {
-          id: assistantId,
-          role: "assistant",
-          content: "",
-          createdAt: assistantCreatedAt,
-          toolEvents: [],
-        },
-      ]);
+      // 再送時は同じ userMessage が既に残っている（失敗時に assistant のみ削除するため）。
+      // 同じ id を再追加すると React の key 重複になるので、未追加のときだけ足す。
+      setMessages((prev) => {
+        const hasUser = prev.some(
+          (message) => message.id === options.userMessage.id,
+        );
+        return [
+          ...(hasUser ? prev : [...prev, options.userMessage]),
+          {
+            id: assistantId,
+            role: "assistant",
+            content: "",
+            createdAt: assistantCreatedAt,
+            toolEvents: [],
+          },
+        ];
+      });
       setIsStreaming(true);
       setStreamingAssistantId(assistantId);
+      setSubagentNoticeVisible(
+        Boolean(
+          skills.find((skill) => skill.id === options.skillId)?.mentionsSubagent,
+        ),
+      );
       setError(null);
       setRetryPayload({
         userMessage: options.userMessage,
@@ -639,6 +674,7 @@ export function AgentChatPane({
           role: message.role,
           content: message.content,
           ...(message.toolEvents ? { toolEvents: message.toolEvents } : {}),
+          ...(message.toolTurns ? { toolTurns: message.toolTurns } : {}),
           ...(message.attachments ? { attachments: message.attachments } : {}),
         })),
         ...(folderId
@@ -655,6 +691,7 @@ export function AgentChatPane({
       };
 
       const toolEvents: AgentToolEvent[] = [];
+      const toolTurns: AgentLogicalTurn[] = [];
 
       try {
         const res = await fetch("/api/agent/invoke", {
@@ -710,6 +747,19 @@ export function AgentChatPane({
                 ),
               );
             },
+            onLogicalTurn: (turn) => {
+              toolTurns.push(turn);
+              setMessages((prev) =>
+                prev.map((message) =>
+                  message.id === assistantId
+                    ? { ...message, toolTurns: [...toolTurns] }
+                    : message,
+                ),
+              );
+            },
+            onConfirmRequired: (event) => {
+              setPendingToolConfirm(event);
+            },
           },
           controller.signal,
         );
@@ -735,6 +785,7 @@ export function AgentChatPane({
         }
         setIsStreaming(false);
         setStreamingAssistantId(null);
+        setSubagentNoticeVisible(false);
       }
     },
     [
@@ -743,6 +794,7 @@ export function AgentChatPane({
       folderId,
       maybeGenerateSessionTitle,
       onOpenSettings,
+      skills,
     ],
   );
 
@@ -853,7 +905,14 @@ export function AgentChatPane({
       const session = storage.sessions.find((item) => item.id === sessionId);
       if (!session) return;
       sessionSwitchRef.current = session.id;
-      setMessages(session.messages);
+      // 過去の再送バグ等で同 id が残っていても描画キーが衝突しないよう、先勝ちで重複を落とす
+      const seen = new Set<string>();
+      const deduped = session.messages.filter((message) => {
+        if (seen.has(message.id)) return false;
+        seen.add(message.id);
+        return true;
+      });
+      setMessages(deduped);
       setActiveSkillId(session.activeSkillId);
       setInput("");
       setError(null);
@@ -1013,9 +1072,13 @@ export function AgentChatPane({
   }, [historyOpen]);
 
   useEffect(() => {
-    sessionChromeRef.current = { sessionTitle };
+    sessionChromeRef.current = {
+      sessionTitle,
+      isStreaming,
+      projectFolderId: folderId ?? null,
+    };
     notifyControllerListeners();
-  }, [sessionTitle, notifyControllerListeners]);
+  }, [sessionTitle, isStreaming, folderId, notifyControllerListeners]);
 
   useEffect(() => {
     if (!agentChatControllerRef) return;
@@ -1100,6 +1163,24 @@ export function AgentChatPane({
       setError("クリップボードへのコピーに失敗しました");
     }
   }, []);
+
+  const handleToolConfirmDecision = useCallback(
+    async (decision: "approve" | "reject") => {
+      const request = pendingToolConfirm;
+      if (!request) return;
+      setPendingToolConfirm(null);
+      try {
+        await fetch("/api/agent/tool-confirm", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ toolUseId: request.toolUseId, decision }),
+        });
+      } catch {
+        // ストリーム側は TTL タイムアウトで安全側（拒否）に確定する
+      }
+    },
+    [pendingToolConfirm],
+  );
 
   const handleConfirmOverwrite = useCallback(() => {
     if (!overwriteTarget || !onOverwriteEditor || !lesson) return;
@@ -1221,10 +1302,18 @@ export function AgentChatPane({
         ) : null}
       </div>
 
-      <div className="relative min-h-0 flex-1">
+      <div className="relative flex min-h-0 flex-1 flex-col">
+        {subagentNoticeVisible ? (
+          <div
+            className="shrink-0 border-b bg-muted/60 px-3 py-2 text-xs text-muted-foreground"
+            role="status"
+          >
+            {SUBAGENT_FALLBACK_USER_MESSAGE}
+          </div>
+        ) : null}
         <div
           ref={chatScrollRef}
-          className="workspace-scrollbar h-full min-h-0 overflow-y-auto overscroll-y-contain"
+          className="workspace-scrollbar min-h-0 flex-1 overflow-y-auto overscroll-y-contain"
           onScroll={(event) => {
             const element = event.currentTarget;
             const distanceFromBottom =
@@ -1351,6 +1440,20 @@ export function AgentChatPane({
         />
       </div>
 
+      {storageWarning ? (
+        <div className="flex items-center justify-between gap-2 bg-secondary px-12 py-2 text-xs text-secondary-foreground">
+          <span>{storageWarning}</span>
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            onClick={() => setStorageWarning(null)}
+          >
+            閉じる
+          </Button>
+        </div>
+      ) : null}
+
       {error ? (
         <div className="flex items-center justify-between gap-2 bg-destructive/10 px-12 py-2 text-xs text-destructive">
           <span>{error}</span>
@@ -1378,7 +1481,7 @@ export function AgentChatPane({
             requestAnimationFrame(() => scrollChatToBottom());
           }}
           onStop={handleStop}
-          disabled={false}
+          disabled={pendingToolConfirm !== null}
           isLoading={isStreaming}
           modelLabel={modelLabel}
           skills={skills}
@@ -1498,6 +1601,12 @@ export function AgentChatPane({
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <ToolConfirmDialog
+        request={pendingToolConfirm}
+        onApprove={() => void handleToolConfirmDecision("approve")}
+        onReject={() => void handleToolConfirmDecision("reject")}
+      />
 
       <OutsideProjectPathDialog
         open={outsideDialogOpen}

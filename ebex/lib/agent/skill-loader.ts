@@ -1,12 +1,15 @@
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { skillMentionsSubagent } from "@/lib/agent/subagent-fallback";
 
 export type SkillSummary = {
   id: string;
   name: string;
   description: string;
   hidden?: boolean;
+  /** SKILL.md 本文に「サブエージェント」が含まれる */
+  mentionsSubagent?: boolean;
 };
 
 export type LoadedSkill = SkillSummary & {
@@ -15,10 +18,32 @@ export type LoadedSkill = SkillSummary & {
   tools: string[];
 };
 
-const SKILLS_DIR = path.join(".claude", "skills");
+/**
+ * ホスト規約ごとの skills ディレクトリ（同一ルート内の優先順）。
+ * Discovery のみがこの列挙を知る。Execution は skillDirAbsolute を正本とする。
+ */
+export const SKILL_HOST_CONVENTIONS = [
+  ".claude",
+  ".cursor",
+  ".agent",
+  ".github",
+] as const;
+
 const FRONTMATTER_RE = /^---\r?\n([\s\S]*?)\r?\n---\r?\n?([\s\S]*)$/;
 
-/** ebex パッケージルート（同梱 `.claude/skills` を持つディレクトリ）。 */
+/** Windows エディタ由来の UTF-8 BOM を除去する（frontmatter 先頭 `---` 照合のため）。 */
+function stripBom(raw: string): string {
+  return raw.charCodeAt(0) === 0xfeff ? raw.slice(1) : raw;
+}
+
+function skillsDirForConvention(
+  projectRoot: string,
+  convention: (typeof SKILL_HOST_CONVENTIONS)[number],
+): string {
+  return path.join(projectRoot, convention, "skills");
+}
+
+/** ebex パッケージルート（同梱 skills を持つディレクトリ）。 */
 export function getEbexRoot(): string {
   const fromModule = path.resolve(
     path.dirname(fileURLToPath(import.meta.url)),
@@ -36,7 +61,9 @@ export function getEbexRoot(): string {
 }
 
 function hasSkillsDir(root: string): boolean {
-  return fs.existsSync(path.join(root, SKILLS_DIR));
+  return SKILL_HOST_CONVENTIONS.some((convention) =>
+    fs.existsSync(skillsDirForConvention(root, convention)),
+  );
 }
 
 /**
@@ -54,8 +81,9 @@ export function getSkillCatalogRoots(
   return [ebex, host];
 }
 
+/** @deprecated Discovery は複ホスト規約。互換のため `.claude/skills` を返す。 */
 export function getSkillsDir(projectRoot: string): string {
-  return path.join(projectRoot, SKILLS_DIR);
+  return skillsDirForConvention(projectRoot, ".claude");
 }
 
 function normalizeRoots(projectRootOrRoots: string | readonly string[]): string[] {
@@ -73,22 +101,41 @@ function normalizeRoots(projectRootOrRoots: string | readonly string[]): string[
   return unique;
 }
 
+/** 同一ルート内: 規約優先順で先に見つかった id のみ（決定的）。 */
 function listSkillIdsInRoot(projectRoot: string): string[] {
-  const skillsDir = getSkillsDir(projectRoot);
-  if (!fs.existsSync(skillsDir)) return [];
+  const byId = new Map<string, true>();
+  for (const convention of SKILL_HOST_CONVENTIONS) {
+    const skillsDir = skillsDirForConvention(projectRoot, convention);
+    if (!fs.existsSync(skillsDir)) continue;
+    for (const entry of fs.readdirSync(skillsDir, { withFileTypes: true })) {
+      if (!entry.isDirectory()) continue;
+      if (byId.has(entry.name)) continue;
+      if (!fs.existsSync(path.join(skillsDir, entry.name, "SKILL.md"))) continue;
+      byId.set(entry.name, true);
+    }
+  }
+  return [...byId.keys()].sort((a, b) => a.localeCompare(b));
+}
 
-  return fs
-    .readdirSync(skillsDir, { withFileTypes: true })
-    .filter((entry) => entry.isDirectory())
-    .map((entry) => entry.name)
-    .sort((a, b) => a.localeCompare(b));
+function resolveSkillDirInRoot(
+  projectRoot: string,
+  skillId: string,
+): string | null {
+  for (const convention of SKILL_HOST_CONVENTIONS) {
+    const dir = path.join(
+      skillsDirForConvention(projectRoot, convention),
+      skillId,
+    );
+    if (fs.existsSync(path.join(dir, "SKILL.md"))) return dir;
+  }
+  return null;
 }
 
 function loadSkillFromRoot(projectRoot: string, skillId: string): LoadedSkill | null {
-  const skillPath = path.join(getSkillsDir(projectRoot), skillId, "SKILL.md");
-  if (!fs.existsSync(skillPath)) return null;
+  const skillDir = resolveSkillDirInRoot(projectRoot, skillId);
+  if (!skillDir) return null;
 
-  const raw = fs.readFileSync(skillPath, "utf-8");
+  const raw = fs.readFileSync(path.join(skillDir, "SKILL.md"), "utf-8");
   const parsed = parseSkillDocument(raw);
   return {
     id: skillId,
@@ -114,6 +161,7 @@ export function listSkills(projectRootOrRoots: string | readonly string[]): Skil
         name: skill.name,
         description: skill.description,
         hidden: skill.hidden,
+        mentionsSubagent: skillMentionsSubagent(skill.body),
       });
     }
   }
@@ -136,6 +184,20 @@ export function loadSkill(
   for (let i = roots.length - 1; i >= 0; i--) {
     const skill = loadSkillFromRoot(roots[i]!, skillId);
     if (skill) return skill;
+  }
+  return null;
+}
+
+/** 実行中スキルのディレクトリ絶対パス（SKILL.md があるフォルダ）。見つからなければ null。 */
+export function resolveSkillDir(
+  projectRootOrRoots: string | readonly string[],
+  skillId: string,
+): string | null {
+  const roots = normalizeRoots(projectRootOrRoots);
+  // ホスト優先: 後ろのルートから探す。同一ルート内は規約固定順。
+  for (let i = roots.length - 1; i >= 0; i--) {
+    const dir = resolveSkillDirInRoot(roots[i]!, skillId);
+    if (dir) return dir;
   }
   return null;
 }
@@ -173,7 +235,8 @@ export function parseSkillDocument(raw: string): {
   tools: string[];
   body: string;
 } {
-  const match = raw.match(FRONTMATTER_RE);
+  const text = stripBom(raw);
+  const match = text.match(FRONTMATTER_RE);
   if (!match) {
     return {
       name: "",
@@ -181,7 +244,7 @@ export function parseSkillDocument(raw: string): {
       hidden: false,
       variables: [],
       tools: [],
-      body: raw.trim(),
+      body: text.trim(),
     };
   }
 
@@ -213,7 +276,8 @@ function parseSkillFrontmatter(yaml: string): {
   let inTools = false;
   let descriptionIndent = 0;
 
-  const lines = yaml.split("\n");
+  // Windows CRLF を LF に正規化し、description 行末の \r 残留を防ぐ
+  const lines = yaml.replace(/\r\n/g, "\n").replace(/\r/g, "\n").split("\n");
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i];
     const trimmed = line.trim();

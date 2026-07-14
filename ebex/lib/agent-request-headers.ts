@@ -6,8 +6,13 @@ export const AI_KEY_ERROR =
 export function aiRequestHeaders(
   settings: WorkspaceSettings,
 ): Record<string, string> {
-  const headers: Record<string, string> = { "Content-Type": "application/json" };
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json",
+  };
   headers["x-ai-model"] = settings.aiModel;
+  headers["x-ai-max-output-tokens"] = String(settings.maxOutputTokens);
   if (settings.aiApiKey) headers["x-ai-api-key"] = settings.aiApiKey;
+  if (settings.searchApiKey)
+    headers["x-search-api-key"] = settings.searchApiKey;
   return headers;
 }

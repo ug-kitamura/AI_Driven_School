@@ -6,8 +6,10 @@ import {
   fileExistsInTree,
   findTreeNode,
   folderExistsInTree,
+  isEmptyFolderInTree,
   remapFolderPath,
 } from "@/lib/workspace-tree";
+import { isNoFileSentinel } from "@/lib/workspace-file-selection";
 
 const POLL_INTERVAL_MS = 3000;
 
@@ -95,13 +97,14 @@ export function useWorkspaceSync(options: {
           nextFolderPath = fresh.folders[0]?.path ?? "";
           nextFileName = fresh.folders[0]?.files[0] ?? "";
         } else if (current.fileName) {
-          if (
-            !fileExistsInTree(
-              fresh.folders,
-              current.folderPath,
-              current.fileName,
-            )
+          if (fileExistsInTree(fresh.folders, current.folderPath, current.fileName)) {
+            // keep current real file selection
+          } else if (
+            isNoFileSentinel(current.fileName) &&
+            isEmptyFolderInTree(fresh.folders, current.folderPath)
           ) {
+            // keep empty-folder sentinel selection
+          } else {
             const folder = findTreeNode(fresh.folders, current.folderPath);
             nextFileName = folder?.files[0] ?? "";
           }

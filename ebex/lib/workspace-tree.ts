@@ -22,6 +22,16 @@ export function fileExistsInTree(
   return node?.files.includes(fileName) ?? false;
 }
 
+/** ツリー上に存在し、子フォルダ・ファイルがともに空のとき true。 */
+export function isEmptyFolderInTree(
+  nodes: WorkspaceTreeNode[],
+  folderPath: string,
+): boolean {
+  const node = findTreeNode(nodes, folderPath);
+  if (!node) return false;
+  return node.children.length === 0 && node.files.length === 0;
+}
+
 export function folderExistsInTree(
   nodes: WorkspaceTreeNode[],
   folderPath: string,

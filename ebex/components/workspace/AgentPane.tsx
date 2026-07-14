@@ -2,7 +2,7 @@
 
 import { useCallback, useState } from "react";
 import dynamic from "next/dynamic";
-import { Settings } from "lucide-react";
+import { Loader2, Settings } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAgentSessionChrome } from "@/components/workspace/use-agent-session-chrome";
 import type { WorkspaceTreeNode } from "@/lib/workspace-loader";
@@ -43,6 +43,7 @@ type Props = {
   onOpenSettings: () => void;
   onOverwriteEditor: (markdown: string) => void;
   agentChatControllerRef: React.MutableRefObject<AgentChatController | null>;
+  onControllerReady?: () => void;
 };
 
 export function AgentPane({
@@ -52,6 +53,7 @@ export function AgentPane({
   onOpenSettings,
   onOverwriteEditor,
   agentChatControllerRef,
+  onControllerReady: onControllerReadyProp,
 }: Props) {
   const [controllerVersion, setControllerVersion] = useState(0);
   const sessionChrome = useAgentSessionChrome(
@@ -59,20 +61,31 @@ export function AgentPane({
     controllerVersion,
   );
   const sessionTitle = sessionChrome?.sessionTitle ?? "";
+  const isStreaming = sessionChrome?.isStreaming ?? false;
 
   const onControllerReady = useCallback(() => {
     setControllerVersion((v) => v + 1);
-  }, []);
+    onControllerReadyProp?.();
+  }, [onControllerReadyProp]);
 
   return (
     <div className="flex h-full min-h-0 flex-col">
       <div className="flex h-12 shrink-0 items-center justify-end gap-1 border-b px-3 py-0">
-        <span
-          className="mr-auto min-w-0 flex-1 truncate text-sm font-medium"
-          title={sessionTitle || undefined}
-        >
-          {sessionTitle}
-        </span>
+        <div className="mr-auto flex min-w-0 flex-1 items-center gap-2">
+          {isStreaming ? (
+            <Loader2
+              className="size-4 shrink-0 animate-spin text-muted-foreground"
+              aria-hidden
+            />
+          ) : null}
+          <span
+            className="min-w-0 flex-1 truncate text-sm font-medium"
+            title={sessionTitle || undefined}
+          >
+            {sessionTitle}
+          </span>
+          {isStreaming ? <span className="sr-only">Agent 実行中</span> : null}
+        </div>
         <Button
           variant="ghost"
           size="icon-sm"

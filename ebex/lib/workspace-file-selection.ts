@@ -1,5 +1,12 @@
 import { STORAGE_KEYS } from "@/lib/storage-keys";
 
+/** 空フォルダの `no file` プレースホルダ選択。UI ラベルと同一文字列。 */
+export const NO_FILE_SENTINEL = "no file";
+
+export function isNoFileSentinel(fileName: string): boolean {
+  return fileName === NO_FILE_SENTINEL;
+}
+
 export type LastFileSelection = {
   folderPath: string;
   fileName: string;

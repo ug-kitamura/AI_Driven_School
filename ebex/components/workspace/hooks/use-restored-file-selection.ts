@@ -2,17 +2,26 @@
 
 import { useMemo, useSyncExternalStore } from "react";
 import {
+  isNoFileSentinel,
   loadLastFileSelection,
   type LastFileSelection,
 } from "@/lib/workspace-file-selection";
 import type { WorkspaceTreeNode } from "@/lib/workspace-loader";
-import { fileExistsInTree } from "@/lib/workspace-tree";
+import { fileExistsInTree, isEmptyFolderInTree } from "@/lib/workspace-tree";
 
 const EMPTY_SNAPSHOT = "";
 
 function readRestoredSelectionKey(folders: WorkspaceTreeNode[]): string {
   const last = loadLastFileSelection();
-  if (last && fileExistsInTree(folders, last.folderPath, last.fileName)) {
+  if (!last) return EMPTY_SNAPSHOT;
+  // 実ファイル（同名 `no file` 含む）を優先
+  if (fileExistsInTree(folders, last.folderPath, last.fileName)) {
+    return JSON.stringify([last.folderPath, last.fileName]);
+  }
+  if (
+    isNoFileSentinel(last.fileName) &&
+    isEmptyFolderInTree(folders, last.folderPath)
+  ) {
     return JSON.stringify([last.folderPath, last.fileName]);
   }
   return EMPTY_SNAPSHOT;

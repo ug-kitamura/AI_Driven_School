@@ -40,3 +40,37 @@ export function normalizeAiModel(value: unknown): AiModelSlug {
 export function isUnsupportedAiModel(model: string): boolean {
   return UNSUPPORTED_AI_MODELS.has(model as AiModelSlug);
 }
+
+export const MAX_OUTPUT_TOKEN_OPTIONS = [8192, 16384, 32000] as const;
+export type MaxOutputTokens = (typeof MAX_OUTPUT_TOKEN_OPTIONS)[number];
+export const DEFAULT_MAX_OUTPUT_TOKENS: MaxOutputTokens = 32000;
+
+/** モデル別の最大出力トークン上限。未掲載のモデルは既定値を上限とする。 */
+const MODEL_MAX_OUTPUT_TOKENS: Partial<Record<AiModelSlug, number>> = {
+  "claude-sonnet-4-6": 32000,
+  "claude-sonnet-5": 32000,
+  "claude-opus-4-7": 32000,
+  "claude-opus-4-8": 32000,
+  "claude-fable-5": 16384,
+  "claude-haiku-4-5": 16384,
+};
+
+export function isMaxOutputTokens(value: unknown): value is MaxOutputTokens {
+  return (
+    typeof value === "number" &&
+    (MAX_OUTPUT_TOKEN_OPTIONS as readonly number[]).includes(value)
+  );
+}
+
+export function normalizeMaxOutputTokens(value: unknown): MaxOutputTokens {
+  return isMaxOutputTokens(value) ? value : DEFAULT_MAX_OUTPUT_TOKENS;
+}
+
+/** モデルの上限を超える場合はクランプする。 */
+export function clampMaxOutputTokensForModel(
+  requested: number,
+  model: string,
+): number {
+  const limit = MODEL_MAX_OUTPUT_TOKENS[model as AiModelSlug] ?? DEFAULT_MAX_OUTPUT_TOKENS;
+  return Math.min(requested, limit);
+}

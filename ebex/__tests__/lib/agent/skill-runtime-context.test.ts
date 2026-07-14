@@ -1,4 +1,7 @@
 import { describe, expect, it } from "vitest";
+import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
 import {
   buildSkillRuntimeContext,
   mergeSkillSystemPrompt,
@@ -19,6 +22,35 @@ describe("buildSkillRuntimeContext", () => {
     expect(text).toContain("demo");
     expect(text).toContain("sub/notes.md");
     expect(text).toContain("Boundary");
+  });
+
+  it("mentions skill discovery and read zone when skillId is set", () => {
+    const text = buildSkillRuntimeContext({
+      projectFolderId: "demo",
+      skillId: "minutes-maid",
+    });
+    expect(text).toContain("references/*");
+    expect(text).toContain("references/purpose.md");
+    expect(text).toMatch(/発見|list\/glob\/search/);
+    expect(text).toContain("replace_between");
+    expect(text).not.toContain(".claude/skills/");
+  });
+
+  it("does not force HTML template copy steps even when base.html exists", () => {
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "ebex-runtime-"));
+    const skillDir = path.join(tmpDir, "skill");
+    fs.mkdirSync(path.join(skillDir, "references"), { recursive: true });
+    fs.writeFileSync(path.join(skillDir, "references", "base.html"), "<html></html>");
+
+    const text = buildSkillRuntimeContext({
+      projectFolderId: "demo",
+      skillId: "minutes-maid",
+      skillDirAbsolute: skillDir,
+    });
+    expect(text).not.toContain("HTML template outputs");
+    expect(text).not.toContain("HTML 全文を書いてはならない");
+    expect(text).toContain("replace_between");
+    fs.rmSync(tmpDir, { recursive: true, force: true });
   });
 });
 

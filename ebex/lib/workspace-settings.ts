@@ -5,8 +5,11 @@ import {
 } from "@/components/workspace/pane-layout";
 import {
   DEFAULT_AI_MODEL,
+  DEFAULT_MAX_OUTPUT_TOKENS,
   normalizeAiModel,
+  normalizeMaxOutputTokens,
   type AiModelSlug,
+  type MaxOutputTokens,
 } from "@/lib/ai-models";
 import {
   EDITOR_FONT_SIZE_CHANGED_EVENT as STORAGE_EDITOR_FONT_SIZE_CHANGED_EVENT,
@@ -14,7 +17,7 @@ import {
   WORKSPACE_SETTINGS_CHANGED_EVENT as STORAGE_WORKSPACE_SETTINGS_CHANGED_EVENT,
 } from "@/lib/storage-keys";
 
-export type { AiModelSlug };
+export type { AiModelSlug, MaxOutputTokens };
 
 export type ThemeMode = "light" | "dark" | "system";
 
@@ -29,7 +32,9 @@ export const WORKSPACE_SETTINGS_CHANGED_EVENT =
 
 export type WorkspaceSettings = {
   aiApiKey: string | null;
+  searchApiKey: string | null;
   aiModel: AiModelSlug;
+  maxOutputTokens: MaxOutputTokens;
   theme: ThemeMode;
   paneDefaults: WorkspacePaneWidths;
   editorFontSizePx: number;
@@ -45,7 +50,9 @@ const STORAGE_KEY = STORAGE_KEYS.settings;
 
 export const DEFAULT_WORKSPACE_SETTINGS: WorkspaceSettings = {
   aiApiKey: null,
+  searchApiKey: null,
   aiModel: DEFAULT_AI_MODEL,
+  maxOutputTokens: DEFAULT_MAX_OUTPUT_TOKENS,
   theme: "system",
   paneDefaults: { ...PANE_WIDTH_DEFAULTS },
   editorFontSizePx: EDITOR_FONT_SIZE_DEFAULT,
@@ -78,9 +85,11 @@ export function loadWorkspaceSettings(): WorkspaceSettings {
           }
         : undefined;
     return {
-      aiApiKey:
-        typeof parsed.aiApiKey === "string" ? parsed.aiApiKey : null,
+      aiApiKey: typeof parsed.aiApiKey === "string" ? parsed.aiApiKey : null,
+      searchApiKey:
+        typeof parsed.searchApiKey === "string" ? parsed.searchApiKey : null,
       aiModel: normalizeAiModel(parsed.aiModel),
+      maxOutputTokens: normalizeMaxOutputTokens(parsed.maxOutputTokens),
       theme:
         parsed.theme === "dark" ||
         parsed.theme === "system" ||

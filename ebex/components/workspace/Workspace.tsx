@@ -15,12 +15,14 @@ import { useWorkspaceSync } from "@/components/workspace/hooks/use-workspace-syn
 import { useRestoredFileSelection } from "@/components/workspace/hooks/use-restored-file-selection";
 import type { WorkspaceTreeNode } from "@/lib/workspace-loader";
 import type { AgentChatController } from "@/lib/agent-chat-controller";
+import { useAgentSessionChrome } from "@/components/workspace/use-agent-session-chrome";
 import {
+  isNoFileSentinel,
   saveLastFileSelection,
   type LastFileSelection,
 } from "@/lib/workspace-file-selection";
 import { ALLOWED_PREFIX } from "@/lib/workspace-constants";
-import { getProjectFolderId } from "@/lib/workspace-tree";
+import { getProjectFolderId, isEmptyFolderInTree } from "@/lib/workspace-tree";
 import { isTextEditableMode, resolvePane2Mode } from "@/lib/file-preview";
 
 type WorkspaceProps = {
@@ -46,6 +48,9 @@ export function Workspace({ initialFolders }: WorkspaceProps) {
     userSelection ?? restoredSelection ?? defaultSelection;
   const selectedFolderPath = activeSelection.folderPath;
   const selectedFileName = activeSelection.fileName;
+  const isNoFileEmptySelection =
+    isNoFileSentinel(selectedFileName) &&
+    isEmptyFolderInTree(folders, selectedFolderPath);
   const [fileContent, setFileContent] = useState("");
   const [pendingSave, setPendingSave] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -55,6 +60,18 @@ export function Workspace({ initialFolders }: WorkspaceProps) {
     null,
   );
   const agentChatControllerRef = useRef<AgentChatController | null>(null);
+  const [agentControllerVersion, setAgentControllerVersion] = useState(0);
+  const agentSessionChrome = useAgentSessionChrome(
+    agentChatControllerRef,
+    agentControllerVersion,
+  );
+  const agentBusyProjectFolderId =
+    agentSessionChrome?.isStreaming && agentSessionChrome.projectFolderId
+      ? agentSessionChrome.projectFolderId
+      : null;
+  const onAgentControllerReady = useCallback(() => {
+    setAgentControllerVersion((v) => v + 1);
+  }, []);
   const insertCallbackRef = useRef<((markdown: string) => void) | null>(null);
   const overwriteCallbackRef = useRef<((markdown: string) => void) | null>(
     null,
@@ -81,6 +98,15 @@ export function Workspace({ initialFolders }: WorkspaceProps) {
         editingContentRef.current = null;
         return;
       }
+      if (
+        isNoFileSentinel(fileName) &&
+        isEmptyFolderInTree(folders, folderPath)
+      ) {
+        setFileContent("");
+        editingContentRef.current = null;
+        saveLastFileSelection({ folderPath, fileName });
+        return;
+      }
       if (!isTextEditableMode(resolvePane2Mode(fileName))) {
         setFileContent("");
         editingContentRef.current = null;
@@ -101,12 +127,22 @@ export function Workspace({ initialFolders }: WorkspaceProps) {
       editingContentRef.current = data.content;
       saveLastFileSelection({ folderPath, fileName });
     },
-    [],
+    [folders],
   );
 
   useEffect(() => {
     if (pendingSave) return;
     if (!selectedFolderPath || !selectedFileName) return;
+
+    if (isNoFileEmptySelection) {
+      setFileContent("");
+      editingContentRef.current = null;
+      saveLastFileSelection({
+        folderPath: selectedFolderPath,
+        fileName: selectedFileName,
+      });
+      return;
+    }
 
     if (!isTextEditableMode(resolvePane2Mode(selectedFileName))) {
       saveLastFileSelection({
@@ -144,7 +180,12 @@ export function Workspace({ initialFolders }: WorkspaceProps) {
     return () => {
       cancelled = true;
     };
-  }, [selectedFolderPath, selectedFileName, pendingSave]);
+  }, [
+    selectedFolderPath,
+    selectedFileName,
+    pendingSave,
+    isNoFileEmptySelection,
+  ]);
 
   const refreshFolders = useCallback(async () => {
     const res = await fetch("/api/workspace/load", { cache: "no-store" });
@@ -156,7 +197,10 @@ export function Workspace({ initialFolders }: WorkspaceProps) {
   const handleSelectFile = useCallback(
     (folderPath: string, fileName: string) => {
       setUserSelection({ folderPath, fileName });
-      if (!isTextEditableMode(resolvePane2Mode(fileName))) {
+      if (
+        isNoFileSentinel(fileName) ||
+        !isTextEditableMode(resolvePane2Mode(fileName))
+      ) {
         setFileContent("");
         editingContentRef.current = null;
       }
@@ -172,6 +216,7 @@ export function Workspace({ initialFolders }: WorkspaceProps) {
   const handleSave = useCallback(
     async (content: string) => {
       if (!selectedFolderPath || !selectedFileName) return;
+      if (isNoFileEmptySelection) return;
       if (!isTextEditableMode(resolvePane2Mode(selectedFileName))) return;
       await fetch("/api/workspace/save-file", {
         method: "POST",
@@ -184,7 +229,12 @@ export function Workspace({ initialFolders }: WorkspaceProps) {
       });
       await loadFileContent(selectedFolderPath, selectedFileName);
     },
-    [selectedFolderPath, selectedFileName, loadFileContent],
+    [
+      selectedFolderPath,
+      selectedFileName,
+      loadFileContent,
+      isNoFileEmptySelection,
+    ],
   );
 
   useWorkspaceSync({
@@ -199,7 +249,7 @@ export function Workspace({ initialFolders }: WorkspaceProps) {
   });
 
   const currentFilePath =
-    selectedFolderPath && selectedFileName
+    selectedFolderPath && selectedFileName && !isNoFileEmptySelection
       ? `${ALLOWED_PREFIX}${selectedFolderPath}/${selectedFileName}`
       : null;
 
@@ -228,6 +278,7 @@ export function Workspace({ initialFolders }: WorkspaceProps) {
             onSelectFile={handleSelectFile}
             onRefresh={refreshFolders}
             onOpenPurpose={() => setPurposeOpen(true)}
+            agentBusyProjectFolderId={agentBusyProjectFolderId}
           />
         </div>
 
@@ -240,6 +291,7 @@ export function Workspace({ initialFolders }: WorkspaceProps) {
           <EditorPane
             folderPath={selectedFolderPath}
             fileName={selectedFileName}
+            isNoFileEmptySelection={isNoFileEmptySelection}
             content={fileContent}
             isResizing={isResizing}
             onContentChange={handleContentChange}
@@ -269,6 +321,7 @@ export function Workspace({ initialFolders }: WorkspaceProps) {
               overwriteCallbackRef.current?.(markdown)
             }
             agentChatControllerRef={agentChatControllerRef}
+            onControllerReady={onAgentControllerReady}
           />
         </div>
       </div>

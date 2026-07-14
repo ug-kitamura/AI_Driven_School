@@ -45,6 +45,8 @@ const MODE_TABS: ReadonlyArray<PaneSegmentOption<EditorViewMode>> = [
 type Props = {
   folderPath: string;
   fileName: string;
+  /** 空フォルダの `no file` センチネル選択時 */
+  isNoFileEmptySelection?: boolean;
   content: string;
   isResizing?: boolean;
   onContentChange: (content: string) => void;
@@ -57,13 +59,24 @@ type Props = {
 const SAVE_DEBOUNCE_MS = 800;
 
 export function EditorPane(props: Props) {
-  const { folderPath, fileName } = props;
+  const { folderPath, fileName, isNoFileEmptySelection = false } = props;
   if (!folderPath || !fileName) {
     return (
       <div className="flex h-full flex-col">
         <EditorHeader title="ファイルを選択してください" muted />
         <div className="flex flex-1 items-center justify-center text-sm text-muted-foreground">
           Pane 1 からフォルダとファイルを選択してください
+        </div>
+      </div>
+    );
+  }
+
+  if (isNoFileEmptySelection) {
+    return (
+      <div className="flex h-full flex-col">
+        <EditorHeader title={fileName} />
+        <div className="flex flex-1 items-center justify-center text-sm text-muted-foreground">
+          ファイルが存在しません
         </div>
       </div>
     );

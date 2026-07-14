@@ -1,0 +1,367 @@
+import { describe, expect, it, vi } from "vitest";
+import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
+import type { LlmProvider, LlmProviderRunOptions } from "@/lib/agent/llm/provider";
+import type { ProviderTurnResult } from "@/lib/agent/llm/types";
+import {
+  executeGenerateAndWrite,
+  GENERATE_MAX_CONTINUATIONS_PER_SECTION,
+  GENERATE_MAX_SECTIONS,
+  GENERATE_TOTAL_CHAR_LIMIT,
+  parseGenerateWriteInput,
+  stripEnclosingCodeFence,
+} from "@/lib/agent/tools/generate-write";
+import {
+  READ_CHAR_LIMIT,
+  resolveToolDefinitions,
+} from "@/lib/agent/tools/registry";
+import type { ToolExecutionContext } from "@/lib/agent/tools/registry";
+import { createFile, createFolder } from "@/lib/workspace-mutations";
+
+function makeProject() {
+  const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "ebex-generate-write-"));
+  createFolder(tmpDir, "demo");
+  const skillDir = path.join(tmpDir, "skill-zone", "my-skill");
+  fs.mkdirSync(path.join(skillDir, "references"), { recursive: true });
+  const projectDir = path.join(tmpDir, "workspace", "demo");
+  return { tmpDir, skillDir, projectDir };
+}
+
+function makeProvider(
+  turns: Array<Pick<ProviderTurnResult, "text" | "stopReason">>,
+): { provider: LlmProvider; calls: LlmProviderRunOptions[] } {
+  const calls: LlmProviderRunOptions[] = [];
+  let index = 0;
+  const runTurn = vi.fn(async (options: LlmProviderRunOptions) => {
+    calls.push(options);
+    const turn = turns[Math.min(index, turns.length - 1)];
+    index += 1;
+    return { ...turn, toolCalls: [] };
+  });
+  const provider: LlmProvider = {
+    runTurn,
+    async *streamTurn() {
+      throw new Error("not used");
+    },
+  };
+  return { provider, calls };
+}
+
+function makeContext(
+  base: ReturnType<typeof makeProject>,
+  provider: LlmProvider,
+): ToolExecutionContext {
+  return {
+    projectRoot: base.tmpDir,
+    projectFolderId: "demo",
+    skillId: "my-skill",
+    skillDirAbsolute: base.skillDir,
+    generate: {
+      provider,
+      apiKey: "test-key",
+      model: "claude-test",
+      maxTokens: 1000,
+    },
+  };
+}
+
+describe("generate_and_write tool definition", () => {
+  it("is included in resolved tool definitions", () => {
+    const names = resolveToolDefinitions([]).map((d) => d.name);
+    expect(names).toContain("generate_and_write");
+  });
+});
+
+describe("parseGenerateWriteInput", () => {
+  it("accepts minimal input and normalizes arrays", () => {
+    const parsed = parseGenerateWriteInput({
+      purpose: "p",
+      path: "output/a.html",
+      instruction: "書いて",
+      sections: ["s1", "", 2, "s2"],
+      context_paths: ["notes.md"],
+    });
+    expect(parsed).toMatchObject({
+      path: "output/a.html",
+      sections: ["s1", "s2"],
+      contextPaths: ["notes.md"],
+    });
+  });
+
+  it("rejects missing path or instruction", () => {
+    expect(
+      parseGenerateWriteInput({ instruction: "x" }),
+    ).toMatchObject({ error: expect.stringContaining("path") });
+    expect(
+      parseGenerateWriteInput({ path: "a.md", instruction: " " }),
+    ).toMatchObject({ error: expect.stringContaining("instruction") });
+  });
+
+  it("rejects too many sections", () => {
+    const sections = Array.from(
+      { length: GENERATE_MAX_SECTIONS + 1 },
+      (_, i) => `s${i}`,
+    );
+    expect(
+      parseGenerateWriteInput({ path: "a.md", instruction: "x", sections }),
+    ).toMatchObject({ error: expect.stringContaining("sections") });
+  });
+});
+
+describe("stripEnclosingCodeFence", () => {
+  it("strips a fence that wraps the whole output", () => {
+    expect(stripEnclosingCodeFence("```html\n<div>a</div>\n```")).toBe(
+      "<div>a</div>",
+    );
+  });
+
+  it("keeps inner fences and plain text", () => {
+    expect(stripEnclosingCodeFence("<p>a</p>")).toBe("<p>a</p>");
+    const mixed = "before\n```js\ncode\n```\nafter";
+    expect(stripEnclosingCodeFence(mixed)).toBe(mixed);
+  });
+});
+
+describe("executeGenerateAndWrite", () => {
+  it("keeps the generated size limit insertable via replace_between from_path", () => {
+    expect(GENERATE_TOTAL_CHAR_LIMIT).toBeLessThanOrEqual(READ_CHAR_LIMIT);
+  });
+
+  it("generates sections in order and writes once with a summary result", async () => {
+    const base = makeProject();
+    const { provider, calls } = makeProvider([
+      { text: "<section>one</section>", stopReason: "end_turn" },
+      { text: "<section>two</section>", stopReason: "end_turn" },
+    ]);
+    const outcome = await executeGenerateAndWrite(
+      makeContext(base, provider),
+      {
+        purpose: "図解生成",
+        path: "output/partial.html",
+        instruction: "図解本文を書く",
+        sections: ["導入", "本論"],
+      },
+    );
+    expect(outcome.result).toMatchObject({
+      path: "workspace/demo/output/partial.html",
+      sections: 2,
+      continuations: 0,
+    });
+    const written = fs.readFileSync(
+      path.join(base.projectDir, "output", "partial.html"),
+      "utf-8",
+    );
+    expect(written).toBe("<section>one</section>\n\n<section>two</section>");
+    // 成果物本文は tool_result に載らない
+    expect(JSON.stringify(outcome.result)).not.toContain("<section>");
+    // 2 セクション = 2 回の子呼び出し、各呼び出しにセクション指示が載る
+    expect(calls).toHaveLength(2);
+    expect(String(calls[0].messages[0].content)).toContain("導入");
+    expect(String(calls[1].messages[0].content)).toContain("本論");
+    fs.rmSync(base.tmpDir, { recursive: true, force: true });
+  });
+
+  it("continues after max_tokens and stitches the text verbatim", async () => {
+    const base = makeProject();
+    const { provider, calls } = makeProvider([
+      { text: "<div>first-half", stopReason: "max_tokens" },
+      { text: " second-half</div>", stopReason: "end_turn" },
+    ]);
+    const outcome = await executeGenerateAndWrite(
+      makeContext(base, provider),
+      {
+        purpose: "p",
+        path: "out.html",
+        instruction: "書く",
+      },
+    );
+    expect(outcome.result).toMatchObject({ continuations: 1 });
+    expect(
+      fs.readFileSync(path.join(base.projectDir, "out.html"), "utf-8"),
+    ).toBe("<div>first-half second-half</div>");
+    // 継続呼び出しには生成済みテキストが assistant として積まれる
+    const continuation = calls[1];
+    expect(continuation.messages).toHaveLength(3);
+    expect(continuation.messages[1]).toMatchObject({
+      role: "assistant",
+      content: "<div>first-half",
+    });
+    expect(String(continuation.messages[2].content)).toContain("続き");
+    fs.rmSync(base.tmpDir, { recursive: true, force: true });
+  });
+
+  it("fails without writing when the continuation limit is exceeded", async () => {
+    const base = makeProject();
+    const { provider, calls } = makeProvider([
+      { text: "x", stopReason: "max_tokens" },
+    ]);
+    const outcome = await executeGenerateAndWrite(
+      makeContext(base, provider),
+      { purpose: "p", path: "out.html", instruction: "書く" },
+    );
+    expect(outcome.result).toMatchObject({
+      error: expect.stringContaining("継続上限"),
+      completedSections: 0,
+      recoverable: true,
+      guidance: expect.stringContaining("sections"),
+    });
+    expect(calls).toHaveLength(GENERATE_MAX_CONTINUATIONS_PER_SECTION + 1);
+    expect(fs.existsSync(path.join(base.projectDir, "out.html"))).toBe(false);
+    fs.rmSync(base.tmpDir, { recursive: true, force: true });
+  });
+
+  it("fails without writing when the total size limit is exceeded", async () => {
+    const base = makeProject();
+    const { provider } = makeProvider([
+      {
+        text: "x".repeat(GENERATE_TOTAL_CHAR_LIMIT + 1),
+        stopReason: "end_turn",
+      },
+    ]);
+    const outcome = await executeGenerateAndWrite(
+      makeContext(base, provider),
+      { purpose: "p", path: "out.html", instruction: "書く" },
+    );
+    expect(outcome.result).toMatchObject({
+      error: expect.stringContaining("上限"),
+      completedSections: 0,
+    });
+    expect(fs.existsSync(path.join(base.projectDir, "out.html"))).toBe(false);
+    fs.rmSync(base.tmpDir, { recursive: true, force: true });
+  });
+
+  it("fails with completedSections when a later section errors", async () => {
+    const base = makeProject();
+    const calls: LlmProviderRunOptions[] = [];
+    let count = 0;
+    const provider: LlmProvider = {
+      runTurn: async (options) => {
+        calls.push(options);
+        count += 1;
+        if (count === 2) throw new Error("api-down");
+        return { text: "ok", toolCalls: [], stopReason: "end_turn" };
+      },
+      async *streamTurn() {
+        throw new Error("not used");
+      },
+    };
+    const outcome = await executeGenerateAndWrite(
+      makeContext(base, provider),
+      {
+        purpose: "p",
+        path: "out.html",
+        instruction: "書く",
+        sections: ["a", "b"],
+      },
+    );
+    expect(outcome.result).toMatchObject({
+      error: expect.stringContaining("api-down"),
+      completedSections: 1,
+    });
+    expect(fs.existsSync(path.join(base.projectDir, "out.html"))).toBe(false);
+    fs.rmSync(base.tmpDir, { recursive: true, force: true });
+  });
+
+  it("includes context files from project and skill zone in the prompt", async () => {
+    const base = makeProject();
+    createFile(base.tmpDir, "demo", "notes.md", "outline-content");
+    fs.writeFileSync(
+      path.join(base.skillDir, "references", "model.html"),
+      "model-answer-content",
+      "utf-8",
+    );
+    const { provider, calls } = makeProvider([
+      { text: "done", stopReason: "end_turn" },
+    ]);
+    const outcome = await executeGenerateAndWrite(
+      makeContext(base, provider),
+      {
+        purpose: "p",
+        path: "out.html",
+        instruction: "書く",
+        context_paths: ["notes.md", "references/model.html"],
+      },
+    );
+    const record = outcome.result as Record<string, unknown>;
+    expect(record.error).toBeUndefined();
+    const prompt = String(calls[0].messages[0].content);
+    expect(prompt).toContain("outline-content");
+    expect(prompt).toContain("model-answer-content");
+    fs.rmSync(base.tmpDir, { recursive: true, force: true });
+  });
+
+  it("rejects context_paths outside project and skill zones without calling the LLM", async () => {
+    const base = makeProject();
+    createFolder(base.tmpDir, "other");
+    createFile(base.tmpDir, "other", "secret.md", "secret");
+    const { provider, calls } = makeProvider([
+      { text: "x", stopReason: "end_turn" },
+    ]);
+    const outcome = await executeGenerateAndWrite(
+      makeContext(base, provider),
+      {
+        purpose: "p",
+        path: "out.html",
+        instruction: "書く",
+        context_paths: ["workspace/other/secret.md"],
+      },
+    );
+    expect(outcome.result).toMatchObject({
+      error: expect.stringContaining("context_paths"),
+    });
+    expect(calls).toHaveLength(0);
+    fs.rmSync(base.tmpDir, { recursive: true, force: true });
+  });
+
+  it("rejects skill-zone write targets without calling the LLM", async () => {
+    const base = makeProject();
+    const { provider, calls } = makeProvider([
+      { text: "x", stopReason: "end_turn" },
+    ]);
+    const outcome = await executeGenerateAndWrite(
+      makeContext(base, provider),
+      {
+        purpose: "p",
+        path: "skill/my-skill/references/out.html",
+        instruction: "書く",
+      },
+    );
+    expect(outcome.result).toMatchObject({
+      error: expect.stringContaining("スキルディレクトリ"),
+    });
+    expect(calls).toHaveLength(0);
+    fs.rmSync(base.tmpDir, { recursive: true, force: true });
+  });
+
+  it("strips an enclosing code fence from a section", async () => {
+    const base = makeProject();
+    const { provider } = makeProvider([
+      { text: "```html\n<div>body</div>\n```", stopReason: "end_turn" },
+    ]);
+    await executeGenerateAndWrite(makeContext(base, provider), {
+      purpose: "p",
+      path: "out.html",
+      instruction: "書く",
+    });
+    expect(
+      fs.readFileSync(path.join(base.projectDir, "out.html"), "utf-8"),
+    ).toBe("<div>body</div>");
+    fs.rmSync(base.tmpDir, { recursive: true, force: true });
+  });
+
+  it("errors when no generate config is present", async () => {
+    const base = makeProject();
+    const outcome = await executeGenerateAndWrite(
+      {
+        projectRoot: base.tmpDir,
+        projectFolderId: "demo",
+      },
+      { purpose: "p", path: "out.html", instruction: "書く" },
+    );
+    expect(outcome.result).toMatchObject({
+      error: expect.stringContaining("LLM 設定"),
+    });
+    fs.rmSync(base.tmpDir, { recursive: true, force: true });
+  });
+});

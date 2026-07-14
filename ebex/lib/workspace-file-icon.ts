@@ -90,5 +90,5 @@ export function resolveFileIconCategory(fileName: string): FileIconCategory {
 
 export function getFileIconColorClass(category: FileIconCategory): string {
   void category;
-  return "text-chart-1/60";
+  return "text-chart-1/60 dark:text-chart-1";
 }

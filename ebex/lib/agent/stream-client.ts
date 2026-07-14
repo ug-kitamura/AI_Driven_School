@@ -8,6 +8,7 @@ export type ToolConfirmKind =
   | "outside-project-write"
   | "run-script"
   | "run-skill-script"
+  | "generate-write"
   | "web-search";
 
 export type ToolConfirmScriptInfo = {
@@ -24,6 +25,13 @@ export type ToolConfirmSearchInfo = {
   purpose: string;
 };
 
+export type ToolConfirmGenerateInfo = {
+  purpose: string;
+  instruction: string;
+  sections: string[];
+  contextPaths: string[];
+};
+
 export type ToolConfirmRequiredEvent = {
   toolUseId: string;
   kind: ToolConfirmKind;
@@ -31,6 +39,7 @@ export type ToolConfirmRequiredEvent = {
   isNew: boolean;
   script?: ToolConfirmScriptInfo;
   search?: ToolConfirmSearchInfo;
+  generate?: ToolConfirmGenerateInfo;
 };
 
 export type AgentStreamCallbacks = {

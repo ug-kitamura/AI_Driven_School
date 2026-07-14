@@ -13,6 +13,7 @@ export type ConfirmKind =
   | "outside-project-write"
   | "run-script"
   | "run-skill-script"
+  | "generate-write"
   | "web-search";
 
 /** スクリプト実行確認の表示ペイロード */
@@ -39,6 +40,18 @@ export type ConfirmSearchInfo = {
   purpose: string;
 };
 
+/** generate_and_write 確認の表示ペイロード */
+export type ConfirmGenerateInfo = {
+  /** 何のために生成するか（モデル申告） */
+  purpose: string;
+  /** 生成指示（折りたたみ表示用） */
+  instruction: string;
+  /** セクション分割の指示 */
+  sections: string[];
+  /** 子プロンプトへ渡される参照ファイル */
+  contextPaths: string[];
+};
+
 export type ConfirmRequirement = {
   kind: ConfirmKind;
   /** 表示用の対象パス */
@@ -49,6 +62,8 @@ export type ConfirmRequirement = {
   script?: ConfirmScriptInfo;
   /** web 検索確認（kind: web-search）の表示情報 */
   search?: ConfirmSearchInfo;
+  /** 生成書込確認（kind: generate-write）の表示情報 */
+  generate?: ConfirmGenerateInfo;
 };
 
 export type ConfirmGateOptions = ResolveToolPathOptions & {
@@ -253,6 +268,63 @@ function resolveScriptConfirm(
   };
 }
 
+/**
+ * generate_and_write の確認要求を組み立てる。
+ * 子 LLM 呼び出し（API トークン消費）を伴うため、書込先が新規でも毎回確認する
+ * （skipOverwritePaths によるスキップはしない）。
+ * プロジェクト外への書込は既存の outside-project-write として確認する。
+ */
+function resolveGenerateConfirm(
+  projectRoot: string,
+  projectFolderId: string,
+  call: ToolCall,
+  options: ConfirmGateOptions,
+): ConfirmRequirement | null {
+  const inputPath = extractPathInput(call);
+  const instruction =
+    typeof call.input?.instruction === "string" ? call.input.instruction : "";
+  if (!inputPath || !instruction.trim()) return null; // broken tool_use 経路で処理される
+
+  const resolved = resolveToolTargetPath(
+    projectRoot,
+    projectFolderId,
+    inputPath,
+    { ...options, preferSkillIfExists: false },
+  );
+  if ("error" in resolved) return null; // 実行時に拒否される
+  if (resolved.insideSkill) return null; // 実行時に拒否される
+
+  const exists = fs.existsSync(resolved.absolutePath);
+  if (!resolved.insideProject) {
+    return {
+      kind: "outside-project-write",
+      path: resolved.relativePath,
+      isNew: !exists,
+    };
+  }
+
+  const toStringArray = (value: unknown): string[] =>
+    Array.isArray(value)
+      ? value.filter(
+          (entry): entry is string =>
+            typeof entry === "string" && !!entry.trim(),
+        )
+      : [];
+
+  return {
+    kind: "generate-write",
+    path: resolved.relativePath,
+    isNew: !exists,
+    generate: {
+      purpose:
+        typeof call.input?.purpose === "string" ? call.input.purpose : "",
+      instruction: instruction.slice(0, SCRIPT_CODE_DISPLAY_CHAR_LIMIT),
+      sections: toStringArray(call.input?.sections),
+      contextPaths: toStringArray(call.input?.context_paths),
+    },
+  };
+}
+
 export function resolveConfirmRequirement(
   projectRoot: string,
   projectFolderId: string,
@@ -261,6 +333,10 @@ export function resolveConfirmRequirement(
 ): ConfirmRequirement | null {
   if (call.name === "run_script" || call.name === "run_skill_script") {
     return resolveScriptConfirm(projectRoot, projectFolderId, call, options);
+  }
+
+  if (call.name === "generate_and_write") {
+    return resolveGenerateConfirm(projectRoot, projectFolderId, call, options);
   }
 
   if (call.name === "web_search") {

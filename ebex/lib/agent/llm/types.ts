@@ -90,6 +90,17 @@ export const AGENT_MISSING_PATH_ERROR =
 export const AGENT_MISSING_SCRIPT_INPUT_ERROR =
   "必須の code（または script_path）が欠落または空です";
 
+export const AGENT_MISSING_GENERATE_INPUT_ERROR =
+  "必須の path または instruction が欠落または空です";
+
+/** generate_and_write がユーザーに拒否されたときの案内（本文埋め込みへの退避を防ぐ） */
+export const GENERATE_REJECTED_GUIDANCE =
+  "ユーザーが生成書込を拒否しました。write_file や run_script の引数に成果物本文を埋め込む代替を行わないでください（出力上限で失敗します）。拒否の理由や希望する進め方をユーザーに確認してください。";
+
+/** generate_and_write の入力不備時にモデルへ返す具体的な修正案内 */
+export const GENERATE_WRITE_INPUT_GUIDANCE =
+  'generate_and_write の入力は {"purpose": "目的の一文", "path": "書込先パス", "instruction": "生成指示", "sections": ["セクション指示", ...], "context_paths": ["参照ファイル", ...]} です。成果物の本文を instruction や tool 引数に書かないでください。材料（アウトライン・収集メモ・模範例）は先にファイルへ書き出して context_paths で渡し、大きな成果物は sections で分割してください。';
+
 /** run_script / run_skill_script の入力不備時にモデルへ返す具体的な修正案内 */
 export const SCRIPT_INPUT_GUIDANCE =
   'run_script の入力は {"purpose": "目的の一文", "code": "CommonJS スクリプト本文", "writes": ["書込先パス"]} です。code フィールドの JSON 文字列としてスクリプト全文を渡してください（テキスト応答やコードフェンスに書いても実行されません）。code を短く保つため、成果物の本文を文字列リテラルで埋め込まず、ディスク上のファイル（md ドラフト・テンプレート等）を fs.readFileSync で読んで組み立ててください。run_skill_script はスキルに scripts/ が同梱されている場合のみ使えます。';
@@ -100,7 +111,7 @@ export const MAX_TOKENS_TRUNCATION_NOTE =
 
 /** 巨大 write 失敗時にモデルへ返す汎用案内（スキル固有ロジックではない） */
 export const LARGE_FILE_WRITE_GUIDANCE =
-  "大きな成果物は write_file 一発で書かず、run_script を最優先で使ってください: 本文を tool 引数に載せず、ディスク上のデータ（md ドラフト・テンプレート等）を読んで変換・書込する短い Node.js コードを実行します。補助として copy_file でテンプレートをコピーし、replace_in_file / replace_between（大きな本文は from_path）で差し込み、必要なら append_file で partial を積む方法も使えます。";
+  "大きな成果物は write_file 一発で書かず、本文を tool 引数に載せないでください。本文がディスク上のデータ（md ドラフト・テンプレート等）から機械的に作れるなら run_script で変換・書込します。モデルが新たに創作する長文（図解 HTML の本文等）なら generate_and_write を使います: 材料をファイルへ書き出して context_paths で渡し、sections で分割してサーバ内生成に任せます。補助として copy_file でテンプレートをコピーし、replace_in_file / replace_between（大きな本文は from_path）で差し込み、必要なら append_file で partial を積む方法も使えます。";
 
 export const AGENT_REPEATED_TOOL_ERROR =
   "同一のツールエラーが連続したためエージェントを停止しました";

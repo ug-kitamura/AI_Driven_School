@@ -36,7 +36,7 @@ export function buildSkillRuntimeContext(focus: SkillRuntimeFocus): string {
       ? [
           `実行中スキルの参照ファイル（\`SKILL.md\` と同じフォルダ配下、例: \`references/*\`）は確認なしで発見（list/glob/search）および読取できる。`,
           `スキル本文の相対パス（例: \`references/purpose.md\`）はスキル側を優先して読むこと。成果物の書込先は \`workspace/${project}/\` 配下である。`,
-          "大きな成果物（HTML 等）は本文を tool 引数に書かず、`run_script`（スキルに `scripts/` があれば `run_skill_script`）でディスク上のデータとテンプレートから組み立てるのを最優先とする。補助として `copy_file` / `replace_in_file` / `replace_between`（大きな本文は `from_path`）/ `append_file` も使える。",
+          "大きな成果物（HTML 等）は本文を tool 引数に書かないこと。本文がディスク上のデータから機械的に作れるなら `run_script`（スキルに `scripts/` があれば `run_skill_script`）、新たに創作する長文なら `generate_and_write`（材料をファイルへ書き出して `context_paths` で渡し、`sections` で分割）を使う。補助として `copy_file` / `replace_in_file` / `replace_between`（大きな本文は `from_path`）/ `append_file` も使える。",
         ]
       : []),
     "",

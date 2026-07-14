@@ -13,9 +13,12 @@ import type {
 import {
   AGENT_BROKEN_TOOL_USE_ERROR,
   AGENT_LOOP_LIMIT_ERROR,
+  AGENT_MISSING_GENERATE_INPUT_ERROR,
   AGENT_MISSING_PATH_ERROR,
   AGENT_MISSING_SCRIPT_INPUT_ERROR,
   AGENT_REPEATED_TOOL_ERROR,
+  GENERATE_REJECTED_GUIDANCE,
+  GENERATE_WRITE_INPUT_GUIDANCE,
   LARGE_FILE_WRITE_GUIDANCE,
   MAX_AGENT_LOOP_TURNS,
   MAX_CONSECUTIVE_IDENTICAL_TOOL_ERRORS,
@@ -106,6 +109,19 @@ export function isBrokenToolUse(call: ToolCall): string | null {
     }
     return null;
   }
+  if (call.name === "generate_and_write") {
+    const pathValue = call.input?.path;
+    const instruction = call.input?.instruction;
+    if (
+      typeof pathValue !== "string" ||
+      !pathValue.trim() ||
+      typeof instruction !== "string" ||
+      !instruction.trim()
+    ) {
+      return AGENT_MISSING_GENERATE_INPUT_ERROR;
+    }
+    return null;
+  }
   if (PATH_REQUIRED_TOOLS.has(call.name)) {
     const pathValue = call.input?.path;
     if (typeof pathValue !== "string" || !pathValue.trim()) {
@@ -125,12 +141,14 @@ function brokenToolOutcome(
   message: string,
   options?: { truncatedByMaxTokens?: boolean },
 ): ToolExecutionOutcome {
-  // script 系の入力不備には schema を再提示する（LARGE_FILE_WRITE_GUIDANCE は
-  // 「run_script を使え」という案内のため、run_script 自体の失敗には循環して役立たない）
+  // script / generate 系の入力不備には各 schema を再提示する（LARGE_FILE_WRITE_GUIDANCE は
+  // これらのツールへ誘導する案内のため、ツール自体の入力失敗には循環して役立たない）
   const baseGuidance =
     message === AGENT_MISSING_SCRIPT_INPUT_ERROR
       ? SCRIPT_INPUT_GUIDANCE
-      : LARGE_FILE_WRITE_GUIDANCE;
+      : message === AGENT_MISSING_GENERATE_INPUT_ERROR
+        ? GENERATE_WRITE_INPUT_GUIDANCE
+        : LARGE_FILE_WRITE_GUIDANCE;
   const guidance = options?.truncatedByMaxTokens
     ? `${MAX_TOKENS_TRUNCATION_NOTE} ${baseGuidance}`
     : baseGuidance;
@@ -182,6 +200,13 @@ export async function runAgentLoop(
         projectFolderId,
         ...skillOptions,
         search: { provider: searchProvider, session: searchSession },
+        generate: {
+          provider: providerResult.provider,
+          apiKey,
+          model: providerResult.model,
+          maxTokens,
+          signal: options.signal,
+        },
       }
     : undefined;
 
@@ -310,6 +335,9 @@ export async function runAgentLoop(
             isNew: requirement.isNew,
             ...(requirement.script ? { script: requirement.script } : {}),
             ...(requirement.search ? { search: requirement.search } : {}),
+            ...(requirement.generate
+              ? { generate: requirement.generate }
+              : {}),
           });
           const decision = await awaitToolConfirmDecision(call.id);
           if (decision === "reject") {
@@ -320,6 +348,9 @@ export async function runAgentLoop(
                 reason: "ユーザーが確認ダイアログで拒否しました",
                 ...(call.name === "web_search"
                   ? { guidance: SEARCH_REJECTED_GUIDANCE }
+                  : {}),
+                ...(call.name === "generate_and_write"
+                  ? { guidance: GENERATE_REJECTED_GUIDANCE }
                   : {}),
               },
               display: {

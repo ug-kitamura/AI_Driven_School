@@ -1,7 +1,9 @@
 import fs from "node:fs";
 import path from "node:path";
 import type { ToolDefinition } from "@/lib/agent/llm/types";
+import type { LlmProvider } from "@/lib/agent/llm/provider";
 import { resolveToolTargetPath } from "@/lib/agent/tools/fs-guard";
+import { executeGenerateAndWrite } from "@/lib/agent/tools/generate-write";
 import { isLikelySubagentToolName } from "@/lib/agent/subagent-fallback";
 import {
   checkScriptSyntax,
@@ -36,6 +38,14 @@ export type ToolExecutionContext = {
     provider: SearchProvider | null;
     session: SearchSessionState;
   };
+  /** generate_and_write の子 LLM 呼び出し設定（agent loop が構築） */
+  generate?: {
+    provider: LlmProvider;
+    apiKey: string;
+    model: string;
+    maxTokens: number;
+    signal?: AbortSignal;
+  };
 };
 
 function skillPathOptions(
@@ -50,7 +60,7 @@ function skillPathOptions(
 }
 
 const SEARCH_RESULT_LIMIT = 50;
-const READ_CHAR_LIMIT = 100_000;
+export const READ_CHAR_LIMIT = 100_000;
 const IGNORED_DIR_NAMES = new Set([
   "node_modules",
   ".git",
@@ -299,6 +309,43 @@ const TOOL_SCHEMAS = {
         },
       },
       required: ["script_path", "purpose"],
+    },
+  },
+  generate_and_write: {
+    name: "generate_and_write",
+    description:
+      "モデルが新たに創作する大きな成果物（図解 HTML の本文・長文ドキュメント等）を、サーバ内の別 LLM 呼び出しで生成してファイルへ直接書き込む。本文を tool 引数に載せないため出力上限で切れない。本文がディスク上のデータから機械的に作れる場合はこれではなく run_script を使うこと。材料（アウトライン・収集メモ・模範例）は先にファイルへ書き出して context_paths で渡し、大きな成果物は sections で分割を指定すること。実行前にユーザー確認が入る。",
+    input_schema: {
+      type: "object",
+      properties: {
+        purpose: {
+          type: "string",
+          description:
+            "何のために生成するかの一文（ユーザー確認ダイアログに表示される）",
+        },
+        path: {
+          type: "string",
+          description: "書き込み先パス（プロジェクト相対）",
+        },
+        instruction: {
+          type: "string",
+          description:
+            "生成指示（成果物の内容・構成・トーン・形式）。成果物の本文そのものを書かないこと",
+        },
+        sections: {
+          type: "array",
+          items: { type: "string" },
+          description:
+            "セクション分割の指示。順に生成して連結される。大きな成果物では必ず指定する",
+        },
+        context_paths: {
+          type: "array",
+          items: { type: "string" },
+          description:
+            "生成時に内容を参照させるファイル（プロジェクト相対、または実行中スキルの references/... 等）",
+        },
+      },
+      required: ["purpose", "path", "instruction"],
     },
   },
   web_search: {
@@ -1508,6 +1555,8 @@ export async function executeRegisteredTool(
       return executeRunScript(context, input);
     case "run_skill_script":
       return executeRunSkillScript(context, input);
+    case "generate_and_write":
+      return executeGenerateAndWrite(context, input);
     case "web_search":
       return executeWebSearch(context, input);
     default:

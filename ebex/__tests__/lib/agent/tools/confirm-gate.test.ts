@@ -353,6 +353,94 @@ describe("resolveConfirmRequirement for script tools", () => {
   });
 });
 
+describe("resolveConfirmRequirement for generate_and_write", () => {
+  it("requires confirmation every time, even for new and skip-listed paths", () => {
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "ebex-confirm-"));
+    createFolder(tmpDir, "demo");
+    const call = {
+      id: "t1",
+      name: "generate_and_write",
+      input: {
+        purpose: "図解本文の生成",
+        path: "output/partial.html",
+        instruction: "図解を書く",
+        sections: ["導入", "本論"],
+        context_paths: ["notes.md"],
+      },
+    };
+    const req = resolveConfirmRequirement(tmpDir, "demo", call, {
+      skipOverwritePaths: new Set(["workspace/demo/output/partial.html"]),
+    });
+    expect(req).not.toBeNull();
+    expect(req?.kind).toBe("generate-write");
+    expect(req?.path).toBe("workspace/demo/output/partial.html");
+    expect(req?.isNew).toBe(true);
+    expect(req?.generate).toEqual({
+      purpose: "図解本文の生成",
+      instruction: "図解を書く",
+      sections: ["導入", "本論"],
+      contextPaths: ["notes.md"],
+    });
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+  });
+
+  it("marks overwrite when the target exists", () => {
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "ebex-confirm-"));
+    createFolder(tmpDir, "demo");
+    createFile(tmpDir, "demo", "out.html", "old");
+    const req = resolveConfirmRequirement(tmpDir, "demo", {
+      id: "t1",
+      name: "generate_and_write",
+      input: { purpose: "p", path: "out.html", instruction: "書く" },
+    });
+    expect(req?.kind).toBe("generate-write");
+    expect(req?.isNew).toBe(false);
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+  });
+
+  it("falls back to outside-project-write for outside targets", () => {
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "ebex-confirm-"));
+    createFolder(tmpDir, "demo");
+    createFolder(tmpDir, "other");
+    const req = resolveConfirmRequirement(tmpDir, "demo", {
+      id: "t1",
+      name: "generate_and_write",
+      input: {
+        purpose: "p",
+        path: "workspace/other/out.html",
+        instruction: "書く",
+      },
+    });
+    expect(req?.kind).toBe("outside-project-write");
+    expect(req?.path).toBe("workspace/other/out.html");
+    expect(req?.isNew).toBe(true);
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+  });
+
+  it("returns null for missing instruction (broken tool_use path)", () => {
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "ebex-confirm-"));
+    createFolder(tmpDir, "demo");
+    const req = resolveConfirmRequirement(tmpDir, "demo", {
+      id: "t1",
+      name: "generate_and_write",
+      input: { purpose: "p", path: "out.html" },
+    });
+    expect(req).toBeNull();
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+  });
+
+  it("collects the generate_and_write result path for overwrite skip", () => {
+    const paths = collectWrittenPathsFromToolResult({
+      path: "workspace/demo/output/partial.html",
+      bytes: 12345,
+      sections: 2,
+      continuations: 1,
+      durationMs: 100,
+    });
+    expect(paths).toEqual(["workspace/demo/output/partial.html"]);
+  });
+});
+
 describe("collectWrittenPathsFromToolResult with writes", () => {
   it("collects run_script writes for overwrite skip", () => {
     const paths = collectWrittenPathsFromToolResult({

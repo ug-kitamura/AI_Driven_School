@@ -6,6 +6,7 @@ import {
 } from "@/lib/agent/agent-loop";
 import {
   AGENT_BROKEN_TOOL_USE_ERROR,
+  AGENT_MISSING_GENERATE_INPUT_ERROR,
   AGENT_MISSING_PATH_ERROR,
   AGENT_MISSING_SCRIPT_INPUT_ERROR,
   AGENT_REPEATED_TOOL_ERROR,
@@ -107,6 +108,30 @@ describe("isBrokenToolUse", () => {
         id: "1",
         name: "run_skill_script",
         input: { script_path: "scripts/build.cjs" },
+      }),
+    ).toBeNull();
+  });
+
+  it("detects missing path / instruction on generate_and_write", () => {
+    expect(
+      isBrokenToolUse({
+        id: "1",
+        name: "generate_and_write",
+        input: { path: "out.html" },
+      }),
+    ).toBe(AGENT_MISSING_GENERATE_INPUT_ERROR);
+    expect(
+      isBrokenToolUse({
+        id: "1",
+        name: "generate_and_write",
+        input: { instruction: "書く" },
+      }),
+    ).toBe(AGENT_MISSING_GENERATE_INPUT_ERROR);
+    expect(
+      isBrokenToolUse({
+        id: "1",
+        name: "generate_and_write",
+        input: { path: "out.html", instruction: "書く" },
       }),
     ).toBeNull();
   });
@@ -218,6 +243,51 @@ describe("runAgentLoop safety valves", () => {
 
     expect(result.ok).toBe(true);
     expect(executeRegisteredTool).not.toHaveBeenCalled();
+  });
+
+  it("returns generate_and_write schema guidance for missing instruction", async () => {
+    vi.mocked(resolveLlmProvider).mockReturnValue({
+      ok: true,
+      model: "claude-sonnet-4-6",
+      provider: mockProvider([
+        {
+          text: "",
+          stopReason: "tool_use",
+          toolCalls: [
+            {
+              id: "tu1",
+              name: "generate_and_write",
+              input: { path: "out.html" },
+            },
+          ],
+        },
+        {
+          text: "ok",
+          stopReason: "end_turn",
+          toolCalls: [],
+        },
+      ]),
+    });
+
+    const emit = vi.fn();
+    const result = await runAgentLoop({
+      req: new Request("http://localhost/api/agent/invoke"),
+      system: "sys",
+      messages: [{ role: "user", content: "hi" }],
+      toolNames: [],
+      emit,
+      projectFolderId: "demo",
+    });
+
+    expect(result.ok).toBe(true);
+    expect(executeRegisteredTool).not.toHaveBeenCalled();
+    expect(emit).toHaveBeenCalledWith(
+      "tool_end",
+      expect.objectContaining({
+        toolUseId: "tu1",
+        result: expect.stringContaining("generate_and_write の入力は"),
+      }),
+    );
   });
 
   it("continues after 2 identical tool errors then stops on the 3rd", async () => {

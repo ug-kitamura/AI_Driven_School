@@ -72,6 +72,13 @@ function describeRequest(request: ToolConfirmRequiredEvent): {
         actionLabel: "検索を許可",
       };
     }
+    // 未知の種別でも確認を不可視のまま放置しない（TTL で自動拒否される事故の防止）
+    default:
+      return {
+        title: "ツールの実行を許可しますか？",
+        description: `AI が確認の必要な操作を実行しようとしています。\n\n種別: ${request.kind}\n対象: ${request.path}`,
+        actionLabel: "実行を許可",
+      };
   }
 }
 

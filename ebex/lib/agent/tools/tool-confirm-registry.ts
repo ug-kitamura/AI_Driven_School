@@ -1,10 +1,13 @@
 export type ToolConfirmDecision = "approve" | "reject";
 
+/** 確認待ちの結末。timeout は無応答（拒否と同じく実行しないが、理由表示を分ける） */
+export type ToolConfirmResolution = ToolConfirmDecision | "timeout";
+
 /** 確認待ちのタイムアウト（無応答時は自動的に「拒否」で確定する）。 */
 export const TOOL_CONFIRM_TTL_MS = 5 * 60 * 1000;
 
 type PendingEntry = {
-  resolve: (decision: ToolConfirmDecision) => void;
+  resolve: (decision: ToolConfirmResolution) => void;
   timeout: ReturnType<typeof setTimeout>;
 };
 
@@ -12,16 +15,16 @@ const pending = new Map<string, PendingEntry>();
 
 /**
  * ツール呼び出しの確認待ちを登録し、決定（同意/拒否）が届くまで待機する Promise を返す。
- * TTL 経過時はタイムアウトとして自動的に「拒否」を確定する。
+ * TTL 経過時は "timeout" で確定する（実行しない点は拒否と同じ）。
  */
 export function awaitToolConfirmDecision(
   toolUseId: string,
   ttlMs: number = TOOL_CONFIRM_TTL_MS,
-): Promise<ToolConfirmDecision> {
+): Promise<ToolConfirmResolution> {
   return new Promise((resolve) => {
     const timeout = setTimeout(() => {
       pending.delete(toolUseId);
-      resolve("reject");
+      resolve("timeout");
     }, ttlMs);
 
     pending.set(toolUseId, { resolve, timeout });

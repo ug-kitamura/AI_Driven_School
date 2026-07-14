@@ -25,11 +25,11 @@ describe("tool-confirm-registry", () => {
     expect(resolveToolConfirmDecision("missing", "approve")).toBe(false);
   });
 
-  it("auto-rejects after TTL", async () => {
+  it("resolves as timeout after TTL", async () => {
     vi.useFakeTimers();
     const pending = awaitToolConfirmDecision("tool-ttl", 1000);
     vi.advanceTimersByTime(1001);
-    await expect(pending).resolves.toBe("reject");
+    await expect(pending).resolves.toBe("timeout");
     expect(resolveToolConfirmDecision("tool-ttl", "approve")).toBe(false);
   });
 });

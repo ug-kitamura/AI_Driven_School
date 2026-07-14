@@ -340,12 +340,17 @@ export async function runAgentLoop(
               : {}),
           });
           const decision = await awaitToolConfirmDecision(call.id);
-          if (decision === "reject") {
+          if (decision === "reject" || decision === "timeout") {
+            const timedOut = decision === "timeout";
+            const reason = timedOut
+              ? "確認ダイアログが時間内に応答されなかったため実行を見送りました（ダイアログが表示されない場合は画面を再読み込みしてください）"
+              : "ユーザーが確認ダイアログで拒否しました";
             outcome = {
               result: {
                 rejected: true,
+                ...(timedOut ? { timedOut: true } : {}),
                 path: requirement.path,
-                reason: "ユーザーが確認ダイアログで拒否しました",
+                reason,
                 ...(call.name === "web_search"
                   ? { guidance: SEARCH_REJECTED_GUIDANCE }
                   : {}),
@@ -354,8 +359,10 @@ export async function runAgentLoop(
                   : {}),
               },
               display: {
-                summary: "拒否",
-                display: `✗ ユーザーが拒否: ${requirement.path}`,
+                summary: timedOut ? "タイムアウト" : "拒否",
+                display: timedOut
+                  ? `✗ 確認タイムアウト（無応答）: ${requirement.path}`
+                  : `✗ ユーザーが拒否: ${requirement.path}`,
               },
             };
           } else {

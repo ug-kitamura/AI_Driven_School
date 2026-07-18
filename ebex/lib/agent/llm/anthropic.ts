@@ -230,6 +230,7 @@ export async function* parseAnthropicStream(
     inputParseError?: boolean;
   }> = [];
   let stopReason: ProviderTurnResult["stopReason"] = "unknown";
+  let outputTokens: number | undefined;
 
   try {
     while (true) {
@@ -312,6 +313,12 @@ export async function* parseAnthropicStream(
             if (delta?.stop_reason === "tool_use") stopReason = "tool_use";
             if (delta?.stop_reason === "end_turn") stopReason = "end_turn";
             if (delta?.stop_reason === "max_tokens") stopReason = "max_tokens";
+            const usage = event.usage as
+              | { output_tokens?: number }
+              | undefined;
+            if (typeof usage?.output_tokens === "number") {
+              outputTokens = usage.output_tokens;
+            }
             break;
           }
           default:
@@ -344,7 +351,12 @@ export async function* parseAnthropicStream(
 
   yield {
     type: "turn_complete",
-    result: { text, toolCalls: calls, stopReason },
+    result: {
+      text,
+      toolCalls: calls,
+      stopReason,
+      ...(outputTokens !== undefined ? { outputTokens } : {}),
+    },
   };
 }
 

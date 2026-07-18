@@ -17,9 +17,10 @@ import {
 } from "@/lib/agent/tools/search-provider";
 import { WORKSPACE_DIR_NAME } from "@/lib/workspace-constants";
 import {
-  findResidualFillTokens,
   formatNotFoundError,
-  residualFillWarningMessage,
+  scanTemplateResiduals,
+  templateResidualCount,
+  templateResidualMessage,
 } from "@/lib/agent/tools/replace-feedback";
 
 export type ToolExecutionDisplay = {
@@ -50,6 +51,8 @@ export type ToolExecutionContext = {
     model: string;
     maxTokens: number;
     signal?: AbortSignal;
+    /** モデルプロファイルの通過袋（generate スロット）。プロバイダが解釈する */
+    providerParams?: Record<string, unknown>;
   };
 };
 
@@ -443,30 +446,66 @@ function errorOutcome(message: string): ToolExecutionOutcome {
   };
 }
 
+/**
+ * テンプレート規約準拠ファイルの残作業（未置換 {{XXX}}・未充填の
+ * <!-- XXX_START/END --> 区間）をスキャンし、tool_result に完了ゲート情報を
+ * 付加する。残作業ゼロの場合も `templateStatus.complete: true` を返し、
+ * モデルが完了を判断なしで確認できるようにする。規約外ファイルでは
+ * 検出ゼロとなり従来と同じ結果になる。
+ */
 function withResidualFillWarning(
   content: string,
   outcome: ToolExecutionOutcome,
 ): ToolExecutionOutcome {
-  const tokens = findResidualFillTokens(content);
-  const warning = residualFillWarningMessage(tokens);
-  if (!warning) return outcome;
-
-  const result =
+  const scan = scanTemplateResiduals(content);
+  const templateStatus = {
+    complete: templateResidualCount(scan) === 0,
+    remainingPlaceholders: scan.fillTokens,
+    emptySections: scan.emptySections,
+  };
+  const baseResult =
     outcome.result &&
     typeof outcome.result === "object" &&
     !Array.isArray(outcome.result)
-      ? { ...(outcome.result as Record<string, unknown>), warning, residualFillTokens: tokens }
-      : { warning, residualFillTokens: tokens };
+      ? (outcome.result as Record<string, unknown>)
+      : {};
+
+  const warning = templateResidualMessage(scan);
+  if (!warning) {
+    return {
+      result: { ...baseResult, templateStatus },
+      display: outcome.display,
+    };
+  }
 
   const tags = [...(outcome.display.tags ?? []), "warning"];
   return {
-    result,
+    result: {
+      ...baseResult,
+      warning,
+      residualFillTokens: scan.fillTokens,
+      templateStatus,
+    },
     display: display(
       outcome.display.summary,
       `${outcome.display.display}\n⚠ ${warning}`,
       tags,
     ),
   };
+}
+
+/** copy_file 後スキャンの対象拡張子（テンプレート規約が想定するテキスト系のみ） */
+const TEMPLATE_SCAN_EXTENSIONS = new Set([
+  ".html",
+  ".htm",
+  ".md",
+  ".txt",
+  ".svg",
+  ".css",
+]);
+
+function isTemplateScanTarget(filePath: string): boolean {
+  return TEMPLATE_SCAN_EXTENSIONS.has(path.extname(filePath).toLowerCase());
 }
 
 function globToRegExp(pattern: string): RegExp {
@@ -983,10 +1022,11 @@ function executeCopyFile(
   fs.copyFileSync(fromResolved.absolutePath, toResolved.absolutePath);
   const bytes = fromStat.size;
 
-  return {
+  const outcome: ToolExecutionOutcome = {
     result: {
       from: fromResolved.relativePath,
       to: toResolved.relativePath,
+      path: toResolved.relativePath,
       bytes,
     },
     display: display(
@@ -994,6 +1034,15 @@ function executeCopyFile(
       `📋 コピー: ${fromResolved.relativePath} → ${toResolved.relativePath}（${bytes} bytes）`,
     ),
   };
+
+  // テンプレートのコピー直後に残作業一覧を返し、次に埋めるべき箇所を明示する
+  if (isTemplateScanTarget(toResolved.absolutePath)) {
+    return withResidualFillWarning(
+      fs.readFileSync(toResolved.absolutePath, "utf-8"),
+      outcome,
+    );
+  }
+  return outcome;
 }
 
 function executeReplaceInFile(

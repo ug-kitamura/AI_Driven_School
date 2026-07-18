@@ -155,14 +155,20 @@ Phase 2 の分類結果をもとに、以下の構造で Markdown ファイル�
 
 ユーザーから OK をもらったら `output/minutes-YYYY-MM-DD.md` を読み込み、その内容をもとに HTML を生成する。
 
-**[references/base.html](references/base.html)** をベースフレームとして使い、`copy_file` でプロジェクトへコピーしてから埋める。
+**[references/base.html](references/base.html)** をベースフレームとして使い、`copy_file` でプロジェクトへコピーしてから埋める。base.html は自己完結（CSS インライン済み・ロゴ base64 埋め込み済み）なので、スタイルに関する操作は一切不要。
 
-- 短スロット（`{{MEETING_TITLE}}` 等）は `replace_in_file`
-- 可変長ブロックは明示区間（`<!-- AGENDA_ITEMS_START -->`〜`<!-- AGENDA_ITEMS_END -->` など）を `replace_between` で差し込む。構造サンプルは **[references/model-answer.html](references/model-answer.html)** の `<body>` を参照
+- 短スロット（`{{XXX}}`）は `replace_in_file` の `replacements` map で一括置換する:
+  `{{MEETING_TITLE}}` `{{YEAR}}` `{{MONTH}}` `{{DATE}}` `{{ATTENDEES}}`（参加N名／欠席N名（名前））`{{MINUTES_WRITER}}` `{{DECISIONS_COUNT}}` `{{ACTIONS_COUNT}}` `{{PENDING_COUNT}}` `{{CLOSING_MESSAGE}}`
+- 可変長ブロックは明示区間を `replace_between` で差し込む。構造サンプルは **[references/model-answer.html](references/model-answer.html)** の `<body>` を参照
+  - `PENDING_ALERT`: 要確認が 1 件以上の場合のみ注意書きを入れる。0 件なら区間を空のままにする
+  - `AGENDA_ITEMS`: 議題 `<li>`（各タイトルは `#topic-N` へリンク、報告者をサブテキストで）
+  - `DETAILS`: 議題ごとの `<div class="mb-8" id="topic-N">` ブロック
+  - `ACTIONS`: `action-row` / `action-row needs-check` の行
+  - `PURPOSE_ITEMS`: `purpose-item` ブロック
 
 品質の目標イメージは model-answer を参照（`<body>` の構造のみ）。
 
-**スタイルのインライン化**: `base.html` の `<link rel="stylesheet" href="style.css">` を、**[references/style.css](references/style.css)** の内容を `<style>` タグとしてインライン化したものに置き換える。外部CSSリンクは残さない。
+> 保守メモ: スタイルの SOT は base.html 内の `<style>`。**[references/style.css](references/style.css)** はスタイル編集用の作業コピーなので、style.css を変更したら base.html の `<style>` に同内容を反映すること。
 
 **Markdownの記法とHTMLクラスの対応:**
 

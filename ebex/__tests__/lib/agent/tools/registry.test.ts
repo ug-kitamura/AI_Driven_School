@@ -507,6 +507,11 @@ describe("executeRegisteredTool", () => {
     expect(outcome.result).toEqual({
       path: "workspace/demo/out.html",
       replacements: 1,
+      templateStatus: {
+        complete: true,
+        remainingPlaceholders: [],
+        emptySections: [],
+      },
     });
     expect(
       fs.readFileSync(

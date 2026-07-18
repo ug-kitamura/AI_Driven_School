@@ -83,3 +83,57 @@ export function residualFillWarningMessage(tokens: string[]): string | null {
   const more = tokens.length > 8 ? ` ほか ${tokens.length - 8} 件` : "";
   return `埋める印が残っています: ${shown}${more}`;
 }
+
+const MARKER_SECTION_RE =
+  /<!--\s*([A-Z][A-Z0-9_]*)_START\s*-->([\s\S]*?)<!--\s*\1_END\s*-->/g;
+
+/**
+ * `<!-- XXX_START -->`〜`<!-- XXX_END -->` の区間で中身が空（空白のみ）の
+ * マーカー名を返す。テンプレート規約準拠のファイルで「未充填の区間」を
+ * 決定的に検出する。
+ */
+export function findEmptyMarkerSections(content: string): string[] {
+  const found = new Set<string>();
+  for (const match of content.matchAll(MARKER_SECTION_RE)) {
+    if (!match[2].trim()) {
+      found.add(match[1]);
+    }
+  }
+  return [...found].sort();
+}
+
+export type TemplateResidualScan = {
+  /** 未置換の {{XXX}} トークン（*_START / *_END を除く） */
+  fillTokens: string[];
+  /** 中身が空の <!-- XXX_START/END --> 区間名 */
+  emptySections: string[];
+};
+
+/** 規約準拠テンプレートの残作業スキャン（完了ゲートの決定的シグナル）。 */
+export function scanTemplateResiduals(content: string): TemplateResidualScan {
+  return {
+    fillTokens: findResidualFillTokens(content),
+    emptySections: findEmptyMarkerSections(content),
+  };
+}
+
+export function templateResidualCount(scan: TemplateResidualScan): number {
+  return scan.fillTokens.length + scan.emptySections.length;
+}
+
+export function templateResidualMessage(
+  scan: TemplateResidualScan,
+): string | null {
+  const parts: string[] = [];
+  const tokenWarning = residualFillWarningMessage(scan.fillTokens);
+  if (tokenWarning) parts.push(tokenWarning);
+  if (scan.emptySections.length > 0) {
+    const shown = scan.emptySections.slice(0, 8).join(", ");
+    const more =
+      scan.emptySections.length > 8
+        ? ` ほか ${scan.emptySections.length - 8} 件`
+        : "";
+    parts.push(`未充填のマーカー区間があります: ${shown}${more}`);
+  }
+  return parts.length > 0 ? parts.join(" / ") : null;
+}

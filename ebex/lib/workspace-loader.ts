@@ -5,6 +5,7 @@ import {
   ensureWorkspaceDir,
   getWorkspaceDir,
 } from "@/lib/workspace-paths";
+import { ensureWorkspaceMeta } from "@/lib/workspace-meta";
 
 export type WorkspaceTreeNode = {
   name: string;
@@ -65,6 +66,8 @@ function loadFolderTree(
 
 export function loadWorkspace(projectRoot: string): WorkspaceLoadResult {
   ensureWorkspaceDir(projectRoot);
+  // 旧形式データの一括移行（初回のみ）＋台帳の自己修復同期
+  ensureWorkspaceMeta(projectRoot);
   const workspaceDir = getWorkspaceDir(projectRoot);
   const entries = fs.readdirSync(workspaceDir, { withFileTypes: true });
   const folders: WorkspaceTreeNode[] = [];

@@ -1,4 +1,8 @@
 @echo off
+rem EBEX 本番モード起動（利用者向けの標準）。
+rem ソースコードの変更を反映するには rebuild 引数を付けて再実行する:
+rem   start.bat rebuild
+rem EBEX 自体の開発には start-dev.bat を使用する。
 cd /d "%~dp0"
 
 set PORT=3001
@@ -16,11 +20,29 @@ if not exist node_modules (
 
 powershell -NoProfile -Command "try { exit ([int]-not((Invoke-WebRequest -Uri '%EBEX_URL%' -UseBasicParsing -TimeoutSec 3).StatusCode -eq 200)) } catch { exit 1 }"
 if not errorlevel 1 (
-  echo [EBEX] Dev server is already running at %EBEX_URL%
+  echo [EBEX] Server is already running at %EBEX_URL%
   start "" %EBEX_URL%
   exit /b 0
 )
 
-echo [EBEX] Starting dev server at %EBEX_URL%
+if "%1"=="rebuild" (
+  echo [EBEX] Rebuilding...
+  call npm run build
+  if errorlevel 1 (
+    echo npm run build failed.
+    pause
+    exit /b 1
+  )
+) else if not exist .next\BUILD_ID (
+  echo [EBEX] No production build found. Building...
+  call npm run build
+  if errorlevel 1 (
+    echo npm run build failed.
+    pause
+    exit /b 1
+  )
+)
+
+echo [EBEX] Starting production server at %EBEX_URL%
 start "" %EBEX_URL%
-npm run dev
+npm run start -- -p %PORT%

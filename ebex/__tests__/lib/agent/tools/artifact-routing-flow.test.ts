@@ -13,8 +13,8 @@ import { getWorkspaceDir } from "@/lib/workspace-paths";
 
 /**
  * ebex-agent-artifact-routing の受け入れ基準の機構を、ライブモデルなしで決定的に検証する。
- * 実 skill の references/base.html を使い、
- *   copy_file（額縁コピー）→ replace_in_file（CSS インライン化）→ replace_between/replace_in_file（断片差し込み）
+ * 実 skill の references/base.html（CSS インライン済みの自己完結テンプレート）を使い、
+ *   copy_file（額縁コピー）→ replace_in_file（プレースホルダ一括置換）→ replace_between（区間差し込み）
  * の主経路が「確認ダイアログゼロ」で通り、成果物にプレースホルダが残らないことを確認する。
  */
 const SKILL_DIR = path.resolve(
@@ -72,18 +72,16 @@ describe("artifact routing: copy→fill main route", () => {
       input: { from: "references/base.html", to: "output/minutes.html" },
     });
 
-    // 2) CSS をインライン化（コピー直後なので上書き確認はスキップされる）
-    const styleCss = fs.readFileSync(
-      path.join(SKILL_DIR, "references", "style.css"),
-      "utf-8",
-    );
+    // 2) base.html は自己完結（CSS インライン済み）なのでスタイル操作は不要。
+    //    区間差し込みが確認なしで通ることを検証する
     await runStep({
       id: "r1",
-      name: "replace_in_file",
+      name: "replace_between",
       input: {
         path: "output/minutes.html",
-        old_string: '<link rel="stylesheet" href="style.css">',
-        new_string: `<style>\n${styleCss}\n</style>`,
+        start_marker: "<!-- AGENDA_ITEMS_START -->",
+        end_marker: "<!-- AGENDA_ITEMS_END -->",
+        content: '<li><a href="#topic-1">議題1</a></li>',
       },
     });
 

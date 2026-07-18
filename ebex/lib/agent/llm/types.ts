@@ -56,6 +56,8 @@ export type ProviderTurnResult = {
   text: string;
   toolCalls: ToolCall[];
   stopReason: "end_turn" | "tool_use" | "max_tokens" | "unknown";
+  /** プロバイダ usage 由来の出力トークン数（診断ログ用。取得できない場合は省略） */
+  outputTokens?: number;
 };
 
 export type StreamEvent =
@@ -98,6 +100,17 @@ export const AGENT_TEXT_CONTINUATION_PROMPT =
 /** 自動継続が上限に達したとき、応答本文へ追記してユーザーへ明示する注記 */
 export const AGENT_TEXT_CONTINUATION_LIMIT_NOTICE =
   "\n\n（出力が上限に達したため自動継続を打ち切りました。続きが必要な場合は「つづき」とお伝えください。）";
+
+/**
+ * 3値判定で「息切れ」と判定されたターンへ送る自動続行指示。
+ * 軽量モデルが max_tokens 到達前に自発的にターンを終えるケースを救済する。
+ */
+export const AGENT_AUTO_NUDGE_PROMPT =
+  "作業がまだ完了していません。確認を待たずに残りの作業を続けてください。成果物に未置換のプレースホルダー（{{XXX}}）や未充填のマーカー区間があれば、該当ツールで埋めてください。";
+
+/** 自動続行が上限または進捗なしで停止したときにユーザーへ明示する注記 */
+export const AGENT_AUTO_NUDGE_LIMIT_NOTICE =
+  "\n\n（自動続行を打ち切りました。続きが必要な場合は「つづき」とお伝えください。）";
 
 /** tool_result および連続失敗時に使う（実行はしない） */
 export const AGENT_BROKEN_TOOL_USE_ERROR =

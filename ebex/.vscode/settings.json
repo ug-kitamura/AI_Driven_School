@@ -1,0 +1,10 @@
+{
+  // workspace/ はユーザーコンテンツ置き場。VSCode / Cursor のウォッチャーと
+  // 検索インデックスから除外し、フォルダリネームを阻害するハンドル保持を防ぐ。
+  "files.watcherExclude": {
+    "**/workspace/**": true
+  },
+  "search.exclude": {
+    "**/workspace/**": true
+  }
+}

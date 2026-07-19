@@ -43,17 +43,22 @@ Agent 入力欄の `/` および `@` 選択窓の縦スクロールバーは、P
 
 ### Requirement: フォルダ単位セッション永続化
 
-Agent 会話は選択中プロジェクトフォルダ単位で `session.json` に永続化されなければならない（SHALL）。`session.json` のスキーマは `AgentChatStorage`（`version`, `activeSessionId`, `sessions`）でなければならない（SHALL）。`GET /api/agent/session?folderId={name}` および `PUT /api/agent/session?folderId={name}` で読み書きしなければならない（SHALL）。
+Agent 会話は選択中プロジェクトフォルダ単位で `workspace/.meta/sessions/<ino>.json` に永続化されなければならない（SHALL）。`<ino>` は対象フォルダの NTFS fileID（`workspace-meta-store` の台帳が管理）である。セッションファイルのスキーマは `AgentChatStorage`（`version`, `activeSessionId`, `sessions`）でなければならない（SHALL）。`GET /api/agent/session?folderId={name}` および `PUT /api/agent/session?folderId={name}` で読み書きしなければならない（SHALL）。API の folderId はフォルダパスのままとし、ino への解決はサーバ内部で行う。プロジェクトフォルダ内に `session.json` を作成してはならない（MUST NOT）。
 
-#### Scenario: session.json から読み込み
+#### Scenario: セッションファイルから読み込み
 
-- **WHEN** プロジェクトフォルダに `session.json` が存在しユーザーがそのフォルダを選択する
+- **WHEN** プロジェクトフォルダに対応する `.meta/sessions/<ino>.json` が存在しユーザーがそのフォルダを選択する
 - **THEN** 保存済みの Agent 会話が復元される
 
-#### Scenario: session.json への保存
+#### Scenario: セッションファイルへの保存
 
 - **WHEN** ユーザーが Agent と会話する
-- **THEN** debounce 後に `session.json` が更新される
+- **THEN** debounce 後に `.meta/sessions/<ino>.json` が更新され、プロジェクトフォルダ内にファイルは作成されない
+
+#### Scenario: リネームを跨ぐセッション維持
+
+- **WHEN** ユーザーがプロジェクトフォルダをリネームした後にそのフォルダを選択する
+- **THEN** ino が不変のため同一のセッションファイルが読み込まれ、会話履歴が維持される
 
 ### Requirement: 存在しないフォルダへのセッション保存を行わない
 

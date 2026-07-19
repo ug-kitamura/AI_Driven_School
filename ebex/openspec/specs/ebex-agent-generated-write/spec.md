@@ -33,16 +33,21 @@ TBD - created by archiving change ebex-agent-large-write-runtime. Update Purpose
 
 ### Requirement: セクション分割と max_tokens 継続
 
-`sections` が指定された場合、システムは各セクションを順に子 LLM 呼び出しで生成し、順序どおり連結しなければならない（SHALL）。子応答の `stop_reason` が `max_tokens` の場合、システムは生成済みテキストを保持したまま「続きのみを繰り返しなしで出力する」継続呼び出しを行い、受領テキストを無加工で連結しなければならない（SHALL）。継続回数にはセクションあたりの上限を設けなければならない（SHALL）。生成合計サイズには上限を設け、その上限は `replace_between` の `from_path` 読取上限を超えてはならない（MUST NOT）。いずれかの上限に達した場合は書き込みを行わず、完了済みセクション数を含むエラーを返さなければならない（SHALL）。
+`sections` が指定された場合、システムは各セクションを順に子 LLM 呼び出しで生成し、順序どおり連結しなければならない（SHALL）。子応答の `stop_reason` が `max_tokens` の場合、システムは生成済みテキストを保持したまま「続きのみを繰り返しなしで出力する」継続呼び出しを行い、受領テキストを無加工で連結しなければならない（SHALL）。継続回数にはセクションあたりの上限を設けなければならない（SHALL）。上限値は実行モデルのモデルプロファイル（`continuations.generatePerSection`）から解決しなければならない（SHALL）。子 LLM 呼び出しにはプロファイルの `providerParams.generate`（通過袋）をプロバイダへ渡さなければならない（SHALL）。生成合計サイズには上限を設け、その上限は `replace_between` の `from_path` 読取上限を超えてはならない（MUST NOT）。いずれかの上限に達した場合は書き込みを行わず、完了済みセクション数を含むエラーを返さなければならない（SHALL）。
 
 #### Scenario: 途中切れから継続して完走する
 
 - **WHEN** あるセクションの子応答が `stop_reason: "max_tokens"` で途中終了する
 - **THEN** システムは継続呼び出しで残りを取得し、つなぎ合わせた完全なセクションが成果物に含まれる
 
+#### Scenario: 継続上限がモデル別に適用される
+
+- **WHEN** 同一の generate_and_write を Claude 系モデルと gpt-5-nano でそれぞれ実行する
+- **THEN** 継続上限は Claude 系では 4、nano ではプロファイルの 8 が適用される
+
 #### Scenario: 継続上限到達はエラーで返す
 
-- **WHEN** 1 セクションの継続回数が上限に達してもセクションが完了しない
+- **WHEN** 1 セクションの継続回数がプロファイルの上限に達してもセクションが完了しない
 - **THEN** ファイルは書き込まれず、完了済みセクション数と、`sections` を細かく分割して再試行する旨の案内を含むエラーが tool_result として返る
 
 #### Scenario: 生成物は from_path で差し込める

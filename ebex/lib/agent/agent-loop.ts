@@ -12,6 +12,8 @@ import type {
   ToolCall,
 } from "@/lib/agent/llm/types";
 import {
+  AGENT_AUTO_NUDGE_LIMIT_NOTICE,
+  AGENT_AUTO_NUDGE_PROMPT,
   AGENT_BROKEN_TOOL_USE_ERROR,
   AGENT_LOOP_LIMIT_ERROR,
   AGENT_MISSING_GENERATE_INPUT_ERROR,
@@ -32,6 +34,12 @@ import {
 import { resolveLlmProvider } from "@/lib/agent/llm/resolve-provider";
 import type { LlmProvider } from "@/lib/agent/llm/provider";
 import { resolveMaxOutputTokens } from "@/lib/resolve-max-output-tokens";
+import {
+  isAutoNudgeDisabled,
+  resolveModelProfile,
+} from "@/lib/agent/model-profiles";
+import { classifyTurnEnd, hasTextProgress } from "@/lib/agent/turn-end";
+import { appendDiagnosticsRecord } from "@/lib/rename-diagnostics";
 import {
   executeRegisteredTool,
   isScriptToolName,
@@ -182,10 +190,20 @@ export type TurnWithContinuationOptions = {
   maxTokens?: number;
   signal?: AbortSignal;
   emit: AgentLoopEmit;
+  /** max_tokens 自動継続の上限（省略時は既定値。プロファイル値を渡す） */
+  textContinuationsMax?: number;
+  /** モデルプロファイルの通過袋（agent スロット） */
+  providerParams?: Record<string, unknown>;
 };
 
 export type TurnWithContinuationResult =
-  | { ok: true; text: string; result: ProviderTurnResult }
+  | {
+      ok: true;
+      text: string;
+      result: ProviderTurnResult;
+      /** このターンで実行した max_tokens 自動継続の回数（診断ログ用） */
+      continuations: number;
+    }
   | { ok: false; error: string; status: number };
 
 /**
@@ -201,6 +219,8 @@ export async function runTurnWithMaxTokensContinuation(
   let accumulatedText = "";
   let latestResult: ProviderTurnResult | null = null;
   let continuations = 0;
+  const continuationsMax =
+    options.textContinuationsMax ?? MAX_TEXT_CONTINUATIONS_PER_TURN;
 
   for (;;) {
     const messages: LlmMessage[] =
@@ -222,6 +242,7 @@ export async function runTurnWithMaxTokensContinuation(
       tools: options.tools,
       maxTokens: options.maxTokens,
       signal: options.signal,
+      providerParams: options.providerParams,
     })) {
       if (event.type === "text_delta") {
         stepText += event.text;
@@ -243,7 +264,7 @@ export async function runTurnWithMaxTokensContinuation(
       stepResult.stopReason === "max_tokens";
     if (!shouldContinue) break;
 
-    if (continuations >= MAX_TEXT_CONTINUATIONS_PER_TURN) {
+    if (continuations >= continuationsMax) {
       accumulatedText += AGENT_TEXT_CONTINUATION_LIMIT_NOTICE;
       options.emit("text_delta", {
         text: AGENT_TEXT_CONTINUATION_LIMIT_NOTICE,
@@ -257,6 +278,7 @@ export async function runTurnWithMaxTokensContinuation(
     ok: true,
     text: accumulatedText,
     result: { ...latestResult!, text: accumulatedText },
+    continuations,
   };
 }
 
@@ -281,6 +303,7 @@ export async function runAgentLoop(
     hasSkillScripts: skillHasScriptsDir(options.skillDirAbsolute),
   });
   const maxTokens = resolveMaxOutputTokens(options.req, providerResult.model);
+  const profile = resolveModelProfile(providerResult.model);
   const llmMessages = [...options.messages];
   const toolEvents: AgentToolEvent[] = [];
   const toolTurns: AgentLogicalTurn[] = [];
@@ -303,6 +326,7 @@ export async function runAgentLoop(
           model: providerResult.model,
           maxTokens,
           signal: options.signal,
+          providerParams: profile.providerParams.generate,
         },
       }
     : undefined;
@@ -314,6 +338,68 @@ export async function runAgentLoop(
   let turnText = "";
   /** AI 作成済み／上書き許可済み → 以降の overwrite 確認をスキップ */
   const skipOverwritePaths = seedSkipOverwritePathsFromHistory(llmMessages);
+
+  // ---- ターン終了3値判定と自動続行（nudge）の状態 ----
+  const autoNudgeEnabled = !isAutoNudgeDisabled();
+  const nudgeMax = profile.continuations.nudgeMax;
+  let nudges = 0;
+  let noProgressStreak = 0;
+  let previousNudgedText = "";
+  let anyToolCallsInInvoke = false;
+  /** 書込系 tool_result の templateStatus を path 単位で追跡（完了ゲート） */
+  const templateResidualByPath = new Map<string, number>();
+
+  const totalLeftoverArtifacts = () => {
+    let total = 0;
+    for (const count of templateResidualByPath.values()) total += count;
+    return total;
+  };
+
+  const trackTemplateStatus = (result: unknown) => {
+    if (!result || typeof result !== "object") return;
+    const record = result as {
+      path?: unknown;
+      templateStatus?: {
+        remainingPlaceholders?: unknown[];
+        emptySections?: unknown[];
+      };
+    };
+    if (typeof record.path !== "string" || !record.path) return;
+    if (!record.templateStatus || typeof record.templateStatus !== "object") {
+      return;
+    }
+    const remaining =
+      (record.templateStatus.remainingPlaceholders?.length ?? 0) +
+      (record.templateStatus.emptySections?.length ?? 0);
+    templateResidualByPath.set(record.path, remaining);
+  };
+
+  const logTurnDiagnostics = (params: {
+    stopReason: string;
+    outputTokens?: number;
+    textChars: number;
+    toolCallCount: number;
+    continuations: number;
+    turnEnd?: string;
+  }) => {
+    // テスト実行では実ワークスペースの diagnostics.log を汚染しない
+    if (process.env.VITEST) return;
+    appendDiagnosticsRecord(projectRoot, {
+      type: "turn",
+      timestamp: new Date().toISOString(),
+      model: providerResult.model,
+      stopReason: params.stopReason,
+      ...(params.outputTokens !== undefined
+        ? { outputTokens: params.outputTokens }
+        : {}),
+      textChars: params.textChars,
+      toolCallCount: params.toolCallCount,
+      continuations: params.continuations,
+      nudges,
+      leftoverArtifacts: totalLeftoverArtifacts(),
+      ...(params.turnEnd ? { turnEnd: params.turnEnd } : {}),
+    });
+  };
 
   const emitLogicalTurn = (turn: AgentLogicalTurn) => {
     if (!turn.text?.trim() && !(turn.toolCalls && turn.toolCalls.length > 0)) {
@@ -341,6 +427,8 @@ export async function runAgentLoop(
       maxTokens,
       signal: options.signal,
       emit: options.emit,
+      textContinuationsMax: profile.continuations.textPerTurn,
+      providerParams: profile.providerParams.agent,
     });
 
     if (!stepOutcome.ok) {
@@ -351,10 +439,55 @@ export async function runAgentLoop(
     const turnResult = stepOutcome.result;
 
     if (turnResult.toolCalls.length === 0) {
+      // ターン終了3値判定: ユーザー待ち / 完了 → 停止、息切れ → 自動続行
+      const turnEnd = classifyTurnEnd({
+        text: turnText,
+        hadAnyToolCalls: anyToolCallsInInvoke,
+        leftoverArtifactCount: totalLeftoverArtifacts(),
+      });
+      logTurnDiagnostics({
+        stopReason: turnResult.stopReason,
+        outputTokens: turnResult.outputTokens,
+        textChars: turnText.length,
+        toolCallCount: 0,
+        continuations: stepOutcome.continuations,
+        turnEnd,
+      });
+
+      if (turnEnd === "stalled" && autoNudgeEnabled) {
+        // 進捗判定: 直前の nudge 後テキストと比較（進捗なし 2 連続で停止）
+        if (nudges > 0) {
+          if (hasTextProgress(previousNudgedText, turnText)) {
+            noProgressStreak = 0;
+          } else {
+            noProgressStreak += 1;
+          }
+        }
+
+        if (nudges < nudgeMax && noProgressStreak < 2) {
+          emitLogicalTurn({ text: turnText || undefined });
+          llmMessages.push(
+            { role: "assistant", content: turnText || "（応答なし）" },
+            { role: "user", content: AGENT_AUTO_NUDGE_PROMPT },
+          );
+          previousNudgedText = turnText;
+          nudges += 1;
+          continue;
+        }
+
+        // 上限到達または進捗なし → 打ち切りを明示して停止
+        options.emit("text_delta", { text: AGENT_AUTO_NUDGE_LIMIT_NOTICE });
+        turnText += AGENT_AUTO_NUDGE_LIMIT_NOTICE;
+      }
+
       emitLogicalTurn({ text: turnText || undefined });
       options.emit("done", {});
       return { ok: true, toolEvents, toolTurns };
     }
+
+    anyToolCallsInInvoke = true;
+    // nudge 後にツール実行へ進んだ場合は進捗ありとして扱う
+    noProgressStreak = 0;
 
     const assistantMessage = buildAssistantToolUseMessage(turnResult);
     if (assistantMessage) {
@@ -478,6 +611,7 @@ export async function runAgentLoop(
 
       const resultJson = JSON.stringify(outcome.result);
       toolResults.push(resultJson);
+      trackTemplateStatus(outcome.result);
 
       if (!extractToolErrorMessage(outcome.result)) {
         for (const written of collectWrittenPathsFromToolResult(
@@ -522,6 +656,14 @@ export async function runAgentLoop(
         consecutiveErrorCount = 0;
       }
     }
+
+    logTurnDiagnostics({
+      stopReason: turnResult.stopReason,
+      outputTokens: turnResult.outputTokens,
+      textChars: turnText.length,
+      toolCallCount: turnResult.toolCalls.length,
+      continuations: stepOutcome.continuations,
+    });
 
     emitLogicalTurn({
       text: turnText || undefined,

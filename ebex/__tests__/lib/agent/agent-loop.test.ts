@@ -61,6 +61,10 @@ function mockProvider(turns: ProviderTurnResult[]) {
         stopReason: "end_turn" as const,
       };
       index += 1;
+      // 実プロバイダと同様に text は text_delta として流す
+      if (result.text) {
+        yield { type: "text_delta", text: result.text };
+      }
       yield { type: "turn_complete", result };
     },
     async runTurn() {
@@ -534,5 +538,172 @@ describe("runAgentLoop safety valves", () => {
       status: 409,
     });
     expect(executeRegisteredTool).not.toHaveBeenCalled();
+  });
+});
+
+describe("runAgentLoop auto-nudge (3値判定)", () => {
+  beforeEach(() => {
+    vi.mocked(resolveLlmProvider).mockReset();
+    vi.mocked(executeRegisteredTool).mockReset();
+    vi.mocked(checkProjectFolderExists).mockReset();
+    vi.mocked(checkProjectFolderExists).mockReturnValue(null);
+    delete process.env.EBEX_AUTO_NUDGE;
+  });
+
+  function toolStep(id: string): ProviderTurnResult {
+    return {
+      text: "",
+      stopReason: "tool_use",
+      toolCalls: [
+        { id, name: "read_file", input: { path: "output/x.html" } },
+      ],
+    };
+  }
+
+  function toolOutcome(remaining: string[]) {
+    return {
+      result: {
+        path: "output/x.html",
+        templateStatus: {
+          complete: remaining.length === 0,
+          remainingPlaceholders: remaining,
+          emptySections: [],
+        },
+      },
+      display: { summary: "ok", display: "ok" },
+    };
+  }
+
+  it("auto-continues a stalled turn until artifacts are complete", async () => {
+    vi.mocked(resolveLlmProvider).mockReturnValue({
+      ok: true,
+      model: "claude-sonnet-4-6",
+      provider: mockProvider([
+        toolStep("t1"),
+        // 埋め残しがある状態での自発的終了 → stalled → 自動 nudge
+        { text: "ここまで作成しました。", stopReason: "end_turn", toolCalls: [] },
+        toolStep("t2"),
+        { text: "完了しました。", stopReason: "end_turn", toolCalls: [] },
+      ]),
+    });
+    vi.mocked(executeRegisteredTool)
+      .mockResolvedValueOnce(toolOutcome(["{{TITLE}}"]))
+      .mockResolvedValueOnce(toolOutcome([]));
+
+    const emit = vi.fn();
+    const result = await runAgentLoop({
+      req: new Request("http://localhost/api/agent/invoke"),
+      system: "sys",
+      messages: [{ role: "user", content: "作って" }],
+      toolNames: [],
+      emit,
+      projectFolderId: "demo",
+    });
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    // nudge により 2 回目のツール実行まで自動で進む
+    expect(executeRegisteredTool).toHaveBeenCalledTimes(2);
+    expect(emit).toHaveBeenCalledWith("done", {});
+    const texts = result.toolTurns.map((t) => t.text).filter(Boolean);
+    expect(texts).toContain("ここまで作成しました。");
+    expect(texts).toContain("完了しました。");
+  });
+
+  it("does not nudge when the model is waiting for user confirmation", async () => {
+    vi.mocked(resolveLlmProvider).mockReturnValue({
+      ok: true,
+      model: "claude-sonnet-4-6",
+      provider: mockProvider([
+        toolStep("t1"),
+        {
+          text: "ドラフトを保存しました。問題なければ「OK」とお知らせください。",
+          stopReason: "end_turn",
+          toolCalls: [],
+        },
+      ]),
+    });
+    vi.mocked(executeRegisteredTool).mockResolvedValueOnce(
+      toolOutcome(["{{TITLE}}"]),
+    );
+
+    const emit = vi.fn();
+    const result = await runAgentLoop({
+      req: new Request("http://localhost/api/agent/invoke"),
+      system: "sys",
+      messages: [{ role: "user", content: "作って" }],
+      toolNames: [],
+      emit,
+      projectFolderId: "demo",
+    });
+
+    expect(result.ok).toBe(true);
+    // 埋め残しがあっても確認待ちは nudge しない
+    expect(executeRegisteredTool).toHaveBeenCalledTimes(1);
+    expect(emit).toHaveBeenCalledWith("done", {});
+  });
+
+  it("skips nudging entirely when EBEX_AUTO_NUDGE=disabled", async () => {
+    process.env.EBEX_AUTO_NUDGE = "disabled";
+    vi.mocked(resolveLlmProvider).mockReturnValue({
+      ok: true,
+      model: "claude-sonnet-4-6",
+      provider: mockProvider([
+        toolStep("t1"),
+        { text: "ここまで作成しました。", stopReason: "end_turn", toolCalls: [] },
+      ]),
+    });
+    vi.mocked(executeRegisteredTool).mockResolvedValueOnce(
+      toolOutcome(["{{TITLE}}"]),
+    );
+
+    const result = await runAgentLoop({
+      req: new Request("http://localhost/api/agent/invoke"),
+      system: "sys",
+      messages: [{ role: "user", content: "作って" }],
+      toolNames: [],
+      emit: vi.fn(),
+      projectFolderId: "demo",
+    });
+
+    expect(result.ok).toBe(true);
+    expect(executeRegisteredTool).toHaveBeenCalledTimes(1);
+  });
+
+  it("stops with a notice when the nudge limit is exhausted without progress", async () => {
+    vi.mocked(resolveLlmProvider).mockReturnValue({
+      ok: true,
+      model: "claude-sonnet-4-6", // nudgeMax = 2
+      provider: mockProvider([
+        toolStep("t1"),
+        { text: "同じ報告です。", stopReason: "end_turn", toolCalls: [] },
+        { text: "同じ報告です。", stopReason: "end_turn", toolCalls: [] },
+        { text: "同じ報告です。", stopReason: "end_turn", toolCalls: [] },
+        { text: "同じ報告です。", stopReason: "end_turn", toolCalls: [] },
+      ]),
+    });
+    vi.mocked(executeRegisteredTool).mockResolvedValueOnce(
+      toolOutcome(["{{TITLE}}"]),
+    );
+
+    const emit = vi.fn();
+    const result = await runAgentLoop({
+      req: new Request("http://localhost/api/agent/invoke"),
+      system: "sys",
+      messages: [{ role: "user", content: "作って" }],
+      toolNames: [],
+      emit,
+      projectFolderId: "demo",
+    });
+
+    expect(result.ok).toBe(true);
+    // 進捗なし 2 連続で打ち切り、打ち切りの注記が emit される
+    expect(emit).toHaveBeenCalledWith(
+      "text_delta",
+      expect.objectContaining({
+        text: expect.stringContaining("自動続行を打ち切りました"),
+      }),
+    );
+    expect(emit).toHaveBeenCalledWith("done", {});
   });
 });

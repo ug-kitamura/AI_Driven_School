@@ -23,6 +23,14 @@ import {
   removeFavoritesUnderPath,
   renameFavoriteFile,
 } from "@/lib/workspace-favorites-io";
+import {
+  onProjectFolderDeleted,
+  onProjectFolderRenamed,
+} from "@/lib/workspace-meta";
+import {
+  diagnoseRenameFailure,
+  errorCodeOf,
+} from "@/lib/rename-diagnostics";
 
 export type ConflictPolicy = "error" | "auto-rename";
 
@@ -138,7 +146,22 @@ export function renameFolder(
   const to = resolveFolderPath(projectRoot, finalToPath);
   if ("error" in from) return { error: from.error };
   if ("error" in to) return { error: to.error };
-  fs.renameSync(from.absolutePath, to.absolutePath);
+  try {
+    fs.renameSync(from.absolutePath, to.absolutePath);
+  } catch (error) {
+    const code = errorCodeOf(error);
+    diagnoseRenameFailure(projectRoot, {
+      fromPath,
+      toPath: finalToPath,
+      fromAbsolutePath: from.absolutePath,
+      toAbsolutePath: to.absolutePath,
+      error,
+    });
+    return {
+      error: `フォルダ名の変更に失敗しました（${code}）。診断情報を workspace/.meta/diagnostics.log に記録しました`,
+    };
+  }
+  onProjectFolderRenamed(projectRoot, fromPath, finalToPath);
   remapFavoritesOnFolderRename(projectRoot, fromPath, finalToPath);
   return { ok: true as const, newPath: finalToPath };
 }
@@ -156,7 +179,9 @@ export function deleteFolder(projectRoot: string, folderPath: string) {
   const resolved = resolveFolderPath(projectRoot, folderPath);
   if ("error" in resolved) return { error: resolved.error };
   fs.rmSync(resolved.absolutePath, { recursive: true, force: true });
+  // 台帳エントリを参照するため、お気に入り掃除 → 台帳・セッション掃除の順で行う
   removeFavoritesUnderPath(projectRoot, folderPath);
+  onProjectFolderDeleted(projectRoot, folderPath);
   return { ok: true as const };
 }
 

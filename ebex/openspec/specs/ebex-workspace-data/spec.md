@@ -227,17 +227,22 @@ TBD - created by archiving change ebex-v1-workspace. Update Purpose after archiv
 
 ### Requirement: お気に入り永続化ファイル
 
-workspace ルート（`process.cwd()` 直下）に `.ebex-favorites.json` を配置し、お気に入りデータの正本としなければならない（SHALL）。ファイル形式は `{ "favorites": [ { "folderPath": string, "fileName": string } ] }` でなければならない（SHALL）。`folderPath` は `workspace/` からの相対フォルダパス、`fileName` は basename としなければならない（SHALL）。ファイルが存在しない場合、お気に入りは空配列として扱わなければならない（SHALL）。`.ebex-favorites.json` は git 管理対象外とするため、プロジェクトの `.gitignore` に追加しなければならない（SHALL）。
+`workspace/.meta/favorites.json` をお気に入りデータの正本としなければならない（SHALL）。ファイル形式は `{ "favorites": [ { "ino": string, "fileName": string } ] }` でなければならない（SHALL）。`ino` は対象プロジェクトフォルダの NTFS fileID（`workspace-meta-store` の台帳と同一体系）、`fileName` はフォルダ内相対パスとしなければならない（SHALL）。ファイルが存在しない場合、お気に入りは空配列として扱わなければならない（SHALL）。`workspace/` 全体が git 管理対象外のため、`.gitignore` への個別追加は不要である。旧形式（アプリルート直下の `.ebex-favorites.json`、folderPath キー）は初回マイグレーションで ino キーへ変換・移設しなければならない（SHALL）。
 
 #### Scenario: 初回は空のお気に入り
 
-- **WHEN** `.ebex-favorites.json` が存在せず favorites API を呼び出す
+- **WHEN** `.meta/favorites.json` が存在せず favorites API を呼び出す
 - **THEN** 空の `favorites` 配列が返される
 
 #### Scenario: お気に入りファイルの読み書き
 
-- **WHEN** `{ "folderPath": "demo", "fileName": "notes.md" }` を favorites に追加する
-- **THEN** `.ebex-favorites.json` に当該エントリが永続化される
+- **WHEN** フォルダ `demo` 内の `notes.md` を favorites に追加する
+- **THEN** `.meta/favorites.json` に `{ "ino": "<demoのino>", "fileName": "notes.md" }` が永続化される
+
+#### Scenario: 旧形式からの移行
+
+- **WHEN** `.ebex-favorites.json`（folderPath キー）が存在する状態で新バージョンを初回起動する
+- **THEN** 全エントリが ino キーへ変換されて `.meta/favorites.json` に保存され、旧ファイルは削除される
 
 ### Requirement: お気に入り API
 
@@ -263,16 +268,21 @@ workspace ルート（`process.cwd()` 直下）に `.ebex-favorites.json` を配
 
 ### Requirement: お気に入りのリネーム・削除連鎖
 
-`POST /api/workspace/rename-file` 成功時、当該 `{ folderPath, fileName }` のお気に入りエントリが存在すれば、`fileName` を新名称に更新しなければならない（SHALL）。`POST /api/workspace/rename-folder` 成功時、`folderPath` が旧パスに一致する、または旧パス配下のお気に入りエントリの `folderPath` を新パスへ更新しなければならない（SHALL）。`POST /api/workspace/delete-file` 成功時、当該ファイルのお気に入りエントリを除去しなければならない（SHALL）。`POST /api/workspace/delete-folder` 成功時、削除対象フォルダまたはその配下に属するお気に入りエントリをすべて除去しなければならない（SHALL）。
+`POST /api/workspace/rename-file` 成功時、当該フォルダ（ino）と `fileName` に一致するお気に入りエントリが存在すれば、`fileName` を新名称に更新しなければならない（SHALL）。`POST /api/workspace/rename-folder` 成功時、お気に入りエントリは ino キーのため更新不要であり、変更してはならない（MUST NOT）。`POST /api/workspace/delete-file` 成功時、当該ファイルのお気に入りエントリを除去しなければならない（SHALL）。`POST /api/workspace/delete-folder` 成功時、削除対象フォルダ（ino）に属するお気に入りエントリをすべて除去しなければならない（SHALL）。
 
 #### Scenario: ファイルリネームでお気に入りキー更新
 
 - **WHEN** お気に入り登録済みの `demo/notes.md` を `demo/notes-renamed.md` にリネームする
-- **THEN** お気に入りは `{ folderPath: "demo", fileName: "notes-renamed.md" }` になる
+- **THEN** お気に入りエントリの `fileName` が `notes-renamed.md` になる
+
+#### Scenario: フォルダリネームでお気に入りが維持される
+
+- **WHEN** お気に入り登録済みファイルを含むフォルダ `demo` を `demo-renamed` にリネームする
+- **THEN** お気に入りエントリは変更されず、リネーム後もお気に入りとして表示される
 
 #### Scenario: フォルダ削除で配下お気に入り除去
 
-- **WHEN** `demo/sub/notes.md` がお気に入り登録済みで `demo/sub` フォルダを削除する
+- **WHEN** `demo/sub/notes.md` がお気に入り登録済みで `demo` フォルダを削除する
 - **THEN** 当該お気に入りエントリが除去される
 
 ### Requirement: ファイル内容検索 API

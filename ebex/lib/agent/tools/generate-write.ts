@@ -1,6 +1,11 @@
 import fs from "node:fs";
 import path from "node:path";
 import { resolveToolTargetPath } from "@/lib/agent/tools/fs-guard";
+import { resolveModelProfile } from "@/lib/agent/model-profiles";
+import {
+  scanTemplateResiduals,
+  templateResidualCount,
+} from "@/lib/agent/tools/replace-feedback";
 import type { LlmContentBlock, LlmMessage } from "@/lib/agent/llm/types";
 import type {
   ToolExecutionContext,
@@ -9,9 +14,6 @@ import type {
 
 /** 1 回の generate_and_write で許容するセクション数の上限 */
 export const GENERATE_MAX_SECTIONS = 12;
-
-/** 1 セクションあたりの max_tokens 継続呼び出しの上限 */
-export const GENERATE_MAX_CONTINUATIONS_PER_SECTION = 4;
 
 /**
  * 生成合計文字数の上限。
@@ -286,6 +288,9 @@ export async function executeGenerateAndWrite(
   const sectionCount = Math.max(parsed.sections.length, 1);
   const sectionTexts: string[] = [];
   let totalContinuations = 0;
+  // 継続上限はモデルプロファイルから解決する（軽量モデルは可視出力が短く上限に届きやすい）
+  const continuationsPerSection = resolveModelProfile(generate.model)
+    .continuations.generatePerSection;
 
   for (let i = 0; i < sectionCount; i += 1) {
     const generatedSoFar = sectionTexts.join("\n\n");
@@ -313,6 +318,7 @@ export async function executeGenerateAndWrite(
           tools: [],
           maxTokens: generate.maxTokens,
           signal: generate.signal,
+          providerParams: generate.providerParams,
         });
         sectionText += turn.text;
 
@@ -328,9 +334,9 @@ export async function executeGenerateAndWrite(
         }
 
         if (turn.stopReason !== "max_tokens") break;
-        if (continuations >= GENERATE_MAX_CONTINUATIONS_PER_SECTION) {
+        if (continuations >= continuationsPerSection) {
           return generateFailureOutcome(
-            `セクション ${i + 1} の生成が継続上限（${GENERATE_MAX_CONTINUATIONS_PER_SECTION} 回）でも完了しませんでした`,
+            `セクション ${i + 1} の生成が継続上限（${continuationsPerSection} 回）でも完了しませんでした`,
             sectionTexts.length,
           );
         }
@@ -367,6 +373,14 @@ export async function executeGenerateAndWrite(
   const bytes = Buffer.byteLength(output, "utf-8");
   const durationMs = Date.now() - startedAt;
 
+  // 完了ゲート: 生成物に残るプレースホルダー・未充填区間を tool_result で明示する
+  const scan = scanTemplateResiduals(output);
+  const templateStatus = {
+    complete: templateResidualCount(scan) === 0,
+    remainingPlaceholders: scan.fillTokens,
+    emptySections: scan.emptySections,
+  };
+
   return {
     result: {
       path: targetResolved.relativePath,
@@ -374,6 +388,7 @@ export async function executeGenerateAndWrite(
       sections: sectionCount,
       continuations: totalContinuations,
       durationMs,
+      templateStatus,
     },
     display: {
       summary: `${bytes} bytes`,

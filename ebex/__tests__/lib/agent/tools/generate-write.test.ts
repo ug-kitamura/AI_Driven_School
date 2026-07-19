@@ -14,12 +14,12 @@ function contentText(content: LlmMessage["content"]): string {
 }
 import {
   executeGenerateAndWrite,
-  GENERATE_MAX_CONTINUATIONS_PER_SECTION,
   GENERATE_MAX_SECTIONS,
   GENERATE_TOTAL_CHAR_LIMIT,
   parseGenerateWriteInput,
   stripEnclosingCodeFence,
 } from "@/lib/agent/tools/generate-write";
+import { resolveModelProfile } from "@/lib/agent/model-profiles";
 import {
   READ_CHAR_LIMIT,
   resolveToolDefinitions,
@@ -281,7 +281,10 @@ describe("executeGenerateAndWrite", () => {
       recoverable: true,
       guidance: expect.stringContaining("sections"),
     });
-    expect(calls).toHaveLength(GENERATE_MAX_CONTINUATIONS_PER_SECTION + 1);
+    // 継続上限はモデルプロファイル（"claude-test" は未知モデル既定）から解決される
+    const continuationsMax = resolveModelProfile("claude-test").continuations
+      .generatePerSection;
+    expect(calls).toHaveLength(continuationsMax + 1);
     expect(fs.existsSync(path.join(base.projectDir, "out.html"))).toBe(false);
     fs.rmSync(base.tmpDir, { recursive: true, force: true });
   });

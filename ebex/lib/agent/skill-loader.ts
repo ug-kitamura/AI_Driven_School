@@ -2,6 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { skillMentionsSubagent } from "@/lib/agent/subagent-fallback";
+import { skillMentionsImageIO } from "@/lib/agent/image-io-fallback";
 
 export type SkillSummary = {
   id: string;
@@ -10,6 +11,8 @@ export type SkillSummary = {
   hidden?: boolean;
   /** SKILL.md 本文に「サブエージェント」が含まれる */
   mentionsSubagent?: boolean;
+  /** SKILL.md 本文に画像・マルチモーダルの生成/読取指示が含まれる */
+  mentionsImageIO?: boolean;
 };
 
 export type LoadedSkill = SkillSummary & {
@@ -173,6 +176,7 @@ export function listSkills(
         description: skill.description,
         hidden: skill.hidden,
         mentionsSubagent: skillMentionsSubagent(skill.body),
+        mentionsImageIO: skillMentionsImageIO(skill.body),
       });
     }
   }

@@ -123,6 +123,24 @@ description: |
     expect(loadSkill(tmpDir, "missing-skill")).toBeNull();
   });
 
+  it("flags mentionsImageIO when the skill body mentions image generation", () => {
+    writeSkill(
+      tmpDir,
+      "image-skill",
+      "name: image\ndescription: i",
+      "Step1: 画像を生成してスライドに貼る",
+    );
+    writeSkill(tmpDir, "text-skill", "name: text\ndescription: t", "本文のみ");
+
+    const skills = listSkills(tmpDir);
+    expect(
+      skills.find((skill) => skill.id === "image-skill")?.mentionsImageIO,
+    ).toBe(true);
+    expect(
+      skills.find((skill) => skill.id === "text-skill")?.mentionsImageIO,
+    ).toBe(false);
+  });
+
   it("reports missing variables before invoke", () => {
     const skill = {
       id: "create-draft",

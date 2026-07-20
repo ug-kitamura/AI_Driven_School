@@ -50,6 +50,7 @@ import {
   type ToolConfirmRequiredEvent,
 } from "@/lib/agent/stream-client";
 import { ToolConfirmDialog } from "@/components/workspace/ToolConfirmDialog";
+import { ManualSearchDialog } from "@/components/workspace/ManualSearchDialog";
 import type { AgentLogicalTurn, AgentToolEvent } from "@/lib/agent/llm/types";
 import {
   addSession,
@@ -116,6 +117,7 @@ import {
 import { OutsideProjectPathDialog } from "@/components/workspace/OutsideProjectPathDialog";
 import { OutputDestinationDialog } from "@/components/workspace/OutputDestinationDialog";
 import { SUBAGENT_FALLBACK_USER_MESSAGE } from "@/lib/agent/subagent-fallback";
+import { IMAGE_IO_FALLBACK_USER_MESSAGE } from "@/lib/agent/image-io-fallback";
 
 function toProjectRelativePath(
   currentFilePath: string | null,
@@ -197,12 +199,17 @@ function readModelLabelFromSettings(): string {
 async function postToolConfirmDecision(
   toolUseId: string,
   decision: "approve" | "reject",
+  manualSearchText?: string,
 ): Promise<void> {
   try {
     await fetch("/api/agent/tool-confirm", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ toolUseId, decision }),
+      body: JSON.stringify({
+        toolUseId,
+        decision,
+        ...(manualSearchText !== undefined ? { manualSearchText } : {}),
+      }),
     });
   } catch {
     // ストリーム側は TTL タイムアウトで安全側（拒否）に確定する
@@ -270,11 +277,15 @@ export function AgentChatPane({
   const [outputDialogOpen, setOutputDialogOpen] = useState(false);
   const [selectedOutputId, setSelectedOutputId] =
     useState<OutputDestinationChoice | null>(null);
+  const [imageIoDialogOpen, setImageIoDialogOpen] = useState(false);
+  const [lastTurnTokens, setLastTurnTokens] = useState<number | null>(null);
+  const [sessionTokenTotal, setSessionTokenTotal] = useState(0);
   const pendingInvokeRef = useRef<{
     userMessage: AgentChatMessage;
     history: AgentChatMessage[];
     skillId: string;
     outsideConfirmed?: boolean;
+    imageIoConfirmed?: boolean;
     preferredOutputDir?: string;
   } | null>(null);
 
@@ -794,6 +805,10 @@ export function AgentChatPane({
                 ),
               );
             },
+            onTokenUsage: (event) => {
+              setLastTurnTokens(event.outputTokens);
+              setSessionTokenTotal((prev) => prev + event.outputTokens);
+            },
             onConfirmRequired: (event) => {
               setPendingToolConfirm(event);
             },
@@ -846,8 +861,18 @@ export function AgentChatPane({
       history: AgentChatMessage[];
       skillId: string;
       outsideConfirmed?: boolean;
+      imageIoConfirmed?: boolean;
       preferredOutputDir?: string;
     }) => {
+      if (
+        !options.imageIoConfirmed &&
+        skills.find((skill) => skill.id === options.skillId)?.mentionsImageIO
+      ) {
+        pendingInvokeRef.current = options;
+        setImageIoDialogOpen(true);
+        return;
+      }
+
       if (folderId && !options.outsideConfirmed) {
         const hints = findOutsideProjectPathHints(
           options.userMessage.content,
@@ -892,7 +917,7 @@ export function AgentChatPane({
 
       await invokeSkill(options);
     },
-    [filePath, folderId, invokeSkill],
+    [filePath, folderId, invokeSkill, skills],
   );
 
   const handleSend = useCallback(
@@ -965,6 +990,8 @@ export function AgentChatPane({
       setAttachments([]);
       setError(null);
       setRetryPayload(null);
+      setLastTurnTokens(null);
+      setSessionTokenTotal(0);
     },
     [],
   );
@@ -1247,11 +1274,15 @@ export function AgentChatPane({
   }, []);
 
   const handleToolConfirmDecision = useCallback(
-    async (decision: "approve" | "reject") => {
+    async (decision: "approve" | "reject", manualSearchText?: string) => {
       const request = pendingToolConfirm;
       if (!request) return;
       setPendingToolConfirm(null);
-      await postToolConfirmDecision(request.toolUseId, decision);
+      await postToolConfirmDecision(
+        request.toolUseId,
+        decision,
+        manualSearchText,
+      );
     },
     [pendingToolConfirm],
   );
@@ -1401,7 +1432,7 @@ export function AgentChatPane({
                 <div className="flex h-full min-h-[12rem] items-center justify-center">
                   <div className="flex max-w-md flex-col gap-3 text-sm text-muted-foreground">
                     <div className="text-center font-medium">
-                      ── EBEX 制約と誓約 ──
+                      ── 制約と誓約 ──
                     </div>
                     <p>
                       EBEX
@@ -1545,6 +1576,13 @@ export function AgentChatPane({
           className="agent-chat-pane__scroll-fade agent-chat-pane__scroll-fade-bottom"
         />
       </div>
+
+      {lastTurnTokens !== null ? (
+        <div className="flex items-center justify-end gap-3 px-12 py-1 text-[11px] text-muted-foreground">
+          <span>直近ターン: {lastTurnTokens.toLocaleString()} tokens</span>
+          <span>セッション累計: {sessionTokenTotal.toLocaleString()} tokens</span>
+        </div>
+      ) : null}
 
       {storageWarning ? (
         <div className="flex items-center justify-between gap-2 bg-secondary px-12 py-2 text-xs text-secondary-foreground">
@@ -1716,10 +1754,74 @@ export function AgentChatPane({
       </AlertDialog>
 
       <ToolConfirmDialog
-        request={pendingToolConfirm}
+        request={
+          pendingToolConfirm?.kind === "web-search-manual"
+            ? null
+            : pendingToolConfirm
+        }
         onApprove={() => void handleToolConfirmDecision("approve")}
         onReject={() => void handleToolConfirmDecision("reject")}
       />
+
+      <ManualSearchDialog
+        key={pendingToolConfirm?.toolUseId ?? "manual-search"}
+        request={pendingToolConfirm}
+        onSubmit={(manualSearchText) =>
+          void handleToolConfirmDecision("approve", manualSearchText)
+        }
+        onSkip={() => void handleToolConfirmDecision("reject")}
+      />
+
+      <AlertDialog
+        open={imageIoDialogOpen}
+        onOpenChange={(open) => {
+          if (!open) {
+            const pending = pendingInvokeRef.current;
+            if (pending) {
+              setInput(pending.userMessage.content);
+              pendingInvokeRef.current = null;
+            }
+            setImageIoDialogOpen(false);
+          }
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>画像・マルチモーダルには対応していません</AlertDialogTitle>
+            <AlertDialogDescription>
+              {IMAGE_IO_FALLBACK_USER_MESSAGE}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel
+              onClick={() => {
+                const pending = pendingInvokeRef.current;
+                if (pending) {
+                  setInput(pending.userMessage.content);
+                  pendingInvokeRef.current = null;
+                }
+                setImageIoDialogOpen(false);
+              }}
+            >
+              中止
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                const pending = pendingInvokeRef.current;
+                setImageIoDialogOpen(false);
+                if (!pending) return;
+                pendingInvokeRef.current = null;
+                void beginInvokeWithGuards({
+                  ...pending,
+                  imageIoConfirmed: true,
+                });
+              }}
+            >
+              スキップして続行
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <OutsideProjectPathDialog
         open={outsideDialogOpen}

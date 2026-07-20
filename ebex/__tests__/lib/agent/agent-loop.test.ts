@@ -612,6 +612,34 @@ describe("runAgentLoop auto-nudge (3値判定)", () => {
     expect(texts).toContain("完了しました。");
   });
 
+  it("emits token_usage per turn with the visible output token count", async () => {
+    vi.mocked(resolveLlmProvider).mockReturnValue({
+      ok: true,
+      model: "claude-sonnet-4-6",
+      provider: mockProvider([
+        {
+          text: "完了しました。",
+          stopReason: "end_turn",
+          toolCalls: [],
+          outputTokens: 123,
+        },
+      ]),
+    });
+
+    const emit = vi.fn();
+    const result = await runAgentLoop({
+      req: new Request("http://localhost/api/agent/invoke"),
+      system: "sys",
+      messages: [{ role: "user", content: "hi" }],
+      toolNames: [],
+      emit,
+      projectFolderId: "demo",
+    });
+
+    expect(result.ok).toBe(true);
+    expect(emit).toHaveBeenCalledWith("token_usage", { outputTokens: 123 });
+  });
+
   it("executes multiple tool calls within a turn sequentially (not in parallel)", async () => {
     const order: string[] = [];
     let inFlight = 0;

@@ -12,13 +12,28 @@ describe("tool-confirm-registry", () => {
   it("resolves approve decision", async () => {
     const pending = awaitToolConfirmDecision("tool-1");
     expect(resolveToolConfirmDecision("tool-1", "approve")).toBe(true);
-    await expect(pending).resolves.toBe("approve");
+    await expect(pending).resolves.toEqual({ decision: "approve" });
   });
 
   it("resolves reject decision", async () => {
     const pending = awaitToolConfirmDecision("tool-2");
     expect(resolveToolConfirmDecision("tool-2", "reject")).toBe(true);
-    await expect(pending).resolves.toBe("reject");
+    await expect(pending).resolves.toEqual({ decision: "reject" });
+  });
+
+  it("carries the manual search text payload on approve", async () => {
+    const pending = awaitToolConfirmDecision("tool-manual");
+    expect(
+      resolveToolConfirmDecision(
+        "tool-manual",
+        "approve",
+        "結果A https://example.com",
+      ),
+    ).toBe(true);
+    await expect(pending).resolves.toEqual({
+      decision: "approve",
+      manualSearchText: "結果A https://example.com",
+    });
   });
 
   it("returns false for unknown toolUseId", () => {
@@ -29,7 +44,7 @@ describe("tool-confirm-registry", () => {
     vi.useFakeTimers();
     const pending = awaitToolConfirmDecision("tool-ttl", 1000);
     vi.advanceTimersByTime(1001);
-    await expect(pending).resolves.toBe("timeout");
+    await expect(pending).resolves.toEqual({ decision: "timeout" });
     expect(resolveToolConfirmDecision("tool-ttl", "approve")).toBe(false);
   });
 });

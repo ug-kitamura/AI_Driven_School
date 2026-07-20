@@ -66,6 +66,11 @@ export type ConfirmGateOptions = ResolveToolPathOptions & {
    * AI が今セッションで作成したファイル、またはユーザーが一度許可したファイル。
    */
   skipOverwritePaths?: ReadonlySet<string>;
+  /**
+   * web 検索が利用可能か（検索 API キーが設定されているか）。
+   * false のとき web_search は確認ではなく人手フォールバック（web-search-manual）を提示する。
+   */
+  searchAvailable?: boolean;
 };
 
 const READ_TOOL_NAMES = new Set([
@@ -329,14 +334,15 @@ export function resolveConfirmRequirement(
   }
 
   if (call.name === "web_search") {
-    // 利用不可の環境でも確認は出す（承認後に実行側が「検索できずスキップした」旨を返す）
     const query =
       typeof call.input?.query === "string" ? call.input.query.trim() : "";
     if (!query) return null;
     const purpose =
       typeof call.input?.purpose === "string" ? call.input.purpose : "";
+    // 検索 API キーが未設定なら、検索可否の確認ではなく人手フォールバックを提示する。
+    // キーがあれば従来どおり「検索してよいか」の確認を出す（サーキットブレーカー中も同様）。
     return {
-      kind: "web-search",
+      kind: options.searchAvailable === false ? "web-search-manual" : "web-search",
       path: query,
       isNew: false,
       search: { query, purpose },

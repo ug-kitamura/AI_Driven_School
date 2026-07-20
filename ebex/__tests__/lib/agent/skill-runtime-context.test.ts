@@ -27,6 +27,22 @@ describe("buildSkillRuntimeContext", () => {
     expect(text).toContain("Boundary");
   });
 
+  it("includes an image/multimodal hint when imageIoSkipped is set", () => {
+    const text = buildSkillRuntimeContext({
+      projectFolderId: "demo",
+      imageIoSkipped: true,
+    });
+    expect(text).toContain("Image / Multimodal");
+    expect(text).toContain("画像・マルチモーダル");
+  });
+
+  it("omits the image/multimodal hint when imageIoSkipped is not set", () => {
+    const text = buildSkillRuntimeContext({
+      projectFolderId: "demo",
+    });
+    expect(text).not.toContain("Image / Multimodal");
+  });
+
   it("mentions skill discovery and read zone when skillId is set", () => {
     const text = buildSkillRuntimeContext({
       projectFolderId: "demo",

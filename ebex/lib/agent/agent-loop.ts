@@ -61,6 +61,8 @@ import { awaitToolConfirmDecision } from "@/lib/agent/tools/tool-confirm-registr
 import {
   resolveSearchProvider,
   SEARCH_REJECTED_GUIDANCE,
+  SEARCH_MANUAL_SKIP_GUIDANCE,
+  SEARCH_MANUAL_RESULT_NOTICE,
   type SearchSessionState,
 } from "@/lib/agent/tools/search-provider";
 import { checkProjectFolderExists } from "@/lib/agent/project-folder-guard";
@@ -391,6 +393,11 @@ export async function runAgentLoop(
     continuations: number;
     turnEnd?: string;
   }) => {
+    // `.meta/diagnostics.log` の outputTokens と同じ値（可視トークン数）をクライアントへ通知する。
+    // セッション累計はチャットセッション（複数 invoke をまたぐ）単位のため、クライアント側で積算する。
+    if (params.outputTokens !== undefined) {
+      options.emit("token_usage", { outputTokens: params.outputTokens });
+    }
     // テスト実行では実ワークスペースの diagnostics.log を汚染しない
     if (process.env.VITEST) return;
     appendDiagnosticsRecord(projectRoot, {
@@ -567,6 +574,7 @@ export async function runAgentLoop(
               {
                 ...skillOptions,
                 skipOverwritePaths,
+                searchAvailable: searchProvider !== null,
               },
             )
           : null;
@@ -581,8 +589,38 @@ export async function runAgentLoop(
             ...(requirement.search ? { search: requirement.search } : {}),
             ...(requirement.generate ? { generate: requirement.generate } : {}),
           });
-          const decision = await awaitToolConfirmDecision(call.id);
-          if (decision === "reject" || decision === "timeout") {
+          const resolution = await awaitToolConfirmDecision(call.id);
+          const decision = resolution.decision;
+          if (requirement.kind === "web-search-manual") {
+            // 人手フォールバック: 承認＝結果貼付、拒否/timeout＝スキップして続行
+            const manualText = resolution.manualSearchText?.trim();
+            outcome =
+              decision === "approve" && manualText
+                ? {
+                    result: {
+                      query: requirement.path,
+                      source: "user-provided",
+                      results: manualText,
+                      notice: SEARCH_MANUAL_RESULT_NOTICE,
+                    },
+                    display: {
+                      summary: "手動入力",
+                      display: `🔎 web検索（手動入力）: ${requirement.path}`,
+                    },
+                  }
+                : {
+                    result: {
+                      unavailable: true,
+                      skipped: true,
+                      query: requirement.path,
+                      guidance: SEARCH_MANUAL_SKIP_GUIDANCE,
+                    },
+                    display: {
+                      summary: "スキップ",
+                      display: `✗ web検索をスキップ: ${requirement.path}`,
+                    },
+                  };
+          } else if (decision === "reject" || decision === "timeout") {
             const timedOut = decision === "timeout";
             const reason = timedOut
               ? "確認ダイアログが時間内に応答されなかったため実行を見送りました（ダイアログが表示されない場合は画面を再読み込みしてください）"

@@ -36,6 +36,14 @@ export const SEARCH_UNCONFIGURED_NOTICE =
 export const SEARCH_REJECTED_GUIDANCE =
   "ユーザーが web 検索を許可しませんでした。同じクエリを再要求せず、検索なしで続行してください。";
 
+/** 人手フォールバックでユーザーがスキップしたときにモデルへ返す案内 */
+export const SEARCH_MANUAL_SKIP_GUIDANCE =
+  "ユーザーは web 検索をスキップしました。同じクエリを再要求せず、検索なしで続行してください。";
+
+/** 人手フォールバックでユーザーが検索結果を貼り付けたときにモデルへ添える案内 */
+export const SEARCH_MANUAL_RESULT_NOTICE =
+  "以下はユーザーが手動で入力した検索結果とソース URL です。これを根拠として続行し、同じクエリを再要求しないでください。";
+
 function normalizeSnippet(raw: unknown): string {
   if (typeof raw !== "string") return "";
   return raw.replace(/\s+/g, " ").trim().slice(0, SEARCH_SNIPPET_CHAR_LIMIT);

@@ -11,6 +11,7 @@ export const CONFIRM_KINDS = [
   "run-skill-script",
   "generate-write",
   "web-search",
+  "web-search-manual",
 ] as const;
 
 export type ConfirmKind = (typeof CONFIRM_KINDS)[number];

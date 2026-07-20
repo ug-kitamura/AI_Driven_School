@@ -65,7 +65,7 @@ Pane 1 の検索行に下方向の区切り線（`border-b`）を表示しては
 
 ### Requirement: 右クリックコンテキストメニュー
 
-フォルダ行の右クリックメニュー項目は、表示順を **add folder → add file → rename → copy（該当時）→ paste（該当時）→ delete** とし、**delete は常に最後**でなければならない（SHALL）。プロジェクトフォルダ（`folderPath` に `/` を含まない）の場合は「add folder」「add file」「rename」「paste」「delete」としなければならない（SHALL）。サブフォルダ行の場合は「add folder」「add file」「rename」「copy」「paste」「delete」としなければならない（SHALL）。ファイル行のメニュー項目は「rename」「copy」「paste」、**add favorite または remove favorite（状態に応じて排他）**、「delete」としなければならない（SHALL）。`(no file)` 行のメニュー項目は「add folder」「add file」「paste」としなければならない（SHALL）。メニュー項目の表示言語は英語でなければならない（SHALL）。「add folder」「add file」「rename」「copy」「paste」「add favorite」「remove favorite」の hover 背景色・文字色は、ツリー行の選択・強調時と同じグレー系トークンでなければならない（SHALL）。「delete」項目の hover 配色は destructive（赤系）のまま維持しなければならない（SHALL）。クリップボードが空のとき paste は無効（disabled）でなければならない（SHALL）。各メニュー項目はラベルテキストの前に、項目に対応する lucide アイコンを表示しなければならない（SHALL）：add folder は `FolderPlus`、add file は `FilePlus`、rename は `Pencil`、copy は `Copy`、paste は `ClipboardPaste`、delete は `Trash2`、add favorite は `Star`（アウトライン）、remove favorite は `StarOff`。アイコンの色は個別指定してはならず（MUST NOT）、`ContextMenuItem` の `variant` に連動した既存の自動配色（muted はグレー系、destructive は赤系）に従わなければならない（SHALL）。
+フォルダ行の右クリックメニュー項目は、表示順を **add folder → add file → rename → copy（該当時）→ paste（該当時）→ delete** とし、**delete は常に最後**でなければならない（SHALL）。プロジェクトフォルダ（`folderPath` に `/` を含まない）の場合は「add folder」「add file」「rename」「paste」「delete」としなければならない（SHALL）。サブフォルダ行の場合は「add folder」「add file」「rename」「copy」「paste」「delete」としなければならない（SHALL）。ファイル行のメニュー項目は「rename」「copy」「paste」、**add to chat**、**add favorite または remove favorite（状態に応じて排他）**、「delete」の順としなければならない（SHALL）。`(no file)` 行のメニュー項目は「add folder」「add file」「paste」としなければならない（SHALL）。メニュー項目の表示言語は英語でなければならない（SHALL）。「add folder」「add file」「rename」「copy」「paste」「add to chat」「add favorite」「remove favorite」の hover 背景色・文字色は、ツリー行の選択・強調時と同じグレー系トークンでなければならない（SHALL）。「delete」項目の hover 配色は destructive（赤系）のまま維持しなければならない（SHALL）。クリップボードが空のとき paste は無効（disabled）でなければならない（SHALL）。各メニュー項目はラベルテキストの前に、項目に対応する lucide アイコンを表示しなければならない（SHALL）：add folder は `FolderPlus`、add file は `FilePlus`、rename は `Pencil`、copy は `Copy`、paste は `ClipboardPaste`、delete は `Trash2`、add to chat は `MessageSquarePlus`、add favorite は `Star`（アウトライン）、remove favorite は `StarOff`。アイコンの色は個別指定してはならず（MUST NOT）、`ContextMenuItem` の `variant` に連動した既存の自動配色（muted はグレー系、destructive は赤系）に従わなければならない（SHALL）。
 
 #### Scenario: サブフォルダ行の右クリックメニュー
 
@@ -80,7 +80,22 @@ Pane 1 の検索行に下方向の区切り線（`border-b`）を表示しては
 #### Scenario: ネストファイルの右クリックメニュー
 
 - **WHEN** ユーザーが `sub/deep.md` ファイル行を右クリックする
-- **THEN** rename、copy、paste、add favorite または remove favorite、delete の順で、それぞれ対応するアイコン付きの英語メニューが表示される
+- **THEN** rename、copy、paste、add to chat、add favorite または remove favorite、delete の順で、それぞれ対応するアイコン付きの英語メニューが表示される
+
+#### Scenario: add to chat の位置とアイコン
+
+- **WHEN** ユーザーがファイル行を右クリックする
+- **THEN** `MessageSquarePlus` アイコン付きの add to chat が paste と favorite 項目の間に表示される
+
+#### Scenario: 別プロジェクトのファイルでは add to chat が無効
+
+- **WHEN** Agent チャットの対象プロジェクトが `demo` の状態で、ユーザーが別プロジェクト `other` 内のファイル行を右クリックする
+- **THEN** add to chat は無効（disabled、グレー表示）であり、クリックしても添付は追加されない
+
+#### Scenario: フォルダ行に add to chat がない
+
+- **WHEN** ユーザーがプロジェクトフォルダまたはサブフォルダ行を右クリックする
+- **THEN** add to chat は表示されない
 
 #### Scenario: no file 行の右クリックメニュー
 
@@ -193,7 +208,7 @@ Pane 1 上部に検索ボックスが提供されなければならない（SHAL
 
 ### Requirement: フォルダ追加
 
-Pane 1 ヘッダー右上のフォルダ追加ボタンからモーダルが開かれなければならない（SHALL）。モーダルフッターには左からキャンセル・自動入力・確定の順でボタンが配置されなければならない（SHALL）。自動入力ボタンは入力欄に名前をセットするのみとし、モーダルを閉じてはならない（MUST NOT）。フォルダ作成は確定ボタンでのみ実行されなければならない（SHALL）。自動入力時の名前は `{YYYYMMDD}-untitled{N}` とし、N は同日の既存フォルダ名 `^{YYYYMMDD}-untitled(\d+)$` の最大値 + 1、存在しない場合は 1 としなければならない（SHALL）。作成された新規フォルダ自身は既定で折りたたみ状態（展開しない）でなければならない（SHALL）。フォルダ作成成功後、システムはカーソル位置を新規フォルダの行に設定しなければならない（SHALL）。
+Pane 1 ヘッダー右上のフォルダ追加ボタンからモーダルが開かれなければならない（SHALL）。モーダルフッターには左からキャンセル・自動入力・確定の順でボタンが配置されなければならない（SHALL）。自動入力ボタンは入力欄に名前をセットするのみとし、モーダルを閉じてはならない（MUST NOT）。フォルダ作成は確定ボタンでのみ実行されなければならない（SHALL）。自動入力時の名前は `{YYYYMMDD}-untitled{N}` とし、N は同日の既存フォルダ名 `^{YYYYMMDD}-untitled(\d+)$` の最大値 + 1、存在しない場合は 1 としなければならない（SHALL）。作成された新規フォルダ自身は既定で折りたたみ状態（展開しない）でなければならず、作成に伴う選択変更によって自動展開されてはならない（MUST NOT）。フォルダ作成成功後、システムはカーソル位置を新規フォルダの行に設定し、当該フォルダの `no file` を選択状態にしなければならない（SHALL）。
 
 #### Scenario: 自動入力で名前がセットされる
 
@@ -210,10 +225,10 @@ Pane 1 ヘッダー右上のフォルダ追加ボタンからモーダルが開�
 - **WHEN** ユーザーが自動入力後に「確定」をクリックする
 - **THEN** 入力欄の名前で `workspace/` 配下にフォルダが作成される
 
-#### Scenario: 新規フォルダは折りたたみ状態で作成される
+#### Scenario: 新規フォルダは折りたたみのまま no file が選択される
 
 - **WHEN** ユーザーがフォルダ追加を確定する
-- **THEN** 新規フォルダは折りたたみ状態で表示され、カーソル位置は新規フォルダの行になる
+- **THEN** 新規フォルダは折りたたみ状態のまま表示され、カーソル位置は新規フォルダの行になり、Pane 2 はヘッダー `no file`・本文「ファイルが存在しません」の表示になる
 
 ### Requirement: フォルダリネーム
 
@@ -264,7 +279,7 @@ Pane 1 ヘッダー右上のフォルダ追加ボタンからモーダルが開�
 
 ### Requirement: サブフォルダ追加
 
-任意階層のフォルダ行のコンテキストメニュー「フォルダ追加」から、当該フォルダ直下にサブフォルダを作成できなければならない（SHALL）。モーダルにはキャンセルと確定が提供され、確定時のみ作成されなければならない（SHALL）。作成された新規サブフォルダ自身は既定で折りたたみ状態（展開しない）でなければならない（SHALL）。親フォルダは新規サブフォルダが見えるよう展開状態でなければならない（SHALL）。サブフォルダ作成成功後、システムはカーソル位置を新規サブフォルダの行に設定しなければならない（SHALL）。
+任意階層のフォルダ行のコンテキストメニュー「フォルダ追加」から、当該フォルダ直下にサブフォルダを作成できなければならない（SHALL）。モーダルにはキャンセルと確定が提供され、確定時のみ作成されなければならない（SHALL）。作成された新規サブフォルダ自身は既定で折りたたみ状態（展開しない）でなければならず、作成に伴う選択変更によって自動展開されてはならない（MUST NOT）。親フォルダは新規サブフォルダが見えるよう展開状態でなければならない（SHALL）。サブフォルダ作成成功後、システムはカーソル位置を新規サブフォルダの行に設定し、当該サブフォルダの `no file` を選択状態にしなければならない（SHALL）。
 
 #### Scenario: サブフォルダ作成
 
@@ -276,10 +291,10 @@ Pane 1 ヘッダー右上のフォルダ追加ボタンからモーダルが開�
 - **WHEN** ユーザーが `20260707-demo/sub` 行の「フォルダ追加」で名前 `inner` を確定する
 - **THEN** `workspace/20260707-demo/sub/inner/` が作成される
 
-#### Scenario: 新規サブフォルダは折りたたみ状態で作成される
+#### Scenario: 新規サブフォルダは折りたたみのまま no file が選択される
 
 - **WHEN** ユーザーが `20260707-demo` 行でサブフォルダ追加を確定する
-- **THEN** 親フォルダ `20260707-demo` は展開され、新規サブフォルダ自身は折りたたみ状態で表示され、カーソル位置は新規サブフォルダの行になる
+- **THEN** 親フォルダ `20260707-demo` は展開され、新規サブフォルダ自身は折りたたみ状態のまま、カーソル位置は新規サブフォルダの行になり、Pane 2 はヘッダー `no file`・本文「ファイルが存在しません」の表示になる
 
 ### Requirement: ツリー階層の表示
 
@@ -376,7 +391,7 @@ Pane 1 ヘッダー右上のフォルダ追加ボタンからモーダルが開�
 
 ### Requirement: ファイル一覧に拡張子カテゴリに応じたアイコンを表示する
 
-ファイルツリーの各ファイル行には、ファイル名から判定したカテゴリ（テキスト、コード、表、画像、動画、音声、シークレット/設定、zip、その他）に対応する控えめな lucide-react アイコンを表示しなければならない（SHALL）。カテゴリ判定は拡張子（大文字小文字を区別しない）に基づくが、`.env` や `.env.local` のように拡張子を持たない、または拡張子だけでは判別できないファイル名は、ファイル名そのものとの一致で判定しなければならない（SHALL）。テキストカテゴリには `.md`、`.txt` を含めなければならない（SHALL）。コードカテゴリには `.html`、`.htm`、`.yaml`、`.tsx`、`.jsx`、`.groovy`、`.bat`、`.sh`、`.json`、`.yml`、`.xml` を含め、HTML/HTM は `Code` アイコンで表示しなければならない（SHALL）。画像カテゴリには `.jpeg`、`.svg` を含めなければならない（SHALL）。シークレット/設定カテゴリには `.crt` および `.env`、`.env.*` パターン（例: `.env.local`、`.env.template`、`.env.example`）を含めなければならない（SHALL）。その他カテゴリには `.pptx` を含めなければならない（SHALL）。`.gif` は動画カテゴリ、`.vtt` は音声カテゴリとして扱わなければならない（SHALL）。**ファイル行**のアイコン色は、カテゴリに関わらず統一しなければならない（SHALL）。ライトテーマでは従来どおり `text-chart-1/60` を用いなければならない（SHALL）。ダークテーマでは背景とのコントラストを高めるため、ライトテーマより不透明度または明度を上げた同系色（例: `text-chart-1` または `text-chart-1/90`）を用いなければならない（SHALL）。`(no file)` 行のアイコン（`CircleDashed`）およびラベルの色は、従来どおり muted 系のまま変更してはならない（MUST NOT）。
+ファイルツリーの各ファイル行には、ファイル名から判定したカテゴリ（テキスト、コード、表、画像、動画、音声、シークレット/設定、zip、その他）に対応する控えめな lucide-react アイコンを表示しなければならない（SHALL）。カテゴリ判定は拡張子（大文字小文字を区別しない）に基づくが、`.env` や `.env.local` のように拡張子を持たない、または拡張子だけでは判別できないファイル名は、ファイル名そのものとの一致で判定しなければならない（SHALL）。テキストカテゴリには `.md`、`.txt` を含めなければならない（SHALL）。コードカテゴリには `.html`、`.htm`、`.yaml`、`.tsx`、`.jsx`、`.groovy`、`.bat`、`.sh`、`.json`、`.yml`、`.xml`、**`.css`、`.ps1`、`.mjs`** を含め、HTML/HTM は `Code` アイコンで表示しなければならない（SHALL）。画像カテゴリには `.jpeg`、`.svg` を含めなければならない（SHALL）。シークレット/設定カテゴリには `.crt` および `.env`、`.env.*` パターン（例: `.env.local`、`.env.template`、`.env.example`）を含めなければならない（SHALL）。その他カテゴリには `.pptx` を含めなければならない（SHALL）。`.gif` は動画カテゴリ、`.vtt` は音声カテゴリとして扱わなければならない（SHALL）。**ファイル行**のアイコン色は、カテゴリに関わらず統一しなければならない（SHALL）。ライトテーマでは従来どおり `text-chart-1/60` を用いなければならない（SHALL）。ダークテーマでは背景とのコントラストを高めるため、ライトテーマより不透明度または明度を上げた同系色（例: `text-chart-1` または `text-chart-1/90`）を用いなければならない（SHALL）。`(no file)` 行のアイコン（`CircleDashed`）およびラベルの色は、従来どおり muted 系のまま変更してはならない（MUST NOT）。
 
 #### Scenario: Markdown ファイルにテキストアイコンが表示される
 
@@ -387,6 +402,16 @@ Pane 1 ヘッダー右上のフォルダ追加ボタンからモーダルが開�
 
 - **WHEN** ライトテーマでフォルダ内に `page.html` が存在する
 - **THEN** ファイル一覧の該当行の左側に、コードカテゴリ（`Code`）のアイコンが `text-chart-1/60` で表示される
+
+#### Scenario: CSS ファイルにコードアイコンが表示される
+
+- **WHEN** フォルダ内に `styles.css` が存在する
+- **THEN** ファイル一覧の該当行の左側に、コードカテゴリ（`Code`、`</>` 形）のアイコンが表示される
+
+#### Scenario: ps1 / mjs もコードカテゴリになる
+
+- **WHEN** フォルダ内に `build.ps1` と `helper.mjs` が存在する
+- **THEN** 両ファイル行にコードカテゴリのアイコンが表示される
 
 #### Scenario: 画像ファイルも Markdown と同じ青色
 
@@ -862,6 +887,44 @@ Agent がストリーミング実行中のプロジェクトフォルダ（お�
 
 - **WHEN** プロジェクトフォルダ A で Agent 実行中に、ユーザーが別プロジェクトフォルダ B を rename する
 - **THEN** B のリネームは従来どおり実行できる
+
+### Requirement: お気に入りファイルの削除ブロック
+
+お気に入り登録済みファイルの削除操作（コンテキストメニューの delete および Delete キー）を実行してはならない（MUST NOT）。ユーザーが当該操作を試みた場合、削除確認ダイアログの代わりに、お気に入りのため削除できない旨と remove favorite 後に削除できる旨を説明するワーニングモーダル（OK ボタンのみ、削除ボタンなし）を表示しなければならない（SHALL）。フォルダの削除操作において、当該フォルダ配下（全階層）にお気に入り登録済みファイルが 1 つでも存在する場合も同様にワーニングモーダルでブロックし、該当するお気に入りファイルのパスを列挙しなければならない（SHALL）。お気に入り未登録のファイル・お気に入りを含まないフォルダの削除は、本要件により制限してはならない（MUST NOT）— 既存の非空プロジェクトフォルダ削除ワーニング等の別要件は維持する。
+
+#### Scenario: お気に入りファイルの delete がブロックされる
+
+- **WHEN** ユーザーがお気に入り登録済みの `demo/notes.md` の delete を実行する
+- **THEN** 削除確認ダイアログではなくワーニングモーダルが表示され、削除は実行されない
+
+#### Scenario: Delete キーでもブロックされる
+
+- **WHEN** お気に入り登録済みファイル行にカーソルがある状態でユーザーが Delete キーを押す
+- **THEN** ワーニングモーダルが表示され、削除は実行されない
+
+#### Scenario: お気に入りを含むサブフォルダの削除がブロックされる
+
+- **WHEN** ユーザーが、配下にお気に入り登録済み `demo/sub/notes.md` を含むサブフォルダ `demo/sub` の delete を実行する
+- **THEN** ワーニングモーダルが表示されて `sub/notes.md` が列挙され、削除は実行されない
+
+#### Scenario: お気に入り解除後は削除できる
+
+- **WHEN** ユーザーが `demo/notes.md` を remove favorite した後に delete を実行する
+- **THEN** 従来どおり削除確認ダイアログが表示され、確認後に削除できる
+
+### Requirement: 空きスペース右クリックによるフォルダ追加
+
+Pane 1 のツリー行より下の空きスペースを右クリックしたとき、システムは行のコンテキストメニューと同等の見た目のコンテキストメニューを表示しなければならない（SHALL）。メニュー項目は **add folder**（`FolderPlus` アイコン付き）の 1 件のみでなければならない（SHALL）。add folder をクリックしたとき、既存のプロジェクトフォルダ追加モーダルを開かなければならない（SHALL）。ツリー行（フォルダ・ファイル・`no file`）上の右クリックは従来どおり各行のコンテキストメニューを表示しなければならず、本要件の対象としてはならない（MUST NOT）。
+
+#### Scenario: 空きスペース右クリックでメニュー経由でモーダルが開く
+
+- **WHEN** ユーザーが Pane 1 のツリー行が無い余白領域を右クリックする
+- **THEN** add folder のみのコンテキストメニューが表示され、add folder をクリックするとプロジェクトフォルダ追加モーダルが開く
+
+#### Scenario: 行上の右クリックは従来どおり
+
+- **WHEN** ユーザーがファイル行を右クリックする
+- **THEN** ファイル行のコンテキストメニューが表示され、add folder のみのメニューは表示されない
 
 ### Requirement: no file 行の選択
 

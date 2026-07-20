@@ -330,7 +330,7 @@ function TreeNode({
         // DnD 中は青枠（箱）が主役になるためレールは出さない
         isSelectedProjectRoot &&
           !isDropTarget &&
-          "before:absolute before:inset-y-0 before:left-0 before:w-0.5 before:rounded-full before:bg-primary before:content-['']",
+          "before:absolute before:inset-y-0 before:-left-0.5 before:w-[3px] before:rounded-full before:bg-primary before:content-['']",
       )}
       onDragOver={(event) => {
         event.preventDefault();

@@ -3,9 +3,7 @@
 ## Purpose
 
 TBD - created by archiving change ebex-v1-workspace. Update Purpose after archive.
-
 ## Requirements
-
 ### Requirement: 3 ペイン構成
 
 ワークスペースは Pane 1（ファイルツリー）、Pane 2（編集+プレビュー）、Pane 3（Agent）の 3 ペインで構成されなければならない（SHALL）。Pane 1 ヘッダーには `images/logo_small.png` とツール名 **EBEX** が左から順に表示されなければならない（SHALL）。ロゴまたは「EBEX」はクリック可能であり、クリックで Purpose モーダルを開かなければならない（SHALL）。
@@ -27,7 +25,7 @@ TBD - created by archiving change ebex-v1-workspace. Update Purpose after archiv
 
 ### Requirement: ペインリサイズ
 
-Pane 1 と Pane 3 は固定幅、Pane 2（エディタ）は残り幅を吸収する可変幅ペインとしなければならない（SHALL）。Pane 1 右のリサイズハンドルは Pane 1 幅を、Pane 2–Pane 3 間のリサイズハンドルは Pane 3（Agent）幅を変更しなければならない（SHALL）。`pane-layout.ts` は pane1 / pane2 / pane3 の 3 ペイン用に定義され、Pane 2 幅は `totalWidth - pane1 - pane3 - ハンドル幅` で算出されなければならない（SHALL）。ペイン幅（pane1 / pane3）は localStorage に永続化されなければならない（SHALL）。3 ペインの合計は常にワークスペース幅いっぱいに広がり、右端に余白を残してはならない（SHALL NOT）。pane1 の既定幅は 300px、最小幅 200px、最大幅 400px でなければならない（SHALL）。pane3 の既定幅は 600px、最小幅 400px、最大幅 800px でなければならない（SHALL）。HTML プレビュー表示中であっても、Pane 2–Pane 3 間リサイズハンドルのドラッグによる幅変更は途切れてはならない（SHALL）。
+Pane 1 と Pane 3 は固定幅、Pane 2（エディタ）は残り幅を吸収する可変幅ペインとしなければならない（SHALL）。Pane 1 右のリサイズハンドルは Pane 1 幅を、Pane 2–Pane 3 間のリサイズハンドルは Pane 3（Agent）幅を変更しなければならない（SHALL）。`pane-layout.ts` は pane1 / pane2 / pane3 の 3 ペイン用に定義され、Pane 2 幅は `totalWidth - pane1 - pane3 - ハンドル幅` で算出されなければならない（SHALL）。ペイン幅（pane1 / pane3）は localStorage に永続化されなければならない（SHALL）。3 ペインの合計は常にワークスペース幅いっぱいに広がり、右端に余白を残してはならない（SHALL NOT）。pane1 の既定幅は 350px、最小幅 200px、最大幅 500px でなければならない（SHALL）。pane3 の既定幅は 700px、最小幅 400px、最大幅 1000px でなければならない（SHALL）。Pane 2 の最小幅は 400px を維持しなければならず、pane1 / pane3 を広げた結果 Pane 2 が最小幅を下回る場合は既存のフィットロジックにより pane1 / pane3 を縮小しなければならない（SHALL）。HTML プレビュー表示中であっても、Pane 2–Pane 3 間リサイズハンドルのドラッグによる幅変更は途切れてはならない（SHALL）。
 
 #### Scenario: Pane 1 ハンドルで Pane 1 幅変更
 
@@ -62,7 +60,12 @@ Pane 1 と Pane 3 は固定幅、Pane 2（エディタ）は残り幅を吸収�
 #### Scenario: 新規ユーザーの既定ペイン幅
 
 - **WHEN** ペイン幅の localStorage が未設定のユーザーが EBEX を起動する
-- **THEN** pane1 は 300px、pane3 は 600px で表示される
+- **THEN** pane1 は 350px、pane3 は 700px で表示される
+
+#### Scenario: pane1 / pane3 の最大幅
+
+- **WHEN** ユーザーが Pane 1 のリサイズハンドルを右へ、Pane 3 のリサイズハンドルを左へ限界までドラッグする
+- **THEN** pane1 は最大 500px、pane3 は最大 1000px を超えず、Pane 2 は最小幅 400px を下回らないよう調整される
 
 ### Requirement: テーマ初期化
 
@@ -99,3 +102,4 @@ Pane 2 と Pane 3 のヘッダー行は `h-12`（48px）固定高さでなけれ
 
 - **WHEN** ワークスペースが表示される
 - **THEN** Pane 2 と Pane 3 のヘッダー行の高さが同一である
+

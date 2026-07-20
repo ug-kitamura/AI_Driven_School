@@ -44,6 +44,9 @@ type SuggestionItem = {
 type Props = {
   value: string;
   onChange: (value: string) => void;
+  /** 添付チップ（親が保持し、プロジェクト往復で復元する） */
+  attachments: AgentFileAttachment[];
+  onAttachmentsChange: (attachments: AgentFileAttachment[]) => void;
   onSend: (attachments: AgentFileAttachment[]) => void;
   onAfterSend?: () => void;
   onStop?: () => void;
@@ -128,6 +131,8 @@ function clampHighlightIndex(index: number, itemCount: number): number {
 export function AgentChatInput({
   value,
   onChange,
+  attachments: fileAttachments,
+  onAttachmentsChange,
   onSend,
   onAfterSend,
   onStop,
@@ -149,9 +154,6 @@ export function AgentChatInput({
   const [contentFiles, setContentFiles] = useState<AgentFileOption[]>([]);
   const [filesLoading, setFilesLoading] = useState(false);
   const [highlightIndex, setHighlightIndex] = useState(0);
-  const [fileAttachments, setFileAttachments] = useState<AgentFileAttachment[]>(
-    [],
-  );
   const [isTreeDragOver, setIsTreeDragOver] = useState(false);
 
   const syncTextareaHeight = useCallback(() => {
@@ -335,10 +337,12 @@ export function AgentChatInput({
       const after = value.slice(textarea.selectionStart);
       const next = `${before}${token} ${after}`;
       onChange(next);
-      setFileAttachments((prev) => {
-        if (prev.some((item) => item.path === file.path)) return prev;
-        return [...prev, { path: file.path, name: file.name }];
-      });
+      if (!fileAttachments.some((item) => item.path === file.path)) {
+        onAttachmentsChange([
+          ...fileAttachments,
+          { path: file.path, name: file.name },
+        ]);
+      }
       setSuggestion(null);
       requestAnimationFrame(() => {
         textarea.focus();
@@ -346,19 +350,24 @@ export function AgentChatInput({
         textarea.setSelectionRange(pos, pos);
       });
     },
-    [onChange, suggestion, value],
+    [fileAttachments, onAttachmentsChange, onChange, suggestion, value],
   );
 
-  const removeFileAttachment = useCallback((filePath: string) => {
-    setFileAttachments((prev) => prev.filter((item) => item.path !== filePath));
-  }, []);
+  const removeFileAttachment = useCallback(
+    (filePath: string) => {
+      onAttachmentsChange(
+        fileAttachments.filter((item) => item.path !== filePath),
+      );
+    },
+    [fileAttachments, onAttachmentsChange],
+  );
 
   const addFileAttachment = useCallback(
     (attachment: AgentFileAttachment) => {
       if (fileAttachments.some((item) => item.path === attachment.path)) {
         return;
       }
-      setFileAttachments((prev) => [...prev, attachment]);
+      onAttachmentsChange([...fileAttachments, attachment]);
       // @ 由来と同様、本文にもファイル名トークンを挿入する（末尾に追記）
       const base = value.replace(/[ \t]+$/, "");
       onChange(
@@ -367,7 +376,7 @@ export function AgentChatInput({
           : `${attachment.name} `,
       );
     },
-    [fileAttachments, onChange, value],
+    [fileAttachments, onAttachmentsChange, onChange, value],
   );
 
   useEffect(() => {
@@ -376,9 +385,7 @@ export function AgentChatInput({
 
   const submitMessage = useCallback(() => {
     if (disabled || isLoading || !value.trim()) return;
-    const attachments = [...fileAttachments];
-    onSend(attachments);
-    setFileAttachments([]);
+    onSend([...fileAttachments]);
     onAfterSend?.();
     requestAnimationFrame(() => {
       textareaRef.current?.focus();

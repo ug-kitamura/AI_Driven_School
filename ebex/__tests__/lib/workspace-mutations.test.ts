@@ -122,19 +122,18 @@ describe("workspace mutations", () => {
     );
   });
 
-  it("keeps blocking deletion when a folder has files other than session.json", () => {
+  it("recursively deletes a non-empty project folder including its contents", () => {
     tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "ebex-ws-"));
     createFolder(tmpDir, "tmp");
     createFile(tmpDir, "tmp", "notes.md", "");
-    fs.writeFileSync(
-      path.join(getWorkspaceDir(tmpDir), "tmp", SESSION_FILENAME),
-      "{}",
-    );
+    createFolder(tmpDir, "tmp/sub");
+    createFile(tmpDir, "tmp/sub", "deep.md", "");
 
     expect(isFolderEmpty(tmpDir, "tmp")).toBe(false);
-    expect(deleteFolder(tmpDir, "tmp")).toEqual({
-      error: "空のフォルダのみ削除できます",
-    });
+    expect(deleteFolder(tmpDir, "tmp")).toEqual({ ok: true });
+    expect(fs.existsSync(path.join(getWorkspaceDir(tmpDir), "tmp"))).toBe(
+      false,
+    );
   });
 
   it("changes fingerprint when a folder is renamed without touching file mtimes", () => {

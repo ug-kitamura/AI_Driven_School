@@ -4,7 +4,6 @@ import { z } from "zod";
 import {
   ensureWorkspaceDir,
   folderExists,
-  isFolderEmpty,
   resolveFilePath,
   resolveFolderPath,
   validateFileName,
@@ -165,10 +164,6 @@ export function deleteFolder(projectRoot: string, folderPath: string) {
   if (validation) return { error: validation };
   if (!folderExists(projectRoot, folderPath)) {
     return { error: "フォルダが見つかりません" };
-  }
-  const isSubfolder = folderPath.includes("/");
-  if (!isSubfolder && !isFolderEmpty(projectRoot, folderPath)) {
-    return { error: "空のフォルダのみ削除できます" };
   }
   const resolved = resolveFolderPath(projectRoot, folderPath);
   if ("error" in resolved) return { error: resolved.error };

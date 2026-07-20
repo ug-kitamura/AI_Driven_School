@@ -6,6 +6,7 @@ import {
   AlertCircle,
   ChevronDown,
   ChevronRight,
+  ChevronsDownUp,
   CircleDashed,
   ClipboardPaste,
   Copy,
@@ -70,7 +71,6 @@ import {
   collectProjectFolderPaths,
   filterWorkspaceTree,
   filterWorkspaceTreeByFileKeys,
-  findTreeNode,
   getAncestorFolderPaths,
   getFolderBaseName,
   remapFolderPath,
@@ -131,7 +131,6 @@ type DialogMode =
   | { type: "add-subfolder"; parentPath: string }
   | { type: "rename-folder"; folderPath: string }
   | { type: "delete-folder"; folderPath: string }
-  | { type: "blocked-delete-folder"; folderPath: string }
   | {
       type: "blocked-delete-favorite";
       /** ブロック対象の表示ラベル（ファイル名またはフォルダパス） */
@@ -188,7 +187,6 @@ function dialogFolderPath(dialog: DialogMode): string | null {
     dialog.type === "rename-folder" ||
     dialog.type === "add-file" ||
     dialog.type === "delete-folder" ||
-    dialog.type === "blocked-delete-folder" ||
     dialog.type === "blocked-agent-busy-folder"
   ) {
     return dialog.folderPath;
@@ -316,12 +314,23 @@ function TreeNode({
   const folderRow = folderRowId(node.path);
   const isDropTarget = interaction.dropTargetPath === node.path;
   const isSubfolder = !isProjectFolder(node.path);
+  // 現在選択中のファイル（no file 含む）を配下に持つプロジェクトフォルダ全体を、
+  // 展開状態に関わらず器で囲んで「作業中プロジェクト」を一目で示す
+  const isSelectedProjectRoot =
+    !isSubfolder &&
+    interaction.selectedFolderPath !== "" &&
+    getProjectRoot(interaction.selectedFolderPath) === node.path;
 
   return (
     <div
       className={cn(
-        "flex flex-col rounded-lg",
+        "relative flex flex-col rounded-lg",
         isDropTarget && "ring-2 ring-primary",
+        // 背景は変えず、ブロック左辺に primary 色の縦レールで現在地を示す。
+        // DnD 中は青枠（箱）が主役になるためレールは出さない
+        isSelectedProjectRoot &&
+          !isDropTarget &&
+          "before:absolute before:inset-y-0 before:left-0 before:w-0.5 before:rounded-full before:bg-primary before:content-['']",
       )}
       onDragOver={(event) => {
         event.preventDefault();
@@ -1196,16 +1205,9 @@ export function FileTreePane({
         });
         return;
       }
-      if (isProjectFolder(folderPath)) {
-        const node = findTreeNode(folders, folderPath);
-        if (node && (node.files.length > 0 || node.children.length > 0)) {
-          openDialog({ type: "blocked-delete-folder", folderPath });
-          return;
-        }
-      }
       openDialog({ type: "delete-folder", folderPath });
     },
-    [agentBusyProjectFolderId, favorites, folders, openDialog],
+    [agentBusyProjectFolderId, favorites, openDialog],
   );
 
   const handleToggleFavorite = useCallback(
@@ -1248,6 +1250,13 @@ export function FileTreePane({
     setNameInput("");
     openDialog({ type: "add-folder" });
   }, [openDialog]);
+
+  // 展開状態を空にすると、開閉判定が emphasizedFolderPaths（選択中ファイルの
+  // 祖先パス）にフォールバックし、選択中ファイルへ至る道だけ開いたまま畳まれる
+  const collapseAll = useCallback(() => {
+    clearPaneError();
+    setExpanded({});
+  }, [clearPaneError]);
 
   const handleFocusRow = useCallback(
     (rowId: string) => {
@@ -1813,12 +1822,7 @@ export function FileTreePane({
 
   const deleteFolderDescription =
     dialog?.type === "delete-folder"
-      ? (() => {
-          const folderName = getFolderBaseName(dialog.folderPath);
-          return isProjectFolder(dialog.folderPath)
-            ? `フォルダ「${folderName}」を削除しますか？`
-            : `フォルダ「${folderName}」と配下のすべてのファイル・フォルダが削除されます。実行しますか？`;
-        })()
+      ? `フォルダ「${getFolderBaseName(dialog.folderPath)}」と配下のすべてのファイル・フォルダが削除されます。実行しますか？`
       : "";
 
   return (
@@ -1981,6 +1985,10 @@ export function FileTreePane({
               <FolderPlus className="size-4" />
               add folder
             </ContextMenuItem>
+            <ContextMenuItem variant="muted" onClick={collapseAll}>
+              <ChevronsDownUp className="size-4" />
+              collapse all
+            </ContextMenuItem>
           </ContextMenuContent>
         </ContextMenu>
       </div>
@@ -1990,7 +1998,6 @@ export function FileTreePane({
           dialog !== null &&
           dialog.type !== "delete-folder" &&
           dialog.type !== "delete-file" &&
-          dialog.type !== "blocked-delete-folder" &&
           dialog.type !== "blocked-delete-favorite" &&
           dialog.type !== "blocked-agent-busy-folder"
         }
@@ -2111,27 +2118,6 @@ export function FileTreePane({
               ))}
             </ul>
           ) : null}
-          <AlertDialogFooter>
-            <AlertDialogAction onClick={() => setDialog(null)}>
-              OK
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-
-      <AlertDialog
-        open={dialog?.type === "blocked-delete-folder"}
-        onOpenChange={(open) => !open && setDialog(null)}
-      >
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>削除できません</AlertDialogTitle>
-            <AlertDialogDescription>
-              {dialog?.type === "blocked-delete-folder"
-                ? `フォルダ「${dialog.folderPath}」にはファイルまたはサブフォルダが含まれています。空のプロジェクトフォルダのみ削除できます。`
-                : ""}
-            </AlertDialogDescription>
-          </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogAction onClick={() => setDialog(null)}>
               OK

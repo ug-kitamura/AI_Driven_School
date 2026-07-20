@@ -230,6 +230,7 @@ export function AgentChatPane({
   const [chatStorage, setChatStorage] = useState<AgentChatStorage | null>(null);
   const [messages, setMessages] = useState<AgentChatMessage[]>([]);
   const [input, setInput] = useState("");
+  const [attachments, setAttachments] = useState<AgentFileAttachment[]>([]);
   const [activeSkillId, setActiveSkillId] = useState<string | null>(null);
   const [isStreaming, setIsStreaming] = useState(false);
   const [subagentNoticeVisible, setSubagentNoticeVisible] = useState(false);
@@ -299,6 +300,13 @@ export function AgentChatPane({
   const activeSkillIdRef = useRef<string | null>(null);
   const lastPersistedFingerprintRef = useRef("");
   const persistTimerRef = useRef<number | null>(null);
+  // 未送信の入力（本文＋添付）をプロジェクト（scopeId）単位でメモリ保持し、
+  // 別プロジェクトへ移動して戻った際に復元する。リロードでは失われる（ref のため）
+  const inputRef = useRef("");
+  const attachmentsRef = useRef<AgentFileAttachment[]>([]);
+  const draftsRef = useRef<
+    Map<string, { input: string; attachments: AgentFileAttachment[] }>
+  >(new Map());
 
   useEffect(() => {
     foldersRef.current = folders;
@@ -321,6 +329,14 @@ export function AgentChatPane({
   useEffect(() => {
     activeSkillIdRef.current = activeSkillId;
   }, [activeSkillId]);
+
+  useEffect(() => {
+    inputRef.current = input;
+  }, [input]);
+
+  useEffect(() => {
+    attachmentsRef.current = attachments;
+  }, [attachments]);
 
   const buildStorageSnapshot = useCallback((): AgentChatStorage | null => {
     const storage = chatStorageRef.current;
@@ -900,6 +916,11 @@ export function AgentChatPane({
       };
       stickToBottomRef.current = true;
       setInput("");
+      setAttachments([]);
+      // 送信済みプロジェクトの下書きは破棄する
+      if (currentLessonIdRef.current) {
+        draftsRef.current.delete(currentLessonIdRef.current);
+      }
       await beginInvokeWithGuards({
         userMessage,
         history: messages,
@@ -941,6 +962,7 @@ export function AgentChatPane({
       setMessages(deduped);
       setActiveSkillId(session.activeSkillId);
       setInput("");
+      setAttachments([]);
       setError(null);
       setRetryPayload(null);
     },
@@ -956,6 +978,11 @@ export function AgentChatPane({
       const prevId = currentLessonIdRef.current;
       if (prevId && prevId !== targetScopeId) {
         await flushSessionToStorage(prevId);
+        // 離れるプロジェクトの未送信入力を退避する
+        draftsRef.current.set(prevId, {
+          input: inputRef.current,
+          attachments: attachmentsRef.current,
+        });
       }
 
       const storage = await loadLessonSession(targetScopeId);
@@ -966,6 +993,13 @@ export function AgentChatPane({
       setChatStorage(storage);
       applySessionState(storage.activeSessionId, storage);
       sessionSwitchRef.current = storage.activeSessionId;
+      // 戻ってきたプロジェクトの未送信入力を復元する（applySessionState の
+      // クリアより後に実行するため、下書きがあれば上書きされる）
+      const draft = draftsRef.current.get(targetScopeId);
+      if (draft) {
+        setInput(draft.input);
+        setAttachments(draft.attachments);
+      }
     }
 
     void loadScopeChat(scopeId);
@@ -1522,6 +1556,8 @@ export function AgentChatPane({
           key={folderId || "no-project"}
           value={input}
           onChange={setInput}
+          attachments={attachments}
+          onAttachmentsChange={setAttachments}
           onSend={(attachments) => void handleSend(attachments)}
           onAfterSend={() => {
             stickToBottomRef.current = true;

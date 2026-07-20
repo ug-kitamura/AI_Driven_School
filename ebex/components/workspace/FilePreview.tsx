@@ -8,10 +8,14 @@ import { HtmlPreviewFrame } from "@/components/workspace/HtmlPreviewFrame";
 import {
   fileExtension,
   formatStructuredPreview,
+  formatVttTimestamp,
   parseCsv,
   parseVtt,
   resolveMarkdownLink,
+  vttSpeakerHue,
+  type VttCue,
 } from "@/lib/file-preview";
+import { cn } from "@/lib/utils";
 import "@/styles/hljs/lesson-preview-hljs.css";
 
 type Props = {
@@ -114,6 +118,97 @@ function PreviewLink({
   );
 }
 
+type VttRow = {
+  cue: VttCue;
+  side: "left" | "right";
+  /** 話者交代直後（連続ブロックの先頭）だけアイコンと名前を表示する */
+  showAvatar: boolean;
+};
+
+function buildVttRows(cues: VttCue[]): VttRow[] {
+  const rows: VttRow[] = [];
+  let side: "left" | "right" = "left";
+  let prevKey: string | null = null;
+  cues.forEach((cue, index) => {
+    const key = cue.speaker ?? "__unknown__";
+    const isNewSpeaker = key !== prevKey;
+    // 最初の発話は左固定。以降は話者が変わるたびに左右反転する
+    if (isNewSpeaker && index > 0) {
+      side = side === "left" ? "right" : "left";
+    }
+    rows.push({ cue, side, showAvatar: isNewSpeaker });
+    prevKey = key;
+  });
+  return rows;
+}
+
+function VttBubble({ cue, side, showAvatar }: VttRow) {
+  const isUnknown = !cue.speaker;
+  const name = cue.speaker ?? "不明";
+  const alignRight = side === "right";
+  const avatarStyle = cue.speaker
+    ? { backgroundColor: `hsl(${vttSpeakerHue(cue.speaker)} 45% 55%)` }
+    : undefined;
+
+  return (
+    <div
+      className={cn(
+        "flex items-start gap-2",
+        alignRight && "flex-row-reverse",
+      )}
+    >
+      <div className="flex w-12 shrink-0 flex-col items-center gap-1">
+        {showAvatar ? (
+          <>
+            <span
+              className={cn(
+                "flex size-8 items-center justify-center rounded-full text-sm font-medium text-white",
+                isUnknown && "bg-muted-foreground",
+              )}
+              style={avatarStyle}
+              aria-hidden="true"
+            >
+              {name.slice(0, 1)}
+            </span>
+            <span className="w-full truncate text-center text-[10px] text-muted-foreground">
+              {name}
+            </span>
+          </>
+        ) : null}
+      </div>
+      <div
+        className={cn(
+          "flex min-w-0 max-w-[75%] flex-col gap-0.5",
+          alignRight ? "items-end" : "items-start",
+        )}
+      >
+        <div className="rounded-2xl bg-muted px-3 py-2 text-sm break-words whitespace-pre-wrap text-foreground">
+          {cue.text}
+        </div>
+        <span className="text-[10px] text-muted-foreground">
+          {formatVttTimestamp(cue.start)} → {formatVttTimestamp(cue.end)}
+        </span>
+      </div>
+    </div>
+  );
+}
+
+function VttChatPreview({ content }: { content: string }) {
+  const rows = useMemo(() => buildVttRows(parseVtt(content)), [content]);
+  return (
+    <div className="flex flex-col gap-3 p-4">
+      {rows.map((row, i) => (
+        <VttBubble
+          key={i}
+          cue={row.cue}
+          side={row.side}
+          showAvatar={row.showAvatar}
+        />
+      ))}
+    </div>
+  );
+}
+
 export function FilePreview({
   fileName,
   content,
@@ -202,19 +297,7 @@ export function FilePreview({
   }
 
   if (ext === "vtt") {
-    const cues = parseVtt(content);
-    return (
-      <ul className="flex flex-col gap-2 p-4 text-sm">
-        {cues.map((cue, i) => (
-          <li key={i} className="flex flex-col gap-0.5 border-b pb-2">
-            <span className="font-mono text-xs text-muted-foreground">
-              {cue.time}
-            </span>
-            <span>{cue.text}</span>
-          </li>
-        ))}
-      </ul>
-    );
+    return <VttChatPreview content={content} />;
   }
 
   return (

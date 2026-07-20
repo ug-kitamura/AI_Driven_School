@@ -5,6 +5,7 @@ import {
   fitPaneLayout,
   PANE2_MIN_WIDTH,
   PANE_RESIZE_HANDLE_WIDTH_PX,
+  PANE_WIDTH_DEFAULTS,
   PANE_WIDTH_LIMITS,
   PANE_WIDTH_STEP,
   snapPaneWidth,
@@ -16,6 +17,19 @@ const storedDefaults = { pane1: 300, pane3: 600 };
 function handles() {
   return 2 * PANE_RESIZE_HANDLE_WIDTH_PX;
 }
+
+describe("pane width defaults and limits", () => {
+  it("uses the widened defaults for new users", () => {
+    expect(PANE_WIDTH_DEFAULTS.pane1).toBe(350);
+    expect(PANE_WIDTH_DEFAULTS.pane3).toBe(700);
+  });
+
+  it("uses the widened min/max ranges", () => {
+    expect(PANE_WIDTH_LIMITS.pane1).toEqual({ min: 200, max: 500 });
+    expect(PANE_WIDTH_LIMITS.pane3).toEqual({ min: 400, max: 1000 });
+    expect(PANE2_MIN_WIDTH).toBe(400);
+  });
+});
 
 describe("clampPaneWidth", () => {
   it("clamps pane1 to min and max", () => {

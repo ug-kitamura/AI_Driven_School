@@ -1,10 +1,13 @@
 import { describe, expect, it } from "vitest";
 import {
+  formatVttTimestamp,
+  parseVtt,
   resolveInitialViewMode,
   resolveMarkdownLink,
   resolvePane2Mode,
   resolveViewOnlyKind,
   supportsPreview,
+  vttSpeakerHue,
 } from "@/lib/file-preview";
 
 describe("resolveInitialViewMode", () => {
@@ -152,5 +155,72 @@ describe("resolveViewOnlyKind", () => {
     expect(resolveViewOnlyKind("a.pdf")).toBe("pdf");
     expect(resolveViewOnlyKind("a.zip")).toBe("zip");
     expect(resolveViewOnlyKind("a.md")).toBe(null);
+  });
+});
+
+describe("parseVtt", () => {
+  it("<v 話者名> タグから話者と本文を抽出する", () => {
+    const vtt = [
+      "WEBVTT",
+      "",
+      "00:00:02.000 --> 00:00:06.500",
+      "<v 北村>皆さん、お疲れ様です。</v>",
+    ].join("\n");
+    expect(parseVtt(vtt)).toEqual([
+      {
+        start: "00:00:02.000",
+        end: "00:00:06.500",
+        speaker: "北村",
+        text: "皆さん、お疲れ様です。",
+      },
+    ]);
+  });
+
+  it("行頭の「話者名:」をフォールバックとして話者に使う", () => {
+    const vtt = ["00:00:01.000 --> 00:00:03.000", "鈴木: よろしくお願いします"].join(
+      "\n",
+    );
+    expect(parseVtt(vtt)).toEqual([
+      {
+        start: "00:00:01.000",
+        end: "00:00:03.000",
+        speaker: "鈴木",
+        text: "よろしくお願いします",
+      },
+    ]);
+  });
+
+  it("話者を特定できない cue は speaker が null になる", () => {
+    const vtt = ["00:00:04.000 --> 00:00:05.000", "拍手が起きる"].join("\n");
+    expect(parseVtt(vtt)[0]).toMatchObject({ speaker: null, text: "拍手が起きる" });
+  });
+
+  it("終了時刻の後ろの配置設定を無視する", () => {
+    const vtt = ["00:00:00.000 --> 00:00:02.000 align:start", "<v A>hi</v>"].join(
+      "\n",
+    );
+    expect(parseVtt(vtt)[0]).toMatchObject({
+      start: "00:00:00.000",
+      end: "00:00:02.000",
+    });
+  });
+});
+
+describe("vttSpeakerHue", () => {
+  it("同一話者名は常に同じ色相を返す", () => {
+    expect(vttSpeakerHue("北村")).toBe(vttSpeakerHue("北村"));
+  });
+
+  it("0–359 の範囲に収まる", () => {
+    const hue = vttSpeakerHue("鈴木");
+    expect(hue).toBeGreaterThanOrEqual(0);
+    expect(hue).toBeLessThan(360);
+  });
+});
+
+describe("formatVttTimestamp", () => {
+  it("ミリ秒を除去する", () => {
+    expect(formatVttTimestamp("00:00:02.000")).toBe("00:00:02");
+    expect(formatVttTimestamp("01:23:45.678")).toBe("01:23:45");
   });
 });

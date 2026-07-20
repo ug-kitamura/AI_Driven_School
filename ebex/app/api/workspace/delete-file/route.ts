@@ -1,5 +1,9 @@
 import { z } from "zod";
-import { deleteFile, jsonError, parseJsonBody } from "@/lib/workspace-mutations";
+import {
+  deleteFile,
+  jsonError,
+  parseJsonBody,
+} from "@/lib/workspace-mutations";
 
 const bodySchema = z.object({
   folderId: z.string().min(1),

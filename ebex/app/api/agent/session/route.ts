@@ -28,7 +28,10 @@ export async function GET(req: Request) {
 
   const storage = readFolderSessionFile(process.cwd(), folderId);
   if (!storage) {
-    return Response.json({ error: "session が見つかりません" }, { status: 404 });
+    return Response.json(
+      { error: "session が見つかりません" },
+      { status: 404 },
+    );
   }
 
   return Response.json(storage);

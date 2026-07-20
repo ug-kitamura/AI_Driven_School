@@ -1,4 +1,7 @@
-import { getSkillCatalogRoots, listVisibleSkills } from "@/lib/agent/skill-loader";
+import {
+  getSkillCatalogRoots,
+  listVisibleSkills,
+} from "@/lib/agent/skill-loader";
 
 export async function GET() {
   const roots = getSkillCatalogRoots(process.cwd());

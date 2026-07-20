@@ -1,5 +1,9 @@
 import { z } from "zod";
-import { jsonError, parseJsonBody, renameFile } from "@/lib/workspace-mutations";
+import {
+  jsonError,
+  parseJsonBody,
+  renameFile,
+} from "@/lib/workspace-mutations";
 
 const bodySchema = z.object({
   folderId: z.string().min(1),

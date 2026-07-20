@@ -36,3 +36,16 @@ export function filterFavoritesToExisting(
 export function toFavoriteKeySet(favorites: FavoriteEntry[]): Set<string> {
   return new Set(favorites.map(favoriteKey));
 }
+
+/** 指定フォルダ自身または配下（全階層）にあるお気に入りを列挙する */
+export function listFavoritesUnderFolder(
+  favorites: FavoriteEntry[],
+  folderPath: string,
+): FavoriteEntry[] {
+  if (!folderPath) return [];
+  return favorites.filter(
+    (entry) =>
+      entry.folderPath === folderPath ||
+      entry.folderPath.startsWith(`${folderPath}/`),
+  );
+}

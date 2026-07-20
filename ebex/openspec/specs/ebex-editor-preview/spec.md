@@ -1,8 +1,11 @@
 # ebex-editor-preview Specification
 
 ## Purpose
+
 Pane 2 のファイル種別モード解決、編集／プレビュー／閲覧表示、自動保存に関する仕様。
+
 ## Requirements
+
 ### Requirement: ファイル種別モード解決
 
 Pane 2 は選択中ファイルの拡張子から表示モードを解決しなければならない（SHALL）。モードは次のいずれかでなければならない（SHALL）: `edit-preview`（Edit|Preview タブ）、`edit-only`（編集のみ・タブなし）、`view-only`（閲覧のみ・タブなし）。
@@ -115,7 +118,7 @@ Pane 2 は、`edit-preview` モードのファイルに限り、ヘッダー右�
 
 ### Requirement: プレビュー対応拡張子
 
-`edit-preview` 対象の拡張子はプレビューを提供しなければならない（SHALL）: md（react-markdown）、html（スクリプト実行を許可したサンドボックス iframe）、csv（表表示）、json / yml（整形表示、パースエラー時はエラー表示）、vtt（タイムスタンプ付き発話リスト、話者ラベルがあれば表示）。プレビュー表示はペイン内で縦スクロール可能でなければならない（SHALL）。HTML プレビューは iframe 内ではなく Pane 2 プレビュー領域（`workspace-scrollbar` を適用した外側コンテナ）で縦スクロールしなければならない（SHALL）。HTML プレビューの縦スクロールバーは Markdown プレビューおよび Pane 3 と同じ `workspace-scrollbar` 見た目でなければならない（SHALL）。
+`edit-preview` 対象の拡張子はプレビューを提供しなければならない（SHALL）: md（react-markdown）、html（スクリプト実行を許可したサンドボックス iframe。Tailwind CDN 等のスクリプト生成スタイルを表示するため許可を維持する）、csv（表表示）、json / yml（整形表示、パースエラー時はエラー表示）、vtt（タイムスタンプ付き発話リスト、話者ラベルがあれば表示）。プレビュー表示はペイン内で縦スクロール可能でなければならない（SHALL）。HTML プレビューは iframe 内ではなく Pane 2 プレビュー領域（`workspace-scrollbar` を適用した外側コンテナ）で縦スクロールしなければならない（SHALL）。HTML プレビューの縦スクロールバーは Markdown プレビューおよび Pane 3 と同じ `workspace-scrollbar` 見た目でなければならない（SHALL）。HTML プレビューの iframe `sandbox` に `allow-forms`・`allow-popups`・`allow-top-navigation` を含めてはならない（MUST NOT）。
 
 #### Scenario: Markdown プレビュー
 
@@ -247,3 +250,74 @@ Pane 2 でセンチネル `fileName` が `no file` の選択が有効なとき�
 - **WHEN** ファイルも `no file` も選択されていない
 - **THEN** 既存の未選択空状態（ファイル選択を促すメッセージ）が表示され、`no file` 専用表示にはならない
 
+### Requirement: HTML プレビューのインタラクション制限
+
+HTML プレビュー内のリンク（`a` 要素）クリックによるナビゲーションを発生させてはならない（MUST NOT）— 外部 URL・相対パス・絶対パスのいずれも対象とする。この遮断は親ウィンドウ側から `contentDocument` へ capture 段階で付与するリスナーで行い、スクリプト実行の許可有無に依存してはならない（SHALL）。ただし `href` が同一文書内のアンカー（`#id`）であるリンクのクリックは、当該要素へのスクロールジャンプとして機能しなければならない（SHALL）。フォーム送信を実行してはならない（MUST NOT）。`<details>` の開閉および CSS のみのインタラクション（`:hover` 等）はブラウザネイティブ挙動として機能しなければならない（SHALL）。リンククリックによって Pane 2 内にアプリ自身の画面が読み込まれてはならない（MUST NOT）。
+
+#### Scenario: 相対リンクをクリックしてもアプリが iframe 内に現れない
+
+- **WHEN** ユーザーが HTML プレビュー内の相対パスリンクをクリックする
+- **THEN** ナビゲーションは発生せず、プレビュー表示は変化しない
+
+#### Scenario: 外部リンクが無効
+
+- **WHEN** ユーザーが HTML プレビュー内の `https://example.com` へのリンクをクリックする
+- **THEN** ナビゲーションは発生しない
+
+#### Scenario: ページ内アンカーはジャンプする
+
+- **WHEN** ユーザーが HTML プレビュー内の `#section-2` へのリンクをクリックする
+- **THEN** プレビューが `id="section-2"` の要素の位置までスクロールする
+
+#### Scenario: details の開閉は機能する
+
+- **WHEN** ユーザーが HTML プレビュー内の `<details><summary>` をクリックする
+- **THEN** 折りたたみ内容が開閉する
+
+### Requirement: Markdown プレビューのリンク制御
+
+Markdown プレビュー内のリンクは `href` の種別に応じて次のとおり動作しなければならない（SHALL）: 同一文書内アンカー（`#`）はプレビュー内の該当見出しへスクロールする。表示中ファイルのディレクトリ基準で解決した結果がプロジェクトフォルダ内に収まる相対パスは、Pane 2 で当該ファイルを開く。外部 URL（`http://` / `https://`）はナビゲーションせず、URL をクリップボードへコピーし、リンクの直後に「コピーしました」を約 1.5 秒インライン表示して自動的に消す。プロジェクトフォルダ外へ解決される相対パスは無効とする。いずれの種別でもブラウザのページ遷移・新規タブを発生させてはならない（MUST NOT）。外部 URL のフィードバックにグローバル通知（トースト等の画面隅の通知領域）を用いてはならない（MUST NOT）。クリップボードへのコピーに失敗した場合は、コピーできなかった旨を同様にインライン表示しなければならない（SHALL）。
+
+#### Scenario: プロジェクト内リンクで Pane 2 が切り替わる
+
+- **WHEN** ユーザーが `demo/docs/index.md` のプレビュー内の `./notes.md` リンクをクリックする
+- **THEN** Pane 2 が `demo/docs/notes.md` の表示に切り替わる
+
+#### Scenario: 外部リンクはコピーとインライン表示
+
+- **WHEN** ユーザーがプレビュー内の `https://example.com` リンクをクリックする
+- **THEN** ページ遷移は発生せず、URL がクリップボードへコピーされ、リンク直後に「コピーしました」が約 1.5 秒表示されて消える
+
+#### Scenario: アンカーリンクはプレビュー内スクロール
+
+- **WHEN** ユーザーがプレビュー内の `#見出し` リンクをクリックする
+- **THEN** プレビューが該当見出しの位置までスクロールする
+
+#### Scenario: プロジェクト外への相対パスは無効
+
+- **WHEN** ユーザーがプレビュー内の `../../outside.md`（プロジェクトフォルダ外へ解決される）リンクをクリックする
+- **THEN** 何も起きない
+
+### Requirement: edit-preview の初期表示モード
+
+`edit-preview` 対象ファイルを開いたときの初期表示モードは拡張子ごとに定めなければならない（SHALL）: `html` / `htm` / `csv` / `vtt` は Preview を初期表示とし、`md` / `json` / `yml` / `yaml` は Edit を初期表示としなければならない（SHALL）。ユーザーが手動で切り替えたモードは、当該ファイルを開いている間は維持されなければならない（SHALL）。
+
+#### Scenario: HTML は Preview で開く
+
+- **WHEN** ユーザーが `.html` ファイルを開く
+- **THEN** Pane 2 は Preview モードで表示される
+
+#### Scenario: CSV / VTT は Preview で開く
+
+- **WHEN** ユーザーが `.csv` または `.vtt` ファイルを開く
+- **THEN** Pane 2 は Preview モードで表示される
+
+#### Scenario: Markdown は Edit で開く
+
+- **WHEN** ユーザーが `.md` ファイルを開く
+- **THEN** Pane 2 は Edit モードで表示される
+
+#### Scenario: 手動切替はファイルを開いている間維持される
+
+- **WHEN** ユーザーが `.html` を開いて Edit へ切り替え、そのまま編集を続ける
+- **THEN** モードは Edit のまま維持される

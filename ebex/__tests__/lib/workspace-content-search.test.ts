@@ -3,7 +3,11 @@ import os from "node:os";
 import path from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import { searchWorkspaceContent } from "@/lib/workspace-content-search";
-import { createFile, createFolder, createSubFolder } from "@/lib/workspace-mutations";
+import {
+  createFile,
+  createFolder,
+  createSubFolder,
+} from "@/lib/workspace-mutations";
 import { getWorkspaceDir } from "@/lib/workspace-paths";
 
 describe("workspace-content-search", () => {

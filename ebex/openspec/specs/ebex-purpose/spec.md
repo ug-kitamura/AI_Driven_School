@@ -1,8 +1,11 @@
 # ebex-purpose Specification
 
 ## Purpose
+
 EBE Purpose（訓示）の正本・表示・Git 管理。
+
 ## Requirements
+
 ### Requirement: purpose.md 正本
 
 EBE Purpose の正本は `ebex/purpose.md` でなければならない（SHALL）。内容はクールな組織の訓示として読めるダミー 10 箇条でなければならず（SHALL）、ワークスペース機能の仕様説明リストであってはならない（MUST NOT）。

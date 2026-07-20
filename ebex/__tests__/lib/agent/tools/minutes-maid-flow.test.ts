@@ -21,7 +21,10 @@ describe("minutes-maid-like file flow", () => {
     ].join("\n");
     createFile(tmpDir, "20260712-minutes", "meeting.vtt", vtt);
 
-    const context = { projectRoot: tmpDir, projectFolderId: "20260712-minutes" };
+    const context = {
+      projectRoot: tmpDir,
+      projectFolderId: "20260712-minutes",
+    };
     const readOutcome = await executeRegisteredTool(
       "read_file",
       { path: "meeting.vtt" },
@@ -44,7 +47,12 @@ describe("minutes-maid-like file flow", () => {
     });
 
     const written = fs.readFileSync(
-      path.join(getWorkspaceDir(tmpDir), "20260712-minutes", "output", "minutes.html"),
+      path.join(
+        getWorkspaceDir(tmpDir),
+        "20260712-minutes",
+        "output",
+        "minutes.html",
+      ),
       "utf-8",
     );
     expect(written).toBe(html);

@@ -554,9 +554,7 @@ describe("runAgentLoop auto-nudge (3値判定)", () => {
     return {
       text: "",
       stopReason: "tool_use",
-      toolCalls: [
-        { id, name: "read_file", input: { path: "output/x.html" } },
-      ],
+      toolCalls: [{ id, name: "read_file", input: { path: "output/x.html" } }],
     };
   }
 
@@ -581,7 +579,11 @@ describe("runAgentLoop auto-nudge (3値判定)", () => {
       provider: mockProvider([
         toolStep("t1"),
         // 埋め残しがある状態での自発的終了 → stalled → 自動 nudge
-        { text: "ここまで作成しました。", stopReason: "end_turn", toolCalls: [] },
+        {
+          text: "ここまで作成しました。",
+          stopReason: "end_turn",
+          toolCalls: [],
+        },
         toolStep("t2"),
         { text: "完了しました。", stopReason: "end_turn", toolCalls: [] },
       ]),
@@ -650,7 +652,11 @@ describe("runAgentLoop auto-nudge (3値判定)", () => {
       model: "claude-sonnet-4-6",
       provider: mockProvider([
         toolStep("t1"),
-        { text: "ここまで作成しました。", stopReason: "end_turn", toolCalls: [] },
+        {
+          text: "ここまで作成しました。",
+          stopReason: "end_turn",
+          toolCalls: [],
+        },
       ]),
     });
     vi.mocked(executeRegisteredTool).mockResolvedValueOnce(

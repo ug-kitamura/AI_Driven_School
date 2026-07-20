@@ -3,7 +3,11 @@ import os from "node:os";
 import path from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import { loadWorkspace } from "@/lib/workspace-loader";
-import { createFile, createFolder, createSubFolder } from "@/lib/workspace-mutations";
+import {
+  createFile,
+  createFolder,
+  createSubFolder,
+} from "@/lib/workspace-mutations";
 
 describe("workspace-loader", () => {
   let tmpDir: string;

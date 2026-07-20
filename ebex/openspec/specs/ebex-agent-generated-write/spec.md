@@ -1,8 +1,11 @@
 # ebex-agent-generated-write Specification
 
 ## Purpose
+
 TBD - created by archiving change ebex-agent-large-write-runtime. Update Purpose after archive.
+
 ## Requirements
+
 ### Requirement: generate_and_write ツールの提供
 
 システムは `generate_and_write` ツールを実装し、`resolveToolDefinitions` が返すツール一覧に含めなければならない（SHALL）。入力は少なくとも `purpose`（ユーザー向けの目的説明）、`path`（プロジェクト相対の書込先）、`instruction`（生成指示）を含まなければならない（SHALL）。任意入力として `sections`（セクション分割の指示、順序どおり生成・連結）と `context_paths`（子プロンプトへ本文を含める参照ファイル）を受け付けなければならない（SHALL）。実行時、システムはサーバ内で子 LLM 呼び出しを行い、得られた本文をサーバがファイルへ書き込まなければならない（SHALL）。成果物の本文を親エージェントの tool 引数に要求してはならない（MUST NOT）。
@@ -106,4 +109,3 @@ TBD - created by archiving change ebex-agent-large-write-runtime. Update Purpose
 
 - **WHEN** `generate_and_write` の tool_use に `instruction` が無い、または空である
 - **THEN** 生成は行われず、必須入力と schema の案内を含む失敗の tool_result がモデルへ返る
-

@@ -83,7 +83,9 @@ export function PurposeDialog({ open, onOpenChange }: Props) {
               "[&_p]:mx-auto [&_p]:max-w-prose [&_p]:text-center [&_p]:text-base [&_p]:leading-relaxed sm:[&_p]:text-lg",
             )}
           >
-            <ReactMarkdown remarkPlugins={[remarkGfm]}>{markdown}</ReactMarkdown>
+            <ReactMarkdown remarkPlugins={[remarkGfm]}>
+              {markdown}
+            </ReactMarkdown>
           </div>
         )}
       </div>

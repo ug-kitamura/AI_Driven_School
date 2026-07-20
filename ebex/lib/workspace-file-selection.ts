@@ -13,11 +13,16 @@ export type LastFileSelection = {
 };
 
 type StoredSelection = Partial<{
+  kind: string;
   folderPath: string;
   folderId: string;
   fileName: string;
 }>;
 
+/**
+ * 過去に保存された `kind: "folder"` 形式（撤回済みのフォルダ選択）は
+ * fileName を持たないため null になり、復元されない。
+ */
 export function loadLastFileSelection(): LastFileSelection | null {
   if (typeof window === "undefined") return null;
   try {

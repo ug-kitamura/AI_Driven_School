@@ -50,9 +50,7 @@ export function resolveUniqueFolderName(
   }
 
   let maxN = 1;
-  const numberedPattern = new RegExp(
-    `^${escapeRegExp(desiredName)}-(\\d+)$`,
-  );
+  const numberedPattern = new RegExp(`^${escapeRegExp(desiredName)}-(\\d+)$`);
 
   for (const name of existingNames) {
     if (name === desiredName) {

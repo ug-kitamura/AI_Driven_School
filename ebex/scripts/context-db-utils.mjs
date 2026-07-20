@@ -25,7 +25,8 @@ export async function loadDatabaseUrl() {
 }
 
 export function printDatabaseUrlHelp() {
-  console.error(`
+  console.error(
+    `
 DATABASE_URL が未設定です。
 
 1. https://console.neon.tech/ でプロジェクトを作成
@@ -37,5 +38,6 @@ DATABASE_URL=postgresql://...
 4. 再度実行:
    npm run check:context-db
    npm run migrate:context-db
-`.trim());
+`.trim(),
+  );
 }

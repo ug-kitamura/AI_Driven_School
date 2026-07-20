@@ -27,7 +27,9 @@ describe("normalizeSuggestedFolderName", () => {
   });
 
   it("falls back to untitled when empty", () => {
-    expect(normalizeSuggestedFolderName("   ", today)).toBe("20260712-untitled");
+    expect(normalizeSuggestedFolderName("   ", today)).toBe(
+      "20260712-untitled",
+    );
   });
 });
 

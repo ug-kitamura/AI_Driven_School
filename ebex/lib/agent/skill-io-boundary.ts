@@ -65,7 +65,9 @@ export function findOutsideProjectPathHints(
   }
 
   // workspace/other-project/...
-  for (const match of text.matchAll(/\bworkspace\/([^/\s]+)(?:\/[^\s)'"`]*)?/g)) {
+  for (const match of text.matchAll(
+    /\bworkspace\/([^/\s]+)(?:\/[^\s)'"`]*)?/g,
+  )) {
     const otherId = match[1];
     if (otherId && otherId !== projectFolderId) {
       candidates.add(match[0].replace(/[.,;:]+$/, ""));

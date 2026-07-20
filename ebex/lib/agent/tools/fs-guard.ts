@@ -174,7 +174,10 @@ export function resolveToolTargetPath(
   }
 
   const relativePath = `${ALLOWED_PREFIX}${workspaceRelative}`;
-  const insideProject = isPathInsideProjectFolder(relativePath, projectFolderId);
+  const insideProject = isPathInsideProjectFolder(
+    relativePath,
+    projectFolderId,
+  );
 
   // モデルが `workspace/<folder>/references/...` と書いた場合でも、
   // プロジェクト側に無くスキル側にあればスキルを優先（読取時のみ）
@@ -193,7 +196,11 @@ export function resolveToolTargetPath(
           ...options,
           preferSkillIfExists: true,
         });
-        if (skillFallback && !("error" in skillFallback) && skillFallback.insideSkill) {
+        if (
+          skillFallback &&
+          !("error" in skillFallback) &&
+          skillFallback.insideSkill
+        ) {
           return skillFallback;
         }
       }

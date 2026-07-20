@@ -33,7 +33,10 @@ export function handlePaneWheel(
 ): void {
   let node = event.target as HTMLElement | null;
   while (node && node !== scrollTarget) {
-    if (isWheelScrollableElement(node) && canScrollFurther(node, event.deltaY)) {
+    if (
+      isWheelScrollableElement(node) &&
+      canScrollFurther(node, event.deltaY)
+    ) {
       return;
     }
     if (node === paneRoot) break;

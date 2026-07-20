@@ -1,5 +1,9 @@
 import { z } from "zod";
-import { deleteFolder, jsonError, parseJsonBody } from "@/lib/workspace-mutations";
+import {
+  deleteFolder,
+  jsonError,
+  parseJsonBody,
+} from "@/lib/workspace-mutations";
 import {
   AGENT_BUSY_FOLDER_ERROR,
   isAgentLockedProjectFolder,

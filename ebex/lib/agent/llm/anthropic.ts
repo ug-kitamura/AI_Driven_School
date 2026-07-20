@@ -7,7 +7,10 @@ import type {
   ToolCall,
   ToolDefinition,
 } from "@/lib/agent/llm/types";
-import type { LlmProvider, LlmProviderRunOptions } from "@/lib/agent/llm/provider";
+import type {
+  LlmProvider,
+  LlmProviderRunOptions,
+} from "@/lib/agent/llm/provider";
 import { DEFAULT_AI_MODEL, DEFAULT_MAX_OUTPUT_TOKENS } from "@/lib/ai-models";
 import { resolveAiModel } from "@/lib/resolve-ai-model";
 
@@ -51,7 +54,11 @@ type AnthropicApiMessage = {
   content: string | AnthropicContentBlock[];
 };
 
-type AnthropicSystemBlock = { type: "text"; text: string; cache_control?: LlmCacheControl };
+type AnthropicSystemBlock = {
+  type: "text";
+  text: string;
+  cache_control?: LlmCacheControl;
+};
 
 function toAnthropicMessages(messages: LlmMessage[]): AnthropicApiMessage[] {
   return messages.map((message) => {
@@ -100,7 +107,9 @@ function withSystemCacheControl(
   system: string,
 ): string | AnthropicSystemBlock[] {
   if (!system.trim()) return system;
-  return [{ type: "text", text: system, cache_control: EPHEMERAL_CACHE_CONTROL }];
+  return [
+    { type: "text", text: system, cache_control: EPHEMERAL_CACHE_CONTROL },
+  ];
 }
 
 /** 末尾のツール定義にのみ cache_control を付与する（元の配列は変更しない） */
@@ -178,7 +187,9 @@ export function buildToolResultMessages(
   ];
 }
 
-export function buildAssistantToolUseMessage(result: ProviderTurnResult): LlmMessage | null {
+export function buildAssistantToolUseMessage(
+  result: ProviderTurnResult,
+): LlmMessage | null {
   const content = buildAssistantContent(result);
   if (content.length === 0) return null;
   return { role: "assistant", content };
@@ -190,7 +201,9 @@ export function buildAssistantToolUseMessage(result: ProviderTurnResult): LlmMes
  */
 function logCacheUsage(event: Record<string, unknown>): void {
   try {
-    const message = event.message as { usage?: Record<string, unknown> } | undefined;
+    const message = event.message as
+      | { usage?: Record<string, unknown> }
+      | undefined;
     const usage = message?.usage;
     if (!usage) return;
     const cacheRead =
@@ -290,17 +303,22 @@ export async function* parseAnthropicStream(
             }
             if (delta?.type === "input_json_delta" && delta.partial_json) {
               const index = event.index as number | undefined;
-              const block = typeof index === "number" ? toolBlocks[index] : undefined;
+              const block =
+                typeof index === "number" ? toolBlocks[index] : undefined;
               if (block) block.inputJson += delta.partial_json;
             }
             break;
           }
           case "content_block_stop": {
             const index = event.index as number | undefined;
-            const block = typeof index === "number" ? toolBlocks[index] : undefined;
+            const block =
+              typeof index === "number" ? toolBlocks[index] : undefined;
             if (block?.inputJson) {
               try {
-                block.input = JSON.parse(block.inputJson) as Record<string, unknown>;
+                block.input = JSON.parse(block.inputJson) as Record<
+                  string,
+                  unknown
+                >;
               } catch {
                 block.input = {};
                 block.inputParseError = true;
@@ -313,9 +331,7 @@ export async function* parseAnthropicStream(
             if (delta?.stop_reason === "tool_use") stopReason = "tool_use";
             if (delta?.stop_reason === "end_turn") stopReason = "end_turn";
             if (delta?.stop_reason === "max_tokens") stopReason = "max_tokens";
-            const usage = event.usage as
-              | { output_tokens?: number }
-              | undefined;
+            const usage = event.usage as { output_tokens?: number } | undefined;
             if (typeof usage?.output_tokens === "number") {
               outputTokens = usage.output_tokens;
             }
@@ -360,8 +376,12 @@ export async function* parseAnthropicStream(
   };
 }
 
-async function runAnthropicTurn(options: LlmProviderRunOptions): Promise<Response> {
-  const messages = withMessagesCacheControl(toAnthropicMessages(options.messages));
+async function runAnthropicTurn(
+  options: LlmProviderRunOptions,
+): Promise<Response> {
+  const messages = withMessagesCacheControl(
+    toAnthropicMessages(options.messages),
+  );
   return fetch("https://api.anthropic.com/v1/messages", {
     method: "POST",
     headers: {
@@ -467,7 +487,10 @@ export async function streamAnthropicMessages(options: {
   }
 
   if (!upstream.body) {
-    return Response.json({ error: "empty Anthropic response" }, { status: 502 });
+    return Response.json(
+      { error: "empty Anthropic response" },
+      { status: 502 },
+    );
   }
 
   return new Response(upstream.body, {

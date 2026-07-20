@@ -15,6 +15,7 @@ import { UnsupportedFileView } from "@/components/workspace/UnsupportedFileView"
 import {
   fileExtension,
   isTextEditableMode,
+  resolveInitialViewMode,
   resolvePane2Mode,
   resolveViewOnlyKind,
 } from "@/lib/file-preview";
@@ -54,6 +55,8 @@ type Props = {
   onPendingSaveChange: (pending: boolean) => void;
   onRegisterInsertCallback: (cb: (markdown: string) => void) => void;
   onRegisterOverwriteCallback: (cb: (markdown: string) => void) => void;
+  /** MD プレビュー内のプロジェクト内リンクでファイルを開く */
+  onOpenFile?: (folderPath: string, fileName: string) => void;
 };
 
 const SAVE_DEBOUNCE_MS = 800;
@@ -82,9 +85,7 @@ export function EditorPane(props: Props) {
     );
   }
 
-  return (
-    <EditorPaneActive key={`${folderPath}/${fileName}`} {...props} />
-  );
+  return <EditorPaneActive key={`${folderPath}/${fileName}`} {...props} />;
 }
 
 function EditorPaneActive({
@@ -97,8 +98,12 @@ function EditorPaneActive({
   onPendingSaveChange,
   onRegisterInsertCallback,
   onRegisterOverwriteCallback,
+  onOpenFile,
 }: Props) {
-  const [mode, setMode] = useState<EditorViewMode>("edit");
+  // ファイル切替は key リマウントのため、初期モードは拡張子ごとにここで決まる
+  const [mode, setMode] = useState<EditorViewMode>(() =>
+    resolveInitialViewMode(fileName),
+  );
   const editorRef = useRef<LessonContentEditorHandle>(null);
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -177,6 +182,8 @@ function EditorPaneActive({
         fileName={fileName}
         content={content}
         isResizing={isResizing}
+        folderPath={folderPath}
+        onOpenFile={onOpenFile}
       />
     );
   } else {

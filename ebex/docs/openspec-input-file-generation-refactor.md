@@ -35,27 +35,30 @@ Claude API ベースのスキル駆動チャットツールにおける「大き
 ## 2. 今回の設計判断（結論）
 
 ### 2-1. JSON で大きい本体を受け取るのをやめる
+
 - JSON × 分割は相性が最悪。途中で切れると構造が壊れる。
 - 大きい成果物は **構造化フォーマットで包まない**。
 
 ### 2-2. 成果物の性質で受け取り方・経路を選ぶ（汎用化の核）
 
-| 成果物の性質 | 受け取り方 | 例 |
-|---|---|---|
-| そのまま連結できる素のテキスト | 生のまま継続生成 → 文字列連結 | HTML, Markdown, CSS, コード, SVG, プレーンテキスト |
-| 大量レコードの構造化データ | JSONL（1行1オブジェクト）で継続生成 → 行単位でパース | 1万件のレコード等 |
-| 小さい構造化データ（切れる心配なし） | 通常の JSON で一括 | メタ情報等 |
-| 反復・既存データで機械的に膨らむ | コード生成＋実行（特殊経路） | 1000行テーブル、CSV整形 |
+| 成果物の性質                         | 受け取り方                                           | 例                                                 |
+| ------------------------------------ | ---------------------------------------------------- | -------------------------------------------------- |
+| そのまま連結できる素のテキスト       | 生のまま継続生成 → 文字列連結                        | HTML, Markdown, CSS, コード, SVG, プレーンテキスト |
+| 大量レコードの構造化データ           | JSONL（1行1オブジェクト）で継続生成 → 行単位でパース | 1万件のレコード等                                  |
+| 小さい構造化データ（切れる心配なし） | 通常の JSON で一括                                   | メタ情報等                                         |
+| 反復・既存データで機械的に膨らむ     | コード生成＋実行（特殊経路）                         | 1000行テーブル、CSV整形                            |
 
 - **既定は「素のテキスト継続生成」**。JSONL は構造化レコードが成果物のときだけ選ぶ。
 - JSONL を汎用の既定にはしない（HTML を JSONL 行に詰めるのは無意味な複雑化。軽量モデルは「毎行を妥当な JSON に閉じる」制約を守り損ねる）。
 
 ### 2-3. 区切りはモデルの自己申告でなくサーバ側が握る
+
 - 「1万文字ずつ出力して」等の文字数指示は**不安定**（モデルは自分の文字数を正確に数えられない。軽量モデルは特に苦手）。
 - 区切りは `max_tokens` ＋ `stop_reason` で機械的に制御する。
 - 完了判定は `stop_reason`（`"max_tokens"` なら途中、それ以外で完了）を主とする。マーカー（`<!--END-->` 等）は従。
 
 ### 2-4. 継続生成を主経路にする（コア実装）
+
 - モデルには「続きを書く」しか求めない → スキルの書き方・モデルの賢さに依存しない。
 - assistant ロールにこれまでの全文を積み、その続きを書かせると境界が自然につながる。
 
@@ -65,11 +68,19 @@ async function generateLargeFile(client, system, userRequest, opts = {}) {
   const messages = [{ role: "user", content: userRequest }];
   let full = "";
   for (let i = 0; i < maxRounds; i++) {
-    const res = await client.messages.create({ model, max_tokens: maxTokens, system, messages });
-    const chunk = res.content.filter(b => b.type === "text").map(b => b.text).join("");
+    const res = await client.messages.create({
+      model,
+      max_tokens: maxTokens,
+      system,
+      messages,
+    });
+    const chunk = res.content
+      .filter((b) => b.type === "text")
+      .map((b) => b.text)
+      .join("");
     full += chunk;
-    if (res.stop_reason !== "max_tokens") break;   // 完了
-    messages.length = 1;                             // 最初の user だけ残す
+    if (res.stop_reason !== "max_tokens") break; // 完了
+    messages.length = 1; // 最初の user だけ残す
     messages.push({ role: "assistant", content: full }); // 全文を積み、続きを書かせる
   }
   return full;
@@ -91,6 +102,7 @@ async function generateLargeFile(client, system, userRequest, opts = {}) {
 - 検証時のログ推奨：継続ループの**ラウンド数**を出す。0 回（1 発完了）なら入力累積の問題は起きていない。何度も回るなら、そのとき初めて `max_tokens` を上げて分割を減らす価値が出る。
 
 ### 2-5. コード生成＋サンドボックス方式は「特殊経路」に降格
+
 - 主経路から外す。反復的な出力・既存データ整形など「機械的に膨らむ」ケース専用の道具として残す。
 - 効くのは「データを生成するロジック（ループ）」を書かせるとき。**HTML 全文を文字列リテラルに埋めるのはアンチパターン**（出力トークンを全く節約できない）。
 

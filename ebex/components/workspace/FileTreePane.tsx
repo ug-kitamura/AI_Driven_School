@@ -12,6 +12,7 @@ import {
   FilePlus,
   FolderOpen,
   FolderPlus,
+  MessageSquarePlus,
   Pencil,
   Search,
   Star,
@@ -77,9 +78,15 @@ import {
 import {
   favoriteKey,
   filterFavoritesToExisting,
+  listFavoritesUnderFolder,
   type FavoriteEntry,
 } from "@/lib/workspace-favorites";
 import { NO_FILE_SENTINEL } from "@/lib/workspace-file-selection";
+import {
+  INTERNAL_DRAG_MIME,
+  internalDragProjectMime,
+  type InternalDragPayload,
+} from "@/lib/workspace-constants";
 import {
   buildVisibleRows,
   emptyRowId,
@@ -100,7 +107,6 @@ import {
 import logoSmall from "@/images/logo_small.png";
 
 const NO_CHANGE_MESSAGE = "名前が変更されていません";
-const INTERNAL_DRAG_MIME = "application/x-ebex-tree";
 const AUTO_RENAME_ON_CONFLICT = { autoRenameOnConflict: true } as const;
 
 type Props = {
@@ -108,6 +114,10 @@ type Props = {
   selectedFolderPath: string;
   selectedFileName: string;
   onSelectFile: (folderPath: string, fileName: string) => void;
+  /** ファイルを Agent チャットの添付チップへ追加する */
+  onAddFileToChat?: (folderPath: string, fileName: string) => void;
+  /** Agent チャットの対象プロジェクトフォルダ ID（add to chat の可否判定） */
+  chatProjectFolderId?: string;
   onRefresh: () => Promise<void>;
   onOpenPurpose?: () => void;
   /** Agent 実行中のプロジェクトフォルダ ID。該当フォルダの rename/delete を拒否する */
@@ -122,6 +132,13 @@ type DialogMode =
   | { type: "rename-folder"; folderPath: string }
   | { type: "delete-folder"; folderPath: string }
   | { type: "blocked-delete-folder"; folderPath: string }
+  | {
+      type: "blocked-delete-favorite";
+      /** ブロック対象の表示ラベル（ファイル名またはフォルダパス） */
+      target: string;
+      isFolder: boolean;
+      favorites: FavoriteEntry[];
+    }
   | { type: "blocked-agent-busy-folder"; folderPath: string }
   | { type: "add-file"; folderPath: string }
   | { type: "rename-file"; folderPath: string; fileName: string }
@@ -133,10 +150,6 @@ type TreeClipboard =
   | { kind: "folder"; folderPath: string }
   | null;
 
-type InternalDragPayload =
-  | { kind: "file"; folderPath: string; fileName: string }
-  | { kind: "folder"; folderPath: string };
-
 type TreeInteraction = {
   focusedRowId: string | null;
   contextMenuTargetId: string | null;
@@ -144,6 +157,7 @@ type TreeInteraction = {
   clipboard: TreeClipboard;
   selectedFolderPath: string;
   selectedFileName: string;
+  chatProjectFolderId: string;
   onFocusRow: (rowId: string) => void;
   onContextMenuChange: (rowId: string | null) => void;
   onSetDropTarget: (folderPath: string) => void;
@@ -157,6 +171,7 @@ type TreeInteraction = {
   /** コンテキストメニュー操作直後のポインター開閉（誤 dblclick 等）を無視する */
   shouldIgnorePointerToggle: () => boolean;
   onSelectFile: (folderPath: string, fileName: string) => void;
+  onAddFileToChat: (folderPath: string, fileName: string) => void;
   onOpenDeleteFolderDialog: (folderPath: string) => void;
   onRevealInOs: (folderPath: string, fileName?: string) => void;
   isFavorite: (folderPath: string, fileName: string) => boolean;
@@ -290,7 +305,13 @@ async function importOsItems(
   }
 }
 
-function TreeNode({ node, depth, expanded, emphasizedFolderPaths, interaction }: TreeNodeProps) {
+function TreeNode({
+  node,
+  depth,
+  expanded,
+  emphasizedFolderPaths,
+  interaction,
+}: TreeNodeProps) {
   const isOpen = expanded[node.path] ?? emphasizedFolderPaths.has(node.path);
   const folderRow = folderRowId(node.path);
   const isDropTarget = interaction.dropTargetPath === node.path;
@@ -399,7 +420,10 @@ function TreeNode({ node, depth, expanded, emphasizedFolderPaths, interaction }:
             variant="muted"
             onClick={() => {
               interaction.onSetNameInput("");
-              interaction.onOpenDialog({ type: "add-file", folderPath: node.path });
+              interaction.onOpenDialog({
+                type: "add-file",
+                folderPath: node.path,
+              });
             }}
           >
             <FilePlus className="size-4" />
@@ -495,6 +519,12 @@ function TreeNode({ node, depth, expanded, emphasizedFolderPaths, interaction }:
                           INTERNAL_DRAG_MIME,
                           JSON.stringify(payload),
                         );
+                        // dragover 中は getData 不可のため、所属プロジェクトを
+                        // MIME タイプ名に埋め込んでドロップ先の可否判定に使う
+                        event.dataTransfer.setData(
+                          internalDragProjectMime(getProjectRoot(node.path)),
+                          "",
+                        );
                         event.dataTransfer.effectAllowed = "move";
                       }}
                       onDragOver={(event) => {
@@ -564,6 +594,18 @@ function TreeNode({ node, depth, expanded, emphasizedFolderPaths, interaction }:
                   >
                     <ClipboardPaste className="size-4" />
                     paste
+                  </ContextMenuItem>
+                  <ContextMenuItem
+                    variant="muted"
+                    disabled={
+                      !interaction.chatProjectFolderId ||
+                      getProjectRoot(node.path) !==
+                        interaction.chatProjectFolderId
+                    }
+                    onClick={() => interaction.onAddFileToChat(node.path, file)}
+                  >
+                    <MessageSquarePlus className="size-4" />
+                    add to chat
                   </ContextMenuItem>
                   {interaction.isFavorite(node.path, file) ? (
                     <ContextMenuItem
@@ -701,6 +743,8 @@ export function FileTreePane({
   selectedFolderPath,
   selectedFileName,
   onSelectFile,
+  onAddFileToChat,
+  chatProjectFolderId = "",
   onRefresh,
   onOpenPurpose,
   agentBusyProjectFolderId = null,
@@ -791,8 +835,7 @@ export function FileTreePane({
   }, [selectedFolderPath]);
 
   const visibleRows = useMemo(
-    () =>
-      buildVisibleRows(filteredFolders, expanded, emphasizedFolderPaths),
+    () => buildVisibleRows(filteredFolders, expanded, emphasizedFolderPaths),
     [filteredFolders, expanded, emphasizedFolderPaths],
   );
 
@@ -984,13 +1027,7 @@ export function FileTreePane({
       }
       focusRow(folderRowId(newPath));
     },
-    [
-      focusRow,
-      onSelectFile,
-      postJson,
-      selectedFileName,
-      selectedFolderPath,
-    ],
+    [focusRow, onSelectFile, postJson, selectedFileName, selectedFolderPath],
   );
 
   const handleDropOnFolder = useCallback(
@@ -1112,6 +1149,23 @@ export function FileTreePane({
         setDialog(blocked);
         return;
       }
+      // お気に入り登録済みファイルの削除はブロック（メニュー・Delete キー共通の入口）
+      if (
+        mode?.type === "delete-file" &&
+        favoriteKeys.has(
+          favoriteKey({ folderPath: mode.folderPath, fileName: mode.fileName }),
+        )
+      ) {
+        const blocked = {
+          type: "blocked-delete-favorite" as const,
+          target: mode.fileName,
+          isFolder: false,
+          favorites: [{ folderPath: mode.folderPath, fileName: mode.fileName }],
+        };
+        dialogRef.current = blocked;
+        setDialog(blocked);
+        return;
+      }
       // メニュー閉鎖直後の誤 toggle で、今開いているフォルダが閉じるのを防ぐ
       if (dialogFolderPath(mode)) {
         suppressPointerToggleUntilRef.current =
@@ -1120,13 +1174,26 @@ export function FileTreePane({
       dialogRef.current = mode;
       setDialog(mode);
     },
-    [agentBusyProjectFolderId, clearPaneError],
+    [agentBusyProjectFolderId, clearPaneError, favoriteKeys],
   );
 
   const openDeleteFolderDialog = useCallback(
     (folderPath: string) => {
       if (isAgentLockedProjectFolder(folderPath, agentBusyProjectFolderId)) {
         openDialog({ type: "blocked-agent-busy-folder", folderPath });
+        return;
+      }
+      const containedFavorites = listFavoritesUnderFolder(
+        favorites,
+        folderPath,
+      );
+      if (containedFavorites.length > 0) {
+        openDialog({
+          type: "blocked-delete-favorite",
+          target: folderPath,
+          isFolder: true,
+          favorites: containedFavorites,
+        });
         return;
       }
       if (isProjectFolder(folderPath)) {
@@ -1138,7 +1205,7 @@ export function FileTreePane({
       }
       openDialog({ type: "delete-folder", folderPath });
     },
-    [agentBusyProjectFolderId, folders, openDialog],
+    [agentBusyProjectFolderId, favorites, folders, openDialog],
   );
 
   const handleToggleFavorite = useCallback(
@@ -1157,9 +1224,7 @@ export function FileTreePane({
           folderPath,
           fileName,
         })) as { favorites?: FavoriteEntry[] };
-        setFavorites(
-          filterFavoritesToExisting(data.favorites ?? [], folders),
-        );
+        setFavorites(filterFavoritesToExisting(data.favorites ?? [], folders));
       } catch (err) {
         setFavorites(previous);
         showPaneError(err instanceof Error ? err.message : String(err));
@@ -1299,7 +1364,11 @@ export function FileTreePane({
   const handleDialogConfirm = useCallback(async () => {
     if (!dialog || busy) return;
     const name = nameInput.trim();
-    if (!name && dialog.type !== "delete-folder" && dialog.type !== "delete-file") {
+    if (
+      !name &&
+      dialog.type !== "delete-folder" &&
+      dialog.type !== "delete-file"
+    ) {
       return;
     }
 
@@ -1309,8 +1378,11 @@ export function FileTreePane({
       switch (dialog.type) {
         case "add-folder":
           await postJson("/api/workspace/create-folder", { name });
+          // 選択で強調される祖先展開に関わらず、新規フォルダ自身は閉じたまま
+          setExpanded((prev) => ({ ...prev, [name]: false }));
           setDialog(null);
           await onRefresh();
+          onSelectFile(name, NO_FILE_SENTINEL);
           focusRow(folderRowId(name));
           return;
         case "add-subfolder": {
@@ -1322,9 +1394,11 @@ export function FileTreePane({
           setExpanded((prev) => ({
             ...prev,
             [dialog.parentPath]: true,
+            [childPath]: false,
           }));
           setDialog(null);
           await onRefresh();
+          onSelectFile(childPath, NO_FILE_SENTINEL);
           focusRow(folderRowId(childPath));
           return;
         }
@@ -1480,7 +1554,11 @@ export function FileTreePane({
       const row = getFocusedRow();
 
       if (event.ctrlKey && event.key.toLowerCase() === "c") {
-        if (!row || row.kind === "empty" || (row.kind === "folder" && isProjectFolder(row.folderPath))) {
+        if (
+          !row ||
+          row.kind === "empty" ||
+          (row.kind === "folder" && isProjectFolder(row.folderPath))
+        ) {
           return;
         }
         event.preventDefault();
@@ -1589,7 +1667,10 @@ export function FileTreePane({
       if (event.key === "Enter") {
         event.preventDefault();
         if (row.kind === "folder") {
-          handleToggleExpanded(row.folderPath, isFolderExpanded(row.folderPath));
+          handleToggleExpanded(
+            row.folderPath,
+            isFolderExpanded(row.folderPath),
+          );
         } else if (row.kind === "file" && row.fileName) {
           handleSelectFile(row.folderPath, row.fileName);
         } else if (row.kind === "empty") {
@@ -1675,6 +1756,7 @@ export function FileTreePane({
       clipboard,
       selectedFolderPath,
       selectedFileName,
+      chatProjectFolderId,
       onFocusRow: handleFocusRow,
       onContextMenuChange: handleContextMenuChange,
       onSetDropTarget: setDropTargetPath,
@@ -1687,6 +1769,9 @@ export function FileTreePane({
       onToggleExpanded: handleToggleExpanded,
       shouldIgnorePointerToggle,
       onSelectFile: handleSelectFile,
+      onAddFileToChat: (folderPath, fileName) => {
+        onAddFileToChat?.(folderPath, fileName);
+      },
       onOpenDeleteFolderDialog: openDeleteFolderDialog,
       onRevealInOs: (folderPath, fileName) => {
         void handleRevealInOs(folderPath, fileName);
@@ -1716,6 +1801,8 @@ export function FileTreePane({
       rowHighlight,
       selectedFileName,
       selectedFolderPath,
+      chatProjectFolderId,
+      onAddFileToChat,
       shouldIgnorePointerToggle,
       handleToggleFavorite,
     ],
@@ -1856,7 +1943,7 @@ export function FileTreePane({
       <div
         ref={treeRef}
         tabIndex={0}
-        className="workspace-scrollbar min-h-0 flex-1 overflow-y-auto px-1 py-2 outline-none"
+        className="workspace-scrollbar flex min-h-0 flex-1 flex-col overflow-y-auto px-1 py-2 outline-none"
         onKeyDown={handleTreeKeyDown}
         onMouseDown={() => {
           if (dialogRef.current) return;
@@ -1885,6 +1972,17 @@ export function FileTreePane({
             />
           ))
         )}
+        <ContextMenu>
+          <ContextMenuTrigger
+            render={<div className="min-h-6 flex-1" aria-hidden="true" />}
+          />
+          <ContextMenuContent>
+            <ContextMenuItem variant="muted" onClick={openAddFolder}>
+              <FolderPlus className="size-4" />
+              add folder
+            </ContextMenuItem>
+          </ContextMenuContent>
+        </ContextMenu>
       </div>
 
       <Dialog
@@ -1893,6 +1991,7 @@ export function FileTreePane({
           dialog.type !== "delete-folder" &&
           dialog.type !== "delete-file" &&
           dialog.type !== "blocked-delete-folder" &&
+          dialog.type !== "blocked-delete-favorite" &&
           dialog.type !== "blocked-agent-busy-folder"
         }
         onOpenChange={(open) => !open && setDialog(null)}
@@ -1973,6 +2072,45 @@ export function FileTreePane({
                 : ""}
             </AlertDialogDescription>
           </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogAction onClick={() => setDialog(null)}>
+              OK
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog
+        open={dialog?.type === "blocked-delete-favorite"}
+        onOpenChange={(open) => !open && setDialog(null)}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>削除できません</AlertDialogTitle>
+            <AlertDialogDescription>
+              {dialog?.type === "blocked-delete-favorite"
+                ? dialog.isFolder
+                  ? `フォルダ「${dialog.target}」の配下にお気に入り登録済みのファイルが含まれています。remove favorite で解除してから削除してください。`
+                  : `ファイル「${dialog.target}」はお気に入りに登録されています。remove favorite で解除してから削除してください。`
+                : ""}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          {dialog?.type === "blocked-delete-favorite" && dialog.isFolder ? (
+            <ul className="workspace-scrollbar flex max-h-40 flex-col gap-1 overflow-y-auto text-sm text-muted-foreground">
+              {dialog.favorites.map((entry) => (
+                <li
+                  key={favoriteKey(entry)}
+                  className="flex items-center gap-1.5"
+                >
+                  <Star
+                    className="size-3.5 shrink-0 fill-yellow-500 text-yellow-500"
+                    aria-hidden="true"
+                  />
+                  <span className="truncate">{favoriteKey(entry)}</span>
+                </li>
+              ))}
+            </ul>
+          ) : null}
           <AlertDialogFooter>
             <AlertDialogAction onClick={() => setDialog(null)}>
               OK

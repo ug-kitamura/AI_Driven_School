@@ -95,12 +95,18 @@ function plainObject(value: unknown): Record<string, unknown> | null {
     : null;
 }
 
-function mergeProfile(base: ModelProfile, override: PartialProfile): ModelProfile {
+function mergeProfile(
+  base: ModelProfile,
+  override: PartialProfile,
+): ModelProfile {
   const merged: ModelProfile = {
-    maxOutputTokens: positiveInt(override.maxOutputTokens) ?? base.maxOutputTokens,
+    maxOutputTokens:
+      positiveInt(override.maxOutputTokens) ?? base.maxOutputTokens,
     continuations: { ...base.continuations },
     providerParams: {
-      ...(base.providerParams.agent ? { agent: { ...base.providerParams.agent } } : {}),
+      ...(base.providerParams.agent
+        ? { agent: { ...base.providerParams.agent } }
+        : {}),
       ...(base.providerParams.generate
         ? { generate: { ...base.providerParams.generate } }
         : {}),
@@ -109,7 +115,11 @@ function mergeProfile(base: ModelProfile, override: PartialProfile): ModelProfil
 
   const cont = plainObject(override.continuations);
   if (cont) {
-    for (const key of ["generatePerSection", "textPerTurn", "nudgeMax"] as const) {
+    for (const key of [
+      "generatePerSection",
+      "textPerTurn",
+      "nudgeMax",
+    ] as const) {
       const value = positiveInt(cont[key]);
       if (value !== null) merged.continuations[key] = value;
     }
@@ -137,7 +147,9 @@ let warnedInvalidOverrides = false;
 
 function readOverrides(): Record<string, PartialProfile> {
   const raw =
-    typeof process !== "undefined" ? process.env?.EBEX_MODEL_PROFILES : undefined;
+    typeof process !== "undefined"
+      ? process.env?.EBEX_MODEL_PROFILES
+      : undefined;
   if (raw === cachedOverridesRaw) return cachedOverrides;
   cachedOverridesRaw = raw;
   cachedOverrides = {};

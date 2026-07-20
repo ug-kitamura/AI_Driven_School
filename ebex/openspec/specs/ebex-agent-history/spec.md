@@ -1,8 +1,11 @@
 # ebex-agent-history Specification
 
 ## Purpose
+
 TBD - created by archiving change ebex-agent-history-file-primitives. Update Purpose after archive.
+
 ## Requirements
+
 ### Requirement: tool ターンの忠実な再構成
 
 システムは、1 回の Agent invoke 内で発生した複数の tool ターンを、次の invoke へ載せる LLM メッセージ列として **時系列どおり** に再構成しなければならない（SHALL）。各ターンは「assistant の text および／または `tool_use`」とその直後の「user の `tool_result`」の対として復元しなければならない（SHALL）。最終的なアシスタント文言だけを全 `tool_use` より前に置き、複数ターンを単一の並列 `tool_use` ブロックへ潰してはならない（MUST NOT）。`read_file` 等の tool_result 本文は、再構成後も対応する `tool_use` に紐づいてモデルへ渡されなければならない（SHALL）。
@@ -43,4 +46,3 @@ Agent Pane 上のツール表示は要約（パス・件数・バイト数等）
 
 - **WHEN** 旧形式の `toolEvents` のみを持つセッションでユーザーが続きのメッセージを送る
 - **THEN** invoke は失敗せず、旧ロジック相当でメッセージが再構成される
-

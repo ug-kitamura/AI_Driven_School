@@ -88,7 +88,9 @@ export function getSkillsDir(projectRoot: string): string {
   return skillsDirForConvention(projectRoot, ".claude");
 }
 
-function normalizeRoots(projectRootOrRoots: string | readonly string[]): string[] {
+function normalizeRoots(
+  projectRootOrRoots: string | readonly string[],
+): string[] {
   const list = Array.isArray(projectRootOrRoots)
     ? projectRootOrRoots
     : [projectRootOrRoots];
@@ -112,7 +114,8 @@ function listSkillIdsInRoot(projectRoot: string): string[] {
     for (const entry of fs.readdirSync(skillsDir, { withFileTypes: true })) {
       if (!entry.isDirectory()) continue;
       if (byId.has(entry.name)) continue;
-      if (!fs.existsSync(path.join(skillsDir, entry.name, "SKILL.md"))) continue;
+      if (!fs.existsSync(path.join(skillsDir, entry.name, "SKILL.md")))
+        continue;
       byId.set(entry.name, true);
     }
   }
@@ -133,7 +136,10 @@ function resolveSkillDirInRoot(
   return null;
 }
 
-function loadSkillFromRoot(projectRoot: string, skillId: string): LoadedSkill | null {
+function loadSkillFromRoot(
+  projectRoot: string,
+  skillId: string,
+): LoadedSkill | null {
   const skillDir = resolveSkillDirInRoot(projectRoot, skillId);
   if (!skillDir) return null;
 
@@ -151,7 +157,9 @@ function loadSkillFromRoot(projectRoot: string, skillId: string): LoadedSkill | 
   };
 }
 
-export function listSkills(projectRootOrRoots: string | readonly string[]): SkillSummary[] {
+export function listSkills(
+  projectRootOrRoots: string | readonly string[],
+): SkillSummary[] {
   const roots = normalizeRoots(projectRootOrRoots);
   const byId = new Map<string, SkillSummary>();
 

@@ -82,15 +82,20 @@ describe("agent-chat-storage", () => {
 
   it("drops oldest sessions when exceeding limit", () => {
     const now = Date.now();
-    const sessions = Array.from({ length: MAX_AGENT_CHAT_SESSIONS + 1 }, (_, index) => ({
-      ...createEmptySession(new Date(now - index * 1000).toISOString()),
-      title: `session-${index}`,
-    }));
+    const sessions = Array.from(
+      { length: MAX_AGENT_CHAT_SESSIONS + 1 },
+      (_, index) => ({
+        ...createEmptySession(new Date(now - index * 1000).toISOString()),
+        title: `session-${index}`,
+      }),
+    );
     const trimmed = enforceSessionLimit(sessions);
     expect(trimmed).toHaveLength(MAX_AGENT_CHAT_SESSIONS);
-    expect(trimmed.some((session) => session.title === `session-${MAX_AGENT_CHAT_SESSIONS}`)).toBe(
-      false,
-    );
+    expect(
+      trimmed.some(
+        (session) => session.title === `session-${MAX_AGENT_CHAT_SESSIONS}`,
+      ),
+    ).toBe(false);
   });
 
   it("adds and switches sessions", () => {
@@ -136,7 +141,9 @@ describe("agent-chat-storage", () => {
     saveLessonAgentChatStorage("lesson-a", initial);
     const loaded = loadLessonAgentChatStorage("lesson-a");
     expect(loaded?.activeSessionId).toBe(initial.activeSessionId);
-    expect(localStorage.getItem(AGENT_CHAT_STORAGE_V2_KEY)).toContain("lesson-a");
+    expect(localStorage.getItem(AGENT_CHAT_STORAGE_V2_KEY)).toContain(
+      "lesson-a",
+    );
   });
 
   it("returns false when localStorage throws on save", () => {

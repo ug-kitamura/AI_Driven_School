@@ -31,7 +31,10 @@ function hasNonEmptyLineBeforeNextFence(
   return between.split("\n").some((line) => line.trim().length > 0);
 }
 
-function extractBodyWithDepth(content: string, bodyStart: number): string | null {
+function extractBodyWithDepth(
+  content: string,
+  bodyStart: number,
+): string | null {
   let depth = 1;
   FENCE_LINE_RE.lastIndex = bodyStart;
 
@@ -62,7 +65,10 @@ function extractBodyWithDepth(content: string, bodyStart: number): string | null
   return null;
 }
 
-function extractFromOpening(content: string, match: RegExpExecArray): string | null {
+function extractFromOpening(
+  content: string,
+  match: RegExpExecArray,
+): string | null {
   const bodyStart = match.index + match[0].length;
   const body = extractBodyWithDepth(content, bodyStart);
   if (!body?.trim()) {

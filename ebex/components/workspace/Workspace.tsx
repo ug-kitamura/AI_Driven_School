@@ -134,9 +134,8 @@ export function Workspace({ initialFolders }: WorkspaceProps) {
     if (pendingSave) return;
     if (!selectedFolderPath || !selectedFileName) return;
 
+    // 本文クリアは handleSelectFile（イベントハンドラ）側で実施済み
     if (isNoFileEmptySelection) {
-      setFileContent("");
-      editingContentRef.current = null;
       saveLastFileSelection({
         folderPath: selectedFolderPath,
         fileName: selectedFileName,
@@ -276,6 +275,13 @@ export function Workspace({ initialFolders }: WorkspaceProps) {
             selectedFolderPath={selectedFolderPath}
             selectedFileName={selectedFileName}
             onSelectFile={handleSelectFile}
+            onAddFileToChat={(folderPath, fileName) =>
+              agentChatControllerRef.current?.addFileAttachment({
+                path: `${ALLOWED_PREFIX}${folderPath}/${fileName}`,
+                name: fileName,
+              })
+            }
+            chatProjectFolderId={projectFolderId}
             onRefresh={refreshFolders}
             onOpenPurpose={() => setPurposeOpen(true)}
             agentBusyProjectFolderId={agentBusyProjectFolderId}
@@ -303,6 +309,7 @@ export function Workspace({ initialFolders }: WorkspaceProps) {
             onRegisterOverwriteCallback={(cb) => {
               overwriteCallbackRef.current = cb;
             }}
+            onOpenFile={handleSelectFile}
           />
         </div>
 

@@ -31,11 +31,11 @@ JSON で大きい HTML を受け取る方式には二重の弱点がある。
 
 Claude Code のスキルが大きいファイルを扱えるのは、ファイル内容を LLM の出力トークンに乗せず、**ツール実行（コード実行）でディスクに書く**から。同じ発想を採る。
 
-| 役割 | 内容 |
-|---|---|
-| モデルの仕事 | ファイルを書く**コード**（Node/Python）を生成する。成果物本体は書かせない。 |
-| サーバーの仕事 | そのコードをサンドボックスで実行し、決まったディレクトリに保存する。 |
-| チャットへの返却 | 「生成しました」＋ファイルパス／ダウンロードリンクのみ。 |
+| 役割             | 内容                                                                        |
+| ---------------- | --------------------------------------------------------------------------- |
+| モデルの仕事     | ファイルを書く**コード**（Node/Python）を生成する。成果物本体は書かせない。 |
+| サーバーの仕事   | そのコードをサンドボックスで実行し、決まったディレクトリに保存する。        |
+| チャットへの返却 | 「生成しました」＋ファイルパス／ダウンロードリンクのみ。                    |
 
 ### なぜ効くか
 
@@ -50,7 +50,7 @@ Claude Code のスキルが大きいファイルを扱えるのは、ファイ�
 
 コンテナ隔離は諦め、「子プロセス＋書き込み先の固定＋タイムアウト」で現実的な安全性を確保する。生成するコードが自分の指示由来である個人／社内ツールなら、これで十分実用的。
 
-```js
+````js
 // app/api/generate/route.js
 import { execFile } from "node:child_process";
 import { writeFile, mkdir } from "node:fs/promises";
@@ -66,13 +66,18 @@ export async function POST(req) {
   const res = await anthropic.messages.create({
     model: "claude-opus-4-8",
     max_tokens: 4096,
-    messages: [{
-      role: "user",
-      content: `${userRequest}\n\nNode.jsスクリプトのみ出力。fs.writeFileSync でカレントディレクトリ配下の相対パスに書くこと。絶対パスや .. は使わない。コードフェンスや説明は不要。`,
-    }],
+    messages: [
+      {
+        role: "user",
+        content: `${userRequest}\n\nNode.jsスクリプトのみ出力。fs.writeFileSync でカレントディレクトリ配下の相対パスに書くこと。絶対パスや .. は使わない。コードフェンスや説明は不要。`,
+      },
+    ],
   });
 
-  let code = res.content.filter(b => b.type === "text").map(b => b.text).join("");
+  let code = res.content
+    .filter((b) => b.type === "text")
+    .map((b) => b.text)
+    .join("");
   code = code.replace(/```[a-z]*\n?/gi, "").trim(); // 念のためフェンス除去
 
   // 2. 一時ファイルに書く
@@ -82,18 +87,23 @@ export async function POST(req) {
 
   // 3. cwd を出力先に固定して実行（タイムアウト付き）
   const result = await new Promise((resolve) => {
-    execFile("node", [scriptPath], {
-      cwd: OUTPUT_DIR,
-      timeout: 15000,
-      windowsHide: true,
-    }, (err, stdout, stderr) => {
-      resolve({ ok: !err, stdout, stderr: stderr || err?.message });
-    });
+    execFile(
+      "node",
+      [scriptPath],
+      {
+        cwd: OUTPUT_DIR,
+        timeout: 15000,
+        windowsHide: true,
+      },
+      (err, stdout, stderr) => {
+        resolve({ ok: !err, stdout, stderr: stderr || err?.message });
+      },
+    );
   });
 
   return Response.json(result);
 }
-```
+````
 
 ---
 
@@ -141,7 +151,10 @@ while (true) {
     max_tokens: 8192,
     messages,
   });
-  const text = res.content.filter(b => b.type === "text").map(b => b.text).join("");
+  const text = res.content
+    .filter((b) => b.type === "text")
+    .map((b) => b.text)
+    .join("");
   full += text;
   if (res.stop_reason !== "max_tokens") break;
   messages.push({ role: "assistant", content: text });
@@ -159,11 +172,11 @@ while (true) {
 
 ### 失敗しやすい3パターンと対策
 
-| 失敗パターン | 対策 |
-|---|---|
-| コードフェンスや説明文を混ぜる | プロンプトで出力形式を1行目から縛る／実行前にフェンス除去 |
+| 失敗パターン                     | 対策                                                                 |
+| -------------------------------- | -------------------------------------------------------------------- |
+| コードフェンスや説明文を混ぜる   | プロンプトで出力形式を1行目から縛る／実行前にフェンス除去            |
 | コードでなくHTML全文を書き始める | 出力の形を具体的に固定（1行目を `const fs = require("fs");` に強制） |
-| 生成コードに構文エラー | 実行前に構文チェック → エラーを添えてリトライ |
+| 生成コードに構文エラー           | 実行前に構文チェック → エラーを添えてリトライ                        |
 
 ### プロンプトを狭く・具体的にする
 
@@ -180,12 +193,16 @@ fs.writeFileSync で相対パスに書く。絶対パスと .. は禁止。
 
 軽量モデルは1回で通らないことがある。「壊れていたら投げ直す」を数回まで許すと完了率が大きく上がる。
 
-```js
+````js
 async function generateAndRun(userRequest, maxRetries = 3) {
   let lastError = "";
   for (let attempt = 0; attempt < maxRetries; attempt++) {
-    const res = await client.messages.create({ /* system + userRequest + lastError */ });
-    let code = extractText(res).replace(/```[a-z]*\n?/gi, "").trim();
+    const res = await client.messages.create({
+      /* system + userRequest + lastError */
+    });
+    let code = extractText(res)
+      .replace(/```[a-z]*\n?/gi, "")
+      .trim();
 
     // 1. 構文チェック（実行せずに壊れを検出）
     try {
@@ -208,7 +225,7 @@ async function generateAndRun(userRequest, maxRetries = 3) {
   }
   throw new Error(`${maxRetries}回試行しても完了しませんでした: ${lastError}`);
 }
-```
+````
 
 - `new Function(code)` で**実行せずに構文だけ検査**できる。壊れを捕まえてエラー内容をモデルに返すと、軽量モデルでも次の試行で直せることが多い。
 - 実行時エラー（`stderr`）も同様に投げ直す。この「エラーを添えてリトライ」が、忠実性の低いモデルでも実用的な完了率をもたらす。
@@ -227,7 +244,9 @@ GPT-5 nano は OpenAI API になるため、レスポンスの取り出し方が
 
 ```js
 // アダプタの例
-async function extractText(providerResponse) { /* Claude / GPT の差をここで吸収 */ }
+async function extractText(providerResponse) {
+  /* Claude / GPT の差をここで吸収 */
+}
 ```
 
 ---
@@ -244,9 +263,9 @@ async function extractText(providerResponse) { /* Claude / GPT の差をここ�
 
 **「1回のレスポンスに安全に収まるか」**で分ける。
 
-| 条件 | 採る方式 |
-|---|---|
-| 出力が `max_tokens` に対して十分小さく、切れる心配がない | 直接生成 → `writeFileSync` |
+| 条件                                                                             | 採る方式                       |
+| -------------------------------------------------------------------------------- | ------------------------------ |
+| 出力が `max_tokens` に対して十分小さく、切れる心配がない                         | 直接生成 → `writeFileSync`     |
 | 切れるリスクがある／ループ・反復で機械的に膨らむ（1000行テーブル、大量要素HTML） | コード生成＋サンドボックス実行 |
 
 ### 実装：2ルートを持って振り分ける
@@ -286,8 +305,10 @@ fs.writeFileSync("out.html", "<html>...(数万文字)...</html>");
 ```js
 // ✅ 数百バイトのコードが、実行時に数万バイトを生成する
 const fs = require("fs");
-const rows = Array.from({length: 1000}, (_, i) =>
-  `<tr><td>${i}</td><td>Item ${i}</td></tr>`).join("");
+const rows = Array.from(
+  { length: 1000 },
+  (_, i) => `<tr><td>${i}</td><td>Item ${i}</td></tr>`,
+).join("");
 fs.writeFileSync("table.html", `<table>${rows}</table>`);
 ```
 
@@ -297,17 +318,17 @@ fs.writeFileSync("table.html", `<table>${rows}</table>`);
 
 中身が非圧縮的（各行が独立した長文で規則生成できない）なら、**この手法だけでは解けない**。その情報はモデルの外から供給する。扱いは次の三層に整理できる。
 
-| ケース | 扱い | データはどこに乗るか |
-|---|---|---|
-| 反復的な大きさ | ループ（ロジック）に押し込む | モデル出力にもコードにも乗らない（実行時に生成） |
-| 既存のユニークなデータ（CSV/DB/API 由来） | 「読んで整形するコード」を書かせる | 実行時にディスク/APIから読む。モデルにもコードにも乗らない |
-| モデルに創作させるユニークな長文 | 分割生成（テンプレート固定＋チャンク追記） | 出力トークンは必ずかかる。安全な単位に割って完了を担保 |
+| ケース                                    | 扱い                                       | データはどこに乗るか                                       |
+| ----------------------------------------- | ------------------------------------------ | ---------------------------------------------------------- |
+| 反復的な大きさ                            | ループ（ロジック）に押し込む               | モデル出力にもコードにも乗らない（実行時に生成）           |
+| 既存のユニークなデータ（CSV/DB/API 由来） | 「読んで整形するコード」を書かせる         | 実行時にディスク/APIから読む。モデルにもコードにも乗らない |
+| モデルに創作させるユニークな長文          | 分割生成（テンプレート固定＋チャンク追記） | 出力トークンは必ずかかる。安全な単位に割って完了を担保     |
 
 既存データを読むパターンの例：
 
 ```js
 const data = JSON.parse(fs.readFileSync("input.json")); // 本体はここ。モデル出力に乗らない
-const rows = data.map(d => `<tr><td>${d.name}</td></tr>`).join("");
+const rows = data.map((d) => `<tr><td>${d.name}</td></tr>`).join("");
 ```
 
 ### まとめ
@@ -318,14 +339,14 @@ const rows = data.map(d => `<tr><td>${d.name}</td></tr>`).join("");
 
 ## 12. まとめ
 
-| 制約 | 対処 |
-|---|---|
-| HTML が大きすぎて JSON 受信でエラー | ファイルはコード実行でディスクに書き、チャットにはパス／リンクのみ返す |
-| ストリーム不可 | まずは同期方式、タイムアウトが問題ならジョブ化＋ポーリング |
-| Docker なし / Windows ローカル | 子プロセス＋書き込み先固定＋タイムアウトで実用的な安全性を確保 |
-| 軽量モデルで完了させたい | 出力形式を1行目から縛る＋構文チェック＋エラー添えリトライ＋テンプレート固定 |
-| 複数プロバイダ対応 | アダプタ層で API 差を吸収し、`generateAndRun` 以下を共通化 |
-| 小さいファイルの扱い | 常用しない。切れる心配のない小さい出力は直接生成→`writeFileSync`（ただし軽量モデルでは逆転あり） |
-| コードに長大テキストを渡す不安 | 全文を文字列に埋めない。反復はループ／既存データは実行時に読む／創作長文だけ分割生成 |
+| 制約                                | 対処                                                                                             |
+| ----------------------------------- | ------------------------------------------------------------------------------------------------ |
+| HTML が大きすぎて JSON 受信でエラー | ファイルはコード実行でディスクに書き、チャットにはパス／リンクのみ返す                           |
+| ストリーム不可                      | まずは同期方式、タイムアウトが問題ならジョブ化＋ポーリング                                       |
+| Docker なし / Windows ローカル      | 子プロセス＋書き込み先固定＋タイムアウトで実用的な安全性を確保                                   |
+| 軽量モデルで完了させたい            | 出力形式を1行目から縛る＋構文チェック＋エラー添えリトライ＋テンプレート固定                      |
+| 複数プロバイダ対応                  | アダプタ層で API 差を吸収し、`generateAndRun` 以下を共通化                                       |
+| 小さいファイルの扱い                | 常用しない。切れる心配のない小さい出力は直接生成→`writeFileSync`（ただし軽量モデルでは逆転あり） |
+| コードに長大テキストを渡す不安      | 全文を文字列に埋めない。反復はループ／既存データは実行時に読む／創作長文だけ分割生成             |
 
 **設計の肝：「モデルの仕事＝ファイルを書く手順の生成」「サーバーの仕事＝実行と保存」を分離すること。**

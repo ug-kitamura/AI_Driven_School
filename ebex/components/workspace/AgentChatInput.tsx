@@ -15,7 +15,13 @@ import {
   type AgentFileOption,
 } from "@/lib/agent-chat-suggestions";
 import { WorkspaceTooltip } from "@/components/workspace/WorkspaceTooltip";
-import { ALLOWED_PREFIX } from "@/lib/workspace-constants";
+import {
+  ALLOWED_PREFIX,
+  INTERNAL_DRAG_MIME,
+  internalDragProjectMime,
+  parseInternalDragPayload,
+} from "@/lib/workspace-constants";
+import { getProjectFolderId } from "@/lib/workspace-tree";
 
 export type { AgentFileOption };
 
@@ -50,9 +56,18 @@ type Props = {
   onActiveSkillChange: (skillId: string | null) => void;
   onLoadContentFiles: () => Promise<AgentFileOption[]>;
   onBuiltinCommand?: (command: AgentBuiltinCommand["id"]) => void;
+  /** 外部（Pane 1 の add to chat 等）から添付チップを追加する関数を登録する */
+  onRegisterAddAttachment?: (
+    fn: (attachment: AgentFileAttachment) => void,
+  ) => void;
+  /** Agent チャットの対象プロジェクトフォルダ ID（DnD 添付の可否判定） */
+  projectFolderId?: string;
 };
 
-function detectSuggestion(value: string, cursor: number): SuggestionState | null {
+function detectSuggestion(
+  value: string,
+  cursor: number,
+): SuggestionState | null {
   const beforeCursor = value.slice(0, cursor);
   const atMatch = /@([^\s@]*)$/.exec(beforeCursor);
   if (atMatch) {
@@ -125,6 +140,8 @@ export function AgentChatInput({
   onActiveSkillChange,
   onLoadContentFiles,
   onBuiltinCommand,
+  onRegisterAddAttachment,
+  projectFolderId = "",
 }: Props) {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const suggestionListRef = useRef<HTMLDivElement>(null);
@@ -135,6 +152,7 @@ export function AgentChatInput({
   const [fileAttachments, setFileAttachments] = useState<AgentFileAttachment[]>(
     [],
   );
+  const [isTreeDragOver, setIsTreeDragOver] = useState(false);
 
   const syncTextareaHeight = useCallback(() => {
     const textarea = textareaRef.current;
@@ -211,7 +229,10 @@ export function AgentChatInput({
     }));
   }, [filteredCommands, filteredSkills, suggestion?.kind, visibleFileOptions]);
 
-  const activeHighlightIndex = clampHighlightIndex(highlightIndex, visibleItems.length);
+  const activeHighlightIndex = clampHighlightIndex(
+    highlightIndex,
+    visibleItems.length,
+  );
 
   useEffect(() => {
     if (!suggestion || visibleItems.length === 0) return;
@@ -331,6 +352,27 @@ export function AgentChatInput({
   const removeFileAttachment = useCallback((filePath: string) => {
     setFileAttachments((prev) => prev.filter((item) => item.path !== filePath));
   }, []);
+
+  const addFileAttachment = useCallback(
+    (attachment: AgentFileAttachment) => {
+      if (fileAttachments.some((item) => item.path === attachment.path)) {
+        return;
+      }
+      setFileAttachments((prev) => [...prev, attachment]);
+      // @ 由来と同様、本文にもファイル名トークンを挿入する（末尾に追記）
+      const base = value.replace(/[ \t]+$/, "");
+      onChange(
+        base
+          ? `${base}${base.endsWith("\n") ? "" : " "}${attachment.name} `
+          : `${attachment.name} `,
+      );
+    },
+    [fileAttachments, onChange, value],
+  );
+
+  useEffect(() => {
+    onRegisterAddAttachment?.(addFileAttachment);
+  }, [addFileAttachment, onRegisterAddAttachment]);
 
   const submitMessage = useCallback(() => {
     if (disabled || isLoading || !value.trim()) return;
@@ -457,7 +499,9 @@ export function AgentChatInput({
                     className={cn(
                       "flex w-full shrink-0 flex-col justify-center gap-0.5 px-3 text-left text-xs",
                       SUGGESTION_ITEM_HEIGHT_CLASS,
-                      index === activeHighlightIndex ? "bg-muted" : "hover:bg-muted/60",
+                      index === activeHighlightIndex
+                        ? "bg-muted"
+                        : "hover:bg-muted/60",
                     )}
                     onMouseDown={(event) => event.preventDefault()}
                     onMouseEnter={() => setHighlightIndex(index)}
@@ -465,7 +509,9 @@ export function AgentChatInput({
                       if (item.kind === "skill") {
                         applySkillSelection(item.key);
                       } else if (item.kind === "command") {
-                        applyCommandSelection(item.key as AgentBuiltinCommand["id"]);
+                        applyCommandSelection(
+                          item.key as AgentBuiltinCommand["id"],
+                        );
                       } else if (item.file) {
                         applyFileSelection(item.file);
                       }
@@ -474,7 +520,9 @@ export function AgentChatInput({
                     <span className="font-medium text-foreground">
                       {item.kind === "file" ? item.primary : `/${item.key}`}
                     </span>
-                    <span className="truncate text-muted-foreground">{item.secondary}</span>
+                    <span className="truncate text-muted-foreground">
+                      {item.secondary}
+                    </span>
                   </button>
                 ))
               )
@@ -486,7 +534,53 @@ export function AgentChatInput({
           </div>
         ) : null}
 
-        <div className="flex flex-col overflow-hidden rounded-lg border border-border bg-white dark:bg-muted">
+        <div
+          className={cn(
+            "flex flex-col overflow-hidden rounded-lg border bg-white dark:bg-muted",
+            isTreeDragOver
+              ? "border-primary ring-2 ring-primary"
+              : "border-border",
+          )}
+          onDragOver={(event) => {
+            const types = event.dataTransfer.types;
+            if (!types.includes(INTERNAL_DRAG_MIME)) return;
+            // 別プロジェクトのファイル（および所属 MIME を持たないフォルダ）は
+            // preventDefault しない＝ドロップ禁止のままハイライトも出さない
+            if (
+              !projectFolderId ||
+              !types.includes(internalDragProjectMime(projectFolderId))
+            ) {
+              return;
+            }
+            event.preventDefault();
+            setIsTreeDragOver(true);
+          }}
+          onDragLeave={(event) => {
+            if (
+              !event.currentTarget.contains(event.relatedTarget as Node | null)
+            ) {
+              setIsTreeDragOver(false);
+            }
+          }}
+          onDrop={(event) => {
+            const raw = event.dataTransfer.getData(INTERNAL_DRAG_MIME);
+            setIsTreeDragOver(false);
+            if (!raw) return;
+            event.preventDefault();
+            const payload = parseInternalDragPayload(raw);
+            if (payload?.kind !== "file") return;
+            if (
+              !projectFolderId ||
+              getProjectFolderId(payload.folderPath) !== projectFolderId
+            ) {
+              return;
+            }
+            addFileAttachment({
+              path: `${ALLOWED_PREFIX}${payload.folderPath}/${payload.fileName}`,
+              name: payload.fileName,
+            });
+          }}
+        >
           <textarea
             ref={textareaRef}
             value={value}

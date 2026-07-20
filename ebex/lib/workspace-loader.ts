@@ -75,7 +75,11 @@ export function loadWorkspace(projectRoot: string): WorkspaceLoadResult {
   for (const entry of entries) {
     if (!entry.isDirectory() || entry.name.startsWith(".")) continue;
     folders.push(
-      loadFolderTree(path.join(workspaceDir, entry.name), entry.name, entry.name),
+      loadFolderTree(
+        path.join(workspaceDir, entry.name),
+        entry.name,
+        entry.name,
+      ),
     );
   }
 

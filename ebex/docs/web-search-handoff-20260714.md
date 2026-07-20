@@ -4,6 +4,7 @@
 **目的**: `web_search` 機能の実装状況と残タスクを、別 PC / 別担当でも引き継げるように記録する
 **ステータス**: 実装・アーカイブ済み ✅ / 残るは社内正規検索経路の確定待ち ⏳
 **関連**:
+
 - openspec change（アーカイブ済み）: `openspec/changes/archive/2026-07-14-ebex-agent-web-search/`
 - canonical spec: `openspec/specs/ebex-agent-web-search/spec.md`
 
@@ -26,12 +27,12 @@
 
 「いつの間にかスキップされる」不透明さを排除するため、**確認は常に出し、スキップ判定は承認後に行う** 方式へ改訂した。
 
-| ファイル | 変更内容 |
-| --- | --- |
-| [lib/agent/tools/confirm-gate.ts](../lib/agent/tools/confirm-gate.ts) | `searchUnavailable` オプションを削除。`web_search` は利用可否にかかわらず、`query` が非空なら**常に確認ダイアログ**を出す |
-| [lib/agent/tools/registry.ts](../lib/agent/tools/registry.ts) | 承認後に検索できない場合、理由付きスキップ表示を返す（後述） |
-| [lib/agent/agent-loop.ts](../lib/agent/agent-loop.ts) | 上記に伴い `searchUnavailable` の受け渡しを削除 |
-| [__tests__/lib/agent/tools/web-search-tool.test.ts](../__tests__/lib/agent/tools/web-search-tool.test.ts) | 「利用不可でも確認は出す」新仕様に合わせて更新 |
+| ファイル                                                                                                  | 変更内容                                                                                                                  |
+| --------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------- |
+| [lib/agent/tools/confirm-gate.ts](../lib/agent/tools/confirm-gate.ts)                                     | `searchUnavailable` オプションを削除。`web_search` は利用可否にかかわらず、`query` が非空なら**常に確認ダイアログ**を出す |
+| [lib/agent/tools/registry.ts](../lib/agent/tools/registry.ts)                                             | 承認後に検索できない場合、理由付きスキップ表示を返す（後述）                                                              |
+| [lib/agent/agent-loop.ts](../lib/agent/agent-loop.ts)                                                     | 上記に伴い `searchUnavailable` の受け渡しを削除                                                                           |
+| [**tests**/lib/agent/tools/web-search-tool.test.ts](../__tests__/lib/agent/tools/web-search-tool.test.ts) | 「利用不可でも確認は出す」新仕様に合わせて更新                                                                            |
 
 ### 新しい挙動
 
@@ -43,6 +44,7 @@
      `「{理由}のためweb検索できません。web検索をスキップします。」`
 
 理由の 3 区分（[registry.ts](../lib/agent/tools/registry.ts) の `executeWebSearch`）:
+
 - キー未設定 → 「検索APIキーが未設定」
 - サーキットブレーカー作動中（直前の検索が失敗済み） → 「直前の検索が失敗した」
 - 実際の検索リクエスト失敗 → エラー内容そのもの
@@ -83,10 +85,12 @@
 - [ ] EBEX サーバーから当該 Azure エンドポイントへの outbound が通るか（LLM 用エンドポイントと同じなら既に許可されているはず）
 
 **確認できた場合の進め方:**
+
 - Azure 用の `SearchProvider` アダプタを **新規の小 change として起票** して実装する（今回アーカイブした change には追記しない）
 - [search-provider.ts](../lib/agent/tools/search-provider.ts) はアダプタ差し替え前提の設計なので、追加するのは新アダプタ実装 + 設定値のみ。ツール契約・確認 UX・agent loop は不変
 
 **確認できなかった場合:**
+
 - 下記の代替案（案B / 案C）を検討する
 
 ### 2.（代替案・温存中）検索経路が通らない場合

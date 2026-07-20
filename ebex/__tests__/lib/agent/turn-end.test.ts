@@ -30,12 +30,19 @@ describe("classifyTurnEnd", () => {
     },
     {
       name: "埋め残しあり → stalled（決定的シグナル）",
-      input: { ...base, text: "セクション3まで作成しました。", leftoverArtifactCount: 2 },
+      input: {
+        ...base,
+        text: "セクション3まで作成しました。",
+        leftoverArtifactCount: 2,
+      },
       expected: "stalled",
     },
     {
       name: "継続予告＋ツール実績あり → stalled",
-      input: { ...base, text: "ここまで作成しました。続きを次の応答で作成します。" },
+      input: {
+        ...base,
+        text: "ここまで作成しました。続きを次の応答で作成します。",
+      },
       expected: "stalled",
     },
     {
@@ -73,9 +80,9 @@ describe("classifyTurnEnd", () => {
 
 describe("hasTextProgress", () => {
   it("treats new content as progress", () => {
-    expect(hasTextProgress("セクション1を書きました", "セクション2を書きました")).toBe(
-      true,
-    );
+    expect(
+      hasTextProgress("セクション1を書きました", "セクション2を書きました"),
+    ).toBe(true);
   });
 
   it("treats identical output as no progress", () => {

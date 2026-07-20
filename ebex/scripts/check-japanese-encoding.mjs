@@ -28,7 +28,12 @@ function walk(dir, files = []) {
 }
 
 function isUtf8WithoutBom(buffer) {
-  if (buffer.length >= 3 && buffer[0] === 0xef && buffer[1] === 0xbb && buffer[2] === 0xbf) {
+  if (
+    buffer.length >= 3 &&
+    buffer[0] === 0xef &&
+    buffer[1] === 0xbb &&
+    buffer[2] === 0xbf
+  ) {
     return false;
   }
   try {
@@ -50,7 +55,11 @@ for (const dirName of TARGET_DIRS) {
     const buffer = fs.readFileSync(filePath);
 
     if (!isUtf8WithoutBom(buffer)) {
-      issues.push({ file: relPath, kind: "invalid-utf8-or-bom", detail: "UTF-8 (no BOM) required" });
+      issues.push({
+        file: relPath,
+        kind: "invalid-utf8-or-bom",
+        detail: "UTF-8 (no BOM) required",
+      });
       continue;
     }
 

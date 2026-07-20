@@ -11,14 +11,14 @@ EBEX にモデルを追加・調整するときの標準フロー。モデルご
   "maxOutputTokens": 32000,
   "continuations": {
     "generatePerSection": 8, // generate_and_write のセクションあたり継続上限
-    "textPerTurn": 8,        // max_tokens 自動継続の上限/ターン
-    "nudgeMax": 10           // 3値判定による自動続行（nudge）の総回数上限
+    "textPerTurn": 8, // max_tokens 自動継続の上限/ターン
+    "nudgeMax": 10, // 3値判定による自動続行（nudge）の総回数上限
   },
   // ---- 通過袋（プロバイダへ無解釈で渡す。未対応キーは無視される）----
   "providerParams": {
-    "agent":    { "reasoning_effort": "medium", "verbosity": "medium" },
-    "generate": { "reasoning_effort": "minimal", "verbosity": "high" }
-  }
+    "agent": { "reasoning_effort": "medium", "verbosity": "medium" },
+    "generate": { "reasoning_effort": "minimal", "verbosity": "high" },
+  },
 }
 ```
 

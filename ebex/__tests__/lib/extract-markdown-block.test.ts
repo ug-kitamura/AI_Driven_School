@@ -26,7 +26,9 @@ describe("extractMarkdownBlock", () => {
     ].join("\n");
 
     const result = extractMarkdownBlock(input);
-    expect(result).toBe(["---", "series: Example", "---", "", "# Title"].join("\n"));
+    expect(result).toBe(
+      ["---", "series: Example", "---", "", "# Title"].join("\n"),
+    );
     expect(result).not.toContain("```markdown");
     expect(result).not.toMatch(/^```/m);
   });
@@ -55,5 +57,4 @@ describe("extractMarkdownBlock", () => {
     expect(result).toContain("Tail section");
     expect(result).not.toContain("```markdown");
   });
-
 });

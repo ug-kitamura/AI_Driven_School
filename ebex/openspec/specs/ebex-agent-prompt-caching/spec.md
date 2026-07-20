@@ -1,8 +1,11 @@
 # ebex-agent-prompt-caching Specification
 
 ## Purpose
+
 Anthropic API の prompt caching を agent loop と子生成呼び出しに適用する契約（ブレークポイント配置・応答内容の不変性・効果観測）。
+
 ## Requirements
+
 ### Requirement: agent loop リクエストのキャッシュ指定
 
 Anthropic プロバイダで agent loop のターンを実行するとき、システムは Messages API リクエストへ prompt caching の `cache_control` ブレークポイントを付与しなければならない（SHALL）。配置は最大でツール定義の末尾・システムプロンプトの末尾・メッセージ履歴の最新メッセージ末尾の 3 箇所とし、API 上限（4 箇所）を超えてはならない（MUST NOT）。ブレークポイントの付与はプロバイダ層で行い、agent loop・ツール層はキャッシュの有無を意識してはならない（MUST NOT）。キャッシュの有無・ヒット／ミスは応答の意味内容を変えてはならない（MUST NOT）。

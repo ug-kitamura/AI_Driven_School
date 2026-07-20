@@ -27,10 +27,7 @@ import {
   onProjectFolderDeleted,
   onProjectFolderRenamed,
 } from "@/lib/workspace-meta";
-import {
-  diagnoseRenameFailure,
-  errorCodeOf,
-} from "@/lib/rename-diagnostics";
+import { diagnoseRenameFailure, errorCodeOf } from "@/lib/rename-diagnostics";
 
 export type ConflictPolicy = "error" | "auto-rename";
 
@@ -38,10 +35,7 @@ export function jsonError(message: string, status: number) {
   return Response.json({ error: message }, { status });
 }
 
-export function readJsonBody<T>(
-  _req: Request,
-  _schema: z.ZodType<T>,
-): never {
+export function readJsonBody<T>(_req: Request, _schema: z.ZodType<T>): never {
   throw new Error("Use parseJsonBody instead");
 }
 
@@ -418,7 +412,10 @@ export function readFileBinary(
   };
 }
 
-export function listFolderFiles(projectRoot: string, folderPath: string): string[] {
+export function listFolderFiles(
+  projectRoot: string,
+  folderPath: string,
+): string[] {
   const resolved = resolveFolderPath(projectRoot, folderPath);
   if ("error" in resolved) return [];
   if (!fs.existsSync(resolved.absolutePath)) return [];

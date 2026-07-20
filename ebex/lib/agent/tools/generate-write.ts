@@ -323,9 +323,7 @@ export async function executeGenerateAndWrite(
         sectionText += turn.text;
 
         const totalChars =
-          generatedSoFar.length +
-          (generatedSoFar ? 2 : 0) +
-          sectionText.length;
+          generatedSoFar.length + (generatedSoFar ? 2 : 0) + sectionText.length;
         if (totalChars > GENERATE_TOTAL_CHAR_LIMIT) {
           return generateFailureOutcome(
             `生成合計サイズが上限（${GENERATE_TOTAL_CHAR_LIMIT} 文字）を超えました`,
@@ -350,7 +348,9 @@ export async function executeGenerateAndWrite(
       }
     } catch (error) {
       const message =
-        error instanceof Error ? error.message : "子 LLM 呼び出しに失敗しました";
+        error instanceof Error
+          ? error.message
+          : "子 LLM 呼び出しに失敗しました";
       return generateFailureOutcome(
         `生成に失敗しました: ${message}`,
         sectionTexts.length,

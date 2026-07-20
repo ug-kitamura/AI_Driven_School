@@ -67,7 +67,9 @@ export function useWorkspaceSync(options: {
 
     async function fetchAndMerge() {
       try {
-        const mtimeRes = await fetch("/api/workspace/mtime", { cache: "no-store" });
+        const mtimeRes = await fetch("/api/workspace/mtime", {
+          cache: "no-store",
+        });
         if (!mtimeRes.ok || cancelled) return;
         const { fingerprint } = (await mtimeRes.json()) as {
           mtime: number;
@@ -81,9 +83,13 @@ export function useWorkspaceSync(options: {
         if (fingerprint === lastFingerprintRef.current) return;
         lastFingerprintRef.current = fingerprint;
 
-        const dataRes = await fetch("/api/workspace/load", { cache: "no-store" });
+        const dataRes = await fetch("/api/workspace/load", {
+          cache: "no-store",
+        });
         if (!dataRes.ok || cancelled) return;
-        const fresh = (await dataRes.json()) as { folders: WorkspaceTreeNode[] };
+        const fresh = (await dataRes.json()) as {
+          folders: WorkspaceTreeNode[];
+        };
 
         const current = selectionRef.current;
 
@@ -97,7 +103,13 @@ export function useWorkspaceSync(options: {
           nextFolderPath = fresh.folders[0]?.path ?? "";
           nextFileName = fresh.folders[0]?.files[0] ?? "";
         } else if (current.fileName) {
-          if (fileExistsInTree(fresh.folders, current.folderPath, current.fileName)) {
+          if (
+            fileExistsInTree(
+              fresh.folders,
+              current.folderPath,
+              current.fileName,
+            )
+          ) {
             // keep current real file selection
           } else if (
             isNoFileSentinel(current.fileName) &&

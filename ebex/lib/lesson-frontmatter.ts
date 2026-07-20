@@ -88,7 +88,9 @@ export function parseLessonDocument(content: string | undefined | null): {
 }
 
 /** 本文先頭の文字オフセット。フロントマターが無ければ 0 */
-export function getLessonBodyStartOffset(content: string | undefined | null): number {
+export function getLessonBodyStartOffset(
+  content: string | undefined | null,
+): number {
   return splitFrontmatterText(content)?.bodyStartOffset ?? 0;
 }
 
@@ -161,17 +163,15 @@ export function normalizeLessonMeta(
   const status = migrateLegacyStatus(
     partial.status ?? fallbacks?.status ?? "open",
   );
-  let minutes =
-    partial.estimated_minutes ??
-    fallbacks?.estimated_minutes ??
-    0;
+  let minutes = partial.estimated_minutes ?? fallbacks?.estimated_minutes ?? 0;
   if (Number.isNaN(minutes)) minutes = 0;
   minutes = Math.min(180, Math.max(0, Math.round(minutes)));
 
   return {
     series: ctx.seriesName,
     course: ctx.courseName,
-    lesson: (partial.lesson ?? fallbacks?.lesson ?? "").trim() || "無題のレッスン",
+    lesson:
+      (partial.lesson ?? fallbacks?.lesson ?? "").trim() || "無題のレッスン",
     status,
     description: partial.description ?? fallbacks?.description ?? "",
     tags: normalizeTags(partial.tags ?? fallbacks?.tags),
@@ -255,9 +255,7 @@ export function serializeLessonDocument(
   body: string,
 ): string {
   const tagsYaml =
-    meta.tags.length === 0
-      ? "tags: []"
-      : `tags: [${meta.tags.join(", ")}]`;
+    meta.tags.length === 0 ? "tags: []" : `tags: [${meta.tags.join(", ")}]`;
   const yaml = [
     "---",
     `series: ${meta.series}`,
@@ -274,7 +272,9 @@ export function serializeLessonDocument(
   return `${yaml}\n${body}`;
 }
 
-export function metaToLessonFields(meta: LessonMetaFields): Pick<
+export function metaToLessonFields(
+  meta: LessonMetaFields,
+): Pick<
   Lesson,
   | "series"
   | "course"
@@ -382,7 +382,10 @@ export function estimateDraftMinutes(body: string): number {
   const rounded = Math.round(raw / 5) * 5;
   return Math.min(
     DRAFT_ESTIMATED_MINUTES_MAX,
-    Math.max(DRAFT_ESTIMATED_MINUTES_MIN, rounded || DRAFT_ESTIMATED_MINUTES_MIN),
+    Math.max(
+      DRAFT_ESTIMATED_MINUTES_MIN,
+      rounded || DRAFT_ESTIMATED_MINUTES_MIN,
+    ),
   );
 }
 

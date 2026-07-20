@@ -432,7 +432,11 @@ export async function runAgentLoop(
     });
 
     if (!stepOutcome.ok) {
-      return { ok: false, error: stepOutcome.error, status: stepOutcome.status };
+      return {
+        ok: false,
+        error: stepOutcome.error,
+        status: stepOutcome.status,
+      };
     }
 
     turnText = stepOutcome.text;
@@ -560,9 +564,7 @@ export async function runAgentLoop(
             isNew: requirement.isNew,
             ...(requirement.script ? { script: requirement.script } : {}),
             ...(requirement.search ? { search: requirement.search } : {}),
-            ...(requirement.generate
-              ? { generate: requirement.generate }
-              : {}),
+            ...(requirement.generate ? { generate: requirement.generate } : {}),
           });
           const decision = await awaitToolConfirmDecision(call.id);
           if (decision === "reject" || decision === "timeout") {

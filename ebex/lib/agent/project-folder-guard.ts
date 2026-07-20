@@ -21,7 +21,10 @@ export function checkProjectFolderExists(
   if (!id) return null;
   const absolutePath = resolveProjectFolderAbsolutePath(projectRoot, id);
   try {
-    if (!fs.existsSync(absolutePath) || !fs.statSync(absolutePath).isDirectory()) {
+    if (
+      !fs.existsSync(absolutePath) ||
+      !fs.statSync(absolutePath).isDirectory()
+    ) {
       return `${AGENT_PROJECT_FOLDER_MISSING_ERROR} (workspace/${id})`;
     }
   } catch {

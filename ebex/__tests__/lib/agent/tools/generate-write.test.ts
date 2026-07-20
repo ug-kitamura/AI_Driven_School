@@ -2,7 +2,10 @@ import { describe, expect, it, vi } from "vitest";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import type { LlmProvider, LlmProviderRunOptions } from "@/lib/agent/llm/provider";
+import type {
+  LlmProvider,
+  LlmProviderRunOptions,
+} from "@/lib/agent/llm/provider";
 import type { LlmMessage, ProviderTurnResult } from "@/lib/agent/llm/types";
 
 /** メッセージ content（文字列またはブロック配列）からテキストを結合して取り出す */
@@ -98,9 +101,9 @@ describe("parseGenerateWriteInput", () => {
   });
 
   it("rejects missing path or instruction", () => {
-    expect(
-      parseGenerateWriteInput({ instruction: "x" }),
-    ).toMatchObject({ error: expect.stringContaining("path") });
+    expect(parseGenerateWriteInput({ instruction: "x" })).toMatchObject({
+      error: expect.stringContaining("path"),
+    });
     expect(
       parseGenerateWriteInput({ path: "a.md", instruction: " " }),
     ).toMatchObject({ error: expect.stringContaining("instruction") });
@@ -142,15 +145,12 @@ describe("executeGenerateAndWrite", () => {
       { text: "<section>one</section>", stopReason: "end_turn" },
       { text: "<section>two</section>", stopReason: "end_turn" },
     ]);
-    const outcome = await executeGenerateAndWrite(
-      makeContext(base, provider),
-      {
-        purpose: "図解生成",
-        path: "output/partial.html",
-        instruction: "図解本文を書く",
-        sections: ["導入", "本論"],
-      },
-    );
+    const outcome = await executeGenerateAndWrite(makeContext(base, provider), {
+      purpose: "図解生成",
+      path: "output/partial.html",
+      instruction: "図解本文を書く",
+      sections: ["導入", "本論"],
+    });
     expect(outcome.result).toMatchObject({
       path: "workspace/demo/output/partial.html",
       sections: 2,
@@ -179,15 +179,12 @@ describe("executeGenerateAndWrite", () => {
     const { provider } = makeProvider([
       { text: "<html>GENERATED</html>", stopReason: "end_turn" },
     ]);
-    const outcome = await executeGenerateAndWrite(
-      makeContext(base, provider),
-      {
-        purpose: "創作",
-        path: "output/creative.html",
-        instruction: "本文を書く",
-        sections: ["全体"],
-      },
-    );
+    const outcome = await executeGenerateAndWrite(makeContext(base, provider), {
+      purpose: "創作",
+      path: "output/creative.html",
+      instruction: "本文を書く",
+      sections: ["全体"],
+    });
     expect(outcome.result).toMatchObject({
       path: "workspace/demo/output/creative.html",
     });
@@ -243,14 +240,11 @@ describe("executeGenerateAndWrite", () => {
       { text: "<div>first-half", stopReason: "max_tokens" },
       { text: " second-half</div>", stopReason: "end_turn" },
     ]);
-    const outcome = await executeGenerateAndWrite(
-      makeContext(base, provider),
-      {
-        purpose: "p",
-        path: "out.html",
-        instruction: "書く",
-      },
-    );
+    const outcome = await executeGenerateAndWrite(makeContext(base, provider), {
+      purpose: "p",
+      path: "out.html",
+      instruction: "書く",
+    });
     expect(outcome.result).toMatchObject({ continuations: 1 });
     expect(
       fs.readFileSync(path.join(base.projectDir, "out.html"), "utf-8"),
@@ -271,10 +265,11 @@ describe("executeGenerateAndWrite", () => {
     const { provider, calls } = makeProvider([
       { text: "x", stopReason: "max_tokens" },
     ]);
-    const outcome = await executeGenerateAndWrite(
-      makeContext(base, provider),
-      { purpose: "p", path: "out.html", instruction: "書く" },
-    );
+    const outcome = await executeGenerateAndWrite(makeContext(base, provider), {
+      purpose: "p",
+      path: "out.html",
+      instruction: "書く",
+    });
     expect(outcome.result).toMatchObject({
       error: expect.stringContaining("継続上限"),
       completedSections: 0,
@@ -282,8 +277,8 @@ describe("executeGenerateAndWrite", () => {
       guidance: expect.stringContaining("sections"),
     });
     // 継続上限はモデルプロファイル（"claude-test" は未知モデル既定）から解決される
-    const continuationsMax = resolveModelProfile("claude-test").continuations
-      .generatePerSection;
+    const continuationsMax =
+      resolveModelProfile("claude-test").continuations.generatePerSection;
     expect(calls).toHaveLength(continuationsMax + 1);
     expect(fs.existsSync(path.join(base.projectDir, "out.html"))).toBe(false);
     fs.rmSync(base.tmpDir, { recursive: true, force: true });
@@ -297,10 +292,11 @@ describe("executeGenerateAndWrite", () => {
         stopReason: "end_turn",
       },
     ]);
-    const outcome = await executeGenerateAndWrite(
-      makeContext(base, provider),
-      { purpose: "p", path: "out.html", instruction: "書く" },
-    );
+    const outcome = await executeGenerateAndWrite(makeContext(base, provider), {
+      purpose: "p",
+      path: "out.html",
+      instruction: "書く",
+    });
     expect(outcome.result).toMatchObject({
       error: expect.stringContaining("上限"),
       completedSections: 0,
@@ -324,15 +320,12 @@ describe("executeGenerateAndWrite", () => {
         throw new Error("not used");
       },
     };
-    const outcome = await executeGenerateAndWrite(
-      makeContext(base, provider),
-      {
-        purpose: "p",
-        path: "out.html",
-        instruction: "書く",
-        sections: ["a", "b"],
-      },
-    );
+    const outcome = await executeGenerateAndWrite(makeContext(base, provider), {
+      purpose: "p",
+      path: "out.html",
+      instruction: "書く",
+      sections: ["a", "b"],
+    });
     expect(outcome.result).toMatchObject({
       error: expect.stringContaining("api-down"),
       completedSections: 1,
@@ -352,15 +345,12 @@ describe("executeGenerateAndWrite", () => {
     const { provider, calls } = makeProvider([
       { text: "done", stopReason: "end_turn" },
     ]);
-    const outcome = await executeGenerateAndWrite(
-      makeContext(base, provider),
-      {
-        purpose: "p",
-        path: "out.html",
-        instruction: "書く",
-        context_paths: ["notes.md", "references/model.html"],
-      },
-    );
+    const outcome = await executeGenerateAndWrite(makeContext(base, provider), {
+      purpose: "p",
+      path: "out.html",
+      instruction: "書く",
+      context_paths: ["notes.md", "references/model.html"],
+    });
     const record = outcome.result as Record<string, unknown>;
     expect(record.error).toBeUndefined();
     const prompt = contentText(calls[0].messages[0].content);
@@ -376,15 +366,12 @@ describe("executeGenerateAndWrite", () => {
     const { provider, calls } = makeProvider([
       { text: "x", stopReason: "end_turn" },
     ]);
-    const outcome = await executeGenerateAndWrite(
-      makeContext(base, provider),
-      {
-        purpose: "p",
-        path: "out.html",
-        instruction: "書く",
-        context_paths: ["workspace/other/secret.md"],
-      },
-    );
+    const outcome = await executeGenerateAndWrite(makeContext(base, provider), {
+      purpose: "p",
+      path: "out.html",
+      instruction: "書く",
+      context_paths: ["workspace/other/secret.md"],
+    });
     expect(outcome.result).toMatchObject({
       error: expect.stringContaining("context_paths"),
     });
@@ -397,14 +384,11 @@ describe("executeGenerateAndWrite", () => {
     const { provider, calls } = makeProvider([
       { text: "x", stopReason: "end_turn" },
     ]);
-    const outcome = await executeGenerateAndWrite(
-      makeContext(base, provider),
-      {
-        purpose: "p",
-        path: "skill/my-skill/references/out.html",
-        instruction: "書く",
-      },
-    );
+    const outcome = await executeGenerateAndWrite(makeContext(base, provider), {
+      purpose: "p",
+      path: "skill/my-skill/references/out.html",
+      instruction: "書く",
+    });
     expect(outcome.result).toMatchObject({
       error: expect.stringContaining("スキルディレクトリ"),
     });

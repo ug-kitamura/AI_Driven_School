@@ -184,9 +184,7 @@ describe("withMessagesCacheControl", () => {
   });
 
   it("does not mutate the input array", () => {
-    const messages = toAnthropicMessages([
-      { role: "user", content: "hello" },
-    ]);
+    const messages = toAnthropicMessages([{ role: "user", content: "hello" }]);
     const before = JSON.stringify(messages);
     withMessagesCacheControl(messages);
     expect(JSON.stringify(messages)).toBe(before);

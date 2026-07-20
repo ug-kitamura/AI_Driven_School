@@ -25,11 +25,7 @@ describe("listFolderRelativePathsForNaming", () => {
     );
 
     const paths = listFolderRelativePathsForNaming(tmpDir, "demo");
-    expect(paths).toEqual([
-      "notes.md",
-      "recording.mp4",
-      "sub/meeting.md",
-    ]);
+    expect(paths).toEqual(["notes.md", "recording.mp4", "sub/meeting.md"]);
     fs.rmSync(tmpDir, { recursive: true, force: true });
   });
 

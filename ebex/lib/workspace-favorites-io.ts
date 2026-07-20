@@ -176,8 +176,7 @@ export function removeFavoritesUnderPath(
   const prefix = `${folderPath.slice(top.length + 1)}/`;
   const stored = readStoredFavorites(projectRoot);
   const next = stored.filter(
-    (item) =>
-      !(item.ino === resolved.ino && item.fileName.startsWith(prefix)),
+    (item) => !(item.ino === resolved.ino && item.fileName.startsWith(prefix)),
   );
   if (next.length !== stored.length) {
     writeStoredFavorites(projectRoot, next);

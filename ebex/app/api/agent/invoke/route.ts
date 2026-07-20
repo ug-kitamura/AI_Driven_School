@@ -15,7 +15,10 @@ import {
   buildSkillRuntimeContext,
   mergeSkillSystemPrompt,
 } from "@/lib/agent/skill-runtime-context";
-import { skillMentionsSubagent, SUBAGENT_FALLBACK_MODEL_HINT } from "@/lib/agent/subagent-fallback";
+import {
+  skillMentionsSubagent,
+  SUBAGENT_FALLBACK_MODEL_HINT,
+} from "@/lib/agent/subagent-fallback";
 import { markProjectFolderAgentActive } from "@/lib/agent/active-project-folders";
 
 const toolEventSchema = z.object({
@@ -135,7 +138,10 @@ export async function POST(req: Request) {
   const historyMessages = parsed.data.messages.slice(0, -1);
   const latestMessage = parsed.data.messages[parsed.data.messages.length - 1];
   if (!latestMessage || latestMessage.role !== "user") {
-    return Response.json({ error: "Last message must be from user" }, { status: 400 });
+    return Response.json(
+      { error: "Last message must be from user" },
+      { status: 400 },
+    );
   }
 
   const structuredPaths = latestMessage.attachments?.map((item) => item.path);

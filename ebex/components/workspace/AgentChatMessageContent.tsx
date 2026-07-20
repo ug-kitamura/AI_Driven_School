@@ -36,7 +36,10 @@ function FileRefChip({ path, name }: { path: string; name?: string }) {
 function MarkdownSegment({ content }: { content: string }) {
   if (!content.trim()) return null;
   return (
-    <ReactMarkdown remarkPlugins={remarkPlugins} components={markdownComponents}>
+    <ReactMarkdown
+      remarkPlugins={remarkPlugins}
+      components={markdownComponents}
+    >
       {content}
     </ReactMarkdown>
   );
@@ -126,7 +129,11 @@ export const AgentChatMessageContent = memo(function AgentChatMessageContent({
             <FileRefChip
               key={`ref-${index}`}
               path={path}
-              name={path.startsWith(ALLOWED_PREFIX) ? path.split("/").pop() : undefined}
+              name={
+                path.startsWith(ALLOWED_PREFIX)
+                  ? path.split("/").pop()
+                  : undefined
+              }
             />
           );
         }

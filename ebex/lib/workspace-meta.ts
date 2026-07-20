@@ -205,10 +205,7 @@ export function resolveProjectIno(
   if (!projectFolderId || projectFolderId.startsWith(".")) {
     return { error: "不正なフォルダパスです" };
   }
-  const absolutePath = path.join(
-    getWorkspaceDir(projectRoot),
-    projectFolderId,
-  );
+  const absolutePath = path.join(getWorkspaceDir(projectRoot), projectFolderId);
   const ino = statFolderIno(absolutePath);
   if (!ino) return { error: `フォルダが見つかりません: ${projectFolderId}` };
 

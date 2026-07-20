@@ -1,24 +1,22 @@
-# dx-training-studio
+# EBEX
 
-DX ツールトレーニング用の **4ペイン Next.js 16 × shadcn/ui ワークスペース**。
-起動方法・画面構成は [`readme.md`](readme.md) を参照。
+**EBEX**（Editor + Browser + EXecution）は、プロジェクトフォルダ内のファイルを入力に AI スキルを発火し、出力を同フォルダに置くための **3 ペイン Next.js ワークスペース**。起動方法・画面構成・データ正本は [`readme.md`](readme.md) を参照。
 
 ## アーキテクチャ
 
 - **状態の SSoT**: `components/workspace/Workspace.tsx`
-- **Pane 1–4**: `SeriesCoursePane`, `LessonListPane`, `MarkdownEditorPane`, `Pane4Shell`（Agent + `ImageManagerPane`）
-- **画像**: 正本 `images/<file>`、staging `images/{uploaded|ai|web}/`（`lib/image-path.ts`, `lib/image-store.ts`）
-- **AI 画像**: 骨子は `<!-- プロンプト -->`、Pane4 AI タブで生成。契約は `contracts/image-slot-contract.md`
-- **設定**: `lib/workspace-settings.ts`、GlobalHeader 歯車 → `WorkspaceSettingsDialog`
-- **データ**: `data/content.json`（シリーズ/コース/レッスン）, `data/workspace.json`（UI 状態）
-- **スキーマ**: `lib/schema.ts`（Zod）
+- **Pane 1–3**: `FileTreePane`（ツリー CRUD・検索・DnD）, `EditorPane`（編集/プレビュー）, `AgentPane` / `AgentChatPane`（Agent チャット、フォルダ単位セッション）
+- **Agent スタック**: `lib/agent/`
+  - `agent-loop.ts`（turn ループ・ツール逐次実行・自動継続）
+  - `tools/`（`registry.ts` / `fs-guard.ts` / `script-sandbox.ts` / `confirm-gate.ts` / `generate-write.ts` / `search-provider.ts`）
+  - `llm/`（プロバイダ解決）
+- **データ**: `workspace/<project>/`（ユーザーコンテンツ）, `workspace/.meta/`（`meta.json` / `sessions/` / `favorites.json` / `diagnostics.log`）
+- **契約**: `contracts/`（`*-contract.md`）。スキル作者向けの制約と誓約は `contracts/ebex-skill-contract.md`
+- **スキル**: 複ルートカタログ（ebex ルート＋ホストルートの `.claude/skills` 等）を和集合で解決。同 id はホスト優先
 
-## UI 編集方針
+## 制約と誓約（EBEX 専用）
 
-- **メタ編集**は `metaDialogLayout.tsx` の `MetaDialogField` / `META_DIALOG_*` と shadcn の `Label` + `Input` / `Select` を組み合わせる（`LessonMetaPanel`, `LessonListPane` を参照）
-- **業務 Dialog**（追加・削除・プレビュー・曼陀羅など）は既存コンポーネントのパターンを踏襲する
-- **shadcn 部品の追加**は `npx shadcn@latest add <name> --diff`。設定は `components.json`
-- **`--overwrite` は明示許可なしに使わない**（独自 variant が消える）
+EBEX は軽量モデル＋作業フォルダ内に閉じた実行環境のため、通常のエージェント機能の一部を意図的に制限する。扱い方は block / fallback / gate / warn / cap / document のいずれかに統一する。**スキルを書く／直すときの正本は [`contracts/ebex-skill-contract.md`](contracts/ebex-skill-contract.md)**。スキルへ触れる編集は `creating-skills` スキルの作法（SSoT 監査・膨張禁止）で行い、制約の内容は再掲せず正本を参照させる。
 
 ## コード生成ルール
 
@@ -47,7 +45,7 @@ DX ツールトレーニング用の **4ペイン Next.js 16 × shadcn/ui ワー
 ## コマンド
 
 ```bash
-npm run dev           # 開発サーバー
+npm run dev           # 開発サーバー（port 3001）
 npm run build         # 本番ビルド
 npm run lint          # ESLint
 npm run test          # Vitest

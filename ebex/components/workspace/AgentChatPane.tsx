@@ -1398,8 +1398,34 @@ export function AgentChatPane({
           <div className="px-12 py-4">
             {richMarkdown ? (
               messages.length === 0 ? (
-                <div className="flex h-full min-h-[12rem] items-center justify-center text-sm text-muted-foreground">
-                  本日はどのようなお手伝いをさせていただけますか？
+                <div className="flex h-full min-h-[12rem] items-center justify-center">
+                  <div className="flex max-w-md flex-col gap-3 text-sm text-muted-foreground">
+                    <div className="text-center font-medium">
+                      ── EBEX 制約と誓約 ──
+                    </div>
+                    <p>
+                      EBEX
+                      は軽量ツールです。スキルに書かれた処理をすべてそのまま実行できるとは限りません。できないことは、代わりの進め方でお手伝いします。
+                    </p>
+                    <ul className="flex flex-col gap-1">
+                      <li>✓ この作業フォルダの中で、読む・書く・変換する</li>
+                      <li>✓ 大きな成果物も分割して着実に仕上げる</li>
+                      <li>
+                        ✓ スクリプトは確認のうえ実行します（外部への通信は原則しません）
+                      </li>
+                    </ul>
+                    <ul className="flex flex-col gap-1">
+                      <li>
+                        ✗ サブエージェントには対応していません → 同じセッション内で順に処理します
+                      </li>
+                      <li>
+                        ✗ Web 検索は原則しません →
+                        検索ワードをお渡しするので、結果と URL を貼ってください
+                      </li>
+                      <li>✗ フォルダの外は触りません／ファイルは削除しません</li>
+                      <li>✗ 画像の生成・読み取りには対応していません</li>
+                    </ul>
+                  </div>
                 </div>
               ) : (
                 <div className="flex flex-col gap-6">

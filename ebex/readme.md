@@ -51,6 +51,13 @@ dx-training-studio（ポート 3000）と同時に使う場合は、EBEX は 300
 
 localStorage キー接頭辞は `ebex-*` です。
 
+## 制約と誓約
+
+EBEX は軽量ツールです。軽さと引き換えに、意図的な制約があります（Web 検索・サブエージェント・画像・フォルダ外操作・削除など）。できないことは「代わりの進め方」でフォローします。
+
+- スキルを EBEX 向けに書く／直すとき → [`contracts/ebex-skill-contract.md`](contracts/ebex-skill-contract.md)（正本）
+- 利用者向けの要約 → アプリのペイン 3（Agent チャット）の空状態に表示
+
 ## コマンド
 
 ```bash

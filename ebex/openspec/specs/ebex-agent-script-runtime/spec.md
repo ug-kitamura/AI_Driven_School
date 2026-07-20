@@ -3,9 +3,7 @@
 ## Purpose
 
 TBD - created by archiving change ebex-agent-script-runtime. Update Purpose after archive.
-
 ## Requirements
-
 ### Requirement: サンドボックス実行基盤
 
 システムはスクリプトを Node 子プロセスとして実行し、Node Permission Model により fs 読取を「プロジェクトフォルダ・実行中スキルディレクトリ・スクリプト自身」に、fs 書込を「プロジェクトフォルダ内」に制限しなければならない（MUST）。実行は `cwd` をプロジェクトフォルダに固定し、タイムアウトと stdout/stderr のサイズ上限を設けなければならない（MUST）。子プロセスへ渡す環境変数は allowlist 方式で最小構成（実行に必要な `PATH` 等の必須項目）とし、サーバプロセスの秘密情報（API キー等）を継承させてはならない（MUST NOT）。システムは子プロセスへ `EBEX_PROJECT_DIR`（プロジェクトフォルダの絶対パス）を注入し、スキル実行中は `EBEX_SKILL_DIR`（実行中スキルの `skillDirAbsolute`）も注入しなければならない（SHALL）。`EBEX_SKILL_DIR` の値は fs 読取許可（`--allow-fs-read`）に渡す値と同一の `skillDirAbsolute` から導出しなければならない（SHALL）。
@@ -110,7 +108,7 @@ TBD - created by archiving change ebex-agent-script-runtime. Update Purpose afte
 
 ### Requirement: スクリプト実行の確認ゲート
 
-システムは `run_script` / `run_skill_script` の実行前に、毎回ユーザー確認を要求しなければならない（MUST）。確認表示には目的説明・書き込み予定パス（既存ファイルには上書きである旨）・折りたたみ可能なコード全文を含めなければならない（SHALL）。拒否された場合は実行せず、拒否された旨を tool_result でモデルへ返さなければならない（SHALL）。
+システムは `run_script` / `run_skill_script` の実行前に、毎回ユーザー確認を要求しなければならない（MUST）。確認表示には目的説明・書き込み予定パス（既存ファイルには上書きである旨）・折りたたみ可能なコード全文を含めなければならない（SHALL）。拒否された場合は実行せず、拒否された旨を tool_result でモデルへ返さなければならない（SHALL）。`run_script`（モデルが本文を与える即興コード）のネットワークアクセスの扱いは「実行経路によるネットワークアクセス境界」要件に従う。
 
 #### Scenario: 確認して実行する
 
@@ -127,10 +125,10 @@ TBD - created by archiving change ebex-agent-script-runtime. Update Purpose afte
 - **WHEN** 同一セッションで 2 回目の `run_script` が要求される
 - **THEN** 1 回目の許可に関わらず、再度確認ダイアログが表示される
 
-#### Scenario: ネットワークアクセスの疑いを警告表示する
+#### Scenario: 審査済みスクリプトのネットワークは警告表示する
 
-- **WHEN** `run_script` のコードに `http` / `https` / `net` / `fetch` 等のネットワークアクセスの兆候が静的に検出される
-- **THEN** 確認ダイアログに警告バッジが表示される（実行のブロックはしない）
+- **WHEN** `run_skill_script` のコードに `http` / `https` / `net` / `fetch` 等のネットワークアクセスの兆候が静的に検出される
+- **THEN** 確認ダイアログに警告バッジが表示される（実行はブロックしない）
 
 ### Requirement: 構文チェックとリトライ契約
 
@@ -159,3 +157,23 @@ TBD - created by archiving change ebex-agent-script-runtime. Update Purpose afte
 
 - **WHEN** スキルの `scripts/build.cjs` が `path.join(__dirname, "..", "references", "base.html")` を読み取る
 - **THEN** 読取は成功する（`run_skill_script` はスキル内の絶対パスで実行されるため `__dirname` はスキルの `scripts/` を指す）
+
+### Requirement: 実行経路によるネットワークアクセス境界
+
+システムはスクリプト実行のネットワークアクセスを実行経路（provenance）で区別しなければならない（SHALL）。`run_script`（モデルが本文を与える即興コード）では、ネットワークアクセスの兆候（`http` / `https` / `net` / `tls` / `dgram` / `http2` / `fetch` / `WebSocket` / `XMLHttpRequest` 等）を静的に検出した場合、実行を拒否しなければならない（MUST NOT 実行）。拒否時は、外部通信ができない理由と、代替（データ取得が必要なら審査済みのスキル同梱スクリプト、または web_search の人手フォールバック）を tool_result でモデルへ返さなければならない（SHALL）。`run_skill_script`（実行中スキルの `scripts/` 配下に実在する審査済みスクリプト）ではネットワークアクセスを許可してよい（MAY）が、実行前のユーザー確認は維持し、確認ダイアログにネットワークアクセスの兆候がある旨の警告バッジを表示しなければならない（SHALL）。信頼の単位はインストール済みスキルとする。静的検出は完全ではなく難読化で回避され得ることを運用前提とする。
+
+#### Scenario: run_script のネットワークはブロックする
+
+- **WHEN** `run_script` の `code` に `fetch` / `https` 等のネットワークアクセスが静的に検出される
+- **THEN** スクリプトは実行されず、外部通信不可の理由と代替の案内が tool_result で返り、loop は継続する
+
+#### Scenario: 審査済みスクリプトのネットワークは許可する
+
+- **WHEN** 実行中スキルの `scripts/fetch-repo.cjs` が外部からデータを取得する内容で、モデルが `run_skill_script` を要求しユーザーが確認を許可する
+- **THEN** スクリプトはサンドボックス内で実行され、確認ダイアログにはネットワークの警告バッジが表示されていた
+
+#### Scenario: ネットワーク兆候の無い run_script は従来どおり
+
+- **WHEN** `run_script` の `code` にネットワークアクセスの兆候が無い
+- **THEN** ネットワーク境界による拒否は発生せず、従来どおり確認後に実行できる
+

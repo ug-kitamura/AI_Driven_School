@@ -3,9 +3,7 @@
 ## Purpose
 
 モデルプロファイル（EBEX 解釈層＋providerParams 通過袋）の構造・既定値・外部上書き・未知モデルの既定挙動。
-
 ## Requirements
-
 ### Requirement: モデルプロファイルの構造
 
 システムはモデルごとのプロファイルを一元管理しなければならない（SHALL）。プロファイルは EBEX が解釈する層（`maxOutputTokens`、継続上限 `generatePerSection` / `textPerTurn` / `nudgeMax`）と、プロバイダへ無解釈で渡す通過袋 `providerParams`（`agent` / `generate` の 2 スロット）で構成しなければならない（SHALL）。EBEX 本体は `providerParams` の中身を解釈・検証してはならない（MUST NOT）。
@@ -60,3 +58,18 @@ docs に新モデル受け入れ手順を記載しなければならない（SHA
 
 - **WHEN** 社内フォークが新しいプロバイダを追加する
 - **THEN** docs の手順に従い、通過袋の受け取り・stopReason マッピング・プロファイル値の決定を上流コード変更なしで完了できる
+
+### Requirement: モデル依存数値のプロファイル集約
+
+モデルによって変わる数値（各種上限・継続回数・`max_tokens`・`nudgeMax`・provider params 等）は、`model-profiles` のプロファイル定義に置かなければならない（SHALL）。エージェントのコアロジックに特定モデル向けの数値をハードコードしてはならない（MUST NOT）。新しいモデルの追加は、コアロジックの変更ではなくプロファイルの追加で完結できなければならない（SHALL）。
+
+#### Scenario: 新モデルはプロファイル追加で完結する
+
+- **WHEN** 新しいモデル（例: claude-opus-4-8）を追加する
+- **THEN** プロファイル追加のみで必要な数値が解決され、コアロジックの変更を要しない
+
+#### Scenario: コアに特定モデル向け数値をハードコードしない
+
+- **WHEN** エージェントのコアロジックを検査する
+- **THEN** 特定モデル向けの上限・継続回数・max_tokens 等がハードコードされていない
+

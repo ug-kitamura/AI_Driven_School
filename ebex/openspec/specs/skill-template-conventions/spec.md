@@ -3,9 +3,7 @@
 ## Purpose
 
 スキルテンプレートのプレースホルダー・マーカー・自己完結性に関する規約。軽量モデルでも決定的に埋め込み操作が実行できることを保証する。
-
 ## Requirements
-
 ### Requirement: 変数プレースホルダーの統一
 
 スキルテンプレート内の短い可変値（タイトル・日付・人名等）は `{{XXX}}` 形式のプレースホルダーで表現しなければならない（MUST）。プレースホルダー名は大文字スネークケースとする。
@@ -65,3 +63,18 @@ minutes-maid スキルの `references/base.html` は本規約に準拠しなけ�
 
 - **WHEN** 開発者が references/style.css を変更する
 - **THEN** SKILL.md 記載の保守手順に従い base.html の `<style>` にも同内容が反映される
+
+### Requirement: creating-skills のホスト contract フック
+
+creating-skills スキルは、作業ホストの `contracts/` に skill contract が存在する場合、それを必読リファレンスに加えて準拠しなければならない（SHALL）。当該フックはホスト非依存の汎用表現とし、特定ホスト（EBEX 等）固有の名称・パスに依存してはならない（MUST NOT）。フックの追記はスキル本文を膨張させず、参照を促す最小限に留めなければならない（SHALL）。
+
+#### Scenario: contract 存在時に必読へ加える
+
+- **WHEN** ホストの `contracts/` に skill contract があり、creating-skills でスキルを作成・改善する
+- **THEN** その契約が必読に加えられ、生成・更新されるスキルが契約に準拠する
+
+#### Scenario: contract が無いホストでは従来どおり
+
+- **WHEN** ホストに skill contract が存在しない
+- **THEN** 追加の必読は発生せず、creating-skills は従来どおり動作する
+

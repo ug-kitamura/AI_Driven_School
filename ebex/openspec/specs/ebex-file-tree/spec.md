@@ -1,8 +1,11 @@
 # ebex-file-tree Specification
 
 ## Purpose
+
 TBD - created by archiving change ebex-v1-workspace. Update Purpose after archive.
+
 ## Requirements
+
 ### Requirement: 表示対象
 
 Pane 1 は `workspace/` 直下の各プロジェクトフォルダと、その配下の **全階層** のサブフォルダ・ファイルを再帰ツリーとして表示しなければならない（SHALL）。`session.json` は Pane 1 に表示してはならない（MUST NOT）。⚠ サブフォルダ警告アイコンは表示してはならない（MUST NOT）。
@@ -892,4 +895,3 @@ Agent がストリーミング実行中のプロジェクトフォルダ（お�
 
 - **WHEN** localStorage に `{ folderPath, fileName: "no file" }` があり、リロード時に当該フォルダへファイルが追加されている
 - **THEN** システムは当該 `no file` 選択を復元しない
-

@@ -7,6 +7,7 @@ import {
   Copy,
   FilePen,
   History,
+  Loader2,
   Pencil,
   Plus,
   RotateCcw,
@@ -71,6 +72,7 @@ import {
   type AgentFileAttachment,
 } from "@/lib/agent-chat-storage";
 import {
+  AGENT_SUMMARY_PROMPT,
   formatSkillCatalogMessage,
   type AgentBuiltinCommand,
 } from "@/lib/agent-chat-suggestions";
@@ -276,6 +278,9 @@ export function AgentChatPane({
   } | null>(null);
 
   const abortRef = useRef<AbortController | null>(null);
+  const addAttachmentRef = useRef<
+    ((attachment: AgentFileAttachment) => void) | null
+  >(null);
   const stopContextRef = useRef<{
     userMessage: AgentChatMessage;
     assistantId: string;
@@ -662,7 +667,8 @@ export function AgentChatPane({
       setStreamingAssistantId(assistantId);
       setSubagentNoticeVisible(
         Boolean(
-          skills.find((skill) => skill.id === options.skillId)?.mentionsSubagent,
+          skills.find((skill) => skill.id === options.skillId)
+            ?.mentionsSubagent,
         ),
       );
       setError(null);
@@ -1112,6 +1118,9 @@ export function AgentChatPane({
           controllerListenersRef.current.delete(listener);
         };
       },
+      addFileAttachment: (attachment) => {
+        addAttachmentRef.current?.(attachment);
+      },
     };
     onControllerReady?.();
     return () => {
@@ -1154,12 +1163,31 @@ export function AgentChatPane({
         setError(null);
         setRetryPayload(null);
         requestAnimationFrame(() => scrollChatToBottom());
+        return;
+      }
+      if (command === "summary") {
+        if (isStreaming) return;
+        const userMessage: AgentChatMessage = {
+          id: createMessageId(),
+          role: "user",
+          content: AGENT_SUMMARY_PROMPT,
+          createdAt: new Date().toISOString(),
+        };
+        stickToBottomRef.current = true;
+        setInput("");
+        void beginInvokeWithGuards({
+          userMessage,
+          history: messages,
+          skillId: resolveInvokeSkillId(null),
+        });
       }
     },
     [
       activeSession,
       activeSkillId,
+      beginInvokeWithGuards,
       chatStorage,
+      isStreaming,
       messages,
       scrollChatToBottom,
       skills,
@@ -1381,9 +1409,15 @@ export function AgentChatPane({
                             content={message.content}
                             richMarkdown={richMarkdown}
                           />
-                        ) : (
+                        ) : isStreamingMessage ? null : (
                           <span className="text-muted-foreground">...</span>
                         )}
+                        {isStreamingMessage ? (
+                          <Loader2
+                            className="size-4 shrink-0 animate-spin text-muted-foreground"
+                            aria-label="応答生成中"
+                          />
+                        ) : null}
                         {showActions ? (
                           <div className="flex items-center gap-2">
                             <WorkspaceTooltip
@@ -1485,6 +1519,7 @@ export function AgentChatPane({
 
       <div className="relative z-10 shrink-0 bg-[var(--agent-chat-pane-bg)] px-12">
         <AgentChatInput
+          key={folderId || "no-project"}
           value={input}
           onChange={setInput}
           onSend={(attachments) => void handleSend(attachments)}
@@ -1502,6 +1537,10 @@ export function AgentChatPane({
           onActiveSkillChange={setActiveSkillId}
           onLoadContentFiles={loadContentFiles}
           onBuiltinCommand={handleBuiltinCommand}
+          onRegisterAddAttachment={(fn) => {
+            addAttachmentRef.current = fn;
+          }}
+          projectFolderId={folderId}
         />
       </div>
 

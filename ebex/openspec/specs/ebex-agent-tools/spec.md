@@ -1,8 +1,11 @@
 # ebex-agent-tools Specification
 
 ## Purpose
+
 Agent の workspace 限定 L1（発見）/ L2（読取）/ L3（書込）ツール、L4/L6 ブロック、上書き・プロジェクト外アクセスの確認ゲート、ツール入出力のサイズ上限。
+
 ## Requirements
+
 ### Requirement: 実ツールの提供
 
 Agent invoke 時、システムは `lib/agent/tools/registry.ts` の `resolveToolDefinitions` を通じて実在する L1（発見）/ L2（読取）/ L3（書込）ツール定義を LLM に渡さなければならない（SHALL）。ツール一覧が空のまま偽の `<tool_call>` / `<tool_response>` テキストをモデルに生成させてはならない（MUST NOT）。
@@ -225,7 +228,7 @@ Agent invoke 時、システムは `lib/agent/tools/registry.ts` の `resolveToo
 
 ### Requirement: 壊れた tool_use での loop 停止
 
-agent loop は、`tool_use` の入力 JSON パースに失敗した場合、または `read_file` / `write_file` / `mkdir` / `copy_file` / `replace_in_file` / `replace_between` / `append_file` で必須パスが欠落または空の場合、空の入力のままツールを実行してはならない（MUST NOT）。当該呼び出しは失敗の tool_result（理由と、大きな成果物では成果物の形→経路の対応（額縁があれば `copy_file`＋`replace_*`、創作長文は `generate_and_write`、データ変換は `run_script`）の案内を含んでよい）としてモデルへ返し、同一エラーの連続上限に達するまで loop を続行しなければならない（SHALL）。空 path を成功扱いで実行してはならない（MUST NOT）。案内は特定スキル名や HTML 専用の強制手順に依存してはならない（MUST NOT）。
+agent loop は、`tool_use` の入力 JSON パースに失敗した場合、または `read_file` / `write_file` / `mkdir` / `copy_file` / `replace_in_file` / `replace_between` / `append_file` で必須パスが欠落または空の場合、空の入力のままツールを実行してはならない（MUST NOT）。当該呼び出しは失敗の tool*result（理由と、大きな成果物では成果物の形→経路の対応（額縁があれば `copy_file`＋`replace*\*`、創作長文は `generate_and_write`、データ変換は `run_script`）の案内を含んでよい）としてモデルへ返し、同一エラーの連続上限に達するまで loop を続行しなければならない（SHALL）。空 path を成功扱いで実行してはならない（MUST NOT）。案内は特定スキル名や HTML 専用の強制手順に依存してはならない（MUST NOT）。
 
 #### Scenario: JSON パース失敗でもモデルへ返して続行
 
@@ -381,7 +384,7 @@ agent loop およびツール層は、宛先拡張子やスキル内の `referen
 #### Scenario: 巨大 write 案内は形→経路の対応表である
 
 - **WHEN** 大きな `write_file` がサイズ上限等で失敗する
-- **THEN** tool_result の案内は「額縁があれば `copy_file`＋`replace_*` で断片を差し込む／創作長文は `generate_and_write`／データ変換は `run_script`」という形→経路の対応を示し、特定スキル名やフォールバック順序（「◯◯が失敗したら△△」）を含まない
+- **THEN** tool*result の案内は「額縁があれば `copy_file`＋`replace*\*`で断片を差し込む／創作長文は`generate_and_write`／データ変換は `run_script`」という形→経路の対応を示し、特定スキル名やフォールバック順序（「◯◯が失敗したら△△」）を含まない
 
 #### Scenario: 額縁候補の推奨はツール実行に介入しない
 
@@ -443,4 +446,3 @@ agent loop は、ターンの `stopReason` が `max_tokens` かつツール呼�
 
 - **WHEN** `replace_in_file` が成功し、更新後ファイルに埋める印らしい残留が無い
 - **THEN** 成功表示に残留ワーニングを含めない
-

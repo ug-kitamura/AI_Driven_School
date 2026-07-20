@@ -42,10 +42,9 @@ describe("filterSkills", () => {
   });
 
   it("sorts skills alphabetically by id", () => {
-    expect(filterSkills([skills[1], skills[0]], "").map((skill) => skill.id)).toEqual([
-      "create-draft",
-      "create-structure",
-    ]);
+    expect(
+      filterSkills([skills[1], skills[0]], "").map((skill) => skill.id),
+    ).toEqual(["create-draft", "create-structure"]);
   });
 
   it("excludes hidden skills", () => {
@@ -87,30 +86,47 @@ describe("filterBuiltinCommands", () => {
       "clear",
       "export",
       "skill",
+      "summary",
     ]);
   });
 
   it("filters commands by name substring", () => {
-    expect(filterBuiltinCommands("export").map((command) => command.id)).toEqual(["export"]);
+    expect(
+      filterBuiltinCommands("export").map((command) => command.id),
+    ).toEqual(["export"]);
   });
 
   it("filters skill builtin by id substring", () => {
-    expect(filterBuiltinCommands("sk").map((command) => command.id)).toEqual(["skill"]);
+    expect(filterBuiltinCommands("sk").map((command) => command.id)).toEqual([
+      "skill",
+    ]);
   });
 });
 
 describe("orderSlashSuggestionItems", () => {
   it("lists .claude/skills skills before builtin commands", () => {
-    const ordered = orderSlashSuggestionItems(skills, filterBuiltinCommands(""));
-    expect(ordered.map((entry) => (entry.kind === "skill" ? entry.item.id : entry.item.id))).toEqual([
+    const ordered = orderSlashSuggestionItems(
+      skills,
+      filterBuiltinCommands(""),
+    );
+    expect(
+      ordered.map((entry) =>
+        entry.kind === "skill" ? entry.item.id : entry.item.id,
+      ),
+    ).toEqual([
       "create-draft",
       "create-structure",
       "clear",
       "export",
       "skill",
+      "summary",
     ]);
-    expect(ordered.slice(0, 2).every((entry) => entry.kind === "skill")).toBe(true);
-    expect(ordered.slice(2).every((entry) => entry.kind === "command")).toBe(true);
+    expect(ordered.slice(0, 2).every((entry) => entry.kind === "skill")).toBe(
+      true,
+    );
+    expect(ordered.slice(2).every((entry) => entry.kind === "command")).toBe(
+      true,
+    );
   });
 });
 
@@ -119,8 +135,12 @@ describe("formatSkillCatalogMessage", () => {
     const message = formatSkillCatalogMessage(skills);
     expect(message).toContain("使用可能なスキル");
     expect(message).toContain("| スキル | 説明 |");
-    expect(message).toContain("| **create-draft** | レッスン本文の草稿を生成します |");
-    expect(message).toContain("| **create-structure** | シリーズ構成を設計します |");
+    expect(message).toContain(
+      "| **create-draft** | レッスン本文の草稿を生成します |",
+    );
+    expect(message).toContain(
+      "| **create-structure** | シリーズ構成を設計します |",
+    );
     expect(message).not.toContain("host");
     expect(message).not.toContain("ebex");
   });
@@ -144,6 +164,8 @@ describe("formatSkillCatalogMessage", () => {
   });
 
   it("reports when no skills are available", () => {
-    expect(formatSkillCatalogMessage([])).toBe("使用可能なスキルはありません。");
+    expect(formatSkillCatalogMessage([])).toBe(
+      "使用可能なスキルはありません。",
+    );
   });
 });

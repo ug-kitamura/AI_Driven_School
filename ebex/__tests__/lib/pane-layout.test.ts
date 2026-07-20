@@ -43,9 +43,11 @@ describe("snapPaneWidth", () => {
 
 describe("snapPaneWidths", () => {
   it("snaps pane1 and pane3 only", () => {
-    expect(
-      snapPaneWidths({ pane1: 302, pane2: 598, pane3: 401 }),
-    ).toEqual({ pane1: 300, pane2: 598, pane3: 400 });
+    expect(snapPaneWidths({ pane1: 302, pane2: 598, pane3: 401 })).toEqual({
+      pane1: 300,
+      pane2: 598,
+      pane3: 400,
+    });
   });
 });
 
@@ -74,7 +76,10 @@ describe("fitPaneLayout", () => {
 
   it("shrinks pane3 first when pane2 would fall below minimum", () => {
     const totalWidth =
-      storedDefaults.pane1 + PANE2_MIN_WIDTH + PANE_WIDTH_LIMITS.pane3.min + handles();
+      storedDefaults.pane1 +
+      PANE2_MIN_WIDTH +
+      PANE_WIDTH_LIMITS.pane3.min +
+      handles();
 
     const result = fitPaneLayout({
       requested: { pane1: 300, pane2: 0, pane3: 800 },

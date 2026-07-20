@@ -23,7 +23,10 @@ describe("GET /api/agent/config", () => {
     const prev = process.env.AI_MODEL;
     process.env.AI_MODEL = "claude-opus-4-6";
     const response = await GET();
-    const data = (await response.json()) as { model: string; modelLabel: string };
+    const data = (await response.json()) as {
+      model: string;
+      modelLabel: string;
+    };
     expect(data.model).toBe("claude-opus-4-6");
     expect(data.modelLabel).toBe("Claude Opus 4.6");
     process.env.AI_MODEL = prev;

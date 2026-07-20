@@ -1,8 +1,5 @@
 import { describe, expect, it, afterEach } from "vitest";
-import {
-  DEFAULT_AI_MODEL,
-  UNSUPPORTED_MODEL_ERROR,
-} from "@/lib/ai-models";
+import { DEFAULT_AI_MODEL, UNSUPPORTED_MODEL_ERROR } from "@/lib/ai-models";
 import { resolveAiModel, resolveAiModelSlug } from "@/lib/resolve-ai-model";
 
 function requestWithHeaders(headers: Record<string, string>): Request {
@@ -38,7 +35,10 @@ describe("resolveAiModelSlug", () => {
 describe("resolveAiModel", () => {
   it("accepts supported model", () => {
     const req = requestWithHeaders({ "x-ai-model": "claude-sonnet-4-6" });
-    expect(resolveAiModel(req)).toEqual({ ok: true, model: "claude-sonnet-4-6" });
+    expect(resolveAiModel(req)).toEqual({
+      ok: true,
+      model: "claude-sonnet-4-6",
+    });
   });
 
   it("rejects unsupported model", () => {

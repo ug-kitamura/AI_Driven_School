@@ -80,9 +80,7 @@ function collectTextCandidates(absoluteDir: string): TextCandidate[] {
     for (const entry of entries) {
       if (entry.isDirectory()) {
         if (shouldSkipDir(entry.name)) continue;
-        const nextRel = currentRel
-          ? `${currentRel}/${entry.name}`
-          : entry.name;
+        const nextRel = currentRel ? `${currentRel}/${entry.name}` : entry.name;
         walk(path.join(currentAbs, entry.name), nextRel);
         continue;
       }

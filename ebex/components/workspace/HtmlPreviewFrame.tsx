@@ -11,7 +11,10 @@ function wrapHtmlForPreview(html: string): string {
     return html.replace(/<head([\s>])/i, `<head$1${OVERFLOW_STYLE}`);
   }
   if (/<html[\s>]/i.test(html)) {
-    return html.replace(/<html([\s>])/i, `<html$1<head>${OVERFLOW_STYLE}</head>`);
+    return html.replace(
+      /<html([\s>])/i,
+      `<html$1<head>${OVERFLOW_STYLE}</head>`,
+    );
   }
   return `<!DOCTYPE html><html><head>${OVERFLOW_STYLE}</head><body>${html}</body></html>`;
 }
@@ -28,8 +31,32 @@ function measureDocumentHeight(doc: Document): number {
 
 function applyOverflowHidden(doc: Document): void {
   const style = doc.createElement("style");
-  style.textContent = "html, body { overflow: hidden !important; margin: 0; padding: 0; }";
+  style.textContent =
+    "html, body { overflow: hidden !important; margin: 0; padding: 0; }";
   doc.head?.appendChild(style);
+}
+
+/**
+ * リンクによるナビゲーションを全面的に無効化し、同一文書内の `#id` アンカー
+ * のみスクロールジャンプに変換する。ページ側スクリプトより先に奪うため
+ * capture 段階で、親ウィンドウ側から contentDocument へ付与する。
+ */
+function interceptLinkClicks(doc: Document): void {
+  doc.addEventListener(
+    "click",
+    (event) => {
+      const target = event.target as Element | null;
+      const anchor = target?.closest?.("a");
+      if (!anchor) return;
+      event.preventDefault();
+      const href = anchor.getAttribute("href") ?? "";
+      if (!href.startsWith("#") || href.length <= 1) return;
+      const id = decodeURIComponent(href.slice(1));
+      const dest = doc.getElementById(id) ?? doc.getElementsByName(id)[0];
+      dest?.scrollIntoView({ block: "start" });
+    },
+    { capture: true },
+  );
 }
 
 type Props = {
@@ -58,6 +85,7 @@ export function HtmlPreviewFrame({ content, isResizing = false }: Props) {
     if (!doc?.body) return;
 
     applyOverflowHidden(doc);
+    interceptLinkClicks(doc);
     syncHeight();
 
     observerRef.current?.disconnect();

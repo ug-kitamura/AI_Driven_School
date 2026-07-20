@@ -3,7 +3,9 @@ import { getProjectFolderId } from "@/lib/workspace-path-utils";
 /** invoke 中のプロジェクトフォルダ（refcount）。サーバプロセス内メモリ。 */
 const activeCounts = new Map<string, number>();
 
-export function markProjectFolderAgentActive(projectFolderId: string): () => void {
+export function markProjectFolderAgentActive(
+  projectFolderId: string,
+): () => void {
   const id = projectFolderId.trim();
   if (!id) return () => {};
 

@@ -99,13 +99,13 @@ const lessonSchema = z.object({
   series: z.string(),
   course: z.string(),
   lesson: z.string(),
-  status: z.enum(['draft', 'in_progress', 'done']),
+  status: z.enum(["draft", "in_progress", "done"]),
   description: z.string(),
   tags: z.array(z.string()),
   estimated_minutes: z.number(),
   author: z.string(),
   content: z.string(),
-})
+});
 
 const courseSchema = z.object({
   id: z.string(),
@@ -114,22 +114,22 @@ const courseSchema = z.object({
   prerequisites: z.array(z.string()).default([]),
   next_courses: z.array(z.string()).default([]),
   lessons: z.array(lessonSchema),
-})
+});
 
 const seriesSchema = z.object({
   id: z.string(),
   name: z.string(),
   courses: z.array(courseSchema),
-})
+});
 ```
 
 ステータス自動計算（`lib/utils.ts`）:
 
 ```typescript
 function computeStatus(statuses: Status[]): Status {
-  if (statuses.every(s => s === 'draft')) return 'draft'
-  if (statuses.every(s => s === 'done')) return 'done'
-  return 'in_progress'
+  if (statuses.every((s) => s === "draft")) return "draft";
+  if (statuses.every((s) => s === "done")) return "done";
+  return "in_progress";
 }
 ```
 
@@ -224,11 +224,13 @@ const selectedLesson = useMemo(...)
 
 ```typescript
 // app/api/git-diff/route.ts
-import { execSync } from 'child_process'
+import { execSync } from "child_process";
 export async function GET(req: Request) {
-  const path = new URL(req.url).searchParams.get('path')
-  const diff = execSync(`git diff HEAD -- "${path}"`, { cwd: process.cwd() }).toString()
-  return Response.json({ diff })
+  const path = new URL(req.url).searchParams.get("path");
+  const diff = execSync(`git diff HEAD -- "${path}"`, {
+    cwd: process.cwd(),
+  }).toString();
+  return Response.json({ diff });
 }
 ```
 
@@ -238,17 +240,17 @@ export async function GET(req: Request) {
 
 ```css
 :root {
-  --primary: #007BC0;          /* Custom_Blue_50 */
-  --primary-hover: #006EAD;    /* Custom_Blue_45 */
-  --background: #EFF1F2;       /* Custom_Gray_95 */
-  --card: #FFFFFF;
-  --border: #D0D4D8;           /* Custom_Gray_85 */
-  --foreground: #1A1C1D;       /* Custom_Gray_10 */
-  --muted-foreground: #71767C; /* Custom_Gray_50 */
+  --primary: #007bc0; /* Custom_Blue_50 */
+  --primary-hover: #006ead; /* Custom_Blue_45 */
+  --background: #eff1f2; /* Custom_Gray_95 */
+  --card: #ffffff;
+  --border: #d0d4d8; /* Custom_Gray_85 */
+  --foreground: #1a1c1d; /* Custom_Gray_10 */
+  --muted-foreground: #71767c; /* Custom_Gray_50 */
   /* ステータスカラー */
-  --status-done: #00884A;      /* Custom_Green_50 */
-  --status-wip: #EEC100;       /* Custom_Yellow_80 */
-  --status-draft: #9AA0A6;     /* Custom_Gray_70（やや薄め） */
+  --status-done: #00884a; /* Custom_Green_50 */
+  --status-wip: #eec100; /* Custom_Yellow_80 */
+  --status-draft: #9aa0a6; /* Custom_Gray_70（やや薄め） */
 }
 ```
 
@@ -270,6 +272,7 @@ Mermaid v11 で click ディレクティブを使ったナビゲーションを�
 ```
 
 **ポイント**:
+
 - `closest("g")` は foreignObject 内の HTML 要素から SVG 親を辿れないケースがある → `composedPath()` を使う
 - モーダルが閉じている状態で render すると bindFunctions 呼び出しのタイミングがずれる → 必ず open 後に render する
 - ノード ID に使う文字列は `[^a-zA-Z0-9]` を `_` に置換してアルファベット/数字/アンダースコアのみにする
@@ -306,16 +309,16 @@ flowchart TD
 
 ## コンポーネント対応表
 
-| workspace-ui-kit | DX Training Editor | 変更規模 |
-|---|---|---|
-| `PositionPane` | `SeriesCoursePane` | 中（骨格流用・中身書き換え） |
-| `CandidateListPane` | `LessonListPane` | 中（DnD・ダイアログ流用） |
-| `CandidateDashboardPane` | `MarkdownEditorPane` | 大（新規実装） |
-| `CandidateDetailPane` | `ImageManagerPane` | 大（新規実装） |
-| `GlobalHeader` | `GlobalHeader` | 中（パンくず流用・曼陀羅追加） |
-| `lib/schema.ts` | `lib/schema.ts` | 全面書き換え |
-| `data/*.json` | `data/*.json` | 全面書き換え |
-| `app/globals.css` | `app/globals.css` | カラー変数差し替え |
+| workspace-ui-kit         | DX Training Editor   | 変更規模                       |
+| ------------------------ | -------------------- | ------------------------------ |
+| `PositionPane`           | `SeriesCoursePane`   | 中（骨格流用・中身書き換え）   |
+| `CandidateListPane`      | `LessonListPane`     | 中（DnD・ダイアログ流用）      |
+| `CandidateDashboardPane` | `MarkdownEditorPane` | 大（新規実装）                 |
+| `CandidateDetailPane`    | `ImageManagerPane`   | 大（新規実装）                 |
+| `GlobalHeader`           | `GlobalHeader`       | 中（パンくず流用・曼陀羅追加） |
+| `lib/schema.ts`          | `lib/schema.ts`      | 全面書き換え                   |
+| `data/*.json`            | `data/*.json`        | 全面書き換え                   |
+| `app/globals.css`        | `app/globals.css`    | カラー変数差し替え             |
 
 ---
 

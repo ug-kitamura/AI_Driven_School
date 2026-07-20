@@ -69,7 +69,10 @@ export function folderExists(projectRoot: string, folderPath: string): boolean {
   return fs.existsSync(resolved.absolutePath);
 }
 
-export function isFolderEmpty(projectRoot: string, folderPath: string): boolean {
+export function isFolderEmpty(
+  projectRoot: string,
+  folderPath: string,
+): boolean {
   const resolved = resolveFolderPath(projectRoot, folderPath);
   if ("error" in resolved) return false;
   if (!fs.existsSync(resolved.absolutePath)) return false;

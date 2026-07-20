@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { resolveInvokeSkillId, GENERAL_CHAT_SKILL_ID } from "@/lib/agent/resolve-invoke-skill";
+import {
+  resolveInvokeSkillId,
+  GENERAL_CHAT_SKILL_ID,
+} from "@/lib/agent/resolve-invoke-skill";
 
 describe("resolveInvokeSkillId", () => {
   it("returns general-chat when active skill is null", () => {

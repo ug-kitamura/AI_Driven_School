@@ -123,10 +123,9 @@ describe("artifact routing: copy→fill main route", () => {
     const folderId = "20260712-minutes";
     createFolder(tmpDir, folderId);
     // 既存の成果物（前回生成）を置く
-    fs.mkdirSync(
-      path.join(getWorkspaceDir(tmpDir), folderId, "output"),
-      { recursive: true },
-    );
+    fs.mkdirSync(path.join(getWorkspaceDir(tmpDir), folderId, "output"), {
+      recursive: true,
+    });
     fs.writeFileSync(
       path.join(getWorkspaceDir(tmpDir), folderId, "output", "minutes.html"),
       "<html>old</html>",

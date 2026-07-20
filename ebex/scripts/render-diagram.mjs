@@ -10,7 +10,9 @@ async function main() {
   const htmlPath = process.argv[2];
   const outPath = process.argv[3];
   if (!htmlPath || !outPath) {
-    console.error("Usage: node scripts/render-diagram.mjs <htmlFile> <outputPng>");
+    console.error(
+      "Usage: node scripts/render-diagram.mjs <htmlFile> <outputPng>",
+    );
     process.exit(1);
   }
 

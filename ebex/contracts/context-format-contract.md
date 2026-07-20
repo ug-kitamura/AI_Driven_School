@@ -14,7 +14,12 @@
 応答は **JSON のみ**（markdown フェンス不可）:
 
 ```json
-{"title":"タイトル","body":"整形済み Markdown","suggestedTags":["タグ1","タグ2"],"source_last_updated_at":"2025-03-01"}
+{
+  "title": "タイトル",
+  "body": "整形済み Markdown",
+  "suggestedTags": ["タグ1", "タグ2"],
+  "source_last_updated_at": "2025-03-01"
+}
 ```
 
 `source_last_updated_at` は原文から日付を取得できた場合のみ `YYYY-MM-DD` 形式。取得できない場合は `null`。

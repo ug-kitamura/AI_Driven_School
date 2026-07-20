@@ -39,8 +39,7 @@ export function buildVisibleRows(
       depth,
     });
 
-    const isOpen =
-      expanded[node.path] ?? emphasizedFolderPaths.has(node.path);
+    const isOpen = expanded[node.path] ?? emphasizedFolderPaths.has(node.path);
     if (!isOpen) return;
 
     for (const child of node.children) {
@@ -201,8 +200,7 @@ export function resolveHomeEndNavigation(
 
   const parentKey = getRowParentKey(current);
   const siblings = rows.filter((row) => getRowParentKey(row) === parentKey);
-  const target =
-    key === "Home" ? siblings[0] : siblings[siblings.length - 1];
+  const target = key === "Home" ? siblings[0] : siblings[siblings.length - 1];
   if (!target || target.id === current.id) {
     return { focusRowId: null };
   }

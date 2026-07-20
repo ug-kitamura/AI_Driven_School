@@ -24,12 +24,7 @@ export type SkillAssetCandidate = {
 };
 
 const FRAME_SCAN_DIRS = ["references", "templates"] as const;
-const FRAME_EXTENSIONS = new Set([
-  ".html",
-  ".htm",
-  ".css",
-  ".svg",
-]);
+const FRAME_EXTENSIONS = new Set([".html", ".htm", ".css", ".svg"]);
 export const FRAME_CANDIDATE_LIMIT = 5;
 
 /**
@@ -40,16 +35,16 @@ export function resolveSkillRelativeFile(
   skillDirAbsolute: string,
   relativePath: string,
 ): { absolutePath: string; relativePath: string; sizeBytes: number } | null {
-  const normalized = relativePath.replace(/\\/g, "/").replace(/^\/+/, "").trim();
+  const normalized = relativePath
+    .replace(/\\/g, "/")
+    .replace(/^\/+/, "")
+    .trim();
   if (!normalized || normalized.includes("\0")) return null;
   if (normalized.split("/").some((seg) => seg === "..")) return null;
 
   const absolutePath = path.resolve(skillDirAbsolute, ...normalized.split("/"));
   const root = path.resolve(skillDirAbsolute);
-  if (
-    absolutePath !== root &&
-    !absolutePath.startsWith(root + path.sep)
-  ) {
+  if (absolutePath !== root && !absolutePath.startsWith(root + path.sep)) {
     return null;
   }
   if (!fs.existsSync(absolutePath)) return null;
@@ -104,9 +99,7 @@ export function resolveSkillAssetCandidates(
   const root = skillDirAbsolute?.trim();
   if (!root) return [];
 
-  const declared = (declaredAssets ?? [])
-    .map((p) => p.trim())
-    .filter(Boolean);
+  const declared = (declaredAssets ?? []).map((p) => p.trim()).filter(Boolean);
 
   if (declared.length > 0) {
     const out: SkillAssetCandidate[] = [];
@@ -136,13 +129,14 @@ function formatAssetSize(sizeBytes: number): string {
   return `${rounded}MB`;
 }
 
-function formatAssetCandidateLines(candidates: SkillAssetCandidate[]): string[] {
+function formatAssetCandidateLines(
+  candidates: SkillAssetCandidate[],
+): string[] {
   if (candidates.length === 0) return [];
   return [
     "額縁候補（スキル内の実在ファイル・事実列挙）:",
     ...candidates.map(
-      (c) =>
-        `- \`${c.relativePath}\` (${formatAssetSize(c.sizeBytes)})`,
+      (c) => `- \`${c.relativePath}\` (${formatAssetSize(c.sizeBytes)})`,
     ),
     "額縁がある場合はまず `copy_file` でプロジェクト内へコピーしてから、`replace_in_file` / `replace_between` で差し込むこと。",
   ];

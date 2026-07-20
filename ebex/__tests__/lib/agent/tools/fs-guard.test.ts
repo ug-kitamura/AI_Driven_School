@@ -57,14 +57,22 @@ describe("resolveToolTargetPath", () => {
     createFolder(tmpDir, "demo");
     const skillDir = path.join(tmpDir, ".claude", "skills", "minutes-maid");
     fs.mkdirSync(path.join(skillDir, "references"), { recursive: true });
-    fs.writeFileSync(path.join(skillDir, "references", "purpose.md"), "purpose");
+    fs.writeFileSync(
+      path.join(skillDir, "references", "purpose.md"),
+      "purpose",
+    );
     fs.writeFileSync(path.join(skillDir, "SKILL.md"), "---\nname: m\n---\n");
 
-    const resolved = resolveToolTargetPath(tmpDir, "demo", "references/purpose.md", {
-      skillId: "minutes-maid",
-      skillDirAbsolute: skillDir,
-      preferSkillIfExists: true,
-    });
+    const resolved = resolveToolTargetPath(
+      tmpDir,
+      "demo",
+      "references/purpose.md",
+      {
+        skillId: "minutes-maid",
+        skillDirAbsolute: skillDir,
+        preferSkillIfExists: true,
+      },
+    );
     expect("error" in resolved).toBe(false);
     if ("error" in resolved) return;
     expect(resolved.insideSkill).toBe(true);
@@ -100,7 +108,10 @@ describe("resolveToolTargetPath", () => {
     createFolder(tmpDir, "demo");
     const skillDir = path.join(tmpDir, ".claude", "skills", "minutes-maid");
     fs.mkdirSync(path.join(skillDir, "references"), { recursive: true });
-    fs.writeFileSync(path.join(skillDir, "references", "purpose.md"), "purpose");
+    fs.writeFileSync(
+      path.join(skillDir, "references", "purpose.md"),
+      "purpose",
+    );
     fs.writeFileSync(path.join(skillDir, "SKILL.md"), "---\nname: m\n---\n");
 
     const resolved = resolveToolTargetPath(
@@ -127,7 +138,10 @@ describe("resolveToolTargetPath", () => {
     createFolder(tmpDir, "demo");
     const skillDir = path.join(tmpDir, ".cursor", "skills", "minutes-maid");
     fs.mkdirSync(path.join(skillDir, "references"), { recursive: true });
-    fs.writeFileSync(path.join(skillDir, "references", "purpose.md"), "purpose");
+    fs.writeFileSync(
+      path.join(skillDir, "references", "purpose.md"),
+      "purpose",
+    );
     fs.writeFileSync(path.join(skillDir, "SKILL.md"), "---\nname: m\n---\n");
 
     const resolved = resolveToolTargetPath(

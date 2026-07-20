@@ -25,7 +25,10 @@ export async function POST(req: Request) {
   );
   if (!resolved) {
     return Response.json(
-      { error: "対象の確認要求が見つかりません（タイムアウト済みの可能性があります）" },
+      {
+        error:
+          "対象の確認要求が見つかりません（タイムアウト済みの可能性があります）",
+      },
       { status: 404 },
     );
   }

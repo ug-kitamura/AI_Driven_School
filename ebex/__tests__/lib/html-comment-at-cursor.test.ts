@@ -23,13 +23,18 @@ Git フロー図
 
   it("returns inner text when cursor inside comment", () => {
     const ranges = findHtmlCommentRanges(content);
-    const inner = htmlCommentInnerTextAtOffset(content, ranges[0].innerStart + 2);
+    const inner = htmlCommentInnerTextAtOffset(
+      content,
+      ranges[0].innerStart + 2,
+    );
     expect(inner).toBe("Git フロー図\n4 ステップ");
   });
 
   it("returns null when cursor outside comment", () => {
     expect(htmlCommentInnerTextAtOffset(content, 0)).toBeNull();
-    expect(htmlCommentInnerTextAtOffset(content, content.length - 1)).toBeNull();
+    expect(
+      htmlCommentInnerTextAtOffset(content, content.length - 1),
+    ).toBeNull();
   });
 });
 

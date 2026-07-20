@@ -60,11 +60,7 @@ export function OutputDestinationDialog({
           <Button type="button" variant="outline" onClick={onCancel}>
             キャンセル
           </Button>
-          <Button
-            type="button"
-            disabled={!selectedId}
-            onClick={onConfirm}
-          >
+          <Button type="button" disabled={!selectedId} onClick={onConfirm}>
             この出力先で続行
           </Button>
         </DialogFooter>

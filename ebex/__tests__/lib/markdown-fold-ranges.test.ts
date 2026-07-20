@@ -33,14 +33,7 @@ describe("findFrontmatterCloseLine", () => {
 
 describe("findHeadingFoldEndLine", () => {
   it("stops at sibling or higher heading", () => {
-    const lines = [
-      "## A",
-      "text",
-      "### child",
-      "more",
-      "## B",
-      "tail",
-    ];
+    const lines = ["## A", "text", "### child", "more", "## B", "tail"];
     expect(findHeadingFoldEndLine(lines, 0, 2)).toBe(3);
   });
 });

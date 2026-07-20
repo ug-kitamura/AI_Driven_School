@@ -22,7 +22,11 @@ function writeSkill(
 ) {
   const dir = path.join(root, convention, "skills", id);
   fs.mkdirSync(dir, { recursive: true });
-  fs.writeFileSync(path.join(dir, "SKILL.md"), `---\n${frontmatter}\n---\n\n${body}`, "utf-8");
+  fs.writeFileSync(
+    path.join(dir, "SKILL.md"),
+    `---\n${frontmatter}\n---\n\n${body}`,
+    "utf-8",
+  );
 }
 
 describe("skill-loader", () => {
@@ -91,13 +95,20 @@ description: |
   });
 
   it("injects variables into skill body", () => {
-    const result = injectSkillVariables("Series: {{series}}", { series: "DX基礎" });
+    const result = injectSkillVariables("Series: {{series}}", {
+      series: "DX基礎",
+    });
     expect(result).toBe("Series: DX基礎");
   });
 
   it("lists skills in alphabetical order", () => {
     writeSkill(tmpDir, "create-draft", "name: draft\ndescription: d", "body");
-    writeSkill(tmpDir, "create-structure", "name: structure\ndescription: s", "body");
+    writeSkill(
+      tmpDir,
+      "create-structure",
+      "name: structure\ndescription: s",
+      "body",
+    );
     writeSkill(tmpDir, "alpha-skill", "name: alpha\ndescription: a", "body");
 
     const skills = listSkills(tmpDir);
@@ -140,7 +151,10 @@ tools:
 ---
 
 Body`);
-    expect(parsed.tools).toEqual(["search_company_context", "select_company_context"]);
+    expect(parsed.tools).toEqual([
+      "search_company_context",
+      "select_company_context",
+    ]);
   });
 
   it("parses assets frontmatter as a string list", () => {
@@ -239,7 +253,9 @@ Body`);
       "create-draft",
       "general-chat",
     ]);
-    expect(listVisibleSkills(tmpDir).map((skill) => skill.id)).toEqual(["create-draft"]);
+    expect(listVisibleSkills(tmpDir).map((skill) => skill.id)).toEqual([
+      "create-draft",
+    ]);
   });
 
   it("loads hidden skill via loadSkill", () => {
@@ -254,14 +270,31 @@ Body`);
   });
 
   it("merges ebex and host skill roots without duplicating the same path", () => {
-    expect(getSkillCatalogRoots(tmpDir, tmpDir)).toEqual([path.resolve(tmpDir)]);
+    expect(getSkillCatalogRoots(tmpDir, tmpDir)).toEqual([
+      path.resolve(tmpDir),
+    ]);
 
     const ebexRoot = fs.mkdtempSync(path.join(os.tmpdir(), "skill-ebex-"));
     const hostRoot = fs.mkdtempSync(path.join(os.tmpdir(), "skill-host-"));
     try {
-      writeSkill(ebexRoot, "create-draft", "name: draft-ebex\ndescription: from ebex", "ebex body");
-      writeSkill(hostRoot, "report", "name: report\ndescription: from host", "host body");
-      writeSkill(hostRoot, "create-draft", "name: draft-host\ndescription: from host", "host draft");
+      writeSkill(
+        ebexRoot,
+        "create-draft",
+        "name: draft-ebex\ndescription: from ebex",
+        "ebex body",
+      );
+      writeSkill(
+        hostRoot,
+        "report",
+        "name: report\ndescription: from host",
+        "host body",
+      );
+      writeSkill(
+        hostRoot,
+        "create-draft",
+        "name: draft-host\ndescription: from host",
+        "host draft",
+      );
 
       const roots = getSkillCatalogRoots(hostRoot, ebexRoot);
       expect(roots).toEqual([path.resolve(ebexRoot), path.resolve(hostRoot)]);
@@ -298,8 +331,20 @@ Body`);
   });
 
   it("prefers .claude over .cursor for same id in one root", () => {
-    writeSkill(tmpDir, "demo", "name: claude\ndescription: c", "claude body", ".claude");
-    writeSkill(tmpDir, "demo", "name: cursor\ndescription: u", "cursor body", ".cursor");
+    writeSkill(
+      tmpDir,
+      "demo",
+      "name: claude\ndescription: c",
+      "claude body",
+      ".claude",
+    );
+    writeSkill(
+      tmpDir,
+      "demo",
+      "name: cursor\ndescription: u",
+      "cursor body",
+      ".cursor",
+    );
     expect(loadSkill(tmpDir, "demo")?.name).toBe("claude");
     expect(resolveSkillDir(tmpDir, "demo")).toBe(
       path.join(tmpDir, ".claude", "skills", "demo"),

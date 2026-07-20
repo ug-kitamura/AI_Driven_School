@@ -892,12 +892,7 @@ describe("executeRegisteredTool", () => {
       error: expect.stringContaining("start_marker"),
     });
 
-    createFile(
-      tmpDir,
-      "demo",
-      "marked.html",
-      "<ol>\n</ol>\n    </div>",
-    );
+    createFile(tmpDir, "demo", "marked.html", "<ol>\n</ol>\n    </div>");
     const whitespaceMiss = await executeRegisteredTool(
       "replace_between",
       {

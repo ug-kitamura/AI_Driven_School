@@ -13,11 +13,7 @@ import {
   gutter,
   type ViewUpdate,
 } from "@codemirror/view";
-import {
-  RangeSet,
-  RangeSetBuilder,
-  type EditorState,
-} from "@codemirror/state";
+import { RangeSet, RangeSetBuilder, type EditorState } from "@codemirror/state";
 
 const FOLD_OPEN = "▼";
 const FOLD_CLOSED = "▶";
@@ -88,15 +84,23 @@ function findFoldAtPos(state: EditorState, pos: number): FoldRange | null {
   return found;
 }
 
-function unfoldAtEvent(view: EditorView, event: Event, fold: FoldRange): boolean {
+function unfoldAtEvent(
+  view: EditorView,
+  event: Event,
+  fold: FoldRange,
+): boolean {
   event.preventDefault();
   event.stopPropagation();
   view.dispatch({ effects: unfoldEffect.of(fold) });
   return true;
 }
 
-function isFoldPlaceholderTarget(target: EventTarget | null): target is HTMLElement {
-  return target instanceof HTMLElement && !!target.closest(".cm-foldPlaceholder");
+function isFoldPlaceholderTarget(
+  target: EventTarget | null,
+): target is HTMLElement {
+  return (
+    target instanceof HTMLElement && !!target.closest(".cm-foldPlaceholder")
+  );
 }
 
 function preventFoldPlaceholderMouseDown(event: Event): void {

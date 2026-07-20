@@ -1,4 +1,8 @@
-import { markdown, markdownLanguage, markdownKeymap } from "@codemirror/lang-markdown";
+import {
+  markdown,
+  markdownLanguage,
+  markdownKeymap,
+} from "@codemirror/lang-markdown";
 import { defaultKeymap, history, historyKeymap } from "@codemirror/commands";
 import { Compartment, type Extension } from "@codemirror/state";
 import { keymap } from "@codemirror/view";
@@ -113,10 +117,11 @@ function createLessonEditorLayout(
         opacity: "0",
         pointerEvents: "none",
       },
-      ".lesson-fold-gutter.lesson-fold-gutter-column-hovered span.lesson-fold-open": {
-        opacity: "1",
-        pointerEvents: "none",
-      },
+      ".lesson-fold-gutter.lesson-fold-gutter-column-hovered span.lesson-fold-open":
+        {
+          opacity: "1",
+          pointerEvents: "none",
+        },
       ".lesson-fold-gutter span.lesson-fold-closed": {
         opacity: "1",
         pointerEvents: "auto",
@@ -155,7 +160,6 @@ const lessonVscodeDark = vscodeDarkInit({
     selection: LESSON_EDITOR_SELECTION_BG,
   },
 });
-
 
 function createLessonMarkdownFold(enableFolding: boolean) {
   if (!enableFolding) return foldService.of(() => null);

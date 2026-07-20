@@ -1,8 +1,11 @@
 # ebex-workspace-data Specification
 
 ## Purpose
+
 TBD - created by archiving change ebex-v1-workspace. Update Purpose after archive.
+
 ## Requirements
+
 ### Requirement: workspace 読み込み API
 
 `GET /api/workspace/load` エンドポイントが存在し、`workspace/` 直下の全プロジェクトフォルダと **各フォルダ配下の再帰ツリー**（サブフォルダ・ファイル）を返さなければならない（SHALL）。応答の各ノードは `name`・`path`（`workspace/` からの相対フォルダパス）・`files`（直下ファイル basename 配列）・`children`（子フォルダノード配列）を含まなければならない（SHALL）。`session.json` は応答に含めてはならない（MUST NOT）。`hasSubfolders` フラグは返してはならない（MUST NOT）。
@@ -317,4 +320,3 @@ TBD - created by archiving change ebex-v1-workspace. Update Purpose after archiv
 
 - **WHEN** `folderPath: "demo/sub"` のみで API を呼び出す
 - **THEN** OS のファイルマネージャが当該フォルダを開く
-

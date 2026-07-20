@@ -72,7 +72,9 @@ export function isPlaceholderSessionTitle(
   return title === deriveSessionTitle(trimmed);
 }
 
-export function createEmptySession(now = new Date().toISOString()): AgentChatSession {
+export function createEmptySession(
+  now = new Date().toISOString(),
+): AgentChatSession {
   return {
     id: createSessionId(),
     title: DEFAULT_SESSION_TITLE,
@@ -92,13 +94,17 @@ export function createInitialStorage(): AgentChatStorage {
   };
 }
 
-function sortSessionsByUpdatedAt(sessions: AgentChatSession[]): AgentChatSession[] {
+function sortSessionsByUpdatedAt(
+  sessions: AgentChatSession[],
+): AgentChatSession[] {
   return [...sessions].sort(
     (a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime(),
   );
 }
 
-export function enforceSessionLimit(sessions: AgentChatSession[]): AgentChatSession[] {
+export function enforceSessionLimit(
+  sessions: AgentChatSession[],
+): AgentChatSession[] {
   if (sessions.length <= MAX_AGENT_CHAT_SESSIONS) return sessions;
   const sorted = sortSessionsByUpdatedAt(sessions);
   return sorted.slice(0, MAX_AGENT_CHAT_SESSIONS);
@@ -107,7 +113,11 @@ export function enforceSessionLimit(sessions: AgentChatSession[]): AgentChatSess
 export function parseAgentChatStorage(raw: unknown): AgentChatStorage | null {
   if (!raw || typeof raw !== "object") return null;
   const parsed = raw as AgentChatStorage;
-  if (parsed.version !== 1 || !parsed.activeSessionId || !Array.isArray(parsed.sessions)) {
+  if (
+    parsed.version !== 1 ||
+    !parsed.activeSessionId ||
+    !Array.isArray(parsed.sessions)
+  ) {
     return null;
   }
   const sessions = enforceSessionLimit(parsed.sessions);
@@ -213,13 +223,19 @@ export function ensureAgentChatStorage(): AgentChatStorage {
   return initial;
 }
 
-export function getActiveSession(storage: AgentChatStorage): AgentChatSession | undefined {
-  return storage.sessions.find((session) => session.id === storage.activeSessionId);
+export function getActiveSession(
+  storage: AgentChatStorage,
+): AgentChatSession | undefined {
+  return storage.sessions.find(
+    (session) => session.id === storage.activeSessionId,
+  );
 }
 
 export function updateActiveSession(
   storage: AgentChatStorage,
-  updates: Partial<Pick<AgentChatSession, "messages" | "activeSkillId" | "title">>,
+  updates: Partial<
+    Pick<AgentChatSession, "messages" | "activeSkillId" | "title">
+  >,
 ): AgentChatStorage {
   const now = new Date().toISOString();
   const sessions = storage.sessions.map((session) => {
@@ -250,8 +266,12 @@ function enforceStorage(storage: AgentChatStorage): AgentChatStorage {
   return { version: 1, activeSessionId, sessions };
 }
 
-export function switchSession(storage: AgentChatStorage, sessionId: string): AgentChatStorage {
-  if (!storage.sessions.some((session) => session.id === sessionId)) return storage;
+export function switchSession(
+  storage: AgentChatStorage,
+  sessionId: string,
+): AgentChatStorage {
+  if (!storage.sessions.some((session) => session.id === sessionId))
+    return storage;
   return { ...storage, activeSessionId: sessionId };
 }
 
@@ -279,18 +299,27 @@ export function updateSessionTitle(
   return { ...storage, sessions: enforceSessionLimit(sessions) };
 }
 
-export function deleteSession(storage: AgentChatStorage, sessionId: string): AgentChatStorage {
-  const remaining = storage.sessions.filter((session) => session.id !== sessionId);
+export function deleteSession(
+  storage: AgentChatStorage,
+  sessionId: string,
+): AgentChatStorage {
+  const remaining = storage.sessions.filter(
+    (session) => session.id !== sessionId,
+  );
   if (remaining.length === 0) {
     const fresh = createEmptySession();
     return { version: 1, activeSessionId: fresh.id, sessions: [fresh] };
   }
   const activeSessionId =
-    storage.activeSessionId === sessionId ? remaining[0].id : storage.activeSessionId;
+    storage.activeSessionId === sessionId
+      ? remaining[0].id
+      : storage.activeSessionId;
   return enforceStorage({ version: 1, activeSessionId, sessions: remaining });
 }
 
-export function listSessionsSorted(storage: AgentChatStorage): AgentChatSession[] {
+export function listSessionsSorted(
+  storage: AgentChatStorage,
+): AgentChatSession[] {
   return sortSessionsByUpdatedAt(storage.sessions);
 }
 
@@ -320,7 +349,12 @@ function messageTimestampFromId(id: string): string | null {
 }
 
 export function exportSessionAsMarkdown(session: AgentChatSession): string {
-  const lines = [`# ${session.title}`, "", `Exported: ${new Date().toISOString()}`, ""];
+  const lines = [
+    `# ${session.title}`,
+    "",
+    `Exported: ${new Date().toISOString()}`,
+    "",
+  ];
   for (const message of session.messages) {
     const heading = message.role === "user" ? "## User" : "## Assistant";
     lines.push(heading, "", message.content, "");

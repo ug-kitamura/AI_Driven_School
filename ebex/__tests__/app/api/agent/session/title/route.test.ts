@@ -54,7 +54,8 @@ describe("POST /api/agent/session/title", () => {
   it("returns provider error status", async () => {
     vi.mocked(generateSessionTitle).mockResolvedValue({
       ok: false,
-      error: "AI API キーを設定（歯車）するか、サーバーに AI_API_KEY を設定してください",
+      error:
+        "AI API キーを設定（歯車）するか、サーバーに AI_API_KEY を設定してください",
       status: 401,
     });
 

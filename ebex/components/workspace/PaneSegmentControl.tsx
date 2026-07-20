@@ -39,7 +39,9 @@ export function PaneSegmentControl<T extends string>({
             <button
               key={option.value}
               type="button"
-              aria-label={showIconOnly ? (option.ariaLabel ?? option.label) : undefined}
+              aria-label={
+                showIconOnly ? (option.ariaLabel ?? option.label) : undefined
+              }
               title={showIconOnly ? option.label : undefined}
               onClick={() => onChange(option.value)}
               className={cn(
@@ -72,7 +74,9 @@ export function PaneSegmentControl<T extends string>({
           <button
             key={option.value}
             type="button"
-            aria-label={showIconOnly ? (option.ariaLabel ?? option.label) : undefined}
+            aria-label={
+              showIconOnly ? (option.ariaLabel ?? option.label) : undefined
+            }
             title={showIconOnly ? option.label : undefined}
             onClick={() => onChange(option.value)}
             className={cn(

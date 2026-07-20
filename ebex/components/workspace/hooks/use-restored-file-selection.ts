@@ -46,8 +46,5 @@ export function useRestoredFileSelection(folders: WorkspaceTreeNode[]) {
     () => EMPTY_SNAPSHOT,
   );
 
-  return useMemo(
-    () => parseRestoredSelectionKey(snapshotKey),
-    [snapshotKey],
-  );
+  return useMemo(() => parseRestoredSelectionKey(snapshotKey), [snapshotKey]);
 }

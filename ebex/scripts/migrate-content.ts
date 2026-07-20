@@ -12,12 +12,24 @@ const __dirname = path.dirname(__filename);
 const ROOT = path.resolve(__dirname, "..");
 const CONTENTS_DIR = path.join(ROOT, "contents");
 
-const OLD_META_FILES = ["_series-order.json", "_course-order.json", "_lesson-order.json", "_mandala.json", "_meta.json"];
+const OLD_META_FILES = [
+  "_series-order.json",
+  "_course-order.json",
+  "_lesson-order.json",
+  "_mandala.json",
+  "_meta.json",
+];
 
 function ask(question: string): Promise<string> {
-  const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
+  const rl = readline.createInterface({
+    input: process.stdin,
+    output: process.stdout,
+  });
   return new Promise((resolve) => {
-    rl.question(question, (answer) => { rl.close(); resolve(answer); });
+    rl.question(question, (answer) => {
+      rl.close();
+      resolve(answer);
+    });
   });
 }
 
@@ -27,12 +39,22 @@ function stripPrefix(name: string): string {
 
 function readJson(filePath: string): Record<string, unknown> {
   if (!fs.existsSync(filePath)) return {};
-  try { return JSON.parse(fs.readFileSync(filePath, "utf-8")) as Record<string, unknown>; }
-  catch { return {}; }
+  try {
+    return JSON.parse(fs.readFileSync(filePath, "utf-8")) as Record<
+      string,
+      unknown
+    >;
+  } catch {
+    return {};
+  }
 }
 
 function writeMetaJson(dir: string, data: Record<string, unknown>): void {
-  fs.writeFileSync(path.join(dir, ".meta.json"), JSON.stringify(data, null, 2), "utf-8");
+  fs.writeFileSync(
+    path.join(dir, ".meta.json"),
+    JSON.stringify(data, null, 2),
+    "utf-8",
+  );
 }
 
 function numericSort(a: string, b: string): number {
@@ -47,14 +69,17 @@ async function main() {
     process.exit(1);
   }
 
-  const answer = await ask("contents/ フォルダをプレフィックスなし形式に変換しますか？ (y/N): ");
+  const answer = await ask(
+    "contents/ フォルダをプレフィックスなし形式に変換しますか？ (y/N): ",
+  );
   if (answer.toLowerCase() !== "y") {
     console.log("キャンセルしました");
     process.exit(0);
   }
 
   // ===== シリーズ処理 =====
-  const seriesDirs = fs.readdirSync(CONTENTS_DIR, { withFileTypes: true })
+  const seriesDirs = fs
+    .readdirSync(CONTENTS_DIR, { withFileTypes: true })
     .filter((e) => e.isDirectory())
     .map((e) => e.name)
     .sort(numericSort);
@@ -73,7 +98,8 @@ async function main() {
     seriesOrder.push(newSeriesName);
 
     // ===== コース処理 =====
-    const courseDirs = fs.readdirSync(newSeriesPath, { withFileTypes: true })
+    const courseDirs = fs
+      .readdirSync(newSeriesPath, { withFileTypes: true })
       .filter((e) => e.isDirectory())
       .map((e) => e.name)
       .sort(numericSort);
@@ -92,7 +118,8 @@ async function main() {
       courseOrder.push(newCourseName);
 
       // ===== レッスン処理 =====
-      const lessonFiles = fs.readdirSync(newCoursePath)
+      const lessonFiles = fs
+        .readdirSync(newCoursePath)
         .filter((f) => f.endsWith(".md"))
         .sort(numericSort);
 
@@ -115,8 +142,11 @@ async function main() {
       const mandala = readJson(path.join(newCoursePath, "_mandala.json"));
 
       const target =
-        typeof existingMeta.target === "string" ? existingMeta.target :
-        typeof existingMeta.target_audience === "string" ? existingMeta.target_audience : "";
+        typeof existingMeta.target === "string"
+          ? existingMeta.target
+          : typeof existingMeta.target_audience === "string"
+            ? existingMeta.target_audience
+            : "";
       const prerequisites = Array.isArray(existingMeta.prerequisites)
         ? existingMeta.prerequisites
         : Array.isArray(mandala.prerequisites)
@@ -128,12 +158,19 @@ async function main() {
           ? mandala.next_courses
           : [];
 
-      writeMetaJson(newCoursePath, { order: lessonOrder, target, prerequisites, next_courses });
+      writeMetaJson(newCoursePath, {
+        order: lessonOrder,
+        target,
+        prerequisites,
+        next_courses,
+      });
 
       // 旧ファイル削除
       for (const oldFile of OLD_META_FILES) {
         const p = path.join(newCoursePath, oldFile);
-        if (fs.existsSync(p)) { fs.unlinkSync(p); }
+        if (fs.existsSync(p)) {
+          fs.unlinkSync(p);
+        }
       }
     }
 
@@ -143,7 +180,9 @@ async function main() {
     // 旧ファイル削除
     for (const oldFile of OLD_META_FILES) {
       const p = path.join(newSeriesPath, oldFile);
-      if (fs.existsSync(p)) { fs.unlinkSync(p); }
+      if (fs.existsSync(p)) {
+        fs.unlinkSync(p);
+      }
     }
   }
 
@@ -153,7 +192,9 @@ async function main() {
   // contents/ 直下の旧ファイル削除
   for (const oldFile of OLD_META_FILES) {
     const p = path.join(CONTENTS_DIR, oldFile);
-    if (fs.existsSync(p)) { fs.unlinkSync(p); }
+    if (fs.existsSync(p)) {
+      fs.unlinkSync(p);
+    }
   }
 
   console.log(`\n移行完了: ${seriesOrder.length} シリーズを変換しました`);

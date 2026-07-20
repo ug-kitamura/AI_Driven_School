@@ -1,5 +1,9 @@
 import { z } from "zod";
-import { jsonError, parseJsonBody, renameFolder } from "@/lib/workspace-mutations";
+import {
+  jsonError,
+  parseJsonBody,
+  renameFolder,
+} from "@/lib/workspace-mutations";
 import {
   AGENT_BUSY_FOLDER_ERROR,
   isAgentLockedProjectFolder,

@@ -1,7 +1,4 @@
-import type {
-  AgentLogicalTurn,
-  LlmContentBlock,
-} from "@/lib/agent/llm/types";
+import type { AgentLogicalTurn, LlmContentBlock } from "@/lib/agent/llm/types";
 
 export type InvokeChatMessage = {
   role: "user" | "assistant";
@@ -21,7 +18,10 @@ export type InvokeChatMessage = {
 };
 
 function appendLogicalTurns(
-  llmMessages: Array<{ role: "user" | "assistant"; content: string | LlmContentBlock[] }>,
+  llmMessages: Array<{
+    role: "user" | "assistant";
+    content: string | LlmContentBlock[];
+  }>,
   turns: AgentLogicalTurn[],
 ): void {
   for (const turn of turns) {
@@ -58,7 +58,10 @@ function appendLogicalTurns(
 
 /** 旧形式: toolEvents を1ブロックに潰す（互換フォールバック） */
 function appendLegacyToolEvents(
-  llmMessages: Array<{ role: "user" | "assistant"; content: string | LlmContentBlock[] }>,
+  llmMessages: Array<{
+    role: "user" | "assistant";
+    content: string | LlmContentBlock[];
+  }>,
   message: InvokeChatMessage,
 ): void {
   const toolEvents = message.toolEvents ?? [];
@@ -101,8 +104,10 @@ function appendLegacyToolEvents(
 }
 
 export function clientMessagesToLlmMessages(messages: InvokeChatMessage[]) {
-  const llmMessages: Array<{ role: "user" | "assistant"; content: string | LlmContentBlock[] }> =
-    [];
+  const llmMessages: Array<{
+    role: "user" | "assistant";
+    content: string | LlmContentBlock[];
+  }> = [];
 
   for (const message of messages) {
     if (message.role === "user") {

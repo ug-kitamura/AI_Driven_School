@@ -24,11 +24,11 @@ Git の commit から push までを
 5. **挿入** → 正本 `images/<file>` へ promote + カーソル位置に `![短い alt](images/<file>)` を追加（コメントは残す）
 6. **削除** → 正本・staging とも `images/trash/<file>` へ move（Markdown 参照は残る — 確認ダイアログあり）
 
-| タブ | staging | promote 先 |
-|---|---|---|
-| UP | `images/uploaded/` | `images/` |
-| AI | `images/ai/` | `images/` |
-| Web | `images/web/` | `images/` |
+| タブ | staging            | promote 先 |
+| ---- | ------------------ | ---------- |
+| UP   | `images/uploaded/` | `images/`  |
+| AI   | `images/ai/`       | `images/`  |
+| Web  | `images/web/`      | `images/`  |
 
 ### UP タブ（MP4 ショート録画）
 

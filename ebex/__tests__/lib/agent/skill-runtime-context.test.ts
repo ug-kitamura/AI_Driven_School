@@ -88,10 +88,7 @@ describe("buildSkillRuntimeContext", () => {
       path.join(skillDir, "references", "base.html"),
       "<html></html>",
     );
-    fs.writeFileSync(
-      path.join(skillDir, "references", "style.css"),
-      "body{}",
-    );
+    fs.writeFileSync(path.join(skillDir, "references", "style.css"), "body{}");
 
     const text = buildSkillRuntimeContext({
       projectFolderId: "demo",
@@ -237,13 +234,15 @@ describe("scanSkillFrameCandidates", () => {
 
     const limited = scanSkillFrameCandidates(skillDir, FRAME_CANDIDATE_LIMIT);
     expect(limited).toHaveLength(FRAME_CANDIDATE_LIMIT);
-    expect(limited.map((c) => c.relativePath)).toEqual([
-      "references/a.html",
-      "references/b.css",
-      "references/c.svg",
-      "templates/d.html",
-      "templates/e.html",
-    ].slice(0, FRAME_CANDIDATE_LIMIT));
+    expect(limited.map((c) => c.relativePath)).toEqual(
+      [
+        "references/a.html",
+        "references/b.css",
+        "references/c.svg",
+        "templates/d.html",
+        "templates/e.html",
+      ].slice(0, FRAME_CANDIDATE_LIMIT),
+    );
 
     // 特定スキル名・特定ファイル名への分岐がないこと（汎用規則のみ）
     expect(scanSkillFrameCandidates.toString()).not.toMatch(

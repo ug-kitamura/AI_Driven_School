@@ -75,12 +75,18 @@ type StoredPaneWidths = Pick<WorkspacePaneWidths, "pane1" | "pane3">;
 
 function loadPaneDefaultsFromSettings(): StoredPaneWidths {
   if (typeof window === "undefined") {
-    return { pane1: PANE_WIDTH_DEFAULTS.pane1, pane3: PANE_WIDTH_DEFAULTS.pane3 };
+    return {
+      pane1: PANE_WIDTH_DEFAULTS.pane1,
+      pane3: PANE_WIDTH_DEFAULTS.pane3,
+    };
   }
   try {
     const raw = localStorage.getItem(SETTINGS_STORAGE_KEY);
     if (!raw) {
-      return { pane1: PANE_WIDTH_DEFAULTS.pane1, pane3: PANE_WIDTH_DEFAULTS.pane3 };
+      return {
+        pane1: PANE_WIDTH_DEFAULTS.pane1,
+        pane3: PANE_WIDTH_DEFAULTS.pane3,
+      };
     }
     const parsed = JSON.parse(raw) as {
       paneDefaults?: Partial<WorkspacePaneWidths & { pane4?: number }>;
@@ -91,7 +97,10 @@ function loadPaneDefaultsFromSettings(): StoredPaneWidths {
       pane3: clampPaneWidth("pane3", d?.pane3 ?? PANE_WIDTH_DEFAULTS.pane3),
     };
   } catch {
-    return { pane1: PANE_WIDTH_DEFAULTS.pane1, pane3: PANE_WIDTH_DEFAULTS.pane3 };
+    return {
+      pane1: PANE_WIDTH_DEFAULTS.pane1,
+      pane3: PANE_WIDTH_DEFAULTS.pane3,
+    };
   }
 }
 
@@ -110,7 +119,9 @@ function mainRowHandleCount(): number {
   return 2;
 }
 
-function shrinkOrderFor(input: FitPaneLayoutInput): (keyof WorkspacePaneWidths)[] {
+function shrinkOrderFor(
+  input: FitPaneLayoutInput,
+): (keyof WorkspacePaneWidths)[] {
   if (input.expandPane) {
     return PANE_SHRINK_ORDER_WHEN_EXPAND[input.expandPane];
   }
@@ -201,7 +212,9 @@ export function snapPaneWidth(
   );
 }
 
-export function snapPaneWidths(widths: WorkspacePaneWidths): WorkspacePaneWidths {
+export function snapPaneWidths(
+  widths: WorkspacePaneWidths,
+): WorkspacePaneWidths {
   return {
     ...widths,
     pane1: snapPaneWidth("pane1", widths.pane1),

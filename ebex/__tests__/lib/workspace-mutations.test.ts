@@ -168,7 +168,9 @@ describe("workspace mutations", () => {
     createFolder(tmpDir, "proj");
     createFile(tmpDir, "proj", "doc.md", "v1");
     saveFile(tmpDir, "proj", "doc.md", "v2");
-    expect(readFileContent(tmpDir, "proj", "doc.md")).toEqual({ content: "v2" });
+    expect(readFileContent(tmpDir, "proj", "doc.md")).toEqual({
+      content: "v2",
+    });
   });
 
   it("moves file across folders", () => {
@@ -177,9 +179,10 @@ describe("workspace mutations", () => {
     createSubFolder(tmpDir, "demo", "from");
     createSubFolder(tmpDir, "demo", "to");
     createFile(tmpDir, "demo/from", "notes.md", "hello");
-    expect(
-      moveFile(tmpDir, "demo/from", "notes.md", "demo/to"),
-    ).toEqual({ ok: true, newName: "notes.md" });
+    expect(moveFile(tmpDir, "demo/from", "notes.md", "demo/to")).toEqual({
+      ok: true,
+      newName: "notes.md",
+    });
     expect(readFileContent(tmpDir, "demo/to", "notes.md")).toEqual({
       content: "hello",
     });
@@ -209,9 +212,10 @@ describe("workspace mutations", () => {
     tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "ebex-ws-"));
     createFolder(tmpDir, "demo");
     createFile(tmpDir, "demo", "test.md", "v1");
-    expect(
-      createFile(tmpDir, "demo", "test.md", "v2", "auto-rename"),
-    ).toEqual({ ok: true, fileName: "test-2.md" });
+    expect(createFile(tmpDir, "demo", "test.md", "v2", "auto-rename")).toEqual({
+      ok: true,
+      fileName: "test-2.md",
+    });
     expect(readFileContent(tmpDir, "demo", "test-2.md")).toEqual({
       content: "v2",
     });

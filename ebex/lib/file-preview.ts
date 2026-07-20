@@ -1,5 +1,73 @@
 export type PreviewMode = "edit" | "preview";
 
+const PREVIEW_FIRST_EXTENSIONS = new Set(["html", "htm", "csv", "vtt"]);
+
+/** `edit-preview` 対象ファイルの初期表示モード（閲覧主目的の拡張子は Preview） */
+export function resolveInitialViewMode(fileName: string): PreviewMode {
+  return PREVIEW_FIRST_EXTENSIONS.has(fileExtension(fileName))
+    ? "preview"
+    : "edit";
+}
+
+/** Markdown プレビュー内リンクの分類結果 */
+export type MarkdownLinkAction =
+  | { type: "anchor"; id: string }
+  | { type: "open-file"; folderPath: string; fileName: string }
+  | { type: "copy-external"; url: string }
+  | { type: "blocked" };
+
+/**
+ * Markdown プレビュー内リンクを分類する。
+ * 相対パスは表示中ファイルのフォルダ（workspace 相対、例: `demo/docs`）基準で
+ * 正規化し、同一プロジェクトフォルダ内に収まる場合のみ open-file にする。
+ */
+export function resolveMarkdownLink(
+  href: string,
+  currentFolderPath: string,
+): MarkdownLinkAction {
+  if (!href) return { type: "blocked" };
+
+  if (href.startsWith("#")) {
+    const id = decodeURIComponent(href.slice(1));
+    return id ? { type: "anchor", id } : { type: "blocked" };
+  }
+
+  if (/^https?:\/\//i.test(href)) {
+    return { type: "copy-external", url: href };
+  }
+
+  // mailto: / javascript: / data: などのスキーム、および絶対パスは無効
+  if (/^[a-z][a-z0-9+.-]*:/i.test(href) || href.startsWith("/")) {
+    return { type: "blocked" };
+  }
+
+  const withoutFragment = href.split("#")[0]?.split("?")[0] ?? "";
+  if (!withoutFragment) return { type: "blocked" };
+
+  const segments = currentFolderPath.split("/").filter(Boolean);
+  const projectFolder = segments[0];
+  if (!projectFolder) return { type: "blocked" };
+
+  const resolved = [...segments];
+  for (const part of decodeURIComponent(withoutFragment).split("/")) {
+    if (!part || part === ".") continue;
+    if (part === "..") {
+      if (resolved.length === 0) return { type: "blocked" };
+      resolved.pop();
+      continue;
+    }
+    resolved.push(part);
+  }
+
+  if (resolved.length < 2 || resolved[0] !== projectFolder) {
+    return { type: "blocked" };
+  }
+
+  const fileName = resolved[resolved.length - 1];
+  const folderPath = resolved.slice(0, -1).join("/");
+  return { type: "open-file", folderPath, fileName };
+}
+
 /** Pane 2 の表示モード */
 export type Pane2Mode =
   | "edit-preview"
@@ -102,7 +170,9 @@ export function contentTypeForExtension(ext: string): string | null {
   }
 }
 
-export function parseVtt(content: string): Array<{ time: string; text: string }> {
+export function parseVtt(
+  content: string,
+): Array<{ time: string; text: string }> {
   const cues: Array<{ time: string; text: string }> = [];
   const blocks = content.split(/\n\n+/);
   for (const block of blocks) {
@@ -110,7 +180,10 @@ export function parseVtt(content: string): Array<{ time: string; text: string }>
     if (lines.length < 2) continue;
     const timeLine = lines.find((l) => l.includes("-->"));
     if (!timeLine) continue;
-    const text = lines.slice(lines.indexOf(timeLine) + 1).join("\n").trim();
+    const text = lines
+      .slice(lines.indexOf(timeLine) + 1)
+      .join("\n")
+      .trim();
     if (text) cues.push({ time: timeLine.trim(), text });
   }
   return cues;
@@ -131,7 +204,10 @@ export function formatStructuredPreview(
 ): { formatted: string; error: string | null } {
   try {
     if (ext === "json") {
-      return { formatted: JSON.stringify(JSON.parse(content), null, 2), error: null };
+      return {
+        formatted: JSON.stringify(JSON.parse(content), null, 2),
+        error: null,
+      };
     }
     if (ext === "yml" || ext === "yaml") {
       return { formatted: content, error: null };

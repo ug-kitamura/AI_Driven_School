@@ -2,10 +2,7 @@ import { execFile } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 import { promisify } from "node:util";
-import {
-  resolveFilePath,
-  resolveFolderPath,
-} from "@/lib/workspace-paths";
+import { resolveFilePath, resolveFolderPath } from "@/lib/workspace-paths";
 
 const execFileAsync = promisify(execFile);
 
@@ -137,11 +134,7 @@ export async function revealTargetInOs(
   }
 
   const platform = options?.platform ?? process.platform;
-  const command = buildRevealCommand(
-    resolved.absolutePath,
-    isFile,
-    platform,
-  );
+  const command = buildRevealCommand(resolved.absolutePath, isFile, platform);
   const runner = options?.runner ?? defaultRunner;
 
   try {

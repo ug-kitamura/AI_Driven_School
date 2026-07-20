@@ -28,18 +28,21 @@ const CODE_EXTENSIONS = new Set([
   ".tsx",
   ".js",
   ".jsx",
+  ".mjs",
   ".py",
   ".go",
   ".rs",
   ".groovy",
   ".bat",
   ".sh",
+  ".ps1",
   ".json",
   ".yml",
   ".yaml",
   ".xml",
   ".html",
   ".htm",
+  ".css",
 ]);
 const TABLE_EXTENSIONS = new Set([".csv", ".xlsx", ".xls"]);
 const IMAGE_EXTENSIONS = new Set([".png", ".jpg", ".jpeg", ".svg", ".webp"]);

@@ -2,7 +2,10 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
-import { favoriteKey } from "@/lib/workspace-favorites";
+import {
+  favoriteKey,
+  listFavoritesUnderFolder,
+} from "@/lib/workspace-favorites";
 import {
   readFavorites,
   remapFavoritesOnFolderRename,
@@ -156,6 +159,28 @@ describe("workspace-favorites", () => {
     expect(favoriteKey({ folderPath: "demo/sub", fileName: "notes.md" })).toBe(
       "demo/sub/notes.md",
     );
+  });
+
+  it("lists favorites under a folder (self and descendants only)", () => {
+    const favorites = [
+      { folderPath: "demo", fileName: "top.md" },
+      { folderPath: "demo/sub", fileName: "notes.md" },
+      { folderPath: "demo/sub/inner", fileName: "deep.md" },
+      { folderPath: "demo-suffix", fileName: "other.md" },
+      { folderPath: "other", fileName: "x.md" },
+    ];
+
+    expect(listFavoritesUnderFolder(favorites, "demo/sub")).toEqual([
+      { folderPath: "demo/sub", fileName: "notes.md" },
+      { folderPath: "demo/sub/inner", fileName: "deep.md" },
+    ]);
+    // 前方一致の誤検知（demo-suffix）を含まない
+    expect(listFavoritesUnderFolder(favorites, "demo")).toEqual([
+      { folderPath: "demo", fileName: "top.md" },
+      { folderPath: "demo/sub", fileName: "notes.md" },
+      { folderPath: "demo/sub/inner", fileName: "deep.md" },
+    ]);
+    expect(listFavoritesUnderFolder(favorites, "")).toEqual([]);
   });
 
   it("updates favorites when mutations rename or delete files", () => {

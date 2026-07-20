@@ -1,8 +1,11 @@
 # ebex-editor-preview Specification
 
 ## Purpose
+
 Pane 2 のファイル種別モード解決、編集／プレビュー／閲覧表示、自動保存に関する仕様。
+
 ## Requirements
+
 ### Requirement: ファイル種別モード解決
 
 Pane 2 は選択中ファイルの拡張子から表示モードを解決しなければならない（SHALL）。モードは次のいずれかでなければならない（SHALL）: `edit-preview`（Edit|Preview タブ）、`edit-only`（編集のみ・タブなし）、`view-only`（閲覧のみ・タブなし）。
@@ -246,4 +249,3 @@ Pane 2 でセンチネル `fileName` が `no file` の選択が有効なとき�
 
 - **WHEN** ファイルも `no file` も選択されていない
 - **THEN** 既存の未選択空状態（ファイル選択を促すメッセージ）が表示され、`no file` 専用表示にはならない
-

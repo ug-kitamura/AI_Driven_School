@@ -11,11 +11,7 @@ const GROUP_GAP_Y = "gap-y-4";
 export const META_DIALOG_FIELD = cn("flex min-w-0 flex-col", LABEL_VALUE_GAP);
 
 /** 複数属性の 2 列レイアウト（コースメタなど） */
-export const META_DIALOG_GRID = cn(
-  "grid grid-cols-2",
-  "gap-x-4",
-  GROUP_GAP_Y,
-);
+export const META_DIALOG_GRID = cn("grid grid-cols-2", "gap-x-4", GROUP_GAP_Y);
 
 /** 1 列レイアウト（レッスンメタなど） */
 export const META_DIALOG_STACK = cn("flex flex-col", GROUP_GAP_Y);

@@ -1,8 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import {
-  LEGACY_STORAGE_KEYS,
-  STORAGE_KEYS,
-} from "@/lib/storage-keys";
+import { LEGACY_STORAGE_KEYS, STORAGE_KEYS } from "@/lib/storage-keys";
 import { migrateLocalStorageIfNeeded } from "@/lib/storage-migration";
 
 describe("migrateLocalStorageIfNeeded", () => {
@@ -34,7 +31,9 @@ describe("migrateLocalStorageIfNeeded", () => {
 
     migrateLocalStorageIfNeeded();
 
-    expect(localStorage.getItem(STORAGE_KEYS.settings)).toBe('{"theme":"light"}');
+    expect(localStorage.getItem(STORAGE_KEYS.settings)).toBe(
+      '{"theme":"light"}',
+    );
   });
 
   it("migrates all paired keys independently", () => {
@@ -58,6 +57,8 @@ describe("migrateLocalStorageIfNeeded", () => {
     migrateLocalStorageIfNeeded();
     migrateLocalStorageIfNeeded();
 
-    expect(localStorage.getItem(STORAGE_KEYS.settings)).toBe('{"theme":"system"}');
+    expect(localStorage.getItem(STORAGE_KEYS.settings)).toBe(
+      '{"theme":"system"}',
+    );
   });
 });

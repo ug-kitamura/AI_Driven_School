@@ -53,11 +53,7 @@ export function appendDiagnosticsRecord(
     /* フォールバックへ */
   }
   try {
-    fs.appendFileSync(
-      path.join(projectRoot, "diagnostics.log"),
-      line,
-      "utf-8",
-    );
+    fs.appendFileSync(path.join(projectRoot, "diagnostics.log"), line, "utf-8");
   } catch {
     /* 記録失敗は握りつぶす（診断は本体動作を妨げない） */
   }
@@ -168,9 +164,7 @@ function existsCaseInsensitive(absolutePath: string): boolean {
   const parent = path.dirname(absolutePath);
   const name = path.basename(absolutePath).toLowerCase();
   try {
-    return fs
-      .readdirSync(parent)
-      .some((entry) => entry.toLowerCase() === name);
+    return fs.readdirSync(parent).some((entry) => entry.toLowerCase() === name);
   } catch {
     return false;
   }
@@ -207,6 +201,9 @@ export function diagnoseRenameFailure(
     probeTruncated: probe.probeTruncated,
     controlTest: runControlRenameTest(path.dirname(params.fromAbsolutePath)),
   };
-  appendDiagnosticsRecord(projectRoot, record as unknown as Record<string, unknown>);
+  appendDiagnosticsRecord(
+    projectRoot,
+    record as unknown as Record<string, unknown>,
+  );
   return record;
 }

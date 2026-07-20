@@ -1,8 +1,11 @@
 # ebex-agent-files Specification
 
 ## Purpose
+
 Agent の `@` 参照・ファイル一覧・許可パス。
+
 ## Requirements
+
 ### Requirement: フォルダ内ファイル一覧 API
 
 `GET /api/agent/files?folderId={projectFolderId}` エンドポイントが存在し、当該 **プロジェクトフォルダ配下を再帰走査** したユーザーファイル（`session.json` 除外）の一覧を返さなければならない（SHALL）。各エントリの `path` はプロジェクトフォルダルートからの相対パス（例: `sub/notes.md`）としなければならない（SHALL）。`name` は basename としなければならない（SHALL）。`current` クエリパラメータは `path` 形式（例: `sub/notes.md`）で指定でき、一致するエントリを先頭に、残りを path の辞書順で返さなければならない（SHALL）。

@@ -14,6 +14,9 @@ describe("resolveFileIconCategory", () => {
     expect(resolveFileIconCategory("notes.md")).toBe("text");
     expect(resolveFileIconCategory("page.html")).toBe("code");
     expect(resolveFileIconCategory("index.htm")).toBe("code");
+    expect(resolveFileIconCategory("styles.css")).toBe("code");
+    expect(resolveFileIconCategory("build.ps1")).toBe("code");
+    expect(resolveFileIconCategory("helper.mjs")).toBe("code");
     expect(resolveFileIconCategory("app.ts")).toBe("code");
     expect(resolveFileIconCategory("App.tsx")).toBe("code");
     expect(resolveFileIconCategory("page.jsx")).toBe("code");
@@ -46,12 +49,24 @@ describe("resolveFileIconCategory", () => {
 
 describe("getFileIconColorClass", () => {
   it("uses chart-1 with higher dark-mode contrast for every file category", () => {
-    expect(getFileIconColorClass("text")).toBe("text-chart-1/60 dark:text-chart-1");
-    expect(getFileIconColorClass("code")).toBe("text-chart-1/60 dark:text-chart-1");
-    expect(getFileIconColorClass("image")).toBe("text-chart-1/60 dark:text-chart-1");
-    expect(getFileIconColorClass("secret")).toBe("text-chart-1/60 dark:text-chart-1");
-    expect(getFileIconColorClass("zip")).toBe("text-chart-1/60 dark:text-chart-1");
-    expect(getFileIconColorClass("other")).toBe("text-chart-1/60 dark:text-chart-1");
+    expect(getFileIconColorClass("text")).toBe(
+      "text-chart-1/60 dark:text-chart-1",
+    );
+    expect(getFileIconColorClass("code")).toBe(
+      "text-chart-1/60 dark:text-chart-1",
+    );
+    expect(getFileIconColorClass("image")).toBe(
+      "text-chart-1/60 dark:text-chart-1",
+    );
+    expect(getFileIconColorClass("secret")).toBe(
+      "text-chart-1/60 dark:text-chart-1",
+    );
+    expect(getFileIconColorClass("zip")).toBe(
+      "text-chart-1/60 dark:text-chart-1",
+    );
+    expect(getFileIconColorClass("other")).toBe(
+      "text-chart-1/60 dark:text-chart-1",
+    );
   });
 });
 

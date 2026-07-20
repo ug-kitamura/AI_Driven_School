@@ -8,7 +8,11 @@ import {
   orderWorkspaceFilesForPicker,
   resolveAttachmentsForMessage,
 } from "@/lib/agent/workspace-file-attachments";
-import { createFile, createFolder, createSubFolder } from "@/lib/workspace-mutations";
+import {
+  createFile,
+  createFolder,
+  createSubFolder,
+} from "@/lib/workspace-mutations";
 
 describe("workspace-file-attachments", () => {
   let tmpDir: string;
@@ -71,7 +75,9 @@ describe("workspace-file-attachments", () => {
   });
 
   it("prefers structured attachment paths over message tokens", () => {
-    tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "ebex-agent-attach-struct-"));
+    tmpDir = fs.mkdtempSync(
+      path.join(os.tmpdir(), "ebex-agent-attach-struct-"),
+    );
     createFolder(tmpDir, "demo");
     createSubFolder(tmpDir, "demo", "sub");
     createFile(tmpDir, "demo/sub", "notes.md", "structured content");
@@ -90,11 +96,17 @@ describe("workspace-file-attachments", () => {
   });
 
   it("falls back to message tokens when structured paths are empty", () => {
-    tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "ebex-agent-attach-fallback-"));
+    tmpDir = fs.mkdtempSync(
+      path.join(os.tmpdir(), "ebex-agent-attach-fallback-"),
+    );
     createFolder(tmpDir, "demo");
     createFile(tmpDir, "demo", "notes.md", "fallback content");
 
-    const result = resolveAttachmentsForMessage(tmpDir, "read @workspace/demo/notes.md", []);
+    const result = resolveAttachmentsForMessage(
+      tmpDir,
+      "read @workspace/demo/notes.md",
+      [],
+    );
     expect("error" in result).toBe(false);
     if ("error" in result) return;
     expect(result.attachments[0]?.content).toBe("fallback content");

@@ -13,7 +13,9 @@ describe("generate-session-title", () => {
   });
 
   it("normalizes quotes and whitespace", () => {
-    expect(normalizeSessionTitle('  "レッスン構成の相談"  ')).toBe("レッスン構成の相談");
+    expect(normalizeSessionTitle('  "レッスン構成の相談"  ')).toBe(
+      "レッスン構成の相談",
+    );
   });
 
   it("truncates generated title to 40 chars without ellipsis", () => {

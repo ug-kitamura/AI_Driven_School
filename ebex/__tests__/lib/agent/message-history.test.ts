@@ -69,7 +69,11 @@ describe("clientMessagesToLlmMessages", () => {
 
     const writeAssistant = messages[3];
     expect(writeAssistant.content).toEqual([
-      expect.objectContaining({ type: "tool_use", id: "tu_write", name: "write_file" }),
+      expect.objectContaining({
+        type: "tool_use",
+        id: "tu_write",
+        name: "write_file",
+      }),
     ]);
 
     const confirmAssistant = messages[5];

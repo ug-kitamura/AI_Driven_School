@@ -144,7 +144,9 @@ export function resolveAttachmentsForMessage(
   projectRoot: string,
   message: string,
   structuredPaths?: ReadonlyArray<string>,
-): { attachments: Array<{ path: string; content: string }> } | { error: string } {
+):
+  | { attachments: Array<{ path: string; content: string }> }
+  | { error: string } {
   const paths =
     structuredPaths && structuredPaths.length > 0
       ? [...new Set(structuredPaths.map((p) => p.replace(/\\/g, "/")))]

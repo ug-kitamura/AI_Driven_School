@@ -105,9 +105,7 @@ const ENV_ALLOWLIST = [
 ];
 
 /** allowlist 済みの継承項目 + サンドボックス専用の追加変数から env を組み立てる */
-function buildSandboxEnv(
-  extra: Record<string, string>,
-): NodeJS.ProcessEnv {
+function buildSandboxEnv(extra: Record<string, string>): NodeJS.ProcessEnv {
   // NODE_ENV は Next.js の型拡張で必須のため明示的に継承する（allowlist の対象外）
   const env: NodeJS.ProcessEnv = {
     NODE_ENV: process.env.NODE_ENV ?? "development",

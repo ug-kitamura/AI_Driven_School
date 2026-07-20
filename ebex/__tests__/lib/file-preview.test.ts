@@ -1,9 +1,97 @@
 import { describe, expect, it } from "vitest";
 import {
+  resolveInitialViewMode,
+  resolveMarkdownLink,
   resolvePane2Mode,
   resolveViewOnlyKind,
   supportsPreview,
 } from "@/lib/file-preview";
+
+describe("resolveInitialViewMode", () => {
+  it("閲覧主目的の拡張子は preview 初期", () => {
+    expect(resolveInitialViewMode("page.html")).toBe("preview");
+    expect(resolveInitialViewMode("index.HTM")).toBe("preview");
+    expect(resolveInitialViewMode("data.csv")).toBe("preview");
+    expect(resolveInitialViewMode("subs.vtt")).toBe("preview");
+  });
+
+  it("編集主目的の拡張子は edit 初期", () => {
+    expect(resolveInitialViewMode("notes.md")).toBe("edit");
+    expect(resolveInitialViewMode("config.json")).toBe("edit");
+    expect(resolveInitialViewMode("values.yml")).toBe("edit");
+    expect(resolveInitialViewMode("values.yaml")).toBe("edit");
+  });
+});
+
+describe("resolveMarkdownLink", () => {
+  const dir = "demo/docs";
+
+  it("アンカーは anchor になる", () => {
+    expect(resolveMarkdownLink("#見出し", dir)).toEqual({
+      type: "anchor",
+      id: "見出し",
+    });
+    expect(resolveMarkdownLink("#%E8%A6%8B", dir)).toEqual({
+      type: "anchor",
+      id: "見",
+    });
+  });
+
+  it("外部 URL は copy-external になる", () => {
+    expect(resolveMarkdownLink("https://example.com/a?b=1", dir)).toEqual({
+      type: "copy-external",
+      url: "https://example.com/a?b=1",
+    });
+    expect(resolveMarkdownLink("HTTP://example.com", dir)).toEqual({
+      type: "copy-external",
+      url: "HTTP://example.com",
+    });
+  });
+
+  it("プロジェクト内相対パスは open-file になる", () => {
+    expect(resolveMarkdownLink("./notes.md", dir)).toEqual({
+      type: "open-file",
+      folderPath: "demo/docs",
+      fileName: "notes.md",
+    });
+    expect(resolveMarkdownLink("../sub/deep.md", dir)).toEqual({
+      type: "open-file",
+      folderPath: "demo/sub",
+      fileName: "deep.md",
+    });
+    expect(resolveMarkdownLink("notes.md#section", dir)).toEqual({
+      type: "open-file",
+      folderPath: "demo/docs",
+      fileName: "notes.md",
+    });
+  });
+
+  it("プロジェクト外へ抜ける相対パスは blocked になる", () => {
+    expect(resolveMarkdownLink("../../other/x.md", dir)).toEqual({
+      type: "blocked",
+    });
+    expect(resolveMarkdownLink("../../../etc/passwd", dir)).toEqual({
+      type: "blocked",
+    });
+  });
+
+  it("スキーム付き・絶対パス・空 href は blocked になる", () => {
+    expect(resolveMarkdownLink("mailto:a@example.com", dir)).toEqual({
+      type: "blocked",
+    });
+    expect(resolveMarkdownLink("javascript:alert(1)", dir)).toEqual({
+      type: "blocked",
+    });
+    expect(resolveMarkdownLink("/absolute/path.md", dir)).toEqual({
+      type: "blocked",
+    });
+    expect(resolveMarkdownLink("", dir)).toEqual({ type: "blocked" });
+  });
+
+  it("プロジェクトフォルダ自体へのリンクは blocked になる", () => {
+    expect(resolveMarkdownLink("..", dir)).toEqual({ type: "blocked" });
+  });
+});
 
 describe("resolvePane2Mode", () => {
   it("maps edit-preview extensions", () => {

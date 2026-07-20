@@ -51,7 +51,9 @@ export function buildCreateDraftVariables(options: {
   };
 }
 
-export function buildCreateStructureVariables(seriesList: unknown[]): Record<string, string> {
+export function buildCreateStructureVariables(
+  seriesList: unknown[],
+): Record<string, string> {
   return {
     seriesList: JSON.stringify(seriesList, null, 2),
   };

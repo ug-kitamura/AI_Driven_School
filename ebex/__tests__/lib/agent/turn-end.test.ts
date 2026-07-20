@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { classifyTurnEnd, hasTextProgress } from "@/lib/agent/turn-end";
+import { buildIncompleteArtifactsNotice } from "@/lib/agent/llm/types";
 
 describe("classifyTurnEnd", () => {
   const base = { hadAnyToolCalls: true, leftoverArtifactCount: 0 };
@@ -101,5 +102,17 @@ describe("hasTextProgress", () => {
 
   it("treats first output after empty previous as progress", () => {
     expect(hasTextProgress("", "初回の出力")).toBe(true);
+  });
+});
+
+describe("buildIncompleteArtifactsNotice", () => {
+  it("names the files with unfilled residue and marks incomplete", () => {
+    const notice = buildIncompleteArtifactsNotice([
+      "output/a.html",
+      "output/b.md",
+    ]);
+    expect(notice).toContain("未完了");
+    expect(notice).toContain("output/a.html");
+    expect(notice).toContain("output/b.md");
   });
 });

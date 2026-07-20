@@ -16,6 +16,7 @@ import {
   AGENT_AUTO_NUDGE_PROMPT,
   AGENT_BROKEN_TOOL_USE_ERROR,
   AGENT_LOOP_LIMIT_ERROR,
+  buildIncompleteArtifactsNotice,
   AGENT_MISSING_GENERATE_INPUT_ERROR,
   AGENT_MISSING_PATH_ERROR,
   AGENT_MISSING_SCRIPT_INPUT_ERROR,
@@ -355,6 +356,14 @@ export async function runAgentLoop(
     return total;
   };
 
+  const leftoverArtifactPaths = () => {
+    const paths: string[] = [];
+    for (const [artifactPath, count] of templateResidualByPath) {
+      if (count > 0) paths.push(artifactPath);
+    }
+    return paths;
+  };
+
   const trackTemplateStatus = (result: unknown) => {
     if (!result || typeof result !== "object") return;
     const record = result as {
@@ -479,9 +488,15 @@ export async function runAgentLoop(
           continue;
         }
 
-        // 上限到達または進捗なし → 打ち切りを明示して停止
-        options.emit("text_delta", { text: AGENT_AUTO_NUDGE_LIMIT_NOTICE });
-        turnText += AGENT_AUTO_NUDGE_LIMIT_NOTICE;
+        // 上限到達または進捗なし → 打ち切りを明示して停止。
+        // 成果物に未充填の残作業が残っていれば、黙って終了せず未完了を明示する。
+        const leftoverPaths = leftoverArtifactPaths();
+        const limitNotice =
+          leftoverPaths.length > 0
+            ? buildIncompleteArtifactsNotice(leftoverPaths)
+            : AGENT_AUTO_NUDGE_LIMIT_NOTICE;
+        options.emit("text_delta", { text: limitNotice });
+        turnText += limitNotice;
       }
 
       emitLogicalTurn({ text: turnText || undefined });

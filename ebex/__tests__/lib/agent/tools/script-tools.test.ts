@@ -210,6 +210,26 @@ describe("preflightScriptToolCall", () => {
     fs.rmSync(tmpDir, { recursive: true, force: true });
   });
 
+  it("blocks run_script network access before confirmation", async () => {
+    const { tmpDir, context } = makeProject();
+    const outcome = await preflightScriptToolCall(
+      "run_script",
+      {
+        purpose: "テスト",
+        code: `fetch("https://example.com/api").then(() => {});`,
+        writes: [],
+      },
+      context,
+    );
+    expect(outcome).not.toBeNull();
+    expect(outcome?.result).toMatchObject({
+      blocked: true,
+      reason: expect.stringContaining("ネットワーク"),
+      recoverable: true,
+    });
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+  });
+
   it("rejects missing skill scripts before confirmation", async () => {
     const { tmpDir, context } = makeProject();
     const outcome = await preflightScriptToolCall(

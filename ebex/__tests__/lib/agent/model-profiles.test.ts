@@ -43,6 +43,14 @@ describe("model-profiles", () => {
     });
   });
 
+  it("resolves claude-opus-4-8 to a defined profile (new model = profile addition)", () => {
+    const opus = resolveModelProfile("claude-opus-4-8");
+    // プロファイル追加のみで解決でき、UNKNOWN 既定に落ちない
+    expect(opus).not.toEqual(UNKNOWN_MODEL_PROFILE);
+    expect(opus.maxOutputTokens).toBe(32000);
+    expect(opus.continuations.nudgeMax).toBe(2);
+  });
+
   it("falls back to the conservative default for unknown models", () => {
     const profile = resolveModelProfile("gemini-3.5-flash");
     expect(profile).toEqual(UNKNOWN_MODEL_PROFILE);

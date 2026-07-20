@@ -397,6 +397,22 @@ describe("executeRegisteredTool", () => {
     fs.rmSync(tmpDir, { recursive: true, force: true });
   });
 
+  it("blocks MCP / external connector tool names", async () => {
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "ebex-tools-"));
+    createFolder(tmpDir, "demo");
+    const outcome = await executeRegisteredTool(
+      "mcp__github__get_issue",
+      { query: "x" },
+      contextFor(tmpDir, "demo"),
+    );
+    expect(outcome.result).toMatchObject({
+      blocked: true,
+      reason: expect.stringContaining("外部コネクタ"),
+    });
+    expect(isLikelyBlockedToolName("mcp__github__get_issue")).toBe(true);
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+  });
+
   it("reads skill references via relative path without writing skill dir", async () => {
     const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "ebex-tools-"));
     createFolder(tmpDir, "demo");

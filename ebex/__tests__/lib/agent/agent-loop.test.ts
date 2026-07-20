@@ -612,6 +612,50 @@ describe("runAgentLoop auto-nudge (3値判定)", () => {
     expect(texts).toContain("完了しました。");
   });
 
+  it("executes multiple tool calls within a turn sequentially (not in parallel)", async () => {
+    const order: string[] = [];
+    let inFlight = 0;
+    let maxInFlight = 0;
+    vi.mocked(executeRegisteredTool).mockImplementation(async (_name, input) => {
+      inFlight += 1;
+      maxInFlight = Math.max(maxInFlight, inFlight);
+      order.push(String((input as { path?: string }).path));
+      await new Promise((resolve) => setTimeout(resolve, 5));
+      inFlight -= 1;
+      return toolOutcome([]);
+    });
+    vi.mocked(resolveLlmProvider).mockReturnValue({
+      ok: true,
+      model: "claude-sonnet-4-6",
+      provider: mockProvider([
+        {
+          text: "",
+          stopReason: "tool_use",
+          toolCalls: [
+            { id: "a", name: "read_file", input: { path: "output/a.html" } },
+            { id: "b", name: "read_file", input: { path: "output/b.html" } },
+          ],
+        },
+        { text: "完了しました。", stopReason: "end_turn", toolCalls: [] },
+      ]),
+    });
+
+    const emit = vi.fn();
+    const result = await runAgentLoop({
+      req: new Request("http://localhost/api/agent/invoke"),
+      system: "sys",
+      messages: [{ role: "user", content: "作って" }],
+      toolNames: [],
+      emit,
+      projectFolderId: "demo",
+    });
+
+    expect(result.ok).toBe(true);
+    // 宣言順に 1 つずつ実行され、並行実行されない
+    expect(order).toEqual(["output/a.html", "output/b.html"]);
+    expect(maxInFlight).toBe(1);
+  });
+
   it("does not nudge when the model is waiting for user confirmation", async () => {
     vi.mocked(resolveLlmProvider).mockReturnValue({
       ok: true,

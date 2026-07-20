@@ -112,6 +112,14 @@ export const AGENT_AUTO_NUDGE_PROMPT =
 export const AGENT_AUTO_NUDGE_LIMIT_NOTICE =
   "\n\n（自動続行を打ち切りました。続きが必要な場合は「つづき」とお伝えください。）";
 
+/**
+ * 自動続行が停止した時点で成果物に未充填の残作業が残っている場合に、黙って終了せず
+ * 未完了を明示するための注記を組み立てる（残作業のあるファイルパスを列挙する）。
+ */
+export function buildIncompleteArtifactsNotice(paths: string[]): string {
+  return `\n\n（自動続行を打ち切りました。未完了です。次のファイルに未充填のプレースホルダー（{{XXX}}）／マーカー区間が残っています: ${paths.join("、")}。続きが必要な場合は「つづき」とお伝えください。）`;
+}
+
 /** tool_result および連続失敗時に使う（実行はしない） */
 export const AGENT_BROKEN_TOOL_USE_ERROR =
   "tool_use の入力 JSON を解釈できません（出力が途中で切れた可能性があります）";

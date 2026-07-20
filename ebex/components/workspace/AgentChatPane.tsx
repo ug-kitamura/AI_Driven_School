@@ -118,6 +118,10 @@ import { OutsideProjectPathDialog } from "@/components/workspace/OutsideProjectP
 import { OutputDestinationDialog } from "@/components/workspace/OutputDestinationDialog";
 import { SUBAGENT_FALLBACK_USER_MESSAGE } from "@/lib/agent/subagent-fallback";
 import { IMAGE_IO_FALLBACK_USER_MESSAGE } from "@/lib/agent/image-io-fallback";
+import {
+  isForeignActiveStream,
+  isStopDisabledForScope,
+} from "@/lib/agent/session-stream-ownership";
 
 function toProjectRelativePath(
   currentFilePath: string | null,
@@ -240,6 +244,8 @@ export function AgentChatPane({
   const [attachments, setAttachments] = useState<AgentFileAttachment[]>([]);
   const [activeSkillId, setActiveSkillId] = useState<string | null>(null);
   const [isStreaming, setIsStreaming] = useState(false);
+  /** 進行中ストリームを所有する scopeId（別プロジェクトから中断・入力漏れを防ぐ） */
+  const [streamingScopeId, setStreamingScopeId] = useState<string | null>(null);
   const [subagentNoticeVisible, setSubagentNoticeVisible] = useState(false);
   const [streamingAssistantId, setStreamingAssistantId] = useState<
     string | null
@@ -539,33 +545,6 @@ export function AgentChatPane({
     }
   }, [persistSession]);
 
-  const interruptForSwitch = useCallback(async () => {
-    if (!isStreaming) return;
-
-    const assistantId = streamingAssistantId;
-    abortRef.current?.abort();
-    abortRef.current = null;
-    setIsStreaming(false);
-    setStreamingAssistantId(null);
-    setSubagentNoticeVisible(false);
-    stopContextRef.current = null;
-
-    if (assistantId) {
-      setMessages((prev) =>
-        prev.map((message) =>
-          message.id === assistantId
-            ? { ...message, content: message.content || "…" }
-            : message,
-        ),
-      );
-    }
-
-    const lessonId = currentLessonIdRef.current;
-    if (lessonId) {
-      await flushSessionToStorage(lessonId);
-    }
-  }, [flushSessionToStorage, isStreaming, streamingAssistantId]);
-
   useEffect(() => {
     if (!scopeId || sessionSwitchRef.current === null) return;
     if (!chatStorageRef.current) return;
@@ -635,10 +614,13 @@ export function AgentChatPane({
   );
 
   const handleStop = useCallback(() => {
+    // 別プロジェクトが所有するストリームは止めない（中断・入力復元の漏れ防止）
+    if (isForeignActiveStream(streamingScopeId, scopeId)) return;
     const stopContext = stopContextRef.current;
     abortRef.current?.abort();
     abortRef.current = null;
     setIsStreaming(false);
+    setStreamingScopeId(null);
     setStreamingAssistantId(null);
     setSubagentNoticeVisible(false);
     setRetryPayload(null);
@@ -655,7 +637,7 @@ export function AgentChatPane({
       setInput(stopContext.userMessage.content);
       stopContextRef.current = null;
     }
-  }, []);
+  }, [scopeId, streamingScopeId]);
 
   const invokeSkill = useCallback(
     async (options: {
@@ -691,6 +673,7 @@ export function AgentChatPane({
         ];
       });
       setIsStreaming(true);
+      setStreamingScopeId(scopeId ?? null);
       setStreamingAssistantId(assistantId);
       setSubagentNoticeVisible(
         Boolean(
@@ -841,6 +824,7 @@ export function AgentChatPane({
           abortRef.current = null;
         }
         setIsStreaming(false);
+        setStreamingScopeId(null);
         setStreamingAssistantId(null);
         setSubagentNoticeVisible(false);
       }
@@ -851,6 +835,7 @@ export function AgentChatPane({
       folderId,
       maybeGenerateSessionTitle,
       onOpenSettings,
+      scopeId,
       skills,
     ],
   );
@@ -1171,7 +1156,6 @@ export function AgentChatPane({
     if (!agentChatControllerRef) return;
     agentChatControllerRef.current = {
       isStreaming: () => isStreaming,
-      interruptForSwitch,
       getSessionChrome: () => sessionChromeRef.current,
       subscribe: (listener) => {
         controllerListenersRef.current.add(listener);
@@ -1187,12 +1171,7 @@ export function AgentChatPane({
     return () => {
       agentChatControllerRef.current = null;
     };
-  }, [
-    agentChatControllerRef,
-    interruptForSwitch,
-    isStreaming,
-    onControllerReady,
-  ]);
+  }, [agentChatControllerRef, isStreaming, onControllerReady]);
 
   const handleBuiltinCommand = useCallback(
     (command: AgentBuiltinCommand["id"]) => {
@@ -1630,6 +1609,11 @@ export function AgentChatPane({
           onStop={handleStop}
           disabled={pendingToolConfirm !== null}
           isLoading={isStreaming}
+          stopDisabled={isStopDisabledForScope(
+            isStreaming,
+            streamingScopeId,
+            scopeId,
+          )}
           modelLabel={modelLabel}
           skills={skills}
           activeSkillId={activeSkillId}

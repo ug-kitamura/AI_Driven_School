@@ -9,7 +9,6 @@ export type AgentSessionChrome = {
 
 export type AgentChatController = {
   isStreaming: () => boolean;
-  interruptForSwitch: () => Promise<void>;
   getSessionChrome: () => AgentSessionChrome | null;
   subscribe: (listener: () => void) => () => void;
   /** 構造化ファイル添付を入力チップへ追加する（同一 path は重複追加しない） */

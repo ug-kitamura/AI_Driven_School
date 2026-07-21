@@ -1863,6 +1863,15 @@ export function FileTreePane({
             type="button"
             variant="ghost"
             size="icon-sm"
+            aria-label="すべて折りたたむ"
+            onClick={collapseAll}
+          >
+            <ChevronsDownUp className="size-4" />
+          </Button>
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon-sm"
             aria-label="フォルダ追加"
             onClick={openAddFolder}
           >

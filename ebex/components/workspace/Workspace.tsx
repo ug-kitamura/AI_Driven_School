@@ -307,7 +307,8 @@ export function Workspace({ initialFolders }: WorkspaceProps) {
       <div
         ref={workspaceRootRef}
         className={cn(
-          "flex h-svh w-full overflow-hidden bg-background",
+          // 高さは body（バナー＋ワークスペース）の flex 配分から受け取る
+          "flex min-h-0 w-full flex-1 overflow-hidden bg-background",
           isResizing && "select-none",
         )}
       >

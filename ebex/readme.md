@@ -36,7 +36,7 @@ dx-training-studio（ポート 3000）と同時に使う場合は、EBEX は 300
   - `sessions/<ino>.json` — Agent セッション（旧 `session.json` は初回起動時に自動移行）
   - `favorites.json` — お気に入り（旧 `.ebex-favorites.json` は初回起動時に自動移行）
   - `diagnostics.log` — フォルダリネーム失敗時の診断記録
-- EBE Purpose: `purpose.md`（🍃 ボタンで読み取り専用表示）
+- EBE Purpose: `contracts/ebe-purpose.md`（Pane 1 ヘッダーのロゴ／「EBEX」クリックで読み取り専用表示）
 
 > 旧バージョンへ戻す場合: `.meta/sessions/<ino>.json` を該当フォルダの `session.json` として手動で戻してください（`meta.json` の `folderPath` でフォルダを特定できます）。
 

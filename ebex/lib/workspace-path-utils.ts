@@ -1,6 +1,7 @@
 export const WORKSPACE_DIR_NAME = "workspace";
 export const SESSION_FILENAME = "session.json";
-export const PURPOSE_FILENAME = "purpose.md";
+/** EBE Purpose の正本。ebex ルートからの相対パス。 */
+export const PURPOSE_RELATIVE_PATH = "contracts/ebe-purpose.md";
 
 const INVALID_NAME_RE = /[\\/:*?"<>|]/;
 

@@ -353,3 +353,27 @@ TBD - created by archiving change ebex-v1-workspace. Update Purpose after archiv
 
 - **WHEN** `folderPath: "demo/sub"` のみで API を呼び出す
 - **THEN** OS のファイルマネージャが当該フォルダを開く
+
+### Requirement: workspace API のルート基準
+
+`app/api/workspace/**` および `app/api/agent/**` の各エンドポイントは、workspace 配下のパス解決の基準として `getProjectRoot()` の解決結果を用いなければならない（SHALL）。`process.cwd()` を直接パス基準として用いてはならない（MUST NOT）。`workspace/.meta/`（`meta.json` / `sessions/` / `favorites.json` / `diagnostics.log`）も同じ projectRoot 基準で解決しなければならない（SHALL）。パストラバーサル防止の境界判定は projectRoot 配下の `workspace/` を基準としなければならない（SHALL）。
+
+#### Scenario: ホスト配下では host/workspace を読む
+
+- **WHEN** projectRoot が `host` の状態で `GET /api/workspace/load` を呼び出す
+- **THEN** `host/workspace/` 配下のフォルダが返り、`host/ebex/workspace/` は参照されない
+
+#### Scenario: .meta もホスト側に置かれる
+
+- **WHEN** projectRoot が `host` の状態でセッションを保存する
+- **THEN** 保存先は `host/workspace/.meta/sessions/` 配下になる
+
+#### Scenario: 単体起動は従来どおり
+
+- **WHEN** マーカーが存在せず ebex 単体で起動している状態で `GET /api/workspace/load` を呼び出す
+- **THEN** `ebex/workspace/` 配下のフォルダが返る
+
+#### Scenario: 境界外への書き込みは拒否される
+
+- **WHEN** projectRoot が `host` の状態で `host/workspace/` の外を指す相対パスを与える
+- **THEN** リクエストはエラーとなり、ファイルは作成されない

@@ -8,7 +8,7 @@ EBE Purpose（訓示）の正本・表示・Git 管理。
 
 ### Requirement: purpose.md 正本
 
-EBE Purpose の正本は `ebex/contracts/ebe-purpose.md` でなければならない（SHALL）。内容はクールな組織の訓示として読めるダミー 10 箇条でなければならず（SHALL）、ワークスペース機能の仕様説明リストであってはならない（MUST NOT）。各箇条は `## N. コンセプト名` 形式の見出しと、それに続く本文段落で構成されなければならない（SHALL）。旧正本 `ebex/purpose.md` は存在してはならない（MUST NOT）。
+EBE Purpose の正本は `ebex/contracts/ebe-purpose.md` でなければならない（SHALL）。パス解決は appRoot（ebex の設置ディレクトリ）基準でなければならず（SHALL）、projectRoot 基準で解決してはならない（MUST NOT）。内容はクールな組織の訓示として読めるダミー 10 箇条でなければならず（SHALL）、ワークスペース機能の仕様説明リストであってはならない（MUST NOT）。各箇条は `## N. コンセプト名` 形式の見出しと、それに続く本文段落で構成されなければならない（SHALL）。旧正本 `ebex/purpose.md` は存在してはならない（MUST NOT）。
 
 #### Scenario: 訓示ダミー同梱
 
@@ -20,14 +20,24 @@ EBE Purpose の正本は `ebex/contracts/ebe-purpose.md` でなければなら�
 - **WHEN** EBEX リポジトリを clone する
 - **THEN** `ebex/purpose.md` は存在しない
 
+#### Scenario: ホスト配下でも ebex 側を読む
+
+- **WHEN** projectRoot が `host`、appRoot が `host/ebex` の状態で Purpose を取得する
+- **THEN** 読み込まれるのは `host/ebex/contracts/ebe-purpose.md` であり、`host/contracts/` は参照されない
+
 ### Requirement: Purpose モーダル
 
-Pane 1 ヘッダーのロゴまたは「EBEX」タイトルをクリックすると Purpose モーダルが開かれなければならない（SHALL）。モーダルはくすんだ黄色系を基調とした古文書風の見た目でなければならず（SHALL）、右上に × 閉じるボタンのみを置き、それ以外の文字は中央揃えとしなければならない（SHALL）。最上段には見出しとして文字画像 `images/typography.png` を表示しなければならない（SHALL）。その下に `contracts/ebe-purpose.md` から抽出した 10 箇条を、各項目「`N. コンセプト名`（太字）＋説明文（小さめ）」の形で順に表示しなければならない（SHALL）。本文は読み取り専用でなければならない（SHALL）。モーダルは × ボタン・Esc キー・モーダル外（背景）のクリックのいずれでも閉じられなければならない（SHALL）。閉じた状態のモーダルは画面に表示されてはならない（MUST NOT）。Pane 3 ヘッダーに Purpose 用 Leaf ボタンを置いてはならない（MUST NOT）。
+Pane 1 ヘッダーのロゴまたは「EBEX」タイトルをクリックすると Purpose モーダルが開かれなければならない（SHALL）。ヘッダーに `for {name}` 接尾辞が表示されている場合、その接尾辞はクリック対象に含めてはならない（MUST NOT）。モーダルはくすんだ黄色系を基調とした古文書風の見た目でなければならず（SHALL）、右上に × 閉じるボタンのみを置き、それ以外の文字は中央揃えとしなければならない（SHALL）。最上段には見出しとして文字画像 `images/typography.png` を表示しなければならない（SHALL）。その下に `contracts/ebe-purpose.md` から抽出した 10 箇条を、各項目「`N. コンセプト名`（太字）＋説明文（小さめ）」の形で順に表示しなければならない（SHALL）。本文は読み取り専用でなければならない（SHALL）。モーダルは × ボタン・Esc キー・モーダル外（背景）のクリックのいずれでも閉じられなければならない（SHALL）。閉じた状態のモーダルは画面に表示されてはならない（MUST NOT）。Pane 3 ヘッダーに Purpose 用 Leaf ボタンを置いてはならない（MUST NOT）。
 
 #### Scenario: Pane 1 から開く
 
 - **WHEN** ユーザーが Pane 1 ヘッダーのロゴまたは「EBEX」をクリックする
 - **THEN** Purpose モーダルが表示される
+
+#### Scenario: 接尾辞はクリックしても開かない
+
+- **WHEN** ヘッダーが `EBEX for dx-training-studio` と表示されている状態で `for dx-training-studio` の部分をクリックする
+- **THEN** Purpose モーダルは表示されない
 
 #### Scenario: 古文書風のレイアウト
 

@@ -10,9 +10,10 @@
   - `agent-loop.ts`（turn ループ・ツール逐次実行・自動継続）
   - `tools/`（`registry.ts` / `fs-guard.ts` / `script-sandbox.ts` / `confirm-gate.ts` / `generate-write.ts` / `search-provider.ts`）
   - `llm/`（プロバイダ解決）
-- **データ**: `workspace/<project>/`（ユーザーコンテンツ）, `workspace/.meta/`（`meta.json` / `sessions/` / `favorites.json` / `diagnostics.log`）
-- **契約**: `contracts/`（`*-contract.md`）。スキル作者向けの制約と誓約は `contracts/ebex-skill-contract.md`
-- **スキル**: 複ルートカタログ（ebex ルート＋ホストルートの `.claude/skills` 等）を和集合で解決。同 id はホスト優先
+- **ルートの二層**: `getProjectRoot()`（`lib/project-root.ts`）= 作業データの基準 / `getEbexRoot()`（`lib/agent/skill-loader.ts`）= 製品同梱物の基準。`cwd` の親 1 階層に `.ebex.host` があればその親が projectRoot（ホスト配布時）、無ければ `cwd` 自身（単体起動）。**`process.cwd()` を直接パス基準に使わない**
+- **データ**: `workspace/<project>/`（ユーザーコンテンツ）, `workspace/.meta/`（`meta.json` / `sessions/` / `favorites.json` / `diagnostics.log`）。いずれも **projectRoot 基準**
+- **契約**: `contracts/`（`*-contract.md`）。スキル作者向けの制約と誓約は `contracts/ebex-skill-contract.md`。**appRoot 基準**
+- **スキル**: 複ルートカタログ（appRoot ＋ projectRoot の `.claude/skills` 等）を和集合で解決。同 id はホスト優先。表示順は host → ebex の区画順、区画内は id 昇順
 
 ## 制約と誓約（EBEX 専用）
 

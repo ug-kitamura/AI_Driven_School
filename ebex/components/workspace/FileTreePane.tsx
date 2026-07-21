@@ -169,7 +169,7 @@ type TreeInteraction = {
   onOpenDialog: (dialog: DialogMode) => void;
   onSetNameInput: (value: string) => void;
   onToggleExpanded: (folderPath: string, isOpen: boolean) => void;
-  /** コンテキストメニュー操作直後のポインター開閉（誤 dblclick 等）を無視する */
+  /** コンテキストメニュー操作直後のポインター開閉（貫通クリック等）を無視する */
   shouldIgnorePointerToggle: () => boolean;
   onSelectFile: (folderPath: string, fileName: string) => void;
   onAddFileToChat: (folderPath: string, fileName: string) => void;
@@ -180,7 +180,7 @@ type TreeInteraction = {
   rowHighlight: (rowId: string, isFileSelected: boolean) => string;
 };
 
-/** メニュー操作とフォーカス用クリックが dblclick になるのを防ぐ */
+/** メニュー操作直後の貫通クリックがフォルダ開閉になるのを防ぐ */
 const POINTER_TOGGLE_SUPPRESS_MS = 1000;
 
 function dialogFolderPath(dialog: DialogMode): string | null {
@@ -375,12 +375,8 @@ function TreeNode({
                 );
                 event.dataTransfer.effectAllowed = "move";
               }}
-              onClick={() => interaction.onFocusRow(folderRow)}
-              onDoubleClick={(event) => {
-                if (interaction.shouldIgnorePointerToggle()) {
-                  event.preventDefault();
-                  return;
-                }
+              onClick={() => {
+                if (interaction.shouldIgnorePointerToggle()) return;
                 interaction.onToggleExpanded(node.path, isOpen);
               }}
             >
@@ -1284,8 +1280,8 @@ export function FileTreePane({
   const handleContextMenuChange = useCallback(
     (rowId: string | null) => {
       setContextMenuTargetId(rowId);
-      // Shift+F10 等でメニューを出した直後のクリックが、フォーカス用クリックと
-      // 合わさって dblclick 扱いになりフォルダが閉じるのを防ぐ
+      // Shift+F10 等でメニューを出した直後のクリックが、そのまま
+      // フォルダ開閉として通ってしまうのを防ぐ
       suppressPointerToggleUntilRef.current =
         Date.now() + POINTER_TOGGLE_SUPPRESS_MS;
       if (!rowId && treeRef.current) {

@@ -27,12 +27,17 @@ Agent 入力の `/` オートコンプリートは、複ルートカタログ上
 
 ### Requirement: 複ルートスキルカタログ
 
-システムは可視スキルおよびスキル読込のために、ebex インストールルートとホストルート（`process.cwd()`）のそれぞれについて、次のディレクトリ配下のスキルを和集合として解決しなければならない（SHALL）: `.claude/skills` / `.cursor/skills` / `.agents/skills` / `.github/skills`。同一 `skill.id` が複数ルートに存在する場合はホスト側を優先しなければならない（SHALL）。同一ルート内で複数のホスト規約ディレクトリに同一 `skill.id` がある場合は、`.claude` → `.cursor` → `.agents` → `.github` の順で先に見つかったものを用いなければならない（SHALL）。`GET /api/agent/skills`、`/` オートコンプリート、スキル invoke の `loadSkill` / `resolveSkillDir` は同じ解決規則に従わなければならない（SHALL）。standalone 実行で両ルートが一致する場合は二重に列挙してはならない（MUST NOT）。単数形の `.agent/skills` は解決対象としない（MUST NOT）。
+システムは可視スキルおよびスキル読込のために、ebex インストールルート（appRoot）とホストルート（projectRoot）のそれぞれについて、次のディレクトリ配下のスキルを和集合として解決しなければならない（SHALL）: `.claude/skills` / `.cursor/skills` / `.agents/skills` / `.github/skills`。ホストルートは `process.cwd()` ではなく `getProjectRoot()` の解決結果でなければならない（SHALL）。同一 `skill.id` が複数ルートに存在する場合はホスト側を優先しなければならない（SHALL）。同一ルート内で複数のホスト規約ディレクトリに同一 `skill.id` がある場合は、`.claude` → `.cursor` → `.agents` → `.github` の順で先に見つかったものを用いなければならない（SHALL）。`GET /api/agent/skills`、`/` オートコンプリート、スキル invoke の `loadSkill` / `resolveSkillDir` は同じ解決規則に従わなければならない（SHALL）。standalone 実行で両ルートが一致する場合は二重に列挙してはならない（MUST NOT）。単数形の `.agent/skills` は解決対象としない（MUST NOT）。
 
 #### Scenario: ホストと ebex のスキルが両方見える
 
 - **WHEN** ホストの `.claude/skills/report` と ebex の `.claude/skills/create-draft` が存在しユーザーが `/` を入力する
 - **THEN** 候補に `report` と `create-draft` の両方が含まれる
+
+#### Scenario: ホストルートは projectRoot に従う
+
+- **WHEN** `host/.ebex.host` が存在し `process.cwd()` が `host/ebex` で、`host/.claude/skills/report` が存在する
+- **THEN** `report` が一覧および invoke で解決できる
 
 #### Scenario: .cursor 配下のスキルも発見される
 
@@ -208,3 +213,22 @@ Agent 入力の `/` オートコンプリートは、複ルートカタログ上
 
 - **WHEN** 画像・マルチモーダルの指示を含まないスキルを invoke する
 - **THEN** 画像非対応の特別な案内は表示されない
+
+### Requirement: スキル一覧のルート別表示順
+
+可視スキルの一覧は、ホストルート由来のスキルを先に、ebex ルート由来のスキルを後に並べなければならない（SHALL）。各ルート内では `skill.id` の昇順で並べなければならない（SHALL）。ルートをまたいで `skill.id` のみで並べ替えてはならない（MUST NOT）。この並び順は `GET /api/agent/skills`、`/` オートコンプリート、`/skill` の挿入一覧で一致しなければならない（SHALL）。
+
+#### Scenario: ホスト由来が先に並ぶ
+
+- **WHEN** ホストに `zeta`、ebex に `alpha` が存在する状態で `/` を入力する
+- **THEN** 候補は `zeta`（ホスト）、`alpha`（ebex）の順に並ぶ
+
+#### Scenario: 同一ルート内は id 昇順
+
+- **WHEN** ホストに `beta` と `alpha` が存在する
+- **THEN** ホスト区画では `alpha`、`beta` の順に並ぶ
+
+#### Scenario: 単体起動では単一区画
+
+- **WHEN** projectRoot と appRoot が同一で `alpha` と `beta` が存在する
+- **THEN** 候補は `alpha`、`beta` の順に 1 区画で並ぶ

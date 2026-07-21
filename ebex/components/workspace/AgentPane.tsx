@@ -1,12 +1,14 @@
 "use client";
 
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import dynamic from "next/dynamic";
 import { Loader2, Settings } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAgentSessionChrome } from "@/components/workspace/use-agent-session-chrome";
 import type { WorkspaceTreeNode } from "@/lib/workspace-loader";
 import type { AgentChatController } from "@/lib/agent-chat-controller";
+import type { AgentChatDraftMap } from "@/components/workspace/agent-chat-draft";
+import type { SkillSummary } from "@/lib/agent/skill-loader";
 
 const GITHUB_REPO_URL = "https://github.com/ug-kitamura/AI_Driven_School";
 
@@ -60,6 +62,23 @@ export function AgentPane({
     agentChatControllerRef,
     controllerVersion,
   );
+  // フォルダ切替で AgentChatPane はリマウントされるため、フォルダに依存しない
+  // 状態（未送信下書き・スキルカタログ）はここで保持する。
+  const draftsRef = useRef<AgentChatDraftMap>(new Map());
+  const [skills, setSkills] = useState<SkillSummary[]>([]);
+  const [skillsError, setSkillsError] = useState<string | null>(null);
+
+  useEffect(() => {
+    void fetch("/api/agent/skills")
+      .then((res) => res.json())
+      .then((data: { skills?: SkillSummary[] }) => {
+        setSkills(data.skills ?? []);
+        setSkillsError(null);
+      })
+      .catch(() => {
+        setSkillsError("スキル一覧の取得に失敗しました");
+      });
+  }, []);
   const sessionTitle = sessionChrome?.sessionTitle ?? "";
   const isStreaming = sessionChrome?.isStreaming ?? false;
 
@@ -112,7 +131,10 @@ export function AgentPane({
         </Button>
       </div>
       <div className="min-h-0 flex-1">
+        {/* プロジェクトフォルダごとに作り直す。別フォルダの state が併存しえ
+            なくなり、セッションの取り違えが構造的に起こらなくなる。 */}
         <AgentChatPane
+          key={folderId || "no-project"}
           folderId={folderId || undefined}
           folders={folders}
           currentFilePath={currentFilePath}
@@ -120,6 +142,9 @@ export function AgentPane({
           onOverwriteEditor={onOverwriteEditor}
           agentChatControllerRef={agentChatControllerRef}
           onControllerReady={onControllerReady}
+          draftsRef={draftsRef}
+          skills={skills}
+          skillsError={skillsError}
           className="h-full"
         />
       </div>

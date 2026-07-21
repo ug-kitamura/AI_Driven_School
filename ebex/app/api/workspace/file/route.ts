@@ -5,6 +5,7 @@ import {
   resolveViewOnlyKind,
 } from "@/lib/file-preview";
 import { jsonError, readFileBinary } from "@/lib/workspace-mutations";
+import { getProjectRoot } from "@/lib/project-root";
 
 export async function GET(req: Request) {
   const url = new URL(req.url);
@@ -25,7 +26,7 @@ export async function GET(req: Request) {
     return jsonError("未対応の Content-Type です", 400);
   }
 
-  const result = readFileBinary(process.cwd(), folderId, fileName);
+  const result = readFileBinary(getProjectRoot(), folderId, fileName);
   if ("error" in result) return jsonError(String(result.error), 404);
 
   return new Response(new Uint8Array(result.buffer), {

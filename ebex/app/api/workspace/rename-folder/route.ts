@@ -10,6 +10,7 @@ import {
   isProjectFolderAgentActive,
 } from "@/lib/agent/active-project-folders";
 import { getProjectFolderId } from "@/lib/workspace-path-utils";
+import { getProjectRoot } from "@/lib/project-root";
 
 const bodySchema = z.object({
   fromPath: z.string().min(1),
@@ -30,7 +31,7 @@ export async function POST(req: Request) {
   }
 
   const result = renameFolder(
-    process.cwd(),
+    getProjectRoot(),
     parsed.data.fromPath,
     parsed.data.toPath,
     parsed.data.autoRenameOnConflict ? "auto-rename" : "error",

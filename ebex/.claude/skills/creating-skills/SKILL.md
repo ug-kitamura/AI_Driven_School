@@ -17,12 +17,13 @@ description: |
 2. [references/ssot-audit.md](references/ssot-audit.md) — SSoT 監査・ハードコード不整合レビュー（ゲートとして必ず実行）
 3. [references/exemplar.md](references/exemplar.md) — 模範例・品質チェックリスト
 4. [references/patterns.md](references/patterns.md) — 設計パターン・サイズ目安
+5. （ある場合のみ）作業ホストの `contracts/` に skill contract があれば、それも必読に加えて準拠する
 
 ## 作成プロセス
 
 ### Step 0: リファレンスを読む
 
-上記4つのリファレンスを全て読む。省略禁止。
+上記のリファレンスを全て読む。省略禁止。
 
 ### Step 1: 種類を判断
 

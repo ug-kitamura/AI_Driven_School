@@ -16,6 +16,7 @@ import {
   AGENT_AUTO_NUDGE_PROMPT,
   AGENT_BROKEN_TOOL_USE_ERROR,
   AGENT_LOOP_LIMIT_ERROR,
+  buildIncompleteArtifactsNotice,
   AGENT_MISSING_GENERATE_INPUT_ERROR,
   AGENT_MISSING_PATH_ERROR,
   AGENT_MISSING_SCRIPT_INPUT_ERROR,
@@ -60,10 +61,13 @@ import { awaitToolConfirmDecision } from "@/lib/agent/tools/tool-confirm-registr
 import {
   resolveSearchProvider,
   SEARCH_REJECTED_GUIDANCE,
+  SEARCH_MANUAL_SKIP_GUIDANCE,
+  SEARCH_MANUAL_RESULT_NOTICE,
   type SearchSessionState,
 } from "@/lib/agent/tools/search-provider";
 import { checkProjectFolderExists } from "@/lib/agent/project-folder-guard";
 import type { ToolDefinition } from "@/lib/agent/llm/types";
+import { getProjectRoot } from "@/lib/project-root";
 
 export type AgentLoopEmit = (event: string, data: unknown) => void;
 
@@ -316,9 +320,10 @@ export async function runAgentLoop(
   const searchSession: SearchSessionState = { unavailable: false };
   const toolContext: ToolExecutionContext | undefined = projectFolderId
     ? {
-        projectRoot: process.cwd(),
+        projectRoot: getProjectRoot(),
         projectFolderId,
         ...skillOptions,
+        ...(options.signal ? { signal: options.signal } : {}),
         search: { provider: searchProvider, session: searchSession },
         generate: {
           provider: providerResult.provider,
@@ -331,7 +336,7 @@ export async function runAgentLoop(
       }
     : undefined;
 
-  const projectRoot = process.cwd();
+  const projectRoot = getProjectRoot();
 
   let consecutiveError: string | null = null;
   let consecutiveErrorCount = 0;
@@ -353,6 +358,14 @@ export async function runAgentLoop(
     let total = 0;
     for (const count of templateResidualByPath.values()) total += count;
     return total;
+  };
+
+  const leftoverArtifactPaths = () => {
+    const paths: string[] = [];
+    for (const [artifactPath, count] of templateResidualByPath) {
+      if (count > 0) paths.push(artifactPath);
+    }
+    return paths;
   };
 
   const trackTemplateStatus = (result: unknown) => {
@@ -382,6 +395,11 @@ export async function runAgentLoop(
     continuations: number;
     turnEnd?: string;
   }) => {
+    // `.meta/diagnostics.log` の outputTokens と同じ値（可視トークン数）をクライアントへ通知する。
+    // セッション累計はチャットセッション（複数 invoke をまたぐ）単位のため、クライアント側で積算する。
+    if (params.outputTokens !== undefined) {
+      options.emit("token_usage", { outputTokens: params.outputTokens });
+    }
     // テスト実行では実ワークスペースの diagnostics.log を汚染しない
     if (process.env.VITEST) return;
     appendDiagnosticsRecord(projectRoot, {
@@ -479,9 +497,15 @@ export async function runAgentLoop(
           continue;
         }
 
-        // 上限到達または進捗なし → 打ち切りを明示して停止
-        options.emit("text_delta", { text: AGENT_AUTO_NUDGE_LIMIT_NOTICE });
-        turnText += AGENT_AUTO_NUDGE_LIMIT_NOTICE;
+        // 上限到達または進捗なし → 打ち切りを明示して停止。
+        // 成果物に未充填の残作業が残っていれば、黙って終了せず未完了を明示する。
+        const leftoverPaths = leftoverArtifactPaths();
+        const limitNotice =
+          leftoverPaths.length > 0
+            ? buildIncompleteArtifactsNotice(leftoverPaths)
+            : AGENT_AUTO_NUDGE_LIMIT_NOTICE;
+        options.emit("text_delta", { text: limitNotice });
+        turnText += limitNotice;
       }
 
       emitLogicalTurn({ text: turnText || undefined });
@@ -500,6 +524,11 @@ export async function runAgentLoop(
 
     const toolResults: string[] = [];
     for (const call of turnResult.toolCalls) {
+      // ユーザー中断時は、このターンの残りツールを実行せずループを終える。
+      // 実行中の LLM 呼び出し・スクリプト・確認待ちは各 signal 配線で個別に停止する。
+      if (options.signal?.aborted) {
+        return { ok: true, toolEvents, toolTurns };
+      }
       if (projectFolderId) {
         const missing = checkProjectFolderExists(projectRoot, projectFolderId);
         if (missing) {
@@ -552,6 +581,7 @@ export async function runAgentLoop(
               {
                 ...skillOptions,
                 skipOverwritePaths,
+                searchAvailable: searchProvider !== null,
               },
             )
           : null;
@@ -566,8 +596,42 @@ export async function runAgentLoop(
             ...(requirement.search ? { search: requirement.search } : {}),
             ...(requirement.generate ? { generate: requirement.generate } : {}),
           });
-          const decision = await awaitToolConfirmDecision(call.id);
-          if (decision === "reject" || decision === "timeout") {
+          const resolution = await awaitToolConfirmDecision(
+            call.id,
+            undefined,
+            options.signal,
+          );
+          const decision = resolution.decision;
+          if (requirement.kind === "web-search-manual") {
+            // 人手フォールバック: 承認＝結果貼付、拒否/timeout＝スキップして続行
+            const manualText = resolution.manualSearchText?.trim();
+            outcome =
+              decision === "approve" && manualText
+                ? {
+                    result: {
+                      query: requirement.path,
+                      source: "user-provided",
+                      results: manualText,
+                      notice: SEARCH_MANUAL_RESULT_NOTICE,
+                    },
+                    display: {
+                      summary: "手動入力",
+                      display: `🔎 web検索（手動入力）: ${requirement.path}`,
+                    },
+                  }
+                : {
+                    result: {
+                      unavailable: true,
+                      skipped: true,
+                      query: requirement.path,
+                      guidance: SEARCH_MANUAL_SKIP_GUIDANCE,
+                    },
+                    display: {
+                      summary: "スキップ",
+                      display: `✗ web検索をスキップ: ${requirement.path}`,
+                    },
+                  };
+          } else if (decision === "reject" || decision === "timeout") {
             const timedOut = decision === "timeout";
             const reason = timedOut
               ? "確認ダイアログが時間内に応答されなかったため実行を見送りました（ダイアログが表示されない場合は画面を再読み込みしてください）"

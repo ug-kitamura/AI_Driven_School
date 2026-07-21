@@ -264,6 +264,57 @@ describe("resolveConfirmRequirement", () => {
   });
 });
 
+describe("resolveConfirmRequirement for web_search", () => {
+  it("uses web-search kind when search is available (key set)", () => {
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "ebex-confirm-"));
+    createFolder(tmpDir, "demo");
+    const req = resolveConfirmRequirement(
+      tmpDir,
+      "demo",
+      {
+        id: "t1",
+        name: "web_search",
+        input: { query: "next.js 16", purpose: "調査" },
+      },
+      { searchAvailable: true },
+    );
+    expect(req?.kind).toBe("web-search");
+    expect(req?.search).toEqual({ query: "next.js 16", purpose: "調査" });
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+  });
+
+  it("uses web-search-manual kind when search is unavailable (no key)", () => {
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "ebex-confirm-"));
+    createFolder(tmpDir, "demo");
+    const req = resolveConfirmRequirement(
+      tmpDir,
+      "demo",
+      {
+        id: "t1",
+        name: "web_search",
+        input: { query: "next.js 16", purpose: "調査" },
+      },
+      { searchAvailable: false },
+    );
+    expect(req?.kind).toBe("web-search-manual");
+    expect(req?.search).toEqual({ query: "next.js 16", purpose: "調査" });
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+  });
+
+  it("returns null for empty query", () => {
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "ebex-confirm-"));
+    createFolder(tmpDir, "demo");
+    const req = resolveConfirmRequirement(
+      tmpDir,
+      "demo",
+      { id: "t1", name: "web_search", input: { query: "  " } },
+      { searchAvailable: false },
+    );
+    expect(req).toBeNull();
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+  });
+});
+
 describe("resolveConfirmRequirement for script tools", () => {
   it("requires confirmation for run_script every time (no skip)", () => {
     const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "ebex-confirm-"));

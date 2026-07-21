@@ -4,6 +4,8 @@ import { resolveToolConfirmDecision } from "@/lib/agent/tools/tool-confirm-regis
 const bodySchema = z.object({
   toolUseId: z.string().min(1),
   decision: z.enum(["approve", "reject"]),
+  /** web-search-manual の承認時にユーザーが貼り付けた検索結果＋ソース URL */
+  manualSearchText: z.string().optional(),
 });
 
 export async function POST(req: Request) {
@@ -22,6 +24,7 @@ export async function POST(req: Request) {
   const resolved = resolveToolConfirmDecision(
     parsed.data.toolUseId,
     parsed.data.decision,
+    parsed.data.manualSearchText,
   );
   if (!resolved) {
     return Response.json(

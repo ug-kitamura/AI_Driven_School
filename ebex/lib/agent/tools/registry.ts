@@ -10,6 +10,7 @@ import { executeGenerateAndWrite } from "@/lib/agent/tools/generate-write";
 import { isLikelySubagentToolName } from "@/lib/agent/subagent-fallback";
 import {
   checkScriptSyntax,
+  detectNetworkAccessHint,
   runScriptInSandbox,
 } from "@/lib/agent/tools/script-sandbox";
 import {
@@ -42,6 +43,8 @@ export type ToolExecutionContext = {
   projectFolderId: string;
   skillId?: string;
   skillDirAbsolute?: string;
+  /** ユーザー中断シグナル。スクリプト実行の子プロセスを abort で即 kill する */
+  signal?: AbortSignal;
   /** web_search のバックエンドとサーキットブレーカー状態（agent loop が構築） */
   search?: {
     provider: SearchProvider | null;
@@ -1451,6 +1454,7 @@ function scriptFailureOutcome(result: {
   stderr?: string;
   exitCode?: number | null;
   timedOut?: boolean;
+  aborted?: boolean;
 }): ToolExecutionOutcome {
   return {
     result: {
@@ -1460,6 +1464,7 @@ function scriptFailureOutcome(result: {
         ? { exitCode: result.exitCode }
         : {}),
       ...(result.timedOut ? { timedOut: true } : {}),
+      ...(result.aborted ? { aborted: true } : {}),
       recoverable: true,
       guidance:
         "エラー内容をもとにスクリプトを修正して再実行してください。成果物の本文を文字列リテラルで埋め込まず、ディスク上のファイルを読んで組み立てること。",
@@ -1508,6 +1513,7 @@ async function executeRunScript(
     {
       projectDirAbsolute: projectDirAbsolute(context),
       skillDirAbsolute: context.skillDirAbsolute,
+      ...(context.signal ? { signal: context.signal } : {}),
     },
   );
   if (!runResult.ok) return scriptFailureOutcome(runResult);
@@ -1545,6 +1551,7 @@ async function executeRunSkillScript(
     {
       projectDirAbsolute: projectDirAbsolute(context),
       skillDirAbsolute: context.skillDirAbsolute,
+      ...(context.signal ? { signal: context.signal } : {}),
     },
   );
   if (!runResult.ok) return scriptFailureOutcome(runResult);
@@ -1637,6 +1644,23 @@ export async function preflightScriptToolCall(
   if (name === "run_script") {
     const code = typeof input.code === "string" ? input.code : "";
     if (!code.trim()) return null; // broken tool_use 経路で処理される
+    // run_script（モデル即興生成）からの外部通信は provenance でブロックする。
+    // 審査済みのスキル同梱スクリプト（run_skill_script）は通信を許可する。
+    if (detectNetworkAccessHint(code)) {
+      return {
+        result: {
+          blocked: true,
+          reason: "run_script からの外部ネットワーク通信はできません",
+          recoverable: true,
+          guidance:
+            "外部データ取得が必要なら、審査済みのスキル同梱スクリプト（scripts/ 配下、run_skill_script）を使うか、web 検索の人手フォールバックでユーザーに取得を依頼してください。通信を使わないローカルのファイル変換なら、ネットワーク処理を除いて再実行してください。",
+        },
+        display: display(
+          "blocked",
+          "🚫 run_script のネットワーク通信をブロック",
+        ),
+      };
+    }
     const syntax = await checkScriptSyntax(code);
     if (!syntax.ok) {
       return {
@@ -1678,6 +1702,18 @@ function buildBlockedOutcome(
           "同一セッション内で自ら役割を順に実行してください。サブエージェントは起動しません。",
       },
       display: display("blocked", `🚫 サブエージェント起動をブロック: ${name}`),
+    };
+  }
+
+  if (isLikelyExternalConnectorToolName(name)) {
+    return {
+      result: {
+        blocked: true,
+        reason: "EBEX は MCP・外部コネクタに対応していません",
+        guidance:
+          "作業フォルダ内で完結する手段（read_file / write_file / run_script 等）に置き換えてください。外部コネクタは利用しません。",
+      },
+      display: display("blocked", `🚫 外部コネクタをブロック: ${name}`),
     };
   }
 
@@ -1728,10 +1764,17 @@ const BLOCKED_TOOL_NAME_HINTS = [
   "script",
 ];
 
+/** MCP サーバ・外部コネクタ系のツール名（`mcp__server__tool` 規約 / connector）。 */
+export function isLikelyExternalConnectorToolName(name: string): boolean {
+  const lower = name.toLowerCase();
+  return lower.startsWith("mcp__") || lower.includes("connector");
+}
+
 export function isLikelyBlockedToolName(name: string): boolean {
   // run_script / run_skill_script は登録済みツール（"script" ヒントに先行して除外）
   if (isRegisteredToolName(name)) return false;
   if (isLikelySubagentToolName(name)) return true;
+  if (isLikelyExternalConnectorToolName(name)) return true;
   const lower = name.toLowerCase();
   return BLOCKED_TOOL_NAME_HINTS.some((hint) => lower.includes(hint));
 }

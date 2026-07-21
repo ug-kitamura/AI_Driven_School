@@ -32,6 +32,7 @@
   --color-input: var(--input);
   --color-border: var(--border);
   --color-destructive: var(--destructive);
+  --color-success: var(--success);
   --color-accent-foreground: var(--accent-foreground);
   --color-accent: var(--accent);
   --color-muted-foreground: var(--muted-foreground);
@@ -106,6 +107,7 @@
   --accent: #d1e4ff;
   --accent-foreground: #007bc0;
   --destructive: oklch(0.5624 0.0956 20.5303);
+  --success: #00884a; /* Custom_Green_50: 肯定（できること）の役割色 */
   --border: #d0d4d8; /* Custom_Gray_85: ボーダー */
   --input: #d0d4d8;
   --ring: #007bc0;
@@ -198,6 +200,9 @@
   --accent: oklch(0.38 0.03 264);
   --accent-foreground: oklch(0.9168 0.0035 67.7802);
   --destructive: oklch(0.6338 0.1208 21.0422);
+  --success: oklch(
+    0.6441 0.0496 146.8813
+  ); /* 緑（dark、chart-2 と同値）: 肯定の役割色 */
   --border: oklch(0.3211 0 0);
   --input: oklch(0.3211 0 0);
   --ring: oklch(0.7441 0.1311 264.2789);

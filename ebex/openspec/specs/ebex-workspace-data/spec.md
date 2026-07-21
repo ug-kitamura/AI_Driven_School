@@ -157,10 +157,29 @@ TBD - created by archiving change ebex-v1-workspace. Update Purpose after archiv
 
 クライアントは 3 秒間隔で mtime をポーリングし、外部変更を検知した場合に workspace 状態を再読み込みしなければならない（SHALL）。`useContentSync` のパターンを `useWorkspaceSync` として流用しなければならない（SHALL）。フォルダの追加・削除・リネームなど、ファイル mtime が変化しない外部変更も検知して再読み込みしなければならない（SHALL）。
 
+再読み込みの対象はフォルダツリーだけでなく、**選択中ファイルの本文も含めなければならない**（SHALL）。本文の再読み込みは、テキスト編集可能なモード（`edit-preview` / `edit-only`）で実ファイルが選択されている場合にのみ行わなければならない（SHALL）。画像・PDF・zip などの view-only 表示、およびファイル未選択（`no file` 選択を含む）では本文を再読み込みしてはならない（MUST NOT）。本文の再読み込みは Pane 2 が編集表示・プレビュー表示のいずれであっても行わなければならない（SHALL）。
+
+外部変更の検知のために新たな定期ポーリングを追加してはならない（MUST NOT）。既存の 3 秒ポーリングが fingerprint の変化を検知したときにのみ本文を再取得しなければならない（SHALL）。
+
 #### Scenario: 外部変更の反映
 
 - **WHEN** IDE 外でファイルが変更される
 - **THEN** 3 秒以内に EBEX の表示が更新される
+
+#### Scenario: 選択中ファイルの本文が更新される
+
+- **WHEN** ユーザーが開いている HTML ファイルを AI が上書きする
+- **THEN** ブラウザをリロードしたりフォルダを切り替えたりすることなく、3 秒以内に Pane 2 の表示が新しい内容になる
+
+#### Scenario: プレビュー表示中でなくても更新される
+
+- **WHEN** ユーザーが編集タブでファイルを表示している状態で、そのファイルが外部から変更される
+- **THEN** 編集タブに表示されている本文も新しい内容に更新される
+
+#### Scenario: view-only ファイルは本文を再取得しない
+
+- **WHEN** 画像ファイルを選択した状態で workspace 内の別のファイルが変更される
+- **THEN** 本文の再取得は行われない
 
 #### Scenario: 外部でのフォルダリネームが反映される
 
@@ -176,10 +195,24 @@ TBD - created by archiving change ebex-v1-workspace. Update Purpose after archiv
 
 未保存の編集中ファイルは外部変更で上書きしてはならない（MUST NOT）。debounce 保存中（`pendingSave`）のファイルも同様に保護されなければならない（SHALL）。
 
+保存待ちの判定は、本文の再取得を開始する前だけでなく、**取得が解決した後にも再確認しなければならない**（SHALL）。取得の往復中に編集が始まった場合、取得済みの内容を反映してはならない（MUST NOT）。
+
+再取得した内容が現在表示している内容と同一の場合、表示状態を更新してはならない（MUST NOT）。これによりユーザー自身の自動保存に起因する再取得が、余分な再描画やエディタ文書の置換を引き起こさないようにしなければならない（SHALL）。
+
 #### Scenario: 編集中の保護
 
 - **WHEN** ユーザーがファイルを編集中に外部で同ファイルが変更される
 - **THEN** エディタの未保存内容は上書きされない
+
+#### Scenario: 取得の往復中に編集が始まった場合の保護
+
+- **WHEN** 本文の再取得が開始された直後にユーザーが入力を始め、その後に取得が解決する
+- **THEN** 取得した内容は反映されず、ユーザーの入力内容が保持される
+
+#### Scenario: 自動保存による再取得は表示を変えない
+
+- **WHEN** ユーザーの編集が自動保存され、その保存によって fingerprint が変化する
+- **THEN** 本文は再取得されるが内容が同一のため表示状態は更新されず、エディタの文書も置換されない
 
 ### Requirement: パストラバーサル防止
 
@@ -320,3 +353,27 @@ TBD - created by archiving change ebex-v1-workspace. Update Purpose after archiv
 
 - **WHEN** `folderPath: "demo/sub"` のみで API を呼び出す
 - **THEN** OS のファイルマネージャが当該フォルダを開く
+
+### Requirement: workspace API のルート基準
+
+`app/api/workspace/**` および `app/api/agent/**` の各エンドポイントは、workspace 配下のパス解決の基準として `getProjectRoot()` の解決結果を用いなければならない（SHALL）。`process.cwd()` を直接パス基準として用いてはならない（MUST NOT）。`workspace/.meta/`（`meta.json` / `sessions/` / `favorites.json` / `diagnostics.log`）も同じ projectRoot 基準で解決しなければならない（SHALL）。パストラバーサル防止の境界判定は projectRoot 配下の `workspace/` を基準としなければならない（SHALL）。
+
+#### Scenario: ホスト配下では host/workspace を読む
+
+- **WHEN** projectRoot が `host` の状態で `GET /api/workspace/load` を呼び出す
+- **THEN** `host/workspace/` 配下のフォルダが返り、`host/ebex/workspace/` は参照されない
+
+#### Scenario: .meta もホスト側に置かれる
+
+- **WHEN** projectRoot が `host` の状態でセッションを保存する
+- **THEN** 保存先は `host/workspace/.meta/sessions/` 配下になる
+
+#### Scenario: 単体起動は従来どおり
+
+- **WHEN** マーカーが存在せず ebex 単体で起動している状態で `GET /api/workspace/load` を呼び出す
+- **THEN** `ebex/workspace/` 配下のフォルダが返る
+
+#### Scenario: 境界外への書き込みは拒否される
+
+- **WHEN** projectRoot が `host` の状態で `host/workspace/` の外を指す相対パスを与える
+- **THEN** リクエストはエラーとなり、ファイルは作成されない

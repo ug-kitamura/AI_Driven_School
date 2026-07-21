@@ -22,6 +22,10 @@ export type AgentChatSession = {
   activeSkillId: string | null;
   createdAt: string;
   updatedAt: string;
+  /** 直近ターンの可視トークン数（フォルダ往復で表示を残すため永続化）。未計測は null/未設定 */
+  lastTurnTokens?: number | null;
+  /** セッション累計の可視トークン数（同上） */
+  sessionTokenTotal?: number;
 };
 
 export type AgentChatStorage = {
@@ -234,7 +238,14 @@ export function getActiveSession(
 export function updateActiveSession(
   storage: AgentChatStorage,
   updates: Partial<
-    Pick<AgentChatSession, "messages" | "activeSkillId" | "title">
+    Pick<
+      AgentChatSession,
+      | "messages"
+      | "activeSkillId"
+      | "title"
+      | "lastTurnTokens"
+      | "sessionTokenTotal"
+    >
   >,
 ): AgentChatStorage {
   const now = new Date().toISOString();

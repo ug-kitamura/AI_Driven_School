@@ -7,6 +7,15 @@ const TARGET_DIRS = ["components", "lib", "app", "__tests__", "scripts"];
 const EXTENSIONS = new Set([".ts", ".tsx", ".js", ".jsx", ".md", ".json"]);
 const SKIP_DIRS = new Set(["node_modules", ".next", "dist", "coverage"]);
 
+/**
+ * `.bat` は ASCII のみ許可する。cmd.exe はバッチファイルをコンソールの
+ * コードページ（日本語 Windows では CP932）で読むため、UTF-8 の日本語を
+ * 書くと化けるだけでなく、2 バイト文字の解釈で行が壊れてコメントの断片が
+ * コマンドとして実行される。
+ */
+const ASCII_ONLY_EXTENSIONS = new Set([".bat"]);
+const NON_ASCII_RE = /[^\x00-\x7F]/;
+
 const SUSPICIOUS_PATTERNS = [
   { name: "replacement-char", regex: /\uFFFD/ },
   { name: "run-of-question-marks", regex: /["'`][^"'`]*\?{3,}[^"'`]*["'`]/ },
@@ -78,6 +87,49 @@ for (const dirName of TARGET_DIRS) {
         }
       }
     }
+  }
+}
+
+// ASCII 限定ファイル（リポジトリ直下の `.bat` と TARGET_DIRS 配下）
+function collectAsciiOnlyFiles() {
+  const found = [];
+  for (const entry of fs.readdirSync(ROOT, { withFileTypes: true })) {
+    if (entry.isDirectory()) continue;
+    if (ASCII_ONLY_EXTENSIONS.has(path.extname(entry.name))) {
+      found.push(path.join(ROOT, entry.name));
+    }
+  }
+  for (const dirName of TARGET_DIRS) {
+    const dirPath = path.join(ROOT, dirName);
+    if (!fs.existsSync(dirPath)) continue;
+    const stack = [dirPath];
+    while (stack.length > 0) {
+      const dir = stack.pop();
+      for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+        if (SKIP_DIRS.has(entry.name)) continue;
+        const full = path.join(dir, entry.name);
+        if (entry.isDirectory()) {
+          stack.push(full);
+        } else if (ASCII_ONLY_EXTENSIONS.has(path.extname(entry.name))) {
+          found.push(full);
+        }
+      }
+    }
+  }
+  return found;
+}
+
+for (const filePath of collectAsciiOnlyFiles()) {
+  const relPath = path.relative(ROOT, filePath).replaceAll("\\", "/");
+  const lines = fs.readFileSync(filePath, "latin1").split(/\r?\n/);
+
+  for (let i = 0; i < lines.length; i += 1) {
+    if (!NON_ASCII_RE.test(lines[i])) continue;
+    issues.push({
+      file: relPath,
+      kind: "non-ascii-in-batch-file",
+      detail: `line ${i + 1}: .bat must be ASCII-only (cmd.exe reads it as CP932)`,
+    });
   }
 }
 

@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { jsonError, moveFile, parseJsonBody } from "@/lib/workspace-mutations";
+import { getProjectRoot } from "@/lib/project-root";
 
 const bodySchema = z.object({
   fromFolderId: z.string().min(1),
@@ -16,7 +17,7 @@ export async function POST(req: Request) {
   const { fromFolderId, fromName, toFolderId, toName, autoRenameOnConflict } =
     parsed.data;
   const result = moveFile(
-    process.cwd(),
+    getProjectRoot(),
     fromFolderId,
     fromName,
     toFolderId,

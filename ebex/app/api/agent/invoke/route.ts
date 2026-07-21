@@ -19,7 +19,12 @@ import {
   skillMentionsSubagent,
   SUBAGENT_FALLBACK_MODEL_HINT,
 } from "@/lib/agent/subagent-fallback";
+import {
+  skillMentionsImageIO,
+  IMAGE_IO_FALLBACK_MODEL_HINT,
+} from "@/lib/agent/image-io-fallback";
 import { markProjectFolderAgentActive } from "@/lib/agent/active-project-folders";
+import { getProjectRoot } from "@/lib/project-root";
 
 const toolEventSchema = z.object({
   name: z.string(),
@@ -85,7 +90,7 @@ export async function POST(req: Request) {
     return Response.json({ error: "Invalid request body" }, { status: 400 });
   }
 
-  const projectRoot = process.cwd();
+  const projectRoot = getProjectRoot();
   const skillRoots = getSkillCatalogRoots(projectRoot);
   const skill = loadSkill(skillRoots, parsed.data.skillId);
   if (!skill) {
@@ -110,6 +115,7 @@ export async function POST(req: Request) {
 
   const focus = parsed.data.runtimeFocus;
   const mentionsSubagent = skillMentionsSubagent(skill.body);
+  const mentionsImageIO = skillMentionsImageIO(skill.body);
   let systemPrompt = prompt;
   if (focus?.projectFolderId) {
     let runtime = buildSkillRuntimeContext({
@@ -119,6 +125,7 @@ export async function POST(req: Request) {
       skillDirAbsolute,
       skillAssets: skill.assets,
       mentionsSubagent,
+      imageIoSkipped: mentionsImageIO,
     });
     if (focus.preferredOutputDir !== undefined) {
       const dirLabel =
@@ -128,10 +135,14 @@ export async function POST(req: Request) {
       runtime += `\n\nユーザが選んだ出力先の優先候補: \`${dirLabel}\`。`;
     }
     systemPrompt = mergeSkillSystemPrompt(prompt, runtime);
-  } else if (mentionsSubagent) {
+  } else if (mentionsSubagent || mentionsImageIO) {
+    const hints = [
+      mentionsSubagent ? SUBAGENT_FALLBACK_MODEL_HINT : null,
+      mentionsImageIO ? IMAGE_IO_FALLBACK_MODEL_HINT : null,
+    ].filter((hint): hint is string => hint !== null);
     systemPrompt = mergeSkillSystemPrompt(
       prompt,
-      `## EBEX ランタイム\n\n${SUBAGENT_FALLBACK_MODEL_HINT}`,
+      `## EBEX ランタイム\n\n${hints.join("\n")}`,
     );
   }
 

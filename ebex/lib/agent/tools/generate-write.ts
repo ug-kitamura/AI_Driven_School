@@ -367,6 +367,12 @@ export async function executeGenerateAndWrite(
     sectionTexts.push(cleaned);
   }
 
+  // 読取上限で切り詰めた参照ファイルは、親と実行ログの双方から見えるようにする
+  // （品質低下の原因が参照材料の欠落かを切り分けるため）。切り詰めなしなら何も足さない。
+  const truncatedContextPaths = contextFiles
+    .filter((file) => file.truncated)
+    .map((file) => file.displayPath);
+
   const output = sectionTexts.join("\n\n");
   fs.mkdirSync(path.dirname(targetResolved.absolutePath), { recursive: true });
   fs.writeFileSync(targetResolved.absolutePath, output, "utf-8");
@@ -381,6 +387,11 @@ export async function executeGenerateAndWrite(
     emptySections: scan.emptySections,
   };
 
+  const truncationNote =
+    truncatedContextPaths.length > 0
+      ? `（参照ファイルを読取上限 ${GENERATE_CONTEXT_FILE_CHAR_LIMIT} 文字で切り詰め: ${truncatedContextPaths.join("・")}）`
+      : "";
+
   return {
     result: {
       path: targetResolved.relativePath,
@@ -389,10 +400,11 @@ export async function executeGenerateAndWrite(
       continuations: totalContinuations,
       durationMs,
       templateStatus,
+      ...(truncatedContextPaths.length > 0 ? { truncatedContextPaths } : {}),
     },
     display: {
       summary: `${bytes} bytes`,
-      display: `🪄 生成書込: ${targetResolved.relativePath}（${bytes} bytes・${sectionCount} セクション・継続 ${totalContinuations} 回）`,
+      display: `🪄 生成書込: ${targetResolved.relativePath}（${bytes} bytes・${sectionCount} セクション・継続 ${totalContinuations} 回）${truncationNote}`,
     },
   };
 }

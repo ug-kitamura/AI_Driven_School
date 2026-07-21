@@ -1,6 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { SUBAGENT_FALLBACK_MODEL_HINT } from "@/lib/agent/subagent-fallback";
+import { IMAGE_IO_FALLBACK_MODEL_HINT } from "@/lib/agent/image-io-fallback";
 import { skillHasScriptsDir } from "@/lib/agent/tools/registry";
 
 export type SkillRuntimeFocus = {
@@ -15,6 +16,8 @@ export type SkillRuntimeFocus = {
   skillAssets?: string[] | null;
   /** スキル本文に「サブエージェント」が含まれるとき true */
   mentionsSubagent?: boolean;
+  /** スキル本文に画像・マルチモーダルの生成/読取指示が含まれ、ユーザーがスキップを選んだとき true */
+  imageIoSkipped?: boolean;
 };
 
 /** 額縁候補（スキル相対パス＋サイズ） */
@@ -188,6 +191,9 @@ export function buildSkillRuntimeContext(focus: SkillRuntimeFocus): string {
     "場の中で出力候補が複数あるときは勝手に確定せず、候補を示して選ばせること。",
     ...(focus.mentionsSubagent
       ? ["", "### Subagent", SUBAGENT_FALLBACK_MODEL_HINT]
+      : []),
+    ...(focus.imageIoSkipped
+      ? ["", "### Image / Multimodal", IMAGE_IO_FALLBACK_MODEL_HINT]
       : []),
   ];
 

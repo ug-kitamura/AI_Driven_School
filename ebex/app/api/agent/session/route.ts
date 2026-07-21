@@ -5,6 +5,7 @@ import {
   writeFolderSessionFile,
 } from "@/lib/agent-session-store";
 import { parseAgentChatStorage } from "@/lib/agent-chat-storage";
+import { getProjectRoot } from "@/lib/project-root";
 
 const storageSchema = z.object({
   version: z.literal(1),
@@ -26,7 +27,7 @@ export async function GET(req: Request) {
     );
   }
 
-  const storage = readFolderSessionFile(process.cwd(), folderId);
+  const storage = readFolderSessionFile(getProjectRoot(), folderId);
   if (!storage) {
     return Response.json(
       { error: "session が見つかりません" },
@@ -69,7 +70,7 @@ export async function PUT(req: Request) {
   }
 
   try {
-    writeFolderSessionFile(process.cwd(), folderId, storage);
+    writeFolderSessionFile(getProjectRoot(), folderId, storage);
     return Response.json({ ok: true });
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);

@@ -27,17 +27,32 @@ Agent 入力の `/` オートコンプリートは、複ルートカタログ上
 
 ### Requirement: 複ルートスキルカタログ
 
-システムは可視スキルおよびスキル読込のために、ebex インストールルートとホストルート（`process.cwd()`）のそれぞれについて、次のディレクトリ配下のスキルを和集合として解決しなければならない（SHALL）: `.claude/skills` / `.cursor/skills` / `.agent/skills` / `.github/skills`。同一 `skill.id` が複数ルートに存在する場合はホスト側を優先しなければならない（SHALL）。同一ルート内で複数のホスト規約ディレクトリに同一 `skill.id` がある場合は、`.claude` → `.cursor` → `.agent` → `.github` の順で先に見つかったものを用いなければならない（SHALL）。`GET /api/agent/skills`、`/` オートコンプリート、スキル invoke の `loadSkill` / `resolveSkillDir` は同じ解決規則に従わなければならない（SHALL）。standalone 実行で両ルートが一致する場合は二重に列挙してはならない（MUST NOT）。
+システムは可視スキルおよびスキル読込のために、ebex インストールルート（appRoot）とホストルート（projectRoot）のそれぞれについて、次のディレクトリ配下のスキルを和集合として解決しなければならない（SHALL）: `.claude/skills` / `.cursor/skills` / `.agents/skills` / `.github/skills`。ホストルートは `process.cwd()` ではなく `getProjectRoot()` の解決結果でなければならない（SHALL）。同一 `skill.id` が複数ルートに存在する場合はホスト側を優先しなければならない（SHALL）。同一ルート内で複数のホスト規約ディレクトリに同一 `skill.id` がある場合は、`.claude` → `.cursor` → `.agents` → `.github` の順で先に見つかったものを用いなければならない（SHALL）。`GET /api/agent/skills`、`/` オートコンプリート、スキル invoke の `loadSkill` / `resolveSkillDir` は同じ解決規則に従わなければならない（SHALL）。standalone 実行で両ルートが一致する場合は二重に列挙してはならない（MUST NOT）。単数形の `.agent/skills` は解決対象としない（MUST NOT）。
 
 #### Scenario: ホストと ebex のスキルが両方見える
 
 - **WHEN** ホストの `.claude/skills/report` と ebex の `.claude/skills/create-draft` が存在しユーザーが `/` を入力する
 - **THEN** 候補に `report` と `create-draft` の両方が含まれる
 
+#### Scenario: ホストルートは projectRoot に従う
+
+- **WHEN** `host/.ebex.host` が存在し `process.cwd()` が `host/ebex` で、`host/.claude/skills/report` が存在する
+- **THEN** `report` が一覧および invoke で解決できる
+
 #### Scenario: .cursor 配下のスキルも発見される
 
 - **WHEN** ホストの `.cursor/skills/minutes-maid` に `SKILL.md` が存在する
 - **THEN** 一覧および invoke で `minutes-maid` を解決できる
+
+#### Scenario: .agents 配下のスキルも発見される
+
+- **WHEN** ホストの `.agents/skills/minutes-maid` に `SKILL.md` が存在する
+- **THEN** 一覧および invoke で `minutes-maid` を解決できる
+
+#### Scenario: 単数形の .agent は対象外
+
+- **WHEN** ホストの `.agent/skills/legacy-skill` に `SKILL.md` が存在する
+- **THEN** `legacy-skill` は一覧にも invoke の解決結果にも現れない
 
 #### Scenario: 同 id はホスト優先
 
@@ -179,3 +194,41 @@ Agent 入力の `/` オートコンプリートは、複ルートカタログ上
 
 - **WHEN** 上記注意が場の説明に含まれる状態で、モデルが任意のマーカー文字列で `replace_between` する
 - **THEN** ランタイムは呼び出しを改変せず、通常のツール規則どおり実行する
+
+### Requirement: 画像・マルチモーダル指示の検出とフォールバック
+
+システムはスキル本文に画像・マルチモーダルの生成または読取を要する指示が含まれる場合、EBEX が画像・マルチモーダルの入出力に非対応であることをユーザーへ明示しなければならない（SHALL）。明示後、ユーザーに「該当処理をスキップして継続する / 実行を中止する」を選ばせなければならない（SHALL）。ユーザーがスキップを選んだ場合は当該処理を行わず残りを続行し、中止を選んだ場合は実行を停止しなければならない（SHALL）。画像・マルチモーダル用の実ツールを提供してはならない（MUST NOT）。検出はサブエージェント検出と同型の軽量なキーワード方式でよい（MAY）。
+
+#### Scenario: 画像指示の検出でユーザーへ選択を促す
+
+- **WHEN** 画像生成または画像読取の指示を含むスキルをユーザーが invoke する
+- **THEN** EBEX が画像・マルチモーダル非対応である旨が表示され、「スキップして継続 / 中止」を選べる
+
+#### Scenario: スキップ選択で残りを続行する
+
+- **WHEN** ユーザーが画像処理のスキップを選ぶ
+- **THEN** 当該処理は行われず、スキル実行の残りが続行される
+
+#### Scenario: 画像指示の無いスキルでは案内しない
+
+- **WHEN** 画像・マルチモーダルの指示を含まないスキルを invoke する
+- **THEN** 画像非対応の特別な案内は表示されない
+
+### Requirement: スキル一覧のルート別表示順
+
+可視スキルの一覧は、ホストルート由来のスキルを先に、ebex ルート由来のスキルを後に並べなければならない（SHALL）。各ルート内では `skill.id` の昇順で並べなければならない（SHALL）。ルートをまたいで `skill.id` のみで並べ替えてはならない（MUST NOT）。この並び順は `GET /api/agent/skills`、`/` オートコンプリート、`/skill` の挿入一覧で一致しなければならない（SHALL）。
+
+#### Scenario: ホスト由来が先に並ぶ
+
+- **WHEN** ホストに `zeta`、ebex に `alpha` が存在する状態で `/` を入力する
+- **THEN** 候補は `zeta`（ホスト）、`alpha`（ebex）の順に並ぶ
+
+#### Scenario: 同一ルート内は id 昇順
+
+- **WHEN** ホストに `beta` と `alpha` が存在する
+- **THEN** ホスト区画では `alpha`、`beta` の順に並ぶ
+
+#### Scenario: 単体起動では単一区画
+
+- **WHEN** projectRoot と appRoot が同一で `alpha` と `beta` が存在する
+- **THEN** 候補は `alpha`、`beta` の順に 1 区画で並ぶ

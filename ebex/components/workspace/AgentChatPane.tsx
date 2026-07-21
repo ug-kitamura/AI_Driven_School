@@ -50,6 +50,7 @@ import {
   type ToolConfirmRequiredEvent,
 } from "@/lib/agent/stream-client";
 import { ToolConfirmDialog } from "@/components/workspace/ToolConfirmDialog";
+import { ManualSearchDialog } from "@/components/workspace/ManualSearchDialog";
 import type { AgentLogicalTurn, AgentToolEvent } from "@/lib/agent/llm/types";
 import {
   addSession,
@@ -103,6 +104,7 @@ import { WorkspaceTooltip } from "@/components/workspace/WorkspaceTooltip";
 import { cn } from "@/lib/utils";
 import type { Course, Lesson, Series } from "@/lib/schema";
 import type { SkillSummary } from "@/lib/agent/skill-loader";
+import type { AgentChatDraftMap } from "@/components/workspace/agent-chat-draft";
 import { ALLOWED_PREFIX } from "@/lib/workspace-constants";
 import type { WorkspaceTreeNode } from "@/lib/workspace-loader";
 import { folderExistsInTree } from "@/lib/workspace-tree";
@@ -116,6 +118,7 @@ import {
 import { OutsideProjectPathDialog } from "@/components/workspace/OutsideProjectPathDialog";
 import { OutputDestinationDialog } from "@/components/workspace/OutputDestinationDialog";
 import { SUBAGENT_FALLBACK_USER_MESSAGE } from "@/lib/agent/subagent-fallback";
+import { IMAGE_IO_FALLBACK_USER_MESSAGE } from "@/lib/agent/image-io-fallback";
 
 function toProjectRelativePath(
   currentFilePath: string | null,
@@ -142,6 +145,14 @@ type Props = {
   className?: string;
   richMarkdown?: boolean;
   folders?: WorkspaceTreeNode[];
+  /**
+   * 未送信下書きの保持先。本コンポーネントはフォルダ切替でリマウントされるため、
+   * リマウントをまたぐ状態は親から受け取る。
+   */
+  draftsRef?: React.MutableRefObject<AgentChatDraftMap>;
+  /** スキルカタログ。フォルダ非依存なので親が保持する。 */
+  skills?: SkillSummary[];
+  skillsError?: string | null;
 };
 
 function computeSessionFingerprint(
@@ -197,12 +208,17 @@ function readModelLabelFromSettings(): string {
 async function postToolConfirmDecision(
   toolUseId: string,
   decision: "approve" | "reject",
+  manualSearchText?: string,
 ): Promise<void> {
   try {
     await fetch("/api/agent/tool-confirm", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ toolUseId, decision }),
+      body: JSON.stringify({
+        toolUseId,
+        decision,
+        ...(manualSearchText !== undefined ? { manualSearchText } : {}),
+      }),
     });
   } catch {
     // ストリーム側は TTL タイムアウトで安全側（拒否）に確定する
@@ -223,13 +239,18 @@ export function AgentChatPane({
   className,
   richMarkdown = true,
   folders = [],
+  draftsRef: draftsRefProp,
+  skills = [],
+  skillsError = null,
 }: Props) {
+  // key によるリマウント前提のため、scopeId はこのインスタンスの生涯を通じて不変。
   const scopeId = folderId ?? lesson?.id;
   const filePath = currentFilePath ?? currentLessonPath ?? null;
   const foldersRef = useRef(folders);
   const [chatStorage, setChatStorage] = useState<AgentChatStorage | null>(null);
   const [messages, setMessages] = useState<AgentChatMessage[]>([]);
   const [input, setInput] = useState("");
+  const [attachments, setAttachments] = useState<AgentFileAttachment[]>([]);
   const [activeSkillId, setActiveSkillId] = useState<string | null>(null);
   const [isStreaming, setIsStreaming] = useState(false);
   const [subagentNoticeVisible, setSubagentNoticeVisible] = useState(false);
@@ -269,11 +290,15 @@ export function AgentChatPane({
   const [outputDialogOpen, setOutputDialogOpen] = useState(false);
   const [selectedOutputId, setSelectedOutputId] =
     useState<OutputDestinationChoice | null>(null);
+  const [imageIoDialogOpen, setImageIoDialogOpen] = useState(false);
+  const [lastTurnTokens, setLastTurnTokens] = useState<number | null>(null);
+  const [sessionTokenTotal, setSessionTokenTotal] = useState(0);
   const pendingInvokeRef = useRef<{
     userMessage: AgentChatMessage;
     history: AgentChatMessage[];
     skillId: string;
     outsideConfirmed?: boolean;
+    imageIoConfirmed?: boolean;
     preferredOutputDir?: string;
   } | null>(null);
 
@@ -293,12 +318,23 @@ export function AgentChatPane({
   const sessionChromeRef = useRef<AgentSessionChrome | null>(null);
   const stickToBottomRef = useRef(true);
   const sessionSwitchRef = useRef<string | null>(null);
-  const currentLessonIdRef = useRef<string | null>(null);
   const chatStorageRef = useRef<AgentChatStorage | null>(null);
   const messagesRef = useRef<AgentChatMessage[]>([]);
   const activeSkillIdRef = useRef<string | null>(null);
+  // トークン表示はセッションに永続化して、フォルダ往復後も残す
+  const lastTurnTokensRef = useRef<number | null>(null);
+  const sessionTokenTotalRef = useRef(0);
+  // 切替中断時に保留中の tool 確認を解決するため、最新値を ref で参照する
+  const pendingToolConfirmRef = useRef<ToolConfirmRequiredEvent | null>(null);
   const lastPersistedFingerprintRef = useRef("");
   const persistTimerRef = useRef<number | null>(null);
+  // 未送信の入力（本文＋添付）をプロジェクト（scopeId）単位でメモリ保持し、
+  // 別プロジェクトへ移動して戻った際に復元する。リロードでは失われる（ref のため）。
+  // 保持先はリマウントされない親（AgentPane）にあり、ここでは参照だけを持つ。
+  const inputRef = useRef("");
+  const attachmentsRef = useRef<AgentFileAttachment[]>([]);
+  const localDraftsRef = useRef<AgentChatDraftMap>(new Map());
+  const draftsRef = draftsRefProp ?? localDraftsRef;
 
   useEffect(() => {
     foldersRef.current = folders;
@@ -307,8 +343,6 @@ export function AgentChatPane({
   const canPersistToFolder = useCallback((targetFolderId: string) => {
     return folderExistsInTree(foldersRef.current, targetFolderId);
   }, []);
-
-  const [skills, setSkills] = useState<SkillSummary[]>([]);
 
   useEffect(() => {
     chatStorageRef.current = chatStorage;
@@ -322,12 +356,34 @@ export function AgentChatPane({
     activeSkillIdRef.current = activeSkillId;
   }, [activeSkillId]);
 
+  useEffect(() => {
+    lastTurnTokensRef.current = lastTurnTokens;
+  }, [lastTurnTokens]);
+
+  useEffect(() => {
+    sessionTokenTotalRef.current = sessionTokenTotal;
+  }, [sessionTokenTotal]);
+
+  useEffect(() => {
+    pendingToolConfirmRef.current = pendingToolConfirm;
+  }, [pendingToolConfirm]);
+
+  useEffect(() => {
+    inputRef.current = input;
+  }, [input]);
+
+  useEffect(() => {
+    attachmentsRef.current = attachments;
+  }, [attachments]);
+
   const buildStorageSnapshot = useCallback((): AgentChatStorage | null => {
     const storage = chatStorageRef.current;
     if (!storage) return null;
     return updateActiveSession(storage, {
       messages: messagesRef.current,
       activeSkillId: activeSkillIdRef.current,
+      lastTurnTokens: lastTurnTokensRef.current,
+      sessionTokenTotal: sessionTokenTotalRef.current,
     });
   }, []);
 
@@ -358,8 +414,6 @@ export function AgentChatPane({
 
     persistTimerRef.current = window.setTimeout(() => {
       persistTimerRef.current = null;
-      const targetLessonId = currentLessonIdRef.current;
-      if (!targetLessonId) return;
 
       const fingerprint = computeSessionFingerprint(
         messagesRef.current,
@@ -367,7 +421,7 @@ export function AgentChatPane({
       );
       if (fingerprint === lastPersistedFingerprintRef.current) return;
 
-      void flushSessionToStorage(targetLessonId).then(() => {
+      void flushSessionToStorage(scopeId).then(() => {
         lastPersistedFingerprintRef.current = fingerprint;
       });
     }, 800);
@@ -383,18 +437,6 @@ export function AgentChatPane({
     if (!stickToBottomRef.current) return;
     scrollChatToBottom();
   }, [messages, isStreaming, streamingAssistantId, scrollChatToBottom]);
-
-  useEffect(() => {
-    if (!richMarkdown) return;
-    void fetch("/api/agent/skills")
-      .then((res) => res.json())
-      .then((data: { skills?: SkillSummary[] }) => {
-        setSkills(data.skills ?? []);
-      })
-      .catch(() => {
-        setError("スキル一覧の取得に失敗しました");
-      });
-  }, [richMarkdown]);
 
   useEffect(() => {
     const syncModelLabel = () => {
@@ -447,6 +489,8 @@ export function AgentChatPane({
           messages: nextMessages,
           activeSkillId: nextSkillId,
           title,
+          lastTurnTokens: lastTurnTokensRef.current,
+          sessionTokenTotal: sessionTokenTotalRef.current,
         });
       });
       scheduleDebouncedPersist();
@@ -512,33 +556,6 @@ export function AgentChatPane({
     }
   }, [persistSession]);
 
-  const interruptForSwitch = useCallback(async () => {
-    if (!isStreaming) return;
-
-    const assistantId = streamingAssistantId;
-    abortRef.current?.abort();
-    abortRef.current = null;
-    setIsStreaming(false);
-    setStreamingAssistantId(null);
-    setSubagentNoticeVisible(false);
-    stopContextRef.current = null;
-
-    if (assistantId) {
-      setMessages((prev) =>
-        prev.map((message) =>
-          message.id === assistantId
-            ? { ...message, content: message.content || "…" }
-            : message,
-        ),
-      );
-    }
-
-    const lessonId = currentLessonIdRef.current;
-    if (lessonId) {
-      await flushSessionToStorage(lessonId);
-    }
-  }, [flushSessionToStorage, isStreaming, streamingAssistantId]);
-
   useEffect(() => {
     if (!scopeId || sessionSwitchRef.current === null) return;
     if (!chatStorageRef.current) return;
@@ -547,23 +564,41 @@ export function AgentChatPane({
 
   useEffect(() => {
     const handleBeforeUnload = () => {
-      const targetLessonId = currentLessonIdRef.current;
-      if (!targetLessonId) return;
+      if (!scopeId) return;
       const snapshot = buildStorageSnapshot();
       if (!snapshot) return;
-      void saveLessonSession(targetLessonId, snapshot);
+      void saveLessonSession(scopeId, snapshot);
     };
     window.addEventListener("beforeunload", handleBeforeUnload);
     return () => window.removeEventListener("beforeunload", handleBeforeUnload);
-  }, [buildStorageSnapshot]);
+  }, [buildStorageSnapshot, scopeId]);
 
+  // アンマウント（＝フォルダ切替）時の後始末。クロージャが見えるのは自分の
+  // scopeId と自分の state だけなので、他フォルダへ書く経路が存在しない。
   useEffect(() => {
+    // 親が保持する Map の実体はマウント中不変。cleanup 用に掴んでおく
+    const drafts = draftsRef.current;
     return () => {
       if (persistTimerRef.current !== null) {
         window.clearTimeout(persistTimerRef.current);
+        persistTimerRef.current = null;
       }
+      if (!scopeId) return;
+
+      // 未送信入力は親の Map に退避し、戻ってきたときに復元できるようにする
+      if (inputRef.current || attachmentsRef.current.length > 0) {
+        drafts.set(scopeId, {
+          input: inputRef.current,
+          attachments: attachmentsRef.current,
+        });
+      } else {
+        drafts.delete(scopeId);
+      }
+
+      // 完了はアンマウント後でよい。書き込み先は新旧で別ファイルなので競合しない
+      void flushSessionToStorage(scopeId);
     };
-  }, []);
+  }, [draftsRef, flushSessionToStorage, scopeId]);
 
   const loadContentFiles = useCallback(async () => {
     if (folderId) {
@@ -626,6 +661,37 @@ export function AgentChatPane({
         ),
       );
       setInput(stopContext.userMessage.content);
+      stopContextRef.current = null;
+    }
+  }, []);
+
+  /**
+   * フォルダ切替に伴う中断（A 案）。進行中ストリームを abort するが、停止ボタンと違い
+   * 入力欄への復元はしない。partial な assistant 応答（本文あり）は残して永続化する。
+   * 本文が空の assistant プレースホルダのみ取り除く。
+   */
+  const interruptForSwitch = useCallback(() => {
+    if (!abortRef.current) return;
+    const stopContext = stopContextRef.current;
+    abortRef.current.abort();
+    abortRef.current = null;
+    setIsStreaming(false);
+    setStreamingAssistantId(null);
+    setSubagentNoticeVisible(false);
+    // 開いている tool 確認は宙吊りにせず拒否で閉じる（サーバ側は abort signal でも
+    // 解決されるが、クライアント表示を確実に閉じ、明示的に reject を送る）
+    const pending = pendingToolConfirmRef.current;
+    if (pending) {
+      void postToolConfirmDecision(pending.toolUseId, "reject");
+      setPendingToolConfirm(null);
+    }
+    if (stopContext) {
+      setMessages((prev) =>
+        prev.filter(
+          (message) =>
+            message.id !== stopContext.assistantId || message.content,
+        ),
+      );
       stopContextRef.current = null;
     }
   }, []);
@@ -778,6 +844,10 @@ export function AgentChatPane({
                 ),
               );
             },
+            onTokenUsage: (event) => {
+              setLastTurnTokens(event.outputTokens);
+              setSessionTokenTotal((prev) => prev + event.outputTokens);
+            },
             onConfirmRequired: (event) => {
               setPendingToolConfirm(event);
             },
@@ -830,8 +900,18 @@ export function AgentChatPane({
       history: AgentChatMessage[];
       skillId: string;
       outsideConfirmed?: boolean;
+      imageIoConfirmed?: boolean;
       preferredOutputDir?: string;
     }) => {
+      if (
+        !options.imageIoConfirmed &&
+        skills.find((skill) => skill.id === options.skillId)?.mentionsImageIO
+      ) {
+        pendingInvokeRef.current = options;
+        setImageIoDialogOpen(true);
+        return;
+      }
+
       if (folderId && !options.outsideConfirmed) {
         const hints = findOutsideProjectPathHints(
           options.userMessage.content,
@@ -876,7 +956,7 @@ export function AgentChatPane({
 
       await invokeSkill(options);
     },
-    [filePath, folderId, invokeSkill],
+    [filePath, folderId, invokeSkill, skills],
   );
 
   const handleSend = useCallback(
@@ -899,7 +979,10 @@ export function AgentChatPane({
         ...(attachments.length > 0 ? { attachments } : {}),
       };
       stickToBottomRef.current = true;
+      // 入力を空にすれば、アンマウント時の後始末が下書きを破棄する。
+      // 下書き Map への書き込み口はそこ 1 箇所に集約する。
       setInput("");
+      setAttachments([]);
       await beginInvokeWithGuards({
         userMessage,
         history: messages,
@@ -941,39 +1024,43 @@ export function AgentChatPane({
       setMessages(deduped);
       setActiveSkillId(session.activeSkillId);
       setInput("");
+      setAttachments([]);
       setError(null);
       setRetryPayload(null);
+      // トークン表示は無条件リセットせず、保存値から復元する（往復しても残す）
+      setLastTurnTokens(session.lastTurnTokens ?? null);
+      setSessionTokenTotal(session.sessionTokenTotal ?? 0);
     },
     [],
   );
 
+  // scopeId は key によるリマウントで固定されるため、この効果はマウント時に
+  // 1 度だけ走る。離脱側の保存は自分のアンマウント時に行う（下のクリーンアップ）。
   useEffect(() => {
     if (!scopeId) return;
 
     let cancelled = false;
 
-    async function loadScopeChat(targetScopeId: string) {
-      const prevId = currentLessonIdRef.current;
-      if (prevId && prevId !== targetScopeId) {
-        await flushSessionToStorage(prevId);
-      }
-
-      const storage = await loadLessonSession(targetScopeId);
+    void (async () => {
+      const storage = await loadLessonSession(scopeId);
       if (cancelled) return;
 
-      currentLessonIdRef.current = targetScopeId;
-      lastPersistedFingerprintRef.current = "";
       setChatStorage(storage);
       applySessionState(storage.activeSessionId, storage);
       sessionSwitchRef.current = storage.activeSessionId;
-    }
-
-    void loadScopeChat(scopeId);
+      // 戻ってきたプロジェクトの未送信入力を復元する（applySessionState の
+      // クリアより後に実行するため、下書きがあれば上書きされる）
+      const draft = draftsRef.current.get(scopeId);
+      if (draft) {
+        setInput(draft.input);
+        setAttachments(draft.attachments);
+      }
+    })();
 
     return () => {
       cancelled = true;
     };
-  }, [applySessionState, flushSessionToStorage, scopeId]);
+  }, [applySessionState, draftsRef, scopeId]);
 
   const handleSwitchSession = useCallback(
     (sessionId: string) => {
@@ -1080,6 +1167,9 @@ export function AgentChatPane({
 
   const sessionTitle = activeSession?.title ?? DEFAULT_SESSION_TITLE;
 
+  // スキル取得の失敗は親が持つため、state へ複製せず表示時に合流させる
+  const displayError = error ?? skillsError;
+
   const notifyControllerListeners = useCallback(() => {
     for (const listener of controllerListenersRef.current) {
       listener();
@@ -1110,7 +1200,6 @@ export function AgentChatPane({
     if (!agentChatControllerRef) return;
     agentChatControllerRef.current = {
       isStreaming: () => isStreaming,
-      interruptForSwitch,
       getSessionChrome: () => sessionChromeRef.current,
       subscribe: (listener) => {
         controllerListenersRef.current.add(listener);
@@ -1121,6 +1210,9 @@ export function AgentChatPane({
       addFileAttachment: (attachment) => {
         addAttachmentRef.current?.(attachment);
       },
+      interruptForSwitch: () => {
+        interruptForSwitch();
+      },
     };
     onControllerReady?.();
     return () => {
@@ -1128,8 +1220,8 @@ export function AgentChatPane({
     };
   }, [
     agentChatControllerRef,
-    interruptForSwitch,
     isStreaming,
+    interruptForSwitch,
     onControllerReady,
   ]);
 
@@ -1213,11 +1305,15 @@ export function AgentChatPane({
   }, []);
 
   const handleToolConfirmDecision = useCallback(
-    async (decision: "approve" | "reject") => {
+    async (decision: "approve" | "reject", manualSearchText?: string) => {
       const request = pendingToolConfirm;
       if (!request) return;
       setPendingToolConfirm(null);
-      await postToolConfirmDecision(request.toolUseId, decision);
+      await postToolConfirmDecision(
+        request.toolUseId,
+        decision,
+        manualSearchText,
+      );
     },
     [pendingToolConfirm],
   );
@@ -1351,9 +1447,12 @@ export function AgentChatPane({
             {SUBAGENT_FALLBACK_USER_MESSAGE}
           </div>
         ) : null}
+        {/* 背景色は祖先と同値だが、スクロール領域自身を不透明レイヤにするために
+            ここへ置く。透明なままだと上に重なるフェードとの兼ね合いでスクロール
+            時にテキストが重ね描きされ、太字でにじんで見えることがある。 */}
         <div
           ref={chatScrollRef}
-          className="workspace-scrollbar min-h-0 flex-1 overflow-y-auto overscroll-y-contain"
+          className="workspace-scrollbar min-h-0 flex-1 overflow-y-auto overscroll-y-contain bg-[var(--agent-chat-pane-bg)]"
           onScroll={(event) => {
             const element = event.currentTarget;
             const distanceFromBottom =
@@ -1364,8 +1463,78 @@ export function AgentChatPane({
           <div className="px-12 py-4">
             {richMarkdown ? (
               messages.length === 0 ? (
-                <div className="flex h-full min-h-[12rem] items-center justify-center text-sm text-muted-foreground">
-                  本日はどのようなお手伝いをさせていただけますか？
+                <div className="flex h-full min-h-[12rem] items-center justify-center">
+                  <div className="flex max-w-md flex-col gap-3 text-sm text-muted-foreground">
+                    <div className="text-center text-sm">
+                      ── 注意とお願い ──
+                    </div>
+                    <p>
+                      スキルに書かれた処理をすべてそのまま実行できるとは限りません。できないことは、代わりの進め方でお手伝いします。
+                    </p>
+                    <table className="w-full border-collapse text-sm">
+                      <tbody>
+                        <tr className="align-top">
+                          <td className="w-6 py-1 pr-2 font-bold text-success">
+                            ✓
+                          </td>
+                          <td className="py-1">
+                            この作業フォルダの中で、読む・書く・変換する
+                          </td>
+                        </tr>
+                        <tr className="align-top">
+                          <td className="w-6 py-1 pr-2 font-bold text-success">
+                            ✓
+                          </td>
+                          <td className="py-1">
+                            大きな成果物も分割して着実に仕上げる
+                          </td>
+                        </tr>
+                        <tr className="align-top">
+                          <td className="w-6 py-1 pr-2 font-bold text-success">
+                            ✓
+                          </td>
+                          <td className="py-1">
+                            スクリプトは確認のうえ実行します（外部への通信は原則しません）
+                          </td>
+                        </tr>
+                        <tr className="align-top">
+                          <td className="w-6 py-1 pr-2 font-bold text-destructive">
+                            ✗
+                          </td>
+                          <td className="py-1">
+                            サブエージェントには対応していません →
+                            同じセッション内で順に処理します
+                          </td>
+                        </tr>
+                        <tr className="align-top">
+                          <td className="w-6 py-1 pr-2 font-bold text-destructive">
+                            ✗
+                          </td>
+                          <td className="py-1">
+                            Web 検索は原則しません →
+                            検索ワードをお渡しするので、結果と URL
+                            を貼ってください
+                          </td>
+                        </tr>
+                        <tr className="align-top">
+                          <td className="w-6 py-1 pr-2 font-bold text-destructive">
+                            ✗
+                          </td>
+                          <td className="py-1">
+                            フォルダの外は触りません／ファイルは削除しません
+                          </td>
+                        </tr>
+                        <tr className="align-top">
+                          <td className="w-6 py-1 pr-2 font-bold text-destructive">
+                            ✗
+                          </td>
+                          <td className="py-1">
+                            画像の生成・読み取りには対応していません
+                          </td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
                 </div>
               ) : (
                 <div className="flex flex-col gap-6">
@@ -1486,6 +1655,15 @@ export function AgentChatPane({
         />
       </div>
 
+      {lastTurnTokens !== null ? (
+        <div className="flex items-center justify-end gap-3 px-12 py-1 text-[11px] text-muted-foreground">
+          <span>直近ターン: {lastTurnTokens.toLocaleString()} tokens</span>
+          <span>
+            セッション累計: {sessionTokenTotal.toLocaleString()} tokens
+          </span>
+        </div>
+      ) : null}
+
       {storageWarning ? (
         <div className="flex items-center justify-between gap-2 bg-secondary px-12 py-2 text-xs text-secondary-foreground">
           <span>{storageWarning}</span>
@@ -1500,9 +1678,9 @@ export function AgentChatPane({
         </div>
       ) : null}
 
-      {error ? (
+      {displayError ? (
         <div className="flex items-center justify-between gap-2 bg-destructive/10 px-12 py-2 text-xs text-destructive">
-          <span>{error}</span>
+          <span>{displayError}</span>
           {retryPayload ? (
             <Button
               type="button"
@@ -1522,6 +1700,8 @@ export function AgentChatPane({
           key={folderId || "no-project"}
           value={input}
           onChange={setInput}
+          attachments={attachments}
+          onAttachmentsChange={setAttachments}
           onSend={(attachments) => void handleSend(attachments)}
           onAfterSend={() => {
             stickToBottomRef.current = true;
@@ -1654,10 +1834,79 @@ export function AgentChatPane({
       </AlertDialog>
 
       <ToolConfirmDialog
-        request={pendingToolConfirm}
+        // 確認要求ごとにリマウントして、連続確認での Radix ダイアログの状態残留
+        // （pointer-events 詰まり等）を断つ。ManualSearchDialog と同手当て。
+        key={`tool-confirm-${pendingToolConfirm?.toolUseId ?? "none"}`}
+        request={
+          pendingToolConfirm?.kind === "web-search-manual"
+            ? null
+            : pendingToolConfirm
+        }
         onApprove={() => void handleToolConfirmDecision("approve")}
         onReject={() => void handleToolConfirmDecision("reject")}
       />
+
+      <ManualSearchDialog
+        key={`manual-search-${pendingToolConfirm?.toolUseId ?? "none"}`}
+        request={pendingToolConfirm}
+        onSubmit={(manualSearchText) =>
+          void handleToolConfirmDecision("approve", manualSearchText)
+        }
+        onSkip={() => void handleToolConfirmDecision("reject")}
+      />
+
+      <AlertDialog
+        open={imageIoDialogOpen}
+        onOpenChange={(open) => {
+          if (!open) {
+            const pending = pendingInvokeRef.current;
+            if (pending) {
+              setInput(pending.userMessage.content);
+              pendingInvokeRef.current = null;
+            }
+            setImageIoDialogOpen(false);
+          }
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              画像・マルチモーダルには対応していません
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {IMAGE_IO_FALLBACK_USER_MESSAGE}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel
+              onClick={() => {
+                const pending = pendingInvokeRef.current;
+                if (pending) {
+                  setInput(pending.userMessage.content);
+                  pendingInvokeRef.current = null;
+                }
+                setImageIoDialogOpen(false);
+              }}
+            >
+              中止
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                const pending = pendingInvokeRef.current;
+                setImageIoDialogOpen(false);
+                if (!pending) return;
+                pendingInvokeRef.current = null;
+                void beginInvokeWithGuards({
+                  ...pending,
+                  imageIoConfirmed: true,
+                });
+              }}
+            >
+              スキップして続行
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <OutsideProjectPathDialog
         open={outsideDialogOpen}

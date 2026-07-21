@@ -6,6 +6,7 @@ import {
   AlertCircle,
   ChevronDown,
   ChevronRight,
+  ChevronsDownUp,
   CircleDashed,
   ClipboardPaste,
   Copy,
@@ -70,7 +71,6 @@ import {
   collectProjectFolderPaths,
   filterWorkspaceTree,
   filterWorkspaceTreeByFileKeys,
-  findTreeNode,
   getAncestorFolderPaths,
   getFolderBaseName,
   remapFolderPath,
@@ -120,6 +120,8 @@ type Props = {
   chatProjectFolderId?: string;
   onRefresh: () => Promise<void>;
   onOpenPurpose?: () => void;
+  /** ホスト配下のときの表示名（projectRoot の basename）。単体起動では null */
+  hostName?: string | null;
   /** Agent 実行中のプロジェクトフォルダ ID。該当フォルダの rename/delete を拒否する */
   agentBusyProjectFolderId?: string | null;
 };
@@ -131,7 +133,6 @@ type DialogMode =
   | { type: "add-subfolder"; parentPath: string }
   | { type: "rename-folder"; folderPath: string }
   | { type: "delete-folder"; folderPath: string }
-  | { type: "blocked-delete-folder"; folderPath: string }
   | {
       type: "blocked-delete-favorite";
       /** ブロック対象の表示ラベル（ファイル名またはフォルダパス） */
@@ -168,7 +169,7 @@ type TreeInteraction = {
   onOpenDialog: (dialog: DialogMode) => void;
   onSetNameInput: (value: string) => void;
   onToggleExpanded: (folderPath: string, isOpen: boolean) => void;
-  /** コンテキストメニュー操作直後のポインター開閉（誤 dblclick 等）を無視する */
+  /** コンテキストメニュー操作直後のポインター開閉（貫通クリック等）を無視する */
   shouldIgnorePointerToggle: () => boolean;
   onSelectFile: (folderPath: string, fileName: string) => void;
   onAddFileToChat: (folderPath: string, fileName: string) => void;
@@ -179,7 +180,7 @@ type TreeInteraction = {
   rowHighlight: (rowId: string, isFileSelected: boolean) => string;
 };
 
-/** メニュー操作とフォーカス用クリックが dblclick になるのを防ぐ */
+/** メニュー操作直後の貫通クリックがフォルダ開閉になるのを防ぐ */
 const POINTER_TOGGLE_SUPPRESS_MS = 1000;
 
 function dialogFolderPath(dialog: DialogMode): string | null {
@@ -188,7 +189,6 @@ function dialogFolderPath(dialog: DialogMode): string | null {
     dialog.type === "rename-folder" ||
     dialog.type === "add-file" ||
     dialog.type === "delete-folder" ||
-    dialog.type === "blocked-delete-folder" ||
     dialog.type === "blocked-agent-busy-folder"
   ) {
     return dialog.folderPath;
@@ -316,12 +316,23 @@ function TreeNode({
   const folderRow = folderRowId(node.path);
   const isDropTarget = interaction.dropTargetPath === node.path;
   const isSubfolder = !isProjectFolder(node.path);
+  // 現在選択中のファイル（no file 含む）を配下に持つプロジェクトフォルダ全体を、
+  // 展開状態に関わらず器で囲んで「作業中プロジェクト」を一目で示す
+  const isSelectedProjectRoot =
+    !isSubfolder &&
+    interaction.selectedFolderPath !== "" &&
+    getProjectRoot(interaction.selectedFolderPath) === node.path;
 
   return (
     <div
       className={cn(
-        "flex flex-col rounded-lg",
+        "relative flex flex-col rounded-lg",
         isDropTarget && "ring-2 ring-primary",
+        // 背景は変えず、ブロック左辺に primary 色の縦レールで現在地を示す。
+        // DnD 中は青枠（箱）が主役になるためレールは出さない
+        isSelectedProjectRoot &&
+          !isDropTarget &&
+          "before:absolute before:inset-y-0 before:-left-0.5 before:w-[3px] before:rounded-full before:bg-primary before:content-['']",
       )}
       onDragOver={(event) => {
         event.preventDefault();
@@ -364,12 +375,8 @@ function TreeNode({
                 );
                 event.dataTransfer.effectAllowed = "move";
               }}
-              onClick={() => interaction.onFocusRow(folderRow)}
-              onDoubleClick={(event) => {
-                if (interaction.shouldIgnorePointerToggle()) {
-                  event.preventDefault();
-                  return;
-                }
+              onClick={() => {
+                if (interaction.shouldIgnorePointerToggle()) return;
                 interaction.onToggleExpanded(node.path, isOpen);
               }}
             >
@@ -747,6 +754,7 @@ export function FileTreePane({
   chatProjectFolderId = "",
   onRefresh,
   onOpenPurpose,
+  hostName = null,
   agentBusyProjectFolderId = null,
 }: Props) {
   const treeRef = useRef<HTMLDivElement>(null);
@@ -1196,16 +1204,9 @@ export function FileTreePane({
         });
         return;
       }
-      if (isProjectFolder(folderPath)) {
-        const node = findTreeNode(folders, folderPath);
-        if (node && (node.files.length > 0 || node.children.length > 0)) {
-          openDialog({ type: "blocked-delete-folder", folderPath });
-          return;
-        }
-      }
       openDialog({ type: "delete-folder", folderPath });
     },
-    [agentBusyProjectFolderId, favorites, folders, openDialog],
+    [agentBusyProjectFolderId, favorites, openDialog],
   );
 
   const handleToggleFavorite = useCallback(
@@ -1249,6 +1250,13 @@ export function FileTreePane({
     openDialog({ type: "add-folder" });
   }, [openDialog]);
 
+  // 展開状態を空にすると、開閉判定が emphasizedFolderPaths（選択中ファイルの
+  // 祖先パス）にフォールバックし、選択中ファイルへ至る道だけ開いたまま畳まれる
+  const collapseAll = useCallback(() => {
+    clearPaneError();
+    setExpanded({});
+  }, [clearPaneError]);
+
   const handleFocusRow = useCallback(
     (rowId: string) => {
       clearPaneError();
@@ -1272,8 +1280,8 @@ export function FileTreePane({
   const handleContextMenuChange = useCallback(
     (rowId: string | null) => {
       setContextMenuTargetId(rowId);
-      // Shift+F10 等でメニューを出した直後のクリックが、フォーカス用クリックと
-      // 合わさって dblclick 扱いになりフォルダが閉じるのを防ぐ
+      // Shift+F10 等でメニューを出した直後のクリックが、そのまま
+      // フォルダ開閉として通ってしまうのを防ぐ
       suppressPointerToggleUntilRef.current =
         Date.now() + POINTER_TOGGLE_SUPPRESS_MS;
       if (!rowId && treeRef.current) {
@@ -1813,34 +1821,59 @@ export function FileTreePane({
 
   const deleteFolderDescription =
     dialog?.type === "delete-folder"
-      ? (() => {
-          const folderName = getFolderBaseName(dialog.folderPath);
-          return isProjectFolder(dialog.folderPath)
-            ? `フォルダ「${folderName}」を削除しますか？`
-            : `フォルダ「${folderName}」と配下のすべてのファイル・フォルダが削除されます。実行しますか？`;
-        })()
+      ? `フォルダ「${getFolderBaseName(dialog.folderPath)}」と配下のすべてのファイル・フォルダが削除されます。実行しますか？`
       : "";
+
+  // ツリー空き領域・検索ボックス行で共通に出すコンテキストメニュー項目
+  const treeAreaContextMenuItems = (
+    <>
+      <ContextMenuItem variant="muted" onClick={openAddFolder}>
+        <FolderPlus className="size-4" />
+        add folder
+      </ContextMenuItem>
+      <ContextMenuItem variant="muted" onClick={collapseAll}>
+        <ChevronsDownUp className="size-4" />
+        collapse all
+      </ContextMenuItem>
+    </>
+  );
 
   return (
     <div className="flex h-full min-h-0 flex-col">
       <div className="flex h-12 shrink-0 items-center justify-between border-b px-3 py-0">
-        <button
-          type="button"
-          className="flex min-w-0 items-center gap-2 rounded-md text-left hover:bg-muted/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-          aria-label="EBE Purpose を開く"
-          onClick={() => onOpenPurpose?.()}
-        >
-          <Image
-            src={logoSmall}
-            alt=""
-            width={logoSmall.width}
-            height={logoSmall.height}
-            className="h-6 w-auto shrink-0"
-            priority
-          />
-          <span className="text-lg font-semibold tracking-tight">EBEX</span>
-        </button>
+        <div className="flex min-w-0 items-center gap-2">
+          <button
+            type="button"
+            className="flex min-w-0 shrink-0 items-center gap-2 rounded-md text-left hover:bg-muted/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            aria-label="EBE Purpose を開く"
+            onClick={() => onOpenPurpose?.()}
+          >
+            <Image
+              src={logoSmall}
+              alt=""
+              width={logoSmall.width}
+              height={logoSmall.height}
+              className="h-6 w-auto shrink-0"
+              priority
+            />
+            <span className="text-lg font-semibold tracking-tight">EBEX</span>
+          </button>
+          {hostName ? (
+            <span className="truncate self-end pb-1 text-xs text-muted-foreground">
+              for {hostName}
+            </span>
+          ) : null}
+        </div>
         <div className="flex items-center gap-1">
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon-sm"
+            aria-label="すべて折りたたむ"
+            onClick={collapseAll}
+          >
+            <ChevronsDownUp className="size-4" />
+          </Button>
           <Button
             type="button"
             variant="ghost"
@@ -1853,9 +1886,21 @@ export function FileTreePane({
         </div>
       </div>
 
-      <div className="flex shrink-0 items-center gap-2 px-3 py-2">
-        <Search className="size-4 shrink-0 text-muted-foreground" />
-        <div className="relative min-w-0 flex-1">
+      <div className="relative flex shrink-0 items-center gap-2 px-3 py-2">
+        {/* 入力欄以外（余白・アイコン）を右クリック → add folder。
+            入力欄はトリガの subtree に入れないことで、ブラウザ標準の
+            テキストメニュー（貼り付け等）をそのまま残す（Base UI トリガは
+            capture フェーズで native メニューを preventDefault するため、
+            子からの stopPropagation では止められない）。 */}
+        <ContextMenu>
+          <ContextMenuTrigger
+            render={<div className="absolute inset-0" aria-hidden="true" />}
+          />
+          <ContextMenuContent>{treeAreaContextMenuItems}</ContextMenuContent>
+        </ContextMenu>
+        {/* アイコンはクリックを背景トリガへ透過させる（右クリックで add folder） */}
+        <Search className="pointer-events-none relative z-10 size-4 shrink-0 text-muted-foreground" />
+        <div className="relative z-10 min-w-0 flex-1">
           <Input
             value={filter}
             onChange={(e) => {
@@ -1890,26 +1935,37 @@ export function FileTreePane({
             </Button>
           ) : null}
         </div>
-        <Button
-          type="button"
-          variant={favoritesOnly ? "secondary" : "ghost"}
-          size="icon-sm"
-          aria-label={
-            favoritesOnly ? "すべてのファイルを表示" : "お気に入りのみ表示"
-          }
-          aria-pressed={favoritesOnly}
-          onClick={() => {
-            clearPaneError();
-            setFavoritesOnly((prev) => !prev);
-          }}
-        >
-          <Star
-            className={cn(
-              "size-4 text-muted-foreground",
-              favoritesOnly && "fill-yellow-500 text-yellow-500",
-            )}
+        {/* お気に入りボタンも右クリックで add folder（左クリックは従来どおり切替） */}
+        <ContextMenu>
+          <ContextMenuTrigger
+            render={
+              <Button
+                type="button"
+                variant={favoritesOnly ? "secondary" : "ghost"}
+                size="icon-sm"
+                className="relative z-10"
+                aria-label={
+                  favoritesOnly
+                    ? "すべてのファイルを表示"
+                    : "お気に入りのみ表示"
+                }
+                aria-pressed={favoritesOnly}
+                onClick={() => {
+                  clearPaneError();
+                  setFavoritesOnly((prev) => !prev);
+                }}
+              >
+                <Star
+                  className={cn(
+                    "size-4 text-muted-foreground",
+                    favoritesOnly && "fill-yellow-500 text-yellow-500",
+                  )}
+                />
+              </Button>
+            }
           />
-        </Button>
+          <ContextMenuContent>{treeAreaContextMenuItems}</ContextMenuContent>
+        </ContextMenu>
       </div>
 
       {contentSearching ? (
@@ -1940,57 +1996,55 @@ export function FileTreePane({
         </div>
       ) : null}
 
-      <div
-        ref={treeRef}
-        tabIndex={0}
-        className="workspace-scrollbar flex min-h-0 flex-1 flex-col overflow-y-auto px-1 py-2 outline-none"
-        onKeyDown={handleTreeKeyDown}
-        onMouseDown={() => {
-          if (dialogRef.current) return;
-          treeRef.current?.focus();
-        }}
-      >
-        {filteredFolders.length === 0 ? (
-          <p className="px-2 py-4 text-center text-sm text-muted-foreground">
-            {contentSearching
-              ? "検索中…"
-              : isContentSearchMode && contentQuery
-                ? "一致するファイルがありません"
-                : favoritesOnly
-                  ? "お気に入りがありません"
-                  : "フォルダがありません"}
-          </p>
-        ) : (
-          filteredFolders.map((folder) => (
-            <TreeNode
-              key={folder.path}
-              node={folder}
-              depth={0}
-              expanded={expanded}
-              emphasizedFolderPaths={emphasizedFolderPaths}
-              interaction={interaction}
-            />
-          ))
-        )}
-        <ContextMenu>
-          <ContextMenuTrigger
-            render={<div className="min-h-6 flex-1" aria-hidden="true" />}
-          />
-          <ContextMenuContent>
-            <ContextMenuItem variant="muted" onClick={openAddFolder}>
-              <FolderPlus className="size-4" />
-              add folder
-            </ContextMenuItem>
-          </ContextMenuContent>
-        </ContextMenu>
-      </div>
+      <ContextMenu>
+        <ContextMenuTrigger
+          render={
+            <div
+              ref={treeRef}
+              tabIndex={0}
+              className="workspace-scrollbar flex min-h-0 flex-1 flex-col overflow-y-auto px-1 py-2 outline-none"
+              onKeyDown={handleTreeKeyDown}
+              onMouseDown={() => {
+                if (dialogRef.current) return;
+                treeRef.current?.focus();
+              }}
+            >
+              {filteredFolders.length === 0 ? (
+                <p className="px-2 py-4 text-center text-sm text-muted-foreground">
+                  {contentSearching
+                    ? "検索中…"
+                    : isContentSearchMode && contentQuery
+                      ? "一致するファイルがありません"
+                      : favoritesOnly
+                        ? "お気に入りがありません"
+                        : "フォルダがありません"}
+                </p>
+              ) : (
+                filteredFolders.map((folder) => (
+                  <TreeNode
+                    key={folder.path}
+                    node={folder}
+                    depth={0}
+                    expanded={expanded}
+                    emphasizedFolderPaths={emphasizedFolderPaths}
+                    interaction={interaction}
+                  />
+                ))
+              )}
+              {/* リスト下の余白。上部 padding とこの余白のどちらを右クリックしても
+                  ツリー空き領域メニューが出る（行の上では行メニューが内側優先で表示される） */}
+              <div className="min-h-6 flex-1" aria-hidden="true" />
+            </div>
+          }
+        />
+        <ContextMenuContent>{treeAreaContextMenuItems}</ContextMenuContent>
+      </ContextMenu>
 
       <Dialog
         open={
           dialog !== null &&
           dialog.type !== "delete-folder" &&
           dialog.type !== "delete-file" &&
-          dialog.type !== "blocked-delete-folder" &&
           dialog.type !== "blocked-delete-favorite" &&
           dialog.type !== "blocked-agent-busy-folder"
         }
@@ -2111,27 +2165,6 @@ export function FileTreePane({
               ))}
             </ul>
           ) : null}
-          <AlertDialogFooter>
-            <AlertDialogAction onClick={() => setDialog(null)}>
-              OK
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-
-      <AlertDialog
-        open={dialog?.type === "blocked-delete-folder"}
-        onOpenChange={(open) => !open && setDialog(null)}
-      >
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>削除できません</AlertDialogTitle>
-            <AlertDialogDescription>
-              {dialog?.type === "blocked-delete-folder"
-                ? `フォルダ「${dialog.folderPath}」にはファイルまたはサブフォルダが含まれています。空のプロジェクトフォルダのみ削除できます。`
-                : ""}
-            </AlertDialogDescription>
-          </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogAction onClick={() => setDialog(null)}>
               OK

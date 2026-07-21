@@ -170,23 +170,75 @@ export function contentTypeForExtension(ext: string): string | null {
   }
 }
 
-export function parseVtt(
-  content: string,
-): Array<{ time: string; text: string }> {
-  const cues: Array<{ time: string; text: string }> = [];
+export type VttCue = {
+  /** 開始タイムスタンプ（例 `00:00:02.000`） */
+  start: string;
+  /** 終了タイムスタンプ（例 `00:00:06.500`） */
+  end: string;
+  /** 話者名。特定できない場合は null（表示側で「不明」扱い） */
+  speaker: string | null;
+  /** 話者タグ・接頭辞を除去した発話本文 */
+  text: string;
+};
+
+/** `<v 話者名>...</v>` 優先、無ければ行頭 `話者名:`、いずれも無ければ null */
+function extractVttSpeaker(rawText: string): {
+  speaker: string | null;
+  text: string;
+} {
+  const voiceMatch = rawText.match(/<v\s+([^>]+)>/);
+  if (voiceMatch) {
+    const speaker = (voiceMatch[1] ?? "").trim();
+    const text = rawText.replace(/<\/?v[^>]*>/g, "").trim();
+    return { speaker: speaker || null, text };
+  }
+  // フォールバック: 行頭の「話者名:」（空白を含まない短いラベルのみ）
+  const prefixMatch = rawText.match(/^([^\s:：]{1,20})[:：]\s*([\s\S]+)$/);
+  if (prefixMatch) {
+    return {
+      speaker: (prefixMatch[1] ?? "").trim() || null,
+      text: (prefixMatch[2] ?? "").trim(),
+    };
+  }
+  return { speaker: null, text: rawText.replace(/<\/?v[^>]*>/g, "").trim() };
+}
+
+export function parseVtt(content: string): VttCue[] {
+  const cues: VttCue[] = [];
   const blocks = content.split(/\n\n+/);
   for (const block of blocks) {
     const lines = block.trim().split("\n");
     if (lines.length < 2) continue;
-    const timeLine = lines.find((l) => l.includes("-->"));
-    if (!timeLine) continue;
-    const text = lines
-      .slice(lines.indexOf(timeLine) + 1)
+    const timeLineIndex = lines.findIndex((l) => l.includes("-->"));
+    if (timeLineIndex === -1) continue;
+    const [startRaw, endRaw] = lines[timeLineIndex].split("-->");
+    const start = (startRaw ?? "").trim();
+    // 終了時刻の後に続く配置設定（align:start 等）を落とす
+    const end = (endRaw ?? "").trim().split(/\s+/)[0] ?? "";
+    const rawText = lines
+      .slice(timeLineIndex + 1)
       .join("\n")
       .trim();
-    if (text) cues.push({ time: timeLine.trim(), text });
+    if (!rawText) continue;
+    const { speaker, text } = extractVttSpeaker(rawText);
+    if (!text) continue;
+    cues.push({ start, end, speaker, text });
   }
   return cues;
+}
+
+/** 話者名から決定的に 0–359 の色相を導出する（同一話者は常に同じ色） */
+export function vttSpeakerHue(speaker: string): number {
+  let hash = 0;
+  for (let i = 0; i < speaker.length; i += 1) {
+    hash = (hash * 31 + speaker.charCodeAt(i)) % 360;
+  }
+  return hash;
+}
+
+/** タイムスタンプからミリ秒（`.000`）を除去して表示用に整形する */
+export function formatVttTimestamp(timestamp: string): string {
+  return timestamp.replace(/\.\d+$/, "");
 }
 
 export function parseCsv(content: string): string[][] {

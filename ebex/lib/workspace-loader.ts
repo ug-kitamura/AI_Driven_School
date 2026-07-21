@@ -83,7 +83,9 @@ export function loadWorkspace(projectRoot: string): WorkspaceLoadResult {
     );
   }
 
-  folders.sort((a, b) => a.path.localeCompare(b.path, "ja"));
+  // トップレベルのプロジェクトフォルダは逆アルファベット順（新しい日付プレフィックスが上）。
+  // 子要素（loadFolderTree 内）は昇順のまま。
+  folders.sort((a, b) => b.path.localeCompare(a.path, "ja"));
   return { folders };
 }
 

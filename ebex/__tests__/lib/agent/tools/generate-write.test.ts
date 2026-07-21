@@ -17,6 +17,7 @@ function contentText(content: LlmMessage["content"]): string {
 }
 import {
   executeGenerateAndWrite,
+  GENERATE_CONTEXT_FILE_CHAR_LIMIT,
   GENERATE_MAX_SECTIONS,
   GENERATE_TOTAL_CHAR_LIMIT,
   parseGenerateWriteInput,
@@ -356,6 +357,54 @@ describe("executeGenerateAndWrite", () => {
     const prompt = contentText(calls[0].messages[0].content);
     expect(prompt).toContain("outline-content");
     expect(prompt).toContain("model-answer-content");
+    fs.rmSync(base.tmpDir, { recursive: true, force: true });
+  });
+
+  it("surfaces context_paths truncation in result and display", async () => {
+    const base = makeProject();
+    // 読取上限を超える参照ファイル（軽量モデルでの品質低下の原因切り分けに使う）
+    createFile(
+      base.tmpDir,
+      "demo",
+      "huge.md",
+      "x".repeat(GENERATE_CONTEXT_FILE_CHAR_LIMIT + 1),
+    );
+    const { provider } = makeProvider([
+      { text: "done", stopReason: "end_turn" },
+    ]);
+    const outcome = await executeGenerateAndWrite(makeContext(base, provider), {
+      purpose: "p",
+      path: "out.html",
+      instruction: "書く",
+      context_paths: ["huge.md"],
+    });
+    const record = outcome.result as Record<string, unknown>;
+    expect(record.error).toBeUndefined();
+    // 子プロンプトの見出しと同じ解決後パスで示す
+    expect(record.truncatedContextPaths).toEqual(["workspace/demo/huge.md"]);
+    expect(outcome.display.display).toContain("切り詰め");
+    expect(outcome.display.display).toContain("huge.md");
+    // 事実の報告に留め、リトライを促さない
+    expect(outcome.display.display).not.toContain("再試行");
+    fs.rmSync(base.tmpDir, { recursive: true, force: true });
+  });
+
+  it("omits truncation info when every context file fits", async () => {
+    const base = makeProject();
+    createFile(base.tmpDir, "demo", "notes.md", "outline-content");
+    const { provider } = makeProvider([
+      { text: "done", stopReason: "end_turn" },
+    ]);
+    const outcome = await executeGenerateAndWrite(makeContext(base, provider), {
+      purpose: "p",
+      path: "out.html",
+      instruction: "書く",
+      context_paths: ["notes.md"],
+    });
+    const record = outcome.result as Record<string, unknown>;
+    expect(record.error).toBeUndefined();
+    expect(record).not.toHaveProperty("truncatedContextPaths");
+    expect(outcome.display.display).not.toContain("切り詰め");
     fs.rmSync(base.tmpDir, { recursive: true, force: true });
   });
 

@@ -18,7 +18,7 @@ function writeSkill(
   id: string,
   frontmatter: string,
   body: string,
-  convention: ".claude" | ".cursor" | ".agent" | ".github" = ".claude",
+  convention: ".claude" | ".cursor" | ".agents" | ".github" = ".claude",
 ) {
   const dir = path.join(root, convention, "skills", id);
   fs.mkdirSync(dir, { recursive: true });
@@ -121,6 +121,24 @@ description: |
 
   it("returns null when skill is missing", () => {
     expect(loadSkill(tmpDir, "missing-skill")).toBeNull();
+  });
+
+  it("flags mentionsImageIO when the skill body mentions image generation", () => {
+    writeSkill(
+      tmpDir,
+      "image-skill",
+      "name: image\ndescription: i",
+      "Step1: 画像を生成してスライドに貼る",
+    );
+    writeSkill(tmpDir, "text-skill", "name: text\ndescription: t", "本文のみ");
+
+    const skills = listSkills(tmpDir);
+    expect(
+      skills.find((skill) => skill.id === "image-skill")?.mentionsImageIO,
+    ).toBe(true);
+    expect(
+      skills.find((skill) => skill.id === "text-skill")?.mentionsImageIO,
+    ).toBe(false);
   });
 
   it("reports missing variables before invoke", () => {
@@ -315,6 +333,39 @@ Body`);
     }
   });
 
+  it("orders host skills before ebex skills, id ascending within each root", () => {
+    const ebexRoot = fs.mkdtempSync(path.join(os.tmpdir(), "skill-ebex-ord-"));
+    const hostRoot = fs.mkdtempSync(path.join(os.tmpdir(), "skill-host-ord-"));
+    try {
+      writeSkill(ebexRoot, "alpha", "name: alpha\ndescription: e", "b");
+      writeSkill(ebexRoot, "delta", "name: delta\ndescription: e", "b");
+      writeSkill(hostRoot, "zeta", "name: zeta\ndescription: h", "b");
+      writeSkill(hostRoot, "beta", "name: beta\ndescription: h", "b");
+
+      const roots = getSkillCatalogRoots(hostRoot, ebexRoot);
+      expect(listSkills(roots).map((skill) => skill.id)).toEqual([
+        "beta",
+        "zeta",
+        "alpha",
+        "delta",
+      ]);
+    } finally {
+      fs.rmSync(ebexRoot, { recursive: true, force: true });
+      fs.rmSync(hostRoot, { recursive: true, force: true });
+    }
+  });
+
+  it("keeps a single id-ascending section when standalone", () => {
+    writeSkill(tmpDir, "beta", "name: beta\ndescription: d", "b");
+    writeSkill(tmpDir, "alpha", "name: alpha\ndescription: d", "b");
+
+    const roots = getSkillCatalogRoots(tmpDir, tmpDir);
+    expect(listSkills(roots).map((skill) => skill.id)).toEqual([
+      "alpha",
+      "beta",
+    ]);
+  });
+
   it("discovers skills under .cursor/skills", () => {
     writeSkill(
       tmpDir,
@@ -328,6 +379,34 @@ Body`);
     expect(resolveSkillDir(tmpDir, "minutes-maid")).toBe(
       path.join(tmpDir, ".cursor", "skills", "minutes-maid"),
     );
+  });
+
+  it("discovers skills under .agents/skills", () => {
+    writeSkill(
+      tmpDir,
+      "minutes-maid",
+      "name: minutes\ndescription: from agents",
+      "agents body",
+      ".agents",
+    );
+    expect(listSkills(tmpDir).map((s) => s.id)).toEqual(["minutes-maid"]);
+    expect(loadSkill(tmpDir, "minutes-maid")?.body).toContain("agents body");
+    expect(resolveSkillDir(tmpDir, "minutes-maid")).toBe(
+      path.join(tmpDir, ".agents", "skills", "minutes-maid"),
+    );
+  });
+
+  it("ignores the singular .agent convention", () => {
+    const dir = path.join(tmpDir, ".agent", "skills", "legacy-skill");
+    fs.mkdirSync(dir, { recursive: true });
+    fs.writeFileSync(
+      path.join(dir, "SKILL.md"),
+      "---\nname: legacy\ndescription: d\n---\n\nlegacy body",
+      "utf-8",
+    );
+    expect(listSkills(tmpDir)).toEqual([]);
+    expect(loadSkill(tmpDir, "legacy-skill")).toBeNull();
+    expect(resolveSkillDir(tmpDir, "legacy-skill")).toBeNull();
   });
 
   it("prefers .claude over .cursor for same id in one root", () => {

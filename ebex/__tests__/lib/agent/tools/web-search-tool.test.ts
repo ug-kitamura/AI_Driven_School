@@ -9,6 +9,7 @@ import {
   resolveToolDefinitions,
   type ToolExecutionContext,
 } from "@/lib/agent/tools/registry";
+import { SEARCH_NO_CITATION_GUIDANCE } from "@/lib/agent/tools/search-provider";
 import type {
   SearchOutcome,
   SearchProvider,
@@ -64,6 +65,10 @@ describe("web_search tool", () => {
       query: "EBEX",
       results: [{ title: "T", url: "https://t.example", snippet: "s" }],
     });
+    // 検索が成立した以上、出典は正当なので抑止の案内は混ざらない
+    expect(JSON.stringify(outcome.result)).not.toContain(
+      SEARCH_NO_CITATION_GUIDANCE,
+    );
     fs.rmSync(tmpDir, { recursive: true, force: true });
   });
 

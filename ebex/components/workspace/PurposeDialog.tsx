@@ -1,34 +1,60 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
-import ReactMarkdown from "react-markdown";
-import remarkGfm from "remark-gfm";
+import { useCallback, useEffect, useRef, useState } from "react";
+import Image from "next/image";
 import { X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import {
+  parsePurposeConcepts,
+  type PurposeConcept,
+} from "@/lib/purpose-concepts";
+import typographyImage from "@/images/typography.png";
 
 type Props = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
 };
 
+const PARSE_ERROR = "ebe-purpose.md の見出しを解析できませんでした";
+const LOAD_ERROR = "ebe-purpose.md を読み込めませんでした";
+
 export function PurposeDialog({ open, onOpenChange }: Props) {
-  const [markdown, setMarkdown] = useState("");
+  const [concepts, setConcepts] = useState<PurposeConcept[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const dialogRef = useRef<HTMLDialogElement>(null);
+
+  // open 属性の宣言では非モーダル（backdrop も Esc も効かない）になるため、
+  // showModal/close で top layer に載せる
+  useEffect(() => {
+    const el = dialogRef.current;
+    if (!el) return;
+    if (open) {
+      if (!el.open) el.showModal();
+    } else if (el.open) {
+      el.close();
+    }
+  }, [open]);
 
   useEffect(() => {
     if (!open) return;
     let cancelled = false;
     void fetch("/api/purpose")
       .then(async (res) => {
-        if (!res.ok) throw new Error("purpose.md を読み込めませんでした");
+        if (!res.ok) throw new Error(LOAD_ERROR);
         return res.text();
       })
       .then((text) => {
-        if (!cancelled) {
-          setMarkdown(text);
-          setError(null);
+        if (cancelled) return;
+        // 部分許容: 形式に合わない見出しは無視される。1 件も取れなければエラー。
+        const parsed = parsePurposeConcepts(text);
+        if (parsed.length === 0) {
+          setError(PARSE_ERROR);
+          setConcepts([]);
+          return;
         }
+        setConcepts(parsed);
+        setError(null);
       })
       .catch((err) => {
         if (!cancelled) {
@@ -47,46 +73,59 @@ export function PurposeDialog({ open, onOpenChange }: Props) {
 
   return (
     <dialog
-      open={open}
+      ref={dialogRef}
       onClose={() => handleOpenChange(false)}
+      // backdrop のクリックは dialog 要素自身が target になる（中身は下の div が受ける）
+      onClick={(event) => {
+        if (event.target === dialogRef.current) handleOpenChange(false);
+      }}
       className={cn(
-        "fixed inset-0 z-50 m-auto max-h-[92vh] w-full max-w-3xl rounded-sm border border-[#c4b896] p-0 shadow-xl backdrop:bg-black/50",
+        // flex-col + 下の min-h-0 で「収まるなら全部出す／収まらなければ ol だけ
+        // スクロールさせる」高さの連鎖を作る
+        "fixed inset-0 z-50 m-auto max-h-[97vh] w-full max-w-3xl flex-col rounded-sm border border-[#c4b896] p-0 shadow-xl backdrop:bg-black/50",
         "bg-[#e8dfc8] text-[#3d3426]",
+        // display 指定は UA の dialog:not([open]){display:none} に勝ってしまうので
+        // 開閉に合わせて明示的に切り替える
+        open ? "flex" : "hidden",
       )}
     >
-      <div className="relative flex flex-col gap-10 px-10 py-12 sm:px-16 sm:py-14">
+      <div className="relative flex min-h-0 flex-1 flex-col gap-9 px-[30px] py-14">
         <Button
           type="button"
           variant="ghost"
           size="icon-sm"
           aria-label="閉じる"
-          className="absolute top-4 right-4 text-[#3d3426]/80 hover:bg-[#d4c9a8] hover:text-[#3d3426]"
+          className="absolute top-5 right-5 text-[#3d3426]/80 hover:bg-[#d4c9a8] hover:text-[#3d3426]"
           onClick={() => handleOpenChange(false)}
         >
           <X className="size-4" />
         </Button>
 
-        <h2 className="text-center text-3xl font-semibold tracking-wide text-[#2c2418] sm:text-4xl">
-          EBE Purpose
-        </h2>
+        <Image
+          src={typographyImage}
+          alt="EBE Purpose"
+          className="mx-auto h-auto w-full max-w-[14rem]"
+          priority
+        />
 
         {error ? (
-          <p className="text-center text-sm text-destructive">{error}</p>
+          <p className="text-destructive text-center text-sm">{error}</p>
         ) : (
-          <div
-            className={cn(
-              "purpose-parchment workspace-scrollbar max-h-[70vh] overflow-y-auto text-center",
-              "[&_h1]:hidden",
-              "[&_ol]:mx-auto [&_ol]:list-decimal [&_ol]:list-inside [&_ol]:space-y-4 [&_ol]:pl-0 [&_ol]:text-center [&_ol]:text-base [&_ol]:leading-relaxed sm:[&_ol]:text-lg",
-              "[&_ul]:mx-auto [&_ul]:list-decimal [&_ul]:list-inside [&_ul]:space-y-4 [&_ul]:pl-0 [&_ul]:text-center [&_ul]:text-base [&_ul]:leading-relaxed sm:[&_ul]:text-lg",
-              "[&_li]:text-center",
-              "[&_p]:mx-auto [&_p]:max-w-prose [&_p]:text-center [&_p]:text-base [&_p]:leading-relaxed sm:[&_p]:text-lg",
-            )}
-          >
-            <ReactMarkdown remarkPlugins={[remarkGfm]}>
-              {markdown}
-            </ReactMarkdown>
-          </div>
+          <ol className="purpose-parchment workspace-scrollbar mx-auto flex w-full min-h-0 list-none flex-col gap-5 overflow-y-auto pl-0 text-center">
+            {concepts.map((item) => (
+              <li
+                key={item.no}
+                className="mx-auto flex w-full flex-col gap-0.5"
+              >
+                <p className="text-sm font-bold sm:text-base">
+                  {item.no}. {item.concept}
+                </p>
+                <p className="text-xs leading-snug whitespace-pre-line">
+                  {item.description}
+                </p>
+              </li>
+            ))}
+          </ol>
         )}
       </div>
     </dialog>

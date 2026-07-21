@@ -8,6 +8,16 @@ import { EditorPane } from "@/components/workspace/EditorPane";
 import { AgentPane } from "@/components/workspace/AgentPane";
 import { PurposeDialog } from "@/components/workspace/PurposeDialog";
 import { WorkspaceSettingsDialog } from "@/components/workspace/WorkspaceSettingsDialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { PaneResizeHandle } from "@/components/workspace/PaneResizeHandle";
 import { PANE2_MIN_WIDTH } from "@/components/workspace/pane-layout";
 import { useWorkspacePaneWidths } from "@/components/workspace/use-workspace-pane-widths";
@@ -27,6 +37,8 @@ import { isTextEditableMode, resolvePane2Mode } from "@/lib/file-preview";
 
 type WorkspaceProps = {
   initialFolders: WorkspaceTreeNode[];
+  /** ホスト配下のときの表示名（projectRoot の basename）。単体起動では null */
+  hostName?: string | null;
 };
 
 function resolveDefaultSelection(folders: WorkspaceTreeNode[]) {
@@ -34,7 +46,7 @@ function resolveDefaultSelection(folders: WorkspaceTreeNode[]) {
   return { folderPath: first?.path ?? "", fileName: first?.files[0] ?? "" };
 }
 
-export function Workspace({ initialFolders }: WorkspaceProps) {
+export function Workspace({ initialFolders, hostName }: WorkspaceProps) {
   const [folders, setFolders] = useState<WorkspaceTreeNode[]>(initialFolders);
   const defaultSelection = useMemo(
     () => resolveDefaultSelection(folders),
@@ -193,19 +205,51 @@ export function Workspace({ initialFolders }: WorkspaceProps) {
     setFolders(data.folders);
   }, []);
 
+  const applySelection = useCallback((folderPath: string, fileName: string) => {
+    setUserSelection({ folderPath, fileName });
+    if (
+      isNoFileSentinel(fileName) ||
+      !isTextEditableMode(resolvePane2Mode(fileName))
+    ) {
+      setFileContent("");
+      editingContentRef.current = null;
+    }
+  }, []);
+
+  // フォルダ切替の確認待ち（A 案）。AI 応答中に別プロジェクトフォルダへ移ると
+  // 応答を中断するため、承認を挟む。
+  const [pendingFolderSwitch, setPendingFolderSwitch] =
+    useState<LastFileSelection | null>(null);
+
   const handleSelectFile = useCallback(
     (folderPath: string, fileName: string) => {
-      setUserSelection({ folderPath, fileName });
+      const targetProjectFolderId = folderPath
+        ? getProjectFolderId(folderPath)
+        : "";
+      // ストリーミング中に別プロジェクトフォルダへ移ろうとしたときだけ確認を挟む
       if (
-        isNoFileSentinel(fileName) ||
-        !isTextEditableMode(resolvePane2Mode(fileName))
+        agentBusyProjectFolderId &&
+        targetProjectFolderId &&
+        targetProjectFolderId !== agentBusyProjectFolderId
       ) {
-        setFileContent("");
-        editingContentRef.current = null;
+        setPendingFolderSwitch({ folderPath, fileName });
+        return;
       }
+      applySelection(folderPath, fileName);
     },
-    [],
+    [agentBusyProjectFolderId, applySelection],
   );
+
+  const confirmFolderSwitch = useCallback(() => {
+    agentChatControllerRef.current?.interruptForSwitch();
+    if (pendingFolderSwitch) {
+      applySelection(
+        pendingFolderSwitch.folderPath,
+        pendingFolderSwitch.fileName,
+      );
+    }
+    setPendingFolderSwitch(null);
+  }, [applySelection, pendingFolderSwitch]);
 
   const handleContentChange = useCallback((content: string) => {
     setFileContent(content);
@@ -236,6 +280,16 @@ export function Workspace({ initialFolders }: WorkspaceProps) {
     ],
   );
 
+  // 外部変更で選択中ファイルが読み直されたときの反映。保存待ち・選択変更の
+  // ガードは useWorkspaceSync 側で済んでいるので、ここでは差分だけを見る。
+  // 内容が同じなら state を触らない（自分の自動保存による読み直しで、
+  // 無駄な再描画やエディタ文書の置換を起こさないため）。
+  const handleSelectedFileContentLoaded = useCallback((content: string) => {
+    if (content === editingContentRef.current) return;
+    setFileContent(content);
+    editingContentRef.current = content;
+  }, []);
+
   useWorkspaceSync({
     folders,
     selectedFolderPath,
@@ -245,6 +299,7 @@ export function Workspace({ initialFolders }: WorkspaceProps) {
     onSelectionChange: ({ folderPath, fileName }) => {
       setUserSelection({ folderPath, fileName });
     },
+    onSelectedFileContentLoaded: handleSelectedFileContentLoaded,
   });
 
   const currentFilePath =
@@ -262,7 +317,8 @@ export function Workspace({ initialFolders }: WorkspaceProps) {
       <div
         ref={workspaceRootRef}
         className={cn(
-          "flex h-svh w-full overflow-hidden bg-background",
+          // 高さは body（バナー＋ワークスペース）の flex 配分から受け取る
+          "flex min-h-0 w-full flex-1 overflow-hidden bg-background",
           isResizing && "select-none",
         )}
       >
@@ -272,6 +328,7 @@ export function Workspace({ initialFolders }: WorkspaceProps) {
         >
           <FileTreePane
             folders={folders}
+            hostName={hostName}
             selectedFolderPath={selectedFolderPath}
             selectedFileName={selectedFileName}
             onSelectFile={handleSelectFile}
@@ -332,6 +389,29 @@ export function Workspace({ initialFolders }: WorkspaceProps) {
           />
         </div>
       </div>
+
+      <AlertDialog
+        open={pendingFolderSwitch !== null}
+        onOpenChange={(open) => {
+          if (!open) setPendingFolderSwitch(null);
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>AI 応答を中断して移動しますか？</AlertDialogTitle>
+            <AlertDialogDescription>
+              現在このフォルダで AI
+              が応答中です。別のフォルダへ移動すると応答を中断します。作りかけのファイルは残る場合があります。
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>とどまる</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmFolderSwitch}>
+              中断して移動
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <WorkspaceSettingsDialog
         open={settingsOpen}

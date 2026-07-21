@@ -41,6 +41,8 @@ export type AgentStreamCallbacks = {
   onToolStart?: (event: AgentToolEvent) => void;
   onToolEnd?: (event: AgentToolEvent) => void;
   onLogicalTurn?: (turn: AgentLogicalTurn) => void;
+  /** ターンごとの可視（出力）トークン数。`.meta/diagnostics.log` の outputTokens と同じ値 */
+  onTokenUsage?: (event: { outputTokens: number }) => void;
   onConfirmRequired?: (event: ToolConfirmRequiredEvent) => void;
   /**
    * サーバが送った confirm_required の kind をクライアントが解釈できない場合に呼ばれる。
@@ -137,6 +139,12 @@ export async function consumeAgentStream(
                 : undefined,
             });
             break;
+          case "token_usage": {
+            const outputTokens =
+              typeof data.outputTokens === "number" ? data.outputTokens : 0;
+            callbacks.onTokenUsage?.({ outputTokens });
+            break;
+          }
           case "logical_turn": {
             const text = typeof data.text === "string" ? data.text : undefined;
             const rawCalls = Array.isArray(data.toolCalls)

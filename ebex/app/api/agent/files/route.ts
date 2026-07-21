@@ -2,6 +2,7 @@ import {
   listWorkspaceFolderFiles,
   orderWorkspaceFilesForPicker,
 } from "@/lib/agent/workspace-file-attachments";
+import { getProjectRoot } from "@/lib/project-root";
 
 export async function GET(req: Request) {
   const url = new URL(req.url);
@@ -10,7 +11,7 @@ export async function GET(req: Request) {
     return Response.json({ error: "folderId が必要です" }, { status: 400 });
   }
   const current = url.searchParams.get("current")?.trim() || undefined;
-  const projectRoot = process.cwd();
+  const projectRoot = getProjectRoot();
   const files = orderWorkspaceFilesForPicker(
     listWorkspaceFolderFiles(projectRoot, folderId),
     current,

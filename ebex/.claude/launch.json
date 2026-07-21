@@ -5,7 +5,6 @@
       "name": "ebex-dev",
       "runtimeExecutable": "npm",
       "runtimeArgs": ["run", "dev"],
-      "cwd": "ebex",
       "port": 3001
     }
   ]

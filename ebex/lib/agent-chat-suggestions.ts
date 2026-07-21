@@ -83,15 +83,15 @@ export function filterSkills(
   query: string,
 ): SkillSummary[] {
   const normalized = query.trim().toLowerCase();
-  return skills
-    .filter((skill) => {
-      if (skill.hidden) return false;
-      if (!normalized) return true;
-      const haystack =
-        `${skill.id} ${skill.name} ${skill.description}`.toLowerCase();
-      return haystack.includes(normalized);
-    })
-    .sort((a, b) => a.id.localeCompare(b.id));
+  // カタログの並び（host → ebex の区画順、区画内は id 昇順）をそのまま保つ。
+  // ここで id 再ソートすると区画順が失われる。
+  return skills.filter((skill) => {
+    if (skill.hidden) return false;
+    if (!normalized) return true;
+    const haystack =
+      `${skill.id} ${skill.name} ${skill.description}`.toLowerCase();
+    return haystack.includes(normalized);
+  });
 }
 
 export function orderSlashSuggestionItems<

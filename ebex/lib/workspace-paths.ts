@@ -8,7 +8,7 @@ import {
 } from "@/lib/workspace-path-utils";
 
 export {
-  PURPOSE_FILENAME,
+  PURPOSE_RELATIVE_PATH,
   SESSION_FILENAME,
   WORKSPACE_DIR_NAME,
   getProjectFolderId,

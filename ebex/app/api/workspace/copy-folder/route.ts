@@ -4,6 +4,7 @@ import {
   jsonError,
   parseJsonBody,
 } from "@/lib/workspace-mutations";
+import { getProjectRoot } from "@/lib/project-root";
 
 const bodySchema = z.object({
   fromPath: z.string().min(1),
@@ -18,7 +19,7 @@ export async function POST(req: Request) {
 
   const { fromPath, toParentPath, toName, autoRenameOnConflict } = parsed.data;
   const result = copyFolder(
-    process.cwd(),
+    getProjectRoot(),
     fromPath,
     toParentPath,
     toName,

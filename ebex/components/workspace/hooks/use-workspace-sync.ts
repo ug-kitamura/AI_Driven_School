@@ -10,6 +10,7 @@ import {
   remapFolderPath,
 } from "@/lib/workspace-tree";
 import { isNoFileSentinel } from "@/lib/workspace-file-selection";
+import { isTextEditableMode, resolvePane2Mode } from "@/lib/file-preview";
 
 const POLL_INTERVAL_MS = 3000;
 
@@ -25,6 +26,12 @@ export function useWorkspaceSync(options: {
   pendingSave: boolean;
   onFoldersLoaded: (folders: WorkspaceTreeNode[]) => void;
   onSelectionChange: (selection: WorkspaceSelection) => void;
+  /**
+   * 外部変更により選択中ファイルの本文を読み直したときに呼ばれる。
+   * 保存待ち・選択変更のガードは本フックで済ませてあるので、呼び出し側は
+   * 「現在の内容と違えば反映する」だけでよい。
+   */
+  onSelectedFileContentLoaded?: (content: string) => void;
 }) {
   const {
     folders,
@@ -33,6 +40,7 @@ export function useWorkspaceSync(options: {
     pendingSave,
     onFoldersLoaded,
     onSelectionChange,
+    onSelectedFileContentLoaded,
   } = options;
 
   const lastFingerprintRef = useRef("");
@@ -42,6 +50,13 @@ export function useWorkspaceSync(options: {
     fileName: selectedFileName,
   });
   const pendingSaveRef = useRef(pendingSave);
+
+  // ポーリングは購読者の識別子に左右されず動き続ける必要がある。コールバックを
+  // 依存配列に入れると、再描画のたびに interval が張り直されて 3 秒に到達できず、
+  // AI がファイルを書いている最中（＝再描画が多い時間帯）に同期が止まってしまう。
+  const onFoldersLoadedRef = useRef(onFoldersLoaded);
+  const onSelectionChangeRef = useRef(onSelectionChange);
+  const onSelectedFileContentLoadedRef = useRef(onSelectedFileContentLoaded);
 
   useEffect(() => {
     foldersRef.current = folders;
@@ -58,12 +73,46 @@ export function useWorkspaceSync(options: {
     pendingSaveRef.current = pendingSave;
   }, [pendingSave]);
 
+  useEffect(() => {
+    onFoldersLoadedRef.current = onFoldersLoaded;
+    onSelectionChangeRef.current = onSelectionChange;
+    onSelectedFileContentLoadedRef.current = onSelectedFileContentLoaded;
+  }, [onFoldersLoaded, onSelectionChange, onSelectedFileContentLoaded]);
+
   const setPendingSave = useCallback((pending: boolean) => {
     pendingSaveRef.current = pending;
   }, []);
 
   useEffect(() => {
     let cancelled = false;
+
+    /**
+     * 選択中ファイルの本文を読み直す。対象はテキスト編集可能なモードのみで、
+     * 画像・PDF・zip などの閲覧専用や未選択では何もしない。
+     */
+    async function refreshSelectedFileContent(selection: WorkspaceSelection) {
+      const { folderPath, fileName } = selection;
+      if (!folderPath || !fileName) return;
+      if (isNoFileSentinel(fileName)) return;
+      if (!isTextEditableMode(resolvePane2Mode(fileName))) return;
+      if (pendingSaveRef.current) return;
+
+      const res = await fetch(
+        `/api/workspace/read-file?folderId=${encodeURIComponent(folderPath)}&fileName=${encodeURIComponent(fileName)}`,
+        { cache: "no-store" },
+      );
+      if (!res.ok || cancelled) return;
+      const data = (await res.json()) as { content: string };
+      if (cancelled) return;
+
+      // 往復のあいだに編集が始まっていたら、取得済みの内容で打鍵を消さない。
+      if (pendingSaveRef.current) return;
+      // 往復のあいだに選択が変わっていたら、古い結果を新しい選択へ適用しない。
+      const now = selectionRef.current;
+      if (now.folderPath !== folderPath || now.fileName !== fileName) return;
+
+      onSelectedFileContentLoadedRef.current?.(data.content);
+    }
 
     async function fetchAndMerge() {
       try {
@@ -122,19 +171,26 @@ export function useWorkspaceSync(options: {
           }
         }
 
-        if (
+        const selectionChanged =
           nextFolderPath !== current.folderPath ||
-          nextFileName !== current.fileName
-        ) {
+          nextFileName !== current.fileName;
+
+        if (selectionChanged) {
           if (!pendingSaveRef.current) {
-            onSelectionChange({
+            onSelectionChangeRef.current({
               folderPath: nextFolderPath,
               fileName: nextFileName,
             });
           }
         }
 
-        onFoldersLoaded(fresh.folders);
+        onFoldersLoadedRef.current(fresh.folders);
+
+        // 選択が変わる場合は選択変更側の読み込みに任せ、二重取得しない。
+        // 「選択は同じで中身だけ変わった」ケースだけをここで拾う。
+        if (!selectionChanged) {
+          await refreshSelectedFileContent(current);
+        }
       } catch {
         /* ignore network errors */
       }
@@ -148,7 +204,7 @@ export function useWorkspaceSync(options: {
       cancelled = true;
       clearInterval(timer);
     };
-  }, [onFoldersLoaded, onSelectionChange]);
+  }, []);
 
   return { setPendingSave, remapFolderPath };
 }

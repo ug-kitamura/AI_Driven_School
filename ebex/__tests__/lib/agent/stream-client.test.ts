@@ -23,6 +23,26 @@ function sseResponse(events: SseEvent[]): Response {
   return new Response(body);
 }
 
+describe("consumeAgentStream token_usage handling", () => {
+  it("forwards outputTokens from token_usage events", async () => {
+    const events: SseEvent[] = [
+      { event: "token_usage", data: { outputTokens: 42 } },
+      { event: "token_usage", data: { outputTokens: 17 } },
+      { event: "done", data: {} },
+    ];
+
+    const received: number[] = [];
+    const callbacks: AgentStreamCallbacks = {
+      onDelta: () => {},
+      onTokenUsage: (event) => received.push(event.outputTokens),
+    };
+
+    await consumeAgentStream(sseResponse(events), callbacks);
+
+    expect(received).toEqual([42, 17]);
+  });
+});
+
 describe("consumeAgentStream confirm_required handling", () => {
   it("forwards every server-defined ConfirmKind to onConfirmRequired", async () => {
     const events: SseEvent[] = CONFIRM_KINDS.map((kind, index) => ({

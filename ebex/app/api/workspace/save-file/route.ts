@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { jsonError, parseJsonBody, saveFile } from "@/lib/workspace-mutations";
+import { getProjectRoot } from "@/lib/project-root";
 
 const bodySchema = z.object({
   folderId: z.string().min(1),
@@ -12,7 +13,7 @@ export async function POST(req: Request) {
   if ("error" in parsed) return parsed.error;
 
   const result = saveFile(
-    process.cwd(),
+    getProjectRoot(),
     parsed.data.folderId,
     parsed.data.fileName,
     parsed.data.content,

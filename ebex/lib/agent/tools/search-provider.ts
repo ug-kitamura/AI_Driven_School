@@ -24,17 +24,29 @@ export const SEARCH_RESULT_MAX = 6;
 export const SEARCH_SNIPPET_CHAR_LIMIT = 300;
 const SEARCH_TIMEOUT_MS = 15_000;
 
+/**
+ * 検索が成立しなかったときに添える出典抑止の行動指示。
+ * 検索未成立の 4 ケース（失敗・キー未設定・拒否・スキップ）へ共通で付与する。
+ * 人手フォールバックで結果が入力された場合は正当な出典があるため付与しない。
+ */
+export const SEARCH_NO_CITATION_GUIDANCE =
+  "web 検索で確認していない情報には出典 URL や出典表記を付けないでください（作業フォルダ内の資料に基づく記述は除く）。";
+
 /** 検索失敗時にモデルへ返す行動指示（劣化契約） */
-export const SEARCH_UNAVAILABLE_NOTICE =
-  "この環境では web 検索が利用できません。再試行せず、検索なしで続行するか、必要な情報をユーザーに尋ねてください。";
+export const SEARCH_UNAVAILABLE_NOTICE = `この環境では web 検索が利用できません。再試行せず、検索なしで続行するか、必要な情報をユーザーに尋ねてください。${SEARCH_NO_CITATION_GUIDANCE}`;
 
 /** 検索 API キー未設定時にモデルへ返す行動指示（劣化契約と同型） */
-export const SEARCH_UNCONFIGURED_NOTICE =
-  "web 検索が未設定のため利用できません（検索 API キーが設定されていません）。再試行せず、検索なしで続行するか、必要な情報をユーザーに尋ねてください。";
+export const SEARCH_UNCONFIGURED_NOTICE = `web 検索が未設定のため利用できません（検索 API キーが設定されていません）。再試行せず、検索なしで続行するか、必要な情報をユーザーに尋ねてください。${SEARCH_NO_CITATION_GUIDANCE}`;
 
 /** 拒否時にモデルへ返す案内 */
-export const SEARCH_REJECTED_GUIDANCE =
-  "ユーザーが web 検索を許可しませんでした。同じクエリを再要求せず、検索なしで続行してください。";
+export const SEARCH_REJECTED_GUIDANCE = `ユーザーが web 検索を許可しませんでした。同じクエリを再要求せず、検索なしで続行してください。${SEARCH_NO_CITATION_GUIDANCE}`;
+
+/** 人手フォールバックでユーザーがスキップしたときにモデルへ返す案内 */
+export const SEARCH_MANUAL_SKIP_GUIDANCE = `ユーザーは web 検索をスキップしました。同じクエリを再要求せず、検索なしで続行してください。${SEARCH_NO_CITATION_GUIDANCE}`;
+
+/** 人手フォールバックでユーザーが検索結果を貼り付けたときにモデルへ添える案内 */
+export const SEARCH_MANUAL_RESULT_NOTICE =
+  "以下はユーザーが手動で入力した検索結果とソース URL です。これを根拠として続行し、同じクエリを再要求しないでください。";
 
 function normalizeSnippet(raw: unknown): string {
   if (typeof raw !== "string") return "";

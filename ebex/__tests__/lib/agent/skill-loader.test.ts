@@ -18,7 +18,7 @@ function writeSkill(
   id: string,
   frontmatter: string,
   body: string,
-  convention: ".claude" | ".cursor" | ".agent" | ".github" = ".claude",
+  convention: ".claude" | ".cursor" | ".agents" | ".github" = ".claude",
 ) {
   const dir = path.join(root, convention, "skills", id);
   fs.mkdirSync(dir, { recursive: true });
@@ -346,6 +346,34 @@ Body`);
     expect(resolveSkillDir(tmpDir, "minutes-maid")).toBe(
       path.join(tmpDir, ".cursor", "skills", "minutes-maid"),
     );
+  });
+
+  it("discovers skills under .agents/skills", () => {
+    writeSkill(
+      tmpDir,
+      "minutes-maid",
+      "name: minutes\ndescription: from agents",
+      "agents body",
+      ".agents",
+    );
+    expect(listSkills(tmpDir).map((s) => s.id)).toEqual(["minutes-maid"]);
+    expect(loadSkill(tmpDir, "minutes-maid")?.body).toContain("agents body");
+    expect(resolveSkillDir(tmpDir, "minutes-maid")).toBe(
+      path.join(tmpDir, ".agents", "skills", "minutes-maid"),
+    );
+  });
+
+  it("ignores the singular .agent convention", () => {
+    const dir = path.join(tmpDir, ".agent", "skills", "legacy-skill");
+    fs.mkdirSync(dir, { recursive: true });
+    fs.writeFileSync(
+      path.join(dir, "SKILL.md"),
+      "---\nname: legacy\ndescription: d\n---\n\nlegacy body",
+      "utf-8",
+    );
+    expect(listSkills(tmpDir)).toEqual([]);
+    expect(loadSkill(tmpDir, "legacy-skill")).toBeNull();
+    expect(resolveSkillDir(tmpDir, "legacy-skill")).toBeNull();
   });
 
   it("prefers .claude over .cursor for same id in one root", () => {

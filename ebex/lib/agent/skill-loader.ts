@@ -30,7 +30,7 @@ export type LoadedSkill = SkillSummary & {
 export const SKILL_HOST_CONVENTIONS = [
   ".claude",
   ".cursor",
-  ".agent",
+  ".agents",
   ".github",
 ] as const;
 

@@ -3,7 +3,9 @@
 ## Purpose
 
 TBD - created by archiving change ebex-agent-web-search. Update Purpose after archive.
+
 ## Requirements
+
 ### Requirement: web_search ツール
 
 システムは `web_search` ツール（入力: `query` / `purpose`）を提供しなければならない（MUST）。検索は EBEX ランタイムがクライアントツールとして実行し、LLM プロバイダのサーバーサイド検索ツールを使用してはならない（MUST NOT）。tool_result にはタイトル・URL・スニペットからなる結果一覧（件数上限あり）のみを返し、ページ本文を含めてはならない（MUST NOT）。
@@ -126,4 +128,3 @@ TBD - created by archiving change ebex-agent-web-search. Update Purpose after ar
 
 - **WHEN** ユーザーが検索をスキップする
 - **THEN** 従来どおり「検索なしで続行する」旨が tool_result で返る
-

@@ -3,6 +3,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { skillMentionsSubagent } from "@/lib/agent/subagent-fallback";
 import { skillMentionsImageIO } from "@/lib/agent/image-io-fallback";
+import { getProjectRoot } from "@/lib/project-root";
 
 export type SkillSummary = {
   id: string;
@@ -48,7 +49,14 @@ function skillsDirForConvention(
   return path.join(projectRoot, convention, "skills");
 }
 
-/** ebex パッケージルート（同梱 skills を持つディレクトリ）。 */
+/**
+ * appRoot = ebex パッケージルート（同梱 skills を持つディレクトリ）。
+ * 製品同梱物（`contracts/` / ebex 側 `.claude/skills` / `images/`）の唯一の入口。
+ *
+ * ユーザーの作業データ（`workspace/` / `workspace/.meta/` / ホスト側スキル）は
+ * projectRoot 基準であり、`getProjectRoot()`（`lib/project-root.ts`）を使うこと。
+ * ホスト配布時は appRoot = `host/ebex`、projectRoot = `host` となり両者は一致しない。
+ */
 export function getEbexRoot(): string {
   const fromModule = path.resolve(
     path.dirname(fileURLToPath(import.meta.url)),
@@ -73,11 +81,11 @@ function hasSkillsDir(root: string): boolean {
 
 /**
  * スキルカタログの探索ルート。
- * ebex 同梱 → ホスト（cwd）の順。同一パスは二重化しない。
+ * ebex 同梱（appRoot）→ ホスト（projectRoot）の順。同一パスは二重化しない。
  * マージ時は後勝ち（ホスト優先）。
  */
 export function getSkillCatalogRoots(
-  hostRoot: string = process.cwd(),
+  hostRoot: string = getProjectRoot(),
   ebexRoot: string = getEbexRoot(),
 ): string[] {
   const ebex = path.resolve(ebexRoot);
@@ -164,24 +172,34 @@ export function listSkills(
   projectRootOrRoots: string | readonly string[],
 ): SkillSummary[] {
   const roots = normalizeRoots(projectRootOrRoots);
-  const byId = new Map<string, SkillSummary>();
+  // roots は ebex → host の順。同 id は後勝ち（ホスト優先）で rootIndex も更新される。
+  const byId = new Map<string, { summary: SkillSummary; rootIndex: number }>();
 
-  for (const root of roots) {
+  for (const [rootIndex, root] of roots.entries()) {
     for (const id of listSkillIdsInRoot(root)) {
       const skill = loadSkillFromRoot(root, id);
       if (!skill) continue;
       byId.set(skill.id, {
-        id: skill.id,
-        name: skill.name,
-        description: skill.description,
-        hidden: skill.hidden,
-        mentionsSubagent: skillMentionsSubagent(skill.body),
-        mentionsImageIO: skillMentionsImageIO(skill.body),
+        rootIndex,
+        summary: {
+          id: skill.id,
+          name: skill.name,
+          description: skill.description,
+          hidden: skill.hidden,
+          mentionsSubagent: skillMentionsSubagent(skill.body),
+          mentionsImageIO: skillMentionsImageIO(skill.body),
+        },
       });
     }
   }
 
-  return [...byId.values()].sort((a, b) => a.id.localeCompare(b.id));
+  // 表示は host → ebex の区画順（roots の逆順）。区画内は id 昇順。
+  return [...byId.values()]
+    .sort(
+      (a, b) =>
+        b.rootIndex - a.rootIndex || a.summary.id.localeCompare(b.summary.id),
+    )
+    .map((entry) => entry.summary);
 }
 
 export function listVisibleSkills(

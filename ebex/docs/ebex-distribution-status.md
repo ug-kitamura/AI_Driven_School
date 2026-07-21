@@ -41,18 +41,18 @@ projectRoot = host/                         → workspace/, .claude/skills/
 
 ## 3. 決定事項（grill-me-20260710）
 
-| 項目 | 決定 |
-|---|---|
-| subtree に含める | Next.js アプリ本体 + 製品用 `.claude/` + 製品用 `openspec/` |
-| subtree に含めない | ホストの `workspace/` / `.claude/skills/` / `openspec/` |
-| workspace 正本 | **ホストルートのみ** |
-| projectRoot 指定 | 環境変数 `EBEX_PROJECT_ROOT`（未設定時は appRoot にフォールバック） |
-| スキル解決 | ホスト + ebex の**両方**を和集合。同 id は**ホスト優先** |
-| スキル命名 | ebex 側は汎用名（接頭辞なし）、ホスト側は接頭辞（`A-` 等）で衝突回避 |
-| openspec | 完全分離・マージなし |
-| 起動 | ホスト直下の `start.bat`（`ebex/start.host.bat` をコピー） |
-| 配信 | ebex リポの GitHub Actions が各ホストへ `subtree pull` → push |
-| 衝突回避 | ホストは `ebex/` を手編集しない。カスタムはルート側に寄せる |
+| 項目               | 決定                                                                 |
+| ------------------ | -------------------------------------------------------------------- |
+| subtree に含める   | Next.js アプリ本体 + 製品用 `.claude/` + 製品用 `openspec/`          |
+| subtree に含めない | ホストの `workspace/` / `.claude/skills/` / `openspec/`              |
+| workspace 正本     | **ホストルートのみ**                                                 |
+| projectRoot 指定   | 環境変数 `EBEX_PROJECT_ROOT`（未設定時は appRoot にフォールバック）  |
+| スキル解決         | ホスト + ebex の**両方**を和集合。同 id は**ホスト優先**             |
+| スキル命名         | ebex 側は汎用名（接頭辞なし）、ホスト側は接頭辞（`A-` 等）で衝突回避 |
+| openspec           | 完全分離・マージなし                                                 |
+| 起動               | ホスト直下の `start.bat`（`ebex/start.host.bat` をコピー）           |
+| 配信               | ebex リポの GitHub Actions が各ホストへ `subtree pull` → push        |
+| 衝突回避           | ホストは `ebex/` を手編集しない。カスタムはルート側に寄せる          |
 
 ## 4. 実装状況（2026-07-21 時点でコード確認済み）
 
@@ -108,16 +108,16 @@ start.host.bat        テンプレート未作成
 
 ## 6. 未決事項
 
-| # | 論点 | メモ |
-|---|---|---|
-| 1 | ebex 単体開発時に `ebex/workspace/` を残すか | 残す＝フォールバック分岐が要る。捨てる＝単体開発の置き場が消える |
-| 2 | `EBEX_PROJECT_ROOT` か自動検出か | 推奨は「env var + 起動時に自動検出と突き合わせて警告」。誤設定でホストの作業データが `ebex/workspace/` に溜まるのが最悪シナリオ |
-| 3 | AI_Driven_School との関係 | ADS を canonical ホストにする案は未回答のまま |
-| 4 | `node_modules/` `.next/` の subtree 混入 | `ebex/.gitignore` に閉じ込める必要あり（ebex 自身の .gitignore にはある） |
-| 5 | `workspace/.meta/` の所在 | セッション・お気に入り・diagnostics。ホスト側に付くはずだが明文化されていない |
-| 6 | `next.config.ts` の `outputFileTracingRoot: __dirname` | appRoot 固定。projectRoot 配下を読むので本番ビルドで問題が出ないか要検証 |
-| 7 | `.claude/skills/openspec-*/` が gitignore 対象 | 配布物に含まれない。ホストがどう入手するか未定 |
-| 8 | ホストの `.vscode/settings.json` | `files.watcherExclude` を配布テンプレートに含めるか（リネーム問題の緩和。ただし5章のとおり決定打ではない） |
+| #   | 論点                                                   | メモ                                                                                                                            |
+| --- | ------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------- |
+| 1   | ebex 単体開発時に `ebex/workspace/` を残すか           | 残す＝フォールバック分岐が要る。捨てる＝単体開発の置き場が消える                                                                |
+| 2   | `EBEX_PROJECT_ROOT` か自動検出か                       | 推奨は「env var + 起動時に自動検出と突き合わせて警告」。誤設定でホストの作業データが `ebex/workspace/` に溜まるのが最悪シナリオ |
+| 3   | AI_Driven_School との関係                              | ADS を canonical ホストにする案は未回答のまま                                                                                   |
+| 4   | `node_modules/` `.next/` の subtree 混入               | `ebex/.gitignore` に閉じ込める必要あり（ebex 自身の .gitignore にはある）                                                       |
+| 5   | `workspace/.meta/` の所在                              | セッション・お気に入り・diagnostics。ホスト側に付くはずだが明文化されていない                                                   |
+| 6   | `next.config.ts` の `outputFileTracingRoot: __dirname` | appRoot 固定。projectRoot 配下を読むので本番ビルドで問題が出ないか要検証                                                        |
+| 7   | `.claude/skills/openspec-*/` が gitignore 対象         | 配布物に含まれない。ホストがどう入手するか未定                                                                                  |
+| 8   | ホストの `.vscode/settings.json`                       | `files.watcherExclude` を配布テンプレートに含めるか（リネーム問題の緩和。ただし5章のとおり決定打ではない）                      |
 
 ## 7. 進め方の提案
 

@@ -11,3 +11,9 @@ if (!("ResizeObserver" in globalThis)) {
   globalThis.ResizeObserver =
     ResizeObserverStub as unknown as typeof ResizeObserver;
 }
+
+// jsdom は scrollIntoView を実装していない。キーボード操作でフォーカス行を
+// 追従させる FileTreePane などを描画するテスト向けの no-op スタブ。
+if (!Element.prototype.scrollIntoView) {
+  Element.prototype.scrollIntoView = function scrollIntoViewStub() {};
+}

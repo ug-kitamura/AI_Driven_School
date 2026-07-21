@@ -1,8 +1,11 @@
 # ebex-agent-token-visibility Specification
 
 ## Purpose
+
 TBD - created by archiving change ebex-constraints-and-pledges. Update Purpose after archive.
+
 ## Requirements
+
 ### Requirement: token 数の集計
 
 システムは各ターンの可視 token 数と、セッション累計の token 数を集計しなければならない（SHALL）。集計値は `.meta/diagnostics.log` に記録される可視 token 数と整合しなければならない（SHALL）。
@@ -34,4 +37,3 @@ TBD - created by archiving change ebex-constraints-and-pledges. Update Purpose a
 
 - **WHEN** 永続化された token 累計を持つセッションを再表示する
 - **THEN** セッション累計は保存値から継続し、0 にリセットされない
-

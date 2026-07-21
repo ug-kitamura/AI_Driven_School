@@ -10,6 +10,7 @@ import {
   isProjectFolderAgentActive,
 } from "@/lib/agent/active-project-folders";
 import { getProjectFolderId } from "@/lib/workspace-path-utils";
+import { getProjectRoot } from "@/lib/project-root";
 
 const bodySchema = z.object({
   folderId: z.string().min(1),
@@ -27,7 +28,7 @@ export async function POST(req: Request) {
     return jsonError(AGENT_BUSY_FOLDER_ERROR, 409);
   }
 
-  const result = deleteFolder(process.cwd(), parsed.data.folderId);
+  const result = deleteFolder(getProjectRoot(), parsed.data.folderId);
   if ("error" in result) return jsonError(String(result.error), 400);
   return Response.json({ ok: true });
 }

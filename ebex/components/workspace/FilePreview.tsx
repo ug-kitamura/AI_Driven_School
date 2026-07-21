@@ -152,10 +152,7 @@ function VttBubble({ cue, side, showAvatar }: VttRow) {
 
   return (
     <div
-      className={cn(
-        "flex items-start gap-2",
-        alignRight && "flex-row-reverse",
-      )}
+      className={cn("flex items-start gap-2", alignRight && "flex-row-reverse")}
     >
       <div className="flex w-12 shrink-0 flex-col items-center gap-1">
         {showAvatar ? (

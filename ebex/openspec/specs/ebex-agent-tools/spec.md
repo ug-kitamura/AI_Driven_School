@@ -3,7 +3,9 @@
 ## Purpose
 
 Agent の workspace 限定 L1（発見）/ L2（読取）/ L3（書込）ツール、L4/L6 ブロック、上書き・プロジェクト外アクセスの確認ゲート、ツール入出力のサイズ上限。
+
 ## Requirements
+
 ### Requirement: 実ツールの提供
 
 Agent invoke 時、システムは `lib/agent/tools/registry.ts` の `resolveToolDefinitions` を通じて実在する L1（発見）/ L2（読取）/ L3（書込）ツール定義を LLM に渡さなければならない（SHALL）。ツール一覧が空のまま偽の `<tool_call>` / `<tool_response>` テキストをモデルに生成させてはならない（MUST NOT）。
@@ -453,4 +455,3 @@ agent loop は、ターンの `stopReason` が `max_tokens` かつツール呼�
 
 - **WHEN** モデルが MCP / 外部コネクタ系のツールを要求する
 - **THEN** 実行されず、非対応の理由と作業フォルダ内で完結する代替の案内が結果として返る
-

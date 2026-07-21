@@ -333,6 +333,39 @@ Body`);
     }
   });
 
+  it("orders host skills before ebex skills, id ascending within each root", () => {
+    const ebexRoot = fs.mkdtempSync(path.join(os.tmpdir(), "skill-ebex-ord-"));
+    const hostRoot = fs.mkdtempSync(path.join(os.tmpdir(), "skill-host-ord-"));
+    try {
+      writeSkill(ebexRoot, "alpha", "name: alpha\ndescription: e", "b");
+      writeSkill(ebexRoot, "delta", "name: delta\ndescription: e", "b");
+      writeSkill(hostRoot, "zeta", "name: zeta\ndescription: h", "b");
+      writeSkill(hostRoot, "beta", "name: beta\ndescription: h", "b");
+
+      const roots = getSkillCatalogRoots(hostRoot, ebexRoot);
+      expect(listSkills(roots).map((skill) => skill.id)).toEqual([
+        "beta",
+        "zeta",
+        "alpha",
+        "delta",
+      ]);
+    } finally {
+      fs.rmSync(ebexRoot, { recursive: true, force: true });
+      fs.rmSync(hostRoot, { recursive: true, force: true });
+    }
+  });
+
+  it("keeps a single id-ascending section when standalone", () => {
+    writeSkill(tmpDir, "beta", "name: beta\ndescription: d", "b");
+    writeSkill(tmpDir, "alpha", "name: alpha\ndescription: d", "b");
+
+    const roots = getSkillCatalogRoots(tmpDir, tmpDir);
+    expect(listSkills(roots).map((skill) => skill.id)).toEqual([
+      "alpha",
+      "beta",
+    ]);
+  });
+
   it("discovers skills under .cursor/skills", () => {
     writeSkill(
       tmpDir,

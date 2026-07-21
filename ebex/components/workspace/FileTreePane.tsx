@@ -120,6 +120,8 @@ type Props = {
   chatProjectFolderId?: string;
   onRefresh: () => Promise<void>;
   onOpenPurpose?: () => void;
+  /** ホスト配下のときの表示名（projectRoot の basename）。単体起動では null */
+  hostName?: string | null;
   /** Agent 実行中のプロジェクトフォルダ ID。該当フォルダの rename/delete を拒否する */
   agentBusyProjectFolderId?: string | null;
 };
@@ -756,6 +758,7 @@ export function FileTreePane({
   chatProjectFolderId = "",
   onRefresh,
   onOpenPurpose,
+  hostName = null,
   agentBusyProjectFolderId = null,
 }: Props) {
   const treeRef = useRef<HTMLDivElement>(null);
@@ -1842,22 +1845,29 @@ export function FileTreePane({
   return (
     <div className="flex h-full min-h-0 flex-col">
       <div className="flex h-12 shrink-0 items-center justify-between border-b px-3 py-0">
-        <button
-          type="button"
-          className="flex min-w-0 items-center gap-2 rounded-md text-left hover:bg-muted/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-          aria-label="EBE Purpose を開く"
-          onClick={() => onOpenPurpose?.()}
-        >
-          <Image
-            src={logoSmall}
-            alt=""
-            width={logoSmall.width}
-            height={logoSmall.height}
-            className="h-6 w-auto shrink-0"
-            priority
-          />
-          <span className="text-lg font-semibold tracking-tight">EBEX</span>
-        </button>
+        <div className="flex min-w-0 items-center gap-2">
+          <button
+            type="button"
+            className="flex min-w-0 shrink-0 items-center gap-2 rounded-md text-left hover:bg-muted/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            aria-label="EBE Purpose を開く"
+            onClick={() => onOpenPurpose?.()}
+          >
+            <Image
+              src={logoSmall}
+              alt=""
+              width={logoSmall.width}
+              height={logoSmall.height}
+              className="h-6 w-auto shrink-0"
+              priority
+            />
+            <span className="text-lg font-semibold tracking-tight">EBEX</span>
+          </button>
+          {hostName ? (
+            <span className="truncate self-end pb-1 text-xs text-muted-foreground">
+              for {hostName}
+            </span>
+          ) : null}
+        </div>
         <div className="flex items-center gap-1">
           <Button
             type="button"

@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { toggleFavorite } from "@/lib/workspace-favorites-io";
 import { parseJsonBody } from "@/lib/workspace-mutations";
+import { getProjectRoot } from "@/lib/project-root";
 
 const bodySchema = z.object({
   folderPath: z.string().min(1),
@@ -12,7 +13,7 @@ export async function POST(req: Request) {
   if ("error" in parsed) return parsed.error;
 
   const favorites = toggleFavorite(
-    process.cwd(),
+    getProjectRoot(),
     parsed.data.folderPath,
     parsed.data.fileName,
   );

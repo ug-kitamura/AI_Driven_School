@@ -50,7 +50,9 @@ async function tick() {
   });
 }
 
-function setup(overrides: Partial<Parameters<typeof useWorkspaceSync>[0]> = {}) {
+function setup(
+  overrides: Partial<Parameters<typeof useWorkspaceSync>[0]> = {},
+) {
   const onSelectedFileContentLoaded = vi.fn();
   const onFoldersLoaded = vi.fn();
   const onSelectionChange = vi.fn();
@@ -66,11 +68,19 @@ function setup(overrides: Partial<Parameters<typeof useWorkspaceSync>[0]> = {}) 
     ...overrides,
   };
 
-  const view = renderHook((props: typeof initialProps) => useWorkspaceSync(props), {
-    initialProps,
-  });
+  const view = renderHook(
+    (props: typeof initialProps) => useWorkspaceSync(props),
+    {
+      initialProps,
+    },
+  );
 
-  return { view, onSelectedFileContentLoaded, onFoldersLoaded, onSelectionChange };
+  return {
+    view,
+    onSelectedFileContentLoaded,
+    onFoldersLoaded,
+    onSelectionChange,
+  };
 }
 
 describe("useWorkspaceSync — 選択中ファイルの本文同期", () => {
@@ -136,7 +146,9 @@ describe("useWorkspaceSync — 選択中ファイルの本文同期", () => {
   });
 
   it("閲覧専用ファイル（画像）では本文を読み直さない", async () => {
-    const { onSelectedFileContentLoaded } = setup({ selectedFileName: "b.png" });
+    const { onSelectedFileContentLoaded } = setup({
+      selectedFileName: "b.png",
+    });
 
     await tick();
     state.fingerprint = "fp-2";

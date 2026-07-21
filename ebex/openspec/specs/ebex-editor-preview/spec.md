@@ -3,7 +3,9 @@
 ## Purpose
 
 Pane 2 のファイル種別モード解決、編集／プレビュー／閲覧表示、自動保存に関する仕様。
+
 ## Requirements
+
 ### Requirement: ファイル種別モード解決
 
 Pane 2 は選択中ファイルの拡張子から表示モードを解決しなければならない（SHALL）。モードは次のいずれかでなければならない（SHALL）: `edit-preview`（Edit|Preview タブ）、`edit-only`（編集のみ・タブなし）、`view-only`（閲覧のみ・タブなし）。
@@ -341,4 +343,3 @@ Markdown プレビュー内のリンクは `href` の種別に応じて次のと
 
 - **WHEN** ユーザーが `.html` を開いて Edit へ切り替え、そのまま編集を続ける
 - **THEN** モードは Edit のまま維持される
-

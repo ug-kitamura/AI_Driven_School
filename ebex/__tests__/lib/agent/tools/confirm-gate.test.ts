@@ -271,7 +271,11 @@ describe("resolveConfirmRequirement for web_search", () => {
     const req = resolveConfirmRequirement(
       tmpDir,
       "demo",
-      { id: "t1", name: "web_search", input: { query: "next.js 16", purpose: "調査" } },
+      {
+        id: "t1",
+        name: "web_search",
+        input: { query: "next.js 16", purpose: "調査" },
+      },
       { searchAvailable: true },
     );
     expect(req?.kind).toBe("web-search");
@@ -285,7 +289,11 @@ describe("resolveConfirmRequirement for web_search", () => {
     const req = resolveConfirmRequirement(
       tmpDir,
       "demo",
-      { id: "t1", name: "web_search", input: { query: "next.js 16", purpose: "調査" } },
+      {
+        id: "t1",
+        name: "web_search",
+        input: { query: "next.js 16", purpose: "調査" },
+      },
       { searchAvailable: false },
     );
     expect(req?.kind).toBe("web-search-manual");

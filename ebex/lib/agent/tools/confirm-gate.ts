@@ -342,7 +342,8 @@ export function resolveConfirmRequirement(
     // 検索 API キーが未設定なら、検索可否の確認ではなく人手フォールバックを提示する。
     // キーがあれば従来どおり「検索してよいか」の確認を出す（サーキットブレーカー中も同様）。
     return {
-      kind: options.searchAvailable === false ? "web-search-manual" : "web-search",
+      kind:
+        options.searchAvailable === false ? "web-search-manual" : "web-search",
       path: query,
       isNew: false,
       search: { query, purpose },

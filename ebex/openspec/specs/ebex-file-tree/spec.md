@@ -3,7 +3,9 @@
 ## Purpose
 
 TBD - created by archiving change ebex-v1-workspace. Update Purpose after archive.
+
 ## Requirements
+
 ### Requirement: 表示対象
 
 Pane 1 は `workspace/` 直下の各プロジェクトフォルダと、その配下の **全階層** のサブフォルダ・ファイルを再帰ツリーとして表示しなければならない（SHALL）。`session.json` は Pane 1 に表示してはならない（MUST NOT）。⚠ サブフォルダ警告アイコンは表示してはならない（MUST NOT）。
@@ -1042,4 +1044,3 @@ Pane 1 のツリー空きスペース（フォルダ行・ファイル行・`no 
 
 - **WHEN** あるプロジェクトフォルダ内にサブフォルダ・ファイルが複数ある
 - **THEN** 子要素は従来どおり昇順で表示される
-

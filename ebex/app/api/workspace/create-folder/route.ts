@@ -5,6 +5,7 @@ import {
   jsonError,
   parseJsonBody,
 } from "@/lib/workspace-mutations";
+import { getProjectRoot } from "@/lib/project-root";
 
 const bodySchema = z.object({
   name: z.string().min(1),
@@ -16,7 +17,7 @@ export async function POST(req: Request) {
   const parsed = await parseJsonBody(req, bodySchema);
   if ("error" in parsed) return parsed.error;
 
-  const projectRoot = process.cwd();
+  const projectRoot = getProjectRoot();
   const { name, parentPath, autoRenameOnConflict } = parsed.data;
   const conflictPolicy = autoRenameOnConflict ? "auto-rename" : "error";
   const result = parentPath

@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { jsonError, parseJsonBody } from "@/lib/workspace-mutations";
 import { revealTargetInOs } from "@/lib/workspace-reveal";
+import { getProjectRoot } from "@/lib/project-root";
 
 const bodySchema = z
   .object({
@@ -15,7 +16,7 @@ export async function POST(req: Request) {
 
   const { folderPath, fileName } = parsed.data;
   const result = await revealTargetInOs(
-    process.cwd(),
+    getProjectRoot(),
     fileName ? { folderPath, fileName } : { folderPath },
   );
   if ("error" in result) {

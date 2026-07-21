@@ -37,6 +37,8 @@ import { isTextEditableMode, resolvePane2Mode } from "@/lib/file-preview";
 
 type WorkspaceProps = {
   initialFolders: WorkspaceTreeNode[];
+  /** ホスト配下のときの表示名（projectRoot の basename）。単体起動では null */
+  hostName?: string | null;
 };
 
 function resolveDefaultSelection(folders: WorkspaceTreeNode[]) {
@@ -44,7 +46,7 @@ function resolveDefaultSelection(folders: WorkspaceTreeNode[]) {
   return { folderPath: first?.path ?? "", fileName: first?.files[0] ?? "" };
 }
 
-export function Workspace({ initialFolders }: WorkspaceProps) {
+export function Workspace({ initialFolders, hostName }: WorkspaceProps) {
   const [folders, setFolders] = useState<WorkspaceTreeNode[]>(initialFolders);
   const defaultSelection = useMemo(
     () => resolveDefaultSelection(folders),
@@ -203,19 +205,16 @@ export function Workspace({ initialFolders }: WorkspaceProps) {
     setFolders(data.folders);
   }, []);
 
-  const applySelection = useCallback(
-    (folderPath: string, fileName: string) => {
-      setUserSelection({ folderPath, fileName });
-      if (
-        isNoFileSentinel(fileName) ||
-        !isTextEditableMode(resolvePane2Mode(fileName))
-      ) {
-        setFileContent("");
-        editingContentRef.current = null;
-      }
-    },
-    [],
-  );
+  const applySelection = useCallback((folderPath: string, fileName: string) => {
+    setUserSelection({ folderPath, fileName });
+    if (
+      isNoFileSentinel(fileName) ||
+      !isTextEditableMode(resolvePane2Mode(fileName))
+    ) {
+      setFileContent("");
+      editingContentRef.current = null;
+    }
+  }, []);
 
   // フォルダ切替の確認待ち（A 案）。AI 応答中に別プロジェクトフォルダへ移ると
   // 応答を中断するため、承認を挟む。
@@ -329,6 +328,7 @@ export function Workspace({ initialFolders }: WorkspaceProps) {
         >
           <FileTreePane
             folders={folders}
+            hostName={hostName}
             selectedFolderPath={selectedFolderPath}
             selectedFileName={selectedFileName}
             onSelectFile={handleSelectFile}

@@ -3,7 +3,9 @@
 ## Purpose
 
 TBD - created by archiving change ebex-v1-workspace. Update Purpose after archive.
+
 ## Requirements
+
 ### Requirement: 3 ペイン構成
 
 ワークスペースは Pane 1（ファイルツリー）、Pane 2（編集+プレビュー）、Pane 3（Agent）の 3 ペインで構成されなければならない（SHALL）。Pane 1 ヘッダーには `images/logo_small.png` とツール名 **EBEX** が左から順に表示されなければならない（SHALL）。ロゴまたは「EBEX」はクリック可能であり、クリックで Purpose モーダルを開かなければならない（SHALL）。
@@ -154,4 +156,3 @@ Agent チャット（ペイン 3）の空状態（会話が未開始のセッシ
 
 - **WHEN** ウィンドウ幅を変えてバナーを表示する
 - **THEN** バナーは常に全幅を占め、supergraphic の色帯の横方向の並びが保たれる
-

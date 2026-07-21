@@ -200,7 +200,9 @@
   --accent: oklch(0.38 0.03 264);
   --accent-foreground: oklch(0.9168 0.0035 67.7802);
   --destructive: oklch(0.6338 0.1208 21.0422);
-  --success: oklch(0.6441 0.0496 146.8813); /* 緑（dark、chart-2 と同値）: 肯定の役割色 */
+  --success: oklch(
+    0.6441 0.0496 146.8813
+  ); /* 緑（dark、chart-2 と同値）: 肯定の役割色 */
   --border: oklch(0.3211 0 0);
   --input: oklch(0.3211 0 0);
   --ring: oklch(0.7441 0.1311 264.2789);

@@ -3,7 +3,9 @@
 ## Purpose
 
 TBD - created by archiving change ebex-agent-script-runtime. Update Purpose after archive.
+
 ## Requirements
+
 ### Requirement: サンドボックス実行基盤
 
 システムはスクリプトを Node 子プロセスとして実行し、Node Permission Model により fs 読取を「プロジェクトフォルダ・実行中スキルディレクトリ・スクリプト自身」に、fs 書込を「プロジェクトフォルダ内」に制限しなければならない（MUST）。実行は `cwd` をプロジェクトフォルダに固定し、タイムアウトと stdout/stderr のサイズ上限を設けなければならない（MUST）。子プロセスへ渡す環境変数は allowlist 方式で最小構成（実行に必要な `PATH` 等の必須項目）とし、サーバプロセスの秘密情報（API キー等）を継承させてはならない（MUST NOT）。システムは子プロセスへ `EBEX_PROJECT_DIR`（プロジェクトフォルダの絶対パス）を注入し、スキル実行中は `EBEX_SKILL_DIR`（実行中スキルの `skillDirAbsolute`）も注入しなければならない（SHALL）。`EBEX_SKILL_DIR` の値は fs 読取許可（`--allow-fs-read`）に渡す値と同一の `skillDirAbsolute` から導出しなければならない（SHALL）。
@@ -190,4 +192,3 @@ TBD - created by archiving change ebex-agent-script-runtime. Update Purpose afte
 
 - **WHEN** 中断が発生しないままスクリプトが正常に完了する
 - **THEN** 従来どおり要約が tool_result で返り、挙動は変わらない
-

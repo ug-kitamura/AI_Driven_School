@@ -27,9 +27,7 @@ describe("agent chat storage token persistence", () => {
     const roundTripped = parseAgentChatStorage(
       JSON.parse(JSON.stringify(storage)),
     );
-    const session = roundTripped
-      ? getActiveSession(roundTripped)
-      : undefined;
+    const session = roundTripped ? getActiveSession(roundTripped) : undefined;
     expect(session?.lastTurnTokens).toBe(789);
     expect(session?.sessionTokenTotal).toBe(1000);
   });

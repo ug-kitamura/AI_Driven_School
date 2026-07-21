@@ -67,6 +67,7 @@ import {
 } from "@/lib/agent/tools/search-provider";
 import { checkProjectFolderExists } from "@/lib/agent/project-folder-guard";
 import type { ToolDefinition } from "@/lib/agent/llm/types";
+import { getProjectRoot } from "@/lib/project-root";
 
 export type AgentLoopEmit = (event: string, data: unknown) => void;
 
@@ -319,7 +320,7 @@ export async function runAgentLoop(
   const searchSession: SearchSessionState = { unavailable: false };
   const toolContext: ToolExecutionContext | undefined = projectFolderId
     ? {
-        projectRoot: process.cwd(),
+        projectRoot: getProjectRoot(),
         projectFolderId,
         ...skillOptions,
         ...(options.signal ? { signal: options.signal } : {}),
@@ -335,7 +336,7 @@ export async function runAgentLoop(
       }
     : undefined;
 
-  const projectRoot = process.cwd();
+  const projectRoot = getProjectRoot();
 
   let consecutiveError: string | null = null;
   let consecutiveErrorCount = 0;

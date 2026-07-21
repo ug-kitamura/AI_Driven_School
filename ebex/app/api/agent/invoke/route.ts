@@ -24,6 +24,7 @@ import {
   IMAGE_IO_FALLBACK_MODEL_HINT,
 } from "@/lib/agent/image-io-fallback";
 import { markProjectFolderAgentActive } from "@/lib/agent/active-project-folders";
+import { getProjectRoot } from "@/lib/project-root";
 
 const toolEventSchema = z.object({
   name: z.string(),
@@ -89,7 +90,7 @@ export async function POST(req: Request) {
     return Response.json({ error: "Invalid request body" }, { status: 400 });
   }
 
-  const projectRoot = process.cwd();
+  const projectRoot = getProjectRoot();
   const skillRoots = getSkillCatalogRoots(projectRoot);
   const skill = loadSkill(skillRoots, parsed.data.skillId);
   if (!skill) {

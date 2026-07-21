@@ -1,6 +1,7 @@
 import JSZip from "jszip";
 import { resolvePane2Mode, resolveViewOnlyKind } from "@/lib/file-preview";
 import { jsonError, readFileBinary } from "@/lib/workspace-mutations";
+import { getProjectRoot } from "@/lib/project-root";
 
 const MAX_ZIP_ENTRIES = 2000;
 
@@ -19,7 +20,7 @@ export async function GET(req: Request) {
     return jsonError("zip ファイルのみ一覧できます", 400);
   }
 
-  const result = readFileBinary(process.cwd(), folderId, fileName);
+  const result = readFileBinary(getProjectRoot(), folderId, fileName);
   if ("error" in result) return jsonError(String(result.error), 404);
 
   let zip: JSZip;

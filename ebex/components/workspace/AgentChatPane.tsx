@@ -688,7 +688,8 @@ export function AgentChatPane({
     if (stopContext) {
       setMessages((prev) =>
         prev.filter(
-          (message) => message.id !== stopContext.assistantId || message.content,
+          (message) =>
+            message.id !== stopContext.assistantId || message.content,
         ),
       );
       stopContextRef.current = null;
@@ -1217,7 +1218,12 @@ export function AgentChatPane({
     return () => {
       agentChatControllerRef.current = null;
     };
-  }, [agentChatControllerRef, isStreaming, interruptForSwitch, onControllerReady]);
+  }, [
+    agentChatControllerRef,
+    isStreaming,
+    interruptForSwitch,
+    onControllerReady,
+  ]);
 
   const handleBuiltinCommand = useCallback(
     (command: AgentBuiltinCommand["id"]) => {
@@ -1506,7 +1512,8 @@ export function AgentChatPane({
                           </td>
                           <td className="py-1">
                             Web 検索は原則しません →
-                            検索ワードをお渡しするので、結果と URL を貼ってください
+                            検索ワードをお渡しするので、結果と URL
+                            を貼ってください
                           </td>
                         </tr>
                         <tr className="align-top">
@@ -1651,7 +1658,9 @@ export function AgentChatPane({
       {lastTurnTokens !== null ? (
         <div className="flex items-center justify-end gap-3 px-12 py-1 text-[11px] text-muted-foreground">
           <span>直近ターン: {lastTurnTokens.toLocaleString()} tokens</span>
-          <span>セッション累計: {sessionTokenTotal.toLocaleString()} tokens</span>
+          <span>
+            セッション累計: {sessionTokenTotal.toLocaleString()} tokens
+          </span>
         </div>
       ) : null}
 
@@ -1861,7 +1870,9 @@ export function AgentChatPane({
       >
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>画像・マルチモーダルには対応していません</AlertDialogTitle>
+            <AlertDialogTitle>
+              画像・マルチモーダルには対応していません
+            </AlertDialogTitle>
             <AlertDialogDescription>
               {IMAGE_IO_FALLBACK_USER_MESSAGE}
             </AlertDialogDescription>

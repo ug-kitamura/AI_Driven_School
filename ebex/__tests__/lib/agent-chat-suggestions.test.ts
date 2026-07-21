@@ -41,10 +41,11 @@ describe("filterSkills", () => {
     ]);
   });
 
-  it("sorts skills alphabetically by id", () => {
+  it("preserves catalog order instead of re-sorting by id", () => {
+    // カタログは host → ebex の区画順で届く。ここで id 順に並べ替えてはいけない。
     expect(
       filterSkills([skills[1], skills[0]], "").map((skill) => skill.id),
-    ).toEqual(["create-draft", "create-structure"]);
+    ).toEqual(["create-structure", "create-draft"]);
   });
 
   it("excludes hidden skills", () => {

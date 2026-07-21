@@ -177,9 +177,10 @@ describe("parseVtt", () => {
   });
 
   it("行頭の「話者名:」をフォールバックとして話者に使う", () => {
-    const vtt = ["00:00:01.000 --> 00:00:03.000", "鈴木: よろしくお願いします"].join(
-      "\n",
-    );
+    const vtt = [
+      "00:00:01.000 --> 00:00:03.000",
+      "鈴木: よろしくお願いします",
+    ].join("\n");
     expect(parseVtt(vtt)).toEqual([
       {
         start: "00:00:01.000",
@@ -192,13 +193,17 @@ describe("parseVtt", () => {
 
   it("話者を特定できない cue は speaker が null になる", () => {
     const vtt = ["00:00:04.000 --> 00:00:05.000", "拍手が起きる"].join("\n");
-    expect(parseVtt(vtt)[0]).toMatchObject({ speaker: null, text: "拍手が起きる" });
+    expect(parseVtt(vtt)[0]).toMatchObject({
+      speaker: null,
+      text: "拍手が起きる",
+    });
   });
 
   it("終了時刻の後ろの配置設定を無視する", () => {
-    const vtt = ["00:00:00.000 --> 00:00:02.000 align:start", "<v A>hi</v>"].join(
-      "\n",
-    );
+    const vtt = [
+      "00:00:00.000 --> 00:00:02.000 align:start",
+      "<v A>hi</v>",
+    ].join("\n");
     expect(parseVtt(vtt)[0]).toMatchObject({
       start: "00:00:00.000",
       end: "00:00:02.000",

@@ -644,14 +644,16 @@ describe("runAgentLoop auto-nudge (3値判定)", () => {
     const order: string[] = [];
     let inFlight = 0;
     let maxInFlight = 0;
-    vi.mocked(executeRegisteredTool).mockImplementation(async (_name, input) => {
-      inFlight += 1;
-      maxInFlight = Math.max(maxInFlight, inFlight);
-      order.push(String((input as { path?: string }).path));
-      await new Promise((resolve) => setTimeout(resolve, 5));
-      inFlight -= 1;
-      return toolOutcome([]);
-    });
+    vi.mocked(executeRegisteredTool).mockImplementation(
+      async (_name, input) => {
+        inFlight += 1;
+        maxInFlight = Math.max(maxInFlight, inFlight);
+        order.push(String((input as { path?: string }).path));
+        await new Promise((resolve) => setTimeout(resolve, 5));
+        inFlight -= 1;
+        return toolOutcome([]);
+      },
+    );
     vi.mocked(resolveLlmProvider).mockReturnValue({
       ok: true,
       model: "claude-sonnet-4-6",

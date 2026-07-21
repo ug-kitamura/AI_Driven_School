@@ -4,6 +4,7 @@ import { listFolderRelativePathsForNaming } from "@/lib/workspace-folder-path-li
 import { listFolderTextExcerptsForNaming } from "@/lib/workspace-folder-text-excerpts";
 import { jsonError, parseJsonBody } from "@/lib/workspace-mutations";
 import { folderExists } from "@/lib/workspace-paths";
+import { getProjectRoot } from "@/lib/project-root";
 
 const bodySchema = z.object({
   folderId: z.string().min(1),
@@ -17,12 +18,12 @@ export async function POST(req: Request) {
   if (folderId.includes("/")) {
     return jsonError("プロジェクトフォルダのみ指定できます", 400);
   }
-  if (!folderExists(process.cwd(), folderId)) {
+  if (!folderExists(getProjectRoot(), folderId)) {
     return jsonError("フォルダが見つかりません", 404);
   }
 
-  const paths = listFolderRelativePathsForNaming(process.cwd(), folderId);
-  const excerpts = listFolderTextExcerptsForNaming(process.cwd(), folderId);
+  const paths = listFolderRelativePathsForNaming(getProjectRoot(), folderId);
+  const excerpts = listFolderTextExcerptsForNaming(getProjectRoot(), folderId);
   const result = await generateFolderNameFromPaths(
     req,
     paths,

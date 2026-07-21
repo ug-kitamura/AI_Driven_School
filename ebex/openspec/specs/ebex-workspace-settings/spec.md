@@ -3,7 +3,9 @@
 ## Purpose
 
 TBD - created by archiving change ebex-v1-workspace. Update Purpose after archive.
+
 ## Requirements
+
 ### Requirement: 設定項目
 
 設定ダイアログ（⚙）には以下の項目のみが含まれなければならない（SHALL）: テーマ（light / dark / system）、編集フォントサイズ、ペイン既定幅（pane1 / pane2 / pane3）、AI モデル、AI API キー、最大出力トークン（`8192` / `16384` / `32000`、既定 `32000`）。
@@ -79,4 +81,3 @@ TBD - created by archiving change ebex-v1-workspace. Update Purpose after archiv
 
 - **WHEN** ユーザーがペイン既定幅をリセットする
 - **THEN** pane3 は 700px に戻る
-

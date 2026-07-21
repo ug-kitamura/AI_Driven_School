@@ -1,8 +1,11 @@
 # ebex-session-concurrency Specification
 
 ## Purpose
+
 TBD - created by archiving change ebex-constraints-and-pledges. Update Purpose after archive.
+
 ## Requirements
+
 ### Requirement: フォルダ切替時の確認付き中断と単一アクティブストリーム
 
 システムは一度に 1 つの Agent ストリームのみを実行しなければならない（SHALL）。ストリーミング中は全プロジェクトフォルダの入力送信を無効化しなければならない（SHALL）。ユーザーがストリーミング中に別のプロジェクトフォルダへ切り替えようとした場合、システムは確認モーダルを表示しなければならない（SHALL）。確認モーダルには、移動すると進行中の応答が中断されること、および中断はクライアント側の打ち切りであってサーバが既に書き込んだファイルは残る場合があることを明示しなければならない（SHALL）。ユーザーが承認した場合のみ切替を行い、進行中の Agent 処理を中断しなければならない（SHALL）。ユーザーが取り消した場合、切替を行わず処理を継続しなければならない（SHALL）。この結果、アクティブなストリームの所有者は常に表示中のプロジェクトフォルダと一致する（SHALL）。切替経路の確認モーダル配線は親コンポーネント側（`Workspace` / `FileTreePane`）に置き、`AgentChatPane` 内で完結させてはならない（MUST NOT）。
@@ -59,4 +62,3 @@ TBD - created by archiving change ebex-constraints-and-pledges. Update Purpose a
 
 - **WHEN** 1 ターンに複数の tool_use が含まれる
 - **THEN** それらは宣言順に 1 つずつ実行され、確認ダイアログが同時に競合しない
-

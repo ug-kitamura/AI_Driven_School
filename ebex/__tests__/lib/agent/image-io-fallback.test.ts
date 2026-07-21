@@ -9,15 +9,13 @@ describe("skillMentionsImageIO", () => {
   });
 
   it("detects Japanese image reading wording", () => {
-    expect(skillMentionsImageIO("アップロードされた画像を読み取り要約する")).toBe(
-      true,
-    );
+    expect(
+      skillMentionsImageIO("アップロードされた画像を読み取り要約する"),
+    ).toBe(true);
   });
 
   it("detects English image generation wording", () => {
-    expect(skillMentionsImageIO("Use the API to generate an image")).toBe(
-      true,
-    );
+    expect(skillMentionsImageIO("Use the API to generate an image")).toBe(true);
   });
 
   it("ignores skills without image instructions", () => {

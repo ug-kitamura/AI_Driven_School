@@ -118,10 +118,6 @@ import { OutsideProjectPathDialog } from "@/components/workspace/OutsideProjectP
 import { OutputDestinationDialog } from "@/components/workspace/OutputDestinationDialog";
 import { SUBAGENT_FALLBACK_USER_MESSAGE } from "@/lib/agent/subagent-fallback";
 import { IMAGE_IO_FALLBACK_USER_MESSAGE } from "@/lib/agent/image-io-fallback";
-import {
-  isForeignActiveStream,
-  isStopDisabledForScope,
-} from "@/lib/agent/session-stream-ownership";
 
 function toProjectRelativePath(
   currentFilePath: string | null,
@@ -244,8 +240,6 @@ export function AgentChatPane({
   const [attachments, setAttachments] = useState<AgentFileAttachment[]>([]);
   const [activeSkillId, setActiveSkillId] = useState<string | null>(null);
   const [isStreaming, setIsStreaming] = useState(false);
-  /** 進行中ストリームを所有する scopeId（別プロジェクトから中断・入力漏れを防ぐ） */
-  const [streamingScopeId, setStreamingScopeId] = useState<string | null>(null);
   const [subagentNoticeVisible, setSubagentNoticeVisible] = useState(false);
   const [streamingAssistantId, setStreamingAssistantId] = useState<
     string | null
@@ -315,6 +309,11 @@ export function AgentChatPane({
   const chatStorageRef = useRef<AgentChatStorage | null>(null);
   const messagesRef = useRef<AgentChatMessage[]>([]);
   const activeSkillIdRef = useRef<string | null>(null);
+  // トークン表示はセッションに永続化して、フォルダ往復後も残す
+  const lastTurnTokensRef = useRef<number | null>(null);
+  const sessionTokenTotalRef = useRef(0);
+  // 切替中断時に保留中の tool 確認を解決するため、最新値を ref で参照する
+  const pendingToolConfirmRef = useRef<ToolConfirmRequiredEvent | null>(null);
   const lastPersistedFingerprintRef = useRef("");
   const persistTimerRef = useRef<number | null>(null);
   // 未送信の入力（本文＋添付）をプロジェクト（scopeId）単位でメモリ保持し、
@@ -348,6 +347,18 @@ export function AgentChatPane({
   }, [activeSkillId]);
 
   useEffect(() => {
+    lastTurnTokensRef.current = lastTurnTokens;
+  }, [lastTurnTokens]);
+
+  useEffect(() => {
+    sessionTokenTotalRef.current = sessionTokenTotal;
+  }, [sessionTokenTotal]);
+
+  useEffect(() => {
+    pendingToolConfirmRef.current = pendingToolConfirm;
+  }, [pendingToolConfirm]);
+
+  useEffect(() => {
     inputRef.current = input;
   }, [input]);
 
@@ -361,6 +372,8 @@ export function AgentChatPane({
     return updateActiveSession(storage, {
       messages: messagesRef.current,
       activeSkillId: activeSkillIdRef.current,
+      lastTurnTokens: lastTurnTokensRef.current,
+      sessionTokenTotal: sessionTokenTotalRef.current,
     });
   }, []);
 
@@ -480,6 +493,8 @@ export function AgentChatPane({
           messages: nextMessages,
           activeSkillId: nextSkillId,
           title,
+          lastTurnTokens: lastTurnTokensRef.current,
+          sessionTokenTotal: sessionTokenTotalRef.current,
         });
       });
       scheduleDebouncedPersist();
@@ -614,13 +629,10 @@ export function AgentChatPane({
   );
 
   const handleStop = useCallback(() => {
-    // 別プロジェクトが所有するストリームは止めない（中断・入力復元の漏れ防止）
-    if (isForeignActiveStream(streamingScopeId, scopeId)) return;
     const stopContext = stopContextRef.current;
     abortRef.current?.abort();
     abortRef.current = null;
     setIsStreaming(false);
-    setStreamingScopeId(null);
     setStreamingAssistantId(null);
     setSubagentNoticeVisible(false);
     setRetryPayload(null);
@@ -637,7 +649,37 @@ export function AgentChatPane({
       setInput(stopContext.userMessage.content);
       stopContextRef.current = null;
     }
-  }, [scopeId, streamingScopeId]);
+  }, []);
+
+  /**
+   * フォルダ切替に伴う中断（A 案）。進行中ストリームを abort するが、停止ボタンと違い
+   * 入力欄への復元はしない。partial な assistant 応答（本文あり）は残して永続化する。
+   * 本文が空の assistant プレースホルダのみ取り除く。
+   */
+  const interruptForSwitch = useCallback(() => {
+    if (!abortRef.current) return;
+    const stopContext = stopContextRef.current;
+    abortRef.current.abort();
+    abortRef.current = null;
+    setIsStreaming(false);
+    setStreamingAssistantId(null);
+    setSubagentNoticeVisible(false);
+    // 開いている tool 確認は宙吊りにせず拒否で閉じる（サーバ側は abort signal でも
+    // 解決されるが、クライアント表示を確実に閉じ、明示的に reject を送る）
+    const pending = pendingToolConfirmRef.current;
+    if (pending) {
+      void postToolConfirmDecision(pending.toolUseId, "reject");
+      setPendingToolConfirm(null);
+    }
+    if (stopContext) {
+      setMessages((prev) =>
+        prev.filter(
+          (message) => message.id !== stopContext.assistantId || message.content,
+        ),
+      );
+      stopContextRef.current = null;
+    }
+  }, []);
 
   const invokeSkill = useCallback(
     async (options: {
@@ -673,7 +715,6 @@ export function AgentChatPane({
         ];
       });
       setIsStreaming(true);
-      setStreamingScopeId(scopeId ?? null);
       setStreamingAssistantId(assistantId);
       setSubagentNoticeVisible(
         Boolean(
@@ -824,7 +865,6 @@ export function AgentChatPane({
           abortRef.current = null;
         }
         setIsStreaming(false);
-        setStreamingScopeId(null);
         setStreamingAssistantId(null);
         setSubagentNoticeVisible(false);
       }
@@ -835,7 +875,6 @@ export function AgentChatPane({
       folderId,
       maybeGenerateSessionTitle,
       onOpenSettings,
-      scopeId,
       skills,
     ],
   );
@@ -975,8 +1014,9 @@ export function AgentChatPane({
       setAttachments([]);
       setError(null);
       setRetryPayload(null);
-      setLastTurnTokens(null);
-      setSessionTokenTotal(0);
+      // トークン表示は無条件リセットせず、保存値から復元する（往復しても残す）
+      setLastTurnTokens(session.lastTurnTokens ?? null);
+      setSessionTokenTotal(session.sessionTokenTotal ?? 0);
     },
     [],
   );
@@ -1166,12 +1206,15 @@ export function AgentChatPane({
       addFileAttachment: (attachment) => {
         addAttachmentRef.current?.(attachment);
       },
+      interruptForSwitch: () => {
+        interruptForSwitch();
+      },
     };
     onControllerReady?.();
     return () => {
       agentChatControllerRef.current = null;
     };
-  }, [agentChatControllerRef, isStreaming, onControllerReady]);
+  }, [agentChatControllerRef, isStreaming, interruptForSwitch, onControllerReady]);
 
   const handleBuiltinCommand = useCallback(
     (command: AgentBuiltinCommand["id"]) => {
@@ -1410,31 +1453,75 @@ export function AgentChatPane({
               messages.length === 0 ? (
                 <div className="flex h-full min-h-[12rem] items-center justify-center">
                   <div className="flex max-w-md flex-col gap-3 text-sm text-muted-foreground">
-                    <div className="text-center font-medium">
-                      ── 制約と誓約 ──
+                    <div className="text-center text-sm">
+                      ── 注意とお願い ──
                     </div>
                     <p>
                       EBEX
                       は軽量ツールです。スキルに書かれた処理をすべてそのまま実行できるとは限りません。できないことは、代わりの進め方でお手伝いします。
                     </p>
-                    <ul className="flex flex-col gap-1">
-                      <li>✓ この作業フォルダの中で、読む・書く・変換する</li>
-                      <li>✓ 大きな成果物も分割して着実に仕上げる</li>
-                      <li>
-                        ✓ スクリプトは確認のうえ実行します（外部への通信は原則しません）
-                      </li>
-                    </ul>
-                    <ul className="flex flex-col gap-1">
-                      <li>
-                        ✗ サブエージェントには対応していません → 同じセッション内で順に処理します
-                      </li>
-                      <li>
-                        ✗ Web 検索は原則しません →
-                        検索ワードをお渡しするので、結果と URL を貼ってください
-                      </li>
-                      <li>✗ フォルダの外は触りません／ファイルは削除しません</li>
-                      <li>✗ 画像の生成・読み取りには対応していません</li>
-                    </ul>
+                    <table className="w-full border-collapse text-sm">
+                      <tbody>
+                        <tr className="align-top">
+                          <td className="w-6 py-1 pr-2 font-bold text-success">
+                            ✓
+                          </td>
+                          <td className="py-1">
+                            この作業フォルダの中で、読む・書く・変換する
+                          </td>
+                        </tr>
+                        <tr className="align-top">
+                          <td className="w-6 py-1 pr-2 font-bold text-success">
+                            ✓
+                          </td>
+                          <td className="py-1">
+                            大きな成果物も分割して着実に仕上げる
+                          </td>
+                        </tr>
+                        <tr className="align-top">
+                          <td className="w-6 py-1 pr-2 font-bold text-success">
+                            ✓
+                          </td>
+                          <td className="py-1">
+                            スクリプトは確認のうえ実行します（外部への通信は原則しません）
+                          </td>
+                        </tr>
+                        <tr className="align-top">
+                          <td className="w-6 py-1 pr-2 font-bold text-destructive">
+                            ✗
+                          </td>
+                          <td className="py-1">
+                            サブエージェントには対応していません →
+                            同じセッション内で順に処理します
+                          </td>
+                        </tr>
+                        <tr className="align-top">
+                          <td className="w-6 py-1 pr-2 font-bold text-destructive">
+                            ✗
+                          </td>
+                          <td className="py-1">
+                            Web 検索は原則しません →
+                            検索ワードをお渡しするので、結果と URL を貼ってください
+                          </td>
+                        </tr>
+                        <tr className="align-top">
+                          <td className="w-6 py-1 pr-2 font-bold text-destructive">
+                            ✗
+                          </td>
+                          <td className="py-1">
+                            フォルダの外は触りません／ファイルは削除しません
+                          </td>
+                        </tr>
+                        <tr className="align-top">
+                          <td className="w-6 py-1 pr-2 font-bold text-destructive">
+                            ✗
+                          </td>
+                          <td className="py-1">
+                            画像の生成・読み取りには対応していません
+                          </td>
+                        </tr>
+                      </tbody>
+                    </table>
                   </div>
                 </div>
               ) : (
@@ -1609,11 +1696,6 @@ export function AgentChatPane({
           onStop={handleStop}
           disabled={pendingToolConfirm !== null}
           isLoading={isStreaming}
-          stopDisabled={isStopDisabledForScope(
-            isStreaming,
-            streamingScopeId,
-            scopeId,
-          )}
           modelLabel={modelLabel}
           skills={skills}
           activeSkillId={activeSkillId}
@@ -1738,6 +1820,9 @@ export function AgentChatPane({
       </AlertDialog>
 
       <ToolConfirmDialog
+        // 確認要求ごとにリマウントして、連続確認での Radix ダイアログの状態残留
+        // （pointer-events 詰まり等）を断つ。ManualSearchDialog と同手当て。
+        key={pendingToolConfirm?.toolUseId ?? "tool-confirm"}
         request={
           pendingToolConfirm?.kind === "web-search-manual"
             ? null

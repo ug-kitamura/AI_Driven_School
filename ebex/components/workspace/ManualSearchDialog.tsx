@@ -9,6 +9,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import type { ToolConfirmRequiredEvent } from "@/lib/agent/stream-client";
 
 type Props = {
@@ -28,7 +29,16 @@ export function ManualSearchDialog({ request, onSubmit, onSkip }: Props) {
   const query = request?.search?.query ?? request?.path ?? "";
   const purpose = request?.search?.purpose?.trim();
   // 入力欄の初期化は、呼び出し側が toolUseId を key に渡してリマウントすることで行う
+  const [url, setUrl] = useState("");
   const [text, setText] = useState("");
+
+  // URL は任意。入力があれば先頭に「ソース URL」行として結合して渡す。
+  const buildSubmitText = (): string => {
+    const trimmedUrl = url.trim();
+    const trimmedText = text.trim();
+    if (!trimmedUrl) return trimmedText;
+    return `ソース URL: ${trimmedUrl}\n\n${trimmedText}`;
+  };
 
   return (
     <Dialog
@@ -58,12 +68,26 @@ export function ManualSearchDialog({ request, onSubmit, onSkip }: Props) {
                 <span className="text-sm">{purpose}</span>
               </div>
             ) : null}
-            <textarea
-              className="min-h-32 w-full resize-y rounded-md border bg-background p-2 font-mono text-xs"
-              placeholder="検索結果の要点とソース URL を貼り付けてください"
-              value={text}
-              onChange={(event) => setText(event.target.value)}
-            />
+            <div className="flex flex-col gap-1">
+              <span className="text-xs text-muted-foreground">
+                ソース URL（任意・空でも可）
+              </span>
+              <Input
+                type="url"
+                placeholder="https://..."
+                value={url}
+                onChange={(event) => setUrl(event.target.value)}
+              />
+            </div>
+            <div className="flex flex-col gap-1">
+              <span className="text-xs text-muted-foreground">検索結果</span>
+              <textarea
+                className="min-h-32 w-full resize-y rounded-md border bg-background p-2 font-mono text-xs"
+                placeholder="検索結果の要点を貼り付けてください"
+                value={text}
+                onChange={(event) => setText(event.target.value)}
+              />
+            </div>
           </div>
           <DialogFooter>
             <Button type="button" variant="outline" onClick={onSkip}>
@@ -72,7 +96,7 @@ export function ManualSearchDialog({ request, onSubmit, onSkip }: Props) {
             <Button
               type="button"
               disabled={!text.trim()}
-              onClick={() => onSubmit(text.trim())}
+              onClick={() => onSubmit(buildSubmitText())}
             >
               貼り付けて続行
             </Button>

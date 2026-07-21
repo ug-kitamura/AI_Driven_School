@@ -322,6 +322,7 @@ export async function runAgentLoop(
         projectRoot: process.cwd(),
         projectFolderId,
         ...skillOptions,
+        ...(options.signal ? { signal: options.signal } : {}),
         search: { provider: searchProvider, session: searchSession },
         generate: {
           provider: providerResult.provider,
@@ -522,6 +523,11 @@ export async function runAgentLoop(
 
     const toolResults: string[] = [];
     for (const call of turnResult.toolCalls) {
+      // ユーザー中断時は、このターンの残りツールを実行せずループを終える。
+      // 実行中の LLM 呼び出し・スクリプト・確認待ちは各 signal 配線で個別に停止する。
+      if (options.signal?.aborted) {
+        return { ok: true, toolEvents, toolTurns };
+      }
       if (projectFolderId) {
         const missing = checkProjectFolderExists(projectRoot, projectFolderId);
         if (missing) {
@@ -589,7 +595,11 @@ export async function runAgentLoop(
             ...(requirement.search ? { search: requirement.search } : {}),
             ...(requirement.generate ? { generate: requirement.generate } : {}),
           });
-          const resolution = await awaitToolConfirmDecision(call.id);
+          const resolution = await awaitToolConfirmDecision(
+            call.id,
+            undefined,
+            options.signal,
+          );
           const decision = resolution.decision;
           if (requirement.kind === "web-search-manual") {
             // 人手フォールバック: 承認＝結果貼付、拒否/timeout＝スキップして続行

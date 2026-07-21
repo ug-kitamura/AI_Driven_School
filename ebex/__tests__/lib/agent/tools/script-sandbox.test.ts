@@ -114,6 +114,25 @@ describe("script-sandbox", () => {
     fs.rmSync(base, { recursive: true, force: true });
   }, 15_000);
 
+  it("aborts a running script when the signal fires (distinct from timeout)", async () => {
+    const { base, projectDir } = makeSandboxDirs();
+    const controller = new AbortController();
+    // 長時間ループ。タイムアウト（既定 30s）より十分早く abort する
+    const promise = runScriptInSandbox(
+      { kind: "code", code: "for(;;){}" },
+      { projectDirAbsolute: projectDir, signal: controller.signal },
+    );
+    setTimeout(() => controller.abort(), 300);
+    const result = await promise;
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.aborted).toBe(true);
+      expect(result.timedOut).toBeUndefined();
+      expect(result.error).toContain("中断");
+    }
+    fs.rmSync(base, { recursive: true, force: true });
+  }, 15_000);
+
   it("blocks spawning child processes", async () => {
     const { base, projectDir } = makeSandboxDirs();
     const result = await runScriptInSandbox(

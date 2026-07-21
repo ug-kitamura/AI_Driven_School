@@ -8,6 +8,16 @@ import { EditorPane } from "@/components/workspace/EditorPane";
 import { AgentPane } from "@/components/workspace/AgentPane";
 import { PurposeDialog } from "@/components/workspace/PurposeDialog";
 import { WorkspaceSettingsDialog } from "@/components/workspace/WorkspaceSettingsDialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { PaneResizeHandle } from "@/components/workspace/PaneResizeHandle";
 import { PANE2_MIN_WIDTH } from "@/components/workspace/pane-layout";
 import { useWorkspacePaneWidths } from "@/components/workspace/use-workspace-pane-widths";
@@ -193,7 +203,7 @@ export function Workspace({ initialFolders }: WorkspaceProps) {
     setFolders(data.folders);
   }, []);
 
-  const handleSelectFile = useCallback(
+  const applySelection = useCallback(
     (folderPath: string, fileName: string) => {
       setUserSelection({ folderPath, fileName });
       if (
@@ -206,6 +216,41 @@ export function Workspace({ initialFolders }: WorkspaceProps) {
     },
     [],
   );
+
+  // フォルダ切替の確認待ち（A 案）。AI 応答中に別プロジェクトフォルダへ移ると
+  // 応答を中断するため、承認を挟む。
+  const [pendingFolderSwitch, setPendingFolderSwitch] =
+    useState<LastFileSelection | null>(null);
+
+  const handleSelectFile = useCallback(
+    (folderPath: string, fileName: string) => {
+      const targetProjectFolderId = folderPath
+        ? getProjectFolderId(folderPath)
+        : "";
+      // ストリーミング中に別プロジェクトフォルダへ移ろうとしたときだけ確認を挟む
+      if (
+        agentBusyProjectFolderId &&
+        targetProjectFolderId &&
+        targetProjectFolderId !== agentBusyProjectFolderId
+      ) {
+        setPendingFolderSwitch({ folderPath, fileName });
+        return;
+      }
+      applySelection(folderPath, fileName);
+    },
+    [agentBusyProjectFolderId, applySelection],
+  );
+
+  const confirmFolderSwitch = useCallback(() => {
+    agentChatControllerRef.current?.interruptForSwitch();
+    if (pendingFolderSwitch) {
+      applySelection(
+        pendingFolderSwitch.folderPath,
+        pendingFolderSwitch.fileName,
+      );
+    }
+    setPendingFolderSwitch(null);
+  }, [applySelection, pendingFolderSwitch]);
 
   const handleContentChange = useCallback((content: string) => {
     setFileContent(content);
@@ -332,6 +377,29 @@ export function Workspace({ initialFolders }: WorkspaceProps) {
           />
         </div>
       </div>
+
+      <AlertDialog
+        open={pendingFolderSwitch !== null}
+        onOpenChange={(open) => {
+          if (!open) setPendingFolderSwitch(null);
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>AI 応答を中断して移動しますか？</AlertDialogTitle>
+            <AlertDialogDescription>
+              現在このフォルダで AI
+              が応答中です。別のフォルダへ移動すると応答を中断します。作りかけのファイルは残る場合があります。
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>とどまる</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmFolderSwitch}>
+              中断して移動
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <WorkspaceSettingsDialog
         open={settingsOpen}

@@ -52,8 +52,6 @@ type Props = {
   onStop?: () => void;
   disabled?: boolean;
   isLoading?: boolean;
-  /** 停止ボタンを無効化する（別プロジェクトが所有するストリームは止めさせない） */
-  stopDisabled?: boolean;
   modelLabel?: string | null;
   skills: SkillSummary[];
   activeSkillId: string | null;
@@ -140,7 +138,6 @@ export function AgentChatInput({
   onStop,
   disabled = false,
   isLoading = false,
-  stopDisabled = false,
   modelLabel = null,
   skills,
   activeSkillId,
@@ -616,7 +613,6 @@ export function AgentChatInput({
                   size="icon"
                   className="size-7 shrink-0"
                   aria-label="生成を停止"
-                  disabled={stopDisabled}
                   onClick={onStop}
                 >
                   <Square className="size-3.5 fill-current" />

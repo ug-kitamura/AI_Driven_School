@@ -47,4 +47,28 @@ describe("tool-confirm-registry", () => {
     await expect(pending).resolves.toEqual({ decision: "timeout" });
     expect(resolveToolConfirmDecision("tool-ttl", "approve")).toBe(false);
   });
+
+  it("resolves as reject when the signal aborts while pending", async () => {
+    const controller = new AbortController();
+    const pending = awaitToolConfirmDecision(
+      "tool-abort",
+      5 * 60 * 1000,
+      controller.signal,
+    );
+    controller.abort();
+    await expect(pending).resolves.toEqual({ decision: "reject" });
+    // abort 後は保留が消えているため、後続の解決要求は届かない
+    expect(resolveToolConfirmDecision("tool-abort", "approve")).toBe(false);
+  });
+
+  it("resolves immediately as reject when the signal is already aborted", async () => {
+    const controller = new AbortController();
+    controller.abort();
+    const pending = awaitToolConfirmDecision(
+      "tool-preaborted",
+      5 * 60 * 1000,
+      controller.signal,
+    );
+    await expect(pending).resolves.toEqual({ decision: "reject" });
+  });
 });

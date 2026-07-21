@@ -23,6 +23,8 @@ export type ScriptSandboxOptions = {
   /** fs 読取を追加で許可するディレクトリ（実行中スキル） */
   skillDirAbsolute?: string;
   timeoutMs?: number;
+  /** ユーザー中断シグナル。abort で子プロセスを即 kill する */
+  signal?: AbortSignal;
 };
 
 export type ScriptRunResult =
@@ -33,6 +35,8 @@ export type ScriptRunResult =
       stderr?: string;
       exitCode?: number | null;
       timedOut?: boolean;
+      /** ユーザー中断による打ち切り（タイムアウトとは区別する） */
+      aborted?: boolean;
     };
 
 export type SyntaxCheckResult = { ok: true } | { ok: false; error: string };
@@ -63,7 +67,12 @@ type ExecOutcome = {
 
 function execNode(
   args: string[],
-  options: { cwd?: string; timeout?: number; env?: NodeJS.ProcessEnv },
+  options: {
+    cwd?: string;
+    timeout?: number;
+    env?: NodeJS.ProcessEnv;
+    signal?: AbortSignal;
+  },
 ): Promise<ExecOutcome> {
   return new Promise((resolve) => {
     execFile(
@@ -74,6 +83,7 @@ function execNode(
         timeout: options.timeout,
         maxBuffer: SCRIPT_MAX_BUFFER_BYTES,
         windowsHide: true,
+        ...(options.signal ? { signal: options.signal } : {}),
         ...(options.env ? { env: options.env } : {}),
       },
       (error, stdout, stderr) => {
@@ -221,6 +231,16 @@ function buildPermissionArgs(
 function describeRunFailure(outcome: ExecOutcome): ScriptRunResult {
   const error = outcome.error;
   const stderr = truncateScriptOutput(outcome.stderr.trim());
+  // ユーザー中断（AbortSignal 経由）はタイムアウトより先に判定する。
+  // abort も killed を立てるため、順序を誤ると timeout と混同する。
+  if (error?.name === "AbortError" || error?.code === "ABORT_ERR") {
+    return {
+      ok: false,
+      error: "スクリプトの実行がユーザー操作により中断されました（打ち切り）",
+      stderr: stderr || undefined,
+      aborted: true,
+    };
+  }
   if (error?.killed) {
     return {
       ok: false,
@@ -284,6 +304,7 @@ export async function runScriptInSandbox(
         cwd: options.projectDirAbsolute,
         timeout: options.timeoutMs ?? SCRIPT_TIMEOUT_MS,
         env: sandboxEnv,
+        ...(options.signal ? { signal: options.signal } : {}),
       },
     );
     if (outcome.error) {

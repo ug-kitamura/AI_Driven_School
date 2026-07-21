@@ -43,6 +43,8 @@ export type ToolExecutionContext = {
   projectFolderId: string;
   skillId?: string;
   skillDirAbsolute?: string;
+  /** ユーザー中断シグナル。スクリプト実行の子プロセスを abort で即 kill する */
+  signal?: AbortSignal;
   /** web_search のバックエンドとサーキットブレーカー状態（agent loop が構築） */
   search?: {
     provider: SearchProvider | null;
@@ -1452,6 +1454,7 @@ function scriptFailureOutcome(result: {
   stderr?: string;
   exitCode?: number | null;
   timedOut?: boolean;
+  aborted?: boolean;
 }): ToolExecutionOutcome {
   return {
     result: {
@@ -1461,6 +1464,7 @@ function scriptFailureOutcome(result: {
         ? { exitCode: result.exitCode }
         : {}),
       ...(result.timedOut ? { timedOut: true } : {}),
+      ...(result.aborted ? { aborted: true } : {}),
       recoverable: true,
       guidance:
         "エラー内容をもとにスクリプトを修正して再実行してください。成果物の本文を文字列リテラルで埋め込まず、ディスク上のファイルを読んで組み立てること。",
@@ -1509,6 +1513,7 @@ async function executeRunScript(
     {
       projectDirAbsolute: projectDirAbsolute(context),
       skillDirAbsolute: context.skillDirAbsolute,
+      ...(context.signal ? { signal: context.signal } : {}),
     },
   );
   if (!runResult.ok) return scriptFailureOutcome(runResult);
@@ -1546,6 +1551,7 @@ async function executeRunSkillScript(
     {
       projectDirAbsolute: projectDirAbsolute(context),
       skillDirAbsolute: context.skillDirAbsolute,
+      ...(context.signal ? { signal: context.signal } : {}),
     },
   );
   if (!runResult.ok) return scriptFailureOutcome(runResult);

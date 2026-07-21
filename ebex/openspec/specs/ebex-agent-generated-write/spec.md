@@ -98,40 +98,14 @@ TBD - created by archiving change ebex-agent-large-write-runtime. Update Purpose
 
 ### Requirement: tool_result の要約返却とリトライ契約
 
-成功時の tool_result にはパス・バイト数・セクション数・継続回数など要約のみを含めなければならず（SHALL）、生成本文をモデル履歴に戻してはならない（MUST NOT）。`context_paths` のいずれかで読取上限による切り捨てが発生した場合、成功時の tool_result の要約に、切り捨てが発生した事実と対象ファイルのパスを含めなければならない（SHALL）。切り捨てが発生しなかった場合は、切り捨てに関する情報を含めてはならない（MUST NOT）。失敗時はエラー内容・完了済みセクション数・修正の指針（sections の分割・instruction の絞り込み等）を返し、モデルが自己修正して再試行できるようにしなければならない（SHALL）。`path` または `instruction` が欠落・空の tool_use は実行してはならず（MUST NOT）、`generate_and_write` の入力 schema を再提示する案内を含む失敗の tool_result を返さなければならない（SHALL）。
+成功時の tool_result にはパス・バイト数・セクション数・継続回数など要約のみを含めなければならず（SHALL）、生成本文をモデル履歴に戻してはならない（MUST NOT）。失敗時はエラー内容・完了済みセクション数・修正の指針（sections の分割・instruction の絞り込み等）を返し、モデルが自己修正して再試行できるようにしなければならない（SHALL）。`path` または `instruction` が欠落・空の tool_use は実行してはならず（MUST NOT）、`generate_and_write` の入力 schema を再提示する案内を含む失敗の tool_result を返さなければならない（SHALL）。
 
 #### Scenario: 成功結果は要約のみ
 
 - **WHEN** `generate_and_write` が成功する
 - **THEN** tool_result にはパス・バイト数・セクション数・継続回数が含まれ、生成本文は含まれない
 
-#### Scenario: 切り捨て発生時は tool_result に現れる
-
-- **WHEN** `context_paths` に読取上限を超えるファイルが指定され、`generate_and_write` が成功する
-- **THEN** tool_result の要約に、切り捨てが発生した事実と対象ファイルのパスが含まれる
-
-#### Scenario: 切り捨てなしでは情報が増えない
-
-- **WHEN** `context_paths` のすべてのファイルが読取上限以内で、`generate_and_write` が成功する
-- **THEN** tool_result に切り捨てに関する情報は含まれない
-
 #### Scenario: 入力不備には schema を再提示する
 
 - **WHEN** `generate_and_write` の tool_use に `instruction` が無い、または空である
 - **THEN** 生成は行われず、必須入力と schema の案内を含む失敗の tool_result がモデルへ返る
-
-### Requirement: context_paths 切り捨ての実行ログ表示
-
-`context_paths` の読取上限による切り捨てが発生した場合、システムはツール実行ログの表示にも切り捨てが起きた旨を含めなければならない（SHALL）。表示は切り捨てが発生したファイルを特定できるものでなければならない（SHALL）。
-
-本要件は可視化のみを対象とし、読取上限の値および切り捨ての方式（どの範囲を保持するか）を変更してはならない（MUST NOT）。
-
-#### Scenario: 切り捨てが実行ログに表示される
-
-- **WHEN** `context_paths` に読取上限を超えるファイルが指定され、`generate_and_write` が成功する
-- **THEN** ツール実行ログの表示に、切り捨てが発生した旨と対象ファイルが現れる
-
-#### Scenario: 切り捨てなしでは表示が変わらない
-
-- **WHEN** `context_paths` のすべてのファイルが読取上限以内で、`generate_and_write` が成功する
-- **THEN** ツール実行ログの表示は従来どおりで、切り捨てに関する記述は現れない

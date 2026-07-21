@@ -108,3 +108,22 @@ TBD - created by archiving change ebex-agent-web-search. Update Purpose after ar
 - **WHEN** ユーザーが検索をスキップする
 - **THEN** 「検索なしで続行する」旨が tool_result で返り、モデルは同一クエリを再要求しない
 
+### Requirement: 人手フォールバックの URL 欄とデータ欄の分離
+
+システムは、キー未設定時の人手フォールバックダイアログにおいて、入力欄を 2 つに分けて提供しなければならない（SHALL）。上部に 1 行の URL 入力欄（`input`）を、その下に複数行のデータ入力欄（`textarea`）を配置しなければならない（SHALL）。URL 入力欄は任意とし、空のままでも続行できなければならない（SHALL。URL 空を理由に続行を妨げてはならない・MUST NOT）。ユーザーが入力した URL とデータは、tool_result としてモデルへ渡す前に結合または構造化されなければならない（SHALL）。スキップの導線は従来どおり維持しなければならない（SHALL）。
+
+#### Scenario: URL 欄とデータ欄が分かれて表示される
+
+- **WHEN** キー未設定で `web_search` が要求され、人手フォールバックが表示される
+- **THEN** 上に 1 行の URL 入力欄、その下に複数行のデータ入力欄が表示される
+
+#### Scenario: URL 空でも続行できる
+
+- **WHEN** ユーザーが URL 欄を空のままデータ欄に検索結果を入力して続行する
+- **THEN** URL 空を理由に妨げられず、入力内容が tool_result としてモデルへ返る
+
+#### Scenario: スキップは維持される
+
+- **WHEN** ユーザーが検索をスキップする
+- **THEN** 従来どおり「検索なしで続行する」旨が tool_result で返る
+

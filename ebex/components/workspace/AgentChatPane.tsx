@@ -1457,8 +1457,7 @@ export function AgentChatPane({
                       ── 注意とお願い ──
                     </div>
                     <p>
-                      EBEX
-                      は軽量ツールです。スキルに書かれた処理をすべてそのまま実行できるとは限りません。できないことは、代わりの進め方でお手伝いします。
+                      スキルに書かれた処理をすべてそのまま実行できるとは限りません。できないことは、代わりの進め方でお手伝いします。
                     </p>
                     <table className="w-full border-collapse text-sm">
                       <tbody>

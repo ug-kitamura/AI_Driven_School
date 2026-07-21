@@ -117,3 +117,41 @@ Agent チャット（ペイン 3）の空状態（会話が未開始のセッシ
 - **WHEN** ユーザーが最初のメッセージを送り会話が始まる
 - **THEN** 制約と誓約の要約表示は消える
 
+### Requirement: ブラウザタブのタイトルとファヴィコン
+
+ブラウザタブに表示されるドキュメントタイトルは `EBEX` でなければならない（SHALL）。ファヴィコンは EBEX のロゴ画像を元にしなければならず（SHALL）、ロゴの縦横比を元画像から変えてはならない（MUST NOT）。ファヴィコンは正方形のキャンバスにロゴを中央配置し、余った領域は透明の余白としなければならない（SHALL）。ファヴィコンのアセットは Next.js の app icon 規約に従い `app/icon.png` の 1 つだけとしなければならず（SHALL）、`app/favicon.ico` および `app/icon.svg` は存在してはならない（MUST NOT）。
+
+#### Scenario: タブタイトルが EBEX
+
+- **WHEN** ユーザーが EBEX をブラウザで開く
+- **THEN** ブラウザタブのタイトルに `EBEX` が表示される
+
+#### Scenario: ロゴの縦横比が保たれる
+
+- **WHEN** `app/icon.png` を確認する
+- **THEN** 画像は正方形であり、ロゴ部分の縦横比は元の `images/logo_small.png` と一致し、左右は透明の余白で埋められている
+
+#### Scenario: アイコンアセットが 1 つだけ
+
+- **WHEN** リポジトリの `app/` を確認する
+- **THEN** `icon.png` のみが存在し、`favicon.ico` と `icon.svg` は存在しない
+
+### Requirement: supergraphic バナー
+
+画面の最上部には、ウィンドウ幅いっぱいに広がる高さ 6px の supergraphic バナーを常に表示しなければならない（SHALL）。バナーには `images/supergraphic.png` を用い、`object-fit: cover` で画像中央の帯を切り出して表示しなければならない（SHALL）。バナーは 3 ペインより上に位置し、スクロールで隠れてはならない（MUST NOT）。バナーを表示してもワークスペースの 3 ペインが縦にはみ出してはならず（MUST NOT）、ページ全体が縦スクロールしてはならない（MUST NOT）。
+
+#### Scenario: 最上部に 6px のバナーが出る
+
+- **WHEN** ユーザーが EBEX を開く
+- **THEN** 画面最上部に高さ 6px・全幅の supergraphic バナーが表示される
+
+#### Scenario: バナーぶんワークスペースが縮む
+
+- **WHEN** バナーが表示されている
+- **THEN** 3 ペインはバナーの下の残り高さいっぱいに収まり、ページ全体に縦スクロールバーが出ない
+
+#### Scenario: 画像の横位置が保たれる
+
+- **WHEN** ウィンドウ幅を変えてバナーを表示する
+- **THEN** バナーは常に全幅を占め、supergraphic の色帯の横方向の並びが保たれる
+

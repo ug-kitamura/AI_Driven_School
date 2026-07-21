@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import Image from "next/image";
 import { X } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -22,6 +22,19 @@ const LOAD_ERROR = "ebe-purpose.md を読み込めませんでした";
 export function PurposeDialog({ open, onOpenChange }: Props) {
   const [concepts, setConcepts] = useState<PurposeConcept[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const dialogRef = useRef<HTMLDialogElement>(null);
+
+  // open 属性の宣言では非モーダル（backdrop も Esc も効かない）になるため、
+  // showModal/close で top layer に載せる
+  useEffect(() => {
+    const el = dialogRef.current;
+    if (!el) return;
+    if (open) {
+      if (!el.open) el.showModal();
+    } else if (el.open) {
+      el.close();
+    }
+  }, [open]);
 
   useEffect(() => {
     if (!open) return;
@@ -60,22 +73,29 @@ export function PurposeDialog({ open, onOpenChange }: Props) {
 
   return (
     <dialog
-      open={open}
+      ref={dialogRef}
       onClose={() => handleOpenChange(false)}
+      // backdrop のクリックは dialog 要素自身が target になる（中身は下の div が受ける）
+      onClick={(event) => {
+        if (event.target === dialogRef.current) handleOpenChange(false);
+      }}
       className={cn(
         // flex-col + 下の min-h-0 で「収まるなら全部出す／収まらなければ ol だけ
         // スクロールさせる」高さの連鎖を作る
-        "fixed inset-0 z-50 m-auto flex max-h-[97vh] w-full max-w-3xl flex-col rounded-sm border border-[#c4b896] p-0 shadow-xl backdrop:bg-black/50",
+        "fixed inset-0 z-50 m-auto max-h-[97vh] w-full max-w-3xl flex-col rounded-sm border border-[#c4b896] p-0 shadow-xl backdrop:bg-black/50",
         "bg-[#e8dfc8] text-[#3d3426]",
+        // display 指定は UA の dialog:not([open]){display:none} に勝ってしまうので
+        // 開閉に合わせて明示的に切り替える
+        open ? "flex" : "hidden",
       )}
     >
-      <div className="relative flex min-h-0 flex-1 flex-col gap-5 px-[30px] py-8">
+      <div className="relative flex min-h-0 flex-1 flex-col gap-9 px-[30px] py-14">
         <Button
           type="button"
           variant="ghost"
           size="icon-sm"
           aria-label="閉じる"
-          className="absolute top-4 right-4 text-[#3d3426]/80 hover:bg-[#d4c9a8] hover:text-[#3d3426]"
+          className="absolute top-5 right-5 text-[#3d3426]/80 hover:bg-[#d4c9a8] hover:text-[#3d3426]"
           onClick={() => handleOpenChange(false)}
         >
           <X className="size-4" />
@@ -84,14 +104,14 @@ export function PurposeDialog({ open, onOpenChange }: Props) {
         <Image
           src={typographyImage}
           alt="EBE Purpose"
-          className="mx-auto h-auto w-full max-w-[12rem]"
+          className="mx-auto h-auto w-full max-w-[14rem]"
           priority
         />
 
         {error ? (
           <p className="text-destructive text-center text-sm">{error}</p>
         ) : (
-          <ol className="purpose-parchment workspace-scrollbar mx-auto flex w-full min-h-0 list-none flex-col gap-3 overflow-y-auto pl-0 text-center">
+          <ol className="purpose-parchment workspace-scrollbar mx-auto flex w-full min-h-0 list-none flex-col gap-5 overflow-y-auto pl-0 text-center">
             {concepts.map((item) => (
               <li
                 key={item.no}

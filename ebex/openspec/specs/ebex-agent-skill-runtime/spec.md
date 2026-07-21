@@ -25,7 +25,7 @@ Agent 入力の `/` オートコンプリートは、複ルートカタログ上
 
 ### Requirement: 複ルートスキルカタログ
 
-システムは可視スキルおよびスキル読込のために、ebex インストールルートとホストルート（`process.cwd()`）のそれぞれについて、次のディレクトリ配下のスキルを和集合として解決しなければならない（SHALL）: `.claude/skills` / `.cursor/skills` / `.agent/skills` / `.github/skills`。同一 `skill.id` が複数ルートに存在する場合はホスト側を優先しなければならない（SHALL）。同一ルート内で複数のホスト規約ディレクトリに同一 `skill.id` がある場合は、`.claude` → `.cursor` → `.agent` → `.github` の順で先に見つかったものを用いなければならない（SHALL）。`GET /api/agent/skills`、`/` オートコンプリート、スキル invoke の `loadSkill` / `resolveSkillDir` は同じ解決規則に従わなければならない（SHALL）。standalone 実行で両ルートが一致する場合は二重に列挙してはならない（MUST NOT）。
+システムは可視スキルおよびスキル読込のために、ebex インストールルートとホストルート（`process.cwd()`）のそれぞれについて、次のディレクトリ配下のスキルを和集合として解決しなければならない（SHALL）: `.claude/skills` / `.cursor/skills` / `.agents/skills` / `.github/skills`。同一 `skill.id` が複数ルートに存在する場合はホスト側を優先しなければならない（SHALL）。同一ルート内で複数のホスト規約ディレクトリに同一 `skill.id` がある場合は、`.claude` → `.cursor` → `.agents` → `.github` の順で先に見つかったものを用いなければならない（SHALL）。`GET /api/agent/skills`、`/` オートコンプリート、スキル invoke の `loadSkill` / `resolveSkillDir` は同じ解決規則に従わなければならない（SHALL）。standalone 実行で両ルートが一致する場合は二重に列挙してはならない（MUST NOT）。単数形の `.agent/skills` は解決対象としない（MUST NOT）。
 
 #### Scenario: ホストと ebex のスキルが両方見える
 
@@ -36,6 +36,16 @@ Agent 入力の `/` オートコンプリートは、複ルートカタログ上
 
 - **WHEN** ホストの `.cursor/skills/minutes-maid` に `SKILL.md` が存在する
 - **THEN** 一覧および invoke で `minutes-maid` を解決できる
+
+#### Scenario: .agents 配下のスキルも発見される
+
+- **WHEN** ホストの `.agents/skills/minutes-maid` に `SKILL.md` が存在する
+- **THEN** 一覧および invoke で `minutes-maid` を解決できる
+
+#### Scenario: 単数形の .agent は対象外
+
+- **WHEN** ホストの `.agent/skills/legacy-skill` に `SKILL.md` が存在する
+- **THEN** `legacy-skill` は一覧にも invoke の解決結果にも現れない
 
 #### Scenario: 同 id はホスト優先
 

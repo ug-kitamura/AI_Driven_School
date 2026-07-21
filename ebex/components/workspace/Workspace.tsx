@@ -281,6 +281,16 @@ export function Workspace({ initialFolders }: WorkspaceProps) {
     ],
   );
 
+  // 外部変更で選択中ファイルが読み直されたときの反映。保存待ち・選択変更の
+  // ガードは useWorkspaceSync 側で済んでいるので、ここでは差分だけを見る。
+  // 内容が同じなら state を触らない（自分の自動保存による読み直しで、
+  // 無駄な再描画やエディタ文書の置換を起こさないため）。
+  const handleSelectedFileContentLoaded = useCallback((content: string) => {
+    if (content === editingContentRef.current) return;
+    setFileContent(content);
+    editingContentRef.current = content;
+  }, []);
+
   useWorkspaceSync({
     folders,
     selectedFolderPath,
@@ -290,6 +300,7 @@ export function Workspace({ initialFolders }: WorkspaceProps) {
     onSelectionChange: ({ folderPath, fileName }) => {
       setUserSelection({ folderPath, fileName });
     },
+    onSelectedFileContentLoaded: handleSelectedFileContentLoaded,
   });
 
   const currentFilePath =

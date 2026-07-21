@@ -1822,7 +1822,7 @@ export function AgentChatPane({
       <ToolConfirmDialog
         // 確認要求ごとにリマウントして、連続確認での Radix ダイアログの状態残留
         // （pointer-events 詰まり等）を断つ。ManualSearchDialog と同手当て。
-        key={pendingToolConfirm?.toolUseId ?? "tool-confirm"}
+        key={`tool-confirm-${pendingToolConfirm?.toolUseId ?? "none"}`}
         request={
           pendingToolConfirm?.kind === "web-search-manual"
             ? null
@@ -1833,7 +1833,7 @@ export function AgentChatPane({
       />
 
       <ManualSearchDialog
-        key={pendingToolConfirm?.toolUseId ?? "manual-search"}
+        key={`manual-search-${pendingToolConfirm?.toolUseId ?? "none"}`}
         request={pendingToolConfirm}
         onSubmit={(manualSearchText) =>
           void handleToolConfirmDecision("approve", manualSearchText)

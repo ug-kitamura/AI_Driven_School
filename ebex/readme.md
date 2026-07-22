@@ -16,8 +16,6 @@ npm run dev
 
 ブラウザで [http://localhost:3001](http://localhost:3001) を開きます。
 
-dx-training-studio（ポート 3000）と同時に使う場合は、EBEX は 3001 で起動します。
-
 > 補足: workspace 内のユーザーコンテンツ（md/html 等）はどちらのモードでもリクエスト毎に読み込まれるため即時反映されます。モードの違いが影響するのは EBEX のソースコードだけです。
 
 ## ホストリポジトリへの導入
@@ -25,7 +23,7 @@ dx-training-studio（ポート 3000）と同時に使う場合は、EBEX は 300
 EBEX は単体でも使えますが、専門リポジトリ（ホスト）の直下に置くと、**ホスト側の `.claude/skills` と `workspace/` を使いながら EBEX 同梱のベーシックスキルも併用**できます。
 
 ```
-dx-training-studio/
+host-repo/
 ├── .ebex.host          ← マーカー（空ファイル）
 ├── .claude/skills/     ← ホスト専用スキル
 ├── workspace/          ← 作業データの正本
@@ -41,7 +39,7 @@ dx-training-studio/
 4. `ebex/start.host.bat` をホスト直下へ `start.bat` としてコピーする
 5. 更新は `cd ebex && git pull`
 
-起動すると Pane 1 のヘッダーが **`EBEX for dx-training-studio`** になります。`for ...` が出ない場合は手順 1 のマーカーが無く、単体モードで動いています（作業データが `ebex/workspace/` に入ってしまうので確認してください）。
+起動すると Pane 1 のヘッダーが **`EBEX for host-repo`** になります。`for ...` が出ない場合は手順 1 のマーカーが無く、単体モードで動いています（作業データが `ebex/workspace/` に入ってしまうので確認してください）。
 
 > `ebex/start.bat` を直接起動しても結果は同じです。ホスト直下の `start.bat` は導線の利便性のためだけに置きます。
 
@@ -94,6 +92,3 @@ npm run lint     # ESLint
 npm run test     # Vitest
 ```
 
-## 由来
-
-dx-training-studio の Agent スタック・CodeMirror エディタ・ペインリサイズを流用し、トレーニングコンテンツ制作機能を引いた standalone アプリです。

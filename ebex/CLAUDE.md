@@ -46,7 +46,7 @@ EBEX は軽量モデル＋作業フォルダ内に閉じた実行環境のため
 ## コマンド
 
 ```bash
-npm run dev           # 開発サーバー（port 3001）
+npm run dev           # 開発サーバー
 npm run build         # 本番ビルド
 npm run lint          # ESLint
 npm run test          # Vitest

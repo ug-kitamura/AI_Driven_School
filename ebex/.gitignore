@@ -1,6 +1,6 @@
 # workspace
 /workspace/
-!workspace/.gitkeep
+!/workspace/.gitkeep
 
 # dependencies
 node_modules/
@@ -17,9 +17,6 @@ next-env.d.ts
 
 # secret env
 .env.local
-
-# personal bookmarks
-.ebex-favorites.json
 
 # OpenSpec
 .claude/commands/opsx/

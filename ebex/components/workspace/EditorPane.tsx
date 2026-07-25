@@ -201,8 +201,15 @@ function EditorPaneActive({
     );
   }
 
+  // HTML プレビューは iframe 内でスクロールする（実体のあるビューポートを与えるため）。
+  // 外側もスクロールさせると二重スクロールになるので overflow-hidden にする。
+  const isHtmlPreview =
+    showPreview && ["html", "htm"].includes(fileExtension(fileName));
+
   const bodyClassName = showPreview
-    ? "workspace-scrollbar min-h-0 flex-1 overflow-y-auto bg-card"
+    ? isHtmlPreview
+      ? "min-h-0 flex-1 overflow-hidden bg-card"
+      : "workspace-scrollbar min-h-0 flex-1 overflow-y-auto bg-card"
     : pane2Mode === "view-only" || pane2Mode === "unsupported"
       ? "min-h-0 flex-1 overflow-hidden bg-card"
       : "min-h-0 flex-1 overflow-hidden";

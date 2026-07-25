@@ -35,8 +35,8 @@ description: |
 
 `references/base.html` を読み、額縁の構造を把握する:
 
-- `<!-- CONTENT_START -->` 〜 `<!-- CONTENT_END -->` のプレースホルダー位置
-- `<!-- TITLE -->`, `<!-- DESCRIPTION -->` のプレースホルダー
+- `<!-- CONTENT_START -->` 〜 `<!-- CONTENT_END -->` の差し込み区間
+- `{{TITLE}}`, `{{DESCRIPTION}}` のプレースホルダー
 - Bosch配色のTailwind設定
 - 読み込み済みのCDN（Tailwind CSS・Lucide Icons）
 
@@ -67,14 +67,17 @@ Step 3 で収集した情報をもとに、図解HTMLを生成する。検索結
 
 ### Step 5: ファイル作成
 
-1. `output/` ディレクトリがなければ作成する
+1. 作業フォルダに `output/` がなければ作成する
 2. トピックに関連する短い英単語のスラッグを決める（例: `api-basics`, `git-rebase`）
-3. `references/base.html` を `output/{スラッグ}.html` にコピーする
-4. コピーしたファイル内のプレースホルダーをすべて置換する:
-   - `<!-- TITLE -->` → 図解のタイトル
-   - `<!-- DESCRIPTION -->` → 内容を要約した1文
-   - `<!-- CONTENT_START -->` 〜 `<!-- CONTENT_END -->` → Step 4で生成したコンテンツ
-5. ファイルを保存する
+3. 額縁 `references/base.html` を `output/{スラッグ}.html` にコピーする
+4. コピーした額縁の `{{TITLE}}`（図解のタイトル）と `{{DESCRIPTION}}`（内容を要約した1文）をまとめて置換する
+5. `CONTENT` の区間へ Step 4 のコンテンツを差し込む。コンテンツが大きい場合は、節ごとの断片を作業フォルダ直下の `_work/` に書き溜め、まとめて差し込む
+
+**完了の確認（必須）**:
+
+- `{{` で始まるプレースホルダーが残っていないこと
+- `CONTENT` の区間が空でないこと
+- 残っているものがあれば埋めてから完了とする
 
 ### Step 6: 完了報告
 

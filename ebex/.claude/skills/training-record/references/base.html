@@ -387,7 +387,6 @@
   </header>
   <main class="max-w-4xl mx-auto px-4 py-8">
 
-    <!-- ① サマリーカード -->
     <div id="summary" class="grid grid-cols-3 gap-4 mb-8">
       <div class="rounded-xl p-4 text-center shadow-sm" style="color:var(--teal-30);background-color:var(--teal-95);border:2px solid var(--teal-50)">
         <div class="text-4xl font-bold">{{DECISION_NUMBER}}</div>
@@ -403,7 +402,6 @@
       </div>
     </div>
 
-    <!-- 要確認の注意書き -->
     <div class="flex items-start gap-3 rounded-xl p-4 mb-8" style="background:var(--red-95);border:1px solid var(--red-85)">
       <i data-lucide="triangle-alert" class="w-5 h-5 flex-shrink-0 mt-0.5" style="color:var(--red-50)"></i>
       <p class="text-sm" style="color:var(--red-30)">
@@ -411,7 +409,6 @@
       </p>
     </div>
 
-    <!-- ② 目的・対象者 -->
     <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6" id="overview">
       <div class="section-card" style="margin-bottom:0">
         <div class="flex items-center gap-2 mb-2">
@@ -429,7 +426,6 @@
       </div>
     </div>
 
-    <!-- ③ トピックリスト -->
     <div class="section-card" id="topics">
       <div class="flex items-center gap-3 mb-5">
         <div class="w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0" style="background:var(--gray-90)">
@@ -441,13 +437,12 @@
         </div>
       </div>
       <ol class="relative ml-3 border-l-2" style="border-color:var(--blue-85)">
-<!-- CONTENT_START -->
+<!-- TOPIC_LIST_START -->
 
-<!-- CONTENT_END -->
+<!-- TOPIC_LIST_END -->
       </ol>
     </div>
 
-    <!-- ④ トピックの詳細（決定事項を含む） -->
     <div class="section-card" id="details">
       <div class="flex items-center gap-3 mb-6">
         <div class="w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0" style="background:var(--gray-90)">
@@ -458,12 +453,11 @@
           <p class="text-sm" style="color:var(--gray-50)">背景・説明の内容・決定事項</p>
         </div>
       </div>
-<!-- CONTENT_START -->
+<!-- TOPIC_DETAILS_START -->
 
-<!-- CONTENT_END -->
+<!-- TOPIC_DETAILS_END -->
     </div>
 
-    <!-- ⑤ アクションプラン -->
     <div class="section-card" id="actions">
       <div class="flex items-center gap-3 mb-6">
         <div class="w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0" style="background:var(--gray-90)">
@@ -474,12 +468,11 @@
           <p class="text-sm" style="color:var(--gray-50)">誰が・いつまでに・何をするか（TODOリスト）</p>
         </div>
       </div>
-<!-- CONTENT_START -->
+<!-- ACTION_PLAN_START -->
 
-<!-- CONTENT_END -->
+<!-- ACTION_PLAN_END -->
     </div>
 
-    <!-- ⑥ Q&A -->
     <div class="section-card" id="qa">
       <div class="flex items-center gap-3 mb-6">
         <div class="w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0" style="background:var(--gray-90)">
@@ -490,12 +483,11 @@
           <p class="text-sm" style="color:var(--gray-50)">トレーニング中に出た質問と回答</p>
         </div>
       </div>
-<!-- CONTENT_START -->
+<!-- QA_START -->
 
-<!-- CONTENT_END -->
+<!-- QA_END -->
     </div>
 
-    <!-- ⑦ クイズ -->
     <div class="section-card" id="quiz">
       <div class="flex items-center gap-3 mb-6">
         <div class="w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0" style="background:var(--gray-90)">
@@ -506,9 +498,9 @@
           <p class="text-sm" style="color:var(--gray-50)">トレーニング内容の復習用クイズ</p>
         </div>
       </div>
-<!-- CONTENT_START -->
+<!-- QUIZ_START -->
 
-<!-- CONTENT_END -->
+<!-- QUIZ_END -->
     </div>
 
   </main>

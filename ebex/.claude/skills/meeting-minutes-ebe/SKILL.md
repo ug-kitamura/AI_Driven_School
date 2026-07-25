@@ -51,9 +51,13 @@ EBEの会議の**音声文字起こし**から、部署のメンバー全員が�
 
 `references/base.html` を読み、額縁の構造を把握する:
 
-- `<!-- CONTENT_START -->` 〜 `<!-- CONTENT_END -->` のプレースホルダー位置
-- `{{MEETING_TITLE}}`, `{{DATE}}`, `{{ATTENDEES_NAME}}`, `{{ATTENDEES_NUMBER}}`, `{{MINUTES_WRITER}}`, `{{DECISION_NUMBER}}`, `{{ACTION_NUMBER}}`, `{{CHECK_NUMBER}}`, `{{CLOSING_MESSAGE}}`, `{{BASE64_ENCODING_EBE_LOGO}}` のプレースホルダー
-- `{{BASE64_ENCODING_EBE_LOGO}}` はロゴ画像のBase64データのプレースホルダー（Step 9 で置換する）
+- 差し込み区間は 4 つ。それぞれ名前が異なる
+  - `<!-- AGENDA_LIST_START -->` 〜 `<!-- AGENDA_LIST_END -->`（議題リスト）
+  - `<!-- AGENDA_DETAILS_START -->` 〜 `<!-- AGENDA_DETAILS_END -->`（議題の詳細）
+  - `<!-- ACTION_PLAN_START -->` 〜 `<!-- ACTION_PLAN_END -->`（アクションプラン）
+  - `<!-- PURPOSE_CONTRIBUTION_START -->` 〜 `<!-- PURPOSE_CONTRIBUTION_END -->`（パーパスへの貢献）
+- `{{MEETING_TITLE}}`, `{{DATE}}`, `{{ATTENDEES_NAME}}`, `{{ATTENDEES_NUMBER}}`, `{{MINUTES_WRITER}}`, `{{DECISION_NUMBER}}`, `{{ACTION_NUMBER}}`, `{{CHECK_NUMBER}}`, `{{CLOSING_MESSAGE}}` のプレースホルダー
+- ロゴ画像は額縁に埋め込み済み。画像に関する操作は不要
 - Boschカラーパレット
 - 読み込み済みのCDN（Tailwind CSS・Lucide Icons）
 
@@ -82,7 +86,7 @@ EBEの会議の**音声文字起こし**から、部署のメンバー全員が�
 **ファイルの特定方法**:
 
 1. ユーザーがファイル名を指定した場合 → そのファイルを読む
-2. 指定がない場合 → カレントディレクトリの `.vtt` ファイルを探す
+2. 指定がない場合 → 作業フォルダの `.vtt` ファイルを探す
   - 1つだけ見つかった → そのファイルを読む
   - 複数見つかった → ユーザーにどれを使うか確認する
   - 見つからない → ユーザーにファイルパスを尋ねる
@@ -113,7 +117,7 @@ EBEの会議の**音声文字起こし**から、部署のメンバー全員が�
 #### 3. 出席者名リストと出席者数の特定
 
 - ユーザーが会議の出席者リストファイルを指定した場合 → そのファイルを読む
-- 指定がない場合 → カレントディレクトリの `*Attendance*.csv` もしくは `*参加者*.csv` ファイルを探す
+- 指定がない場合 → 作業フォルダの `*Attendance*.csv` もしくは `*参加者*.csv` ファイルを探す
   - 1つだけ見つかった → 使用するかをユーザーに確認してから読む
   - 複数見つかった → ユーザーにどれを使うか（あるいはどれも使わないか）確認する
   - 見つからない → ユーザーにファイルパス（あるいは指定しないか）を尋ねる
@@ -146,6 +150,23 @@ EBEの会議の**音声文字起こし**から、部署のメンバー全員が�
 - このファイルが**唯一の正（Single Source of Truth）**である。Step 6 で書いた記憶やドラフトの内容は一切参照しない
 - 各議題の説明文・文脈・ニュアンス・固有名詞・数値・箇条書きの内容をすべてマークダウンから忠実に取得する
 
+**組み立ての手順**:
+
+1. 額縁 `references/base.html` を作業フォルダの `output/{YYYYMMDD}-{スラッグ}-minutes.html` としてコピーする
+2. コピーした額縁の `{{MEETING_TITLE}}` などのプレースホルダーをまとめて置換する
+3. 区間を 1 つずつ差し込む。1 回の差し込みは数KBに収める
+   - `AGENDA_LIST` — 議題リスト
+   - `AGENDA_DETAILS` — 議題の詳細。議題ごとの断片を作業フォルダ直下の `_work/` に書き溜め、まとめて差し込む
+   - `ACTION_PLAN` — アクションプランの表
+   - `PURPOSE_CONTRIBUTION` — パーパスへの貢献
+4. 出席者が不明の場合は、コピーした額縁から出席者欄を削除する
+
+**完了の確認（必須）**:
+
+- `{{` で始まるプレースホルダーが残っていないこと
+- 4 つの区間がいずれも空でないこと
+- 残っているものがあれば埋めてから完了とする
+
 **HTML生成のルール**:
 
 - マークダウンの各議題の説明文は、**事実・意図・文脈をマークダウンから忠実に取得した上で**、文章品質（明瞭さ・簡潔さ・トンマナの統一）はAIが整えてよい。ただし、事実の追加・削除・意味の変更は禁止する
@@ -156,37 +177,36 @@ EBEの会議の**音声文字起こし**から、部署のメンバー全員が�
   - **要確認数**: 「アクションプラン」テーブルの期限または担当者が「要確認」になっている行数
 - 「議題の詳細」の各議題の冒頭に、その議題の内容を一目で把握できるTailwind CSS製のビジュアルを挿入する
 - 英語メインのトピックでも日本語で書くこと
-- 完成した議事録HTMLを `output/{YYYYMMDD}-{スラッグ}-minutes.html` に保存する
 
 
 ### Step 8: 議事録HTML（英語版）生成
 
-- `output/{YYYYMMDD}-{スラッグ}-minutes.html` を元に英語版を作成する
+Step 7 完了後、以下の文言でユーザーに確認する。ユーザーが同意した場合のみ実行する。
+
+**ユーザーへの確認文（必ずこのまま伝える）**:
+
+> 英語版の議事録を作成しますか？
+> 作成する場合は「OK」、不要な場合は「スキップ」とお知らせください。
+
+**ユーザーが同意した場合のみ実行する**:
+
+- Step 7 と同じ手順で、額縁 `references/base.html` を `output/{YYYYMMDD}-{スラッグ}-minutes-eng.html` としてコピーし、同じ区間へ英語の断片を差し込む
+- 翻訳の元にするのは `output/{YYYYMMDD}-{スラッグ}-minutes.md` であり、日本語版のHTMLではない
 - 英語表現は `references/ebe-purpose-eng.md` `references/teams.md` を参考にする
 - 各メンバーの英語表記は `references/members.md` に準拠すること
-- 完成した議事録HTMLを `output/{YYYYMMDD}-{スラッグ}-minutes-eng.html` に保存する
+- Step 7 と同じ完了の確認を行う
 
 
-### Step 9: ロゴ画像の挿入
+### Step 9: 議事録HTMLの評価
 
-- 以下のPowerShellコマンドをターミナルで実行する
-- コマンドはリポジトリルートから実行すること
-- **`Set-Content` や `Out-File` は文字化けの原因になるため絶対に使わないこと**
-- `[System.IO.File]::WriteAllText` で UTF-8 BOMなしを明示して書き込む
+Step 8 完了後、以下の文言でユーザーに確認する。ユーザーが同意した場合のみ実行する。
 
-```powershell
-$utf8 = New-Object System.Text.UTF8Encoding $false
-$b64 = [Convert]::ToBase64String([IO.File]::ReadAllBytes(".\assets\ebe_logo.png"))
-foreach ($f in Get-ChildItem ".\output\*-minutes*.html") {
-    $html = [System.IO.File]::ReadAllText($f.FullName, $utf8)
-    $html = $html.Replace("{{BASE64_ENCODING_EBE_LOGO}}", $b64)
-    [System.IO.File]::WriteAllText($f.FullName, $html, $utf8)
-    Write-Host "Updated: $($f.Name)"
-}
-```
+**ユーザーへの確認文（必ずこのまま伝える）**:
 
+> 生成した議事録の品質を評価しますか？
+> 実施する場合は「OK」、不要な場合は「スキップ」とお知らせください。
 
-### Step 10: 議事録HTMLの評価
+**ユーザーが同意した場合のみ実行する**:
 
 **サブエージェントを起動**:
 - `references/evaluate.md` の指示に従い、生成した議事録HTML `output/{YYYYMMDD}-{スラッグ}-minutes.html` を評価する
@@ -194,9 +214,9 @@ foreach ($f in Get-ChildItem ".\output\*-minutes*.html") {
 - 実行するのは評価だけで、成果物やスキルの修正は行わない
 
 
-### Step 11: CSS・アイコンのインライン化
+### Step 10: CSS・アイコンのインライン化
 
-Step 10 完了後、以下の文言でユーザーに確認する。ユーザーが同意した場合のみ実行する。
+Step 9 完了後、以下の文言でユーザーに確認する。ユーザーが同意した場合のみ実行する。
 
 **ユーザーへの確認文（必ずこのまま伝える）**:
 

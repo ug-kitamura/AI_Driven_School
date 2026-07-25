@@ -288,7 +288,6 @@
   </header>
   <main class="max-w-4xl mx-auto px-4 py-8">
 
-    <!-- ① サマリーカード -->
     <div id="summary" class="grid grid-cols-3 gap-4 mb-8">
       <div class="rounded-xl p-4 text-center shadow-sm" style="color:var(--teal-30);background-color:var(--teal-95);border:2px solid var(--teal-50)">
         <div class="text-4xl font-bold">{{DECISION_NUMBER}}</div>
@@ -304,7 +303,6 @@
       </div>
     </div>
 
-    <!-- 要確認の注意書き -->
     <div class="flex items-start gap-3 rounded-xl p-4 mb-8" style="background:var(--red-95);border:1px solid var(--red-85)">
       <i data-lucide="triangle-alert" class="w-5 h-5 flex-shrink-0 mt-0.5" style="color:var(--red-50)"></i>
       <p class="text-sm" style="color:var(--red-30)">
@@ -312,7 +310,6 @@
       </p>
     </div>
 
-    <!-- ② 議題リスト -->
     <div class="section-card" id="agenda">
       <div class="flex items-center gap-3 mb-5">
         <div class="w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0" style="background:var(--gray-90)">
@@ -324,13 +321,12 @@
         </div>
       </div>
       <ol class="relative ml-3 border-l-2" style="border-color:var(--blue-85)">
-<!-- CONTENT_START -->
+<!-- AGENDA_LIST_START -->
 
-<!-- CONTENT_END -->
+<!-- AGENDA_LIST_END -->
       </ol>
     </div>
 
-    <!-- ③ 議題の詳細（決定事項を含む） -->
     <div class="section-card" id="details">
       <div class="flex items-center gap-3 mb-6">
         <div class="w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0" style="background:var(--gray-90)">
@@ -341,12 +337,11 @@
           <p class="text-sm" style="color:var(--gray-50)">背景・議論の内容・決定事項</p>
         </div>
       </div>
-<!-- CONTENT_START -->
+<!-- AGENDA_DETAILS_START -->
 
-<!-- CONTENT_END -->
+<!-- AGENDA_DETAILS_END -->
     </div>
 
-    <!-- ④ アクションプラン -->
     <div class="section-card" id="actions">
       <div class="flex items-center gap-3 mb-6">
         <div class="w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0" style="background:var(--gray-90)">
@@ -357,9 +352,9 @@
           <p class="text-sm" style="color:var(--gray-50)">誰が・いつまでに・何をするか（TODOリスト）</p>
         </div>
       </div>
-<!-- CONTENT_START -->
+<!-- ACTION_PLAN_START -->
 
-<!-- CONTENT_END -->
+<!-- ACTION_PLAN_END -->
     </div>
 
   </main>

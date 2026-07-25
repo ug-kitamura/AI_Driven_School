@@ -86,3 +86,29 @@ creating-skills スキルは、作業ホストの `contracts/` に skill contrac
 
 - **WHEN** ホストに skill contract が存在しない
 - **THEN** 追加の必読は発生せず、creating-skills は従来どおり動作する
+
+### Requirement: 同梱スキルの額縁の規約準拠
+
+EBEX に同梱される実用スキル（meeting-minutes / meeting-minutes-ebe / training-record / visual-explainer）の `references/base.html` は、本スペックのテンプレート規約に準拠しなければならない（MUST）。すなわち、短スロットは `{{XXX}}` 形式であること、可変長ブロックの区間マーカーは `<!-- XXX_START -->` / `<!-- XXX_END -->` 形式かつファイル内で一意であること、HTML コメントはマーカーのみで自由記述の説明コメントを含まないこと、CSS はインライン済みでロゴ等の画像は base64 で埋め込み済みであることを満たさなければならない（SHALL）。
+
+CDN 経由のライブラリ読み込み（Tailwind・Lucide 等）は自己完結の要件の対象外とする。
+
+#### Scenario: 複数区間のテンプレートが一意名を持つ
+
+- **WHEN** meeting-minutes の `references/base.html` をレビューする
+- **THEN** 3 つの差し込み区間はそれぞれ異なる名前を持ち、同名の `CONTENT_START` / `CONTENT_END` の組が複数存在しない
+
+#### Scenario: 自由記述コメントが存在しない
+
+- **WHEN** 対象 4 スキルの `references/base.html` をレビューする
+- **THEN** HTML コメントは `_START` / `_END` マーカーのみであり、`<!-- ① サマリーカード -->` のような説明コメントが存在しない
+
+#### Scenario: 短スロットは変数形式
+
+- **WHEN** visual-explainer の `references/base.html` をレビューする
+- **THEN** タイトルと説明文のスロットは `{{TITLE}}` / `{{DESCRIPTION}}` であり、コメント形式のプレースホルダーを用いていない
+
+#### Scenario: ロゴが埋め込み済み
+
+- **WHEN** meeting-minutes-ebe の `references/base.html` をレビューする
+- **THEN** ロゴは base64 データ URI として埋め込まれており、実行時に置換されるプレースホルダーではない

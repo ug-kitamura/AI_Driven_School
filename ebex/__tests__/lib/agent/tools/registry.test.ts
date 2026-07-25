@@ -1020,10 +1020,10 @@ describe("executeRegisteredTool", () => {
     fs.rmSync(tmpDir, { recursive: true, force: true });
   });
 
-  it("acceptance: creating-visual-explainers references/* then copy+replace_between", async () => {
+  it("acceptance: visual-explainer references/* then copy+replace_between", async () => {
     const skillDir = path.resolve(
       process.cwd(),
-      ".claude/skills/creating-visual-explainers",
+      ".claude/skills/visual-explainer",
     );
     expect(fs.existsSync(path.join(skillDir, "references", "base.html"))).toBe(
       true,
@@ -1034,7 +1034,7 @@ describe("executeRegisteredTool", () => {
     const ctx = {
       projectRoot: tmpDir,
       projectFolderId: "demo",
-      skillId: "creating-visual-explainers",
+      skillId: "visual-explainer",
       skillDirAbsolute: skillDir,
     };
 
@@ -1047,9 +1047,7 @@ describe("executeRegisteredTool", () => {
       (glob.result as { matches: string[] }).matches.length,
     ).toBeGreaterThan(0);
     expect((glob.result as { matches: string[] }).matches).toEqual(
-      expect.arrayContaining([
-        "skill/creating-visual-explainers/references/base.html",
-      ]),
+      expect.arrayContaining(["skill/visual-explainer/references/base.html"]),
     );
 
     await executeRegisteredTool(

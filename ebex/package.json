@@ -12,7 +12,8 @@
     "pretest": "npm run check:encoding",
     "test": "vitest run",
     "test:watch": "vitest",
-    "check:encoding": "node scripts/check-japanese-encoding.mjs"
+    "check:encoding": "node scripts/check-japanese-encoding.mjs",
+    "build:skill-assets": "node scripts/build-skill-assets.mjs"
   },
   "dependencies": {
     "@base-ui/react": "^1.4.1",

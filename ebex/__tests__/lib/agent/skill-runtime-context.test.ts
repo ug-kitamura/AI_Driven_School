@@ -172,6 +172,8 @@ describe("buildSkillRuntimeContext", () => {
     });
     expect(text).toContain("_work/");
     expect(text).toMatch(/中間ファイル/);
+    // 置き場はプロジェクトフォルダ直下に固定し、成果物フォルダの位置に依存させない
+    expect(text).toMatch(/プロジェクトフォルダ直下の `_work\/`/);
     // 成果物の置き場としての output/ 固定はしない（例示のスキル相対パスは別）
     expect(text).not.toMatch(/成果物.*output\//);
   });

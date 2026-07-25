@@ -1502,6 +1502,14 @@ export function AgentChatPane({
                             ✗
                           </td>
                           <td className="py-1">
+                            スキルは自動で始まりません → / で選んでください
+                          </td>
+                        </tr>
+                        <tr className="align-top">
+                          <td className="w-6 py-1 pr-2 font-bold text-destructive">
+                            ✗
+                          </td>
+                          <td className="py-1">
                             サブエージェントには対応していません →
                             同じセッション内で順に処理します
                           </td>

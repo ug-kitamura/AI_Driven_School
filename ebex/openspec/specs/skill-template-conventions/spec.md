@@ -29,6 +29,22 @@
 - **WHEN** テンプレートファイルをレビューする
 - **THEN** HTML コメントは `_START`/`_END` マーカーのみであり、自由記述の説明コメントは存在しない（指示は SKILL.md 側に記載される）
 
+### Requirement: 区間マーカー名の一意性
+
+スキルテンプレート内の区間マーカー名は、同一ファイル内で一意でなければならない（MUST）。同じ `<!-- XXX_START -->` / `<!-- XXX_END -->` の組を 1 つのファイルに複数置いてはならない（MUST NOT）。複数の差し込み区間を持つテンプレートは、区間ごとに役割を表す異なる名前（例: `AGENDA_LIST` / `ACTION_PLAN`）を用いなければならない（SHALL）。
+
+区間端トークンと同じ字面を、マーカー以外の位置（ガイド文・説明・サンプル）に書いてはならない（MUST NOT）。
+
+#### Scenario: 複数区間を持つテンプレートの差し込み
+
+- **WHEN** テンプレートが議題リスト・議題の詳細・アクションプランの 3 区間を持ち、スキルが 2 番目の区間へ差し込む
+- **THEN** 当該区間の一意な名前を指定するだけで 2 番目の区間が置換され、1 番目の区間は変更されない
+
+#### Scenario: 同名マーカーの検出
+
+- **WHEN** テンプレートファイルをレビューする
+- **THEN** 同一ファイル内に同名の `_START` / `_END` マーカーの組が 2 つ以上存在しない
+
 ### Requirement: テンプレートの自己完結
 
 スキルテンプレートは外部ファイル参照を持ってはならない（MUST NOT）。CSS は `<style>` タグとしてインライン化し、ロゴ等の小さな画像は base64 data URI で埋め込む。CDN 経由のライブラリ読み込み（Tailwind、Lucide 等）はこの制約の対象外とする。
@@ -45,26 +61,17 @@
 
 ### Requirement: creating-skills への規約収録
 
-creating-skills スキルは、上記のテンプレート設計規約（変数・区間・自己完結）を独立した節として収録しなければならない（MUST）。規約は特定の実行環境（EBEX）に依存しない表現で記述する。
+テンプレート設計規約（変数・区間・自己完結・区間名の一意性）の正本は、作業ホストの `contracts/` に置かれた skill contract でなければならない（SHALL）。creating-skills スキルは当該規約の本文を自スキル内へ重複して収録してはならない（MUST NOT）。creating-skills は既存要件「creating-skills のホスト contract フック」に従って契約を必読へ加えることで規約に準拠しなければならない（SHALL）。
 
 #### Scenario: 新規スキル作成時の参照
 
-- **WHEN** ユーザーが creating-skills を使って穴埋めテンプレートを持つスキルを作成する
-- **THEN** 生成されるテンプレートは変数 `{{XXX}}`・区間 `_START`/`_END`・自己完結の規約に準拠する
+- **WHEN** ユーザーが creating-skills を使って穴埋めテンプレートを持つスキルを、契約が存在するホストで作成する
+- **THEN** 契約が必読に加えられ、生成されるテンプレートは変数 `{{XXX}}`・区間 `_START`/`_END`・区間名の一意性・自己完結の規約に準拠する
 
-### Requirement: minutes-maid の規約準拠
+#### Scenario: 規約本文が二重管理されない
 
-minutes-maid スキルの `references/base.html` は本規約に準拠しなければならない（MUST）。CSS は `<style>` インライン済みとし、`<link rel="stylesheet" href="style.css">` および自由記述コメントを含まない。SKILL.md から「スタイルのインライン化」手順を削除する。
-
-#### Scenario: 軽量モデルでの HTML 生成
-
-- **WHEN** 軽量モデル（GPT-5 nano 相当）が minutes-maid の Phase 4 を実行する
-- **THEN** CSS に関する操作は一切不要で、生成された HTML は正しいスタイルを持つ
-
-#### Scenario: style.css との同期
-
-- **WHEN** 開発者が references/style.css を変更する
-- **THEN** SKILL.md 記載の保守手順に従い base.html の `<style>` にも同内容が反映される
+- **WHEN** creating-skills の `SKILL.md` および `references/` をレビューする
+- **THEN** テンプレート設計規約の本文は含まれず、ホスト契約への参照のみが存在する
 
 ### Requirement: creating-skills のホスト contract フック
 

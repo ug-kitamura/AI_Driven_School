@@ -118,7 +118,7 @@ Pane 2 は、`edit-preview` モードのファイルに限り、ヘッダー右�
 
 ### Requirement: プレビュー対応拡張子
 
-`edit-preview` 対象の拡張子はプレビューを提供しなければならない（SHALL）: md（react-markdown）、html（スクリプト実行を許可したサンドボックス iframe。Tailwind CDN 等のスクリプト生成スタイルを表示するため許可を維持する）、csv（表表示）、json / yml（整形表示、パースエラー時はエラー表示）、vtt（チャット風の話者吹き出し表示）。プレビュー表示はペイン内で縦スクロール可能でなければならない（SHALL）。HTML プレビューは iframe 内ではなく Pane 2 プレビュー領域（`workspace-scrollbar` を適用した外側コンテナ）で縦スクロールしなければならない（SHALL）。HTML プレビューの縦スクロールバーは Markdown プレビューおよび Pane 3 と同じ `workspace-scrollbar` 見た目でなければならない（SHALL）。HTML プレビューの iframe `sandbox` に `allow-forms`・`allow-popups`・`allow-top-navigation` を含めてはならない（MUST NOT）。
+`edit-preview` 対象の拡張子はプレビューを提供しなければならない（SHALL）: md（react-markdown）、html（スクリプト実行を許可したサンドボックス iframe。Tailwind CDN 等のスクリプト生成スタイルを表示するため許可を維持する）、csv（表表示）、json / yml（整形表示、パースエラー時はエラー表示）、vtt（チャット風の話者吹き出し表示）。プレビュー表示はペイン内で縦スクロール可能でなければならない（SHALL）。HTML プレビューは iframe がプレビュー領域の高さいっぱいを占め、文書は **iframe 内で**縦スクロールしなければならない（SHALL）。HTML プレビューで外側コンテナと iframe の二重スクロールを発生させてはならない（MUST NOT）。HTML プレビューの縦スクロールバーは Markdown プレビューおよび Pane 3 と同じ `workspace-scrollbar` 見た目でなければならない（SHALL）。HTML プレビューの iframe `sandbox` に `allow-forms`・`allow-popups`・`allow-top-navigation` を含めてはならない（MUST NOT）。
 
 vtt プレビューはチャット画面風に描画しなければならない（SHALL）。各発話（cue）は話者アイコンと吹き出しで表示し、話者が直前の発話から変わるたびに吹き出しの表示側を左右交互に切り替えなければならない（SHALL）。同一話者が連続して発話する場合、アイコンはその連続ブロックの最初の吹き出しにのみ表示し、2 件目以降の吹き出しにはアイコンを表示してはならない（MUST NOT）。同一話者にはアイコンの表示文字および配色を一貫して適用しなければならない（SHALL）。アイコンの下に話者名を、各吹き出しの下に発話時刻を開始時刻→終了時刻の形式（例 `00:00:02 → 00:00:06`）で表示しなければならない（SHALL）。話者は `<v 話者名>...</v>` ボイスタグを優先して抽出し、無い場合は行頭の `話者名:` を話者として扱わなければならない（SHALL）。話者を特定できない cue は「不明」話者として表示しなければならない（SHALL）。
 
@@ -140,12 +140,17 @@ vtt プレビューはチャット画面風に描画しなければならない�
 #### Scenario: HTML プレビューのスクロール
 
 - **WHEN** ユーザーがビューポートより長い `.html` をプレビューする
-- **THEN** Pane 2 プレビュー領域（外側コンテナ）を縦スクロールして末尾まで読める
+- **THEN** iframe 内を縦スクロールして末尾まで読める
 
 #### Scenario: HTML プレビューのスクロールバー
 
 - **WHEN** ユーザーが `.html` ファイルのプレビューを表示し、内容が溢れて縦スクロールが発生する
 - **THEN** 表示される縦スクロールバーは `workspace-scrollbar` と同じ形状・色である
+
+#### Scenario: 二重スクロールが発生しない
+
+- **WHEN** ユーザーがビューポートより長い `.html` のプレビューを表示する
+- **THEN** スクロールする領域は iframe 内の 1 つだけであり、外側コンテナに別の縦スクロールバーは現れない
 
 #### Scenario: CSV 表プレビュー
 
@@ -181,6 +186,43 @@ vtt プレビューはチャット画面風に描画しなければならない�
 
 - **WHEN** ボイスタグも `話者名:` 接頭辞も持たない cue を含む vtt をプレビューする
 - **THEN** 当該発話は「不明」話者として表示される
+
+### Requirement: HTML プレビューのビューポート整合
+
+HTML プレビューの iframe は、実体のあるビューポート（プレビュー領域の高さに一致する固定高さ）を持たなければならない（SHALL）。ビューポート単位に依存する CSS（`100vh` / `h-screen` / `min-h-screen` 等）および `position: fixed` は、同じ HTML をブラウザで直接開いた場合と同じ挙動でなければならない（SHALL）。
+
+文書の高さを計測して iframe の高さへ反映する実装を用いてはならない（MUST NOT）。iframe 内の `html` / `body` に `overflow: hidden` を強制してはならない（MUST NOT）。
+
+#### Scenario: h-screen がちょうど 1 画面分になる
+
+- **WHEN** ユーザーが先頭セクションに `h-screen` を持つ `.html` をプレビューする
+- **THEN** 当該セクションの高さはプレビュー領域の高さと一致し、以降のセクションはスクロールして読める
+
+#### Scenario: fixed 要素が追従する
+
+- **WHEN** ユーザーが `position: fixed` の要素を含む `.html` をプレビューし、内容を縦スクロールする
+- **THEN** 当該要素はスクロールに追従せず、プレビュー領域内の指定位置に留まる
+
+#### Scenario: スタイルの適用遅延で内容が切れない
+
+- **WHEN** Tailwind CDN のスタイル適用が iframe の読み込み完了より遅れる
+- **THEN** 適用後のレイアウトでも文書の末尾までスクロールして読め、内容が切り落とされない
+
+### Requirement: プレビュー iframe へのスクロールバースタイル注入
+
+HTML プレビューの iframe には、`workspace-scrollbar` と同一の形状および色を与えるスタイルを親ウィンドウ側から `contentDocument` へ注入しなければならない（SHALL）。色はアプリ側のカスタムプロパティ（`--workspace-scrollbar-track` / `--workspace-scrollbar-thumb` / `--workspace-scrollbar-thumb-hover`）を親文書上で解決した値として注入しなければならない（SHALL）。テーマ（ライト / ダーク）が切り替わった場合は、注入済みのスタイルを解決し直した値へ更新しなければならない（SHALL）。
+
+カスタムプロパティを解決できない場合は、代替色を用いてスタイルを注入してはならない（MUST NOT）。この場合はブラウザ既定のスクロールバーとする。
+
+#### Scenario: テーマ切替でスクロールバーの色が追従する
+
+- **WHEN** ユーザーが `.html` のプレビューを表示した状態でテーマをライトからダークへ切り替える
+- **THEN** iframe 内のスクロールバーの色がダークテーマの `workspace-scrollbar` と同じ色になる
+
+#### Scenario: 解決できない場合は既定へ倒す
+
+- **WHEN** スクロールバー用のカスタムプロパティが親文書で解決できない
+- **THEN** 独自の代替色は適用されず、ブラウザ既定のスクロールバーが表示される
 
 ### Requirement: Pane 2 ヘッダー
 

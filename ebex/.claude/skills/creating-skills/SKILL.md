@@ -2,7 +2,7 @@
 name: creating-skills
 description: |
   スキルを作成・更新・改善するスキル。
-  「スキルを作って」「このスキルを改善して」「スキルを更新して」など依頼された際やスキルを更新する際に使用する。
+  「スキルを作って」「このスキルを改善して」「スキルを更新して」など依頼された際やスキルを更新する際に使用します。
 ---
 
 # Skill Creator
@@ -17,13 +17,12 @@ description: |
 2. [references/ssot-audit.md](references/ssot-audit.md) — SSoT 監査・ハードコード不整合レビュー（ゲートとして必ず実行）
 3. [references/exemplar.md](references/exemplar.md) — 模範例・品質チェックリスト
 4. [references/patterns.md](references/patterns.md) — 設計パターン・サイズ目安
-5. （ある場合のみ）作業ホストの `contracts/` に skill contract があれば、それも必読に加えて準拠する
 
 ## 作成プロセス
 
 ### Step 0: リファレンスを読む
 
-上記のリファレンスを全て読む。省略禁止。
+上記4つのリファレンスを全て読む。省略禁止。
 
 ### Step 1: 種類を判断
 
@@ -36,8 +35,6 @@ description: |
 SKILL.md に置く情報と references/ に置く情報を分離する。
 
 → [patterns.md](references/patterns.md)（ディレクトリパターン、3段階ローディング）
-
-額縁テンプレート（HTML/CSS 等）を配る場合は、同ファイルの「額縁・配布物パターン」（自己完結・コピー先行・プレースホルダー規約・`assets:`・`_work/`）も読む。変数は `{{XXX}}`、区間は `<!-- XXX_START/END -->`、額縁内コメントはマーカーのみ、という軽量モデル対応規約に必ず従う。
 
 ### Step 3: 洗練
 

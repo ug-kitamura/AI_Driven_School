@@ -12,7 +12,9 @@ const nextConfig: NextConfig = {
     root: projectRoot,
   },
   outputFileTracingRoot: projectRoot,
-  serverExternalPackages: ["playwright"],
+  // tailwindcss-v3 は設定解決・プラグイン読み込みで動的 require を使うため、
+  // サーバーバンドルへ取り込ませず Node の require に任せる。
+  serverExternalPackages: ["playwright", "tailwindcss-v3", "postcss"],
 };
 
 export default nextConfig;

@@ -63,6 +63,16 @@ function describeRequest(request: ToolConfirmRequiredEvent): {
         description: `${request.generate?.purpose?.trim() || "AI が本文を生成してファイルへ直接書き込もうとしています。"}\n\n対象: ${request.path}\n区別: ${request.isNew ? "新規作成" : "上書き"}\n\nサーバ内で追加の AI 呼び出しを実行し、生成された本文をこのファイルへ書き込みます。`,
         actionLabel: request.isNew ? "生成して作成" : "生成して上書き",
       };
+    case "inline-assets": {
+      const targets: string[] = request.inlineAssets?.targets?.length
+        ? request.inlineAssets.targets
+        : [request.path];
+      return {
+        title: "CSS・アイコンを HTML へ埋め込みますか？",
+        description: `生成した HTML から CDN 読み込みを取り除き、使用中のスタイルとアイコンをファイル内へ埋め込みます。単体で開いても表示が崩れなくなります。\n\n対象:\n${targets.map((t) => `  ${t}`).join("\n")}\n\n対象のファイルは上書きされ、ファイルサイズが増えます。`,
+        actionLabel: "埋め込みを許可",
+      };
+    }
     case "web-search": {
       const query = request.search?.query ?? request.path;
       const purpose = request.search?.purpose?.trim();

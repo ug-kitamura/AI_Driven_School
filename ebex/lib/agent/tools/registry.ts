@@ -7,6 +7,7 @@ import {
 import type { LlmProvider } from "@/lib/agent/llm/provider";
 import { resolveToolTargetPath } from "@/lib/agent/tools/fs-guard";
 import { executeGenerateAndWrite } from "@/lib/agent/tools/generate-write";
+import { inlineHtmlAssets } from "@/lib/agent/tools/inline-html-assets";
 import { isLikelySubagentToolName } from "@/lib/agent/subagent-fallback";
 import {
   checkScriptSyntax,
@@ -367,6 +368,22 @@ const TOOL_SCHEMAS = {
         },
       },
       required: ["purpose", "path", "instruction"],
+    },
+  },
+  inline_html_assets: {
+    name: "inline_html_assets",
+    description:
+      "生成済み HTML を単体で開けるようにする。CDN 読み込み（Tailwind・Lucide）を取り除き、その HTML が実際に使っているスタイルをその場でコンパイルして埋め込み、アイコンを inline SVG へ展開する。対象ファイルは上書きされる。複数ファイルをまとめて渡すこと（1 回の呼び出しと 1 回の確認で完了する）。実行前にユーザー確認が入る。",
+    input_schema: {
+      type: "object",
+      properties: {
+        paths: {
+          type: "array",
+          items: { type: "string" },
+          description: "対象 HTML のパス（プロジェクト相対）。複数まとめて渡す",
+        },
+      },
+      required: ["paths"],
     },
   },
   web_search: {
@@ -979,6 +996,90 @@ function executeWriteFile(
     display: display(
       `${bytes} bytes`,
       `💾 書込: ${resolved.relativePath}（${bytes} bytes）`,
+    ),
+  };
+}
+
+/**
+ * 生成済み HTML から CDN 依存を取り除き、単体で開ける形へ書き換える。
+ * 複数ファイルを 1 回の呼び出しで処理する（確認も 1 回で済ませるため）。
+ */
+async function executeInlineHtmlAssets(
+  context: ToolExecutionContext,
+  input: Record<string, unknown>,
+): Promise<ToolExecutionOutcome> {
+  const raw = Array.isArray(input.paths) ? input.paths : [];
+  const requested = raw.filter(
+    (p): p is string => typeof p === "string" && p.trim().length > 0,
+  );
+  if (requested.length === 0) return errorOutcome("paths が空です");
+
+  const resolvedTargets: Array<{ absolutePath: string; relativePath: string }> =
+    [];
+  for (const inputPath of requested) {
+    const resolved = resolveToolTargetPath(
+      context.projectRoot,
+      context.projectFolderId,
+      inputPath,
+      skillPathOptions(context, false),
+    );
+    if ("error" in resolved) return errorOutcome(resolved.error);
+    if (resolved.insideSkill) {
+      return errorOutcome(
+        `スキルディレクトリのファイルは書き換えられません: ${resolved.relativePath}`,
+      );
+    }
+    if (!fs.existsSync(resolved.absolutePath)) {
+      return errorOutcome(`ファイルが見つかりません: ${resolved.relativePath}`);
+    }
+    if (!fs.statSync(resolved.absolutePath).isFile()) {
+      return errorOutcome(`ファイルではありません: ${resolved.relativePath}`);
+    }
+    resolvedTargets.push(resolved);
+  }
+
+  const lines: string[] = [];
+  const summaries: Array<{
+    path: string;
+    bytesBefore: number;
+    bytesAfter: number;
+    cssBytes: number;
+    iconsExpanded: number;
+    iconsFallback: string[];
+  }> = [];
+
+  for (const target of resolvedTargets) {
+    const before = fs.readFileSync(target.absolutePath, "utf-8");
+    const { html, report } = await inlineHtmlAssets(before);
+    fs.writeFileSync(target.absolutePath, html, "utf-8");
+
+    const bytesBefore = Buffer.byteLength(before, "utf-8");
+    const bytesAfter = Buffer.byteLength(html, "utf-8");
+    summaries.push({
+      path: target.relativePath,
+      bytesBefore,
+      bytesAfter,
+      cssBytes: report.cssBytes,
+      iconsExpanded: report.iconsExpanded,
+      iconsFallback: report.iconsFallback,
+    });
+
+    const kb = (n: number) => `${(n / 1024).toFixed(1)}KB`;
+    lines.push(
+      `${target.relativePath}: ${kb(bytesBefore)} → ${kb(bytesAfter)}` +
+        `（CSS ${kb(report.cssBytes)} / アイコン ${report.iconsExpanded} 個` +
+        (report.iconsFallback.length
+          ? ` / 代替 ${report.iconsFallback.length} 件: ${report.iconsFallback.join("・")}`
+          : "") +
+        "）",
+    );
+  }
+
+  return {
+    result: { files: summaries },
+    display: display(
+      `${summaries.length} ファイル`,
+      `🎨 インライン化\n${lines.join("\n")}`,
     ),
   };
 }
@@ -1817,6 +1918,8 @@ export async function executeRegisteredTool(
       return executeRunSkillScript(context, input);
     case "generate_and_write":
       return executeGenerateAndWrite(context, input);
+    case "inline_html_assets":
+      return executeInlineHtmlAssets(context, input);
     case "web_search":
       return executeWebSearch(context, input);
     default:

@@ -34,6 +34,12 @@ export type ConfirmSearchInfo = {
   purpose: string;
 };
 
+/** inline_html_assets 確認の表示ペイロード */
+export type ConfirmInlineAssetsInfo = {
+  /** 上書き対象のパス（プロジェクト相対） */
+  targets: string[];
+};
+
 /** generate_and_write 確認の表示ペイロード */
 export type ConfirmGenerateInfo = {
   /** 何のために生成するか（モデル申告） */
@@ -58,6 +64,8 @@ export type ConfirmRequirement = {
   search?: ConfirmSearchInfo;
   /** 生成書込確認（kind: generate-write）の表示情報 */
   generate?: ConfirmGenerateInfo;
+  /** インライン化確認（kind: inline-assets）の表示情報 */
+  inlineAssets?: ConfirmInlineAssetsInfo;
 };
 
 export type ConfirmGateOptions = ResolveToolPathOptions & {
@@ -331,6 +339,21 @@ export function resolveConfirmRequirement(
 
   if (call.name === "generate_and_write") {
     return resolveGenerateConfirm(projectRoot, projectFolderId, call, options);
+  }
+
+  if (call.name === "inline_html_assets") {
+    // 対象が複数でも確認は 1 回にまとめる（差し込み・展開を分割実行させないため）
+    const raw = Array.isArray(call.input?.paths) ? call.input.paths : [];
+    const targets = raw.filter(
+      (p): p is string => typeof p === "string" && p.trim().length > 0,
+    );
+    if (targets.length === 0) return null;
+    return {
+      kind: "inline-assets",
+      path: targets.join(" / "),
+      isNew: false,
+      inlineAssets: { targets },
+    };
   }
 
   if (call.name === "web_search") {

@@ -26,6 +26,10 @@ export type ToolConfirmGenerateInfo = {
   contextPaths: string[];
 };
 
+export type ToolConfirmInlineAssetsInfo = {
+  targets: string[];
+};
+
 export type ToolConfirmRequiredEvent = {
   toolUseId: string;
   kind: ToolConfirmKind;
@@ -34,6 +38,7 @@ export type ToolConfirmRequiredEvent = {
   script?: ToolConfirmScriptInfo;
   search?: ToolConfirmSearchInfo;
   generate?: ToolConfirmGenerateInfo;
+  inlineAssets?: ToolConfirmInlineAssetsInfo;
 };
 
 export type AgentStreamCallbacks = {
@@ -276,6 +281,21 @@ export async function consumeAgentStream(
                       : [],
                   }
                 : undefined;
+              const rawInline =
+                data.inlineAssets && typeof data.inlineAssets === "object"
+                  ? (data.inlineAssets as Record<string, unknown>)
+                  : null;
+              const inlineAssets: ToolConfirmInlineAssetsInfo | undefined =
+                rawInline
+                  ? {
+                      targets: Array.isArray(rawInline.targets)
+                        ? rawInline.targets.filter(
+                            (entry): entry is string =>
+                              typeof entry === "string",
+                          )
+                        : [],
+                    }
+                  : undefined;
               callbacks.onConfirmRequired?.({
                 toolUseId: data.toolUseId,
                 kind,
@@ -284,6 +304,7 @@ export async function consumeAgentStream(
                 ...(script ? { script } : {}),
                 ...(search ? { search } : {}),
                 ...(generate ? { generate } : {}),
+                ...(inlineAssets ? { inlineAssets } : {}),
               });
             }
             break;

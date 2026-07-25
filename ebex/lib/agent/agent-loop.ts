@@ -595,6 +595,9 @@ export async function runAgentLoop(
             ...(requirement.script ? { script: requirement.script } : {}),
             ...(requirement.search ? { search: requirement.search } : {}),
             ...(requirement.generate ? { generate: requirement.generate } : {}),
+            ...(requirement.inlineAssets
+              ? { inlineAssets: requirement.inlineAssets }
+              : {}),
           });
           const resolution = await awaitToolConfirmDecision(
             call.id,

@@ -109,17 +109,25 @@ export function HtmlPreviewFrame({ content, isResizing = false }: Props) {
   }, [isDark, srcDoc]);
 
   return (
-    <iframe
-      ref={iframeRef}
-      title="HTML preview"
-      sandbox="allow-scripts allow-same-origin"
-      srcDoc={srcDoc}
-      onLoad={handleLoad}
-      className={cn(
-        // block でないと inline 置換要素の baseline 分だけ親がはみ出す
-        "block h-full w-full border-0 bg-white",
-        isResizing && "pointer-events-none",
-      )}
-    />
+    <div className="relative h-full w-full">
+      <iframe
+        ref={iframeRef}
+        title="HTML preview"
+        sandbox="allow-scripts allow-same-origin"
+        srcDoc={srcDoc}
+        onLoad={handleLoad}
+        className={cn(
+          // block でないと inline 置換要素の baseline 分だけ親がはみ出す
+          "block h-full w-full border-0 bg-white",
+        )}
+      />
+      {/* リサイズ中は iframe の pointer-events を変更せず、代わりにこのオーバーレイが
+          マウス入力を受け止める。sandbox 付き iframe は pointer-events を戻しても
+          ヒットテスト領域の再同期が起きないことがあり、以後スクロールを受け付けなく
+          なるため。 */}
+      {isResizing ? (
+        <div className="absolute inset-0" aria-hidden="true" />
+      ) : null}
+    </div>
   );
 }

@@ -49,8 +49,6 @@ import {
   consumeAgentStream,
   type ToolConfirmRequiredEvent,
 } from "@/lib/agent/stream-client";
-import { ToolConfirmDialog } from "@/components/workspace/ToolConfirmDialog";
-import { ManualSearchDialog } from "@/components/workspace/ManualSearchDialog";
 import type { AgentLogicalTurn, AgentToolEvent } from "@/lib/agent/llm/types";
 import {
   addSession,
@@ -1578,8 +1576,24 @@ export function AgentChatPane({
                         key={message.id}
                         className="flex w-full flex-col gap-2 text-sm"
                       >
-                        {message.toolEvents && message.toolEvents.length > 0 ? (
-                          <AgentToolCallBlock events={message.toolEvents} />
+                        {(message.toolEvents &&
+                          message.toolEvents.length > 0) ||
+                        (isStreamingMessage && pendingToolConfirm) ? (
+                          <AgentToolCallBlock
+                            events={message.toolEvents ?? []}
+                            pendingConfirm={
+                              isStreamingMessage ? pendingToolConfirm : null
+                            }
+                            onConfirmApprove={() =>
+                              void handleToolConfirmDecision("approve")
+                            }
+                            onConfirmReject={() =>
+                              void handleToolConfirmDecision("reject")
+                            }
+                            onConfirmManualSubmit={(text) =>
+                              void handleToolConfirmDecision("approve", text)
+                            }
+                          />
                         ) : null}
                         {message.content ? (
                           <AgentChatMessageContent
@@ -1841,27 +1855,11 @@ export function AgentChatPane({
         </AlertDialogContent>
       </AlertDialog>
 
-      <ToolConfirmDialog
-        // 確認要求ごとにリマウントして、連続確認での Radix ダイアログの状態残留
-        // （pointer-events 詰まり等）を断つ。ManualSearchDialog と同手当て。
-        key={`tool-confirm-${pendingToolConfirm?.toolUseId ?? "none"}`}
-        request={
-          pendingToolConfirm?.kind === "web-search-manual"
-            ? null
-            : pendingToolConfirm
-        }
-        onApprove={() => void handleToolConfirmDecision("approve")}
-        onReject={() => void handleToolConfirmDecision("reject")}
-      />
-
-      <ManualSearchDialog
-        key={`manual-search-${pendingToolConfirm?.toolUseId ?? "none"}`}
-        request={pendingToolConfirm}
-        onSubmit={(manualSearchText) =>
-          void handleToolConfirmDecision("approve", manualSearchText)
-        }
-        onSkip={() => void handleToolConfirmDecision("reject")}
-      />
+      {/* ターン実行中の確認要求（overwrite / run-script / run-skill-script /
+          generate-write / inline-assets / web-search / web-search-manual）は
+          モーダルではなく、ペイン3のチャット欄に AgentToolCallBlock 経由で
+          インライン表示する（ToolConfirmInlineCard）。Radix のポータル型
+          モーダルを経由しないため、連続確認での状態残留は構造的に生じない。 */}
 
       <AlertDialog
         open={imageIoDialogOpen}

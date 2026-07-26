@@ -7,6 +7,7 @@ import {
 import type { LlmProvider } from "@/lib/agent/llm/provider";
 import { resolveToolTargetPath } from "@/lib/agent/tools/fs-guard";
 import { executeGenerateAndWrite } from "@/lib/agent/tools/generate-write";
+import { executeRunIsolatedTask } from "@/lib/agent/tools/run-isolated-task";
 import { inlineHtmlAssets } from "@/lib/agent/tools/inline-html-assets";
 import { isLikelySubagentToolName } from "@/lib/agent/subagent-fallback";
 import {
@@ -368,6 +369,43 @@ const TOOL_SCHEMAS = {
         },
       },
       required: ["purpose", "path", "instruction"],
+    },
+  },
+  run_isolated_task: {
+    name: "run_isolated_task",
+    description:
+      "サブエージェント起動の代替。親の会話履歴を引き継がない独立したコンテキストでタスクを実行する。スキルが「サブエージェントを起動」等を指示している場面で、その役割をこのツールで代替すること。通常のファイル操作・生成には使わない（それらは write_file 等・generate_and_write を使う）。path を指定すればサーバが結果をそのままファイルへ書き込み、tool_result には要約のみが残る。path を省略すれば結果テキストをそのまま tool_result として返す（上限あり）。材料は context_paths で渡し、その内容自体は tool_result に戻らない。実行前にユーザー確認が入る。",
+    input_schema: {
+      type: "object",
+      properties: {
+        purpose: {
+          type: "string",
+          description:
+            "何のために実行するかの一文（ユーザー確認ダイアログに表示される）",
+        },
+        instruction: {
+          type: "string",
+          description: "実行させるタスクの指示",
+        },
+        path: {
+          type: "string",
+          description:
+            "結果の書き込み先パス（プロジェクト相対、任意）。省略時は結果テキストがそのまま返る",
+        },
+        sections: {
+          type: "array",
+          items: { type: "string" },
+          description:
+            "結果が大きい場合のセクション分割指示。順に生成して連結される",
+        },
+        context_paths: {
+          type: "array",
+          items: { type: "string" },
+          description:
+            "タスク実行時に内容を参照させるファイル（プロジェクト相対、または実行中スキルの references/... 等）",
+        },
+      },
+      required: ["purpose", "instruction"],
     },
   },
   inline_html_assets: {
@@ -1918,6 +1956,8 @@ export async function executeRegisteredTool(
       return executeRunSkillScript(context, input);
     case "generate_and_write":
       return executeGenerateAndWrite(context, input);
+    case "run_isolated_task":
+      return executeRunIsolatedTask(context, input);
     case "inline_html_assets":
       return executeInlineHtmlAssets(context, input);
     case "web_search":

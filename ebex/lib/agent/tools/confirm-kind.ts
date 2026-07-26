@@ -10,6 +10,7 @@ export const CONFIRM_KINDS = [
   "run-script",
   "run-skill-script",
   "generate-write",
+  "isolated-task",
   "inline-assets",
   "web-search",
   "web-search-manual",

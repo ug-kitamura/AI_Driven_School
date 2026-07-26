@@ -262,6 +262,43 @@ describe("resolveConfirmRequirement", () => {
 
     fs.rmSync(tmpDir, { recursive: true, force: true });
   });
+
+  it("does not require overwrite confirm for existing files under _work/", () => {
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "ebex-confirm-"));
+    createFolder(tmpDir, "demo");
+    const workAbs = path.join(
+      getWorkspaceDir(tmpDir),
+      "demo",
+      "_work",
+      "agenda_details_all.html",
+    );
+    fs.mkdirSync(path.dirname(workAbs), { recursive: true });
+    fs.writeFileSync(workAbs, "old");
+    const req = resolveConfirmRequirement(tmpDir, "demo", {
+      id: "t1",
+      name: "write_file",
+      input: { path: "_work/agenda_details_all.html", content: "new" },
+    });
+    expect(req).toBeNull();
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+  });
+
+  it("still requires overwrite confirm outside _work/ in the same project", () => {
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "ebex-confirm-"));
+    createFolder(tmpDir, "demo");
+    createFile(tmpDir, "demo", "_work_report.html", "old");
+    const req = resolveConfirmRequirement(tmpDir, "demo", {
+      id: "t1",
+      name: "write_file",
+      input: { path: "_work_report.html", content: "new" },
+    });
+    expect(req).toEqual({
+      kind: "overwrite",
+      path: "workspace/demo/_work_report.html",
+      isNew: false,
+    });
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+  });
 });
 
 describe("resolveConfirmRequirement for web_search", () => {

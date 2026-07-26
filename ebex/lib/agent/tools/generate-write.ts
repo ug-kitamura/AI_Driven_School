@@ -12,7 +12,7 @@ import type {
   ToolExecutionOutcome,
 } from "@/lib/agent/tools/registry";
 
-/** 1 回の generate_and_write で許容するセクション数の上限 */
+/** 1 回の generate_and_write / run_isolated_task で許容するセクション数の上限 */
 export const GENERATE_MAX_SECTIONS = 12;
 
 /**
@@ -81,7 +81,7 @@ export function parseGenerateWriteInput(
   };
 }
 
-type ResolvedContextFile = {
+export type ResolvedContextFile = {
   displayPath: string;
   content: string;
   truncated: boolean;
@@ -241,6 +241,139 @@ function generateFailureOutcome(
   };
 }
 
+/** 子 LLM 呼び出し（セクション分割・max_tokens 継続つき）を行うための入力 */
+export type ChildGenerationParams = {
+  generate: NonNullable<ToolExecutionContext["generate"]>;
+  /** 子の system prompt（呼び出し元ごとに異なる役割文を渡す） */
+  systemPrompt: string;
+  instruction: string;
+  sections: string[];
+  contextFiles: ResolvedContextFile[];
+  /** 生成合計サイズの上限（呼び出し元ごとに異なる） */
+  totalCharLimit: number;
+};
+
+export type ChildGenerationResult =
+  | { ok: true; text: string; sectionCount: number; continuations: number }
+  | { ok: false; error: string; completedSections: number };
+
+/**
+ * 親の会話履歴を引き継がない子 LLM 呼び出しを、セクションごとに
+ * （`max_tokens` 継続つきで）実行し、結果を連結して返す。
+ * `generate_and_write` と `run_isolated_task` の共通基盤。
+ */
+export async function runChildGeneration(
+  params: ChildGenerationParams,
+): Promise<ChildGenerationResult> {
+  const {
+    generate,
+    systemPrompt,
+    instruction,
+    sections,
+    contextFiles,
+    totalCharLimit,
+  } = params;
+  const sectionCount = Math.max(sections.length, 1);
+  const sectionTexts: string[] = [];
+  let totalContinuations = 0;
+  // 継続上限はモデルプロファイルから解決する（軽量モデルは可視出力が短く上限に届きやすい）
+  const continuationsPerSection = resolveModelProfile(generate.model)
+    .continuations.generatePerSection;
+  const genInput: GenerateWriteInput = {
+    purpose: "",
+    path: "",
+    instruction,
+    sections,
+    contextPaths: [],
+  };
+
+  for (let i = 0; i < sectionCount; i += 1) {
+    const generatedSoFar = sectionTexts.join("\n\n");
+    const previousTail = generatedSoFar.slice(-PREVIOUS_TAIL_CHAR_LIMIT);
+    const firstMessageContent = buildSectionMessageContent(
+      genInput,
+      contextFiles,
+      i,
+      previousTail,
+    );
+
+    let sectionText = "";
+    let continuations = 0;
+
+    try {
+      let messages: LlmMessage[] = [
+        { role: "user", content: firstMessageContent },
+      ];
+      for (;;) {
+        const turn = await generate.provider.runTurn({
+          apiKey: generate.apiKey,
+          model: generate.model,
+          system: systemPrompt,
+          messages,
+          tools: [],
+          maxTokens: generate.maxTokens,
+          signal: generate.signal,
+          providerParams: generate.providerParams,
+        });
+        sectionText += turn.text;
+
+        const totalChars =
+          generatedSoFar.length + (generatedSoFar ? 2 : 0) + sectionText.length;
+        if (totalChars > totalCharLimit) {
+          return {
+            ok: false,
+            error: `生成合計サイズが上限（${totalCharLimit} 文字）を超えました`,
+            completedSections: sectionTexts.length,
+          };
+        }
+
+        if (turn.stopReason !== "max_tokens") break;
+        if (continuations >= continuationsPerSection) {
+          return {
+            ok: false,
+            error: `セクション ${i + 1} の生成が継続上限（${continuationsPerSection} 回）でも完了しませんでした`,
+            completedSections: sectionTexts.length,
+          };
+        }
+        continuations += 1;
+        totalContinuations += 1;
+        messages = [
+          { role: "user", content: firstMessageContent },
+          { role: "assistant", content: sectionText },
+          { role: "user", content: CONTINUE_PROMPT },
+        ];
+      }
+    } catch (error) {
+      const message =
+        error instanceof Error
+          ? error.message
+          : "子 LLM 呼び出しに失敗しました";
+      return {
+        ok: false,
+        error: `生成に失敗しました: ${message}`,
+        completedSections: sectionTexts.length,
+      };
+    }
+
+    const cleaned = stripEnclosingCodeFence(sectionText).trim();
+    if (!cleaned) {
+      return {
+        ok: false,
+        error: `セクション ${i + 1} の生成結果が空でした`,
+        completedSections: sectionTexts.length,
+      };
+    }
+    sectionTexts.push(cleaned);
+  }
+
+  return {
+    ok: true,
+    text: sectionTexts.join("\n\n"),
+    sectionCount,
+    continuations: totalContinuations,
+  };
+}
+
 /**
  * generate_and_write の実行本体。
  * 親の tool 引数には本文を載せず、サーバ内の子 LLM 呼び出しで
@@ -285,87 +418,22 @@ export async function executeGenerateAndWrite(
   if ("error" in contextFiles) return errorOutcome(contextFiles.error);
 
   const startedAt = Date.now();
-  const sectionCount = Math.max(parsed.sections.length, 1);
-  const sectionTexts: string[] = [];
-  let totalContinuations = 0;
-  // 継続上限はモデルプロファイルから解決する（軽量モデルは可視出力が短く上限に届きやすい）
-  const continuationsPerSection = resolveModelProfile(generate.model)
-    .continuations.generatePerSection;
-
-  for (let i = 0; i < sectionCount; i += 1) {
-    const generatedSoFar = sectionTexts.join("\n\n");
-    const previousTail = generatedSoFar.slice(-PREVIOUS_TAIL_CHAR_LIMIT);
-    const firstMessageContent = buildSectionMessageContent(
-      parsed,
-      contextFiles,
-      i,
-      previousTail,
+  const childResult = await runChildGeneration({
+    generate,
+    systemPrompt: GENERATOR_SYSTEM_PROMPT,
+    instruction: parsed.instruction,
+    sections: parsed.sections,
+    contextFiles,
+    totalCharLimit: GENERATE_TOTAL_CHAR_LIMIT,
+  });
+  if (!childResult.ok) {
+    return generateFailureOutcome(
+      childResult.error,
+      childResult.completedSections,
     );
-
-    let sectionText = "";
-    let continuations = 0;
-
-    try {
-      let messages: LlmMessage[] = [
-        { role: "user", content: firstMessageContent },
-      ];
-      for (;;) {
-        const turn = await generate.provider.runTurn({
-          apiKey: generate.apiKey,
-          model: generate.model,
-          system: GENERATOR_SYSTEM_PROMPT,
-          messages,
-          tools: [],
-          maxTokens: generate.maxTokens,
-          signal: generate.signal,
-          providerParams: generate.providerParams,
-        });
-        sectionText += turn.text;
-
-        const totalChars =
-          generatedSoFar.length + (generatedSoFar ? 2 : 0) + sectionText.length;
-        if (totalChars > GENERATE_TOTAL_CHAR_LIMIT) {
-          return generateFailureOutcome(
-            `生成合計サイズが上限（${GENERATE_TOTAL_CHAR_LIMIT} 文字）を超えました`,
-            sectionTexts.length,
-          );
-        }
-
-        if (turn.stopReason !== "max_tokens") break;
-        if (continuations >= continuationsPerSection) {
-          return generateFailureOutcome(
-            `セクション ${i + 1} の生成が継続上限（${continuationsPerSection} 回）でも完了しませんでした`,
-            sectionTexts.length,
-          );
-        }
-        continuations += 1;
-        totalContinuations += 1;
-        messages = [
-          { role: "user", content: firstMessageContent },
-          { role: "assistant", content: sectionText },
-          { role: "user", content: CONTINUE_PROMPT },
-        ];
-      }
-    } catch (error) {
-      const message =
-        error instanceof Error
-          ? error.message
-          : "子 LLM 呼び出しに失敗しました";
-      return generateFailureOutcome(
-        `生成に失敗しました: ${message}`,
-        sectionTexts.length,
-      );
-    }
-
-    const cleaned = stripEnclosingCodeFence(sectionText).trim();
-    if (!cleaned) {
-      return generateFailureOutcome(
-        `セクション ${i + 1} の生成結果が空でした`,
-        sectionTexts.length,
-      );
-    }
-    sectionTexts.push(cleaned);
   }
+  const sectionCount = childResult.sectionCount;
+  const totalContinuations = childResult.continuations;
 
   // 読取上限で切り詰めた参照ファイルは、親と実行ログの双方から見えるようにする
   // （品質低下の原因が参照材料の欠落かを切り分けるため）。切り詰めなしなら何も足さない。
@@ -373,7 +441,7 @@ export async function executeGenerateAndWrite(
     .filter((file) => file.truncated)
     .map((file) => file.displayPath);
 
-  const output = sectionTexts.join("\n\n");
+  const output = childResult.text;
   fs.mkdirSync(path.dirname(targetResolved.absolutePath), { recursive: true });
   fs.writeFileSync(targetResolved.absolutePath, output, "utf-8");
   const bytes = Buffer.byteLength(output, "utf-8");

@@ -1,22 +1,16 @@
 "use client";
 
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
+import { useState } from "react";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import type { ToolConfirmRequiredEvent } from "@/lib/agent/stream-client";
 
 type Props = {
-  request: ToolConfirmRequiredEvent | null;
+  request: ToolConfirmRequiredEvent;
   onApprove: () => void;
   onReject: () => void;
+  onManualSubmit: (manualSearchText: string) => void;
 };
 
 function describeRequest(request: ToolConfirmRequiredEvent): {
@@ -63,6 +57,18 @@ function describeRequest(request: ToolConfirmRequiredEvent): {
         description: `${request.generate?.purpose?.trim() || "AI が本文を生成してファイルへ直接書き込もうとしています。"}\n\n対象: ${request.path}\n区別: ${request.isNew ? "新規作成" : "上書き"}\n\nサーバ内で追加の AI 呼び出しを実行し、生成された本文をこのファイルへ書き込みます。`,
         actionLabel: request.isNew ? "生成して作成" : "生成して上書き",
       };
+    case "isolated-task": {
+      const isFileTarget = request.path !== "(独立実行タスク)";
+      return {
+        title: "独立した文脈でタスクを実行しますか？",
+        description: `${request.generate?.purpose?.trim() || "サブエージェント起動の代替として、親の会話とは独立した文脈でタスクを実行しようとしています。"}${
+          isFileTarget
+            ? `\n\n対象: ${request.path}\n区別: ${request.isNew ? "新規作成" : "上書き"}`
+            : "\n\n結果はファイルに書き込まれず、テキストとして返されます。"
+        }\n\nサーバ内で追加の AI 呼び出しを実行します。親の会話履歴は引き継ぎません。`,
+        actionLabel: "実行を許可",
+      };
+    }
     case "inline-assets": {
       const targets: string[] = request.inlineAssets?.targets?.length
         ? request.inlineAssets.targets
@@ -186,39 +192,124 @@ function GenerateConfirmDetails({
   );
 }
 
-export function ToolConfirmDialog({ request, onApprove, onReject }: Props) {
-  const open = request !== null;
-  const info = request ? describeRequest(request) : null;
+function ManualSearchInlineDetails({
+  request,
+  onSubmit,
+  onSkip,
+}: {
+  request: ToolConfirmRequiredEvent;
+  onSubmit: (manualSearchText: string) => void;
+  onSkip: () => void;
+}) {
+  const query = request.search?.query ?? request.path;
+  const purpose = request.search?.purpose?.trim();
+  const [url, setUrl] = useState("");
+  const [text, setText] = useState("");
+
+  const buildSubmitText = (): string => {
+    const trimmedUrl = url.trim();
+    const trimmedText = text.trim();
+    if (!trimmedUrl) return trimmedText;
+    return `ソース URL: ${trimmedUrl}\n\n${trimmedText}`;
+  };
 
   return (
-    <AlertDialog
-      open={open}
-      onOpenChange={(next) => {
-        if (!next) onReject();
-      }}
-    >
-      {request && info ? (
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>{info.title}</AlertDialogTitle>
-            <AlertDialogDescription className="whitespace-pre-line">
-              {info.description}
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          {request.script ? (
-            <ScriptConfirmDetails script={request.script} />
-          ) : null}
-          {request.generate ? (
-            <GenerateConfirmDetails generate={request.generate} />
-          ) : null}
-          <AlertDialogFooter>
-            <AlertDialogCancel onClick={onReject}>拒否する</AlertDialogCancel>
-            <AlertDialogAction onClick={onApprove}>
-              {info.actionLabel}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
+    <div className="flex flex-col gap-2 rounded-md border border-border bg-background p-3 text-sm">
+      <span className="font-medium">web 検索は自分で行ってください</span>
+      <p className="text-xs text-muted-foreground">
+        この環境では web
+        検索を自動実行できません。下記のワードでご自身で検索し、結果とソース URL
+        を貼り付けてください。検索が不要ならスキップできます。
+      </p>
+      <div className="flex flex-col gap-1">
+        <span className="text-xs text-muted-foreground">検索ワード</span>
+        <span className="font-mono text-xs">{query}</span>
+      </div>
+      {purpose ? (
+        <div className="flex flex-col gap-1">
+          <span className="text-xs text-muted-foreground">目的</span>
+          <span className="text-xs">{purpose}</span>
+        </div>
       ) : null}
-    </AlertDialog>
+      <div className="flex flex-col gap-1">
+        <span className="text-xs text-muted-foreground">
+          ソース URL（任意・空でも可）
+        </span>
+        <Input
+          type="url"
+          placeholder="https://..."
+          value={url}
+          onChange={(event) => setUrl(event.target.value)}
+        />
+      </div>
+      <div className="flex flex-col gap-1">
+        <span className="text-xs text-muted-foreground">検索結果</span>
+        <textarea
+          className="min-h-32 w-full resize-y rounded-md border bg-background p-2 font-mono text-xs"
+          placeholder="検索結果の要点を貼り付けてください"
+          value={text}
+          onChange={(event) => setText(event.target.value)}
+        />
+      </div>
+      <div className="flex justify-end gap-2 pt-1">
+        <Button type="button" variant="outline" size="sm" onClick={onSkip}>
+          スキップして続行
+        </Button>
+        <Button
+          type="button"
+          size="sm"
+          disabled={!text.trim()}
+          onClick={() => onSubmit(buildSubmitText())}
+        >
+          貼り付けて続行
+        </Button>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * ターン実行中に割り込む確認要求（overwrite / run-script / run-skill-script /
+ * generate-write / inline-assets / web-search / web-search-manual）を、
+ * Radix のポータル型モーダルではなくチャット欄内のカードとして表示する。
+ * 応答があるまでチャット欄に残り続け、スクロールしても見返せる。
+ */
+export function ToolConfirmInlineCard({
+  request,
+  onApprove,
+  onReject,
+  onManualSubmit,
+}: Props) {
+  if (request.kind === "web-search-manual") {
+    return (
+      <ManualSearchInlineDetails
+        request={request}
+        onSubmit={onManualSubmit}
+        onSkip={onReject}
+      />
+    );
+  }
+
+  const info = describeRequest(request);
+
+  return (
+    <div className="flex flex-col gap-2 rounded-md border border-border bg-background p-3 text-sm">
+      <span className="font-medium">{info.title}</span>
+      <p className="whitespace-pre-line text-xs text-muted-foreground">
+        {info.description}
+      </p>
+      {request.script ? <ScriptConfirmDetails script={request.script} /> : null}
+      {request.generate ? (
+        <GenerateConfirmDetails generate={request.generate} />
+      ) : null}
+      <div className="flex justify-end gap-2 pt-1">
+        <Button type="button" variant="outline" size="sm" onClick={onReject}>
+          拒否する
+        </Button>
+        <Button type="button" size="sm" onClick={onApprove}>
+          {info.actionLabel}
+        </Button>
+      </div>
+    </div>
   );
 }

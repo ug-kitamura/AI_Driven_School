@@ -10,6 +10,21 @@ export type OutputDestinationOption = {
 };
 
 /**
+ * パスが当該プロジェクトフォルダの `_work/` 配下か（workspace/<folderId>/_work/...）。
+ * `_work/` はスキルが差し込み用の断片を書き溜める中間ファイル置き場であり、
+ * 上書き確認の対象から恒常的に除外するために使う。
+ */
+export function isPathInsideWorkDir(
+  pathLike: string,
+  projectFolderId: string,
+): boolean {
+  const normalized = pathLike.replace(/\\/g, "/").trim();
+  if (!projectFolderId || !normalized) return false;
+  const prefix = `${ALLOWED_PREFIX}${projectFolderId}/_work/`;
+  return normalized.startsWith(prefix);
+}
+
+/**
  * パスが当該プロジェクトフォルダ配下か（workspace/<folderId>/...）。
  */
 export function isPathInsideProjectFolder(

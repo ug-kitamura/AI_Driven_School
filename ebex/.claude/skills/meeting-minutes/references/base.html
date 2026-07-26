@@ -1,366 +1,560 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="ja">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>{{MEETING_TITLE}} 議事録</title>
-  <script src="https://cdn.tailwindcss.com"></script>
-  <script src="https://unpkg.com/lucide@latest"></script>
-  <style>
-    /* Bosch color palette */
-    :root {
-      /* Gray */
-      --gray-05:  #101112;
-      --gray-10:  #1A1C1D;
-      --gray-15:  #232628;
-      --gray-20:  #2E3033;
-      --gray-25:  #383B3E;
-      --gray-30:  #43464A;
-      --gray-35:  #4E5256;
-      --gray-40:  #595E62;
-      --gray-45:  #656A6F;
-      --gray-50:  #71767C;
-      --gray-55:  #7D8389;
-      --gray-60:  #8A9097;
-      --gray-65:  #979EA4;
-      --gray-70:  #A4ABB3;
-      --gray-75:  #B2B9C0;
-      --gray-80:  #C1C7CC;
-      --gray-85:  #D0D4D8;
-      --gray-90:  #E0E2E5;
-      --gray-95:  #EFF1F2;
-      --gray-100: #F8FAFB;
-      /* Purple */
-      --purple-05: #230421;
-      --purple-10: #340731;
-      --purple-15: #440C41;
-      --purple-20: #551151;
-      --purple-25: #671761;
-      --purple-30: #791D73;
-      --purple-35: #8B2284;
-      --purple-40: #9E2896;
-      --purple-45: #B12EA9;
-      --purple-50: #C535BC;
-      --purple-55: #D543CB;
-      --purple-60: #E552DA;
-      --purple-65: #E472DB;
-      --purple-70: #E48CDD;
-      --purple-75: #E5A2DF;
-      --purple-80: #E8B6E3;
-      --purple-85: #EBCAE8;
-      --purple-90: #F0DCEE;
-      --purple-95: #F7EEF6;
-      /* Blue */
-      --blue-05:  #001222;
-      --blue-10:  #001D33;
-      --blue-15:  #002742;
-      --blue-20:  #003253;
-      --blue-25:  #003E64;
-      --blue-30:  #004975;
-      --blue-35:  #005587;
-      --blue-40:  #00629A;
-      --blue-45:  #006EAD;
-      --blue-50:  #007BC0;
-      --blue-55:  #0088D4;
-      --blue-60:  #0096E8;
-      --blue-65:  #00A4FD;
-      --blue-70:  #56B0FF;
-      --blue-75:  #7EBDFF;
-      --blue-80:  #9DC9FF;
-      --blue-85:  #B8D6FF;
-      --blue-90:  #D1E4FF;
-      --blue-95:  #E8F1FF;
-      /* Turquoise */
-      --teal-05:  #011413;
-      --teal-10:  #02201E;
-      --teal-15:  #032B28;
-      --teal-20:  #053634;
-      --teal-25:  #07423F;
-      --teal-30:  #0A4F4B;
-      --teal-35:  #0E5B57;
-      --teal-40:  #116864;
-      --teal-45:  #147671;
-      --teal-50:  #18837E;
-      --teal-55:  #2E908B;
-      --teal-60:  #419E98;
-      --teal-65:  #54ABA5;
-      --teal-70:  #66B8B2;
-      --teal-75:  #79C5C0;
-      --teal-80:  #8DD2CD;
-      --teal-85:  #A1DFDB;
-      --teal-90:  #B6EDE8;
-      --teal-95:  #DEF5F3;
-      /* Green */
-      --green-05: #001507;
-      --green-10: #00210E;
-      --green-15: #002C14;
-      --green-20: #00381B;
-      --green-25: #004523;
-      --green-30: #00512A;
-      --green-35: #005F32;
-      --green-40: #006C3A;
-      --green-45: #007A42;
-      --green-50: #00884A;
-      --green-55: #219557;
-      --green-60: #37A264;
-      --green-65: #4AB073;
-      --green-70: #5EBD82;
-      --green-75: #72CA92;
-      --green-80: #86D7A2;
-      --green-85: #9BE4B3;
-      --green-90: #B8EFC9;
-      --green-95: #E2F5E7;
-      /* Yellow */
-      --yellow-05: #171000;
-      --yellow-10: #231A00;
-      --yellow-15: #2F2400;
-      --yellow-20: #3C2E00;
-      --yellow-25: #493900;
-      --yellow-30: #564400;
-      --yellow-35: #644F00;
-      --yellow-40: #725B00;
-      --yellow-45: #806700;
-      --yellow-50: #8F7300;
-      --yellow-55: #9E7F00;
-      --yellow-60: #AD8C00;
-      --yellow-65: #BD9900;
-      --yellow-70: #CDA600;
-      --yellow-75: #DEB300;
-      --yellow-80: #EEC100;
-      --yellow-85: #FFCF00;
-      --yellow-90: #FFDF95;
-      --yellow-95: #FFEFD1;
-      /* Red */
-      --red-05:   #2D0000;
-      --red-10:   #410000;
-      --red-15:   #540001;
-      --red-20:   #680001;
-      --red-25:   #7D0002;
-      --red-30:   #920002;
-      --red-35:   #A80003;
-      --red-40:   #BE0004;
-      --red-45:   #D50005;
-      --red-50:   #ED0007;
-      --red-55:   #FF2124;
-      --red-60:   #FF5152;
-      --red-65:   #FF6E6F;
-      --red-70:   #FF8787;
-      --red-75:   #FF9D9D;
-      --red-80:   #FFB2B2;
-      --red-85:   #FFC6C6;
-      --red-90:   #FFD9D9;
-      --red-95:   #FFECEC;
-    }
-    /* Smooth scroll */
-    html { scroll-behavior: smooth; }
-    /* Base */
-    body {
-      font-family: 'Bosch Sans', sans-serif;
-      background-color: var(--gray-95);
-      color: var(--gray-15);
-    }
-    /* Header */
-    .header-gradient {
-      background: linear-gradient(135deg, var(--blue-40) 0%, var(--blue-55) 100%);
-    }
-    /* Section card */
-    .section-card {
-      background: white;
-      border-radius: 0.75rem;
-      box-shadow: 0 1px 4px rgba(0,0,0,0.07), 0 2px 8px rgba(0,0,0,0.04);
-      padding: 2rem;
-      margin-bottom: 1.5rem;
-    }
-    /* Badge */
-    .badge-pending {
-      background: var(--red-90);
-      color: var(--red-30);
-      border: 1px solid var(--red-80);
-      padding: 0.2rem 0.6rem;
-      border-radius: 9999px;
-      font-size: 0.75rem;
-      font-weight: 400;
-      white-space: nowrap;
-    }
-    .badge-decided {
-      background: var(--blue-90);
-      color: var(--blue-30);
-      border: 1px solid var(--blue-80);
-      padding: 0.2rem 0.6rem;
-      border-radius: 9999px;
-      font-size: 0.75rem;
-      font-weight: 400;
-      white-space: nowrap;
-    }
-    /* Action row */
-    .action-row {
-      border-left: 4px solid var(--blue-50);
-      background: var(--blue-95);
-      padding: 1rem 1.25rem;
-      border-radius: 0 0.5rem 0.5rem 0;
-      margin-bottom: 0.75rem;
-    }
-    .action-row.needs-check {
-      border-left-color: var(--red-70);
-      background: var(--red-95);
-    }
-    /* Task detail box */
-    .detail-box {
-      background: var(--gray-100);
-      border: 1px solid var(--gray-90);
-      border-left: 4px solid var(--blue-50);
-      padding: 1rem 1.25rem;
-      border-radius: 0 0.5rem 0.5rem 0;
-      margin-top: 0.75rem;
-    }
-    .detail-box.caution {
-      background: var(--gray-100);
-      border-left-color: var(--yellow-80);
-    }
-    .detail-box.decided {
-      background: var(--gray-100);
-      border-left-color: var(--teal-60);
-    }
-    /* Purpose contribution item */
-    .purpose-item {
-      background: var(--blue-90);
-      border-left: 4px solid var(--blue-45);
-      padding: 1rem 1.25rem;
-      border-radius: 0 0.5rem 0.5rem 0;
-      margin-bottom: 0.75rem;
-    }
-    .purpose-highlight {
-      font-weight: 600;
-      font-size: 0.8rem;
-      background-color: var(--blue-85);
-      padding: 0px 4px;
-      border-radius: 4px;
-    }
-    /* Floating TOC */
-    .toc {
-      position: fixed;
-      right: 1.5rem;
-      top: 50%;
-      transform: translateY(-50%);
-      background: white;
-      padding: 1rem;
-      border-radius: 0.75rem;
-      border: 1px solid var(--gray-90);
-      box-shadow: 0 2px 8px rgba(0,0,0,0.08);
-      z-index: 50;
-      width: 10rem;
-    }
-    @media (max-width: 1280px) { .toc { display: none; } }
-    /* Strategy label */
-    .label-item {
-      font-size: 0.7rem;
-      font-weight: 600;
-      padding: 0.1rem 0.5rem;
-      border-radius: 0.2rem;
-      background: var(--gray-95);
-      color: var(--blue-35);
-      border: 1px solid var(--blue-90);
-    }
-  </style>
-</head>
-<body class="min-h-screen">
-  <nav class="toc">
-    <div class="text-xs font-bold mb-2 uppercase tracking-wide" style="color:var(--gray-60)">目次</div>
-    <ul class="space-y-1 text-sm">
-      <li><a href="#summary" style="color:var(--gray-45)" class="hover:underline">サマリー</a></li>
-      <li><a href="#agenda" style="color:var(--gray-45)" class="hover:underline">議題リスト</a></li>
-      <li><a href="#details" style="color:var(--gray-45)" class="hover:underline">議題の詳細</a></li>
-      <li><a href="#actions" style="color:var(--gray-45)" class="hover:underline">アクションプラン</a></li>
-    </ul>
-  </nav>
-  <header class="header-gradient text-white py-8 px-4">
-    <div class="max-w-4xl mx-auto">
-      <div class="flex items-center gap-3 mb-2">
-        <i data-lucide="clipboard-list" class="w-8 h-8 flex-shrink-0"></i>
-        <h1 class="text-2xl md:text-3xl font-bold">{{MEETING_TITLE}} 議事録</h1>
-      </div>
-      <div class="flex flex-wrap gap-x-6 gap-y-2 text-sm opacity-80 mt-3">
-        <span class="flex items-center gap-1"><i data-lucide="calendar" class="w-4 h-4"></i>{{DATE}}</span>
-        <span class="flex items-center gap-1" title="{{ATTENDEES_NAME}}"><i data-lucide="users" class="w-4 h-4"></i>出席者：{{ATTENDEES_NUMBER}}</span>
-        <span class="flex items-center gap-1"><i data-lucide="user" class="w-4 h-4"></i>議事録担当：{{MINUTES_WRITER}}</span>
-      </div>
-    </div>
-  </header>
-  <main class="max-w-4xl mx-auto px-4 py-8">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>{{MEETING_TITLE}} 議事録 - {{YEAR}}年{{MONTH}}月</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      /* ============================================================
+   minutes-maid スタイルシート
+   SSOT: このファイルが唯一のスタイル定義ソースです。
 
-    <div id="summary" class="grid grid-cols-3 gap-4 mb-8">
-      <div class="rounded-xl p-4 text-center shadow-sm" style="color:var(--teal-30);background-color:var(--teal-95);border:2px solid var(--teal-50)">
-        <div class="text-4xl font-bold">{{DECISION_NUMBER}}</div>
-        <div class="text-sm mt-1 opacity-80">決定事項</div>
-      </div>
-      <div class="rounded-xl p-4 text-center shadow-sm" style="color:var(--blue-30);background-color:var(--blue-95);border:2px solid var(--blue-50)">
-        <div class="text-4xl font-bold">{{ACTION_NUMBER}}</div>
-        <div class="text-sm mt-1 opacity-80">アクション</div>
-      </div>
-      <div class="rounded-xl p-4 text-center shadow-sm" style="color:var(--red-30);background-color:var(--red-95);border:2px solid var(--red-40)">
-        <div class="text-4xl font-bold">{{CHECK_NUMBER}}</div>
-        <div class="text-sm mt-1 opacity-80">要確認</div>
-      </div>
-    </div>
+   【HTML生成時の注意】
+   出力HTMLはスタンドアロンである必要があるため、
+   このファイルの内容を <style> タグとしてインライン化すること。
+   外部CSSリンクは使用しないこと。
+   ============================================================ */
 
-    <div class="flex items-start gap-3 rounded-xl p-4 mb-8" style="background:var(--red-95);border:1px solid var(--red-85)">
-      <i data-lucide="triangle-alert" class="w-5 h-5 flex-shrink-0 mt-0.5" style="color:var(--red-50)"></i>
-      <p class="text-sm" style="color:var(--red-30)">
-        <strong>「要確認」が{{CHECK_NUMBER}}件あります。</strong><br>担当者または期限が会議中に確定しなかった項目です。今週中に関係者間で確認・決定してください。
-      </p>
-    </div>
+      /* カスタムカラーパレット */
+      :root {
+        /* Gray */
+        --gray-05: #101112;
+        --gray-10: #1a1c1d;
+        --gray-15: #232628;
+        --gray-20: #2e3033;
+        --gray-25: #383b3e;
+        --gray-30: #43464a;
+        --gray-35: #4e5256;
+        --gray-40: #595e62;
+        --gray-45: #656a6f;
+        --gray-50: #71767c;
+        --gray-55: #7d8389;
+        --gray-60: #8a9097;
+        --gray-65: #979ea4;
+        --gray-70: #a4abb3;
+        --gray-75: #b2b9c0;
+        --gray-80: #c1c7cc;
+        --gray-85: #d0d4d8;
+        --gray-90: #e0e2e5;
+        --gray-95: #eff1f2;
+        /* Purple */
+        --purple-05: #230421;
+        --purple-10: #340731;
+        --purple-15: #440c41;
+        --purple-20: #551151;
+        --purple-25: #671761;
+        --purple-30: #791d73;
+        --purple-35: #8b2284;
+        --purple-40: #9e2896;
+        --purple-45: #b12ea9;
+        --purple-50: #c535bc;
+        --purple-55: #d543cb;
+        --purple-60: #e552da;
+        --purple-65: #e472db;
+        --purple-70: #e48cdd;
+        --purple-75: #e5a2df;
+        --purple-80: #e8b6e3;
+        --purple-85: #ebcae8;
+        --purple-90: #f0dcee;
+        --purple-95: #f7eef6;
+        /* Blue */
+        --blue-05: #001222;
+        --blue-10: #001d33;
+        --blue-15: #002742;
+        --blue-20: #003253;
+        --blue-25: #003e64;
+        --blue-30: #004975;
+        --blue-35: #005587;
+        --blue-40: #00629a;
+        --blue-45: #006ead;
+        --blue-50: #007bc0;
+        --blue-55: #0088d4;
+        --blue-60: #0096e8;
+        --blue-65: #00a4fd;
+        --blue-70: #56b0ff;
+        --blue-75: #7ebdff;
+        --blue-80: #9dc9ff;
+        --blue-85: #b8d6ff;
+        --blue-90: #d1e4ff;
+        --blue-95: #e8f1ff;
+        /* Turquoise */
+        --teal-05: #011413;
+        --teal-10: #02201e;
+        --teal-15: #032b28;
+        --teal-20: #053634;
+        --teal-25: #07423f;
+        --teal-30: #0a4f4b;
+        --teal-35: #0e5b57;
+        --teal-40: #116864;
+        --teal-45: #147671;
+        --teal-50: #18837e;
+        --teal-55: #2e908b;
+        --teal-60: #419e98;
+        --teal-65: #54aba5;
+        --teal-70: #66b8b2;
+        --teal-75: #79c5c0;
+        --teal-80: #8dd2cd;
+        --teal-85: #a1dfdb;
+        --teal-90: #b6ede8;
+        --teal-95: #def5f3;
+        /* Green */
+        --green-05: #001507;
+        --green-10: #00210e;
+        --green-15: #002c14;
+        --green-20: #00381b;
+        --green-25: #004523;
+        --green-30: #00512a;
+        --green-35: #005f32;
+        --green-40: #006c3a;
+        --green-45: #007a42;
+        --green-50: #00884a;
+        --green-55: #219557;
+        --green-60: #37a264;
+        --green-65: #4ab073;
+        --green-70: #5ebd82;
+        --green-75: #72ca92;
+        --green-80: #86d7a2;
+        --green-85: #9be4b3;
+        --green-90: #b8efc9;
+        --green-95: #e2f5e7;
+        /* Yellow */
+        --yellow-05: #171000;
+        --yellow-10: #231a00;
+        --yellow-15: #2f2400;
+        --yellow-20: #3c2e00;
+        --yellow-25: #493900;
+        --yellow-30: #564400;
+        --yellow-35: #644f00;
+        --yellow-40: #725b00;
+        --yellow-45: #806700;
+        --yellow-50: #8f7300;
+        --yellow-55: #9e7f00;
+        --yellow-60: #ad8c00;
+        --yellow-65: #bd9900;
+        --yellow-70: #cda600;
+        --yellow-75: #deb300;
+        --yellow-80: #eec100;
+        --yellow-85: #ffcf00;
+        --yellow-90: #ffdf95;
+        --yellow-95: #ffefd1;
+        /* Red */
+        --red-05: #2d0000;
+        --red-10: #410000;
+        --red-15: #540001;
+        --red-20: #680001;
+        --red-25: #7d0002;
+        --red-30: #920002;
+        --red-35: #a80003;
+        --red-40: #be0004;
+        --red-45: #d50005;
+        --red-50: #ed0007;
+        --red-55: #ff2124;
+        --red-60: #ff5152;
+        --red-65: #ff6e6f;
+        --red-70: #ff8787;
+        --red-75: #ff9d9d;
+        --red-80: #ffb2b2;
+        --red-85: #ffc6c6;
+        --red-90: #ffd9d9;
+        --red-95: #ffecec;
+      }
 
-    <div class="section-card" id="agenda">
-      <div class="flex items-center gap-3 mb-5">
-        <div class="w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0" style="background:var(--gray-90)">
-          <i data-lucide="list" class="w-6 h-6" style="color:var(--gray-40)"></i>
+      /* スムーズスクロール */
+      html {
+        scroll-behavior: smooth;
+      }
+
+      /* ベース */
+      body {
+        font-family: "Noto Sans JP", sans-serif;
+        background-color: var(--gray-95);
+        color: var(--gray-15);
+      }
+
+      /* ヘッダー */
+      .header-gradient {
+        background: linear-gradient(
+          135deg,
+          var(--blue-40) 0%,
+          var(--blue-55) 100%
+        );
+      }
+
+      /* セクションカード */
+      .section-card {
+        background: white;
+        border-radius: 0.75rem;
+        box-shadow:
+          0 1px 4px rgba(0, 0, 0, 0.07),
+          0 2px 8px rgba(0, 0, 0, 0.04);
+        padding: 2rem;
+        margin-bottom: 1.5rem;
+      }
+
+      /* バッジ */
+      .badge-pending {
+        background: var(--red-90);
+        color: var(--red-30);
+        border: 1px solid var(--red-80);
+        padding: 0.2rem 0.6rem;
+        border-radius: 9999px;
+        font-size: 0.75rem;
+        font-weight: 400;
+        white-space: nowrap;
+      }
+      .badge-decided {
+        background: var(--blue-90);
+        color: var(--blue-30);
+        border: 1px solid var(--blue-80);
+        padding: 0.2rem 0.6rem;
+        border-radius: 9999px;
+        font-size: 0.75rem;
+        font-weight: 400;
+        white-space: nowrap;
+      }
+
+      /* アクション行 */
+      .action-row {
+        border-left: 4px solid var(--blue-45);
+        background: var(--blue-95);
+        padding: 1rem 1.25rem;
+        border-radius: 0 0.5rem 0.5rem 0;
+        margin-bottom: 0.75rem;
+      }
+      .action-row.needs-check {
+        border-left-color: var(--red-70);
+        background: var(--red-95);
+      }
+
+      /* タスク詳細ボックス */
+      .detail-box {
+        background: var(--blue-95);
+        border-left: 4px solid var(--blue-60);
+        padding: 1rem 1.25rem;
+        border-radius: 0 0.5rem 0.5rem 0;
+        margin-top: 0.75rem;
+      }
+      .detail-box.caution {
+        background: var(--yellow-95);
+        border-left-color: var(--yellow-70);
+      }
+      .detail-box.decided {
+        background: var(--teal-95);
+        border-left-color: var(--teal-50);
+      }
+
+      /* パーパス貢献アイテム */
+      .purpose-item {
+        background: var(--blue-90);
+        border-left: 4px solid var(--blue-45);
+        padding: 1rem 1.25rem;
+        border-radius: 0 0.5rem 0.5rem 0;
+        margin-bottom: 0.75rem;
+      }
+      .purpose-highlight {
+        font-weight: 600;
+        font-size: 0.8rem;
+        background-color: var(--blue-85);
+        padding: 0px 4px;
+        border-radius: 4px;
+      }
+
+      /* フローティング目次 */
+      .toc {
+        position: fixed;
+        right: 1.5rem;
+        top: 50%;
+        transform: translateY(-50%);
+        background: white;
+        padding: 1rem;
+        border-radius: 0.75rem;
+        border: 1px solid var(--gray-90);
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+        z-index: 50;
+        width: 10rem;
+      }
+      @media (max-width: 1280px) {
+        .toc {
+          display: none;
+        }
+      }
+
+      /* 戦略ラベル */
+      .label-item {
+        font-size: 0.7rem;
+        font-weight: 600;
+        padding: 0.1rem 0.5rem;
+        border-radius: 0.2rem;
+        background: var(--gray-95);
+        color: var(--blue-35);
+        border: 1px solid var(--blue-90);
+      }
+    </style>
+  </head>
+  <body class="min-h-screen">
+    <nav class="toc">
+      <img
+        src="data:image/png;base64,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"
+        alt="ロゴ"
+        style="display: block; width: 50%; margin: 0 auto 1.25rem"
+      />
+      <div
+        class="text-xs font-bold mb-2 uppercase tracking-wide"
+        style="color: var(--gray-60)"
+      >
+        目次
+      </div>
+      <ul class="space-y-1 text-sm">
+        <li>
+          <a
+            href="#summary"
+            style="color: var(--gray-45)"
+            class="hover:underline"
+            >サマリー</a
+          >
+        </li>
+        <li>
+          <a
+            href="#agenda"
+            style="color: var(--gray-45)"
+            class="hover:underline"
+            >議題リスト</a
+          >
+        </li>
+        <li>
+          <a
+            href="#details"
+            style="color: var(--gray-45)"
+            class="hover:underline"
+            >議題の詳細</a
+          >
+        </li>
+        <li>
+          <a
+            href="#actions"
+            style="color: var(--gray-45)"
+            class="hover:underline"
+            >アクションプラン</a
+          >
+        </li>
+        <li>
+          <a
+            href="#purpose"
+            style="color: var(--gray-45)"
+            class="hover:underline"
+            >パーパスへの貢献</a
+          >
+        </li>
+      </ul>
+    </nav>
+
+    <header class="header-gradient text-white py-8 px-4">
+      <div class="max-w-4xl mx-auto">
+        <div class="flex items-center gap-3 mb-2">
+          <i data-lucide="clipboard-list" class="w-8 h-8 flex-shrink-0"></i>
+          <h1 class="text-2xl md:text-3xl font-bold">
+            {{MEETING_TITLE}} 議事録
+          </h1>
         </div>
-        <div>
-          <h2 class="text-xl font-bold" style="color:var(--gray-15)">議題リスト</h2>
-          <p class="text-sm" style="color:var(--gray-50)">タイトルをクリックすると詳細にジャンプします</p>
+        <div class="flex flex-wrap gap-x-6 gap-y-2 text-sm opacity-80 mt-3">
+          <span class="flex items-center gap-1"
+            ><i data-lucide="calendar" class="w-4 h-4"></i>{{DATE}}</span
+          >
+          <span class="flex items-center gap-1"
+            ><i data-lucide="users" class="w-4 h-4"></i>{{ATTENDEES}}</span
+          >
+          <span class="flex items-center gap-1"
+            ><i data-lucide="user" class="w-4 h-4"></i
+            >議事録担当：{{MINUTES_WRITER}}</span
+          >
         </div>
       </div>
-      <ol class="relative ml-3 border-l-2" style="border-color:var(--blue-85)">
-<!-- AGENDA_LIST_START -->
+    </header>
 
-<!-- AGENDA_LIST_END -->
-      </ol>
-    </div>
-
-    <div class="section-card" id="details">
-      <div class="flex items-center gap-3 mb-6">
-        <div class="w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0" style="background:var(--gray-90)">
-          <i data-lucide="file-text" class="w-6 h-6" style="color:var(--gray-40)"></i>
+    <main class="max-w-4xl mx-auto px-4 py-8">
+      <div id="summary" class="grid grid-cols-3 gap-4 mb-8">
+        <div
+          class="rounded-xl p-4 text-center shadow-sm"
+          style="
+            color: var(--teal-30);
+            background-color: var(--teal-95);
+            border: 2px solid var(--teal-50);
+          "
+        >
+          <div class="text-4xl font-bold">{{DECISIONS_COUNT}}</div>
+          <div class="text-sm mt-1 opacity-80">決定事項</div>
         </div>
-        <div>
-          <h2 class="text-xl font-bold" style="color:var(--gray-15)">議題の詳細</h2>
-          <p class="text-sm" style="color:var(--gray-50)">背景・議論の内容・決定事項</p>
+        <div
+          class="rounded-xl p-4 text-center shadow-sm"
+          style="
+            color: var(--blue-30);
+            background-color: var(--blue-95);
+            border: 2px solid var(--blue-50);
+          "
+        >
+          <div class="text-4xl font-bold">{{ACTIONS_COUNT}}</div>
+          <div class="text-sm mt-1 opacity-80">アクション</div>
+        </div>
+        <div
+          class="rounded-xl p-4 text-center shadow-sm"
+          style="
+            color: var(--red-30);
+            background-color: var(--red-95);
+            border: 2px solid var(--red-40);
+          "
+        >
+          <div class="text-4xl font-bold">{{PENDING_COUNT}}</div>
+          <div class="text-sm mt-1 opacity-80">要確認</div>
         </div>
       </div>
-<!-- AGENDA_DETAILS_START -->
 
-<!-- AGENDA_DETAILS_END -->
-    </div>
+      <!-- PENDING_ALERT_START -->
+      <div
+        class="flex items-start gap-3 rounded-xl p-4 mb-8"
+        style="background: var(--red-95); border: 1px solid var(--red-85)"
+      >
+        <i
+          data-lucide="triangle-alert"
+          class="w-5 h-5 flex-shrink-0 mt-0.5"
+          style="color: var(--red-50)"
+        ></i>
+        <p class="text-sm" style="color: var(--red-30)">
+          <strong>「要確認」が{{PENDING_COUNT}}件あります。</strong
+          >担当者または期限が会議中に確定しなかった項目です。今週中に関係者間で確認・決定してください。
+        </p>
+      </div>
+      <!-- PENDING_ALERT_END -->
 
-    <div class="section-card" id="actions">
-      <div class="flex items-center gap-3 mb-6">
-        <div class="w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0" style="background:var(--gray-90)">
-          <i data-lucide="list-checks" class="w-6 h-6" style="color:var(--gray-40)"></i>
+      <div class="section-card" id="agenda">
+        <div class="flex items-center gap-3 mb-5">
+          <div
+            class="w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0"
+            style="background: var(--gray-90)"
+          >
+            <i
+              data-lucide="list"
+              class="w-6 h-6"
+              style="color: var(--gray-40)"
+            ></i>
+          </div>
+          <div>
+            <h2 class="text-xl font-bold" style="color: var(--gray-15)">
+              議題リスト
+            </h2>
+            <p class="text-sm" style="color: var(--gray-50)">
+              タイトルをクリックすると詳細にジャンプします
+            </p>
+          </div>
         </div>
-        <div>
-          <h2 class="text-xl font-bold" style="color:var(--gray-15)">アクションプラン</h2>
-          <p class="text-sm" style="color:var(--gray-50)">誰が・いつまでに・何をするか（TODOリスト）</p>
+        <ol
+          class="relative ml-3 border-l-2"
+          style="border-color: var(--blue-85)"
+        >
+          <!-- AGENDA_ITEMS_START -->
+          <!-- AGENDA_ITEMS_END -->
+        </ol>
+      </div>
+
+      <div class="section-card" id="details">
+        <div class="flex items-center gap-3 mb-6">
+          <div
+            class="w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0"
+            style="background: var(--gray-90)"
+          >
+            <i
+              data-lucide="file-text"
+              class="w-6 h-6"
+              style="color: var(--gray-40)"
+            ></i>
+          </div>
+          <div>
+            <h2 class="text-xl font-bold" style="color: var(--gray-15)">
+              議題の詳細
+            </h2>
+            <p class="text-sm" style="color: var(--gray-50)">
+              背景・議論の内容・決定事項
+            </p>
+          </div>
+        </div>
+
+        <!-- DETAILS_START -->
+        <!-- DETAILS_END -->
+      </div>
+
+      <div class="section-card" id="actions">
+        <div class="flex items-center gap-3 mb-6">
+          <div
+            class="w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0"
+            style="background: var(--gray-90)"
+          >
+            <i
+              data-lucide="list-checks"
+              class="w-6 h-6"
+              style="color: var(--gray-40)"
+            ></i>
+          </div>
+          <div>
+            <h2 class="text-xl font-bold" style="color: var(--gray-15)">
+              アクションプラン
+            </h2>
+            <p class="text-sm" style="color: var(--gray-50)">
+              誰が・いつまでに・何をするか（TODOリスト）
+            </p>
+          </div>
+        </div>
+
+        <!-- ACTIONS_START -->
+        <!-- ACTIONS_END -->
+      </div>
+
+      <div class="section-card" id="purpose">
+        <div class="flex items-center gap-3 mb-6">
+          <div
+            class="w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0"
+            style="background: var(--gray-90)"
+          >
+            <i
+              data-lucide="compass"
+              class="w-6 h-6"
+              style="color: var(--gray-40)"
+            ></i>
+          </div>
+          <div>
+            <h2 class="text-xl font-bold" style="color: var(--gray-15)">
+              パーパスへの貢献
+            </h2>
+            <p class="text-sm" style="color: var(--gray-50)">
+              今回の会議内容が「Empower every associate to be
+              efficient」にどうつながるか
+            </p>
+          </div>
+        </div>
+
+        <!-- PURPOSE_ITEMS_START -->
+        <!-- PURPOSE_ITEMS_END -->
+
+        <div
+          class="italic font-bold text-center leading-relaxed m-10"
+          style="color: var(--gray-30)"
+        >
+          {{CLOSING_MESSAGE}}<br />
+          ありがとうございました！
         </div>
       </div>
-<!-- ACTION_PLAN_START -->
+    </main>
 
-<!-- ACTION_PLAN_END -->
-    </div>
+    <footer class="text-center text-sm py-6" style="color: var(--gray-60)">
+      {{MEETING_TITLE}} 議事録 ／ {{DATE}} ／ 担当：{{MINUTES_WRITER}}
+    </footer>
 
-  </main>
-  <footer class="text-center text-sm py-6" style="color:var(--gray-60)">
-    {{MEETING_TITLE}} 議事録 ／ {{DATE}} ／ 議事録担当：{{MINUTES_WRITER}}
-  </footer>
-  <script>lucide.createIcons();</script>
-</body>
+    <script>
+      lucide.createIcons();
+    </script>
+  </body>
 </html>

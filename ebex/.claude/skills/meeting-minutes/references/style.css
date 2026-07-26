@@ -1,0 +1,280 @@
+/* ============================================================
+   minutes-maid スタイルシート
+   SSOT: このファイルが唯一のスタイル定義ソースです。
+
+   【HTML生成時の注意】
+   出力HTMLはスタンドアロンである必要があるため、
+   このファイルの内容を <style> タグとしてインライン化すること。
+   外部CSSリンクは使用しないこと。
+   ============================================================ */
+
+/* カスタムカラーパレット */
+:root {
+  /* Gray */
+  --gray-05: #101112;
+  --gray-10: #1a1c1d;
+  --gray-15: #232628;
+  --gray-20: #2e3033;
+  --gray-25: #383b3e;
+  --gray-30: #43464a;
+  --gray-35: #4e5256;
+  --gray-40: #595e62;
+  --gray-45: #656a6f;
+  --gray-50: #71767c;
+  --gray-55: #7d8389;
+  --gray-60: #8a9097;
+  --gray-65: #979ea4;
+  --gray-70: #a4abb3;
+  --gray-75: #b2b9c0;
+  --gray-80: #c1c7cc;
+  --gray-85: #d0d4d8;
+  --gray-90: #e0e2e5;
+  --gray-95: #eff1f2;
+  /* Purple */
+  --purple-05: #230421;
+  --purple-10: #340731;
+  --purple-15: #440c41;
+  --purple-20: #551151;
+  --purple-25: #671761;
+  --purple-30: #791d73;
+  --purple-35: #8b2284;
+  --purple-40: #9e2896;
+  --purple-45: #b12ea9;
+  --purple-50: #c535bc;
+  --purple-55: #d543cb;
+  --purple-60: #e552da;
+  --purple-65: #e472db;
+  --purple-70: #e48cdd;
+  --purple-75: #e5a2df;
+  --purple-80: #e8b6e3;
+  --purple-85: #ebcae8;
+  --purple-90: #f0dcee;
+  --purple-95: #f7eef6;
+  /* Blue */
+  --blue-05: #001222;
+  --blue-10: #001d33;
+  --blue-15: #002742;
+  --blue-20: #003253;
+  --blue-25: #003e64;
+  --blue-30: #004975;
+  --blue-35: #005587;
+  --blue-40: #00629a;
+  --blue-45: #006ead;
+  --blue-50: #007bc0;
+  --blue-55: #0088d4;
+  --blue-60: #0096e8;
+  --blue-65: #00a4fd;
+  --blue-70: #56b0ff;
+  --blue-75: #7ebdff;
+  --blue-80: #9dc9ff;
+  --blue-85: #b8d6ff;
+  --blue-90: #d1e4ff;
+  --blue-95: #e8f1ff;
+  /* Turquoise */
+  --teal-05: #011413;
+  --teal-10: #02201e;
+  --teal-15: #032b28;
+  --teal-20: #053634;
+  --teal-25: #07423f;
+  --teal-30: #0a4f4b;
+  --teal-35: #0e5b57;
+  --teal-40: #116864;
+  --teal-45: #147671;
+  --teal-50: #18837e;
+  --teal-55: #2e908b;
+  --teal-60: #419e98;
+  --teal-65: #54aba5;
+  --teal-70: #66b8b2;
+  --teal-75: #79c5c0;
+  --teal-80: #8dd2cd;
+  --teal-85: #a1dfdb;
+  --teal-90: #b6ede8;
+  --teal-95: #def5f3;
+  /* Green */
+  --green-05: #001507;
+  --green-10: #00210e;
+  --green-15: #002c14;
+  --green-20: #00381b;
+  --green-25: #004523;
+  --green-30: #00512a;
+  --green-35: #005f32;
+  --green-40: #006c3a;
+  --green-45: #007a42;
+  --green-50: #00884a;
+  --green-55: #219557;
+  --green-60: #37a264;
+  --green-65: #4ab073;
+  --green-70: #5ebd82;
+  --green-75: #72ca92;
+  --green-80: #86d7a2;
+  --green-85: #9be4b3;
+  --green-90: #b8efc9;
+  --green-95: #e2f5e7;
+  /* Yellow */
+  --yellow-05: #171000;
+  --yellow-10: #231a00;
+  --yellow-15: #2f2400;
+  --yellow-20: #3c2e00;
+  --yellow-25: #493900;
+  --yellow-30: #564400;
+  --yellow-35: #644f00;
+  --yellow-40: #725b00;
+  --yellow-45: #806700;
+  --yellow-50: #8f7300;
+  --yellow-55: #9e7f00;
+  --yellow-60: #ad8c00;
+  --yellow-65: #bd9900;
+  --yellow-70: #cda600;
+  --yellow-75: #deb300;
+  --yellow-80: #eec100;
+  --yellow-85: #ffcf00;
+  --yellow-90: #ffdf95;
+  --yellow-95: #ffefd1;
+  /* Red */
+  --red-05: #2d0000;
+  --red-10: #410000;
+  --red-15: #540001;
+  --red-20: #680001;
+  --red-25: #7d0002;
+  --red-30: #920002;
+  --red-35: #a80003;
+  --red-40: #be0004;
+  --red-45: #d50005;
+  --red-50: #ed0007;
+  --red-55: #ff2124;
+  --red-60: #ff5152;
+  --red-65: #ff6e6f;
+  --red-70: #ff8787;
+  --red-75: #ff9d9d;
+  --red-80: #ffb2b2;
+  --red-85: #ffc6c6;
+  --red-90: #ffd9d9;
+  --red-95: #ffecec;
+}
+
+/* スムーズスクロール */
+html {
+  scroll-behavior: smooth;
+}
+
+/* ベース */
+body {
+  font-family: "Noto Sans JP", sans-serif;
+  background-color: var(--gray-95);
+  color: var(--gray-15);
+}
+
+/* ヘッダー */
+.header-gradient {
+  background: linear-gradient(135deg, var(--blue-40) 0%, var(--blue-55) 100%);
+}
+
+/* セクションカード */
+.section-card {
+  background: white;
+  border-radius: 0.75rem;
+  box-shadow:
+    0 1px 4px rgba(0, 0, 0, 0.07),
+    0 2px 8px rgba(0, 0, 0, 0.04);
+  padding: 2rem;
+  margin-bottom: 1.5rem;
+}
+
+/* バッジ */
+.badge-pending {
+  background: var(--red-90);
+  color: var(--red-30);
+  border: 1px solid var(--red-80);
+  padding: 0.2rem 0.6rem;
+  border-radius: 9999px;
+  font-size: 0.75rem;
+  font-weight: 400;
+  white-space: nowrap;
+}
+.badge-decided {
+  background: var(--blue-90);
+  color: var(--blue-30);
+  border: 1px solid var(--blue-80);
+  padding: 0.2rem 0.6rem;
+  border-radius: 9999px;
+  font-size: 0.75rem;
+  font-weight: 400;
+  white-space: nowrap;
+}
+
+/* アクション行 */
+.action-row {
+  border-left: 4px solid var(--blue-45);
+  background: var(--blue-95);
+  padding: 1rem 1.25rem;
+  border-radius: 0 0.5rem 0.5rem 0;
+  margin-bottom: 0.75rem;
+}
+.action-row.needs-check {
+  border-left-color: var(--red-70);
+  background: var(--red-95);
+}
+
+/* タスク詳細ボックス */
+.detail-box {
+  background: var(--blue-95);
+  border-left: 4px solid var(--blue-60);
+  padding: 1rem 1.25rem;
+  border-radius: 0 0.5rem 0.5rem 0;
+  margin-top: 0.75rem;
+}
+.detail-box.caution {
+  background: var(--yellow-95);
+  border-left-color: var(--yellow-70);
+}
+.detail-box.decided {
+  background: var(--teal-95);
+  border-left-color: var(--teal-50);
+}
+
+/* パーパス貢献アイテム */
+.purpose-item {
+  background: var(--blue-90);
+  border-left: 4px solid var(--blue-45);
+  padding: 1rem 1.25rem;
+  border-radius: 0 0.5rem 0.5rem 0;
+  margin-bottom: 0.75rem;
+}
+.purpose-highlight {
+  font-weight: 600;
+  font-size: 0.8rem;
+  background-color: var(--blue-85);
+  padding: 0px 4px;
+  border-radius: 4px;
+}
+
+/* フローティング目次 */
+.toc {
+  position: fixed;
+  right: 1.5rem;
+  top: 50%;
+  transform: translateY(-50%);
+  background: white;
+  padding: 1rem;
+  border-radius: 0.75rem;
+  border: 1px solid var(--gray-90);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  z-index: 50;
+  width: 10rem;
+}
+@media (max-width: 1280px) {
+  .toc {
+    display: none;
+  }
+}
+
+/* 戦略ラベル */
+.label-item {
+  font-size: 0.7rem;
+  font-weight: 600;
+  padding: 0.1rem 0.5rem;
+  border-radius: 0.2rem;
+  background: var(--gray-95);
+  color: var(--blue-35);
+  border: 1px solid var(--blue-90);
+}

@@ -29,14 +29,19 @@
 
 ```markdown
 # 違反
+
 ## 出力形式
+
 JSONは以下の構造:
+
 - name: string (必須)
 - age: number (任意)
 - email: string (必須)
 
 # 正解
+
 ## 出力形式
+
 SSoT: `path/to/schema.ts` の型定義を参照
 ```
 
@@ -44,14 +49,19 @@ SSoT: `path/to/schema.ts` の型定義を参照
 
 ```markdown
 # 違反
+
 ## バリデーション
+
 以下のルールでチェック:
+
 1. nameは3文字以上
 2. emailは@を含む
 3. ageは0以上
 
 # 正解
+
 ## バリデーション
+
 SSoT: `path/to/validator.ts` のバリデーションルールに従う
 ```
 
@@ -59,9 +69,11 @@ SSoT: `path/to/validator.ts` のバリデーションルールに従う
 
 ```markdown
 # 違反
+
 SKILL.md に品質チェックリストを書き、references/exemplar.md にも同じリストがある
 
 # 正解
+
 チェックリストは exemplar.md のみに記載。SKILL.md は「品質チェック → exemplar.md」と参照
 ```
 
@@ -69,9 +81,11 @@ SKILL.md に品質チェックリストを書き、references/exemplar.md にも
 
 ```markdown
 # 違反
+
 スキルAとスキルBの両方に同じデプロイ手順を記載
 
 # 正解
+
 共通手順を共有リファレンスに置き、両方から参照
 ```
 
@@ -108,6 +122,7 @@ grep -r "キーワード" --include="*.md" --include="*.ts" --include="*.json"
 ```
 
 重複が見つかったら:
+
 - どちらを原本にするか決定
 - もう片方を参照に置き換え
 
@@ -137,19 +152,25 @@ SKILL.md と references/ の間で同じ情報が書かれていないか確認:
 
 ```markdown
 # OK: 方向性だけ示して参照
+
 ## 概要
+
 核心原則に基づいてスキルを設計する。
 詳細 → references/principles.md
 
 # NG: リストのコピー（要約に見せかけた重複）
+
 ## 概要
+
 原則:
+
 - 洗練: 公式ドキュメントに基づく
 - 簡潔性: 必要最小限の情報
 - SSoT: 情報は1箇所のみ
 ```
 
 判断基準: **「参照先が変更された時、この記述も更新が必要か？」**
+
 - Yes → SSoT 違反。参照に置き換える
 - No → 許容
 
@@ -159,9 +180,11 @@ SKILL.md と references/ の間で同じ情報が書かれていないか確認:
 
 ```markdown
 # NG: 一部引用
+
 主要なイベント: afterFileEdit, stop（全一覧は references/ を参照）
 
 # OK: 参照のみ
+
 イベント一覧 → references/events.md
 ```
 
@@ -171,18 +194,23 @@ SKILL.md と references/ の間で同じ情報が書かれていないか確認:
 
 ```markdown
 # OK: 形式を1つだけ示す
-フロントマターの例:
----
+
+## フロントマターの例:
+
 name: my-skill
 description: ...
+
 ---
+
 詳細な書き方 → exemplar.md
 
 # NG: 複数パターンの列挙（内容のコピー）
+
 良い例:
+
 - feat(認証): メールアドレスでのログイン機能を追加
 - fix(決済): 税率計算の誤りを修正
-悪い例:
+  悪い例:
 - バグを修正
 - 対応
 ```
@@ -212,16 +240,20 @@ SSoT 監査（上記 Step 1〜5）が「情報のコピー」を検出するの�
 
 ```markdown
 # NG: ディレクトリ構造をハードコード
+
 ## 出力先
+
 contents/
 ├── 講義/
-│   └── Nヶ月目/第N回/
-│       ├── meta.json
-│       ├── slides.json
-│       └── script.md
+│ └── Nヶ月目/第N回/
+│ ├── meta.json
+│ ├── slides.json
+│ └── script.md
 
 # OK: 参照先を示す
+
 ## 出力先
+
 `contents/講義/` 配下に、実際のディレクトリ構造に従って配置する。
 ```
 
@@ -242,10 +274,12 @@ contents/
 
 ```markdown
 # NG: 参照先の個数に暗黙的に依存
+
 3つの核心原則に基づいてスキルを設計する。
 → 原則が追加・削除されたら不正確になる
 
 # OK: 個数に依存しない
+
 核心原則に基づいてスキルを設計する。
 詳細 → references/principles.md
 ```

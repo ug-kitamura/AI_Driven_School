@@ -26,4 +26,5 @@ next-env.d.ts
 .claude/skills/openspec-*/
 openspec/changes/
 
-.claude/skills-old/
+# others
+.claude/skills-new/

@@ -16,8 +16,6 @@
  * 既存の成果物と見た目がずれる。EBEX 本体の Tailwind v4 とは別系統。
  */
 import { createRequire } from "node:module";
-import * as React from "react";
-import { renderToStaticMarkup } from "react-dom/server";
 import * as LucideIcons from "lucide-react";
 
 /** 展開できないアイコン名に使う代替 */
@@ -209,12 +207,43 @@ function toPascalCase(name: string): string {
     .join("");
 }
 
+type LucideIconNode = [tag: string, attrs: Record<string, unknown>][];
+
+/** SVG 属性値として埋め込む前に最低限のエスケープを行う */
+function escapeAttrValue(value: unknown): string {
+  return String(value).replace(/&/g, "&amp;").replace(/"/g, "&quot;");
+}
+
 /**
- * Lucide のパスデータを取り出す。
+ * `iconNode`（`[タグ名, 属性]` の配列）を inline SVG の中身（`<path>` 等の並び）へ
+ * 直列化する。`key` は React 内部専用の属性であり SVG には出力しない。
+ */
+function serializeIconNode(iconNode: LucideIconNode): string {
+  return iconNode
+    .map(([tag, attrs]) => {
+      const pairs = Object.entries(attrs)
+        .filter(([k]) => k !== "key")
+        .map(([k, v]) => `${k}="${escapeAttrValue(v)}"`)
+        .join(" ");
+      return `<${tag}${pairs ? ` ${pairs}` : ""} />`;
+    })
+    .join("");
+}
+
+/**
+ * Lucide のパスデータ（`iconNode`）を取り出す。
  *
  * ホスト側の `lucide-react` から解決する（スキルへは同梱しない）。旧名は新名への
  * 再エクスポートになっているため（`circle-help` → `circle-question-mark` 等）、
- * 実体をレンダリングして中身を取ることで自動的に辿られる。
+ * コンポーネントを辿ることで自動的に解決される。
+ *
+ * lucide-react の各アイコンは `forwardRef` で作られており、その `.render(props, ref)`
+ * は素の関数で（フック等は使わず）`React.createElement(Icon, { iconNode, ...props })`
+ * を返すだけの薄いラッパーである。この呼び出し自体はレンダリングではなく単なる
+ * オブジェクト生成のため、`iconNode` を直接取り出せる。これにより React コンポーネント
+ * を実際にレンダリングする必要がなくなり、`react-dom/server` への依存を避けられる
+ * （Next.js の App Router は Route Handler から到達するモジュールが
+ * `react-dom/server` を import することをビルドエラーとして拒否する）。
  *
  * 静的 import を使う（tailwindcss-v3 のような動的 require ではない）。lucide-react は
  * 実行時にプラグインを読み込むような処理を持たないため、Next.js のサーバーバンドルに
@@ -224,17 +253,19 @@ function toPascalCase(name: string): string {
  */
 function resolveIconInner(name: string): string | null {
   try {
-    const icons = LucideIcons as unknown as Record<string, unknown>;
+    const icons = LucideIcons as unknown as Record<
+      string,
+      { render?: (props: unknown, ref: unknown) => { props?: { iconNode?: unknown } } }
+    >;
     const component = icons[toPascalCase(name)];
-    if (!component) return null;
-    const markup = renderToStaticMarkup(
-      React.createElement(component as React.ElementType),
-    );
-    const inner = markup.match(/<svg[^>]*>([\s\S]*?)<\/svg>/);
-    return inner ? inner[1].trim() : null;
+    if (!component?.render) return null;
+    const element = component.render({}, null);
+    const iconNode = element?.props?.iconNode;
+    if (!Array.isArray(iconNode)) return null;
+    return serializeIconNode(iconNode as LucideIconNode);
   } catch (err) {
     // アイコン名不明（component が undefined）は正常系としてここへは来ない。
-    // ここに来るのは render 自体の失敗であり、無言で握りつぶすと
+    // ここに来るのは解決自体の失敗であり、無言で握りつぶすと
     // 「全アイコンが代替へ差し替わる」事故の原因究明が困難になる。
     console.warn(`[inline-html-assets] failed to resolve icon "${name}":`, err);
     return null;

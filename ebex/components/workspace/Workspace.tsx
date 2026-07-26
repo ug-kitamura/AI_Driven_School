@@ -34,6 +34,7 @@ import {
 import { ALLOWED_PREFIX } from "@/lib/workspace-constants";
 import { getProjectFolderId, isEmptyFolderInTree } from "@/lib/workspace-tree";
 import { isTextEditableMode, resolvePane2Mode } from "@/lib/file-preview";
+import { migrateAgentChatStorageKeysToIno } from "@/lib/agent-chat-storage";
 
 type WorkspaceProps = {
   initialFolders: WorkspaceTreeNode[];
@@ -102,6 +103,20 @@ export function Workspace({ initialFolders, hostName }: WorkspaceProps) {
     observer.observe(el);
     return () => observer.disconnect();
   }, []);
+
+  // 旧形式(folderId キー)の localStorage フォールバック履歴を ino キーへ一括移行する。
+  // 冪等なので毎回の folders 更新で呼んでも安全。
+  const migratedAgentChatKeysRef = useRef(false);
+  useEffect(() => {
+    if (migratedAgentChatKeysRef.current) return;
+    if (folders.length === 0) return;
+    const folderIdToIno: Record<string, string> = {};
+    for (const folder of folders) {
+      if (folder.ino) folderIdToIno[folder.name] = folder.ino;
+    }
+    migrateAgentChatStorageKeysToIno(folderIdToIno);
+    migratedAgentChatKeysRef.current = true;
+  }, [folders]);
 
   const loadFileContent = useCallback(
     async (folderPath: string, fileName: string) => {

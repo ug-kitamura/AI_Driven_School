@@ -105,7 +105,7 @@ import type { SkillSummary } from "@/lib/agent/skill-loader";
 import type { AgentChatDraftMap } from "@/components/workspace/agent-chat-draft";
 import { ALLOWED_PREFIX } from "@/lib/workspace-constants";
 import type { WorkspaceTreeNode } from "@/lib/workspace-loader";
-import { folderExistsInTree } from "@/lib/workspace-tree";
+import { findTreeNode, folderExistsInTree } from "@/lib/workspace-tree";
 import { resolveInvokeSkillId } from "@/lib/agent/resolve-invoke-skill";
 import {
   findOutsideProjectPathHints,
@@ -243,6 +243,11 @@ export function AgentChatPane({
 }: Props) {
   // key によるリマウント前提のため、scopeId はこのインスタンスの生涯を通じて不変。
   const scopeId = folderId ?? lesson?.id;
+  // localStorage フォールバック専用のキー。folderId(表示名)の再利用による
+  // 履歴の誤復活を防ぐため ino を使う。scopeId 同様マウント時点で固定する。
+  const [sessionIno] = useState(() =>
+    folderId ? (findTreeNode(folders, folderId)?.ino ?? undefined) : undefined,
+  );
   const filePath = currentFilePath ?? currentLessonPath ?? null;
   const foldersRef = useRef(folders);
   const [chatStorage, setChatStorage] = useState<AgentChatStorage | null>(null);
@@ -390,7 +395,7 @@ export function AgentChatPane({
       if (!canPersistToFolder(lessonId)) return true;
       const snapshot = buildStorageSnapshot();
       if (!snapshot) return true;
-      const ok = await saveLessonSession(lessonId, snapshot);
+      const ok = await saveLessonSession(lessonId, snapshot, sessionIno);
       if (!ok) {
         setStorageWarning(
           "セッションの保存に失敗しました。容量不足の可能性があります。会話を続けると履歴が失われることがあります。",
@@ -400,7 +405,7 @@ export function AgentChatPane({
       }
       return ok;
     },
-    [buildStorageSnapshot, canPersistToFolder],
+    [buildStorageSnapshot, canPersistToFolder, sessionIno],
   );
 
   const scheduleDebouncedPersist = useCallback(() => {
@@ -565,11 +570,11 @@ export function AgentChatPane({
       if (!scopeId) return;
       const snapshot = buildStorageSnapshot();
       if (!snapshot) return;
-      void saveLessonSession(scopeId, snapshot);
+      void saveLessonSession(scopeId, snapshot, sessionIno);
     };
     window.addEventListener("beforeunload", handleBeforeUnload);
     return () => window.removeEventListener("beforeunload", handleBeforeUnload);
-  }, [buildStorageSnapshot, scopeId]);
+  }, [buildStorageSnapshot, scopeId, sessionIno]);
 
   // アンマウント（＝フォルダ切替）時の後始末。クロージャが見えるのは自分の
   // scopeId と自分の state だけなので、他フォルダへ書く経路が存在しない。
@@ -1040,7 +1045,7 @@ export function AgentChatPane({
     let cancelled = false;
 
     void (async () => {
-      const storage = await loadLessonSession(scopeId);
+      const storage = await loadLessonSession(scopeId, sessionIno);
       if (cancelled) return;
 
       setChatStorage(storage);
@@ -1058,7 +1063,7 @@ export function AgentChatPane({
     return () => {
       cancelled = true;
     };
-  }, [applySessionState, draftsRef, scopeId]);
+  }, [applySessionState, draftsRef, scopeId, sessionIno]);
 
   const handleSwitchSession = useCallback(
     (sessionId: string) => {
@@ -1074,7 +1079,7 @@ export function AgentChatPane({
       }
       persistSession(messages, activeSkillId);
       const next = switchSession(chatStorage, sessionId);
-      if (scopeId) void saveLessonSession(scopeId, next);
+      if (scopeId) void saveLessonSession(scopeId, next, sessionIno);
       setChatStorage(next);
       applySessionState(sessionId, next);
       setHistoryOpen(false);
@@ -1085,6 +1090,7 @@ export function AgentChatPane({
       chatStorage,
       input,
       scopeId,
+      sessionIno,
       messages,
       persistSession,
     ],
@@ -1100,7 +1106,7 @@ export function AgentChatPane({
     }
     persistSession(messages, activeSkillId);
     const next = addSession(chatStorage);
-    if (scopeId) void saveLessonSession(scopeId, next);
+    if (scopeId) void saveLessonSession(scopeId, next, sessionIno);
     setChatStorage(next);
     applySessionState(next.activeSessionId, next);
     setHistoryOpen(false);
@@ -1110,6 +1116,7 @@ export function AgentChatPane({
     chatStorage,
     input,
     scopeId,
+    sessionIno,
     messages,
     persistSession,
   ]);
@@ -1119,7 +1126,7 @@ export function AgentChatPane({
       if (!chatStorage) return;
       const wasActive = sessionId === chatStorage.activeSessionId;
       const next = deleteSession(chatStorage, sessionId);
-      if (scopeId) void saveLessonSession(scopeId, next);
+      if (scopeId) void saveLessonSession(scopeId, next, sessionIno);
       setChatStorage(next);
       if (wasActive) {
         applySessionState(next.activeSessionId, next);
@@ -1127,7 +1134,7 @@ export function AgentChatPane({
       setDeleteSessionTargetId(null);
       setHistoryOpen(false);
     },
-    [applySessionState, chatStorage, scopeId],
+    [applySessionState, chatStorage, scopeId, sessionIno],
   );
 
   const requestDeleteSession = useCallback((sessionId: string) => {
@@ -1153,12 +1160,12 @@ export function AgentChatPane({
       editSessionTargetId,
       normalized,
     );
-    if (scopeId) void saveLessonSession(scopeId, next);
+    if (scopeId) void saveLessonSession(scopeId, next, sessionIno);
     setChatStorage(next);
     llmTitleGeneratedSessionIdRef.current = editSessionTargetId;
     setEditSessionTargetId(null);
     setEditTitleDraft("");
-  }, [chatStorage, editSessionTargetId, editTitleDraft, scopeId]);
+  }, [chatStorage, editSessionTargetId, editTitleDraft, scopeId, sessionIno]);
 
   const canSaveEditTitle =
     normalizeStoredSessionTitle(editTitleDraft).length > 0;

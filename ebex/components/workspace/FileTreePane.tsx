@@ -49,6 +49,7 @@ import {
 } from "@/components/ui/context-menu";
 import { cn } from "@/lib/utils";
 import type { WorkspaceTreeNode } from "@/lib/workspace-loader";
+import { deleteFolderAgentChatStorage } from "@/lib/agent-chat-storage";
 import {
   applyEventDateToSuggestedName,
   extractEventDatePrefix,
@@ -1528,9 +1529,17 @@ export function FileTreePane({
           return;
         }
         case "delete-folder": {
+          // プロジェクト直下フォルダの ino は削除前（フォルダ実体が消える前）に控えておく。
+          // localStorage フォールバック履歴のクリーンアップに使う（ino 未取得時は何もしない）。
+          const deletedProjectIno = !dialog.folderPath.includes("/")
+            ? folders.find((f) => f.path === dialog.folderPath)?.ino
+            : undefined;
           await postJson("/api/workspace/delete-folder", {
             folderId: dialog.folderPath,
           });
+          if (deletedProjectIno) {
+            deleteFolderAgentChatStorage(deletedProjectIno);
+          }
           clearSelectionIfUnderPath(dialog.folderPath);
           const parentPath = getParentFolderPath(dialog.folderPath);
           const fallbackRowId = resolveSelectedFileRowId(

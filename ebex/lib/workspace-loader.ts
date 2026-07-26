@@ -5,13 +5,15 @@ import {
   ensureWorkspaceDir,
   getWorkspaceDir,
 } from "@/lib/workspace-paths";
-import { ensureWorkspaceMeta } from "@/lib/workspace-meta";
+import { ensureWorkspaceMeta, statFolderIno } from "@/lib/workspace-meta";
 
 export type WorkspaceTreeNode = {
   name: string;
   path: string;
   files: string[];
   children: WorkspaceTreeNode[];
+  /** プロジェクト直下フォルダのみ設定される NTFS fileID。子フォルダでは undefined。 */
+  ino?: string;
 };
 
 /** @deprecated use WorkspaceTreeNode */
@@ -74,13 +76,10 @@ export function loadWorkspace(projectRoot: string): WorkspaceLoadResult {
 
   for (const entry of entries) {
     if (!entry.isDirectory() || entry.name.startsWith(".")) continue;
-    folders.push(
-      loadFolderTree(
-        path.join(workspaceDir, entry.name),
-        entry.name,
-        entry.name,
-      ),
-    );
+    const absoluteDir = path.join(workspaceDir, entry.name);
+    const node = loadFolderTree(absoluteDir, entry.name, entry.name);
+    node.ino = statFolderIno(absoluteDir) ?? undefined;
+    folders.push(node);
   }
 
   // トップレベルのプロジェクトフォルダは逆アルファベット順（新しい日付プレフィックスが上）。

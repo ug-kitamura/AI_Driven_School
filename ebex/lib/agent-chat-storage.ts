@@ -185,6 +185,40 @@ export function saveFolderAgentChatStorage(
   return saveV2Root(root);
 }
 
+/** localStorage フォールバックの `folders[key]` エントリを削除する（プロジェクト削除時のクリーンアップ用）。 */
+export function deleteFolderAgentChatStorage(key: string): void {
+  const root = loadV2Root();
+  if (!(key in root.folders)) return;
+  delete root.folders[key];
+  saveV2Root(root);
+}
+
+/**
+ * 旧形式(フォルダ名文字列キー)の `folders` エントリを、新形式(ino キー)へ一括移行する。
+ * `folderIdToIno` は現存するプロジェクトの folderId(表示名) → ino 対応表。
+ * 対応する ino が見つからない旧エントリ（既に削除されたプロジェクト由来）は移行せず破棄する。
+ * 冪等: 既に ino キーへ移行済みのエントリや対応表に無い旧キーは触らない。
+ */
+export function migrateAgentChatStorageKeysToIno(
+  folderIdToIno: Record<string, string>,
+): void {
+  const root = loadV2Root();
+  let changed = false;
+  for (const [folderId, ino] of Object.entries(folderIdToIno)) {
+    if (folderId === ino) continue;
+    if (!(folderId in root.folders)) continue;
+    if (ino in root.folders) {
+      delete root.folders[folderId];
+      changed = true;
+      continue;
+    }
+    root.folders[ino] = root.folders[folderId];
+    delete root.folders[folderId];
+    changed = true;
+  }
+  if (changed) saveV2Root(root);
+}
+
 /** @deprecated use loadFolderAgentChatStorage */
 export const loadLessonAgentChatStorage = loadFolderAgentChatStorage;
 

@@ -107,6 +107,33 @@ export function deriveDivertRelativePath(projectRelativePath: string): string {
 }
 
 /**
+ * 元の書込先に対応する退避先を求める。プロジェクト配下でない場合は null。
+ * 額縁判定とは独立に使える（marker 指定の区間が見つからない場合の退避にも使う）。
+ */
+export function resolveDivertTarget(params: {
+  relativePath: string;
+  projectFolderId: string;
+  projectRoot: string;
+}): FramedWriteTarget | null {
+  const projectRelative = toProjectRelative(
+    params.relativePath,
+    params.projectFolderId,
+  );
+  if (!projectRelative) return null;
+
+  const divertRelative = deriveDivertRelativePath(projectRelative);
+  const projectDirAbsolute = path.resolve(
+    params.projectRoot,
+    WORKSPACE_DIR_NAME,
+    params.projectFolderId,
+  );
+  return {
+    absolutePath: path.resolve(projectDirAbsolute, divertRelative),
+    relativePath: `${ALLOWED_PREFIX}${params.projectFolderId}/${divertRelative}`,
+  };
+}
+
+/**
  * 書込先を解決する。額縁テンプレートであれば中間ファイル置き場へ退避させる。
  * 呼び出し側は返された `absolutePath` へ書き込むだけでよい。
  */
@@ -130,16 +157,17 @@ export function resolveFramedWriteTarget(
   const markerNames = detectMarkerNames(absolutePath);
   if (markerNames.length === 0) return asWrite;
 
-  const divertRelative = deriveDivertRelativePath(projectRelative);
-  const projectDirAbsolute = path.resolve(
-    projectRoot,
-    WORKSPACE_DIR_NAME,
+  const divert = resolveDivertTarget({
+    relativePath,
     projectFolderId,
-  );
+    projectRoot,
+  });
+  if (!divert) return asWrite;
+
   return {
     kind: "divert",
-    absolutePath: path.resolve(projectDirAbsolute, divertRelative),
-    relativePath: `${ALLOWED_PREFIX}${projectFolderId}/${divertRelative}`,
+    absolutePath: divert.absolutePath,
+    relativePath: divert.relativePath,
     requested: { absolutePath, relativePath },
     markerNames,
   };
@@ -166,7 +194,11 @@ export function framedWriteDivertNotice(decision: FramedWriteDivert): string {
  */
 export function framedWriteDivertOutcome(
   decision: FramedWriteDivert,
-  options: { label: string; bytes: number; extraResult?: Record<string, unknown> },
+  options: {
+    label: string;
+    bytes: number;
+    extraResult?: Record<string, unknown>;
+  },
 ): ToolExecutionOutcome {
   const notice = framedWriteDivertNotice(decision);
   return {

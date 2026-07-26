@@ -101,6 +101,37 @@ describe("parseGenerateWriteInput", () => {
     });
   });
 
+  it("normalizes marker to the bare section name", () => {
+    for (const raw of [
+      "CONTENT",
+      "  CONTENT  ",
+      "CONTENT_START",
+      "<!-- CONTENT_START -->",
+      "<!--CONTENT_END-->",
+    ]) {
+      expect(
+        parseGenerateWriteInput({
+          path: "a.html",
+          instruction: "書く",
+          marker: raw,
+        }),
+      ).toMatchObject({ marker: "CONTENT" });
+    }
+  });
+
+  it("leaves marker null when not given and rejects malformed markers", () => {
+    expect(
+      parseGenerateWriteInput({ path: "a.html", instruction: "書く" }),
+    ).toMatchObject({ marker: null });
+    expect(
+      parseGenerateWriteInput({
+        path: "a.html",
+        instruction: "書く",
+        marker: "not a marker!",
+      }),
+    ).toMatchObject({ error: expect.stringContaining("marker") });
+  });
+
   it("rejects missing path or instruction", () => {
     expect(parseGenerateWriteInput({ instruction: "x" })).toMatchObject({
       error: expect.stringContaining("path"),
@@ -522,6 +553,147 @@ describe("executeGenerateAndWrite", () => {
     });
     expect(outcome.result).not.toMatchObject({ diverted: true });
     expect(fs.readFileSync(target, "utf-8")).toBe("<div>新</div>");
+    fs.rmSync(base.tmpDir, { recursive: true, force: true });
+  });
+
+  it("splices into the named marker section and keeps the frame", async () => {
+    const base = makeProject();
+    const framePath = path.join(base.projectDir, "output", "diagram.html");
+    fs.mkdirSync(path.dirname(framePath), { recursive: true });
+    fs.writeFileSync(
+      framePath,
+      [
+        "<html><head><script src=cdn></script></head><body>",
+        "<!-- CONTENT_START -->",
+        "",
+        "<!-- CONTENT_END -->",
+        "</body></html>",
+      ].join("\n"),
+      "utf-8",
+    );
+
+    const { provider } = makeProvider([
+      { text: "<div>図解本文</div>", stopReason: "end_turn" },
+    ]);
+    const outcome = await executeGenerateAndWrite(makeContext(base, provider), {
+      purpose: "図解生成",
+      path: "output/diagram.html",
+      instruction: "図解本文を書く",
+      marker: "CONTENT",
+    });
+
+    expect(outcome.result).toMatchObject({
+      path: "workspace/demo/output/diagram.html",
+      marker: "CONTENT",
+    });
+    const written = fs.readFileSync(framePath, "utf-8");
+    expect(written).toContain("<script src=cdn></script>");
+    expect(written).toContain("</body></html>");
+    expect(written).toContain("<!-- CONTENT_START -->");
+    expect(written).toContain("<div>図解本文</div>");
+    expect(written).toContain("<!-- CONTENT_END -->");
+    fs.rmSync(base.tmpDir, { recursive: true, force: true });
+  });
+
+  it("replaces only the named section of a multi-section frame", async () => {
+    const base = makeProject();
+    const framePath = path.join(base.projectDir, "output", "minutes.html");
+    fs.mkdirSync(path.dirname(framePath), { recursive: true });
+    fs.writeFileSync(
+      framePath,
+      [
+        "<!-- AGENDA_LIST_START -->",
+        "<li>既存の議題</li>",
+        "<!-- AGENDA_LIST_END -->",
+        "<!-- AGENDA_DETAILS_START -->",
+        "",
+        "<!-- AGENDA_DETAILS_END -->",
+        "<!-- ACTION_PLAN_START -->",
+        "<tr>既存のアクション</tr>",
+        "<!-- ACTION_PLAN_END -->",
+      ].join("\n"),
+      "utf-8",
+    );
+
+    const { provider } = makeProvider([
+      { text: "<section>詳細</section>", stopReason: "end_turn" },
+    ]);
+    await executeGenerateAndWrite(makeContext(base, provider), {
+      purpose: "議事録",
+      path: "output/minutes.html",
+      instruction: "詳細を書く",
+      marker: "AGENDA_DETAILS",
+    });
+
+    const written = fs.readFileSync(framePath, "utf-8");
+    expect(written).toContain("<li>既存の議題</li>");
+    expect(written).toContain("<tr>既存のアクション</tr>");
+    expect(written).toContain("<section>詳細</section>");
+    fs.rmSync(base.tmpDir, { recursive: true, force: true });
+  });
+
+  it("accepts the bare name and the full comment form as the same section", async () => {
+    const frame = ["<!-- CONTENT_START -->", "", "<!-- CONTENT_END -->"].join(
+      "\n",
+    );
+
+    const results: string[] = [];
+    for (const marker of ["CONTENT", "<!-- CONTENT_START -->"]) {
+      const base = makeProject();
+      const framePath = path.join(base.projectDir, "out.html");
+      fs.writeFileSync(framePath, frame, "utf-8");
+      const { provider } = makeProvider([
+        { text: "<p>本文</p>", stopReason: "end_turn" },
+      ]);
+      await executeGenerateAndWrite(makeContext(base, provider), {
+        purpose: "p",
+        path: "out.html",
+        instruction: "書く",
+        marker,
+      });
+      results.push(fs.readFileSync(framePath, "utf-8"));
+      fs.rmSync(base.tmpDir, { recursive: true, force: true });
+    }
+
+    expect(results[0]).toBe(results[1]);
+    expect(results[0]).toContain("<p>本文</p>");
+  });
+
+  it("keeps the generated body when the named section is missing", async () => {
+    const base = makeProject();
+    const framePath = path.join(base.projectDir, "output", "minutes.html");
+    fs.mkdirSync(path.dirname(framePath), { recursive: true });
+    const frame = [
+      "<!-- AGENDA_LIST_START -->",
+      "",
+      "<!-- AGENDA_LIST_END -->",
+    ].join("\n");
+    fs.writeFileSync(framePath, frame, "utf-8");
+
+    const { provider } = makeProvider([
+      { text: "<section>詳細</section>", stopReason: "end_turn" },
+    ]);
+    const outcome = await executeGenerateAndWrite(makeContext(base, provider), {
+      purpose: "議事録",
+      path: "output/minutes.html",
+      instruction: "詳細を書く",
+      marker: "NO_SUCH_SECTION",
+    });
+
+    // 対象は変更されず、生成本文も失われない
+    expect(fs.readFileSync(framePath, "utf-8")).toBe(frame);
+    expect(outcome.result).toMatchObject({
+      diverted: true,
+      markerNotFound: "NO_SUCH_SECTION",
+      availableMarkers: ["AGENDA_LIST"],
+      path: "workspace/demo/_work/output__minutes.html",
+    });
+    expect(
+      fs.readFileSync(
+        path.join(base.projectDir, "_work", "output__minutes.html"),
+        "utf-8",
+      ),
+    ).toBe("<section>詳細</section>");
     fs.rmSync(base.tmpDir, { recursive: true, force: true });
   });
 

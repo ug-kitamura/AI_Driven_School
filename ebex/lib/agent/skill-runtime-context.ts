@@ -173,10 +173,10 @@ export function buildSkillRuntimeContext(focus: SkillRuntimeFocus): string {
       ? [
           `実行中スキルの参照ファイル（\`SKILL.md\` と同じフォルダ配下、例: \`references/*\`）は確認なしで発見（list/glob/search）および読取できる。`,
           `スキル本文の相対パス（例: \`references/purpose.md\`）はスキル側を優先して読むこと。成果物の書込先は \`workspace/${project}/\` 配下である。`,
-          `大きな成果物は本文を tool 引数に載せず、成果物の形で経路を選ぶこと。(1) 額縁テンプレートがスキルにあるなら \`copy_file\` でプロジェクト内へコピーし、\`replace_in_file\` / \`replace_between\`（大きな本文は \`from_path\`）で 1 回数 KB の断片を差し込む（必要なら \`append_file\` で partial を積む）。可変長の差し込みは明示の開始・終了トークンを使い、手順メモには媒体のコメント構文を、埋める印にはコメント構文以外を使うこと。(2) モデルが新たに創作する長文なら \`generate_and_write\`（材料をファイルへ書き出して \`context_paths\` で渡し、\`sections\` で分割）。(3) 大量レコードの機械変換なら \`run_script\`${skillHasScriptsDir(focus.skillDirAbsolute ?? undefined) ? "（スキルの `scripts/` にスクリプトがあれば `run_skill_script`）" : ""}。`,
+          `大きな成果物は本文を tool 引数に載せず、成果物の形で経路を選ぶこと。(1) 額縁テンプレートがスキルにあるなら \`copy_file\` でプロジェクト内へコピーし、\`replace_in_file\` / \`replace_between\`（大きな本文は \`from_path\`）で 1 回数 KB の断片を差し込む（必要なら \`append_file\` で partial を積む）。可変長の差し込みは明示の開始・終了トークンを使い、手順メモには媒体のコメント構文を、埋める印にはコメント構文以外を使うこと。(2) モデルが新たに創作する長文なら \`generate_and_write\`（材料をファイルへ書き出して \`context_paths\` で渡し、\`sections\` で分割）。額縁へ差し込むなら \`path\` に額縁、\`marker\` に区間名を渡すと生成と差し込みが 1 回で済む。(3) 大量レコードの機械変換なら \`run_script\`${skillHasScriptsDir(focus.skillDirAbsolute ?? undefined) ? "（スキルの `scripts/` にスクリプトがあれば `run_skill_script`）" : ""}。`,
           ...formatAssetCandidateLines(candidates),
           "額縁や模範回答など大きな参照ファイルは、差し込み位置の把握に必要な範囲を超えて読み込まないこと。子生成へ渡す材料は `context_paths` を使う。",
-          `中間ファイル（partial 等）はプロジェクトフォルダ直下の \`_work/\` に置き、成果物本体と混在させないこと。成果物の置き場がどこであっても \`_work/\` の位置は変えない。`,
+          `中間ファイル（partial 等）はプロジェクトフォルダ直下の \`_work/\` に置き、成果物本体と混在させないこと。成果物の置き場がどこであっても \`_work/\` の位置は変えない。差し込み区間を持つ額縁ファイルを丸ごと上書きしようとした書込は、額縁を壊さないよう \`_work/\` へ退避される（生成物は失われないが、額縁へは \`replace_between\` か \`marker\` で差し込むこと）。`,
         ]
       : []),
     "",

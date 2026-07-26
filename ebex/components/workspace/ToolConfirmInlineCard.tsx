@@ -154,6 +154,17 @@ function GenerateConfirmDetails({
 }) {
   return (
     <div className="flex max-h-[50vh] flex-col gap-3 overflow-y-auto text-sm">
+      {generate.marker ? (
+        <div className="flex flex-col gap-1">
+          <span className="text-muted-foreground text-xs">
+            差し込み先の区間
+          </span>
+          <span className="font-mono text-xs">{generate.marker}</span>
+          <span className="text-muted-foreground text-xs">
+            ファイル全体は上書きされず、この区間だけが置き換わります
+          </span>
+        </div>
+      ) : null}
       {generate.sections.length > 0 ? (
         <div className="flex flex-col gap-1">
           <span className="text-muted-foreground text-xs">セクション構成</span>

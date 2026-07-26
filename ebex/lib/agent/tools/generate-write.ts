@@ -3,11 +3,15 @@ import path from "node:path";
 import { resolveToolTargetPath } from "@/lib/agent/tools/fs-guard";
 import {
   framedWriteDivertOutcome,
+  resolveDivertTarget,
   resolveFramedWriteTarget,
 } from "@/lib/agent/tools/framed-write-guard";
 import { resolveModelProfile } from "@/lib/agent/model-profiles";
 import {
+  findMarkerSectionNames,
+  normalizeMarkerName,
   scanTemplateResiduals,
+  spliceMarkerSection,
   templateResidualCount,
 } from "@/lib/agent/tools/replace-feedback";
 import type { LlmContentBlock, LlmMessage } from "@/lib/agent/llm/types";
@@ -48,6 +52,8 @@ export type GenerateWriteInput = {
   instruction: string;
   sections: string[];
   contextPaths: string[];
+  /** 差し込み先の区間名（素名へ正規化済み）。未指定なら null */
+  marker: string | null;
 };
 
 function nonEmptyString(value: unknown): string | null {
@@ -76,12 +82,21 @@ export function parseGenerateWriteInput(
     };
   }
 
+  const rawMarker = nonEmptyString(input.marker);
+  const marker = rawMarker ? normalizeMarkerName(rawMarker) : null;
+  if (rawMarker && !marker) {
+    return {
+      error: `marker の形式が不正です: ${rawMarker}。区間名（例: CONTENT）または <!-- CONTENT_START --> の形で指定してください`,
+    };
+  }
+
   return {
     purpose: nonEmptyString(input.purpose) ?? "",
     path: targetPath,
     instruction,
     sections,
     contextPaths: stringArray(input.context_paths),
+    marker,
   };
 }
 
@@ -289,6 +304,7 @@ export async function runChildGeneration(
     instruction,
     sections,
     contextPaths: [],
+    marker: null,
   };
 
   for (let i = 0; i < sectionCount; i += 1) {
@@ -446,6 +462,45 @@ export async function executeGenerateAndWrite(
     .map((file) => file.displayPath);
 
   const output = childResult.text;
+  const durationMs = Date.now() - startedAt;
+
+  const truncationNote =
+    truncatedContextPaths.length > 0
+      ? `（参照ファイルを読取上限 ${GENERATE_CONTEXT_FILE_CHAR_LIMIT} 文字で切り詰め: ${truncatedContextPaths.join("・")}）`
+      : "";
+
+  /** 完了ゲート: 残るプレースホルダー・未充填区間を tool_result で明示する */
+  const templateStatusOf = (content: string) => {
+    const scan = scanTemplateResiduals(content);
+    return {
+      complete: templateResidualCount(scan) === 0,
+      remainingPlaceholders: scan.fillTokens,
+      emptySections: scan.emptySections,
+    };
+  };
+
+  const summaryResult = (
+    templateStatus: ReturnType<typeof templateStatusOf>,
+  ) => ({
+    sections: sectionCount,
+    continuations: totalContinuations,
+    durationMs,
+    templateStatus,
+    ...(truncatedContextPaths.length > 0 ? { truncatedContextPaths } : {}),
+  });
+
+  if (parsed.marker) {
+    return writeIntoMarkerSection({
+      context,
+      target: targetResolved,
+      marker: parsed.marker,
+      output,
+      summaryResult: (content) => summaryResult(templateStatusOf(content)),
+      truncationNote,
+      sectionCount,
+      totalContinuations,
+    });
+  }
 
   // 額縁テンプレートを丸ごと上書きしそうな場合は中間ファイル置き場へ退避する
   const decision = resolveFramedWriteTarget({
@@ -458,28 +513,7 @@ export async function executeGenerateAndWrite(
   fs.mkdirSync(path.dirname(decision.absolutePath), { recursive: true });
   fs.writeFileSync(decision.absolutePath, output, "utf-8");
   const bytes = Buffer.byteLength(output, "utf-8");
-  const durationMs = Date.now() - startedAt;
-
-  // 完了ゲート: 生成物に残るプレースホルダー・未充填区間を tool_result で明示する
-  const scan = scanTemplateResiduals(output);
-  const templateStatus = {
-    complete: templateResidualCount(scan) === 0,
-    remainingPlaceholders: scan.fillTokens,
-    emptySections: scan.emptySections,
-  };
-
-  const truncationNote =
-    truncatedContextPaths.length > 0
-      ? `（参照ファイルを読取上限 ${GENERATE_CONTEXT_FILE_CHAR_LIMIT} 文字で切り詰め: ${truncatedContextPaths.join("・")}）`
-      : "";
-
-  const commonResult = {
-    sections: sectionCount,
-    continuations: totalContinuations,
-    durationMs,
-    templateStatus,
-    ...(truncatedContextPaths.length > 0 ? { truncatedContextPaths } : {}),
-  };
+  const commonResult = summaryResult(templateStatusOf(output));
 
   if (decision.kind === "divert") {
     return framedWriteDivertOutcome(decision, {
@@ -498,6 +532,96 @@ export async function executeGenerateAndWrite(
     display: {
       summary: `${bytes} bytes`,
       display: `🪄 生成書込: ${decision.relativePath}（${bytes} bytes・${sectionCount} セクション・継続 ${totalContinuations} 回）${truncationNote}`,
+    },
+  };
+}
+
+/**
+ * `marker` 指定時の書き込み。対象ファイルの当該区間だけを 1 回で置き換え、
+ * マーカー自体と区間外（額縁）を保持する。
+ * 区間が見つからない場合は対象を変更せず、生成本文を退避先へ書き込む
+ * （生成をやり直させないため）。
+ */
+function writeIntoMarkerSection(params: {
+  context: ToolExecutionContext;
+  target: { absolutePath: string; relativePath: string };
+  marker: string;
+  output: string;
+  summaryResult: (content: string) => Record<string, unknown>;
+  truncationNote: string;
+  sectionCount: number;
+  totalContinuations: number;
+}): ToolExecutionOutcome {
+  const { context, target, marker, output } = params;
+
+  const existing = fs.existsSync(target.absolutePath)
+    ? fs.readFileSync(target.absolutePath, "utf-8")
+    : null;
+  const spliced =
+    existing === null ? null : spliceMarkerSection(existing, marker, output);
+
+  if (spliced === null) {
+    const divert = resolveDivertTarget({
+      relativePath: target.relativePath,
+      projectFolderId: context.projectFolderId,
+      projectRoot: context.projectRoot,
+    });
+    const available = existing ? findMarkerSectionNames(existing) : [];
+    const notice =
+      `${target.relativePath} に区間 ${marker} が見つかりませんでした。` +
+      (available.length > 0
+        ? `このファイルの区間は ${available.join(" / ")} です。`
+        : existing === null
+          ? "ファイルが存在しません。額縁を copy_file で配置してから差し込んでください。"
+          : "このファイルに区間マーカーはありません。") +
+      (divert
+        ? `生成本文は ${divert.relativePath} へ書き込みました。区間名を確かめて replace_between（from_path）で差し込んでください。`
+        : "");
+
+    if (!divert) {
+      return {
+        result: { error: notice, recoverable: true },
+        display: { summary: "error", display: `✗ ${notice}` },
+      };
+    }
+
+    fs.mkdirSync(path.dirname(divert.absolutePath), { recursive: true });
+    fs.writeFileSync(divert.absolutePath, output, "utf-8");
+    const bytes = Buffer.byteLength(output, "utf-8");
+    return {
+      result: {
+        path: divert.relativePath,
+        bytes,
+        diverted: true,
+        markerNotFound: marker,
+        requestedPath: target.relativePath,
+        availableMarkers: available,
+        notice,
+        ...params.summaryResult(output),
+      },
+      display: {
+        summary: "退避",
+        display: `🪄 生成書込: ${divert.relativePath}（${bytes} bytes）\n↪ ${notice}`,
+        tags: ["diverted"],
+      },
+    };
+  }
+
+  fs.writeFileSync(target.absolutePath, spliced, "utf-8");
+  const bytes = Buffer.byteLength(spliced, "utf-8");
+  const insertedChars = output.length;
+
+  return {
+    result: {
+      path: target.relativePath,
+      marker,
+      bytes,
+      insertedChars,
+      ...params.summaryResult(spliced),
+    },
+    display: {
+      summary: `${insertedChars} 文字`,
+      display: `🪄 生成差し込み: ${target.relativePath} の ${marker} 区間（${insertedChars} 文字・${params.sectionCount} セクション・継続 ${params.totalContinuations} 回）${params.truncationNote}`,
     },
   };
 }

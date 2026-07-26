@@ -8,7 +8,9 @@ TBD - created by archiving change ebex-agent-large-write-runtime. Update Purpose
 
 ### Requirement: generate_and_write ツールの提供
 
-システムは `generate_and_write` ツールを実装し、`resolveToolDefinitions` が返すツール一覧に含めなければならない（SHALL）。入力は少なくとも `purpose`（ユーザー向けの目的説明）、`path`（プロジェクト相対の書込先）、`instruction`（生成指示）を含まなければならない（SHALL）。任意入力として `sections`（セクション分割の指示、順序どおり生成・連結）と `context_paths`（子プロンプトへ本文を含める参照ファイル）を受け付けなければならない（SHALL）。実行時、システムはサーバ内で子 LLM 呼び出しを行い、得られた本文をサーバがファイルへ書き込まなければならない（SHALL）。成果物の本文を親エージェントの tool 引数に要求してはならない（MUST NOT）。
+システムは `generate_and_write` ツールを実装し、`resolveToolDefinitions` が返すツール一覧に含めなければならない（SHALL）。入力は少なくとも `purpose`（ユーザー向けの目的説明）、`path`（プロジェクト相対の書込先）、`instruction`（生成指示）を含まなければならない（SHALL）。任意入力として `sections`（セクション分割の指示、順序どおり生成・連結）、`context_paths`（子プロンプトへ本文を含める参照ファイル）、および `marker`（`path` の額縁テンプレート内で差し込む区間の指定）を受け付けなければならない（SHALL）。実行時、システムはサーバ内で子 LLM 呼び出しを行い、得られた本文をサーバがファイルへ書き込まなければならない（SHALL）。成果物の本文を親エージェントの tool 引数に要求してはならない（MUST NOT）。
+
+差し込み先の区間を指定する入力の名前に `section` の語を含めてはならない（MUST NOT）。生成の分割指示である `sections` と混同されうるためである。
 
 #### Scenario: 小さな指示で大きな成果物が書かれる
 
@@ -19,6 +21,11 @@ TBD - created by archiving change ebex-agent-large-write-runtime. Update Purpose
 
 - **WHEN** Agent が invoke される
 - **THEN** LLM リクエストの tools に `generate_and_write` が含まれる
+
+#### Scenario: 差し込み先の入力名が sections と紛れない
+
+- **WHEN** `generate_and_write` のツール定義を確認する
+- **THEN** 差し込み先を指定する任意入力の名前は `marker` であり、`section` の語を含まない
 
 ### Requirement: 子 LLM 呼び出しの独立性と材料の受け渡し
 
@@ -109,3 +116,45 @@ TBD - created by archiving change ebex-agent-large-write-runtime. Update Purpose
 
 - **WHEN** `generate_and_write` の tool_use に `instruction` が無い、または空である
 - **THEN** 生成は行われず、必須入力と schema の案内を含む失敗の tool_result がモデルへ返る
+
+### Requirement: marker による区間差し込み
+
+`marker` が指定された場合、システムは生成した本文を `path` のファイル全体へ書き込んではならない（MUST NOT）。当該ファイル内の指定された区間マーカー組の間だけを生成本文で置き換え、マーカー自体と区間外の内容を保持しなければならない（SHALL）。置き換えは全セクションの生成完了後に 1 回で行わなければならない（SHALL）。
+
+`marker` の値は素名（`AGENDA_DETAILS`）と完全形（`<!-- AGENDA_DETAILS_START -->`）の双方を受け付け、同一の区間へ解決しなければならない（SHALL）。この寛容な正規化は `replace_in_file` の `replacements` がプレースホルダー名を素名・`{{}}` 付きの双方で受け付ける作法と同一でなければならない（SHALL）。
+
+指定された区間が対象ファイルに存在しない場合、システムは生成本文を破棄してはならず（MUST NOT）、額縁保護の退避と同じく中間ファイル置き場へ書き込んだうえで、区間が見つからない旨と退避先を含む結果を返さなければならない（SHALL）。
+
+#### Scenario: 単一区間の額縁へ 1 手で差し込む
+
+- **WHEN** モデルが `path` に額縁済みファイル、`marker` に `CONTENT` を指定して `generate_and_write` を呼び、ユーザーが確認を許可する
+- **THEN** 生成本文は `<!-- CONTENT_START -->` と `<!-- CONTENT_END -->` の間へ差し込まれ、`<head>`・CDN 読み込み・`<footer>` を含む額縁は保持される
+
+#### Scenario: 複数区間のうち指定した区間だけが置換される
+
+- **WHEN** 4 つの区間を持つ額縁に対し `marker` に `AGENDA_DETAILS` を指定して生成する
+- **THEN** `AGENDA_DETAILS` の区間のみが置換され、他の 3 区間は変更されない
+
+#### Scenario: 素名と完全形が同じ区間に解決される
+
+- **WHEN** `marker` に `AGENDA_DETAILS` を指定した場合と `<!-- AGENDA_DETAILS_START -->` を指定した場合をそれぞれ実行する
+- **THEN** いずれも同一の区間が置換される
+
+#### Scenario: 存在しない区間でも生成物を失わない
+
+- **WHEN** `marker` に対象ファイルへ存在しない区間名を指定して生成する
+- **THEN** 対象ファイルは変更されず、生成本文は中間ファイル置き場へ書き込まれ、区間が見つからない旨と退避先が結果に含まれる
+
+#### Scenario: marker 省略時は従来どおり
+
+- **WHEN** `marker` を指定せず、書込先が区間マーカーを含まないパスである
+- **THEN** 生成本文は指定パスへ従来どおり書き込まれる
+
+### Requirement: marker 指定時のユーザー確認表示
+
+`marker` が指定された `generate_and_write` の実行前確認において、システムは指定された区間を確認表示に含めなければならない（SHALL）。丸ごと上書きではなく当該区間への差し込みであることが確認表示から読み取れなければならない（SHALL）。
+
+#### Scenario: 差し込み先の区間が確認に表示される
+
+- **WHEN** モデルが `marker` を指定して `generate_and_write` を呼び出す
+- **THEN** 確認ダイアログは purpose・書込先パス・生成指示・セクション一覧に加えて差し込み先の区間を表示し、ファイル全体の上書きではない旨が読み取れる

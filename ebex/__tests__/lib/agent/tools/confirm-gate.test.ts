@@ -472,6 +472,43 @@ describe("resolveConfirmRequirement for generate_and_write", () => {
     fs.rmSync(tmpDir, { recursive: true, force: true });
   });
 
+  it("shows the target section when marker is given", () => {
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "ebex-confirm-"));
+    createFolder(tmpDir, "demo");
+    createFile(
+      tmpDir,
+      "demo",
+      "framed.html",
+      "<!-- CONTENT_START --><!-- CONTENT_END -->",
+    );
+    const req = resolveConfirmRequirement(tmpDir, "demo", {
+      id: "t1",
+      name: "generate_and_write",
+      input: {
+        purpose: "p",
+        path: "framed.html",
+        instruction: "書く",
+        marker: "<!-- CONTENT_START -->",
+      },
+    });
+    expect(req?.kind).toBe("generate-write");
+    // 完全形で渡されても素名で表示する
+    expect(req?.generate?.marker).toBe("CONTENT");
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+  });
+
+  it("omits marker from the payload when not given", () => {
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "ebex-confirm-"));
+    createFolder(tmpDir, "demo");
+    const req = resolveConfirmRequirement(tmpDir, "demo", {
+      id: "t1",
+      name: "generate_and_write",
+      input: { purpose: "p", path: "out.html", instruction: "書く" },
+    });
+    expect(req?.generate).not.toHaveProperty("marker");
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+  });
+
   it("marks overwrite when the target exists", () => {
     const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "ebex-confirm-"));
     createFolder(tmpDir, "demo");

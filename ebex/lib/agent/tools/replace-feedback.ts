@@ -87,6 +87,46 @@ export function residualFillWarningMessage(tokens: string[]): string | null {
 const MARKER_SECTION_RE =
   /<!--\s*([A-Z][A-Z0-9_]*)_START\s*-->([\s\S]*?)<!--\s*\1_END\s*-->/g;
 
+const MARKER_NAME_RE = /^[A-Z][A-Z0-9_]*$/;
+const MARKER_COMMENT_RE = /^<!--\s*([A-Za-z0-9_]+)\s*-->$/;
+
+/**
+ * 差し込み先の区間指定を素名へ正規化する。
+ * 素名（`AGENDA_DETAILS`）・端トークン（`AGENDA_DETAILS_START`）・
+ * 完全形（`<!-- AGENDA_DETAILS_START -->`）のいずれも受ける。
+ * `replace_in_file` の `replacements` が `{{}}` 有無の双方を受けるのと同じ作法。
+ */
+export function normalizeMarkerName(raw: string): string | null {
+  const trimmed = raw.trim();
+  if (!trimmed) return null;
+  const comment = MARKER_COMMENT_RE.exec(trimmed);
+  const inner = (comment ? comment[1] : trimmed).trim();
+  const name = inner.replace(/_(?:START|END)$/, "");
+  return MARKER_NAME_RE.test(name) ? name : null;
+}
+
+/**
+ * `<!-- NAME_START -->`〜`<!-- NAME_END -->` の間だけを差し替える
+ * （マーカー自体は残す）。区間が見つからない場合は null。
+ * `name` は `normalizeMarkerName` を通した素名であること。
+ */
+export function spliceMarkerSection(
+  content: string,
+  name: string,
+  body: string,
+): string | null {
+  if (!MARKER_NAME_RE.test(name)) return null;
+  const re = new RegExp(
+    `(<!--\\s*${name}_START\\s*-->)([\\s\\S]*?)(<!--\\s*${name}_END\\s*-->)`,
+  );
+  if (!re.test(content)) return null;
+  return content.replace(
+    re,
+    (_all, start: string, _body: string, end: string) =>
+      [start, body, end].join("\n"),
+  );
+}
+
 /**
  * `<!-- XXX_START -->`〜`<!-- XXX_END -->` の区間名を、中身の充填状態に
  * 関わらずすべて返す。額縁テンプレートかどうかの判定に使う。

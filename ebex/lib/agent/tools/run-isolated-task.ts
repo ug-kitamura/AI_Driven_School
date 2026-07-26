@@ -188,7 +188,9 @@ export async function executeRunIsolatedTask(
           sections: childResult.sectionCount,
           continuations: childResult.continuations,
           durationMs,
-          ...(truncatedContextPaths.length > 0 ? { truncatedContextPaths } : {}),
+          ...(truncatedContextPaths.length > 0
+            ? { truncatedContextPaths }
+            : {}),
         },
       });
     }

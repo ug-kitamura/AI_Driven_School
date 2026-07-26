@@ -24,6 +24,8 @@ export type ToolConfirmGenerateInfo = {
   instruction: string;
   sections: string[];
   contextPaths: string[];
+  /** 差し込み先の区間名（設定時はファイル全体の上書きではない） */
+  marker?: string;
 };
 
 export type ToolConfirmInlineAssetsInfo = {
@@ -279,6 +281,10 @@ export async function consumeAgentStream(
                           (entry): entry is string => typeof entry === "string",
                         )
                       : [],
+                    ...(typeof rawGenerate.marker === "string" &&
+                    rawGenerate.marker
+                      ? { marker: rawGenerate.marker }
+                      : {}),
                   }
                 : undefined;
               const rawInline =

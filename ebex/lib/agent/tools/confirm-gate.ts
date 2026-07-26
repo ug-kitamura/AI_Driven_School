@@ -5,6 +5,7 @@ import {
   type ToolPathError,
 } from "@/lib/agent/tools/fs-guard";
 import { detectNetworkAccessHint } from "@/lib/agent/tools/script-sandbox";
+import { normalizeMarkerName } from "@/lib/agent/tools/replace-feedback";
 import { isPathInsideWorkDir } from "@/lib/agent/skill-io-boundary";
 import type { LlmMessage, ToolCall } from "@/lib/agent/llm/types";
 import type { ConfirmKind } from "@/lib/agent/tools/confirm-kind";
@@ -51,6 +52,11 @@ export type ConfirmGenerateInfo = {
   sections: string[];
   /** 子プロンプトへ渡される参照ファイル */
   contextPaths: string[];
+  /**
+   * 差し込み先の区間名（`generate_and_write` の marker）。
+   * 設定されている場合、書き込みはファイル全体の上書きではなく当該区間への差し込みになる。
+   */
+  marker?: string;
 };
 
 export type ConfirmRequirement = {
@@ -317,6 +323,11 @@ function resolveGenerateConfirm(
         )
       : [];
 
+  const marker =
+    typeof call.input?.marker === "string"
+      ? (normalizeMarkerName(call.input.marker) ?? undefined)
+      : undefined;
+
   return {
     kind: "generate-write",
     path: resolved.relativePath,
@@ -327,6 +338,7 @@ function resolveGenerateConfirm(
       instruction: instruction.slice(0, SCRIPT_CODE_DISPLAY_CHAR_LIMIT),
       sections: toStringArray(call.input?.sections),
       contextPaths: toStringArray(call.input?.context_paths),
+      ...(marker ? { marker } : {}),
     },
   };
 }

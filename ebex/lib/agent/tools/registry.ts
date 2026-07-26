@@ -341,7 +341,7 @@ const TOOL_SCHEMAS = {
   generate_and_write: {
     name: "generate_and_write",
     description:
-      "モデルが新たに創作する大きな成果物（図解 HTML の本文・長文ドキュメント等）を、サーバ内の別 LLM 呼び出しで生成してファイルへ直接書き込む。本文を tool 引数に載せないため出力上限で切れない。本文がディスク上のデータから機械的に作れる場合はこれではなく run_script を使うこと。材料（アウトライン・収集メモ・模範例）は先にファイルへ書き出して context_paths で渡し、大きな成果物は sections で分割を指定すること。実行前にユーザー確認が入る。",
+      "モデルが新たに創作する大きな成果物（図解 HTML の本文・長文ドキュメント等）を、サーバ内の別 LLM 呼び出しで生成してファイルへ直接書き込む。本文を tool 引数に載せないため出力上限で切れない。本文がディスク上のデータから機械的に作れる場合はこれではなく run_script を使うこと。材料（アウトライン・収集メモ・模範例）は先にファイルへ書き出して context_paths で渡し、大きな成果物は sections で分割を指定すること。額縁テンプレートへ差し込む場合は path に額縁を指定し marker で区間を指定すると、生成と差し込みが 1 回で済む。実行前にユーザー確認が入る。",
     input_schema: {
       type: "object",
       properties: {
@@ -370,6 +370,11 @@ const TOOL_SCHEMAS = {
           items: { type: "string" },
           description:
             "生成時に内容を参照させるファイル（プロジェクト相対、または実行中スキルの references/... 等）",
+        },
+        marker: {
+          type: "string",
+          description:
+            "path の額縁テンプレート内で差し込む区間。区間名（例: CONTENT, AGENDA_DETAILS）でも完全形（例: <!-- CONTENT_START -->）でも受ける。指定するとその区間だけが置き換わり、額縁は保持される。sections（生成の分割指示）とは別物",
         },
       },
       required: ["purpose", "path", "instruction"],

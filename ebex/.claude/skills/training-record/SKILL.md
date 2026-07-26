@@ -204,7 +204,7 @@ Step 7 完了後、以下の文言でユーザーに確認する。ユーザー�
 **ユーザーが同意した場合のみ実行する**:
 
 1. `output/{YYYYMMDD}-{スラッグ}-training-record.html`（完成済みの日本語版）を読み込む
-2. その内容を英訳し、`output/{YYYYMMDD}-{スラッグ}-training-record-eng.html` として保存する
+2. その内容を英訳し、`output/{YYYYMMDD}-{スラッグ}-training-record-eng.html` として保存する。保存は先頭から順に複数回に分けて書き込むこと
 3. `lang="ja"` は `en` にする
 
 **完了の確認（必須）**:

@@ -1611,6 +1611,7 @@ export function FileTreePane({
     clearSelectionIfUnderPath,
     dialog,
     focusRow,
+    folders,
     handleSelectFile,
     nameInput,
     onRefresh,

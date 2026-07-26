@@ -34,7 +34,6 @@ import {
 } from "@/lib/agent/llm/types";
 import { resolveLlmProvider } from "@/lib/agent/llm/resolve-provider";
 import type { LlmProvider } from "@/lib/agent/llm/provider";
-import { resolveMaxOutputTokens } from "@/lib/resolve-max-output-tokens";
 import {
   isAutoNudgeDisabled,
   resolveModelProfile,
@@ -306,8 +305,8 @@ export async function runAgentLoop(
   const tools: ToolDefinition[] = resolveToolDefinitions(options.toolNames, {
     hasSkillScripts: skillHasScriptsDir(options.skillDirAbsolute),
   });
-  const maxTokens = resolveMaxOutputTokens(options.req, providerResult.model);
   const profile = resolveModelProfile(providerResult.model);
+  const maxTokens = profile.maxOutputTokens;
   const llmMessages = [...options.messages];
   const toolEvents: AgentToolEvent[] = [];
   const toolTurns: AgentLogicalTurn[] = [];

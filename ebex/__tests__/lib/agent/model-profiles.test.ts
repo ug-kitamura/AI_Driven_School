@@ -11,9 +11,9 @@ describe("model-profiles", () => {
     delete process.env.EBEX_AUTO_NUDGE;
   });
 
-  it("keeps Claude profiles equal to the legacy constants (no behavior change)", () => {
+  it("raises the large Claude group's maxOutputTokens to 64000", () => {
     const sonnet = resolveModelProfile("claude-sonnet-4-6");
-    expect(sonnet.maxOutputTokens).toBe(32000);
+    expect(sonnet.maxOutputTokens).toBe(64000);
     expect(sonnet.continuations).toEqual({
       generatePerSection: 4,
       textPerTurn: 4,
@@ -22,8 +22,13 @@ describe("model-profiles", () => {
     expect(sonnet.providerParams).toEqual({});
 
     const haiku = resolveModelProfile("claude-haiku-4-5");
-    expect(haiku.maxOutputTokens).toBe(16384);
+    expect(haiku.maxOutputTokens).toBe(32000);
     expect(haiku.continuations.generatePerSection).toBe(4);
+  });
+
+  it("moves claude-fable-5 into the large group (was mistakenly grouped with Haiku)", () => {
+    const fable = resolveModelProfile("claude-fable-5");
+    expect(fable.maxOutputTokens).toBe(64000);
   });
 
   it("defines gpt-5-nano with raised continuation caps and provider params", () => {
@@ -47,7 +52,7 @@ describe("model-profiles", () => {
     const opus = resolveModelProfile("claude-opus-4-8");
     // プロファイル追加のみで解決でき、UNKNOWN 既定に落ちない
     expect(opus).not.toEqual(UNKNOWN_MODEL_PROFILE);
-    expect(opus.maxOutputTokens).toBe(32000);
+    expect(opus.maxOutputTokens).toBe(64000);
     expect(opus.continuations.nudgeMax).toBe(2);
   });
 

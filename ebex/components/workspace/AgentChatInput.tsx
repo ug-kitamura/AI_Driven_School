@@ -543,7 +543,7 @@ export function AgentChatInput({
 
         <div
           className={cn(
-            "flex flex-col overflow-hidden rounded-lg border bg-white dark:bg-muted",
+            "relative flex flex-col overflow-hidden rounded-lg border bg-white dark:bg-muted",
             isTreeDragOver
               ? "border-primary ring-2 ring-primary"
               : "border-border",

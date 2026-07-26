@@ -4,6 +4,7 @@ import {
   markdownKeymap,
 } from "@codemirror/lang-markdown";
 import { defaultKeymap, history, historyKeymap } from "@codemirror/commands";
+import { search, searchKeymap } from "@codemirror/search";
 import { Compartment, type Extension } from "@codemirror/state";
 import { keymap } from "@codemirror/view";
 import { languages } from "@codemirror/language-data";
@@ -38,6 +39,90 @@ const lessonEditorSelectionTheme = EditorView.theme({
       backgroundColor: `${LESSON_EDITOR_SELECTION_BG} !important`,
       color: `${LESSON_EDITOR_SELECTION_FG} !important`,
     },
+});
+
+/**
+ * @codemirror/search の検索パネルは素の DOM（無地の input/button/label）を出すだけで、
+ * EBEX 全体のデザイン（shadcn ベース・角丸・ロールトークン色）から浮いて見えるため、
+ * ロールトークンの CSS 変数（var(--card) 等）でパネルの見た目のみを上書きする。
+ * 検索の挙動自体（@codemirror/search 標準機能）には手を入れない。
+ */
+const lessonSearchPanelTheme = EditorView.theme({
+  ".cm-panel.cm-search": {
+    // display は初期値（block）のまま。CodeMirror 自身が Find 行と Replace 行の間に
+    // 挿入する <br>（改行）が効くようにするため、flex 化してはいけない
+    // （flex コンテナ内では <br> が改行として機能しない）
+    padding: "0.5rem 2rem 0.5rem 0.5rem",
+    backgroundColor: "var(--card)",
+    color: "var(--card-foreground)",
+    borderBottom: "1px solid var(--border)",
+    "& [name=close]": {
+      top: "0.375rem",
+      right: "0.5rem",
+      color: "var(--muted-foreground)",
+      borderRadius: "var(--radius-sm)",
+      width: "1.25rem",
+      height: "1.25rem",
+      lineHeight: "1",
+    },
+    "& [name=close]:hover": {
+      backgroundColor: "var(--muted)",
+      color: "var(--foreground)",
+    },
+    "& input, & button, & label": {
+      margin: "0 0.375rem 0.375rem 0",
+      verticalAlign: "middle",
+    },
+    // 「all」（selectMatches）ボタンは不要なため非表示にする
+    "& [name=select]": {
+      display: "none",
+    },
+    // 「by word」（単語単位一致）オプションは不要なため非表示にする
+    "& label:has(input[name=word])": {
+      display: "none",
+    },
+  },
+  ".cm-panel.cm-search .cm-textfield": {
+    border: "1px solid var(--input)",
+    borderRadius: "var(--radius-md)",
+    backgroundColor: "var(--background)",
+    color: "var(--foreground)",
+    padding: "0.25rem 0.5rem",
+    fontSize: "0.8125rem",
+    outline: "none",
+  },
+  ".cm-panel.cm-search .cm-textfield:focus": {
+    borderColor: "var(--ring)",
+    boxShadow: "0 0 0 2px color-mix(in oklab, var(--ring) 30%, transparent)",
+  },
+  ".cm-panel.cm-search .cm-button": {
+    border: "1px solid var(--border)",
+    borderRadius: "var(--radius-md)",
+    backgroundColor: "var(--muted)",
+    color: "var(--foreground)",
+    padding: "0.25rem 0.625rem",
+    fontSize: "0.8125rem",
+    backgroundImage: "none",
+    cursor: "pointer",
+  },
+  ".cm-panel.cm-search .cm-button:hover": {
+    backgroundColor: "var(--accent)",
+    color: "var(--accent-foreground)",
+  },
+  ".cm-panel.cm-search label": {
+    display: "inline-flex",
+    alignItems: "center",
+    gap: "0.25rem",
+    marginLeft: "0.25rem",
+    fontSize: "0.75rem",
+    color: "var(--muted-foreground)",
+    whiteSpace: "pre",
+  },
+  ".cm-panel.cm-search input[type=checkbox]": {
+    accentColor: "var(--primary)",
+    margin: 0,
+    verticalAlign: "middle",
+  },
 });
 
 function editorLineHeightPx(fontSizePx: number): number {
@@ -260,6 +345,7 @@ export function buildLessonEditorExtensions(
     ...activeLineRowHighlight(),
     createLessonEditorLayout(size, lineNumberColor, isDark),
     lessonEditorSelectionTheme,
+    lessonSearchPanelTheme,
   ];
   if (options?.onFontSizeChange) {
     extensions.push(
@@ -286,7 +372,12 @@ export function buildLessonEditorStateExtensions(
     ),
     lessonEditorLanguageCompartment.of(languageExtension),
     history(),
-    keymap.of([...defaultKeymap, ...historyKeymap]),
+    search(),
+    // CodeMirror 6 は画面外の行を DOM に描画しない（仮想スクロール）ため、
+    // ブラウザ純正の Ctrl+F は画面内のテキストしか検索できない。searchKeymap を
+    // 加えることで Ctrl+F が CodeMirror 自身の検索パネル（ドキュメント全体が対象）
+    // にバインドされる。
+    keymap.of([...defaultKeymap, ...historyKeymap, ...searchKeymap]),
     ...extraExtensions,
   ];
 }

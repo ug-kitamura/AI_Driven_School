@@ -1,5 +1,4 @@
 import { resolveModelLabel } from "@/lib/agent/model-labels";
-import { resolveModelProfile } from "@/lib/agent/model-profiles";
 
 export const AI_MODEL_SLUGS = [
   "claude-sonnet-4-6",
@@ -40,27 +39,4 @@ export function normalizeAiModel(value: unknown): AiModelSlug {
 
 export function isUnsupportedAiModel(model: string): boolean {
   return UNSUPPORTED_AI_MODELS.has(model as AiModelSlug);
-}
-
-export const MAX_OUTPUT_TOKEN_OPTIONS = [8192, 16384, 32000] as const;
-export type MaxOutputTokens = (typeof MAX_OUTPUT_TOKEN_OPTIONS)[number];
-export const DEFAULT_MAX_OUTPUT_TOKENS: MaxOutputTokens = 32000;
-
-export function isMaxOutputTokens(value: unknown): value is MaxOutputTokens {
-  return (
-    typeof value === "number" &&
-    (MAX_OUTPUT_TOKEN_OPTIONS as readonly number[]).includes(value)
-  );
-}
-
-export function normalizeMaxOutputTokens(value: unknown): MaxOutputTokens {
-  return isMaxOutputTokens(value) ? value : DEFAULT_MAX_OUTPUT_TOKENS;
-}
-
-/** モデルの上限を超える場合はクランプする。上限はモデルプロファイルが正本。 */
-export function clampMaxOutputTokensForModel(
-  requested: number,
-  model: string,
-): number {
-  return Math.min(requested, resolveModelProfile(model).maxOutputTokens);
 }

@@ -11,8 +11,9 @@ import type {
   LlmProvider,
   LlmProviderRunOptions,
 } from "@/lib/agent/llm/provider";
-import { DEFAULT_AI_MODEL, DEFAULT_MAX_OUTPUT_TOKENS } from "@/lib/ai-models";
+import { DEFAULT_AI_MODEL } from "@/lib/ai-models";
 import { resolveAiModel } from "@/lib/resolve-ai-model";
+import { resolveModelProfile } from "@/lib/agent/model-profiles";
 
 const EPHEMERAL_CACHE_CONTROL: LlmCacheControl = { type: "ephemeral" };
 
@@ -391,7 +392,7 @@ async function runAnthropicTurn(
     },
     body: JSON.stringify({
       model: options.model,
-      max_tokens: options.maxTokens ?? DEFAULT_MAX_OUTPUT_TOKENS,
+      max_tokens: options.maxTokens ?? resolveModelProfile(options.model).maxOutputTokens,
       stream: true,
       system: withSystemCacheControl(options.system),
       messages,
@@ -461,7 +462,9 @@ export async function streamAnthropicMessages(options: {
     },
     body: JSON.stringify({
       model: modelResult.model,
-      max_tokens: options.maxTokens ?? DEFAULT_MAX_OUTPUT_TOKENS,
+      max_tokens:
+        options.maxTokens ??
+        resolveModelProfile(modelResult.model).maxOutputTokens,
       stream: true,
       system: options.system,
       messages: options.messages,

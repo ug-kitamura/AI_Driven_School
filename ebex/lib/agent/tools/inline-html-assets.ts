@@ -16,6 +16,9 @@
  * 既存の成果物と見た目がずれる。EBEX 本体の Tailwind v4 とは別系統。
  */
 import { createRequire } from "node:module";
+import * as React from "react";
+import { renderToStaticMarkup } from "react-dom/server";
+import * as LucideIcons from "lucide-react";
 
 /** 展開できないアイコン名に使う代替 */
 const FALLBACK_ICON = "circle-help";
@@ -212,22 +215,28 @@ function toPascalCase(name: string): string {
  * ホスト側の `lucide-react` から解決する（スキルへは同梱しない）。旧名は新名への
  * 再エクスポートになっているため（`circle-help` → `circle-question-mark` 等）、
  * 実体をレンダリングして中身を取ることで自動的に辿られる。
+ *
+ * 静的 import を使う（tailwindcss-v3 のような動的 require ではない）。lucide-react は
+ * 実行時にプラグインを読み込むような処理を持たないため、Next.js のサーバーバンドルに
+ * 含めても問題ない。`serverExternalPackages` へ加えると Next.js の既定の
+ * `optimizePackageImports`（アイコン系ライブラリ向けの自動 tree-shaking 対象）と
+ * `transpilePackages` が衝突してビルドが壊れるため、対象外とする。
  */
 function resolveIconInner(name: string): string | null {
   try {
-    const icons = require_("lucide-react") as Record<string, unknown>;
+    const icons = LucideIcons as unknown as Record<string, unknown>;
     const component = icons[toPascalCase(name)];
     if (!component) return null;
-    const React = require_("react") as typeof import("react");
-    const { renderToStaticMarkup } = require_(
-      "react-dom/server",
-    ) as typeof import("react-dom/server");
     const markup = renderToStaticMarkup(
       React.createElement(component as React.ElementType),
     );
     const inner = markup.match(/<svg[^>]*>([\s\S]*?)<\/svg>/);
     return inner ? inner[1].trim() : null;
-  } catch {
+  } catch (err) {
+    // アイコン名不明（component が undefined）は正常系としてここへは来ない。
+    // ここに来るのは render 自体の失敗であり、無言で握りつぶすと
+    // 「全アイコンが代替へ差し替わる」事故の原因究明が困難になる。
+    console.warn(`[inline-html-assets] failed to resolve icon "${name}":`, err);
     return null;
   }
 }

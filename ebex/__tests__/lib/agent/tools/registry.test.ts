@@ -290,6 +290,66 @@ describe("executeRegisteredTool", () => {
     fs.rmSync(tmpDir, { recursive: true, force: true });
   });
 
+  it("diverts write_file away from a framed template", async () => {
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "ebex-tools-"));
+    createFolder(tmpDir, "demo");
+    const frame = [
+      "<html><head></head><body>",
+      "<!-- CONTENT_START -->",
+      "",
+      "<!-- CONTENT_END -->",
+      "</body></html>",
+    ].join("\n");
+    createFile(tmpDir, "demo", "framed.html", frame);
+
+    const outcome = await executeRegisteredTool(
+      "write_file",
+      { path: "framed.html", content: "<div>本文だけ</div>" },
+      contextFor(tmpDir, "demo"),
+    );
+
+    expect(outcome.result).toMatchObject({
+      diverted: true,
+      path: "workspace/demo/_work/framed.html",
+      requestedPath: "workspace/demo/framed.html",
+    });
+    expect(
+      fs.readFileSync(
+        path.join(getWorkspaceDir(tmpDir), "demo", "framed.html"),
+        "utf-8",
+      ),
+    ).toBe(frame);
+    expect(
+      fs.readFileSync(
+        path.join(getWorkspaceDir(tmpDir), "demo", "_work", "framed.html"),
+        "utf-8",
+      ),
+    ).toBe("<div>本文だけ</div>");
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+  });
+
+  it("writes through with write_file when the target has no markers", async () => {
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "ebex-tools-"));
+    createFolder(tmpDir, "demo");
+    createFile(tmpDir, "demo", "plain.html", "<p>旧</p>");
+
+    const outcome = await executeRegisteredTool(
+      "write_file",
+      { path: "plain.html", content: "<p>新</p>" },
+      contextFor(tmpDir, "demo"),
+    );
+
+    expect(outcome.result).toMatchObject({ path: "workspace/demo/plain.html" });
+    expect(outcome.result).not.toMatchObject({ diverted: true });
+    expect(
+      fs.readFileSync(
+        path.join(getWorkspaceDir(tmpDir), "demo", "plain.html"),
+        "utf-8",
+      ),
+    ).toBe("<p>新</p>");
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+  });
+
   it("rejects write_file content over the size limit without writing", async () => {
     const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "ebex-tools-"));
     createFolder(tmpDir, "demo");

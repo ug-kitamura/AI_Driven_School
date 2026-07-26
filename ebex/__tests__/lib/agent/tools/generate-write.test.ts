@@ -461,6 +461,70 @@ describe("executeGenerateAndWrite", () => {
     fs.rmSync(base.tmpDir, { recursive: true, force: true });
   });
 
+  it("diverts to the work dir instead of overwriting a framed template", async () => {
+    const base = makeProject();
+    const framePath = path.join(base.projectDir, "output", "diagram.html");
+    fs.mkdirSync(path.dirname(framePath), { recursive: true });
+    const frame = [
+      "<html><head><script src=cdn></script></head><body>",
+      "<!-- CONTENT_START -->",
+      "",
+      "<!-- CONTENT_END -->",
+      "</body></html>",
+    ].join("\n");
+    fs.writeFileSync(framePath, frame, "utf-8");
+
+    const { provider } = makeProvider([
+      { text: "<div>本文</div>", stopReason: "end_turn" },
+    ]);
+    const outcome = await executeGenerateAndWrite(makeContext(base, provider), {
+      purpose: "図解生成",
+      path: "output/diagram.html",
+      instruction: "図解本文を書く",
+    });
+
+    // 額縁は 1 バイトも変わらない
+    expect(fs.readFileSync(framePath, "utf-8")).toBe(frame);
+    // 生成物は退避先に残る（エラーではなく成功として返る）
+    expect(outcome.result).toMatchObject({
+      diverted: true,
+      path: "workspace/demo/_work/output__diagram.html",
+      requestedPath: "workspace/demo/output/diagram.html",
+      markerNames: ["CONTENT"],
+    });
+    expect(outcome.result).not.toMatchObject({ error: expect.anything() });
+    expect(
+      fs.readFileSync(
+        path.join(base.projectDir, "_work", "output__diagram.html"),
+        "utf-8",
+      ),
+    ).toBe("<div>本文</div>");
+    fs.rmSync(base.tmpDir, { recursive: true, force: true });
+  });
+
+  it("writes through when the target has no marker sections", async () => {
+    const base = makeProject();
+    const target = path.join(base.projectDir, "output", "plain.html");
+    fs.mkdirSync(path.dirname(target), { recursive: true });
+    fs.writeFileSync(target, "<html><body>旧</body></html>", "utf-8");
+
+    const { provider } = makeProvider([
+      { text: "<div>新</div>", stopReason: "end_turn" },
+    ]);
+    const outcome = await executeGenerateAndWrite(makeContext(base, provider), {
+      purpose: "上書き",
+      path: "output/plain.html",
+      instruction: "書く",
+    });
+
+    expect(outcome.result).toMatchObject({
+      path: "workspace/demo/output/plain.html",
+    });
+    expect(outcome.result).not.toMatchObject({ diverted: true });
+    expect(fs.readFileSync(target, "utf-8")).toBe("<div>新</div>");
+    fs.rmSync(base.tmpDir, { recursive: true, force: true });
+  });
+
   it("errors when no generate config is present", async () => {
     const base = makeProject();
     const outcome = await executeGenerateAndWrite(

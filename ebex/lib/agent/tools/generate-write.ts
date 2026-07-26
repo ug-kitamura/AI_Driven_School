@@ -1,6 +1,10 @@
 import fs from "node:fs";
 import path from "node:path";
 import { resolveToolTargetPath } from "@/lib/agent/tools/fs-guard";
+import {
+  framedWriteDivertOutcome,
+  resolveFramedWriteTarget,
+} from "@/lib/agent/tools/framed-write-guard";
 import { resolveModelProfile } from "@/lib/agent/model-profiles";
 import {
   scanTemplateResiduals,
@@ -442,8 +446,17 @@ export async function executeGenerateAndWrite(
     .map((file) => file.displayPath);
 
   const output = childResult.text;
-  fs.mkdirSync(path.dirname(targetResolved.absolutePath), { recursive: true });
-  fs.writeFileSync(targetResolved.absolutePath, output, "utf-8");
+
+  // 額縁テンプレートを丸ごと上書きしそうな場合は中間ファイル置き場へ退避する
+  const decision = resolveFramedWriteTarget({
+    absolutePath: targetResolved.absolutePath,
+    relativePath: targetResolved.relativePath,
+    projectFolderId: context.projectFolderId,
+    projectRoot: context.projectRoot,
+  });
+
+  fs.mkdirSync(path.dirname(decision.absolutePath), { recursive: true });
+  fs.writeFileSync(decision.absolutePath, output, "utf-8");
   const bytes = Buffer.byteLength(output, "utf-8");
   const durationMs = Date.now() - startedAt;
 
@@ -460,19 +473,31 @@ export async function executeGenerateAndWrite(
       ? `（参照ファイルを読取上限 ${GENERATE_CONTEXT_FILE_CHAR_LIMIT} 文字で切り詰め: ${truncatedContextPaths.join("・")}）`
       : "";
 
+  const commonResult = {
+    sections: sectionCount,
+    continuations: totalContinuations,
+    durationMs,
+    templateStatus,
+    ...(truncatedContextPaths.length > 0 ? { truncatedContextPaths } : {}),
+  };
+
+  if (decision.kind === "divert") {
+    return framedWriteDivertOutcome(decision, {
+      label: "🪄 生成書込",
+      bytes,
+      extraResult: commonResult,
+    });
+  }
+
   return {
     result: {
-      path: targetResolved.relativePath,
+      path: decision.relativePath,
       bytes,
-      sections: sectionCount,
-      continuations: totalContinuations,
-      durationMs,
-      templateStatus,
-      ...(truncatedContextPaths.length > 0 ? { truncatedContextPaths } : {}),
+      ...commonResult,
     },
     display: {
       summary: `${bytes} bytes`,
-      display: `🪄 生成書込: ${targetResolved.relativePath}（${bytes} bytes・${sectionCount} セクション・継続 ${totalContinuations} 回）${truncationNote}`,
+      display: `🪄 生成書込: ${decision.relativePath}（${bytes} bytes・${sectionCount} セクション・継続 ${totalContinuations} 回）${truncationNote}`,
     },
   };
 }

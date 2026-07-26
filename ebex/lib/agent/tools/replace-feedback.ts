@@ -88,6 +88,18 @@ const MARKER_SECTION_RE =
   /<!--\s*([A-Z][A-Z0-9_]*)_START\s*-->([\s\S]*?)<!--\s*\1_END\s*-->/g;
 
 /**
+ * `<!-- XXX_START -->`〜`<!-- XXX_END -->` の区間名を、中身の充填状態に
+ * 関わらずすべて返す。額縁テンプレートかどうかの判定に使う。
+ */
+export function findMarkerSectionNames(content: string): string[] {
+  const found = new Set<string>();
+  for (const match of content.matchAll(MARKER_SECTION_RE)) {
+    found.add(match[1]);
+  }
+  return [...found].sort();
+}
+
+/**
  * `<!-- XXX_START -->`〜`<!-- XXX_END -->` の区間で中身が空（空白のみ）の
  * マーカー名を返す。テンプレート規約準拠のファイルで「未充填の区間」を
  * 決定的に検出する。

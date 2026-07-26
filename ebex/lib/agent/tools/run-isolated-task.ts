@@ -2,6 +2,10 @@ import fs from "node:fs";
 import path from "node:path";
 import { resolveToolTargetPath } from "@/lib/agent/tools/fs-guard";
 import {
+  framedWriteDivertOutcome,
+  resolveFramedWriteTarget,
+} from "@/lib/agent/tools/framed-write-guard";
+import {
   GENERATE_MAX_SECTIONS,
   GENERATE_RETRY_GUIDANCE,
   GENERATE_TOTAL_CHAR_LIMIT,
@@ -162,14 +166,36 @@ export async function executeRunIsolatedTask(
       : "";
 
   if (targetResolved) {
-    fs.mkdirSync(path.dirname(targetResolved.absolutePath), {
+    // 額縁テンプレートを丸ごと上書きしそうな場合は中間ファイル置き場へ退避する
+    const decision = resolveFramedWriteTarget({
+      absolutePath: targetResolved.absolutePath,
+      relativePath: targetResolved.relativePath,
+      projectFolderId: context.projectFolderId,
+      projectRoot: context.projectRoot,
+    });
+
+    fs.mkdirSync(path.dirname(decision.absolutePath), {
       recursive: true,
     });
-    fs.writeFileSync(targetResolved.absolutePath, childResult.text, "utf-8");
+    fs.writeFileSync(decision.absolutePath, childResult.text, "utf-8");
     const bytes = Buffer.byteLength(childResult.text, "utf-8");
+
+    if (decision.kind === "divert") {
+      return framedWriteDivertOutcome(decision, {
+        label: "🧩 独立実行書込",
+        bytes,
+        extraResult: {
+          sections: childResult.sectionCount,
+          continuations: childResult.continuations,
+          durationMs,
+          ...(truncatedContextPaths.length > 0 ? { truncatedContextPaths } : {}),
+        },
+      });
+    }
+
     return {
       result: {
-        path: targetResolved.relativePath,
+        path: decision.relativePath,
         bytes,
         sections: childResult.sectionCount,
         continuations: childResult.continuations,
@@ -178,7 +204,7 @@ export async function executeRunIsolatedTask(
       },
       display: {
         summary: `${bytes} bytes`,
-        display: `🧩 独立実行書込: ${targetResolved.relativePath}（${bytes} bytes・${childResult.sectionCount} セクション）${truncationNote}`,
+        display: `🧩 独立実行書込: ${decision.relativePath}（${bytes} bytes・${childResult.sectionCount} セクション）${truncationNote}`,
       },
     };
   }

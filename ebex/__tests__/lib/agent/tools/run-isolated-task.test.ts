@@ -142,6 +142,44 @@ describe("executeRunIsolatedTask", () => {
     fs.rmSync(base.tmpDir, { recursive: true, force: true });
   });
 
+  it("diverts to the work dir instead of overwriting a framed template", async () => {
+    const base = makeProject();
+    const framePath = path.join(base.projectDir, "output", "report.html");
+    fs.mkdirSync(path.dirname(framePath), { recursive: true });
+    const frame = [
+      "<html><body>",
+      "<!-- BODY_START -->",
+      "",
+      "<!-- BODY_END -->",
+      "</body></html>",
+    ].join("\n");
+    fs.writeFileSync(framePath, frame, "utf-8");
+
+    const { provider } = makeProvider([
+      { text: "レポート本文", stopReason: "end_turn" },
+    ]);
+    const outcome = await executeRunIsolatedTask(makeContext(base, provider), {
+      purpose: "評価",
+      instruction: "評価して",
+      path: "output/report.html",
+    });
+
+    expect(fs.readFileSync(framePath, "utf-8")).toBe(frame);
+    expect(outcome.result).toMatchObject({
+      diverted: true,
+      path: "workspace/demo/_work/output__report.html",
+      requestedPath: "workspace/demo/output/report.html",
+      markerNames: ["BODY"],
+    });
+    expect(
+      fs.readFileSync(
+        path.join(base.projectDir, "_work", "output__report.html"),
+        "utf-8",
+      ),
+    ).toBe("レポート本文");
+    fs.rmSync(base.tmpDir, { recursive: true, force: true });
+  });
+
   it("does not include context_paths content in the tool_result", async () => {
     const base = makeProject();
     fs.mkdirSync(path.join(base.projectDir, "output"), { recursive: true });

@@ -6,6 +6,10 @@ import {
 } from "@/lib/agent/llm/types";
 import type { LlmProvider } from "@/lib/agent/llm/provider";
 import { resolveToolTargetPath } from "@/lib/agent/tools/fs-guard";
+import {
+  framedWriteDivertOutcome,
+  resolveFramedWriteTarget,
+} from "@/lib/agent/tools/framed-write-guard";
 import { executeGenerateAndWrite } from "@/lib/agent/tools/generate-write";
 import { executeRunIsolatedTask } from "@/lib/agent/tools/run-isolated-task";
 import { inlineHtmlAssets } from "@/lib/agent/tools/inline-html-assets";
@@ -1025,15 +1029,27 @@ function executeWriteFile(
     );
   }
 
-  fs.mkdirSync(path.dirname(resolved.absolutePath), { recursive: true });
-  fs.writeFileSync(resolved.absolutePath, content, "utf-8");
+  // 額縁テンプレートを丸ごと上書きしそうな場合は中間ファイル置き場へ退避する
+  const decision = resolveFramedWriteTarget({
+    absolutePath: resolved.absolutePath,
+    relativePath: resolved.relativePath,
+    projectFolderId: context.projectFolderId,
+    projectRoot: context.projectRoot,
+  });
+
+  fs.mkdirSync(path.dirname(decision.absolutePath), { recursive: true });
+  fs.writeFileSync(decision.absolutePath, content, "utf-8");
   const bytes = Buffer.byteLength(content, "utf-8");
 
+  if (decision.kind === "divert") {
+    return framedWriteDivertOutcome(decision, { label: "💾 書込", bytes });
+  }
+
   return {
-    result: { path: resolved.relativePath, bytes },
+    result: { path: decision.relativePath, bytes },
     display: display(
       `${bytes} bytes`,
-      `💾 書込: ${resolved.relativePath}（${bytes} bytes）`,
+      `💾 書込: ${decision.relativePath}（${bytes} bytes）`,
     ),
   };
 }

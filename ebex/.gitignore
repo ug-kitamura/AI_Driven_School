@@ -18,6 +18,9 @@ next-env.d.ts
 # secret env
 .env.local
 
+# Claude Code
+.claude/settings.local.json
+
 # OpenSpec
 .claude/commands/opsx/
 .claude/skills/openspec-*/

@@ -5,10 +5,17 @@ import { Button } from "@/components/ui/button";
 import type { AgentToolEvent } from "@/lib/agent/llm/types";
 import { cn } from "@/lib/utils";
 import { useState } from "react";
+import { ToolConfirmInlineCard } from "@/components/workspace/ToolConfirmInlineCard";
+import type { ToolConfirmRequiredEvent } from "@/lib/agent/stream-client";
 
 type Props = {
   events: AgentToolEvent[];
   className?: string;
+  /** ターン実行中の確認待ち。あれば末尾に常時表示のカードを描画する */
+  pendingConfirm?: ToolConfirmRequiredEvent | null;
+  onConfirmApprove?: () => void;
+  onConfirmReject?: () => void;
+  onConfirmManualSubmit?: (manualSearchText: string) => void;
 };
 
 type CompactItem = {
@@ -148,30 +155,39 @@ function ToolEventDetails({
   );
 }
 
-export function AgentToolCallBlock({ events, className }: Props) {
+export function AgentToolCallBlock({
+  events,
+  className,
+  pendingConfirm,
+  onConfirmApprove,
+  onConfirmReject,
+  onConfirmManualSubmit,
+}: Props) {
   const [open, setOpen] = useState(false);
   const pairs = pairToolEvents(events);
-  if (pairs.length === 0) return null;
+  if (pairs.length === 0 && !pendingConfirm) return null;
 
   const summary = summarizeToolPairs(pairs);
 
   return (
     <div className={cn("flex min-w-0 flex-col gap-1", className)}>
-      <Button
-        type="button"
-        variant="ghost"
-        size="sm"
-        className="h-auto w-full min-w-0 justify-start gap-1 px-0 py-0 text-xs text-muted-foreground hover:bg-transparent"
-        onClick={() => setOpen((value) => !value)}
-      >
-        <ChevronDown
-          className={cn(
-            "size-3 shrink-0 transition-transform",
-            open && "rotate-180",
-          )}
-        />
-        <span className="min-w-0 truncate text-left">{summary}</span>
-      </Button>
+      {pairs.length > 0 ? (
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          className="h-auto w-full min-w-0 justify-start gap-1 px-0 py-0 text-xs text-muted-foreground hover:bg-transparent"
+          onClick={() => setOpen((value) => !value)}
+        >
+          <ChevronDown
+            className={cn(
+              "size-3 shrink-0 transition-transform",
+              open && "rotate-180",
+            )}
+          />
+          <span className="min-w-0 truncate text-left">{summary}</span>
+        </Button>
+      ) : null}
       {open ? (
         <div className="flex flex-col gap-1 rounded-md border border-border bg-muted/40 px-2 py-1.5 text-xs text-muted-foreground">
           {pairs.map((pair, index) => (
@@ -182,6 +198,15 @@ export function AgentToolCallBlock({ events, className }: Props) {
             />
           ))}
         </div>
+      ) : null}
+      {pendingConfirm ? (
+        <ToolConfirmInlineCard
+          key={`tool-confirm-${pendingConfirm.toolUseId}`}
+          request={pendingConfirm}
+          onApprove={() => onConfirmApprove?.()}
+          onReject={() => onConfirmReject?.()}
+          onManualSubmit={(text) => onConfirmManualSubmit?.(text)}
+        />
       ) : null}
     </div>
   );

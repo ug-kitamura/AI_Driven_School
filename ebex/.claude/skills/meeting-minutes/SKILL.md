@@ -1,11 +1,11 @@
 ---
-name: minutes-maid
+name: meeting-minutes
 description: |
   月例会議の音声文字起こしデータをもとに議事録を生成するスキル。
   「議事録を作って」「文字起こしから議事録」「会議のまとめ」「minutes」と依頼された際に使用する。
 ---
 
-# Minutes Maid
+# Meeting Minutes
 
 月例会議の**音声文字起こし**から、部のメンバー全員が活用できる**図解形式議事録**を生成する。
 

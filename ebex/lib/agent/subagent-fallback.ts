@@ -2,10 +2,10 @@
 export const SUBAGENT_KEYWORD = "サブエージェント";
 
 export const SUBAGENT_FALLBACK_USER_MESSAGE =
-  "EBEX はサブエージェントに対応していません。同一セッションで続行します。";
+  "EBEX は真のサブエージェントには対応していません。当該の役割は、親の会話とは独立した文脈で実行するツールで代替します。";
 
 export const SUBAGENT_FALLBACK_MODEL_HINT =
-  "EBEX はサブエージェントを起動できない。指示にあっても spawn せず、同じセッション内で自ら役割を順に実行すること。";
+  "EBEX は真のサブエージェントを起動できない。指示にあっても spawn せず、`run_isolated_task` ツールを使って当該の役割を独立した文脈で実行すること。";
 
 export function skillMentionsSubagent(text: string): boolean {
   return text.includes(SUBAGENT_KEYWORD);

@@ -40,14 +40,25 @@ export const UNKNOWN_MODEL_PROFILE: ModelProfile = {
   providerParams: {},
 };
 
+/**
+ * Sonnet/Opus/Fable 系。非ストリーミング・社内ゲートウェイ運用のため、
+ * Claude API の実上限（128,000）までは上げず、まず倍増した 64,000 で運用する。
+ */
 const CLAUDE_LARGE: ModelProfile = {
-  maxOutputTokens: 32000,
+  maxOutputTokens: 64000,
   continuations: { generatePerSection: 4, textPerTurn: 4, nudgeMax: 2 },
   providerParams: {},
 };
 
+/**
+ * Haiku 専用（軽量モデル）。gpt-5-nano と同じ 32,000 に揃えている。値そのものを
+ * 上げる必然性より、社内ゲートウェイを経由しない環境（家PC等）で gpt-5-nano と
+ * 同じ max_tokens を使って比較検証できるようにする目的が大きい
+ * （token 数を揃えないと、タイムアウトの原因が「ゲートウェイ経由」なのか
+ * 「単に生成量が多いから」なのかを切り分けられない）。
+ */
 const CLAUDE_SMALL: ModelProfile = {
-  maxOutputTokens: 16384,
+  maxOutputTokens: 32000,
   continuations: { generatePerSection: 4, textPerTurn: 4, nudgeMax: 3 },
   providerParams: {},
 };
@@ -56,13 +67,15 @@ const CLAUDE_SMALL: ModelProfile = {
  * 初期値。Claude 系は従来定数の追認（挙動不変）。
  * gpt-5-nano は実測（1/3 サイズ入力で手動継続 4 回）からの余裕込み仮説値で、
  * 社内ゲートウェイの実効上限確認後に EBEX_MODEL_PROFILES で調整する想定。
+ * gpt-5-nano は 32,000 上限・非ストリーミングで社内ゲートウェイ経由の間欠的
+ * タイムアウトが実測されているため、上限を上げる方向の変更は行わない。
  */
 const BASE_MODEL_PROFILES: Record<string, ModelProfile> = {
   "claude-sonnet-4-6": CLAUDE_LARGE,
   "claude-sonnet-5": CLAUDE_LARGE,
   "claude-opus-4-7": CLAUDE_LARGE,
   "claude-opus-4-8": CLAUDE_LARGE,
-  "claude-fable-5": CLAUDE_SMALL,
+  "claude-fable-5": CLAUDE_LARGE,
   "claude-haiku-4-5": CLAUDE_SMALL,
   "gpt-5-nano": {
     maxOutputTokens: 32000,

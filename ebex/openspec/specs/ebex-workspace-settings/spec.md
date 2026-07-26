@@ -3,42 +3,32 @@
 ## Purpose
 
 TBD - created by archiving change ebex-v1-workspace. Update Purpose after archive.
-
 ## Requirements
-
 ### Requirement: 設定項目
 
-設定ダイアログ（⚙）には以下の項目のみが含まれなければならない（SHALL）: テーマ（light / dark / system）、編集フォントサイズ、ペイン既定幅（pane1 / pane2 / pane3）、AI モデル、AI API キー、最大出力トークン（`8192` / `16384` / `32000`、既定 `32000`）。
+設定ダイアログ（⚙）には以下の項目のみが含まれなければならない（SHALL）: テーマ（light / dark / system）、編集フォントサイズ、ペイン既定幅（pane1 / pane2 / pane3）、AI モデル、AI API キー、最大出力トークン（選択中の AI モデルに対応するプロファイル上限値の読み取り専用表示）。
+
+最大出力トークンはユーザーが選択・変更可能な入力であってはならない（MUST NOT）。表示値はモデルプロファイル（`resolveModelProfile(model).maxOutputTokens`）から都度取得しなければならない（SHALL）。AI モデルの選択を変更した場合、最大出力トークンの表示値も選択中モデルに応じて切り替わらなければならない（SHALL）。
 
 #### Scenario: 設定項目の表示
 
 - **WHEN** ユーザーが設定ダイアログを開く
-- **THEN** テーマ、フォントサイズ、ペイン幅、AI モデル、AI API キー、最大出力トークンの入力が表示される
+- **THEN** テーマ、フォントサイズ、ペイン幅、AI モデル、AI API キー、選択中モデルの最大出力トークン（読み取り専用）が表示される
 
 #### Scenario: 除外項目が表示されない
 
 - **WHEN** ユーザーが設定ダイアログを開く
 - **THEN** Pixabay API キー、画像ストレージ、社内コンテキストの設定は表示されない
 
-#### Scenario: 最大出力トークンの既定値
+#### Scenario: 最大出力トークンはモデルプロファイルから決まる
 
-- **WHEN** ユーザーが設定を変更せずに（または未保存の既定のまま）Agent を invoke する
-- **THEN** LLM 呼び出しの `max_tokens` は既定値 `32000` になる
+- **WHEN** ユーザーが AI モデルとして claude-haiku-4-5 を選択する
+- **THEN** 最大出力トークンの表示は 32,000 になり、ユーザーはこの値を変更できない
 
-#### Scenario: 最大出力トークンの変更が反映される
+#### Scenario: モデル変更で表示値が切り替わる
 
-- **WHEN** ユーザーが最大出力トークンを `8192` に変更して Agent を invoke する
-- **THEN** LLM 呼び出しの `max_tokens` に `8192` が渡される
-
-#### Scenario: モデル上限でクランプ
-
-- **WHEN** 選択した最大出力トークンが使用中モデルの上限を超える
-- **THEN** 実際に送信される `max_tokens` はモデル上限にクランプされる
-
-#### Scenario: 既存保存値は維持
-
-- **WHEN** localStorage に最大出力トークン `8192` が既に保存されている
-- **THEN** ページ読込後も `8192` が使われ、自動的に `32000` へ書き換えられない
+- **WHEN** ユーザーが AI モデルを claude-haiku-4-5 から claude-sonnet-5 へ切り替える
+- **THEN** 最大出力トークンの表示は 32,000 から 64,000 へ切り替わる
 
 ### Requirement: localStorage 永続化
 
@@ -81,3 +71,4 @@ TBD - created by archiving change ebex-v1-workspace. Update Purpose after archiv
 
 - **WHEN** ユーザーがペイン既定幅をリセットする
 - **THEN** pane3 は 700px に戻る
+

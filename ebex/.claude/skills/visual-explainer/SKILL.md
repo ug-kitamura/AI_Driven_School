@@ -1,11 +1,11 @@
 ---
-name: creating-visual-explainers
+name: visual-explainer
 description: |
   トピックに対するhtml図解を生成するスキル。
   「図解を作って」「図解を生成して」「このトピックを図解して」「infographic」と依頼された際に使用する。
 ---
 
-# Creating Visual Explainers
+# Visual Explainer
 
 任意のトピックについて、前提知識がなくても理解できる図解HTMLを生成する。
 品質基準は「入社したての新卒社会人が読んでも腹落ちする明快さ」だが、この基準は出力には表示しない。

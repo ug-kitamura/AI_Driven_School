@@ -49,6 +49,7 @@ import {
 } from "@/components/ui/context-menu";
 import { cn } from "@/lib/utils";
 import type { WorkspaceTreeNode } from "@/lib/workspace-loader";
+import { deleteFolderAgentChatStorage } from "@/lib/agent-chat-storage";
 import {
   applyEventDateToSuggestedName,
   extractEventDatePrefix,
@@ -155,6 +156,13 @@ type TreeInteraction = {
   focusedRowId: string | null;
   contextMenuTargetId: string | null;
   dropTargetPath: string | null;
+  /**
+   * ドロップ先が move（同一プロジェクト内）か copy（プロジェクトまたぎ）かの
+   * 視覚フィードバック専用の状態。move/copy の実処理の判定には使わない
+   * （実処理は handleInternalDrop 内で getProjectRoot を都度比較する）ため、
+   * この状態と onSetDropEffectKind の呼び出しごと取り除いても機能に影響しない。
+   */
+  dropEffectKind: "move" | "copy" | null;
   clipboard: TreeClipboard;
   selectedFolderPath: string;
   selectedFileName: string;
@@ -163,6 +171,7 @@ type TreeInteraction = {
   onContextMenuChange: (rowId: string | null) => void;
   onSetDropTarget: (folderPath: string) => void;
   onClearDropTarget: () => void;
+  onSetDropEffectKind: (kind: "move" | "copy" | null) => void;
   onDrop: (folderPath: string, event: React.DragEvent) => void;
   onCopy: (payload: TreeClipboard) => void;
   onPaste: (targetFolderPath: string) => void;
@@ -305,6 +314,25 @@ async function importOsItems(
   }
 }
 
+/**
+ * ドラッグ中の dropEffect（move/copy）を、視覚フィードバックのためだけに判定する。
+ * dragover 中は dataTransfer.getData が使えないため types 一覧から判定する。
+ * OS からのドラッグ（INTERNAL_DRAG_MIME が無い）は対象外で null を返す。
+ * この判定結果は表示にのみ使い、実際の move/copy 実行は handleInternalDrop 内で
+ * 都度 getProjectRoot を比較して独立に決める。
+ */
+function dragOverEffectKind(
+  event: React.DragEvent,
+  targetPath: string,
+): "move" | "copy" | null {
+  const types = event.dataTransfer.types;
+  if (!types.includes(INTERNAL_DRAG_MIME)) return null;
+  const sameProject = types.includes(
+    internalDragProjectMime(getProjectRoot(targetPath)),
+  );
+  return sameProject ? "move" : "copy";
+}
+
 function TreeNode({
   node,
   depth,
@@ -315,6 +343,7 @@ function TreeNode({
   const isOpen = expanded[node.path] ?? emphasizedFolderPaths.has(node.path);
   const folderRow = folderRowId(node.path);
   const isDropTarget = interaction.dropTargetPath === node.path;
+  const isCopyDropTarget = isDropTarget && interaction.dropEffectKind === "copy";
   const isSubfolder = !isProjectFolder(node.path);
   // 現在選択中のファイル（no file 含む）を配下に持つプロジェクトフォルダ全体を、
   // 展開状態に関わらず器で囲んで「作業中プロジェクト」を一目で示す
@@ -338,6 +367,9 @@ function TreeNode({
         event.preventDefault();
         event.stopPropagation();
         interaction.onSetDropTarget(node.path);
+        const kind = dragOverEffectKind(event, node.path);
+        if (kind) event.dataTransfer.dropEffect = kind;
+        interaction.onSetDropEffectKind(kind);
       }}
       onDragLeave={(event) => {
         if (!event.currentTarget.contains(event.relatedTarget as Node | null)) {
@@ -350,6 +382,11 @@ function TreeNode({
         void interaction.onDrop(node.path, event);
       }}
     >
+      {isDropTarget ? (
+        <span className="absolute -top-2 right-2 z-10 rounded-full bg-primary px-1.5 py-0.5 text-[10px] font-medium text-white">
+          {isCopyDropTarget ? "copy" : "move"}
+        </span>
+      ) : null}
       <ContextMenu
         onOpenChange={(open) =>
           interaction.onContextMenuChange(open ? folderRow : null)
@@ -373,7 +410,13 @@ function TreeNode({
                   INTERNAL_DRAG_MIME,
                   JSON.stringify(payload),
                 );
-                event.dataTransfer.effectAllowed = "move";
+                // dragover 中は getData 不可のため、所属プロジェクトを
+                // MIME タイプ名に埋め込んでドロップ先の可否判定に使う
+                event.dataTransfer.setData(
+                  internalDragProjectMime(getProjectRoot(node.path)),
+                  "",
+                );
+                event.dataTransfer.effectAllowed = "copyMove";
               }}
               onClick={() => {
                 if (interaction.shouldIgnorePointerToggle()) return;
@@ -532,12 +575,15 @@ function TreeNode({
                           internalDragProjectMime(getProjectRoot(node.path)),
                           "",
                         );
-                        event.dataTransfer.effectAllowed = "move";
+                        event.dataTransfer.effectAllowed = "copyMove";
                       }}
                       onDragOver={(event) => {
                         event.preventDefault();
                         event.stopPropagation();
                         interaction.onSetDropTarget(node.path);
+                        const kind = dragOverEffectKind(event, node.path);
+                        if (kind) event.dataTransfer.dropEffect = kind;
+                        interaction.onSetDropEffectKind(kind);
                       }}
                       onDrop={(event) => {
                         event.preventDefault();
@@ -782,6 +828,9 @@ export function FileTreePane({
     null,
   );
   const [dropTargetPath, setDropTargetPath] = useState<string | null>(null);
+  const [dropEffectKind, setDropEffectKind] = useState<
+    "move" | "copy" | null
+  >(null);
   const [clipboard, setClipboard] = useState<TreeClipboard>(null);
   const [favorites, setFavorites] = useState<FavoriteEntry[]>([]);
   const [favoritesOnly, setFavoritesOnly] = useState(false);
@@ -981,7 +1030,30 @@ export function FileTreePane({
           return;
         }
         if (getProjectRoot(payload.folderPath) !== getProjectRoot(targetPath)) {
-          throw new Error("Cannot move items across project folders");
+          // プロジェクトをまたぐ DnD は move ではなく copy として成立させる
+          const params = new URLSearchParams({
+            folderId: payload.folderPath,
+            fileName: payload.fileName,
+          });
+          const res = await fetch(
+            `/api/workspace/read-file?${params.toString()}`,
+          );
+          if (!res.ok) {
+            const data = (await res.json().catch(() => ({}))) as {
+              error?: string;
+            };
+            throw new Error(data.error ?? "Failed to read file");
+          }
+          const data = (await res.json()) as { content?: string };
+          const result = (await postJson("/api/workspace/create-file", {
+            folderId: targetPath,
+            fileName: payload.fileName,
+            content: data.content ?? "",
+            ...AUTO_RENAME_ON_CONFLICT,
+          })) as { fileName?: string };
+          const copiedName = result.fileName ?? payload.fileName;
+          focusRow(fileRowId(targetPath, copiedName));
+          return;
         }
         const result = (await postJson("/api/workspace/move-file", {
           fromFolderId: payload.folderPath,
@@ -1007,7 +1079,17 @@ export function FileTreePane({
         throw new Error("Cannot move a folder into itself or its descendant");
       }
       if (getProjectRoot(payload.folderPath) !== getProjectRoot(targetPath)) {
-        throw new Error("Cannot move items across project folders");
+        // プロジェクトをまたぐ DnD は move ではなく copy として成立させる
+        const result = (await postJson("/api/workspace/copy-folder", {
+          fromPath: payload.folderPath,
+          toParentPath: targetPath,
+          ...AUTO_RENAME_ON_CONFLICT,
+        })) as { path?: string };
+        const copiedPath =
+          result.path ??
+          `${targetPath}/${getFolderBaseName(payload.folderPath)}`;
+        focusRow(folderRowId(copiedPath));
+        return;
       }
       const folderName = getFolderBaseName(payload.folderPath);
       const toPath = `${targetPath}/${folderName}`;
@@ -1041,6 +1123,7 @@ export function FileTreePane({
   const handleDropOnFolder = useCallback(
     async (folderPath: string, event: React.DragEvent) => {
       setDropTargetPath(null);
+      setDropEffectKind(null);
       clearPaneError();
       setBusy(true);
       try {
@@ -1446,9 +1529,17 @@ export function FileTreePane({
           return;
         }
         case "delete-folder": {
+          // プロジェクト直下フォルダの ino は削除前（フォルダ実体が消える前）に控えておく。
+          // localStorage フォールバック履歴のクリーンアップに使う（ino 未取得時は何もしない）。
+          const deletedProjectIno = !dialog.folderPath.includes("/")
+            ? folders.find((f) => f.path === dialog.folderPath)?.ino
+            : undefined;
           await postJson("/api/workspace/delete-folder", {
             folderId: dialog.folderPath,
           });
+          if (deletedProjectIno) {
+            deleteFolderAgentChatStorage(deletedProjectIno);
+          }
           clearSelectionIfUnderPath(dialog.folderPath);
           const parentPath = getParentFolderPath(dialog.folderPath);
           const fallbackRowId = resolveSelectedFileRowId(
@@ -1520,6 +1611,7 @@ export function FileTreePane({
     clearSelectionIfUnderPath,
     dialog,
     focusRow,
+    folders,
     handleSelectFile,
     nameInput,
     onRefresh,
@@ -1761,6 +1853,7 @@ export function FileTreePane({
       focusedRowId,
       contextMenuTargetId,
       dropTargetPath,
+      dropEffectKind,
       clipboard,
       selectedFolderPath,
       selectedFileName,
@@ -1768,7 +1861,11 @@ export function FileTreePane({
       onFocusRow: handleFocusRow,
       onContextMenuChange: handleContextMenuChange,
       onSetDropTarget: setDropTargetPath,
-      onClearDropTarget: () => setDropTargetPath(null),
+      onClearDropTarget: () => {
+        setDropTargetPath(null);
+        setDropEffectKind(null);
+      },
+      onSetDropEffectKind: setDropEffectKind,
       onDrop: handleDropOnFolder,
       onCopy: setClipboard,
       onPaste: (target) => void handlePaste(target),
@@ -1794,6 +1891,7 @@ export function FileTreePane({
       clipboard,
       contextMenuTargetId,
       dropTargetPath,
+      dropEffectKind,
       focusedRowId,
       handleContextMenuChange,
       handleDropOnFolder,

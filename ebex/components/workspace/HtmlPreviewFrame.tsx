@@ -1,39 +1,62 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef } from "react";
 import { cn } from "@/lib/utils";
+import { useResolvedDarkMode } from "@/lib/use-resolved-dark-mode";
 
-const OVERFLOW_STYLE =
-  "<style>html,body{overflow:hidden!important;margin:0;padding:0;}</style>";
+/** 注入した style 要素を再注入時に見分けるための印 */
+const SCROLLBAR_STYLE_ID = "ebex-workspace-scrollbar";
+
+/**
+ * iframe は別文書なので親の :root に定義した custom property を継承しない。
+ * 親側で解決した色リテラルを含む CSS を組み立てる。いずれかが解決できない場合は
+ * 代替色を使わず null を返し、ブラウザ既定のスクロールバーへ倒す。
+ */
+function buildScrollbarCss(): string | null {
+  if (typeof document === "undefined") return null;
+  const styles = getComputedStyle(document.documentElement);
+  const read = (name: string) => styles.getPropertyValue(name).trim();
+
+  const track = read("--workspace-scrollbar-track");
+  const thumb = read("--workspace-scrollbar-thumb");
+  const thumbHover = read("--workspace-scrollbar-thumb-hover");
+  if (!track || !thumb || !thumbHover) return null;
+
+  // 形状は app/globals.css の .workspace-scrollbar と揃える
+  return `
+html { scrollbar-width: thin; scrollbar-color: ${thumb} ${track}; }
+html::-webkit-scrollbar { width: 10px; height: 10px; }
+html::-webkit-scrollbar-track { background: ${track}; }
+html::-webkit-scrollbar-thumb {
+  background-color: ${thumb};
+  border: 2px solid ${track};
+  border-radius: 9999px;
+}
+html::-webkit-scrollbar-thumb:hover { background-color: ${thumbHover}; }
+`;
+}
+
+/** 同じ iframe へ 2 回目以降に注入するときは既存の style を差し替える */
+function applyScrollbarStyle(doc: Document): void {
+  const css = buildScrollbarCss();
+  const existing = doc.getElementById(SCROLLBAR_STYLE_ID);
+  if (!css) {
+    existing?.remove();
+    return;
+  }
+  if (existing) {
+    existing.textContent = css;
+    return;
+  }
+  const style = doc.createElement("style");
+  style.id = SCROLLBAR_STYLE_ID;
+  style.textContent = css;
+  (doc.head ?? doc.documentElement)?.appendChild(style);
+}
 
 function wrapHtmlForPreview(html: string): string {
-  if (/<head[\s>]/i.test(html)) {
-    return html.replace(/<head([\s>])/i, `<head$1${OVERFLOW_STYLE}`);
-  }
-  if (/<html[\s>]/i.test(html)) {
-    return html.replace(
-      /<html([\s>])/i,
-      `<html$1<head>${OVERFLOW_STYLE}</head>`,
-    );
-  }
-  return `<!DOCTYPE html><html><head>${OVERFLOW_STYLE}</head><body>${html}</body></html>`;
-}
-
-function measureDocumentHeight(doc: Document): number {
-  const { documentElement, body } = doc;
-  return Math.max(
-    documentElement.scrollHeight,
-    documentElement.offsetHeight,
-    body?.scrollHeight ?? 0,
-    body?.offsetHeight ?? 0,
-  );
-}
-
-function applyOverflowHidden(doc: Document): void {
-  const style = doc.createElement("style");
-  style.textContent =
-    "html, body { overflow: hidden !important; margin: 0; padding: 0; }";
-  doc.head?.appendChild(style);
+  if (/<head[\s>]/i.test(html) || /<html[\s>]/i.test(html)) return html;
+  return `<!DOCTYPE html><html><head></head><body>${html}</body></html>`;
 }
 
 /**
@@ -66,62 +89,45 @@ type Props = {
 
 export function HtmlPreviewFrame({ content, isResizing = false }: Props) {
   const iframeRef = useRef<HTMLIFrameElement>(null);
-  const observerRef = useRef<ResizeObserver | null>(null);
-  const syncTimeoutRef = useRef<number[]>([]);
-  const [height, setHeight] = useState(1);
+  const isDark = useResolvedDarkMode();
 
   const srcDoc = useMemo(() => wrapHtmlForPreview(content), [content]);
-
-  const syncHeight = useCallback(() => {
-    const doc = iframeRef.current?.contentDocument;
-    if (!doc) return;
-
-    const nextHeight = measureDocumentHeight(doc);
-    setHeight((prev) => (prev === nextHeight ? prev : nextHeight));
-  }, []);
 
   const handleLoad = useCallback(() => {
     const doc = iframeRef.current?.contentDocument;
     if (!doc?.body) return;
 
-    applyOverflowHidden(doc);
     interceptLinkClicks(doc);
-    syncHeight();
-
-    observerRef.current?.disconnect();
-    observerRef.current = new ResizeObserver(() => {
-      syncHeight();
-    });
-    observerRef.current.observe(doc.body);
-    observerRef.current.observe(doc.documentElement);
-
-    requestAnimationFrame(syncHeight);
-    syncTimeoutRef.current.push(window.setTimeout(syncHeight, 100));
-    syncTimeoutRef.current.push(window.setTimeout(syncHeight, 500));
-  }, [syncHeight]);
-
-  useEffect(() => {
-    return () => {
-      observerRef.current?.disconnect();
-      for (const id of syncTimeoutRef.current) {
-        window.clearTimeout(id);
-      }
-      syncTimeoutRef.current = [];
-    };
+    applyScrollbarStyle(doc);
   }, []);
 
+  // テーマ切替で custom property の値が変わるため注入し直す
+  useEffect(() => {
+    const doc = iframeRef.current?.contentDocument;
+    if (!doc?.body) return;
+    applyScrollbarStyle(doc);
+  }, [isDark, srcDoc]);
+
   return (
-    <iframe
-      ref={iframeRef}
-      title="HTML preview"
-      sandbox="allow-scripts allow-same-origin"
-      srcDoc={srcDoc}
-      onLoad={handleLoad}
-      className={cn(
-        "min-h-px w-full border-0 bg-white",
-        isResizing && "pointer-events-none",
-      )}
-      style={{ height }}
-    />
+    <div className="relative h-full w-full">
+      <iframe
+        ref={iframeRef}
+        title="HTML preview"
+        sandbox="allow-scripts allow-same-origin"
+        srcDoc={srcDoc}
+        onLoad={handleLoad}
+        className={cn(
+          // block でないと inline 置換要素の baseline 分だけ親がはみ出す
+          "block h-full w-full border-0 bg-white",
+        )}
+      />
+      {/* リサイズ中は iframe の pointer-events を変更せず、代わりにこのオーバーレイが
+          マウス入力を受け止める。sandbox 付き iframe は pointer-events を戻しても
+          ヒットテスト領域の再同期が起きないことがあり、以後スクロールを受け付けなく
+          なるため。 */}
+      {isResizing ? (
+        <div className="absolute inset-0" aria-hidden="true" />
+      ) : null}
+    </div>
   );
 }

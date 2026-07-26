@@ -5,6 +5,8 @@ import {
   type ToolPathError,
 } from "@/lib/agent/tools/fs-guard";
 import { detectNetworkAccessHint } from "@/lib/agent/tools/script-sandbox";
+import { normalizeMarkerName } from "@/lib/agent/tools/replace-feedback";
+import { isPathInsideWorkDir } from "@/lib/agent/skill-io-boundary";
 import type { LlmMessage, ToolCall } from "@/lib/agent/llm/types";
 import type { ConfirmKind } from "@/lib/agent/tools/confirm-kind";
 
@@ -34,6 +36,12 @@ export type ConfirmSearchInfo = {
   purpose: string;
 };
 
+/** inline_html_assets 確認の表示ペイロード */
+export type ConfirmInlineAssetsInfo = {
+  /** 上書き対象のパス（プロジェクト相対） */
+  targets: string[];
+};
+
 /** generate_and_write 確認の表示ペイロード */
 export type ConfirmGenerateInfo = {
   /** 何のために生成するか（モデル申告） */
@@ -44,6 +52,11 @@ export type ConfirmGenerateInfo = {
   sections: string[];
   /** 子プロンプトへ渡される参照ファイル */
   contextPaths: string[];
+  /**
+   * 差し込み先の区間名（`generate_and_write` の marker）。
+   * 設定されている場合、書き込みはファイル全体の上書きではなく当該区間への差し込みになる。
+   */
+  marker?: string;
 };
 
 export type ConfirmRequirement = {
@@ -58,6 +71,8 @@ export type ConfirmRequirement = {
   search?: ConfirmSearchInfo;
   /** 生成書込確認（kind: generate-write）の表示情報 */
   generate?: ConfirmGenerateInfo;
+  /** インライン化確認（kind: inline-assets）の表示情報 */
+  inlineAssets?: ConfirmInlineAssetsInfo;
 };
 
 export type ConfirmGateOptions = ResolveToolPathOptions & {
@@ -146,6 +161,9 @@ function resolveWriteConfirm(
   }
   if (exists && requireExistsForOverwrite) {
     if (shouldSkipOverwrite(resolved.relativePath, skipOverwritePaths)) {
+      return null;
+    }
+    if (isPathInsideWorkDir(resolved.relativePath, projectFolderId)) {
       return null;
     }
     return { kind: "overwrite", path: resolved.relativePath, isNew: false };
@@ -305,6 +323,11 @@ function resolveGenerateConfirm(
         )
       : [];
 
+  const marker =
+    typeof call.input?.marker === "string"
+      ? (normalizeMarkerName(call.input.marker) ?? undefined)
+      : undefined;
+
   return {
     kind: "generate-write",
     path: resolved.relativePath,
@@ -315,7 +338,77 @@ function resolveGenerateConfirm(
       instruction: instruction.slice(0, SCRIPT_CODE_DISPLAY_CHAR_LIMIT),
       sections: toStringArray(call.input?.sections),
       contextPaths: toStringArray(call.input?.context_paths),
+      ...(marker ? { marker } : {}),
     },
+  };
+}
+
+/**
+ * run_isolated_task の確認要求を組み立てる。
+ * generate_and_write と同じく子 LLM 呼び出し（API トークン消費）を伴うため毎回確認する。
+ * path は任意（省略時は結果テキストをそのまま返す。書込を伴わないため上書き区別は無い）。
+ */
+function resolveIsolatedTaskConfirm(
+  projectRoot: string,
+  projectFolderId: string,
+  call: ToolCall,
+  options: ConfirmGateOptions,
+): ConfirmRequirement | null {
+  const instruction =
+    typeof call.input?.instruction === "string" ? call.input.instruction : "";
+  if (!instruction.trim()) return null; // broken tool_use 経路で処理される
+
+  const toStringArray = (value: unknown): string[] =>
+    Array.isArray(value)
+      ? value.filter(
+          (entry): entry is string =>
+            typeof entry === "string" && !!entry.trim(),
+        )
+      : [];
+
+  const inputPath = extractPathInput(call);
+  const generateInfo = {
+    purpose: typeof call.input?.purpose === "string" ? call.input.purpose : "",
+    instruction: instruction.slice(0, SCRIPT_CODE_DISPLAY_CHAR_LIMIT),
+    sections: toStringArray(call.input?.sections),
+    contextPaths: toStringArray(call.input?.context_paths),
+  };
+
+  if (!inputPath) {
+    return {
+      kind: "isolated-task",
+      path: "(独立実行タスク)",
+      isNew: false,
+      generate: generateInfo,
+    };
+  }
+
+  const resolved = resolveToolTargetPath(
+    projectRoot,
+    projectFolderId,
+    inputPath,
+    {
+      ...options,
+      preferSkillIfExists: false,
+    },
+  );
+  if ("error" in resolved) return null; // 実行時に拒否される
+  if (resolved.insideSkill) return null; // 実行時に拒否される
+
+  const exists = fs.existsSync(resolved.absolutePath);
+  if (!resolved.insideProject) {
+    return {
+      kind: "outside-project-write",
+      path: resolved.relativePath,
+      isNew: !exists,
+    };
+  }
+
+  return {
+    kind: "isolated-task",
+    path: resolved.relativePath,
+    isNew: !exists,
+    generate: generateInfo,
   };
 }
 
@@ -331,6 +424,30 @@ export function resolveConfirmRequirement(
 
   if (call.name === "generate_and_write") {
     return resolveGenerateConfirm(projectRoot, projectFolderId, call, options);
+  }
+
+  if (call.name === "run_isolated_task") {
+    return resolveIsolatedTaskConfirm(
+      projectRoot,
+      projectFolderId,
+      call,
+      options,
+    );
+  }
+
+  if (call.name === "inline_html_assets") {
+    // 対象が複数でも確認は 1 回にまとめる（差し込み・展開を分割実行させないため）
+    const raw = Array.isArray(call.input?.paths) ? call.input.paths : [];
+    const targets = raw.filter(
+      (p): p is string => typeof p === "string" && p.trim().length > 0,
+    );
+    if (targets.length === 0) return null;
+    return {
+      kind: "inline-assets",
+      path: targets.join(" / "),
+      isNew: false,
+      inlineAssets: { targets },
+    };
   }
 
   if (call.name === "web_search") {

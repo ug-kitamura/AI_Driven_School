@@ -3,9 +3,7 @@
 ## Purpose
 
 モデルプロファイル（EBEX 解釈層＋providerParams 通過袋）の構造・既定値・外部上書き・未知モデルの既定挙動。
-
 ## Requirements
-
 ### Requirement: モデルプロファイルの構造
 
 システムはモデルごとのプロファイルを一元管理しなければならない（SHALL）。プロファイルは EBEX が解釈する層（`maxOutputTokens`、継続上限 `generatePerSection` / `textPerTurn` / `nudgeMax`）と、プロバイダへ無解釈で渡す通過袋 `providerParams`（`agent` / `generate` の 2 スロット）で構成しなければならない（SHALL）。EBEX 本体は `providerParams` の中身を解釈・検証してはならない（MUST NOT）。
@@ -45,12 +43,24 @@
 
 ### Requirement: 既存定数のプロファイル統合
 
-`MODEL_MAX_OUTPUT_TOKENS`・`GENERATE_MAX_CONTINUATIONS_PER_SECTION`・`MAX_TEXT_CONTINUATIONS_PER_TURN` に相当する値はプロファイルから解決しなければならない（SHALL）。Claude 系モデルのプロファイル初期値は現行定数と同値とし、挙動を変えてはならない（MUST NOT）。`gpt-5-nano` のプロファイルエントリを追加しなければならない（SHALL）。
+`MODEL_MAX_OUTPUT_TOKENS`・`GENERATE_MAX_CONTINUATIONS_PER_SECTION`・`MAX_TEXT_CONTINUATIONS_PER_TURN` に相当する値はプロファイルから解決しなければならない（SHALL）。`gpt-5-nano` のプロファイルエントリを持たなければならない（SHALL）。
 
-#### Scenario: Claude 系の挙動不変
+Claude 系モデルのうち `claude-sonnet-4-6` / `claude-sonnet-5` / `claude-opus-4-7` / `claude-opus-4-8` / `claude-fable-5` は同一のプロファイルグループ（`maxOutputTokens` 64,000）に属さなければならない（SHALL）。`claude-haiku-4-5` は上記グループとは異なるプロファイルグループに属し、`maxOutputTokens` は `gpt-5-nano` と同じ 32,000 でなければならない（SHALL）。`gpt-5-nano` の `maxOutputTokens` は 32,000 のままでなければならない（SHALL）。
 
-- **WHEN** claude-sonnet-4-6 で従来どおりエージェントを実行する
-- **THEN** maxOutputTokens 32000・継続上限 4 など、統合前と同一の値で動作する
+#### Scenario: 大型 Claude 系モデルの上限
+
+- **WHEN** claude-sonnet-5 または claude-opus-4-8 または claude-fable-5 でエージェントを実行する
+- **THEN** `maxOutputTokens` は 64,000 が適用される
+
+#### Scenario: Haiku の上限は gpt-5-nano と揃えられる
+
+- **WHEN** claude-haiku-4-5 でエージェントを実行する
+- **THEN** `maxOutputTokens` は 32,000 が適用され、64,000 が適用される大型 Claude 系グループには属さない
+
+#### Scenario: gpt-5-nano の上限は変更されない
+
+- **WHEN** gpt-5-nano でエージェントを実行する
+- **THEN** `maxOutputTokens` は従来どおり 32,000 が適用される
 
 ### Requirement: 新モデル受け入れ手順の文書化
 
@@ -74,3 +84,4 @@ docs に新モデル受け入れ手順を記載しなければならない（SHA
 
 - **WHEN** エージェントのコアロジックを検査する
 - **THEN** 特定モデル向けの上限・継続回数・max_tokens 等がハードコードされていない
+

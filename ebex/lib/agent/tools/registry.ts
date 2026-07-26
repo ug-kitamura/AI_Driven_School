@@ -6,7 +6,13 @@ import {
 } from "@/lib/agent/llm/types";
 import type { LlmProvider } from "@/lib/agent/llm/provider";
 import { resolveToolTargetPath } from "@/lib/agent/tools/fs-guard";
+import {
+  framedWriteDivertOutcome,
+  resolveFramedWriteTarget,
+} from "@/lib/agent/tools/framed-write-guard";
 import { executeGenerateAndWrite } from "@/lib/agent/tools/generate-write";
+import { executeRunIsolatedTask } from "@/lib/agent/tools/run-isolated-task";
+import { inlineHtmlAssets } from "@/lib/agent/tools/inline-html-assets";
 import { isLikelySubagentToolName } from "@/lib/agent/subagent-fallback";
 import {
   checkScriptSyntax,
@@ -335,7 +341,7 @@ const TOOL_SCHEMAS = {
   generate_and_write: {
     name: "generate_and_write",
     description:
-      "モデルが新たに創作する大きな成果物（図解 HTML の本文・長文ドキュメント等）を、サーバ内の別 LLM 呼び出しで生成してファイルへ直接書き込む。本文を tool 引数に載せないため出力上限で切れない。本文がディスク上のデータから機械的に作れる場合はこれではなく run_script を使うこと。材料（アウトライン・収集メモ・模範例）は先にファイルへ書き出して context_paths で渡し、大きな成果物は sections で分割を指定すること。実行前にユーザー確認が入る。",
+      "モデルが新たに創作する大きな成果物（図解 HTML の本文・長文ドキュメント等）を、サーバ内の別 LLM 呼び出しで生成してファイルへ直接書き込む。本文を tool 引数に載せないため出力上限で切れない。本文がディスク上のデータから機械的に作れる場合はこれではなく run_script を使うこと。材料（アウトライン・収集メモ・模範例）は先にファイルへ書き出して context_paths で渡し、大きな成果物は sections で分割を指定すること。額縁テンプレートへ差し込む場合は path に額縁を指定し marker で区間を指定すると、生成と差し込みが 1 回で済む。実行前にユーザー確認が入る。",
     input_schema: {
       type: "object",
       properties: {
@@ -365,8 +371,66 @@ const TOOL_SCHEMAS = {
           description:
             "生成時に内容を参照させるファイル（プロジェクト相対、または実行中スキルの references/... 等）",
         },
+        marker: {
+          type: "string",
+          description:
+            "path の額縁テンプレート内で差し込む区間。区間名（例: CONTENT, AGENDA_DETAILS）でも完全形（例: <!-- CONTENT_START -->）でも受ける。指定するとその区間だけが置き換わり、額縁は保持される。sections（生成の分割指示）とは別物",
+        },
       },
       required: ["purpose", "path", "instruction"],
+    },
+  },
+  run_isolated_task: {
+    name: "run_isolated_task",
+    description:
+      "サブエージェント起動の代替。親の会話履歴を引き継がない独立したコンテキストでタスクを実行する。スキルが「サブエージェントを起動」等を指示している場面で、その役割をこのツールで代替すること。通常のファイル操作・生成には使わない（それらは write_file 等・generate_and_write を使う）。path を指定すればサーバが結果をそのままファイルへ書き込み、tool_result には要約のみが残る。path を省略すれば結果テキストをそのまま tool_result として返す（上限あり）。材料は context_paths で渡し、その内容自体は tool_result に戻らない。実行前にユーザー確認が入る。",
+    input_schema: {
+      type: "object",
+      properties: {
+        purpose: {
+          type: "string",
+          description:
+            "何のために実行するかの一文（ユーザー確認ダイアログに表示される）",
+        },
+        instruction: {
+          type: "string",
+          description: "実行させるタスクの指示",
+        },
+        path: {
+          type: "string",
+          description:
+            "結果の書き込み先パス（プロジェクト相対、任意）。省略時は結果テキストがそのまま返る",
+        },
+        sections: {
+          type: "array",
+          items: { type: "string" },
+          description:
+            "結果が大きい場合のセクション分割指示。順に生成して連結される",
+        },
+        context_paths: {
+          type: "array",
+          items: { type: "string" },
+          description:
+            "タスク実行時に内容を参照させるファイル（プロジェクト相対、または実行中スキルの references/... 等）",
+        },
+      },
+      required: ["purpose", "instruction"],
+    },
+  },
+  inline_html_assets: {
+    name: "inline_html_assets",
+    description:
+      "生成済み HTML を単体で開けるようにする。CDN 読み込み（Tailwind・Lucide）を取り除き、その HTML が実際に使っているスタイルをその場でコンパイルして埋め込み、アイコンを inline SVG へ展開する。対象ファイルは上書きされる。複数ファイルをまとめて渡すこと（1 回の呼び出しと 1 回の確認で完了する）。実行前にユーザー確認が入る。",
+    input_schema: {
+      type: "object",
+      properties: {
+        paths: {
+          type: "array",
+          items: { type: "string" },
+          description: "対象 HTML のパス（プロジェクト相対）。複数まとめて渡す",
+        },
+      },
+      required: ["paths"],
     },
   },
   web_search: {
@@ -970,15 +1034,111 @@ function executeWriteFile(
     );
   }
 
-  fs.mkdirSync(path.dirname(resolved.absolutePath), { recursive: true });
-  fs.writeFileSync(resolved.absolutePath, content, "utf-8");
+  // 額縁テンプレートを丸ごと上書きしそうな場合は中間ファイル置き場へ退避する
+  const decision = resolveFramedWriteTarget({
+    absolutePath: resolved.absolutePath,
+    relativePath: resolved.relativePath,
+    projectFolderId: context.projectFolderId,
+    projectRoot: context.projectRoot,
+  });
+
+  fs.mkdirSync(path.dirname(decision.absolutePath), { recursive: true });
+  fs.writeFileSync(decision.absolutePath, content, "utf-8");
   const bytes = Buffer.byteLength(content, "utf-8");
 
+  if (decision.kind === "divert") {
+    return framedWriteDivertOutcome(decision, { label: "💾 書込", bytes });
+  }
+
   return {
-    result: { path: resolved.relativePath, bytes },
+    result: { path: decision.relativePath, bytes },
     display: display(
       `${bytes} bytes`,
-      `💾 書込: ${resolved.relativePath}（${bytes} bytes）`,
+      `💾 書込: ${decision.relativePath}（${bytes} bytes）`,
+    ),
+  };
+}
+
+/**
+ * 生成済み HTML から CDN 依存を取り除き、単体で開ける形へ書き換える。
+ * 複数ファイルを 1 回の呼び出しで処理する（確認も 1 回で済ませるため）。
+ */
+async function executeInlineHtmlAssets(
+  context: ToolExecutionContext,
+  input: Record<string, unknown>,
+): Promise<ToolExecutionOutcome> {
+  const raw = Array.isArray(input.paths) ? input.paths : [];
+  const requested = raw.filter(
+    (p): p is string => typeof p === "string" && p.trim().length > 0,
+  );
+  if (requested.length === 0) return errorOutcome("paths が空です");
+
+  const resolvedTargets: Array<{ absolutePath: string; relativePath: string }> =
+    [];
+  for (const inputPath of requested) {
+    const resolved = resolveToolTargetPath(
+      context.projectRoot,
+      context.projectFolderId,
+      inputPath,
+      skillPathOptions(context, false),
+    );
+    if ("error" in resolved) return errorOutcome(resolved.error);
+    if (resolved.insideSkill) {
+      return errorOutcome(
+        `スキルディレクトリのファイルは書き換えられません: ${resolved.relativePath}`,
+      );
+    }
+    if (!fs.existsSync(resolved.absolutePath)) {
+      return errorOutcome(`ファイルが見つかりません: ${resolved.relativePath}`);
+    }
+    if (!fs.statSync(resolved.absolutePath).isFile()) {
+      return errorOutcome(`ファイルではありません: ${resolved.relativePath}`);
+    }
+    resolvedTargets.push(resolved);
+  }
+
+  const lines: string[] = [];
+  const summaries: Array<{
+    path: string;
+    bytesBefore: number;
+    bytesAfter: number;
+    cssBytes: number;
+    iconsExpanded: number;
+    iconsFallback: string[];
+  }> = [];
+
+  for (const target of resolvedTargets) {
+    const before = fs.readFileSync(target.absolutePath, "utf-8");
+    const { html, report } = await inlineHtmlAssets(before);
+    fs.writeFileSync(target.absolutePath, html, "utf-8");
+
+    const bytesBefore = Buffer.byteLength(before, "utf-8");
+    const bytesAfter = Buffer.byteLength(html, "utf-8");
+    summaries.push({
+      path: target.relativePath,
+      bytesBefore,
+      bytesAfter,
+      cssBytes: report.cssBytes,
+      iconsExpanded: report.iconsExpanded,
+      iconsFallback: report.iconsFallback,
+    });
+
+    const kb = (n: number) => `${(n / 1024).toFixed(1)}KB`;
+    lines.push(
+      `${target.relativePath}: ${kb(bytesBefore)} → ${kb(bytesAfter)}` +
+        `（CSS ${kb(report.cssBytes)} / アイコン ${report.iconsExpanded} 個` +
+        (report.iconsFallback.length
+          ? ` / 代替 ${report.iconsFallback.length} 件: ${report.iconsFallback.join("・")}`
+          : "") +
+        "）",
+    );
+  }
+
+  return {
+    result: { files: summaries },
+    display: display(
+      `${summaries.length} ファイル`,
+      `🎨 インライン化\n${lines.join("\n")}`,
     ),
   };
 }
@@ -1817,6 +1977,10 @@ export async function executeRegisteredTool(
       return executeRunSkillScript(context, input);
     case "generate_and_write":
       return executeGenerateAndWrite(context, input);
+    case "run_isolated_task":
+      return executeRunIsolatedTask(context, input);
+    case "inline_html_assets":
+      return executeInlineHtmlAssets(context, input);
     case "web_search":
       return executeWebSearch(context, input);
     default:

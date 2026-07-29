@@ -4,7 +4,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>EBE-JP AAM 議事録</title>
+  <title>EBE-JP AAM トレーニング記録</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://unpkg.com/lucide@latest"></script>
   <style>
@@ -262,6 +262,102 @@
       color: var(--blue-35);
       border: 1px solid var(--blue-90);
     }
+    /* Q&A チャット吹き出し */
+    .chat-window {
+      background: var(--gray-95);
+      border-radius: 0.75rem;
+      padding: 1.25rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+    }
+    .chat-group {
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+    }
+    .chat-group + .chat-group {
+      margin-top: 2rem;
+    }
+    .chat-row {
+      display: flex;
+      align-items: flex-end;
+      gap: 0.75rem;
+    }
+    .chat-row.question {
+      flex-direction: row-reverse;
+    }
+    .chat-row.answer {
+      flex-direction: row;
+    }
+    .chat-avatar {
+      width: 2rem;
+      height: 2rem;
+      border-radius: 9999px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.65rem;
+      font-weight: 700;
+      flex-shrink: 0;
+      line-height: 1;
+    }
+    .chat-avatar.q-avatar {
+      background: var(--blue-40);
+      font-size: 0.75rem;
+      color: white;
+    }
+    .chat-avatar.a-avatar {
+      background: var(--teal-50);
+      font-size: 0.75rem;
+      color: white;
+    }
+    .chat-bubble-wrap {
+      display: flex;
+      flex-direction: column;
+      max-width: 72%;
+    }
+    .chat-row.question .chat-bubble-wrap {
+      align-items: flex-end;
+    }
+    .chat-row.answer .chat-bubble-wrap {
+      align-items: flex-start;
+    }
+    .chat-name {
+      font-size: 0.8rem;
+      color: var(--gray-55);
+      margin-bottom: 0.2rem;
+      padding: 0 0.3rem;
+    }
+    .chat-bubble {
+      padding: 0.6rem 0.9rem;
+      border-radius: 1rem;
+      font-size: 0.85rem;
+      line-height: 1.55;
+      word-break: break-word;
+    }
+    .chat-bubble.q-bubble {
+      background: var(--blue-40);
+      color: white;
+      border-bottom-right-radius: 0.25rem;
+    }
+    .chat-bubble.a-bubble {
+      background: white;
+      color: var(--gray-25);
+      border: 1px solid var(--gray-90);
+      border-bottom-left-radius: 0.25rem;
+    }
+    .chat-bubble .chat-cite {
+      font-size: 0.7rem;
+      opacity: 0.65;
+      margin-left: 0.25rem;
+    }
+    .chat-bubble.q-bubble .chat-cite {
+      color: var(--blue-90);
+    }
+    .chat-bubble.a-bubble .chat-cite {
+      color: var(--gray-55);
+    }
   </style>
 </head>
 <body class="min-h-screen">
@@ -269,21 +365,24 @@
     <div class="text-xs font-bold mb-2 uppercase tracking-wide" style="color:var(--gray-60)">目次</div>
     <ul class="space-y-1 text-sm">
       <li><a href="#summary" style="color:var(--gray-45)" class="hover:underline">サマリー</a></li>
-      <li><a href="#agenda" style="color:var(--gray-45)" class="hover:underline">議題リスト</a></li>
-      <li><a href="#details" style="color:var(--gray-45)" class="hover:underline">議題の詳細</a></li>
+      <li><a href="#topics" style="color:var(--gray-45)" class="hover:underline">トピックリスト</a></li>
+      <li><a href="#details" style="color:var(--gray-45)" class="hover:underline">トピックの詳細</a></li>
       <li><a href="#actions" style="color:var(--gray-45)" class="hover:underline">アクションプラン</a></li>
+      <li><a href="#qa" style="color:var(--gray-45)" class="hover:underline">Q&A</a></li>
+      <li><a href="#quiz" style="color:var(--gray-45)" class="hover:underline">クイズ</a></li>
     </ul>
   </nav>
   <header class="header-gradient text-white py-8 px-4">
     <div class="max-w-4xl mx-auto">
       <div class="flex items-center gap-3 mb-2">
         <i data-lucide="clipboard-list" class="w-8 h-8 flex-shrink-0"></i>
-        <h1 class="text-2xl md:text-3xl font-bold">EBE-JP AAM 議事録</h1>
+        <h1 class="text-2xl md:text-3xl font-bold">EBE-JP AAM トレーニング記録</h1>
       </div>
       <div class="flex flex-wrap gap-x-6 gap-y-2 text-sm opacity-80 mt-3">
         <span class="flex items-center gap-1"><i data-lucide="calendar" class="w-4 h-4"></i>2026年3月19日</span>
-        <span class="flex items-center gap-1" title="印牧さん、アンドレアスさん、北村さん、タトワさん、輿石さん、岩瀬さん、川口さん、レナートさん"><i data-lucide="users" class="w-4 h-4"></i>出席者：8人</span>
-        <span class="flex items-center gap-1"><i data-lucide="user" class="w-4 h-4"></i>議事録担当：北村さん</span>
+        <span class="flex items-center gap-1"><i data-lucide="graduation-cap" class="w-4 h-4"></i>トレーナー：北村さん、アンドレアスさん</span>
+        <span class="flex items-center gap-1" title="印牧さん、アンドレアスさん、北村さん、タトワさん、輿石さん、岩瀬さん、川口さん、レナートさん"><i data-lucide="users" class="w-4 h-4"></i>受講者：8人</span>
+        <span class="flex items-center gap-1"><i data-lucide="user" class="w-4 h-4"></i>記録担当：北村さん</span>
       </div>
     </div>
   </header>
@@ -309,18 +408,36 @@
     <div class="flex items-start gap-3 rounded-xl p-4 mb-8" style="background:var(--red-95);border:1px solid var(--red-85)">
       <i data-lucide="triangle-alert" class="w-5 h-5 flex-shrink-0 mt-0.5" style="color:var(--red-50)"></i>
       <p class="text-sm" style="color:var(--red-30)">
-        <strong>「要確認」が3件あります。</strong><br>担当者または期限が会議中に確定しなかった項目です。今週中に関係者間で確認・決定してください。
+        <strong>「要確認」が3件あります。</strong><br>担当者または期限がトレーニング中に確定しなかった項目です。今週中に関係者間で確認・決定してください。
       </p>
     </div>
 
-    <!-- ② 議題リスト -->
-    <div class="section-card" id="agenda">
+    <!-- ② 目的・対象者 -->
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6" id="overview">
+      <div class="section-card" style="margin-bottom:0">
+        <div class="flex items-center gap-2 mb-2">
+          <i data-lucide="target" class="w-5 h-5 flex-shrink-0" style="color:var(--gray-40)"></i>
+          <span class="text-sm font-bold" style="color:var(--gray-30)">トレーニングの目的</span>
+        </div>
+        <p class="text-sm leading-relaxed" style="color:var(--gray-40)">データアーカイブ方針・社内効率化活動・社内ツールの最新状況をメンバー間で共有・整合し、次のアクションにつなげること。</p>
+      </div>
+      <div class="section-card" style="margin-bottom:0">
+        <div class="flex items-center gap-2 mb-2">
+          <i data-lucide="users" class="w-5 h-5 flex-shrink-0" style="color:var(--gray-40)"></i>
+          <span class="text-sm font-bold" style="color:var(--gray-30)">トレーニングの対象者</span>
+        </div>
+        <p class="text-sm leading-relaxed" style="color:var(--gray-40)">EBE-JP のプロジェクトに関わる全メンバー（マネージャー・エンジニア・スタッフを含む）</p>
+      </div>
+    </div>
+
+    <!-- ③ トピックリスト -->
+    <div class="section-card" id="topics">
       <div class="flex items-center gap-3 mb-5">
         <div class="w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0" style="background:var(--gray-90)">
           <i data-lucide="list" class="w-6 h-6" style="color:var(--gray-40)"></i>
         </div>
         <div>
-          <h2 class="text-xl font-bold" style="color:var(--gray-15)">議題リスト</h2>
+          <h2 class="text-xl font-bold" style="color:var(--gray-15)">トピックリスト</h2>
           <p class="text-sm" style="color:var(--gray-50)">タイトルをクリックすると詳細にジャンプします</p>
         </div>
       </div>
@@ -329,54 +446,54 @@
         <li class="mb-5 ml-7">
           <span class="absolute flex items-center justify-center w-7 h-7 rounded-full -left-3.5 text-sm font-bold text-white" style="background:var(--blue-35)">1</span>
           <a href="#topic-1" class="font-semibold hover:underline" style="color:var(--blue-30)">データアーカイブ方針の共有</a>
-          <span class="text-xs ml-2" style="color:var(--gray-60)">報告：輿石さん</span>
+          <span class="text-xs ml-2" style="color:var(--gray-60)">トレーナー：輿石さん</span>
         </li>
 
         <li class="mb-5 ml-7">
           <span class="absolute flex items-center justify-center w-7 h-7 rounded-full -left-3.5 text-sm font-bold text-white" style="background:var(--blue-35)">2</span>
           <a href="#topic-2" class="font-semibold hover:underline" style="color:var(--blue-30)">R&D効率化改善活動（EIA）進捗報告</a>
-          <span class="text-xs ml-2" style="color:var(--gray-60)">報告：岩瀬さん</span>
+          <span class="text-xs ml-2" style="color:var(--gray-60)">トレーナー：岩瀬さん</span>
         </li>
 
         <li class="mb-5 ml-7">
           <span class="absolute flex items-center justify-center w-7 h-7 rounded-full -left-3.5 text-sm font-bold text-white" style="background:var(--blue-35)">3</span>
           <a href="#topic-3" class="font-semibold hover:underline" style="color:var(--blue-30)">EBE通信（座談会）の進捗共有</a>
-          <span class="text-xs ml-2" style="color:var(--gray-60)">報告：川口さん</span>
+          <span class="text-xs ml-2" style="color:var(--gray-60)">トレーナー：川口さん</span>
         </li>
 
         <li class="mb-5 ml-7">
           <span class="absolute flex items-center justify-center w-7 h-7 rounded-full -left-3.5 text-sm font-bold text-white" style="background:var(--blue-35)">4</span>
           <a href="#topic-4" class="font-semibold hover:underline" style="color:var(--blue-30)">Vipoツール紹介</a>
-          <span class="text-xs ml-2" style="color:var(--gray-60)">報告：アンドレアスさん</span>
+          <span class="text-xs ml-2" style="color:var(--gray-60)">トレーナー：アンドレアスさん</span>
         </li>
 
         <li class="ml-7">
           <span class="absolute flex items-center justify-center w-7 h-7 rounded-full -left-3.5 text-sm font-bold text-white" style="background:var(--blue-35)">5</span>
           <a href="#topic-5" class="font-semibold hover:underline" style="color:var(--blue-30)">パルスチェック2025 アンケート結果の共有</a>
-          <span class="text-xs ml-2" style="color:var(--gray-60)">報告：印牧さん</span>
+          <span class="text-xs ml-2" style="color:var(--gray-60)">トレーナー：印牧さん</span>
         </li>
 
       </ol>
     </div>
 
-    <!-- ③ 議題の詳細（決定事項を含む） -->
+    <!-- ④ トピックの詳細（決定事項を含む） -->
     <div class="section-card" id="details">
       <div class="flex items-center gap-3 mb-6">
         <div class="w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0" style="background:var(--gray-90)">
           <i data-lucide="file-text" class="w-6 h-6" style="color:var(--gray-40)"></i>
         </div>
         <div>
-          <h2 class="text-xl font-bold" style="color:var(--gray-15)">議題の詳細</h2>
-          <p class="text-sm" style="color:var(--gray-50)">背景・議論の内容・決定事項</p>
+          <h2 class="text-xl font-bold" style="color:var(--gray-15)">トピックの詳細</h2>
+          <p class="text-sm" style="color:var(--gray-50)">背景・説明の内容・決定事項</p>
         </div>
       </div>
 
-      <!-- 議題1: データアーカイブ -->
+      <!-- トピック1: データアーカイブ -->
       <div class="mb-8" id="topic-1">
         <h3 class="text-lg font-bold flex items-center gap-2 mb-3" style="color:var(--gray-20)">
           <span class="w-7 h-7 text-white rounded-full flex items-center justify-center text-sm font-bold flex-shrink-0" style="background:var(--blue-35)">1</span>
           データアーカイブ方針の共有
-          <span class="text-sm font-normal" style="color:var(--gray-60)">報告：輿石さん</span>
+          <span class="text-sm font-normal" style="color:var(--gray-60)">トレーナー：輿石さん</span>
         </h3>
 
         <!-- ビジュアル: データライフサイクル → アーカイブフロー -->
@@ -411,13 +528,13 @@
           <div class="font-semibold mb-2 flex items-center gap-2" style="color:var(--gray-30)">
             <i data-lucide="info" class="w-4 h-4" style="color:var(--blue-50)"></i>背景と概要
           </div>
-          <p class="text-sm" style="color:var(--gray-40)">昨年6月のIATF 26Q内部監査にてデータアーカイブに関するマイナー指摘を受け、改善策の検討を進めてきた。業務データは「日常データ（L-Drive、Teams、SharePoint Online）」と「リーガル要件のある特別データ（ISP分類）」の2種類に大別される。後者はAvailability・Confidentiality・Integrityの観点と、Retention Period（製品文書35年、教育関連6年など）の管理が必要。Information Lifecycle Management（ILM）の考え方に基づき、Active Use → Passing Use → Archiveのフローでデータを管理する。</p>
+          <p class="text-sm" style="color:var(--gray-40)">昨年6月のIATF 26Q内部監査にてデータアーカイブに関するマイナー指摘を受け、改善策の検討を進めてきた。業務データは「日常データ（L-Drive、Teams、SharePoint Online）」と「リーガル要件のある特別データ（ISP分類）」の2種類に大別される。後者はAvailability・Confidentiality・Integrityの観点と、Retention Period（製品文書35年、教育関連6年など）の管理が必要。Information Lifecycle Management（ILM）の考え方に基づき、Active Use → Passing Use → Archiveのフローでデータを管理する。<span class="text-xs ml-1" style="color:var(--gray-65)">(データ管理ガイドライン.pptx p.3–4)</span></p>
         </div>
         <div class="detail-box">
           <div class="font-semibold mb-2 flex items-center gap-2" style="color:var(--gray-30)">
             <i data-lucide="arrow-right" class="w-4 h-4" style="color:var(--blue-50)"></i>アーカイブ体制
           </div>
-          <p class="text-sm" style="color:var(--gray-40)">アーカイブ先は SharePoint On-Premises（TJMが担当）と NAT（井上さんが毎年ドイツ同様にアーカイブ）の2系統。テスト管理ツール（QC）はテストコーディネーターが申請し、ツールグループが実施する。ソースコードはドイツ本社もコスト面から入出力のみアーカイブする方針。ラボ機器の品質記録（Qualification Records）のアーカイブ先については現在検討中。全体ガイドラインを今後NATに格納して共有予定。</p>
+          <p class="text-sm" style="color:var(--gray-40)">アーカイブ先は SharePoint On-Premises（TJMが担当）と NAT（井上さんが毎年ドイツ同様にアーカイブ）の2系統。テスト管理ツール（QC）はテストコーディネーターが申請し、ツールグループが実施する。ソースコードはドイツ本社もコスト面から入出力のみアーカイブする方針。ラボ機器の品質記録（Qualification Records）のアーカイブ先については現在検討中。全体ガイドラインを今後NATに格納して共有予定。<span class="text-xs ml-1" style="color:var(--gray-65)">(データ管理ガイドライン.pptx p.7–8)</span></p>
         </div>
         <div class="detail-box decided">
           <div class="font-semibold mb-2 flex items-center gap-2" style="color:var(--gray-30)">
@@ -430,12 +547,12 @@
         </div>
       </div>
 
-      <!-- 議題2: EIA進捗 -->
+      <!-- トピック2: EIA進捗 -->
       <div class="mb-8" id="topic-2">
         <h3 class="text-lg font-bold flex items-center gap-2 mb-3" style="color:var(--gray-20)">
           <span class="w-7 h-7 text-white rounded-full flex items-center justify-center text-sm font-bold flex-shrink-0" style="background:var(--blue-35)">2</span>
           R&D効率化改善活動（EIA）進捗報告
-          <span class="text-sm font-normal" style="color:var(--gray-60)">報告：岩瀬さん</span>
+          <span class="text-sm font-normal" style="color:var(--gray-60)">トレーナー：岩瀬さん</span>
         </h3>
 
         <!-- ビジュアル: ステップ進捗フロー -->
@@ -473,13 +590,13 @@
           <div class="font-semibold mb-2 flex items-center gap-2" style="color:var(--gray-30)">
             <i data-lucide="info" class="w-4 h-4" style="color:var(--blue-50)"></i>活動の概要と現状
           </div>
-          <p class="text-sm" style="color:var(--gray-40)">VM-NE EAのJPで実施している効率化改善活動のリスト化（フェーズ1）の進捗を報告。ステップ1（各課ヒアリング）は75%の課から回答を受領し96件のアクティビティを把握（前回2月の75件からEBE1・EBE2追加で増加）。ステップ2（フォームズによる基本情報収集）は60件完了。ステップ3（詳細ヒアリング）は現在7件進行中。ステップ4（ドキュメンテーション）は2件がドラフト版として担当者と更新中。</p>
+          <p class="text-sm" style="color:var(--gray-40)">VM-NE EAのJPで実施している効率化改善活動のリスト化（フェーズ1）の進捗を報告。ステップ1（各課ヒアリング）は75%の課から回答を受領し96件のアクティビティを把握（前回2月の75件からEBE1・EBE2追加で増加）。ステップ2（フォームズによる基本情報収集）は60件完了。ステップ3（詳細ヒアリング）は現在7件進行中。ステップ4（ドキュメンテーション）は2件がドラフト版として担当者と更新中。<span class="text-xs ml-1" style="color:var(--gray-65)">(EIA活動進捗報告.pptx p.2)</span></p>
         </div>
         <div class="detail-box caution">
           <div class="font-semibold mb-2 flex items-center gap-2" style="color:var(--gray-30)">
             <i data-lucide="triangle-alert" class="w-4 h-4" style="color:var(--yellow-70)"></i>スケジュール変更
           </div>
-          <p class="text-sm" style="color:var(--gray-40)">件数が多く3月末での全件完了は困難なため、まず「運用フェーズ（HG5ステータス）」活動を優先し、4月末に向けてドキュメンテーションを進める方針。未回答部署については催促後も1件のみ追加回答のため、現在の96件で確定する。</p>
+          <p class="text-sm" style="color:var(--gray-40)">件数が多く3月末での全件完了は困難なため、まず「運用フェーズ（HG5ステータス）」活動を優先し、4月末に向けてドキュメンテーションを進める方針。未回答部署については催促後も1件のみ追加回答のため、現在の96件で確定する。<span class="text-xs ml-1" style="color:var(--gray-65)">(EIA活動進捗報告.pptx p.4)</span></p>
         </div>
         <div class="detail-box decided">
           <div class="font-semibold mb-2 flex items-center gap-2" style="color:var(--gray-30)">
@@ -491,12 +608,12 @@
         </div>
       </div>
 
-      <!-- 議題3: EBE通信 -->
+      <!-- トピック3: EBE通信 -->
       <div class="mb-8" id="topic-3">
         <h3 class="text-lg font-bold flex items-center gap-2 mb-3" style="color:var(--gray-20)">
           <span class="w-7 h-7 text-white rounded-full flex items-center justify-center text-sm font-bold flex-shrink-0" style="background:var(--blue-35)">3</span>
           EBE通信（座談会）の進捗共有
-          <span class="text-sm font-normal" style="color:var(--gray-60)">報告：川口さん</span>
+          <span class="text-sm font-normal" style="color:var(--gray-60)">トレーナー：川口さん</span>
         </h3>
 
         <!-- ビジュアル: 座談会アプローチ -->
@@ -529,12 +646,12 @@
         </div>
       </div>
 
-      <!-- 議題4: Vipo -->
+      <!-- トピック4: Vipo -->
       <div class="mb-8" id="topic-4">
         <h3 class="text-lg font-bold flex items-center gap-2 mb-3" style="color:var(--gray-20)">
           <span class="w-7 h-7 text-white rounded-full flex items-center justify-center text-sm font-bold flex-shrink-0" style="background:var(--blue-35)">4</span>
           Vipoツール紹介
-          <span class="text-sm font-normal" style="color:var(--gray-60)">報告：アンドレアスさん</span>
+          <span class="text-sm font-normal" style="color:var(--gray-60)">トレーナー：アンドレアスさん</span>
         </h3>
 
         <!-- ビジュアル: Vipoフェーズと効果 -->
@@ -571,22 +688,22 @@
           <div class="font-semibold mb-2 flex items-center gap-2" style="color:var(--gray-30)">
             <i data-lucide="info" class="w-4 h-4" style="color:var(--blue-50)"></i>背景と概要
           </div>
-          <p class="text-sm" style="color:var(--gray-40)">アンドレアスさんが昨年8月から取り組む社内ツール「Vipo」を紹介。VMM（Vehicle Motion Management）のソフトウェア製品は150以上のフィーチャーが存在し、カスタマープロジェクト情報（フィーチャー・マイルストーン・価格等）をExcel/PowerPointで管理するには限界がある。VipoはこのデータをDB化し、販売計画から価格自動計算、プラットフォームプランニングとの整合チェックをカバーするツール。</p>
+          <p class="text-sm" style="color:var(--gray-40)">アンドレアスさんが昨年8月から取り組む社内ツール「Vipo」を紹介。VMM（Vehicle Motion Management）のソフトウェア製品は150以上のフィーチャーが存在し、カスタマープロジェクト情報（フィーチャー・マイルストーン・価格等）をExcel/PowerPointで管理するには限界がある。VipoはこのデータをDB化し、販売計画から価格自動計算、プラットフォームプランニングとの整合チェックをカバーするツール。<span class="text-xs ml-1" style="color:var(--gray-65)">(Vipo紹介.pptx p.2)</span></p>
         </div>
         <div class="detail-box">
           <div class="font-semibold mb-2 flex items-center gap-2" style="color:var(--gray-30)">
             <i data-lucide="arrow-right" class="w-4 h-4" style="color:var(--blue-50)"></i>今後の展開
           </div>
-          <p class="text-sm" style="color:var(--gray-40)">フェーズ1（セールスプランニング機能）は2026年1月に完了。実装コスト約2,000時間に対し、グローバル展開後の初年度で5,000時間削減の見込み。フェーズ2ではカスタマーチームが選択したフィーチャーをプラットフォームのソフトウェアパイプラインへ自動連携する機能を今年中に完了目標。ドイツのNicoloはVipoによる販売計画を来年以降義務化する方針を表明。ソフトウェアパイプラインとの連携については現在Vision段階（北村さんより確認）。</p>
+          <p class="text-sm" style="color:var(--gray-40)">フェーズ1（セールスプランニング機能）は2026年1月に完了。実装コスト約2,000時間に対し、グローバル展開後の初年度で5,000時間削減の見込み。フェーズ2ではカスタマーチームが選択したフィーチャーをプラットフォームのソフトウェアパイプラインへ自動連携する機能を今年中に完了目標。ドイツのNicoloはVipoによる販売計画を来年以降義務化する方針を表明。ソフトウェアパイプラインとの連携については現在Vision段階（北村さんより確認）。<span class="text-xs ml-1" style="color:var(--gray-65)">(Vipo紹介.pptx p.5–6)</span></p>
         </div>
       </div>
 
-      <!-- 議題5: パルスチェック -->
+      <!-- トピック5: パルスチェック -->
       <div class="mb-2" id="topic-5">
         <h3 class="text-lg font-bold flex items-center gap-2 mb-3" style="color:var(--gray-20)">
           <span class="w-7 h-7 text-white rounded-full flex items-center justify-center text-sm font-bold flex-shrink-0" style="background:var(--blue-35)">5</span>
           パルスチェック2025 アンケート結果の共有
-          <span class="text-sm font-normal" style="color:var(--gray-60)">報告：印牧さん</span>
+          <span class="text-sm font-normal" style="color:var(--gray-60)">トレーナー：印牧さん</span>
         </h3>
 
         <!-- ビジュアル: アンケート設問と結果 -->
@@ -642,13 +759,13 @@
           <div class="font-semibold mb-2 flex items-center gap-2" style="color:var(--gray-30)">
             <i data-lucide="message-circle" class="w-4 h-4" style="color:var(--blue-50)"></i>印牧さんからの示唆
           </div>
-          <p class="text-sm" style="color:var(--gray-40)">会社のランク基準を面談の軸にすることで昇格への道筋が見えやすくなる。人事イベントからの学びとして、まず個人が自分なりのキャリア観を持ち、それをもとに上司・会社の期待と照らし合わせることが対話の質を高める。この調査結果は後でフォルダに格納するので、追加意見があれば1週間以内に印牧さんまたは直属の上司へ共有してほしい。</p>
+          <p class="text-sm" style="color:var(--gray-40)">会社のランク基準を面談の軸にすることで昇格への道筋が見えやすくなる。人事イベントからの学びとして、まず個人が自分なりのキャリア観を持ち、それをもとに上司・会社の期待と照らし合わせることが対話の質を高める。この調査結果は後でフォルダに格納するので、追加意見があれば1週間以内に印牧さんまたは直属の上司へ共有してほしい。<span class="text-xs ml-1" style="color:var(--gray-65)">(パルスチェック2025.pptx p.8)</span></p>
         </div>
       </div>
 
     </div>
 
-    <!-- ④ アクションプラン -->
+    <!-- ⑤ アクションプラン -->
     <div class="section-card" id="actions">
       <div class="flex items-center gap-3 mb-6">
         <div class="w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0" style="background:var(--gray-90)">
@@ -672,7 +789,7 @@
         <div class="flex flex-wrap gap-4 mt-2 text-sm">
           <span class="flex items-center gap-1" style="color:var(--gray-40)"><i data-lucide="user" class="w-4 h-4"></i>担当：輿石さん</span>
           <span class="flex items-center gap-1" style="color:var(--gray-40)"><i data-lucide="calendar-x" class="w-4 h-4"></i>期限：要確認</span>
-          <span class="flex items-center gap-1" style="color:var(--gray-60)"><i data-lucide="tag" class="w-4 h-4"></i><a href="#topic-1" class="hover:underline" style="color:var(--gray-60)">議題1</a></span>
+          <span class="flex items-center gap-1" style="color:var(--gray-60)"><i data-lucide="tag" class="w-4 h-4"></i><a href="#topic-1" class="hover:underline" style="color:var(--gray-60)">トピック1</a></span>
         </div>
       </div>
 
@@ -688,7 +805,7 @@
         <div class="flex flex-wrap gap-4 mt-2 text-sm">
           <span class="flex items-center gap-1" style="color:var(--gray-40)"><i data-lucide="user" class="w-4 h-4"></i>担当：輿石さん</span>
           <span class="flex items-center gap-1" style="color:var(--gray-40)"><i data-lucide="calendar-x" class="w-4 h-4"></i>期限：要確認</span>
-          <span class="flex items-center gap-1" style="color:var(--gray-60)"><i data-lucide="tag" class="w-4 h-4"></i><a href="#topic-1" class="hover:underline" style="color:var(--gray-60)">議題1</a></span>
+          <span class="flex items-center gap-1" style="color:var(--gray-60)"><i data-lucide="tag" class="w-4 h-4"></i><a href="#topic-1" class="hover:underline" style="color:var(--gray-60)">トピック1</a></span>
         </div>
       </div>
 
@@ -704,7 +821,7 @@
         <div class="flex flex-wrap gap-4 mt-2 text-sm" style="color:var(--gray-40)">
           <span class="flex items-center gap-1"><i data-lucide="user" class="w-4 h-4"></i>担当：岩瀬さん</span>
           <span class="flex items-center gap-1"><i data-lucide="calendar-check" class="w-4 h-4"></i>期限：2026年3月末</span>
-          <span class="flex items-center gap-1" style="color:var(--gray-60)"><i data-lucide="tag" class="w-4 h-4"></i><a href="#topic-2" class="hover:underline" style="color:var(--gray-60)">議題2</a></span>
+          <span class="flex items-center gap-1" style="color:var(--gray-60)"><i data-lucide="tag" class="w-4 h-4"></i><a href="#topic-2" class="hover:underline" style="color:var(--gray-60)">トピック2</a></span>
         </div>
       </div>
 
@@ -720,7 +837,7 @@
         <div class="flex flex-wrap gap-4 mt-2 text-sm" style="color:var(--gray-40)">
           <span class="flex items-center gap-1"><i data-lucide="user" class="w-4 h-4"></i>担当：岩瀬さん</span>
           <span class="flex items-center gap-1"><i data-lucide="calendar-check" class="w-4 h-4"></i>期限：2026年4月末</span>
-          <span class="flex items-center gap-1" style="color:var(--gray-60)"><i data-lucide="tag" class="w-4 h-4"></i><a href="#topic-2" class="hover:underline" style="color:var(--gray-60)">議題2</a></span>
+          <span class="flex items-center gap-1" style="color:var(--gray-60)"><i data-lucide="tag" class="w-4 h-4"></i><a href="#topic-2" class="hover:underline" style="color:var(--gray-60)">トピック2</a></span>
         </div>
       </div>
 
@@ -736,7 +853,7 @@
         <div class="flex flex-wrap gap-4 mt-2 text-sm">
           <span class="flex items-center gap-1" style="color:var(--gray-40)"><i data-lucide="users" class="w-4 h-4"></i>担当：川口さん</span>
           <span class="flex items-center gap-1" style="color:var(--gray-40)"><i data-lucide="calendar-x" class="w-4 h-4"></i>期限：要確認</span>
-          <span class="flex items-center gap-1" style="color:var(--gray-60)"><i data-lucide="tag" class="w-4 h-4"></i><a href="#topic-3" class="hover:underline" style="color:var(--gray-60)">議題3</a></span>
+          <span class="flex items-center gap-1" style="color:var(--gray-60)"><i data-lucide="tag" class="w-4 h-4"></i><a href="#topic-3" class="hover:underline" style="color:var(--gray-60)">トピック3</a></span>
         </div>
       </div>
 
@@ -752,15 +869,161 @@
         <div class="flex flex-wrap gap-4 mt-2 text-sm" style="color:var(--gray-40)">
           <span class="flex items-center gap-1"><i data-lucide="user" class="w-4 h-4"></i>担当：印牧さん</span>
           <span class="flex items-center gap-1"><i data-lucide="calendar-check" class="w-4 h-4"></i>期限：2026年3月末</span>
-          <span class="flex items-center gap-1" style="color:var(--gray-60)"><i data-lucide="tag" class="w-4 h-4"></i><a href="#topic-5" class="hover:underline" style="color:var(--gray-60)">議題5</a></span>
+          <span class="flex items-center gap-1" style="color:var(--gray-60)"><i data-lucide="tag" class="w-4 h-4"></i><a href="#topic-5" class="hover:underline" style="color:var(--gray-60)">トピック5</a></span>
         </div>
+      </div>
+
+    </div>
+
+    <!-- ⑥ Q&A -->
+    <div class="section-card" id="qa">
+      <div class="flex items-center gap-3 mb-6">
+        <div class="w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0" style="background:var(--gray-90)">
+          <i data-lucide="message-circle-question" class="w-6 h-6" style="color:var(--gray-40)"></i>
+        </div>
+        <div>
+          <h2 class="text-xl font-bold" style="color:var(--gray-15)">Q&A</h2>
+          <p class="text-sm" style="color:var(--gray-50)">トレーニング中に出た質問と回答</p>
+        </div>
+      </div>
+
+      <div class="chat-window">
+
+        <!-- Q1 -->
+        <div class="chat-group">
+          <div class="chat-row question">
+            <div class="chat-avatar q-avatar">Q1</div>
+            <div class="chat-bubble-wrap">
+              <div class="chat-name">北村さん</div>
+              <div class="chat-bubble q-bubble">ラボ機器の品質記録（Qualification Records）のアーカイブ先はどこになりますか？</div>
+            </div>
+          </div>
+          <div class="chat-row answer">
+            <div class="chat-avatar a-avatar">A1</div>
+            <div class="chat-bubble-wrap">
+              <div class="chat-name">輿石さん</div>
+              <div class="chat-bubble a-bubble">現在検討中です。確定次第、全体ガイドラインに反映してNATで共有する予定です。<span class="chat-cite">(データ管理ガイドライン.pptx p.9)</span></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Q2 -->
+        <div class="chat-group">
+          <div class="chat-row question">
+            <div class="chat-avatar q-avatar">Q2</div>
+            <div class="chat-bubble-wrap">
+              <div class="chat-name">北村さん</div>
+              <div class="chat-bubble q-bubble">VipoとソフトウェアパイプラインのフィーチャーDB連携は現在どの段階ですか？</div>
+            </div>
+          </div>
+          <div class="chat-row answer">
+            <div class="chat-avatar a-avatar">A2</div>
+            <div class="chat-bubble-wrap">
+              <div class="chat-name">アンドレアスさん</div>
+              <div class="chat-bubble a-bubble">現在はVisionフェーズです。フェーズ2として今年中の完了を目標に開発を進めています。<span class="chat-cite">(Vipo紹介.pptx p.6)</span></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Q3 -->
+        <div class="chat-group">
+          <div class="chat-row question">
+            <div class="chat-avatar q-avatar">Q3</div>
+            <div class="chat-bubble-wrap">
+              <div class="chat-name">複数の参加者</div>
+              <div class="chat-bubble q-bubble">パルスチェックの追加意見はどこに送ればよいですか？</div>
+            </div>
+          </div>
+          <div class="chat-row answer">
+            <div class="chat-avatar a-avatar">A3</div>
+            <div class="chat-bubble-wrap">
+              <div class="chat-name">印牧さん</div>
+              <div class="chat-bubble a-bubble">1週間以内に印牧さんまたは直属の上司に直接ご連絡ください。調査結果は後日フォルダに格納予定です。</div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+    </div>
+
+    <!-- ⑦ クイズ -->
+    <div class="section-card" id="quiz">
+      <div class="flex items-center gap-3 mb-6">
+        <div class="w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0" style="background:var(--gray-90)">
+          <i data-lucide="brain" class="w-6 h-6" style="color:var(--gray-40)"></i>
+        </div>
+        <div>
+          <h2 class="text-xl font-bold" style="color:var(--gray-15)">クイズ</h2>
+          <p class="text-sm" style="color:var(--gray-50)">トレーニング内容の復習用クイズ</p>
+        </div>
+      </div>
+
+      <!-- Q1 -->
+      <div class="action-row mb-3">
+        <div class="flex items-start gap-3 mb-2">
+          <span class="text-xs font-bold px-2 py-0.5 rounded-full flex-shrink-0 mt-0.5" style="background:var(--blue-90);color:var(--blue-30);border:1px solid var(--blue-70)">1</span>
+          <p class="text-sm font-semibold" style="color:var(--gray-20)">ILM（情報ライフサイクル管理）の3つのフェーズを順番に教えてください。</p>
+        </div>
+        <details class="pl-8 mt-1">
+          <summary class="text-xs cursor-pointer select-none" style="color:var(--blue-40)">回答を見る</summary>
+          <p class="text-sm mt-2" style="color:var(--gray-40)"><span class="font-semibold" style="color:var(--teal-30)">回答：</span>Active Use → Passing Use → Archive です。<span class="text-xs ml-1" style="color:var(--gray-65)">(データ管理ガイドライン.pptx p.3)</span></p>
+        </details>
+      </div>
+
+      <!-- Q2 -->
+      <div class="action-row mb-3">
+        <div class="flex items-start gap-3 mb-2">
+          <span class="text-xs font-bold px-2 py-0.5 rounded-full flex-shrink-0 mt-0.5" style="background:var(--blue-90);color:var(--blue-30);border:1px solid var(--blue-70)">2</span>
+          <p class="text-sm font-semibold" style="color:var(--gray-20)">製品文書のデータ保管年数は何年ですか？</p>
+        </div>
+        <details class="pl-8 mt-1">
+          <summary class="text-xs cursor-pointer select-none" style="color:var(--blue-40)">回答を見る</summary>
+          <p class="text-sm mt-2" style="color:var(--gray-40)"><span class="font-semibold" style="color:var(--teal-30)">回答：</span>35年です。<span class="text-xs ml-1" style="color:var(--gray-65)">(データ管理ガイドライン.pptx p.4)</span></p>
+        </details>
+      </div>
+
+      <!-- Q3 -->
+      <div class="action-row mb-3">
+        <div class="flex items-start gap-3 mb-2">
+          <span class="text-xs font-bold px-2 py-0.5 rounded-full flex-shrink-0 mt-0.5" style="background:var(--blue-90);color:var(--blue-30);border:1px solid var(--blue-70)">3</span>
+          <p class="text-sm font-semibold" style="color:var(--gray-20)">EIA活動のフェーズ1において、ステップ1（ヒアリング）で把握したアクティビティの件数はいくつですか？</p>
+        </div>
+        <details class="pl-8 mt-1">
+          <summary class="text-xs cursor-pointer select-none" style="color:var(--blue-40)">回答を見る</summary>
+          <p class="text-sm mt-2" style="color:var(--gray-40)"><span class="font-semibold" style="color:var(--teal-30)">回答：</span>96件です。<span class="text-xs ml-1" style="color:var(--gray-65)">(EIA活動進捗報告.pptx p.2)</span></p>
+        </details>
+      </div>
+
+      <!-- Q4 -->
+      <div class="action-row mb-3">
+        <div class="flex items-start gap-3 mb-2">
+          <span class="text-xs font-bold px-2 py-0.5 rounded-full flex-shrink-0 mt-0.5" style="background:var(--blue-90);color:var(--blue-30);border:1px solid var(--blue-70)">4</span>
+          <p class="text-sm font-semibold" style="color:var(--gray-20)">VipoのフェーズI実装にかかったコストと、グローバル展開初年度の削減見込み時間をそれぞれ教えてください。</p>
+        </div>
+        <details class="pl-8 mt-1">
+          <summary class="text-xs cursor-pointer select-none" style="color:var(--blue-40)">回答を見る</summary>
+          <p class="text-sm mt-2" style="color:var(--gray-40)"><span class="font-semibold" style="color:var(--teal-30)">回答：</span>実装コストは約2,000時間、削減見込みは5,000時間/年です。<span class="text-xs ml-1" style="color:var(--gray-65)">(Vipo紹介.pptx p.5)</span></p>
+        </details>
+      </div>
+
+      <!-- Q5 -->
+      <div class="action-row">
+        <div class="flex items-start gap-3 mb-2">
+          <span class="text-xs font-bold px-2 py-0.5 rounded-full flex-shrink-0 mt-0.5" style="background:var(--blue-90);color:var(--blue-30);border:1px solid var(--blue-70)">5</span>
+          <p class="text-sm font-semibold" style="color:var(--gray-20)">パルスチェック2025で「キャリア開発について上司と有意義な話し合いができている」と回答した割合はおよそ何％ですか？</p>
+        </div>
+        <details class="pl-8 mt-1">
+          <summary class="text-xs cursor-pointer select-none" style="color:var(--blue-40)">回答を見る</summary>
+          <p class="text-sm mt-2" style="color:var(--gray-40)"><span class="font-semibold" style="color:var(--teal-30)">回答：</span>約65%です（回答者14名）。<span class="text-xs ml-1" style="color:var(--gray-65)">(パルスチェック2025.pptx p.3)</span></p>
+        </details>
       </div>
 
     </div>
 
   </main>
   <footer class="text-center text-sm py-6" style="color:var(--gray-60)">
-    EBE-JP AAM 議事録 ／ 2026年3月19日 ／ 議事録担当：北村さん
+    EBE-JP AAM トレーニング記録 ／ 2026年3月19日 ／ トレーナー：北村さん、アンドレアスさん ／ 記録担当：北村さん
   </footer>
   <script>lucide.createIcons();</script>
 </body>

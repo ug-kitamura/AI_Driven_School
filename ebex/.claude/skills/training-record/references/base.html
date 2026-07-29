@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>{{MEETING_TITLE}} 議事録</title>
+  <title>{{TRAINING_TITLE}} 記録</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://unpkg.com/lucide@latest"></script>
   <style>
@@ -261,6 +261,102 @@
       color: var(--blue-35);
       border: 1px solid var(--blue-90);
     }
+    /* Q&A chat bubble */
+    .chat-window {
+      background: var(--gray-95);
+      border-radius: 0.75rem;
+      padding: 1.25rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+    }
+    .chat-group {
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+    }
+    .chat-group + .chat-group {
+      margin-top: 2rem;
+    }
+    .chat-row {
+      display: flex;
+      align-items: flex-end;
+      gap: 0.75rem;
+    }
+    .chat-row.question {
+      flex-direction: row-reverse;
+    }
+    .chat-row.answer {
+      flex-direction: row;
+    }
+    .chat-avatar {
+      width: 2rem;
+      height: 2rem;
+      border-radius: 9999px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.65rem;
+      font-weight: 700;
+      flex-shrink: 0;
+      line-height: 1;
+    }
+    .chat-avatar.q-avatar {
+      background: var(--blue-40);
+      font-size: 0.75rem;
+      color: white;
+    }
+    .chat-avatar.a-avatar {
+      background: var(--teal-50);
+      font-size: 0.75rem;
+      color: white;
+    }
+    .chat-bubble-wrap {
+      display: flex;
+      flex-direction: column;
+      max-width: 72%;
+    }
+    .chat-row.question .chat-bubble-wrap {
+      align-items: flex-end;
+    }
+    .chat-row.answer .chat-bubble-wrap {
+      align-items: flex-start;
+    }
+    .chat-name {
+      font-size: 0.8rem;
+      color: var(--gray-55);
+      margin-bottom: 0.2rem;
+      padding: 0 0.3rem;
+    }
+    .chat-bubble {
+      padding: 0.6rem 0.9rem;
+      border-radius: 1rem;
+      font-size: 0.85rem;
+      line-height: 1.55;
+      word-break: break-word;
+    }
+    .chat-bubble.q-bubble {
+      background: var(--blue-40);
+      color: white;
+      border-bottom-right-radius: 0.25rem;
+    }
+    .chat-bubble.a-bubble {
+      background: white;
+      color: var(--gray-25);
+      border: 1px solid var(--gray-90);
+      border-bottom-left-radius: 0.25rem;
+    }
+    .chat-bubble .chat-cite {
+      font-size: 0.7rem;
+      opacity: 0.65;
+      margin-left: 0.25rem;
+    }
+    .chat-bubble.q-bubble .chat-cite {
+      color: var(--blue-90);
+    }
+    .chat-bubble.a-bubble .chat-cite {
+      color: var(--gray-55);
+    }
   </style>
 </head>
 <body class="min-h-screen">
@@ -268,21 +364,24 @@
     <div class="text-xs font-bold mb-2 uppercase tracking-wide" style="color:var(--gray-60)">目次</div>
     <ul class="space-y-1 text-sm">
       <li><a href="#summary" style="color:var(--gray-45)" class="hover:underline">サマリー</a></li>
-      <li><a href="#agenda" style="color:var(--gray-45)" class="hover:underline">議題リスト</a></li>
-      <li><a href="#details" style="color:var(--gray-45)" class="hover:underline">議題の詳細</a></li>
+      <li><a href="#topics" style="color:var(--gray-45)" class="hover:underline">トピックリスト</a></li>
+      <li><a href="#details" style="color:var(--gray-45)" class="hover:underline">トピックの詳細</a></li>
       <li><a href="#actions" style="color:var(--gray-45)" class="hover:underline">アクションプラン</a></li>
+      <li><a href="#qa" style="color:var(--gray-45)" class="hover:underline">Q&A</a></li>
+      <li><a href="#quiz" style="color:var(--gray-45)" class="hover:underline">クイズ</a></li>
     </ul>
   </nav>
   <header class="header-gradient text-white py-8 px-4">
     <div class="max-w-4xl mx-auto">
       <div class="flex items-center gap-3 mb-2">
         <i data-lucide="clipboard-list" class="w-8 h-8 flex-shrink-0"></i>
-        <h1 class="text-2xl md:text-3xl font-bold">{{MEETING_TITLE}} 議事録</h1>
+        <h1 class="text-2xl md:text-3xl font-bold">{{TRAINING_TITLE}} 記録</h1>
       </div>
       <div class="flex flex-wrap gap-x-6 gap-y-2 text-sm opacity-80 mt-3">
         <span class="flex items-center gap-1"><i data-lucide="calendar" class="w-4 h-4"></i>{{DATE}}</span>
-        <span class="flex items-center gap-1" title="{{ATTENDEES_NAME}}"><i data-lucide="users" class="w-4 h-4"></i>出席者：{{ATTENDEES_NUMBER}}</span>
-        <span class="flex items-center gap-1"><i data-lucide="user" class="w-4 h-4"></i>議事録担当：{{MINUTES_WRITER}}</span>
+        <span class="flex items-center gap-1"><i data-lucide="graduation-cap" class="w-4 h-4"></i>トレーナー：{{TRAINER}}</span>
+        <span class="flex items-center gap-1" title="{{ATTENDEES_NAME}}"><i data-lucide="users" class="w-4 h-4"></i>受講者：{{ATTENDEES_NUMBER}}</span>
+        <span class="flex items-center gap-1"><i data-lucide="user" class="w-4 h-4"></i>記録担当：{{TRAINING_RECORD_WRITER}}</span>
       </div>
     </div>
   </header>
@@ -306,24 +405,41 @@
     <div class="flex items-start gap-3 rounded-xl p-4 mb-8" style="background:var(--red-95);border:1px solid var(--red-85)">
       <i data-lucide="triangle-alert" class="w-5 h-5 flex-shrink-0 mt-0.5" style="color:var(--red-50)"></i>
       <p class="text-sm" style="color:var(--red-30)">
-        <strong>「要確認」が{{CHECK_NUMBER}}件あります。</strong><br>担当者または期限が会議中に確定しなかった項目です。今週中に関係者間で確認・決定してください。
+        <strong>「要確認」が{{CHECK_NUMBER}}件あります。</strong><br>担当者または期限がトレーニング中に確定しなかった項目です。今週中に関係者間で確認・決定してください。
       </p>
     </div>
 
-    <div class="section-card" id="agenda">
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6" id="overview">
+      <div class="section-card" style="margin-bottom:0">
+        <div class="flex items-center gap-2 mb-2">
+          <i data-lucide="target" class="w-5 h-5 flex-shrink-0" style="color:var(--gray-40)"></i>
+          <span class="text-sm font-bold" style="color:var(--gray-30)">トレーニングの目的</span>
+        </div>
+        <p class="text-sm leading-relaxed" style="color:var(--gray-40)">{{PURPOSE}}</p>
+      </div>
+      <div class="section-card" style="margin-bottom:0">
+        <div class="flex items-center gap-2 mb-2">
+          <i data-lucide="users" class="w-5 h-5 flex-shrink-0" style="color:var(--gray-40)"></i>
+          <span class="text-sm font-bold" style="color:var(--gray-30)">トレーニングの対象者</span>
+        </div>
+        <p class="text-sm leading-relaxed" style="color:var(--gray-40)">{{TARGET_AUDIENCE}}</p>
+      </div>
+    </div>
+
+    <div class="section-card" id="topics">
       <div class="flex items-center gap-3 mb-5">
         <div class="w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0" style="background:var(--gray-90)">
           <i data-lucide="list" class="w-6 h-6" style="color:var(--gray-40)"></i>
         </div>
         <div>
-          <h2 class="text-xl font-bold" style="color:var(--gray-15)">議題リスト</h2>
+          <h2 class="text-xl font-bold" style="color:var(--gray-15)">トピックリスト</h2>
           <p class="text-sm" style="color:var(--gray-50)">タイトルをクリックすると詳細にジャンプします</p>
         </div>
       </div>
       <ol class="relative ml-3 border-l-2" style="border-color:var(--blue-85)">
-<!-- AGENDA_LIST_START -->
+<!-- TOPIC_LIST_START -->
 
-<!-- AGENDA_LIST_END -->
+<!-- TOPIC_LIST_END -->
       </ol>
     </div>
 
@@ -333,13 +449,13 @@
           <i data-lucide="file-text" class="w-6 h-6" style="color:var(--gray-40)"></i>
         </div>
         <div>
-          <h2 class="text-xl font-bold" style="color:var(--gray-15)">議題の詳細</h2>
-          <p class="text-sm" style="color:var(--gray-50)">背景・議論の内容・決定事項</p>
+          <h2 class="text-xl font-bold" style="color:var(--gray-15)">トピックの詳細</h2>
+          <p class="text-sm" style="color:var(--gray-50)">背景・説明の内容・決定事項</p>
         </div>
       </div>
-<!-- AGENDA_DETAILS_START -->
+<!-- TOPIC_DETAILS_START -->
 
-<!-- AGENDA_DETAILS_END -->
+<!-- TOPIC_DETAILS_END -->
     </div>
 
     <div class="section-card" id="actions">
@@ -357,9 +473,39 @@
 <!-- ACTION_PLAN_END -->
     </div>
 
+    <div class="section-card" id="qa">
+      <div class="flex items-center gap-3 mb-6">
+        <div class="w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0" style="background:var(--gray-90)">
+          <i data-lucide="message-circle-question" class="w-6 h-6" style="color:var(--gray-40)"></i>
+        </div>
+        <div>
+          <h2 class="text-xl font-bold" style="color:var(--gray-15)">Q&A</h2>
+          <p class="text-sm" style="color:var(--gray-50)">トレーニング中に出た質問と回答</p>
+        </div>
+      </div>
+<!-- QA_START -->
+
+<!-- QA_END -->
+    </div>
+
+    <div class="section-card" id="quiz">
+      <div class="flex items-center gap-3 mb-6">
+        <div class="w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0" style="background:var(--gray-90)">
+          <i data-lucide="brain" class="w-6 h-6" style="color:var(--gray-40)"></i>
+        </div>
+        <div>
+          <h2 class="text-xl font-bold" style="color:var(--gray-15)">クイズ</h2>
+          <p class="text-sm" style="color:var(--gray-50)">トレーニング内容の復習用クイズ</p>
+        </div>
+      </div>
+<!-- QUIZ_START -->
+
+<!-- QUIZ_END -->
+    </div>
+
   </main>
   <footer class="text-center text-sm py-6" style="color:var(--gray-60)">
-    {{MEETING_TITLE}} 議事録 ／ {{DATE}} ／ 議事録担当：{{MINUTES_WRITER}}
+    {{TRAINING_TITLE}} 記録 ／ {{DATE}} ／ トレーナー：{{TRAINER}} ／ 記録担当：{{TRAINING_RECORD_WRITER}}
   </footer>
   <script>lucide.createIcons();</script>
 </body>

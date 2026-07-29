@@ -84,16 +84,15 @@ Hooksはエージェントループの特定タイミングでカスタムスク
 
 ## フックイベント一覧
 
-| イベント      | タイミング     | 出力             |
-| ------------- | -------------- | ---------------- |
-| afterFileEdit | ファイル編集後 | なし             |
-| stop          | Agent停止時    | followup_message |
+| イベント | タイミング | 出力 |
+|---------|-----------|------|
+| afterFileEdit | ファイル編集後 | なし |
+| stop | Agent停止時 | followup_message |
 
 **詳細スキーマ** → [references/events.md](references/events.md)
 ```
 
 **ポイント**:
-
 - 公式ドキュメントの内容のみ
 - プロジェクト固有の実装パターンなし
 
@@ -129,7 +128,6 @@ description: プロジェクト固有の作業を行うスキル。「〇〇を�
 ```
 
 **ポイント**:
-
 - 依存先を「依存」セクションで明示
 - 変更時の影響範囲が把握できる
 
@@ -154,7 +152,6 @@ Cursor hooks と SDK hooks を同時に無効化/有効化する。
 ## 仕組み
 
 各 `hooks-disabled` ファイルの有無でフックが動作を判定。
-
 - ファイルあり → フック無効
 - ファイルなし → フック有効
 
@@ -164,10 +161,10 @@ bash .claude/skills/hooks-toggle/scripts/toggle-hooks.sh
 
 ## 出力
 
-| 状態      | 出力                            |
-| --------- | ------------------------------- |
+| 状態 | 出力 |
+|------|------|
 | 有効→無効 | `Hooks disabled (Cursor + SDK)` |
-| 無効→有効 | `Hooks enabled (Cursor + SDK)`  |
+| 無効→有効 | `Hooks enabled (Cursor + SDK)` |
 
 ## 依存
 
@@ -176,7 +173,6 @@ bash .claude/skills/hooks-toggle/scripts/toggle-hooks.sh
 ```
 
 **ポイント**:
-
 - `scripts/toggle-hooks.sh` で状態管理（ファイル作成/削除）を確実に実行
 - SKILL.md は**仕組み・実行方法・出力**を記載（スクリプトの実装詳細は書かない）
 - 依存セクションでフック判定ロジックの所在を明示
@@ -229,7 +225,6 @@ analyze → changes.json作成 → validate_changes.py → 問題なければ実
 ```
 
 バリデーションスクリプトのエラーメッセージは具体的に:
-
 - 良い: `Field 'signature_date' not found. Available: customer_name, order_total`
 - 悪い: `Validation failed`
 
@@ -267,12 +262,12 @@ analyze → changes.json作成 → validate_changes.py → 問題なければ実
 
 Claude Bの挙動を観察してClaude Aに報告し、改善する:
 
-| 観察                                     | 対応                             |
-| ---------------------------------------- | -------------------------------- |
+| 観察 | 対応 |
+|------|------|
 | Claudeがバンドルファイルを一度も読まない | 不要か、SKILL.mdでの参照が不十分 |
-| 同じファイルを繰り返し読む               | そのコンテンツをSKILL.mdに昇格   |
-| 参照リンクをたどらない                   | リンクをより目立たせる           |
-| 予想外の順序でファイルを読む             | 構造が直感的でない可能性         |
+| 同じファイルを繰り返し読む | そのコンテンツをSKILL.mdに昇格 |
+| 参照リンクをたどらない | リンクをより目立たせる |
+| 予想外の順序でファイルを読む | 構造が直感的でない可能性 |
 
 ### チーム展開時
 

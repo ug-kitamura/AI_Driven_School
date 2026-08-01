@@ -1,0 +1,1038 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="robots" content="noindex, nofollow, noarchive, nosnippet, noimageindex">
+  <meta name="googlebot" content="noindex, nofollow">
+  <meta property="og:title" content="自分のプレゼン作成スキルを作る — my-writing-presentations">
+  <meta property="og:description" content="課のメンバーに openspec を紹介するプレゼン原稿を、自分専用スキルで作るまでの記録を図解します。">
+  <meta property="og:type" content="article">
+  <title>自分のプレゼン作成スキルを作る — my-writing-presentations</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%23FFFFFF'/><rect x='8' y='8' width='84' height='84' rx='14' fill='none' stroke='%233B82F6' stroke-width='4'/><circle cx='32' cy='40' r='10' fill='%233B82F6' opacity='0.8'/><circle cx='68' cy='40' r='10' fill='%2360A5FA' opacity='0.8'/><rect x='25' y='62' width='50' height='6' rx='3' fill='%2394A3B8' opacity='0.6'/><rect x='30' y='74' width='40' height='6' rx='3' fill='%2394A3B8' opacity='0.3'/></svg>">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700;900&display=swap" rel="stylesheet">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            custom: {
+              bg: '#FFFFFF',
+              surface: '#F8FAFC',
+              hover: '#F1F5F9',
+              border: '#E2E8F0',
+              accent: '#3B82F6',
+              'accent-light': '#2563EB',
+              text: '#1E293B',
+              muted: '#64748B',
+              dim: '#94A3B8',
+              positive: '#10B981',
+              negative: '#EF4444',
+              warning: '#F59E0B',
+            }
+          },
+          fontFamily: {
+            sans: ['"Noto Sans JP"', '"Hiragino Sans"', '"Hiragino Kaku Gothic ProN"', '"Yu Gothic UI"', '"Meiryo"', 'sans-serif'],
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    @media print {
+      .no-print { display: none !important; }
+      body { border-top: none !important; }
+      .rounded-xl { break-inside: avoid; }
+      .md\:flex-row { flex-direction: row !important; }
+      .md\:hidden { display: none !important; }
+      .hidden.md\:block { display: block !important; }
+      .md\:grid-cols-2 { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; }
+      .sm\:grid-cols-3 { grid-template-columns: repeat(3, minmax(0, 1fr)) !important; }
+      .md\:mb-20 { margin-bottom: 5rem !important; }
+      .md\:py-16 { padding-top: 4rem !important; padding-bottom: 4rem !important; }
+      .bg-clip-text.text-transparent {
+        -webkit-background-clip: initial !important;
+        background-clip: initial !important;
+        color: #2563EB !important;
+        -webkit-text-fill-color: #2563EB !important;
+      }
+    }
+  </style>
+</head>
+<body class="bg-custom-bg text-slate-600 antialiased leading-relaxed border-t-4 border-custom-accent">
+  <div class="no-print max-w-3xl mx-auto px-5 pt-2 flex justify-end">
+    <button onclick="window.print()" class="flex items-center gap-1.5 text-xs text-custom-dim hover:text-custom-accent transition-colors cursor-pointer">
+      <i data-lucide="download" class="w-3.5 h-3.5"></i>
+      PDF
+    </button>
+  </div>
+  <main class="max-w-3xl mx-auto px-5 py-10 md:py-16">
+
+<!-- ============================================================ -->
+<!--  HERO                                                        -->
+<!-- ============================================================ -->
+<div class="text-center mb-8 md:mb-10">
+  <div class="inline-flex items-center gap-2 bg-custom-accent/10 text-custom-accent-light px-4 py-1.5 rounded-full text-sm font-medium mb-6">
+    <i data-lucide="sparkles" class="w-4 h-4"></i>
+    AI活用・スキル開発
+  </div>
+  <h1 class="text-3xl md:text-5xl font-black text-slate-900 tracking-tight mb-6">
+    自分の<span class="bg-gradient-to-r from-blue-600 to-cyan-600 bg-clip-text text-transparent">プレゼン作成スキル</span>を作る
+  </h1>
+  <p class="text-lg text-custom-muted max-w-xl mx-auto leading-relaxed">
+    AIに任せると、なぜか「自分の言葉」にならない。<br>
+    ひとことで言うと ──
+  </p>
+</div>
+
+
+<!-- ============================================================ -->
+<!--  ONE-PAGE SUMMARY                                             -->
+<!-- ============================================================ -->
+<div class="bg-custom-surface border border-custom-border rounded-2xl p-6 md:p-10 mb-6">
+  <div class="text-center mb-8 md:mb-10">
+    <p class="text-xl md:text-2xl font-black text-slate-900 mb-2">
+      AIに説明を書かせるのではなく、<span class="text-custom-accent-light">自分の中の具体を引き出させる</span>
+    </p>
+    <p class="text-sm text-custom-muted">
+      これが <span class="font-mono text-xs bg-white border border-custom-border rounded px-1.5 py-0.5">my-writing-presentations</span> というスキルの中心にある考え方
+    </p>
+  </div>
+
+  <!-- Core flow: 対話で掘る → 弧に流す → 読み上げ原稿 -->
+  <div class="flex flex-col md:flex-row items-center justify-center gap-2 md:gap-0 mb-8">
+    <div class="flex flex-col items-center w-40 p-3">
+      <div class="w-14 h-14 rounded-xl bg-blue-500/10 border border-blue-500/20 flex items-center justify-center mb-2.5">
+        <i data-lucide="messages-square" class="w-7 h-7 text-blue-600"></i>
+      </div>
+      <div class="font-bold text-slate-900 text-sm">1問ずつ掘る</div>
+      <div class="text-[11px] text-blue-600/70 mt-0.5 text-center">実際に見た場面<br>その時の心の声</div>
+    </div>
+
+    <div class="flex items-center justify-center md:w-14 py-1 md:py-0">
+      <div class="flex flex-col items-center gap-0.5">
+        <span class="text-[9px] font-medium text-custom-accent tracking-wider">材料</span>
+        <i data-lucide="arrow-right" class="w-5 h-5 text-custom-accent hidden md:block"></i>
+        <i data-lucide="arrow-down" class="w-5 h-5 text-custom-accent md:hidden"></i>
+      </div>
+    </div>
+
+    <div class="flex flex-col items-center w-44 p-4 bg-custom-accent/5 border-2 border-custom-accent/20 rounded-2xl">
+      <div class="w-16 h-16 rounded-2xl bg-custom-accent/15 border-2 border-custom-accent/30 flex items-center justify-center mb-2.5">
+        <i data-lucide="audio-waveform" class="w-8 h-8 text-custom-accent-light"></i>
+      </div>
+      <div class="font-bold text-custom-accent-light text-base">6ステップの弧</div>
+      <div class="text-[11px] text-custom-muted mt-0.5 mb-2 text-center">問いを開いて、絵で閉じる</div>
+      <div class="text-[10px] text-custom-muted bg-white rounded-lg px-2.5 py-1 border border-custom-border/50 text-center">結論ファーストは保つ</div>
+    </div>
+
+    <div class="flex items-center justify-center md:w-14 py-1 md:py-0">
+      <div class="flex flex-col items-center gap-0.5">
+        <span class="text-[9px] font-medium text-custom-accent tracking-wider">生成</span>
+        <i data-lucide="arrow-right" class="w-5 h-5 text-custom-accent hidden md:block"></i>
+        <i data-lucide="arrow-down" class="w-5 h-5 text-custom-accent md:hidden"></i>
+      </div>
+    </div>
+
+    <div class="flex flex-col items-center w-40 p-3">
+      <div class="w-14 h-14 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center mb-2.5">
+        <i data-lucide="mic" class="w-7 h-7 text-emerald-600"></i>
+      </div>
+      <div class="font-bold text-slate-900 text-sm">読み上げ原稿</div>
+      <div class="text-[11px] text-emerald-600/70 mt-0.5 text-center">そのまま話せる<br>話し言葉のMarkdown</div>
+    </div>
+  </div>
+
+  <div class="flex justify-center mb-8">
+    <div class="flex items-center gap-2 text-xs text-emerald-600 bg-emerald-500/5 border border-emerald-500/15 rounded-full px-4 py-1.5 text-center">
+      <i data-lucide="corner-down-left" class="w-3.5 h-3.5 flex-shrink-0"></i>
+      最後は声に出して読み、自分の言葉に直して完成
+    </div>
+  </div>
+
+  <div class="flex items-center gap-4 mb-6">
+    <div class="flex-1 border-t border-custom-border/50"></div>
+    <div class="text-[11px] text-custom-dim font-medium">今回の課題</div>
+    <div class="flex-1 border-t border-custom-border/50"></div>
+  </div>
+
+  <div class="flex flex-wrap justify-center gap-2">
+    <div class="flex items-center gap-1.5 bg-white border border-custom-border rounded-full px-3.5 py-1.5 text-xs text-slate-700">
+      <i data-lucide="package" class="w-3.5 h-3.5 text-blue-500"></i>
+      my-writing-presentations
+    </div>
+    <div class="flex items-center gap-1.5 bg-white border border-custom-border rounded-full px-3.5 py-1.5 text-xs text-slate-700">
+      <i data-lucide="calendar-clock" class="w-3.5 h-3.5 text-amber-500"></i>
+      2026.08.02 10:00 提出
+    </div>
+    <div class="flex items-center gap-1.5 bg-white border border-custom-border rounded-full px-3.5 py-1.5 text-xs text-slate-700">
+      <i data-lucide="user" class="w-3.5 h-3.5 text-emerald-500"></i>
+      mind チーム / 北村
+    </div>
+    <div class="flex items-center gap-1.5 bg-white border border-custom-border rounded-full px-3.5 py-1.5 text-xs text-slate-700">
+      <i data-lucide="file-code-2" class="w-3.5 h-3.5 text-purple-500"></i>
+      題材は openspec
+    </div>
+  </div>
+</div>
+
+<p class="text-center text-custom-muted mb-16 md:mb-20">
+  ここから、課題の中身・作った原稿・チューニングの工夫を、ひとつずつ見ていきます。
+</p>
+
+
+<!-- ============================================================ -->
+<!--  SECTION 1: 課題概要                                          -->
+<!-- ============================================================ -->
+<section class="mb-16 md:mb-20">
+  <div class="flex items-center gap-3 mb-8">
+    <div class="flex items-center justify-center w-10 h-10 rounded-lg bg-blue-500/10 flex-shrink-0">
+      <i data-lucide="clipboard-list" class="w-5 h-5 text-blue-600"></i>
+    </div>
+    <h2 class="text-xl md:text-2xl font-bold text-slate-900">課題概要 — 自分自身のプレゼン作成スキルを作る</h2>
+  </div>
+
+  <p class="mb-8 leading-relaxed">
+    今回の課題は、汎用のスキルをそのまま使うのではなく、<strong class="text-slate-900">自分の発表の型に合わせて育てたスキルを1本つくる</strong>というものです。スキルとは、Claude Code に「こういう手順で、こういう質問をして、こういう形式で出力して」と教え込んだ作業マニュアルのようなもの。作ったスキルで実際にプレゼン原稿を1本仕上げ、その過程を報告するところまでが課題です。
+  </p>
+
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
+    <div class="flex gap-4 bg-custom-surface border border-custom-border rounded-xl p-5">
+      <div class="w-10 h-10 rounded-lg bg-blue-500/10 flex items-center justify-center flex-shrink-0">
+        <i data-lucide="package" class="w-5 h-5 text-blue-600"></i>
+      </div>
+      <div>
+        <h3 class="font-bold text-slate-900 mb-1 text-sm">スキル名</h3>
+        <p class="text-sm text-custom-muted leading-relaxed"><code class="text-emerald-700 text-xs bg-slate-100 px-1.5 py-0.5 rounded">my-writing-presentations</code></p>
+      </div>
+    </div>
+
+    <div class="flex gap-4 bg-custom-surface border border-custom-border rounded-xl p-5">
+      <div class="w-10 h-10 rounded-lg bg-amber-500/10 flex items-center justify-center flex-shrink-0">
+        <i data-lucide="calendar-clock" class="w-5 h-5 text-amber-600"></i>
+      </div>
+      <div>
+        <h3 class="font-bold text-slate-900 mb-1 text-sm">提出期限</h3>
+        <p class="text-sm text-custom-muted leading-relaxed">2026年8月2日（日）10:00 まで</p>
+      </div>
+    </div>
+
+    <div class="flex gap-4 bg-custom-surface border border-custom-border rounded-xl p-5">
+      <div class="w-10 h-10 rounded-lg bg-emerald-500/10 flex items-center justify-center flex-shrink-0">
+        <i data-lucide="users" class="w-5 h-5 text-emerald-600"></i>
+      </div>
+      <div>
+        <h3 class="font-bold text-slate-900 mb-1 text-sm">担当</h3>
+        <p class="text-sm text-custom-muted leading-relaxed">mind チーム / 北村</p>
+      </div>
+    </div>
+
+    <div class="flex gap-4 bg-custom-surface border border-custom-border rounded-xl p-5">
+      <div class="w-10 h-10 rounded-lg bg-purple-500/10 flex items-center justify-center flex-shrink-0">
+        <i data-lucide="file-text" class="w-5 h-5 text-purple-600"></i>
+      </div>
+      <div>
+        <h3 class="font-bold text-slate-900 mb-1 text-sm">成果物</h3>
+        <p class="text-sm text-custom-muted leading-relaxed">スキル本体 ＋ そのスキルで作ったプレゼン原稿1本</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="bg-custom-accent/5 border border-custom-accent/20 rounded-xl p-5">
+    <div class="flex items-start gap-3">
+      <div class="flex items-center justify-center w-8 h-8 rounded-lg bg-custom-accent/10 flex-shrink-0 mt-0.5">
+        <i data-lucide="lightbulb" class="w-4 h-4 text-custom-accent-light"></i>
+      </div>
+      <div>
+        <p class="font-bold text-custom-accent-light mb-1">前回の課題からの続き</p>
+        <p class="text-custom-muted leading-relaxed">
+          この課題の前に、同じ枠組みで<strong class="text-slate-800">提案文を書くスキル（<code class="text-emerald-700 text-xs bg-slate-100 px-1.5 py-0.5 rounded">my-writing-proposals</code>）</strong>を作っています。今回はその続編で、<strong class="text-slate-800">「書いて渡す文書」から「声に出して話す原稿」へ</strong>と対象を変えたスキルづくりです。チューニングの手口も、前回うまくいったものをそのまま持ち込んでいます。
+        </p>
+      </div>
+    </div>
+  </div>
+</section>
+
+
+<!-- ============================================================ -->
+<!--  SECTION 2: 誰に、何をプレゼンするか                            -->
+<!-- ============================================================ -->
+<section class="mb-16 md:mb-20">
+  <div class="flex items-center gap-3 mb-8">
+    <div class="flex items-center justify-center w-10 h-10 rounded-lg bg-cyan-500/10 flex-shrink-0">
+      <i data-lucide="presentation" class="w-5 h-5 text-cyan-600"></i>
+    </div>
+    <h2 class="text-xl md:text-2xl font-bold text-slate-900">誰に、何をプレゼンする原稿を作ったか</h2>
+  </div>
+
+  <p class="mb-8 leading-relaxed">
+    題材にしたのは、<strong class="text-slate-900">課のメンバーに openspec を紹介する発表</strong>です。まずは「どんな場で話すのか」から。プレゼンの原稿は、場が決まらないと1文字も書けません。
+  </p>
+
+  <!-- アプリ画面モック: 技術共有会のアジェンダ -->
+  <div class="rounded-xl overflow-hidden border border-custom-border mb-8">
+    <div class="flex items-center gap-3 bg-slate-800 px-4 py-2.5">
+      <div class="flex gap-1.5">
+        <div class="w-3 h-3 rounded-full bg-red-500/80"></div>
+        <div class="w-3 h-3 rounded-full bg-yellow-500/80"></div>
+        <div class="w-3 h-3 rounded-full bg-green-500/80"></div>
+      </div>
+      <div class="flex items-center gap-1.5 text-xs text-slate-400">
+        <i data-lucide="calendar" class="w-3.5 h-3.5"></i>
+        技術共有会 — 持ち回り発表（2時間）
+      </div>
+    </div>
+    <div class="bg-white p-5 md:p-6">
+      <div class="space-y-2">
+        <div class="flex items-center gap-3 rounded-lg border border-custom-border/60 bg-custom-surface px-4 py-3">
+          <span class="text-xs font-mono text-custom-dim w-16 flex-shrink-0">14:00</span>
+          <span class="text-sm text-custom-muted">前の発表者のトピック</span>
+        </div>
+        <div class="flex items-center gap-3 rounded-lg border-2 border-custom-accent/40 bg-custom-accent/5 px-4 py-3">
+          <span class="text-xs font-mono text-custom-accent-light w-16 flex-shrink-0 font-bold">14:15</span>
+          <div class="flex-1">
+            <div class="text-sm font-bold text-slate-900">openspec ではじめる仕様駆動開発</div>
+            <div class="text-[11px] text-custom-accent-light mt-0.5">北村 — 10〜15分 ＋ デモ</div>
+          </div>
+          <div class="hidden sm:flex items-center gap-1 bg-white border border-custom-accent/30 rounded-full px-2.5 py-1 text-[10px] font-bold text-custom-accent-light flex-shrink-0">
+            <i data-lucide="mic" class="w-3 h-3"></i>
+            今回
+          </div>
+        </div>
+        <div class="flex items-center gap-3 rounded-lg border border-custom-border/60 bg-custom-surface px-4 py-3">
+          <span class="text-xs font-mono text-custom-dim w-16 flex-shrink-0">14:30</span>
+          <span class="text-sm text-custom-muted">次の発表者のトピック</span>
+        </div>
+        <div class="flex items-center gap-3 rounded-lg border border-dashed border-custom-border px-4 py-3">
+          <span class="text-xs font-mono text-custom-dim w-16 flex-shrink-0">〜16:00</span>
+          <span class="text-sm text-custom-muted">自由に意見交換</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <p class="mb-8 leading-relaxed">
+    この場の特徴を、原稿の書き方に効く順に3つ挙げます。<strong class="text-slate-900">聞き手が全員テクノロジーとAIに詳しい</strong>こと。<strong class="text-slate-900">カジュアルで、かしこまっていない</strong>こと。そして<strong class="text-slate-900">承認をもらう場ではない</strong>こと。この3つが、原稿のトーンと締め方をほぼ決めてしまいます。
+  </p>
+
+  <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+    <div class="bg-custom-surface border border-custom-border rounded-xl p-5">
+      <i data-lucide="users" class="w-5 h-5 text-blue-600 mb-3"></i>
+      <h3 class="font-bold text-slate-900 text-sm mb-2">聞き手</h3>
+      <p class="text-sm text-custom-muted leading-relaxed">5〜10名。全員がテクノロジー・AIに詳しく、課長も同席（課長が一番詳しい）。他部署からの参加もあり、若手が多い。</p>
+    </div>
+    <div class="bg-custom-surface border border-custom-border rounded-xl p-5">
+      <i data-lucide="smile" class="w-5 h-5 text-emerald-600 mb-3"></i>
+      <h3 class="font-bold text-slate-900 text-sm mb-2">雰囲気</h3>
+      <p class="text-sm text-custom-muted leading-relaxed">カジュアル。最新技術や、最近自分がハマっているトピックを紹介し合う持ち回りの会。発表後は自由に意見交換。</p>
+    </div>
+    <div class="bg-custom-surface border border-custom-border rounded-xl p-5">
+      <i data-lucide="timer" class="w-5 h-5 text-amber-600 mb-3"></i>
+      <h3 class="font-bold text-slate-900 text-sm mb-2">尺</h3>
+      <p class="text-sm text-custom-muted leading-relaxed">10〜15分。話し言葉で1分あたり約300字が目安なので、原稿は3,000〜4,500字。デモの時間も差し引く必要がある。</p>
+    </div>
+  </div>
+
+  <div class="bg-custom-surface border border-custom-border rounded-xl p-6">
+    <h3 class="font-bold text-slate-900 mb-5 flex items-center gap-2">
+      <i data-lucide="target" class="w-4 h-4 text-custom-accent"></i>
+      この発表で伝えたかった3つのこと
+    </h3>
+    <div class="space-y-3">
+      <div class="flex items-start gap-3">
+        <span class="w-6 h-6 rounded-full bg-blue-500 text-white text-xs font-bold flex items-center justify-center flex-shrink-0 mt-0.5">1</span>
+        <span class="text-sm leading-relaxed">仕様駆動開発を支援するツール <strong class="text-slate-900">openspec</strong> の紹介</span>
+      </div>
+      <div class="flex items-start gap-3">
+        <span class="w-6 h-6 rounded-full bg-emerald-500 text-white text-xs font-bold flex items-center justify-center flex-shrink-0 mt-0.5">2</span>
+        <span class="text-sm leading-relaxed">openspec の<strong class="text-slate-900">メリットと使い方</strong>を、その場で試せる粒度まで落として伝える</span>
+      </div>
+      <div class="flex items-start gap-3">
+        <span class="w-6 h-6 rounded-full bg-amber-500 text-white text-xs font-bold flex items-center justify-center flex-shrink-0 mt-0.5">3</span>
+        <span class="text-sm leading-relaxed">ツールの紹介にとどめず、<strong class="text-slate-900">仕様駆動開発という進め方そのものを広めたい</strong></span>
+      </div>
+    </div>
+  </div>
+</section>
+
+
+<!-- ============================================================ -->
+<!--  SECTION 3: 題材 — openspec とは                               -->
+<!-- ============================================================ -->
+<section class="mb-16 md:mb-20">
+  <div class="flex items-center gap-3 mb-8">
+    <div class="flex items-center justify-center w-10 h-10 rounded-lg bg-purple-500/10 flex-shrink-0">
+      <i data-lucide="file-code-2" class="w-5 h-5 text-purple-600"></i>
+    </div>
+    <h2 class="text-xl md:text-2xl font-bold text-slate-900">題材 — openspec とは何か</h2>
+  </div>
+
+  <p class="mb-8 leading-relaxed">
+    原稿の中身を見る前に、題材そのものを押さえておきます。<strong class="text-slate-900">openspec は、AIコーディング支援ツール向けの「仕様駆動開発（SDD＝Spec-Driven Development）」のフレームワーク</strong>です。コードを書き始める前に、AIと人間が「何を作るか」で合意し、その合意を仕様ファイルとして残しながら進める、という考え方でできています。
+  </p>
+
+  <!-- Before / After -->
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
+    <div class="bg-red-500/5 border border-red-500/20 rounded-xl p-6">
+      <div class="inline-flex items-center gap-1.5 bg-red-500/10 text-red-600 px-3 py-1 rounded-full text-xs font-bold tracking-wide mb-5">
+        <i data-lucide="dices" class="w-3.5 h-3.5"></i>
+        BEFORE — いわゆる「AIガチャ」
+      </div>
+      <ul class="space-y-3">
+        <li class="flex items-start gap-2.5">
+          <i data-lucide="x" class="w-4 h-4 text-red-600 mt-1 flex-shrink-0"></i>
+          <span class="text-sm">指示を出す → ちょっと違う → 直す。<strong class="text-red-700">何往復もして、ようやく当たりが出る</strong></span>
+        </li>
+        <li class="flex items-start gap-2.5">
+          <i data-lucide="x" class="w-4 h-4 text-red-600 mt-1 flex-shrink-0"></i>
+          <span class="text-sm">当たりを引いても、<strong class="text-red-700">翌日には手元に残っていない</strong></span>
+        </li>
+        <li class="flex items-start gap-2.5">
+          <i data-lucide="x" class="w-4 h-4 text-red-600 mt-1 flex-shrink-0"></i>
+          <span class="text-sm">やり取りが記録されず、<strong class="text-red-700">なぜその仕様にしたのかを忘れる</strong></span>
+        </li>
+      </ul>
+      <div class="mt-5 pt-4 border-t border-red-500/10 text-sm text-red-700/70 flex items-center gap-2">
+        <i data-lucide="alert-circle" class="w-4 h-4 flex-shrink-0"></i>
+        毎回ゼロから引き直し。学習が積み上がらない。
+      </div>
+    </div>
+
+    <div class="bg-emerald-500/5 border border-emerald-500/20 rounded-xl p-6">
+      <div class="inline-flex items-center gap-1.5 bg-emerald-500/10 text-emerald-600 px-3 py-1 rounded-full text-xs font-bold tracking-wide mb-5">
+        <i data-lucide="check-circle" class="w-3.5 h-3.5"></i>
+        AFTER — openspec を挟む
+      </div>
+      <ul class="space-y-3">
+        <li class="flex items-start gap-2.5">
+          <i data-lucide="check" class="w-4 h-4 text-emerald-600 mt-1 flex-shrink-0"></i>
+          <span class="text-sm">やり取りが<strong class="text-emerald-700">仕様として文書化</strong>され、その仕様をもとに実装される</span>
+        </li>
+        <li class="flex items-start gap-2.5">
+          <i data-lucide="check" class="w-4 h-4 text-emerald-600 mt-1 flex-shrink-0"></i>
+          <span class="text-sm">作った仕様は保存され、<strong class="text-emerald-700">次のやり取りで参照される</strong></span>
+        </li>
+        <li class="flex items-start gap-2.5">
+          <i data-lucide="check" class="w-4 h-4 text-emerald-600 mt-1 flex-shrink-0"></i>
+          <span class="text-sm">回すほど<strong class="text-emerald-700">仕様が磨かれ、アウトプットの品質が上がる</strong></span>
+        </li>
+      </ul>
+      <div class="mt-5 pt-4 border-t border-emerald-500/10 text-sm text-emerald-700/70 flex items-center gap-2">
+        <i data-lucide="repeat" class="w-4 h-4 flex-shrink-0"></i>
+        1サイクルは重いが、手戻りが減る分トータルで速い。
+      </div>
+    </div>
+  </div>
+
+  <p class="mb-8 leading-relaxed">
+    使い方は、AIとのチャットの中で<strong class="text-slate-900">4つのスキル（スラッシュコマンド）を順番に呼ぶ</strong>だけです。原稿でも、この4ステップを軸に説明しています。
+  </p>
+
+  <!-- 4ステップフロー -->
+  <div class="bg-custom-surface border border-custom-border rounded-xl p-6 md:p-8 mb-6">
+    <h3 class="text-lg font-bold text-slate-900 text-center mb-8">openspec の基本サイクル</h3>
+
+    <div class="flex flex-col md:flex-row items-stretch justify-center gap-3 md:gap-0">
+      <div class="flex-1 bg-blue-500/10 border border-blue-500/20 rounded-xl p-4 text-center">
+        <div class="w-8 h-8 rounded-full bg-blue-500 text-white text-sm font-bold flex items-center justify-center mx-auto mb-3">1</div>
+        <i data-lucide="compass" class="w-6 h-6 text-blue-600 mx-auto mb-2"></i>
+        <div class="font-bold text-blue-700 text-sm mb-1">Explore</div>
+        <div class="text-[11px] text-custom-muted leading-relaxed">アイデアを言語化する。<br>ファイルはまだ作らない</div>
+      </div>
+
+      <div class="flex items-center justify-center md:w-10 py-1 md:py-0">
+        <i data-lucide="chevron-right" class="w-5 h-5 text-custom-dim hidden md:block"></i>
+        <i data-lucide="chevron-down" class="w-5 h-5 text-custom-dim md:hidden"></i>
+      </div>
+
+      <div class="flex-1 bg-purple-500/10 border border-purple-500/20 rounded-xl p-4 text-center">
+        <div class="w-8 h-8 rounded-full bg-purple-500 text-white text-sm font-bold flex items-center justify-center mx-auto mb-3">2</div>
+        <i data-lucide="file-plus-2" class="w-6 h-6 text-purple-600 mx-auto mb-2"></i>
+        <div class="font-bold text-purple-700 text-sm mb-1">Propose</div>
+        <div class="text-[11px] text-custom-muted leading-relaxed">仕様が文書になる。<br>proposal / design / spec / tasks</div>
+      </div>
+
+      <div class="flex items-center justify-center md:w-10 py-1 md:py-0">
+        <i data-lucide="chevron-right" class="w-5 h-5 text-custom-dim hidden md:block"></i>
+        <i data-lucide="chevron-down" class="w-5 h-5 text-custom-dim md:hidden"></i>
+      </div>
+
+      <div class="flex-1 bg-emerald-500/10 border border-emerald-500/20 rounded-xl p-4 text-center">
+        <div class="w-8 h-8 rounded-full bg-emerald-500 text-white text-sm font-bold flex items-center justify-center mx-auto mb-3">3</div>
+        <i data-lucide="hammer" class="w-6 h-6 text-emerald-600 mx-auto mb-2"></i>
+        <div class="font-bold text-emerald-700 text-sm mb-1">Apply</div>
+        <div class="text-[11px] text-custom-muted leading-relaxed">仕様に基づいて実装。<br>済んだタスクが記録される</div>
+      </div>
+
+      <div class="flex items-center justify-center md:w-10 py-1 md:py-0">
+        <i data-lucide="chevron-right" class="w-5 h-5 text-custom-dim hidden md:block"></i>
+        <i data-lucide="chevron-down" class="w-5 h-5 text-custom-dim md:hidden"></i>
+      </div>
+
+      <div class="flex-1 bg-amber-500/10 border border-amber-500/20 rounded-xl p-4 text-center">
+        <div class="w-8 h-8 rounded-full bg-amber-500 text-white text-sm font-bold flex items-center justify-center mx-auto mb-3">4</div>
+        <i data-lucide="archive" class="w-6 h-6 text-amber-600 mx-auto mb-2"></i>
+        <div class="font-bold text-amber-700 text-sm mb-1">Archive</div>
+        <div class="text-[11px] text-custom-muted leading-relaxed">仕様が保存され、<br>既存の仕様に継ぎ足される</div>
+      </div>
+    </div>
+
+    <div class="flex justify-center mt-6">
+      <div class="flex items-center gap-2 text-custom-muted text-xs bg-white border border-custom-border rounded-full px-4 py-1.5">
+        <i data-lucide="rotate-cw" class="w-3.5 h-3.5"></i>
+        Archive された仕様が、次の Explore の入力になる
+      </div>
+    </div>
+    <p class="text-[10px] text-custom-dim mt-4 text-center">出典: <a href="https://github.com/Fission-AI/OpenSpec" class="underline decoration-custom-dim/30 hover:text-custom-accent transition-colors">Fission-AI/OpenSpec 公式リポジトリ</a> ／ <a href="https://github.com/Fission-AI/OpenSpec/blob/main/docs/workflows.md" class="underline decoration-custom-dim/30 hover:text-custom-accent transition-colors">OpenSpec Docs — Workflows</a></p>
+  </div>
+
+  <div class="bg-amber-500/5 border border-amber-500/20 rounded-xl p-5">
+    <div class="flex items-start gap-3">
+      <div class="flex items-center justify-center w-8 h-8 rounded-lg bg-amber-500/10 flex-shrink-0 mt-0.5">
+        <i data-lucide="info" class="w-4 h-4 text-amber-600"></i>
+      </div>
+      <div>
+        <p class="font-bold text-amber-700 mb-1">ちょっと補足: セットアップは3ステップ</p>
+        <p class="text-custom-muted leading-relaxed text-sm">
+          Node.js を入れ、<code class="text-emerald-700 text-xs bg-slate-100 px-1.5 py-0.5 rounded">npm install -g @fission-ai/openspec@latest</code> で本体を入れ、作業フォルダで <code class="text-emerald-700 text-xs bg-slate-100 px-1.5 py-0.5 rounded">openspec init</code> を実行する。環境の選択画面で Claude Code を選ぶと、<code class="text-emerald-700 text-xs bg-slate-100 px-1.5 py-0.5 rounded">.claude/skills/</code> の下に openspec のスキルが配置されます。
+        </p>
+      </div>
+    </div>
+  </div>
+</section>
+
+
+<!-- ============================================================ -->
+<!--  SECTION 4: 作成したプレゼン原稿                                -->
+<!-- ============================================================ -->
+<section class="mb-16 md:mb-20">
+  <div class="flex items-center gap-3 mb-8">
+    <div class="flex items-center justify-center w-10 h-10 rounded-lg bg-emerald-500/10 flex-shrink-0">
+      <i data-lucide="file-text" class="w-5 h-5 text-emerald-600"></i>
+    </div>
+    <h2 class="text-xl md:text-2xl font-bold text-slate-900">作成したプレゼン原稿</h2>
+  </div>
+
+  <p class="mb-8 leading-relaxed">
+    スキルは、引き出した材料を<strong class="text-slate-900">6ステップの弧</strong>に流して原稿に組みます。「問いを開いて、絵で閉じる」を短く刻むための型です。今回の原稿がどの型に乗っているかを、まず地図として見てください。
+  </p>
+
+  <!-- 6ステップ タイムライン -->
+  <div class="border-l-2 border-custom-border/70 pl-6 md:pl-8 space-y-6 mb-10">
+    <div class="relative">
+      <div class="absolute -left-[calc(1.5rem+9px)] md:-left-[calc(2rem+9px)] top-1.5 w-4 h-4 rounded-full bg-blue-500 border-4 border-white"></div>
+      <div class="flex items-center gap-2 mb-1">
+        <span class="text-xs font-bold text-blue-600">① フック</span>
+        <span class="text-[10px] text-custom-dim">15〜30秒</span>
+      </div>
+      <p class="text-sm text-custom-muted leading-relaxed">「AIガチャを回しているみたいで、正直けっこう疲れる」──聞き手が全員うなずける困りから入る。</p>
+    </div>
+
+    <div class="relative">
+      <div class="absolute -left-[calc(1.5rem+9px)] md:-left-[calc(2rem+9px)] top-1.5 w-4 h-4 rounded-full bg-cyan-500 border-4 border-white"></div>
+      <div class="flex items-center gap-2 mb-1">
+        <span class="text-xs font-bold text-cyan-600">② 結論</span>
+      </div>
+      <p class="text-sm text-custom-muted leading-relaxed">「その"残らない"を解決するツールを紹介します。openspec といいます」──結論は隠さず先に渡す。</p>
+    </div>
+
+    <div class="relative">
+      <div class="absolute -left-[calc(1.5rem+9px)] md:-left-[calc(2rem+9px)] top-1.5 w-4 h-4 rounded-full bg-purple-500 border-4 border-white"></div>
+      <div class="flex items-center gap-2 mb-1">
+        <span class="text-xs font-bold text-purple-600">③ なぜ</span>
+        <span class="text-[10px] text-custom-dim">賭け金</span>
+      </div>
+      <p class="text-sm text-custom-muted leading-relaxed">「昨日の当たりが、手元に残っていない」──放置すると何を失うかを具体で見せる。今回は①と一体化。</p>
+    </div>
+
+    <div class="relative">
+      <div class="absolute -left-[calc(1.5rem+9px)] md:-left-[calc(2rem+9px)] top-1.5 w-4 h-4 rounded-full bg-emerald-500 border-4 border-white"></div>
+      <div class="flex items-center gap-2 mb-1">
+        <span class="text-xs font-bold text-emerald-600">④ どうやって</span>
+        <span class="text-[10px] text-custom-dim">2ブロック ＋ デモ</span>
+      </div>
+      <p class="text-sm text-custom-muted leading-relaxed">セットアップ3ステップと、使い方4スキル。手順が長いので、6ステップのうちここだけ複数ブロックに広げている。</p>
+    </div>
+
+    <div class="relative">
+      <div class="absolute -left-[calc(1.5rem+9px)] md:-left-[calc(2rem+9px)] top-1.5 w-4 h-4 rounded-full bg-amber-500 border-4 border-white"></div>
+      <div class="flex items-center gap-2 mb-1">
+        <span class="text-xs font-bold text-amber-600">⑤ どうなる</span>
+        <span class="text-[10px] bg-amber-500/10 text-amber-700 px-1.5 py-0.5 rounded font-bold">絵で閉じる箇所</span>
+      </div>
+      <p class="text-sm text-custom-muted leading-relaxed">「超絶優秀な部下を1人、マネジメントしているような感じ」──唯一の山場。ここに絵を1つだけ置いた。</p>
+    </div>
+
+    <div class="relative">
+      <div class="absolute -left-[calc(1.5rem+9px)] md:-left-[calc(2rem+9px)] top-1.5 w-4 h-4 rounded-full bg-custom-accent border-4 border-white"></div>
+      <div class="flex items-center gap-2 mb-1">
+        <span class="text-xs font-bold text-custom-accent-light">⑥ 誘い</span>
+      </div>
+      <p class="text-sm text-custom-muted leading-relaxed">承認を求める場ではないので、依頼ではなく「良かったら、ぜひ使ってみてください」という誘いで着地。</p>
+    </div>
+  </div>
+
+  <p class="mb-6 leading-relaxed">
+    この地図を頭に置いたうえで、実際に出力された原稿の全文がこちらです。話し言葉のまま、そのまま読み上げられる形になっています。
+  </p>
+
+  <!-- 原稿全文 -->
+  <div class="mb-8">
+    <div class="flex items-center gap-2 bg-slate-800 border border-slate-700/50 rounded-t-xl px-4 py-2.5 text-xs text-slate-400">
+      <i data-lucide="file-code" class="w-3.5 h-3.5"></i>
+      my-proposals/presentations/presentation-after.md
+    </div>
+    <pre class="bg-slate-950 border border-slate-700/50 border-t-0 rounded-b-xl p-5 overflow-x-auto text-[13px] leading-relaxed text-slate-300 whitespace-pre-wrap"><code><span class="text-blue-400 font-bold"># プレゼン原稿：openspec の紹介</span>
+
+<span class="text-slate-500">- 場：社内チームの技術共有会（2時間・持ち回り発表の1枠）
+- 尺：10〜15分
+- 聞き手：5〜10名、全員テクノロジー・AIに詳しい。課長も同席（課長が一番詳しい）。他部署の人も参加。若手が多い。カジュアルな雰囲気
+- ストーリーレベル：Lv1（絵で閉じる箇所は⑤どうなる、の1箇所）</span>
+
+<span class="text-slate-600">---</span>
+
+<span class="text-cyan-400 font-bold">## ① フック ＋ ③ なぜ</span>
+
+最近、AIを使っていると、こんなことがよくあります。
+
+指示を出す。出てきたものが、ちょっと違う。直してもらう。また違う。何往復かして、ようやく「お、いいのが出た」となる。まるでAIガチャを回しているみたいで、出力が安定しないので、正直けっこう疲れるんですよね。
+
+しんどいのは、そこだけじゃなくて。せっかく当たりを引いても、次の日、別のところで同じような作業をすると、また一からガチャを回している。昨日の当たりが、手元に残っていないんです。
+
+AIとのやり取りが記録されなくて、後から再利用できない。なぜこの仕様にしたのかも、忘れてしまう。そういう問題が、あると思います。みなさんも、心当たりがあるんじゃないでしょうか。
+
+<span class="text-cyan-400 font-bold">## ② 結論</span>
+
+今日は、その「残らない」を解決してくれるツールを紹介します。openspecといいます。
+
+一言でいうと、<span class="text-white font-bold">**仕様駆動開発**</span>を支援するツールです。
+
+AIとのやり取りを仕様として文書化して、その仕様をもとに実装してくれます。作った仕様は保存されて、次のやり取りで参照される。このサイクルを回せば回すほど、仕様が磨かれていって、アウトプットの品質が上がっていきます。
+
+ここで、先に言っておきたいんですけど。1サイクル回すのに、時間はかかります。それでも、手戻りが減るので、トータルで見ると効率的だと思っています。
+
+<span class="text-cyan-400 font-bold">## ④ どうやって — セットアップ</span>
+
+セットアップは3ステップです。
+
+まず、Node.js を入れます。社内システムから <span class="text-emerald-400">`NodeJS Selector`</span> をインストールしてください。無料です。インストーラーを動かすと、Node.js のバージョンを選ぶ画面が出るので、v24シリーズの最新版を選びます。
+
+次に、<span class="text-emerald-400">`npm install -g @fission-ai/openspec@latest`</span> を実行します。これで openspec 本体が入ります。
+
+最後に、作業フォルダで <span class="text-emerald-400">`openspec init`</span> を実行します。環境の選択画面が出るので、Claude Code を選んでください。これで <span class="text-emerald-400">`.claude/skills/`</span> の下に、openspec のスキルが配置されます。
+
+<span class="text-cyan-400 font-bold">## ④ どうやって — 使い方</span>
+
+使うときは、スキルを4つ、順番に呼びます。
+
+1つめが Explore（<span class="text-emerald-400">`openspec-explore`</span>）です。plan モードみたいな感じで、アイデアや企画を言語化していきます。この時点では、ファイルは何も作りません。
+
+2つめが Proposal（<span class="text-emerald-400">`openspec-proposal`</span>）。ここで仕様が文書になって、<span class="text-emerald-400">`openspec/changes/`</span> フォルダに置かれます。中身は4つで、<span class="text-emerald-400">`proposal.md`</span> に「なぜ・何を作るか」、<span class="text-emerald-400">`design.md`</span> に「どう作るか・何がゴールか」、<span class="text-emerald-400">`spec.md`</span> に仕様そのもの、<span class="text-emerald-400">`tasks.md`</span> にやることのリストが入ります。
+
+3つめが Apply（<span class="text-emerald-400">`openspec-apply-change`</span>）。仕様に基づいて実装します。終わったタスクは <span class="text-emerald-400">`tasks.md`</span> に記録されていきます。
+
+4つめが Archive（<span class="text-emerald-400">`openspec-archive-change`</span>）。仕様が <span class="text-emerald-400">`openspec/archive/`</span> フォルダに保存されます。ここでこれまでに作った仕様に、今回の変更分が継ぎ足されます。
+
+<span class="text-cyan-400 font-bold">## デモ</span>
+
+ここで実際に動かしてみます。Next.js で作ったアプリに、ピンクモードを追加してみましょう。
+
+<span class="text-cyan-400 font-bold">## ⑤ どうなる ＋ ⑥ 誘い</span>
+
+openspec を使うようになってから、私、最近はほとんどプログラムを書かなくなりました。
+
+いま何をやっているかというと、仕様を詰めて、渡して、上がってきたものを見る。感覚としては、超絶優秀な部下を1人、マネジメントしているような感じなんです。コードを書く人から、何を作るかを決める人に、役割が変わりました。
+
+openspec、ちょっと使い方にクセはあるんですけど、私はこれのおかげで、大分助かっています。良かったら、ぜひ使ってみてください。</code></pre>
+  </div>
+
+  <div class="bg-custom-accent/5 border border-custom-accent/20 rounded-xl p-5">
+    <div class="flex items-start gap-3">
+      <div class="flex items-center justify-center w-8 h-8 rounded-lg bg-custom-accent/10 flex-shrink-0 mt-0.5">
+        <i data-lucide="lightbulb" class="w-4 h-4 text-custom-accent-light"></i>
+      </div>
+      <div>
+        <p class="font-bold text-custom-accent-light mb-1">ここがポイント — 「絵」は1箇所だけ</p>
+        <p class="text-custom-muted leading-relaxed">
+          原稿の中で、聞き手の頭に絵が浮かぶ箇所は<strong class="text-slate-800">「超絶優秀な部下を1人、マネジメントしているような感じ」</strong>の1つだけです。全部を山にすると、全部が平らになる。だから山場は1つに絞り、それ以外は淡々と手順を伝えています。10〜15分のカジュアルな共有会では、これがちょうどいい配分でした。
+        </p>
+      </div>
+    </div>
+  </div>
+</section>
+
+
+<!-- ============================================================ -->
+<!--  SECTION 5: どのようにチューニングしたか                        -->
+<!-- ============================================================ -->
+<section class="mb-16 md:mb-20">
+  <div class="flex items-center gap-3 mb-8">
+    <div class="flex items-center justify-center w-10 h-10 rounded-lg bg-amber-500/10 flex-shrink-0">
+      <i data-lucide="sliders-horizontal" class="w-5 h-5 text-amber-600"></i>
+    </div>
+    <h2 class="text-xl md:text-2xl font-bold text-slate-900">どのようにチューニングしたか</h2>
+  </div>
+
+  <p class="mb-8 leading-relaxed">
+    チューニングの手口は、前回の <code class="text-emerald-700 text-xs bg-slate-100 px-1.5 py-0.5 rounded">my-writing-proposals</code> で効果が確認できたものを、そのまま持ち込みました。<strong class="text-slate-900">大きく2つ</strong>です。
+  </p>
+
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-10">
+    <div class="bg-custom-surface border border-custom-border rounded-xl p-6 border-l-4 border-l-blue-500">
+      <div class="flex items-start gap-4">
+        <div class="text-2xl font-black text-blue-500 leading-none flex-shrink-0 mt-1">01</div>
+        <div>
+          <h3 class="font-bold text-slate-900 mb-2">模範回答を自分で作って参照させた</h3>
+          <p class="text-sm text-custom-muted leading-relaxed">
+            「良い原稿とはこういうものだ」をルールで書き並べるのではなく、<strong class="text-slate-800">自分の手で書いた模範原稿をスキルに同梱し、生成時に必ず読ませる</strong>。文体・テンポ・言い回しが、指示文よりはるかに正確に伝わります。
+          </p>
+        </div>
+      </div>
+    </div>
+
+    <div class="bg-custom-surface border border-custom-border rounded-xl p-6 border-l-4 border-l-amber-500">
+      <div class="flex items-start gap-4">
+        <div class="text-2xl font-black text-amber-500 leading-none flex-shrink-0 mt-1">02</div>
+        <div>
+          <h3 class="font-bold text-slate-900 mb-2">ストーリー成分の量を最初に選べるようにした</h3>
+          <p class="text-sm text-custom-muted leading-relaxed">
+            場によって、感情に訴えていい度合いは変わります。そこで<strong class="text-slate-800">「絵で閉じる箇所を何箇所置くか」を Lv0〜Lv3 の4段階にして、書き始める前にユーザーと合意する</strong>ようにしました。
+          </p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <p class="mb-6 leading-relaxed">
+    模範回答を先に読ませる仕組みは、図にするとこうなります。スキルは指示書だけを渡すのではなく、<strong class="text-slate-900">「完成品の実物」を先に見せてから書かせる</strong>ようになっています。
+  </p>
+
+  <div class="bg-custom-surface border border-custom-border rounded-xl p-6 md:p-8 mb-10">
+    <h3 class="text-base font-bold text-slate-900 text-center mb-8">模範回答を挟むと、何が変わるか</h3>
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+      <div class="bg-white border border-custom-border rounded-xl p-5">
+        <div class="inline-flex items-center gap-1.5 bg-slate-500/10 text-slate-500 px-2.5 py-1 rounded-full text-[11px] font-bold mb-4">
+          指示文だけを渡す
+        </div>
+        <div class="space-y-2 mb-4">
+          <div class="flex items-center gap-2 text-xs text-custom-muted">
+            <i data-lucide="file-text" class="w-3.5 h-3.5 text-slate-400 flex-shrink-0"></i>
+            「話し言葉で、テンポよく書いて」
+          </div>
+          <div class="flex justify-center py-1">
+            <i data-lucide="arrow-down" class="w-4 h-4 text-custom-dim"></i>
+          </div>
+          <div class="rounded-lg bg-slate-100 px-3 py-2 text-xs text-slate-600 leading-relaxed">
+            世界中の文章の平均に寄る。<br>間違ってはいないが、誰の言葉でもない。
+          </div>
+        </div>
+      </div>
+
+      <div class="bg-white border-2 border-custom-accent/30 rounded-xl p-5">
+        <div class="inline-flex items-center gap-1.5 bg-custom-accent/10 text-custom-accent-light px-2.5 py-1 rounded-full text-[11px] font-bold mb-4">
+          模範回答も一緒に渡す
+        </div>
+        <div class="space-y-2 mb-4">
+          <div class="flex items-center gap-2 text-xs text-custom-muted">
+            <i data-lucide="book-open-check" class="w-3.5 h-3.5 text-custom-accent flex-shrink-0"></i>
+            自分で書いた原稿の実物を先に読ませる
+          </div>
+          <div class="flex justify-center py-1">
+            <i data-lucide="arrow-down" class="w-4 h-4 text-custom-accent"></i>
+          </div>
+          <div class="rounded-lg bg-custom-accent/5 px-3 py-2 text-xs text-slate-700 leading-relaxed">
+            文体・間の取り方・語尾が寄る。<br>「自分が書いたっぽい」原稿になる。
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <p class="mb-6 leading-relaxed">
+    もう1つのチューニング、<strong class="text-slate-900">ストーリーレベル</strong>。原稿を書き始める前に「今回はどのくらい感情に寄せますか？」と聞き、合意した段階が、そのまま<strong class="text-slate-900">材料を掘る深さの上限</strong>にもなります。Lv0 なら場面や心の声は掘りません。
+  </p>
+
+  <!-- ストーリーレベルの階段 -->
+  <div class="bg-custom-surface border border-custom-border rounded-xl p-6 md:p-8 mb-8">
+    <h3 class="text-base font-bold text-slate-900 text-center mb-2">ストーリーレベル — 絵で閉じる箇所をいくつ置くか</h3>
+    <p class="text-xs text-custom-muted text-center mb-8">数えるのは「絵で閉じた箇所」。問いかけやチラ見せは開き手であって、閉じ手ではない</p>
+
+    <div class="space-y-3">
+      <div class="flex flex-col md:flex-row md:items-center gap-3 bg-white border border-custom-border rounded-xl p-4">
+        <div class="flex items-center gap-3 md:w-40 flex-shrink-0">
+          <div class="w-10 h-10 rounded-lg bg-slate-500/10 flex items-center justify-center flex-shrink-0">
+            <span class="text-sm font-black text-slate-500">Lv0</span>
+          </div>
+          <div>
+            <div class="text-sm font-bold text-slate-900">0箇所</div>
+            <div class="text-[10px] text-custom-dim">ビジネスライティング</div>
+          </div>
+        </div>
+        <p class="text-sm text-custom-muted leading-relaxed flex-1">構成・話し言葉・懸念の先出しだけを整える。数字と手順で伝わる場に。<strong class="text-slate-700">絵はゼロでも、構成は整える。</strong></p>
+      </div>
+
+      <div class="flex flex-col md:flex-row md:items-center gap-3 bg-white border-2 border-custom-accent/30 rounded-xl p-4">
+        <div class="flex items-center gap-3 md:w-40 flex-shrink-0">
+          <div class="w-10 h-10 rounded-lg bg-custom-accent/15 flex items-center justify-center flex-shrink-0">
+            <span class="text-sm font-black text-custom-accent-light">Lv1</span>
+          </div>
+          <div>
+            <div class="text-sm font-bold text-slate-900">1箇所</div>
+            <div class="text-[10px] text-custom-accent-light font-bold">既定 ／ 今回採用</div>
+          </div>
+        </div>
+        <p class="text-sm text-custom-muted leading-relaxed flex-1">さりげなくストーリー成分を挿入。締めに絵を1つ置く。<strong class="text-slate-700">今回の openspec 原稿はこれ。</strong></p>
+      </div>
+
+      <div class="flex flex-col md:flex-row md:items-center gap-3 bg-white border border-custom-border rounded-xl p-4">
+        <div class="flex items-center gap-3 md:w-40 flex-shrink-0">
+          <div class="w-10 h-10 rounded-lg bg-amber-500/10 flex items-center justify-center flex-shrink-0">
+            <span class="text-sm font-black text-amber-600">Lv2</span>
+          </div>
+          <div>
+            <div class="text-sm font-bold text-slate-900">2〜4箇所</div>
+            <div class="text-[10px] text-custom-dim">数か所にちりばめる</div>
+          </div>
+        </div>
+        <p class="text-sm text-custom-muted leading-relaxed flex-1">締めに加えて、フックや「なぜ」にも絵を置く。<strong class="text-slate-700">それでも山場は1つのまま。</strong></p>
+      </div>
+
+      <div class="flex flex-col md:flex-row md:items-center gap-3 bg-white border border-custom-border rounded-xl p-4">
+        <div class="flex items-center gap-3 md:w-40 flex-shrink-0">
+          <div class="w-10 h-10 rounded-lg bg-purple-500/10 flex items-center justify-center flex-shrink-0">
+            <span class="text-sm font-black text-purple-600">Lv3</span>
+          </div>
+          <div>
+            <div class="text-sm font-bold text-slate-900">全編</div>
+            <div class="text-[10px] text-custom-dim">感情に訴える</div>
+          </div>
+        </div>
+        <p class="text-sm text-custom-muted leading-relaxed flex-1">最初から最後まで波を刻む。長尺向けで、通常の社内発表ではほぼ使わない。</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="bg-custom-accent/5 border border-custom-accent/20 rounded-xl p-5">
+    <div class="flex items-start gap-3">
+      <div class="flex items-center justify-center w-8 h-8 rounded-lg bg-custom-accent/10 flex-shrink-0 mt-0.5">
+        <i data-lucide="lightbulb" class="w-4 h-4 text-custom-accent-light"></i>
+      </div>
+      <div>
+        <p class="font-bold text-custom-accent-light mb-1">なぜ「最初に選ばせる」のか</p>
+        <p class="text-custom-muted leading-relaxed">
+          原稿を書いてから「もっと熱く」「もっと淡々と」と直すと、全体を作り直すことになります。<strong class="text-slate-800">レベルを先に決めておけば、質問の量も、掘る深さも、そこで決まる。</strong>合意した箇所数が埋まらなければ、埋まった分だけで書く──場面をでっちあげない、という歯止めにもなっています。
+        </p>
+      </div>
+    </div>
+  </div>
+</section>
+
+
+<!-- ============================================================ -->
+<!--  SECTION 6: 苦戦したポイント                                   -->
+<!-- ============================================================ -->
+<section class="mb-16 md:mb-20">
+  <div class="flex items-center gap-3 mb-8">
+    <div class="flex items-center justify-center w-10 h-10 rounded-lg bg-red-500/10 flex-shrink-0">
+      <i data-lucide="alert-circle" class="w-5 h-5 text-red-600"></i>
+    </div>
+    <h2 class="text-xl md:text-2xl font-bold text-slate-900">苦戦したポイント</h2>
+  </div>
+
+  <p class="mb-8 leading-relaxed">
+    提案文のときと決定的に違ったのが、<strong class="text-slate-900">プレゼン原稿は「読んで良い」だけでは足りず、「声に出して良い」必要がある</strong>という点でした。画面で読むぶんには自然な文章が、実際に口に出すと急に他人行儀になる。ここに一番時間を使いました。
+  </p>
+
+  <div class="space-y-4 mb-8">
+    <div class="bg-custom-surface border border-custom-border rounded-xl overflow-hidden">
+      <div class="flex items-center gap-3 px-6 py-4 bg-red-500/5 border-b border-custom-border/50">
+        <div class="w-6 h-6 rounded-full bg-red-500/10 flex items-center justify-center flex-shrink-0">
+          <i data-lucide="volume-2" class="w-3.5 h-3.5 text-red-600"></i>
+        </div>
+        <h3 class="font-bold text-red-700 text-sm">読み上げてみると、言い回しに違和感が出る</h3>
+      </div>
+      <div class="px-6 py-5">
+        <p class="text-sm text-custom-muted leading-relaxed">
+          目で読む分には通るのに、口に出すと引っかかる箇所が必ず出てきます。息継ぎの位置、語尾の重なり、漢字の多い塊。<strong class="text-slate-800">声に出して初めて見つかる不具合</strong>なので、画面を見ているだけでは潰せませんでした。
+        </p>
+      </div>
+    </div>
+
+    <div class="bg-custom-surface border border-custom-border rounded-xl overflow-hidden">
+      <div class="flex items-center gap-3 px-6 py-4 bg-red-500/5 border-b border-custom-border/50">
+        <div class="w-6 h-6 rounded-full bg-red-500/10 flex items-center justify-center flex-shrink-0">
+          <i data-lucide="shuffle" class="w-3.5 h-3.5 text-red-600"></i>
+        </div>
+        <h3 class="font-bold text-red-700 text-sm">プレゼンのスタイルによって、言い回しごと変える必要がある</h3>
+      </div>
+      <div class="px-6 py-5">
+        <p class="text-sm text-custom-muted leading-relaxed">
+          カジュアルな共有会と、承認をもらう報告会とでは、同じ内容でも語り口がまるで変わります。<strong class="text-slate-800">1つの型で全部をまかなおうとすると、どの場でも少し浮く。</strong>ストーリーレベルを選べるようにしたのは、この振れ幅への対処でもありました。
+        </p>
+      </div>
+    </div>
+
+    <div class="bg-custom-surface border border-custom-border rounded-xl overflow-hidden">
+      <div class="flex items-center gap-3 px-6 py-4 bg-red-500/5 border-b border-custom-border/50">
+        <div class="w-6 h-6 rounded-full bg-red-500/10 flex items-center justify-center flex-shrink-0">
+          <i data-lucide="fingerprint" class="w-3.5 h-3.5 text-red-600"></i>
+        </div>
+        <h3 class="font-bold text-red-700 text-sm">「自分の言葉」に寄せるチューニングが、いちばん難しい</h3>
+      </div>
+      <div class="px-6 py-5">
+        <p class="text-sm text-custom-muted leading-relaxed">
+          AIは世界中の文章の平均から書くので、放っておくと誰にでも当てはまる説明に寄ります。模範回答を読ませて文体を近づけても、<strong class="text-slate-800">最後の数％は自分で直すしかない</strong>。そこを埋める作業に、いちばん時間がかかりました。
+        </p>
+      </div>
+    </div>
+  </div>
+
+  <div class="bg-custom-surface border border-custom-border rounded-xl p-6 md:p-8">
+    <div class="flex items-center gap-2 mb-4">
+      <i data-lucide="quote" class="w-4 h-4 text-custom-accent"></i>
+      <span class="text-xs font-bold text-custom-accent-light tracking-wide">スキルが、原稿を渡したあとに必ず表示する言葉</span>
+    </div>
+    <div class="border-l-4 border-custom-accent/40 pl-5 space-y-1">
+      <p class="text-slate-800 leading-relaxed">本番の前に、必ず声に出して読み、あなた自身の言葉に直してください。</p>
+      <p class="text-slate-800 leading-relaxed">本スキルは便利ですが、あくまで発表の準備を支援するためのものです。</p>
+      <p class="text-slate-800 leading-relaxed">発表がうまくいくことをお祈りします。</p>
+    </div>
+    <p class="text-sm text-custom-muted leading-relaxed mt-5">
+      苦戦したポイントは、そのままスキルの仕様になりました。<strong class="text-slate-800">「AIの出力は完成品ではなく、下書きである」</strong>ことを、スキル自身に毎回言わせています。
+    </p>
+  </div>
+</section>
+
+
+<!-- ============================================================ -->
+<!--  SECTION 7: まとめ                                            -->
+<!-- ============================================================ -->
+<section class="mb-16 md:mb-20">
+  <div class="flex items-center gap-3 mb-8">
+    <div class="flex items-center justify-center w-10 h-10 rounded-lg bg-custom-accent/10 flex-shrink-0">
+      <i data-lucide="check-circle" class="w-5 h-5 text-custom-accent-light"></i>
+    </div>
+    <h2 class="text-xl md:text-2xl font-bold text-slate-900">まとめ — 覚えておきたい3つのこと</h2>
+  </div>
+
+  <div class="space-y-4 mb-10">
+    <div class="bg-custom-surface border border-custom-border rounded-xl p-6 border-l-4 border-l-blue-500">
+      <div class="flex items-start gap-4">
+        <div class="text-2xl font-black text-blue-500 leading-none flex-shrink-0 mt-1">01</div>
+        <div>
+          <h3 class="font-bold text-slate-900 mb-2">AIに書かせるのではなく、引き出させる</h3>
+          <p class="text-sm text-custom-muted leading-relaxed">
+            心を動かす具体は、本人の中にしかありません。スキルの役割は文章を生成することではなく、<strong class="text-slate-800">実際に見た場面とその時の心の声を、1問ずつ掘り出すこと</strong>です。
+          </p>
+        </div>
+      </div>
+    </div>
+
+    <div class="bg-custom-surface border border-custom-border rounded-xl p-6 border-l-4 border-l-amber-500">
+      <div class="flex items-start gap-4">
+        <div class="text-2xl font-black text-amber-500 leading-none flex-shrink-0 mt-1">02</div>
+        <div>
+          <h3 class="font-bold text-slate-900 mb-2">模範回答とレベル選択が、チューニングの二本柱</h3>
+          <p class="text-sm text-custom-muted leading-relaxed">
+            ルールを書き足すより、<strong class="text-slate-800">完成品の実物を1つ見せるほうが速い</strong>。そして、感情の量は書き始める前に決めておく。この2つは提案スキルでも今回でも、同じように効きました。
+          </p>
+        </div>
+      </div>
+    </div>
+
+    <div class="bg-custom-surface border border-custom-border rounded-xl p-6 border-l-4 border-l-emerald-500">
+      <div class="flex items-start gap-4">
+        <div class="text-2xl font-black text-emerald-500 leading-none flex-shrink-0 mt-1">03</div>
+        <div>
+          <h3 class="font-bold text-slate-900 mb-2">最後の仕上げは、声に出した本人にしかできない</h3>
+          <p class="text-sm text-custom-muted leading-relaxed">
+            出力された原稿は、あくまで下書き。<strong class="text-slate-800">読み上げて引っかかった箇所を自分の言葉に直すところまでが、原稿づくり</strong>です。スキルはその手前まで連れていく道具でした。
+          </p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="text-center bg-gradient-to-b from-custom-accent/5 to-transparent border border-custom-accent/10 rounded-xl p-8 md:p-10">
+    <i data-lucide="mic" class="w-8 h-8 text-custom-accent mx-auto mb-4"></i>
+    <p class="text-lg font-bold text-slate-900 mb-3">説明するな、体験させろ。</p>
+    <p class="text-custom-muted max-w-lg mx-auto leading-relaxed">
+      「定例会議は非効率です」では、頭には届いても心は動かない。「30分のうち25分が資料の読み上げで、7人いて口を開いたのは2人だけでした」なら、聞き手が自分で頷く。その差を毎回つくるための道具が、このスキルです。
+    </p>
+  </div>
+</section>
+
+
+<!-- ============================================================ -->
+<!--  SECTION 8: リンク                                            -->
+<!-- ============================================================ -->
+<section>
+  <div class="flex items-center gap-3 mb-8">
+    <div class="flex items-center justify-center w-10 h-10 rounded-lg bg-slate-500/10 flex-shrink-0">
+      <i data-lucide="link" class="w-5 h-5 text-slate-600"></i>
+    </div>
+    <h2 class="text-xl md:text-2xl font-bold text-slate-900">リンク</h2>
+  </div>
+
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+    <a href="https://ai-driven-school-portal.com/pages/personal-proposal-skill" class="block bg-custom-surface border border-custom-border rounded-xl p-5 hover:bg-custom-hover transition-colors">
+      <div class="flex items-start gap-3">
+        <div class="w-10 h-10 rounded-lg bg-blue-500/10 flex items-center justify-center flex-shrink-0">
+          <i data-lucide="graduation-cap" class="w-5 h-5 text-blue-600"></i>
+        </div>
+        <div class="min-w-0">
+          <h3 class="font-bold text-slate-900 text-sm mb-1">課題説明ページ</h3>
+          <p class="text-xs text-custom-muted break-all">ai-driven-school-portal.com/pages/personal-proposal-skill</p>
+        </div>
+      </div>
+    </a>
+
+    <a href="https://github.com/ug-kitamura/AI_Driven_School/tree/main/my-proposals" class="block bg-custom-surface border border-custom-border rounded-xl p-5 hover:bg-custom-hover transition-colors">
+      <div class="flex items-start gap-3">
+        <div class="w-10 h-10 rounded-lg bg-slate-500/10 flex items-center justify-center flex-shrink-0">
+          <i data-lucide="git-branch" class="w-5 h-5 text-slate-700"></i>
+        </div>
+        <div class="min-w-0">
+          <h3 class="font-bold text-slate-900 text-sm mb-1">GitHub リポジトリ</h3>
+          <p class="text-xs text-custom-muted break-all">github.com/ug-kitamura/AI_Driven_School/tree/main/my-proposals</p>
+        </div>
+      </div>
+    </a>
+
+    <a href="https://github.com/Fission-AI/OpenSpec" class="block bg-custom-surface border border-custom-border rounded-xl p-5 hover:bg-custom-hover transition-colors">
+      <div class="flex items-start gap-3">
+        <div class="w-10 h-10 rounded-lg bg-purple-500/10 flex items-center justify-center flex-shrink-0">
+          <i data-lucide="file-code-2" class="w-5 h-5 text-purple-600"></i>
+        </div>
+        <div class="min-w-0">
+          <h3 class="font-bold text-slate-900 text-sm mb-1">openspec 公式リポジトリ</h3>
+          <p class="text-xs text-custom-muted break-all">github.com/Fission-AI/OpenSpec</p>
+        </div>
+      </div>
+    </a>
+
+    <a href="https://github.com/Fission-AI/OpenSpec/blob/main/docs/getting-started.md" class="block bg-custom-surface border border-custom-border rounded-xl p-5 hover:bg-custom-hover transition-colors">
+      <div class="flex items-start gap-3">
+        <div class="w-10 h-10 rounded-lg bg-emerald-500/10 flex items-center justify-center flex-shrink-0">
+          <i data-lucide="book-open" class="w-5 h-5 text-emerald-600"></i>
+        </div>
+        <div class="min-w-0">
+          <h3 class="font-bold text-slate-900 text-sm mb-1">openspec 入門ドキュメント</h3>
+          <p class="text-xs text-custom-muted break-all">github.com/Fission-AI/OpenSpec/blob/main/docs/getting-started.md</p>
+        </div>
+      </div>
+    </a>
+  </div>
+</section>
+
+  </main>
+  <footer class="max-w-3xl mx-auto px-5 pb-10 pt-6 border-t border-custom-border/30">
+    <p class="text-xs text-custom-dim text-center">図解ツールで作成</p>
+  </footer>
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <script>lucide.createIcons();</script>
+</body>
+</html>

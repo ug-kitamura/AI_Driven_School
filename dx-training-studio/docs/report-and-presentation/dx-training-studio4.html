@@ -1,0 +1,1121 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="robots" content="noindex, nofollow, noarchive, nosnippet, noimageindex">
+  <meta name="googlebot" content="noindex, nofollow">
+  <meta property="og:title" content="DX Training Studio — トレーニング資料作りを企画から公開まで一気通貫に">
+  <meta property="og:description" content="DXトレーニング資料の「企画 → 草稿 → 原稿 → HTML → 公開」を1本のパイプラインにまとめるツール、DX Training Studio の企画・進捗・技術構成を図解します。">
+  <meta property="og:type" content="article">
+  <title>DX Training Studio — トレーニング資料作りを企画から公開まで一気通貫に</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%23FFFFFF'/><rect x='8' y='8' width='84' height='84' rx='14' fill='none' stroke='%233B82F6' stroke-width='4'/><circle cx='32' cy='40' r='10' fill='%233B82F6' opacity='0.8'/><circle cx='68' cy='40' r='10' fill='%2360A5FA' opacity='0.8'/><rect x='25' y='62' width='50' height='6' rx='3' fill='%2394A3B8' opacity='0.6'/><rect x='30' y='74' width='40' height='6' rx='3' fill='%2394A3B8' opacity='0.3'/></svg>">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700;900&display=swap" rel="stylesheet">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            custom: {
+              bg: '#FFFFFF',
+              surface: '#F8FAFC',
+              hover: '#F1F5F9',
+              border: '#E2E8F0',
+              accent: '#3B82F6',
+              'accent-light': '#2563EB',
+              text: '#1E293B',
+              muted: '#64748B',
+              dim: '#94A3B8',
+              positive: '#10B981',
+              negative: '#EF4444',
+              warning: '#F59E0B',
+            }
+          },
+          fontFamily: {
+            sans: ['"Noto Sans JP"', '"Hiragino Sans"', '"Hiragino Kaku Gothic ProN"', '"Yu Gothic UI"', '"Meiryo"', 'sans-serif'],
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    @media print {
+      .no-print { display: none !important; }
+      body { border-top: none !important; }
+      .rounded-xl { break-inside: avoid; }
+      .md\:flex-row { flex-direction: row !important; }
+      .md\:hidden { display: none !important; }
+      .hidden.md\:block { display: block !important; }
+      .md\:grid-cols-2 { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; }
+      .sm\:grid-cols-3 { grid-template-columns: repeat(3, minmax(0, 1fr)) !important; }
+      .md\:mb-20 { margin-bottom: 5rem !important; }
+      .md\:py-16 { padding-top: 4rem !important; padding-bottom: 4rem !important; }
+      .bg-clip-text.text-transparent {
+        -webkit-background-clip: initial !important;
+        background-clip: initial !important;
+        color: #2563EB !important;
+        -webkit-text-fill-color: #2563EB !important;
+      }
+    }
+  </style>
+</head>
+<body class="bg-custom-bg text-slate-600 antialiased leading-relaxed border-t-4 border-custom-accent">
+  <div class="no-print max-w-3xl mx-auto px-5 pt-2 flex justify-end">
+    <button onclick="window.print()" class="flex items-center gap-1.5 text-xs text-custom-dim hover:text-custom-accent transition-colors cursor-pointer">
+      <i data-lucide="download" class="w-3.5 h-3.5"></i>
+      PDF
+    </button>
+  </div>
+  <main class="max-w-3xl mx-auto px-5 py-10 md:py-16">
+<!-- CONTENT_START -->
+
+<!-- ============================================================ -->
+<!--  HERO                                                        -->
+<!-- ============================================================ -->
+<div class="text-center mb-8 md:mb-10">
+  <div class="inline-flex items-center gap-2 bg-custom-accent/10 text-custom-accent-light px-4 py-1.5 rounded-full text-sm font-medium mb-6">
+    <i data-lucide="layers" class="w-4 h-4"></i>
+    開発ツール
+  </div>
+  <h1 class="text-3xl md:text-5xl font-black text-slate-900 tracking-tight mb-5">
+    <span class="bg-gradient-to-r from-blue-600 to-cyan-600 bg-clip-text text-transparent">DX Training Studio</span>
+  </h1>
+  <p class="text-lg text-custom-muted max-w-xl mx-auto leading-relaxed mb-4">
+    DX トレーニング資料作りを、圧倒的に効率化するツール。<br>
+    ひとことで言えば ──
+  </p>
+  <p class="text-xs text-custom-dim">
+    AI Driven School グループセッション ／ 2026.08.09 ／ mind チーム 北村
+  </p>
+</div>
+
+
+<!-- ============================================================ -->
+<!--  ONE-PAGE SUMMARY                                             -->
+<!-- ============================================================ -->
+<div class="bg-custom-surface border border-custom-border rounded-2xl p-6 md:p-10 mb-6">
+  <div class="text-center mb-8 md:mb-10">
+    <p class="text-xl md:text-2xl font-black text-slate-900 mb-2">
+      資料作りの<span class="text-custom-accent-light">「企画 → 公開」</span>を、1 本の流れ作業にする工房
+    </p>
+    <p class="text-sm text-custom-muted">
+      考えるところは AI と、繰り返すところは自動化と。バラバラだった 5 工程をひとつのツールに束ねる
+    </p>
+  </div>
+
+  <!-- Core flow: 企画 → 草稿 → 原稿 → HTML → 公開 -->
+  <div class="flex flex-col md:flex-row items-stretch justify-center gap-2 md:gap-0 mb-8">
+    <div class="flex-1 flex flex-col items-center text-center p-3">
+      <div class="w-12 h-12 rounded-xl bg-blue-500/10 border border-blue-500/20 flex items-center justify-center mb-2.5">
+        <i data-lucide="clipboard-list" class="w-6 h-6 text-blue-600"></i>
+      </div>
+      <div class="font-bold text-slate-900 text-sm">企画</div>
+      <div class="text-[11px] text-blue-600/70 mt-0.5">何を教えるか決める</div>
+    </div>
+
+    <div class="flex items-center justify-center md:w-8 py-1 md:py-0">
+      <i data-lucide="chevron-right" class="w-5 h-5 text-custom-dim hidden md:block"></i>
+      <i data-lucide="chevron-down" class="w-5 h-5 text-custom-dim md:hidden"></i>
+    </div>
+
+    <div class="flex-1 flex flex-col items-center text-center p-3">
+      <div class="w-12 h-12 rounded-xl bg-purple-500/10 border border-purple-500/20 flex items-center justify-center mb-2.5">
+        <i data-lucide="pen-tool" class="w-6 h-6 text-purple-600"></i>
+      </div>
+      <div class="font-bold text-slate-900 text-sm">草稿</div>
+      <div class="text-[11px] text-purple-600/70 mt-0.5">下書きを一気に出す</div>
+    </div>
+
+    <div class="flex items-center justify-center md:w-8 py-1 md:py-0">
+      <i data-lucide="chevron-right" class="w-5 h-5 text-custom-dim hidden md:block"></i>
+      <i data-lucide="chevron-down" class="w-5 h-5 text-custom-dim md:hidden"></i>
+    </div>
+
+    <div class="flex-1 flex flex-col items-center text-center p-3">
+      <div class="w-12 h-12 rounded-xl bg-cyan-500/10 border border-cyan-500/20 flex items-center justify-center mb-2.5">
+        <i data-lucide="file-text" class="w-6 h-6 text-cyan-600"></i>
+      </div>
+      <div class="font-bold text-slate-900 text-sm">原稿</div>
+      <div class="text-[11px] text-cyan-600/70 mt-0.5">人が磨き上げる</div>
+    </div>
+
+    <div class="flex items-center justify-center md:w-8 py-1 md:py-0">
+      <i data-lucide="chevron-right" class="w-5 h-5 text-custom-dim hidden md:block"></i>
+      <i data-lucide="chevron-down" class="w-5 h-5 text-custom-dim md:hidden"></i>
+    </div>
+
+    <div class="flex-1 flex flex-col items-center text-center p-3">
+      <div class="w-12 h-12 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center mb-2.5">
+        <i data-lucide="code" class="w-6 h-6 text-amber-600"></i>
+      </div>
+      <div class="font-bold text-slate-900 text-sm">HTML</div>
+      <div class="text-[11px] text-amber-600/70 mt-0.5">自動で変換する</div>
+    </div>
+
+    <div class="flex items-center justify-center md:w-8 py-1 md:py-0">
+      <i data-lucide="chevron-right" class="w-5 h-5 text-custom-dim hidden md:block"></i>
+      <i data-lucide="chevron-down" class="w-5 h-5 text-custom-dim md:hidden"></i>
+    </div>
+
+    <div class="flex-1 flex flex-col items-center text-center p-3 bg-emerald-500/5 border-2 border-emerald-500/20 rounded-2xl">
+      <div class="w-12 h-12 rounded-xl bg-emerald-500/15 border border-emerald-500/30 flex items-center justify-center mb-2.5">
+        <i data-lucide="globe" class="w-6 h-6 text-emerald-600"></i>
+      </div>
+      <div class="font-bold text-emerald-700 text-sm">公開</div>
+      <div class="text-[11px] text-emerald-600/70 mt-0.5">受講者が独習する</div>
+    </div>
+  </div>
+
+  <!-- Divider with label -->
+  <div class="flex items-center gap-4 mb-6">
+    <div class="flex-1 border-t border-custom-border/50"></div>
+    <div class="text-[11px] text-custom-dim font-medium">この流れを支える 3 つの仕組み</div>
+    <div class="flex-1 border-t border-custom-border/50"></div>
+  </div>
+
+  <div class="flex flex-wrap justify-center gap-2">
+    <div class="flex items-center gap-1.5 bg-white border border-custom-border rounded-full px-3.5 py-1.5 text-xs text-slate-700">
+      <i data-lucide="sparkles" class="w-3.5 h-3.5 text-purple-500"></i>
+      AI スキル（企画・草稿）
+    </div>
+    <div class="flex items-center gap-1.5 bg-white border border-custom-border rounded-full px-3.5 py-1.5 text-xs text-slate-700">
+      <i data-lucide="layout-grid" class="w-3.5 h-3.5 text-blue-500"></i>
+      4 ペインワークスペース（原稿）
+    </div>
+    <div class="flex items-center gap-1.5 bg-white border border-custom-border rounded-full px-3.5 py-1.5 text-xs text-slate-700">
+      <i data-lucide="workflow" class="w-3.5 h-3.5 text-emerald-500"></i>
+      GitHub Actions（変換・公開）
+    </div>
+  </div>
+</div>
+
+<p class="text-center text-custom-muted mb-16 md:mb-20">
+  ここから先で、なぜ作るのか・何を作るのか・どこまで進んでいるのかを、ひとつずつ解説していきます。
+</p>
+
+
+<!-- ============================================================ -->
+<!--  SECTION 1: 解決したい課題                                     -->
+<!-- ============================================================ -->
+<section class="mb-16 md:mb-20">
+  <div class="flex items-center gap-3 mb-8">
+    <div class="flex items-center justify-center w-10 h-10 rounded-lg bg-red-500/10 flex-shrink-0">
+      <i data-lucide="target" class="w-5 h-5 text-red-600"></i>
+    </div>
+    <h2 class="text-xl md:text-2xl font-bold text-slate-900">解決したい課題 — なぜ作るのか</h2>
+  </div>
+
+  <p class="mb-8 leading-relaxed">
+    会社で新しいプロジェクトが始まり、ツール環境が <strong class="text-slate-900">Git / GitHub</strong> に切り替わりました。ここで、現場に 3 つの事情が同時に発生しています。
+  </p>
+
+  <!-- 3つの事情カード -->
+  <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+    <div class="bg-custom-surface border border-custom-border rounded-xl p-5">
+      <div class="w-10 h-10 rounded-lg bg-blue-500/10 flex items-center justify-center mb-3">
+        <i data-lucide="git-branch" class="w-5 h-5 text-blue-600"></i>
+      </div>
+      <h3 class="font-bold text-slate-900 text-sm mb-2">環境が変わった</h3>
+      <p class="text-sm text-custom-muted leading-relaxed">
+        新プロジェクトの開始にあわせて、ツール環境が Git / GitHub（ソースコードの変更履歴を管理し、チームで共有する仕組み）へ移行しました。
+      </p>
+    </div>
+
+    <div class="bg-custom-surface border border-custom-border rounded-xl p-5">
+      <div class="w-10 h-10 rounded-lg bg-amber-500/10 flex items-center justify-center mb-3">
+        <i data-lucide="users" class="w-5 h-5 text-amber-600"></i>
+      </div>
+      <h3 class="font-bold text-slate-900 text-sm mb-2">習熟度に幅がある</h3>
+      <p class="text-sm text-custom-muted leading-relaxed">
+        メンバーの多くはこれから Git / GitHub に慣れていく段階で、経験の度合いも人それぞれ。同じ内容を同じ速度で届けても、噛み合いません。
+      </p>
+    </div>
+
+    <div class="bg-custom-surface border border-custom-border rounded-xl p-5">
+      <div class="w-10 h-10 rounded-lg bg-purple-500/10 flex items-center justify-center mb-3">
+        <i data-lucide="clock" class="w-5 h-5 text-purple-600"></i>
+      </div>
+      <h3 class="font-bold text-slate-900 text-sm mb-2">トレーナーの工数は有限</h3>
+      <p class="text-sm text-custom-muted leading-relaxed">
+        一人ひとりに対面で教えられれば理想ですが、教える側の時間は限られています。人手を増やす方向では解決しません。
+      </p>
+    </div>
+  </div>
+
+  <!-- 結論への矢印 -->
+  <div class="flex flex-col items-center mb-8">
+    <i data-lucide="chevron-down" class="w-6 h-6 text-custom-dim mb-3"></i>
+    <div class="w-full bg-custom-accent/5 border-2 border-custom-accent/20 rounded-xl p-6 text-center">
+      <div class="text-xs text-custom-accent font-medium tracking-widest uppercase mb-3">だからこう考えた</div>
+      <p class="text-lg md:text-xl font-black text-slate-900 leading-relaxed">
+        受講者が<span class="text-custom-accent-light">自分のペースで独習できる</span><br class="hidden md:block">
+        トレーニングコンテンツを作りたい
+      </p>
+    </div>
+  </div>
+
+  <!-- Before / After -->
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
+    <div class="bg-red-500/5 border border-red-500/20 rounded-xl p-6">
+      <div class="inline-flex items-center gap-1.5 bg-red-500/10 text-red-600 px-3 py-1 rounded-full text-xs font-bold tracking-wide mb-5">
+        <i data-lucide="x-circle" class="w-3.5 h-3.5"></i>
+        BEFORE — 対面研修だけの場合
+      </div>
+      <ul class="space-y-3">
+        <li class="flex items-start gap-2.5">
+          <i data-lucide="x" class="w-4 h-4 text-red-600 mt-1 flex-shrink-0"></i>
+          <span>開催のたびにトレーナーの時間が必要で、<strong class="text-red-700">回数が工数の上限で決まる</strong></span>
+        </li>
+        <li class="flex items-start gap-2.5">
+          <i data-lucide="x" class="w-4 h-4 text-red-600 mt-1 flex-shrink-0"></i>
+          <span>説明の速度が全員一律。<strong class="text-red-700">速い人は退屈、じっくり派は置いていかれる</strong></span>
+        </li>
+        <li class="flex items-start gap-2.5">
+          <i data-lucide="x" class="w-4 h-4 text-red-600 mt-1 flex-shrink-0"></i>
+          <span>あとで復習したくても、<strong class="text-red-700">手元に残るのは断片的なメモだけ</strong></span>
+        </li>
+      </ul>
+      <div class="mt-5 pt-4 border-t border-red-500/10 text-sm text-red-700/70 flex items-center gap-2">
+        <i data-lucide="alert-circle" class="w-4 h-4"></i>
+        教える人の時間が、そのまま学べる量の上限になる
+      </div>
+    </div>
+
+    <div class="bg-emerald-500/5 border border-emerald-500/20 rounded-xl p-6">
+      <div class="inline-flex items-center gap-1.5 bg-emerald-500/10 text-emerald-600 px-3 py-1 rounded-full text-xs font-bold tracking-wide mb-5">
+        <i data-lucide="check-circle" class="w-3.5 h-3.5"></i>
+        AFTER — 独習コンテンツがある場合
+      </div>
+      <ul class="space-y-3">
+        <li class="flex items-start gap-2.5">
+          <i data-lucide="check" class="w-4 h-4 text-emerald-600 mt-1 flex-shrink-0"></i>
+          <span>一度作れば<strong class="text-emerald-700">何人が何回読んでも工数は増えない</strong></span>
+        </li>
+        <li class="flex items-start gap-2.5">
+          <i data-lucide="check" class="w-4 h-4 text-emerald-600 mt-1 flex-shrink-0"></i>
+          <span>速い人は飛ばし、じっくり派は戻れる。<strong class="text-emerald-700">進む速度を自分で決められる</strong></span>
+        </li>
+        <li class="flex items-start gap-2.5">
+          <i data-lucide="check" class="w-4 h-4 text-emerald-600 mt-1 flex-shrink-0"></i>
+          <span>公開ページとして残るので、<strong class="text-emerald-700">いつでも同じ内容に戻ってこられる</strong></span>
+        </li>
+      </ul>
+      <div class="mt-5 pt-4 border-t border-emerald-500/10 text-sm text-emerald-700/70 flex items-center gap-2">
+        <i data-lucide="zap" class="w-4 h-4"></i>
+        トレーナーは「作る」に集中し、届く量は人数で頭打ちにならない
+      </div>
+    </div>
+  </div>
+
+  <div class="bg-custom-accent/5 border border-custom-accent/20 rounded-xl p-5">
+    <div class="flex items-start gap-3">
+      <div class="flex items-center justify-center w-8 h-8 rounded-lg bg-custom-accent/10 flex-shrink-0 mt-0.5">
+        <i data-lucide="lightbulb" class="w-4 h-4 text-custom-accent-light"></i>
+      </div>
+      <div>
+        <p class="font-bold text-custom-accent-light mb-1">ここが出発点</p>
+        <p class="text-custom-muted leading-relaxed">
+          私が AI Driven School に入ったのは、<strong class="text-slate-800">この課題を解決したかったから</strong>です。卒業制作は、そのための道具そのものを作ります。
+        </p>
+      </div>
+    </div>
+  </div>
+</section>
+
+
+<!-- ============================================================ -->
+<!--  SECTION 2: ツールの全体像                                     -->
+<!-- ============================================================ -->
+<section class="mb-16 md:mb-20">
+  <div class="flex items-center gap-3 mb-8">
+    <div class="flex items-center justify-center w-10 h-10 rounded-lg bg-blue-500/10 flex-shrink-0">
+      <i data-lucide="package" class="w-5 h-5 text-blue-600"></i>
+    </div>
+    <h2 class="text-xl md:text-2xl font-bold text-slate-900">ツールの全体像 — 6 つの機能をひとつに</h2>
+  </div>
+
+  <p class="mb-8 leading-relaxed">
+    「独習コンテンツを作る」と言葉にすると簡単ですが、実際には企画・執筆・変換・公開といった性質の違う作業が並びます。DX Training Studio は、それらを <strong class="text-slate-900">6 つの機能として 1 つのツールに統合</strong>します。それぞれ「何で実現するか」まで含めて見てみましょう。
+  </p>
+
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
+    <!-- 1 -->
+    <div class="bg-custom-surface border border-custom-border rounded-xl p-5">
+      <div class="flex items-center gap-3 mb-3">
+        <div class="w-8 h-8 rounded-full bg-blue-500 text-white text-sm font-bold flex items-center justify-center flex-shrink-0">1</div>
+        <h3 class="font-bold text-slate-900">トレーニングの企画作り</h3>
+      </div>
+      <p class="text-sm text-custom-muted leading-relaxed mb-3">
+        誰に、何を、どの順番で教えるのか。シリーズ・コース・レッスンの骨組みを対話しながら決めていきます。
+      </p>
+      <div class="inline-flex items-center gap-1.5 bg-purple-500/10 text-purple-700 px-2.5 py-1 rounded-full text-[11px] font-medium">
+        <i data-lucide="sparkles" class="w-3 h-3"></i>
+        AI スキルで実現
+      </div>
+    </div>
+
+    <!-- 2 -->
+    <div class="bg-custom-surface border border-custom-border rounded-xl p-5">
+      <div class="flex items-center gap-3 mb-3">
+        <div class="w-8 h-8 rounded-full bg-purple-500 text-white text-sm font-bold flex items-center justify-center flex-shrink-0">2</div>
+        <h3 class="font-bold text-slate-900">企画から草稿作り</h3>
+      </div>
+      <p class="text-sm text-custom-muted leading-relaxed mb-3">
+        決まった企画をもとに、レッスン本文の下書きを生成します。白紙から書き始める時間をまるごと省きます。
+      </p>
+      <div class="inline-flex items-center gap-1.5 bg-purple-500/10 text-purple-700 px-2.5 py-1 rounded-full text-[11px] font-medium">
+        <i data-lucide="sparkles" class="w-3 h-3"></i>
+        AI スキルで実現
+      </div>
+    </div>
+
+    <!-- 3 -->
+    <div class="bg-custom-surface border border-custom-border rounded-xl p-5">
+      <div class="flex items-center gap-3 mb-3">
+        <div class="w-8 h-8 rounded-full bg-cyan-500 text-white text-sm font-bold flex items-center justify-center flex-shrink-0">3</div>
+        <h3 class="font-bold text-slate-900">草稿から原稿への作りこみ</h3>
+      </div>
+      <p class="text-sm text-custom-muted leading-relaxed mb-3">
+        下書きを人の手で磨く工程。構成・本文・画像・AI 相談を横並びで見ながら編集します。
+      </p>
+      <div class="inline-flex items-center gap-1.5 bg-blue-500/10 text-blue-700 px-2.5 py-1 rounded-full text-[11px] font-medium">
+        <i data-lucide="layout-grid" class="w-3 h-3"></i>
+        4 ペインワークスペース
+      </div>
+    </div>
+
+    <!-- 4 -->
+    <div class="bg-custom-surface border border-custom-border rounded-xl p-5">
+      <div class="flex items-center gap-3 mb-3">
+        <div class="w-8 h-8 rounded-full bg-amber-500 text-white text-sm font-bold flex items-center justify-center flex-shrink-0">4</div>
+        <h3 class="font-bold text-slate-900">原稿から HTML への変換</h3>
+      </div>
+      <p class="text-sm text-custom-muted leading-relaxed mb-3">
+        原稿を保存すると、閲覧用の HTML ページが自動で組み上がります。手作業の変換は挟みません。
+      </p>
+      <div class="inline-flex items-center gap-1.5 bg-emerald-500/10 text-emerald-700 px-2.5 py-1 rounded-full text-[11px] font-medium">
+        <i data-lucide="workflow" class="w-3 h-3"></i>
+        GitHub Actions で自動化
+      </div>
+    </div>
+
+    <!-- 5 -->
+    <div class="bg-custom-surface border border-custom-border rounded-xl p-5">
+      <div class="flex items-center gap-3 mb-3">
+        <div class="w-8 h-8 rounded-full bg-emerald-500 text-white text-sm font-bold flex items-center justify-center flex-shrink-0">5</div>
+        <h3 class="font-bold text-slate-900">HTML ページの公開</h3>
+      </div>
+      <p class="text-sm text-custom-muted leading-relaxed mb-3">
+        社内トライアル版は GitHub Pages に、ゲーミフィケーション追加版は Vercel に公開します。
+      </p>
+      <div class="inline-flex items-center gap-1.5 bg-cyan-500/10 text-cyan-700 px-2.5 py-1 rounded-full text-[11px] font-medium">
+        <i data-lucide="globe" class="w-3 h-3"></i>
+        2 つの公開先を使い分け
+      </div>
+    </div>
+
+    <!-- 6 -->
+    <div class="bg-custom-surface border border-custom-border rounded-xl p-5 border-dashed">
+      <div class="flex items-center gap-3 mb-3">
+        <div class="w-8 h-8 rounded-full bg-slate-400 text-white text-sm font-bold flex items-center justify-center flex-shrink-0">6</div>
+        <h3 class="font-bold text-slate-900">ゲーミフィケーション</h3>
+      </div>
+      <p class="text-sm text-custom-muted leading-relaxed mb-3">
+        トロフィーやランキングなど、学習を続けたくなる仕掛け。追加を検討中の領域です。
+      </p>
+      <div class="inline-flex items-center gap-1.5 bg-slate-500/10 text-slate-600 px-2.5 py-1 rounded-full text-[11px] font-medium">
+        <i data-lucide="trophy" class="w-3 h-3"></i>
+        任意課題 — 余裕があれば
+      </div>
+    </div>
+  </div>
+
+  <div class="bg-custom-accent/5 border border-custom-accent/20 rounded-xl p-5">
+    <div class="flex items-start gap-3">
+      <div class="flex items-center justify-center w-8 h-8 rounded-lg bg-custom-accent/10 flex-shrink-0 mt-0.5">
+        <i data-lucide="lightbulb" class="w-4 h-4 text-custom-accent-light"></i>
+      </div>
+      <div>
+        <p class="font-bold text-custom-accent-light mb-1">「統合する」ことに意味がある</p>
+        <p class="text-custom-muted leading-relaxed text-sm">
+          1 つひとつの作業は、既存のツールを組み合わせても実現できます。それでも 1 つに統合するのは、<strong class="text-slate-800">工程の間でファイルを持ち歩く手間と、そこで起きる取りこぼしがいちばん時間を食う</strong>からです。ツールを移らずに端から端まで通せることが、このプロジェクトの狙いです。
+        </p>
+      </div>
+    </div>
+  </div>
+</section>
+
+
+<!-- ============================================================ -->
+<!--  SECTION 3: パイプラインを覗く                                 -->
+<!-- ============================================================ -->
+<section class="mb-16 md:mb-20">
+  <div class="flex items-center gap-3 mb-8">
+    <div class="flex items-center justify-center w-10 h-10 rounded-lg bg-cyan-500/10 flex-shrink-0">
+      <i data-lucide="settings" class="w-5 h-5 text-cyan-600"></i>
+    </div>
+    <h2 class="text-xl md:text-2xl font-bold text-slate-900">パイプラインを覗く — 実際の画面で見る</h2>
+  </div>
+
+  <p class="mb-8 leading-relaxed">
+    ここからは、実際に手が動く 3 つの場面 ── <strong class="text-slate-900">原稿を書く画面</strong>、<strong class="text-slate-900">自動変換が走る瞬間</strong>、<strong class="text-slate-900">受講者が見るページ</strong>を、画面そのもので見ていきます。
+  </p>
+
+  <!-- 4ペインワークスペース モックアップ -->
+  <h3 class="font-bold text-slate-900 mb-3 flex items-center gap-2">
+    <i data-lucide="layout-grid" class="w-4 h-4 text-blue-600"></i>
+    1. 原稿を作りこむ — 4 ペインワークスペース
+  </h3>
+  <div class="rounded-xl overflow-hidden border border-slate-700/50 mb-4">
+    <div class="flex items-center gap-3 bg-slate-800 px-4 py-2.5">
+      <div class="flex gap-1.5">
+        <div class="w-3 h-3 rounded-full bg-red-500/80"></div>
+        <div class="w-3 h-3 rounded-full bg-yellow-500/80"></div>
+        <div class="w-3 h-3 rounded-full bg-green-500/80"></div>
+      </div>
+      <div class="flex-1 bg-slate-700/50 rounded-lg px-3 py-1 text-xs text-slate-400 flex items-center gap-1.5">
+        <i data-lucide="lock" class="w-3 h-3 text-emerald-400"></i>
+        DX Training Studio — ワークスペース
+      </div>
+    </div>
+    <div class="bg-white grid grid-cols-2 md:grid-cols-4 gap-px bg-custom-border">
+      <!-- Pane 1 -->
+      <div class="bg-white p-3">
+        <div class="text-[10px] font-bold text-blue-600 mb-2 flex items-center gap-1"><i data-lucide="folder" class="w-3 h-3"></i> シリーズ / コース</div>
+        <div class="space-y-1.5">
+          <div class="bg-blue-500/10 border border-blue-500/20 rounded px-2 py-1 text-[10px] text-blue-700 font-medium">Git / GitHub 入門</div>
+          <div class="bg-custom-surface rounded px-2 py-1 text-[10px] text-custom-muted ml-2">コース 1: はじめの一歩</div>
+          <div class="bg-custom-surface rounded px-2 py-1 text-[10px] text-custom-muted ml-2">コース 2: 変更を記録する</div>
+          <div class="bg-custom-surface rounded px-2 py-1 text-[10px] text-custom-dim">Python 基礎</div>
+        </div>
+      </div>
+      <!-- Pane 2 -->
+      <div class="bg-white p-3">
+        <div class="text-[10px] font-bold text-purple-600 mb-2 flex items-center gap-1"><i data-lucide="list" class="w-3 h-3"></i> レッスン一覧</div>
+        <div class="space-y-1.5">
+          <div class="bg-purple-500/10 border border-purple-500/20 rounded px-2 py-1 text-[10px] text-purple-700 font-medium">L1 リポジトリとは</div>
+          <div class="bg-custom-surface rounded px-2 py-1 text-[10px] text-custom-muted">L2 コミットの意味</div>
+          <div class="bg-custom-surface rounded px-2 py-1 text-[10px] text-custom-muted">L3 ブランチを切る</div>
+          <div class="bg-custom-surface rounded px-2 py-1 text-[10px] text-custom-dim">L4 プルリクエスト</div>
+        </div>
+      </div>
+      <!-- Pane 3 -->
+      <div class="bg-white p-3">
+        <div class="text-[10px] font-bold text-cyan-600 mb-2 flex items-center gap-1"><i data-lucide="file-text" class="w-3 h-3"></i> 原稿エディタ</div>
+        <div class="bg-slate-950 rounded p-2 text-[9px] leading-relaxed">
+          <div class="text-slate-500"># リポジトリとは</div>
+          <div class="text-slate-300 mt-1">変更の履歴をまるごと</div>
+          <div class="text-slate-300">保管する「箱」です。</div>
+          <div class="text-blue-400 mt-1.5">## たとえるなら</div>
+          <div class="text-slate-300">作業フォルダ + 履歴</div>
+        </div>
+      </div>
+      <!-- Pane 4 -->
+      <div class="bg-white p-3">
+        <div class="text-[10px] font-bold text-emerald-600 mb-2 flex items-center gap-1"><i data-lucide="message-square" class="w-3 h-3"></i> AI / 画像</div>
+        <div class="space-y-1.5">
+          <div class="bg-blue-500/10 rounded-lg px-2 py-1 text-[9px] text-blue-800 ml-3">この節、たとえを足して</div>
+          <div class="bg-custom-surface rounded-lg px-2 py-1 text-[9px] text-custom-muted mr-3">「作業机の写真を毎回撮って残すイメージ」はどうでしょう</div>
+          <div class="border border-dashed border-custom-border rounded px-2 py-2 text-[9px] text-custom-dim text-center">画像スロット</div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <p class="mb-10 leading-relaxed text-sm text-custom-muted">
+    左から順に「構成を選ぶ → レッスンを選ぶ → 本文を書く → AI と画像で仕上げる」。<strong class="text-slate-800">視線を動かすだけで工程をまたげる</strong>ので、ファイルを探し回る時間がなくなります。この 4 ペイン構成は 6 月の課題ですでにモックが動いています。
+  </p>
+
+  <!-- GitHub Actions ターミナル -->
+  <h3 class="font-bold text-slate-900 mb-3 flex items-center gap-2">
+    <i data-lucide="workflow" class="w-4 h-4 text-emerald-600"></i>
+    2. 保存したら自動で変換 — GitHub Actions
+  </h3>
+  <p class="mb-4 leading-relaxed text-sm">
+    GitHub Actions は、<strong class="text-slate-900">「リポジトリに変更が入ったら、決めておいた作業を自動で走らせる」</strong>仕組みです。原稿を置くだけで、変換とデプロイ（公開作業）が勝手に始まります。
+  </p>
+  <div class="mb-4 rounded-xl overflow-hidden border border-slate-700/50">
+    <div class="flex items-center gap-3 bg-slate-800 px-4 py-2.5">
+      <div class="flex gap-1.5">
+        <div class="w-3 h-3 rounded-full bg-red-500/80"></div>
+        <div class="w-3 h-3 rounded-full bg-yellow-500/80"></div>
+        <div class="w-3 h-3 rounded-full bg-green-500/80"></div>
+      </div>
+      <div class="flex items-center gap-1.5 text-xs text-slate-400">
+        <i data-lucide="terminal" class="w-3.5 h-3.5"></i>
+        自動実行のログ
+      </div>
+    </div>
+    <pre class="bg-slate-950 p-5 overflow-x-auto text-xs md:text-sm leading-loose"><code><span class="text-slate-500"># 原稿を保存してリポジトリに反映すると…</span>
+<span class="text-emerald-400">&gt;</span> <span class="text-slate-300">原稿の更新を検知しました（contents/git-github/lesson-01.md）</span>
+<span class="text-emerald-400">&gt;</span> <span class="text-slate-300">Markdown を HTML ページに変換しています…</span>
+<span class="text-emerald-400">&gt;</span> <span class="text-slate-300">サイト全体をビルドしています…</span>
+<span class="text-emerald-400">&gt;</span> <span class="text-slate-300">GitHub Pages にデプロイしています…</span>
+
+<span class="text-emerald-400">&#10003;</span> <span class="text-emerald-400">完了</span> <span class="text-slate-500">— 受講者が読めるページとして公開されました</span></code></pre>
+  </div>
+  <p class="text-xs text-custom-dim mb-10">
+    ※ ログは仕組みを説明するためのイメージです。
+  </p>
+
+  <!-- 受講者が見るページ -->
+  <h3 class="font-bold text-slate-900 mb-3 flex items-center gap-2">
+    <i data-lucide="book-open" class="w-4 h-4 text-amber-600"></i>
+    3. 受講者が見るページ
+  </h3>
+  <div class="rounded-xl overflow-hidden border border-slate-700/50 mb-4">
+    <div class="flex items-center gap-3 bg-slate-800 px-4 py-2.5">
+      <div class="flex gap-1.5">
+        <div class="w-3 h-3 rounded-full bg-red-500/80"></div>
+        <div class="w-3 h-3 rounded-full bg-yellow-500/80"></div>
+        <div class="w-3 h-3 rounded-full bg-green-500/80"></div>
+      </div>
+      <div class="flex-1 bg-slate-700/50 rounded-lg px-3 py-1 text-xs text-slate-400 flex items-center gap-1.5">
+        <i data-lucide="lock" class="w-3 h-3 text-emerald-400"></i>
+        トレーニングサイト
+      </div>
+    </div>
+    <div class="bg-white flex">
+      <!-- サイドバー -->
+      <div class="w-32 md:w-44 bg-custom-surface border-r border-custom-border p-3 flex-shrink-0">
+        <div class="text-[10px] font-bold text-custom-dim tracking-wide mb-2">Git / GitHub 入門</div>
+        <div class="space-y-1">
+          <div class="text-[10px] text-custom-accent-light font-medium bg-custom-accent/10 rounded px-2 py-1">L1 リポジトリとは</div>
+          <div class="text-[10px] text-custom-muted px-2 py-1">L2 コミットの意味</div>
+          <div class="text-[10px] text-custom-muted px-2 py-1">L3 ブランチを切る</div>
+          <div class="text-[10px] text-custom-dim px-2 py-1">L4 プルリクエスト</div>
+        </div>
+      </div>
+      <!-- 本文 -->
+      <div class="flex-1 p-4 md:p-6">
+        <div class="text-[10px] text-custom-dim mb-1">コース 1 ／ レッスン 1</div>
+        <div class="text-base md:text-lg font-black text-slate-900 mb-3">リポジトリとは</div>
+        <div class="h-2 bg-custom-border/60 rounded w-full mb-1.5"></div>
+        <div class="h-2 bg-custom-border/60 rounded w-11/12 mb-1.5"></div>
+        <div class="h-2 bg-custom-border/60 rounded w-4/5 mb-4"></div>
+        <div class="bg-blue-500/5 border border-blue-500/20 rounded-lg p-3 mb-4">
+          <div class="text-[10px] font-bold text-blue-700 mb-1.5 flex items-center gap-1"><i data-lucide="lightbulb" class="w-3 h-3"></i> ここがポイント</div>
+          <div class="h-1.5 bg-blue-500/20 rounded w-full mb-1"></div>
+          <div class="h-1.5 bg-blue-500/20 rounded w-3/4"></div>
+        </div>
+        <div class="flex items-center justify-between">
+          <div class="text-[10px] text-custom-dim">← 前のレッスン</div>
+          <div class="text-[10px] text-white bg-custom-accent rounded-full px-3 py-1 font-medium">次のレッスンへ →</div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <p class="leading-relaxed text-sm text-custom-muted">
+    受講者から見えるのは、この 1 枚だけです。<strong class="text-slate-800">裏側のパイプラインが複雑であるほど、表側は静かでシンプルになる</strong> ── それがこのツールの目指す形です。
+  </p>
+</section>
+
+
+<!-- ============================================================ -->
+<!--  SECTION 4: 構成と対象                                        -->
+<!-- ============================================================ -->
+<section class="mb-16 md:mb-20">
+  <div class="flex items-center gap-3 mb-8">
+    <div class="flex items-center justify-center w-10 h-10 rounded-lg bg-purple-500/10 flex-shrink-0">
+      <i data-lucide="layers" class="w-5 h-5 text-purple-600"></i>
+    </div>
+    <h2 class="text-xl md:text-2xl font-bold text-slate-900">構成と対象 — 何を、どんな単位で教えるか</h2>
+  </div>
+
+  <p class="mb-8 leading-relaxed">
+    コンテンツの単位は、本気 AI ドリルと同じ <strong class="text-slate-900">「シリーズ → コース → レッスン」</strong>の 3 階層にそろえます。大きなテーマを、学ぶ人が一息で終えられる大きさまで分解する構造です。
+  </p>
+
+  <!-- 入れ子ブロック -->
+  <div class="bg-blue-500/5 border-2 border-blue-500/20 rounded-2xl p-5 md:p-6 mb-8">
+    <div class="flex items-center gap-2 mb-4">
+      <i data-lucide="book-open" class="w-4 h-4 text-blue-600"></i>
+      <span class="font-bold text-blue-700 text-sm">シリーズ</span>
+      <span class="text-[11px] text-custom-muted">— ひとつの大きなテーマ（例: Git / GitHub）</span>
+    </div>
+
+    <div class="bg-purple-500/5 border border-purple-500/20 rounded-xl p-4 md:p-5 mb-3">
+      <div class="flex items-center gap-2 mb-3">
+        <i data-lucide="folder" class="w-4 h-4 text-purple-600"></i>
+        <span class="font-bold text-purple-700 text-sm">コース</span>
+        <span class="text-[11px] text-custom-muted">— テーマを目的別に区切った塊</span>
+      </div>
+      <div class="grid grid-cols-1 sm:grid-cols-3 gap-2">
+        <div class="bg-white border border-custom-border rounded-lg px-3 py-2.5">
+          <div class="flex items-center gap-1.5 mb-1">
+            <i data-lucide="file-text" class="w-3 h-3 text-cyan-600"></i>
+            <span class="text-[11px] font-bold text-slate-900">レッスン</span>
+          </div>
+          <div class="text-[10px] text-custom-muted">1 回で読み切れる最小単位</div>
+        </div>
+        <div class="bg-white border border-custom-border rounded-lg px-3 py-2.5">
+          <div class="flex items-center gap-1.5 mb-1">
+            <i data-lucide="file-text" class="w-3 h-3 text-cyan-600"></i>
+            <span class="text-[11px] font-bold text-slate-900">レッスン</span>
+          </div>
+          <div class="text-[10px] text-custom-muted">前のレッスンの続きから</div>
+        </div>
+        <div class="bg-white border border-custom-border rounded-lg px-3 py-2.5">
+          <div class="flex items-center gap-1.5 mb-1">
+            <i data-lucide="file-text" class="w-3 h-3 text-cyan-600"></i>
+            <span class="text-[11px] font-bold text-slate-900">レッスン</span>
+          </div>
+          <div class="text-[10px] text-custom-muted">積み上げて 1 コース完了</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="bg-purple-500/5 border border-dashed border-purple-500/20 rounded-xl px-4 py-2.5 text-[11px] text-custom-muted text-center">
+      コースはシリーズの中に複数並ぶ
+    </div>
+  </div>
+
+  <p class="mb-6 leading-relaxed">
+    今のところ、シリーズとして取り上げるお題は次の 3 つです。
+  </p>
+
+  <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
+    <div class="bg-custom-surface border border-custom-border rounded-xl p-5 text-center">
+      <div class="w-12 h-12 rounded-xl bg-blue-500/10 flex items-center justify-center mx-auto mb-3">
+        <i data-lucide="git-branch" class="w-6 h-6 text-blue-600"></i>
+      </div>
+      <h3 class="font-bold text-slate-900 mb-1">Git / GitHub</h3>
+      <p class="text-xs text-custom-muted leading-relaxed">最優先。プロジェクトの環境が移った、いま必要とされている領域</p>
+    </div>
+    <div class="bg-custom-surface border border-custom-border rounded-xl p-5 text-center">
+      <div class="w-12 h-12 rounded-xl bg-amber-500/10 flex items-center justify-center mx-auto mb-3">
+        <i data-lucide="code" class="w-6 h-6 text-amber-600"></i>
+      </div>
+      <h3 class="font-bold text-slate-900 mb-1">Python</h3>
+      <p class="text-xs text-custom-muted leading-relaxed">手を動かして確かめられる、実務に直結するプログラミング言語</p>
+    </div>
+    <div class="bg-custom-surface border border-custom-border rounded-xl p-5 text-center">
+      <div class="w-12 h-12 rounded-xl bg-purple-500/10 flex items-center justify-center mx-auto mb-3">
+        <i data-lucide="cpu" class="w-6 h-6 text-purple-600"></i>
+      </div>
+      <h3 class="font-bold text-slate-900 mb-1">AI 基礎</h3>
+      <p class="text-xs text-custom-muted leading-relaxed">これからの業務に効いてくる、考え方と使いどころの土台</p>
+    </div>
+  </div>
+
+  <!-- 完成の定義 -->
+  <h3 class="font-bold text-slate-900 mb-4 flex items-center gap-2">
+    <i data-lucide="flag" class="w-4 h-4 text-emerald-600"></i>
+    完成の定義 — どこまでできたら「できた」なのか
+  </h3>
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+    <div class="bg-emerald-500/5 border-2 border-emerald-500/20 rounded-xl p-6">
+      <div class="inline-flex items-center gap-1.5 bg-emerald-500/10 text-emerald-700 px-3 py-1 rounded-full text-xs font-bold tracking-wide mb-4">
+        <i data-lucide="check-circle" class="w-3.5 h-3.5"></i>
+        必須 — これが完成条件
+      </div>
+      <p class="text-slate-900 font-bold mb-2 leading-relaxed">
+        企画 → 草稿 → 原稿 → HTML → 公開のパイプラインが、端から端まで通ること。
+      </p>
+      <p class="text-sm text-custom-muted leading-relaxed">
+        途中の工程がどれだけ立派でも、最後まで通らなければ現場では使えません。<strong class="text-slate-800">「通ること」を唯一の合格条件</strong>に置いています。
+      </p>
+    </div>
+    <div class="bg-custom-surface border border-dashed border-custom-border rounded-xl p-6">
+      <div class="inline-flex items-center gap-1.5 bg-slate-500/10 text-slate-600 px-3 py-1 rounded-full text-xs font-bold tracking-wide mb-4">
+        <i data-lucide="trophy" class="w-3.5 h-3.5"></i>
+        任意 — 余裕があれば
+      </div>
+      <p class="text-slate-900 font-bold mb-2 leading-relaxed">
+        ゲーミフィケーション（トロフィー・ランキング等）。
+      </p>
+      <p class="text-sm text-custom-muted leading-relaxed">
+        学習を続ける動機づけとして魅力的ですが、なくてもパイプラインは成立します。<strong class="text-slate-800">必須と任意を先に切り分けておく</strong>ことで、判断に迷う時間をなくします。
+      </p>
+    </div>
+  </div>
+</section>
+
+
+<!-- ============================================================ -->
+<!--  SECTION 5: 進捗と今後の計画                                   -->
+<!-- ============================================================ -->
+<section class="mb-16 md:mb-20">
+  <div class="flex items-center gap-3 mb-8">
+    <div class="flex items-center justify-center w-10 h-10 rounded-lg bg-amber-500/10 flex-shrink-0">
+      <i data-lucide="trending-up" class="w-5 h-5 text-amber-600"></i>
+    </div>
+    <h2 class="text-xl md:text-2xl font-bold text-slate-900">進捗と今後の計画</h2>
+  </div>
+
+  <p class="mb-8 leading-relaxed">
+    パイプラインの 8 項目それぞれについて、現在地を正直に並べます。<strong class="text-slate-900">前半（作る側の道具）が形になり、後半（届ける側の仕組み）はこれから</strong>という状況です。
+  </p>
+
+  <div class="bg-custom-surface border border-custom-border rounded-xl p-5 md:p-6 mb-8">
+    <div class="space-y-3">
+      <!-- 1 -->
+      <div class="flex items-center gap-3 md:gap-4">
+        <div class="w-6 h-6 rounded-full bg-emerald-500/15 flex items-center justify-center flex-shrink-0">
+          <i data-lucide="check" class="w-3.5 h-3.5 text-emerald-600"></i>
+        </div>
+        <div class="flex-1 min-w-0">
+          <div class="text-sm font-medium text-slate-900">4 ペインワークスペース作成</div>
+          <div class="h-1.5 bg-custom-border rounded-full mt-1.5 overflow-hidden">
+            <div class="h-full w-full bg-emerald-500 rounded-full"></div>
+          </div>
+        </div>
+        <div class="text-[11px] font-bold text-emerald-600 w-24 md:w-28 text-right flex-shrink-0">モック完成</div>
+      </div>
+      <!-- 2 -->
+      <div class="flex items-center gap-3 md:gap-4">
+        <div class="w-6 h-6 rounded-full bg-emerald-500/15 flex items-center justify-center flex-shrink-0">
+          <i data-lucide="check" class="w-3.5 h-3.5 text-emerald-600"></i>
+        </div>
+        <div class="flex-1 min-w-0">
+          <div class="text-sm font-medium text-slate-900">企画作りスキル</div>
+          <div class="h-1.5 bg-custom-border rounded-full mt-1.5 overflow-hidden">
+            <div class="h-full w-full bg-emerald-500 rounded-full"></div>
+          </div>
+        </div>
+        <div class="text-[11px] font-bold text-emerald-600 w-24 md:w-28 text-right flex-shrink-0">完成</div>
+      </div>
+      <!-- 3 -->
+      <div class="flex items-center gap-3 md:gap-4">
+        <div class="w-6 h-6 rounded-full bg-amber-500/15 flex items-center justify-center flex-shrink-0">
+          <i data-lucide="loader" class="w-3.5 h-3.5 text-amber-600"></i>
+        </div>
+        <div class="flex-1 min-w-0">
+          <div class="text-sm font-medium text-slate-900">草稿作りスキル</div>
+          <div class="h-1.5 bg-custom-border rounded-full mt-1.5 overflow-hidden">
+            <div class="h-full w-8/12 bg-amber-500 rounded-full"></div>
+          </div>
+        </div>
+        <div class="text-[11px] font-bold text-amber-600 w-24 md:w-28 text-right flex-shrink-0">7 割完成</div>
+      </div>
+      <!-- 4 -->
+      <div class="flex items-center gap-3 md:gap-4">
+        <div class="w-6 h-6 rounded-full bg-slate-400/15 flex items-center justify-center flex-shrink-0">
+          <i data-lucide="circle" class="w-3.5 h-3.5 text-slate-400"></i>
+        </div>
+        <div class="flex-1 min-w-0">
+          <div class="text-sm font-medium text-custom-muted">トレーニング原稿の作りこみ</div>
+          <div class="h-1.5 bg-custom-border rounded-full mt-1.5 overflow-hidden"></div>
+        </div>
+        <div class="text-[11px] font-bold text-custom-dim w-24 md:w-28 text-right flex-shrink-0">これから</div>
+      </div>
+      <!-- 5 -->
+      <div class="flex items-center gap-3 md:gap-4">
+        <div class="w-6 h-6 rounded-full bg-slate-400/15 flex items-center justify-center flex-shrink-0">
+          <i data-lucide="circle" class="w-3.5 h-3.5 text-slate-400"></i>
+        </div>
+        <div class="flex-1 min-w-0">
+          <div class="text-sm font-medium text-custom-muted">原稿を HTML ページに変換</div>
+          <div class="h-1.5 bg-custom-border rounded-full mt-1.5 overflow-hidden"></div>
+        </div>
+        <div class="text-[11px] font-bold text-custom-dim w-24 md:w-28 text-right flex-shrink-0">これから</div>
+      </div>
+      <!-- 6 -->
+      <div class="flex items-center gap-3 md:gap-4">
+        <div class="w-6 h-6 rounded-full bg-slate-400/15 flex items-center justify-center flex-shrink-0">
+          <i data-lucide="circle" class="w-3.5 h-3.5 text-slate-400"></i>
+        </div>
+        <div class="flex-1 min-w-0">
+          <div class="text-sm font-medium text-custom-muted">GitHub Pages にデプロイ</div>
+          <div class="h-1.5 bg-custom-border rounded-full mt-1.5 overflow-hidden"></div>
+        </div>
+        <div class="text-[11px] font-bold text-custom-dim w-24 md:w-28 text-right flex-shrink-0">これから</div>
+      </div>
+      <!-- 7 -->
+      <div class="flex items-center gap-3 md:gap-4">
+        <div class="w-6 h-6 rounded-full bg-slate-400/15 flex items-center justify-center flex-shrink-0">
+          <i data-lucide="circle" class="w-3.5 h-3.5 text-slate-400"></i>
+        </div>
+        <div class="flex-1 min-w-0">
+          <div class="text-sm font-medium text-custom-muted">Vercel にデプロイ</div>
+          <div class="h-1.5 bg-custom-border rounded-full mt-1.5 overflow-hidden"></div>
+        </div>
+        <div class="text-[11px] font-bold text-custom-dim w-24 md:w-28 text-right flex-shrink-0">これから</div>
+      </div>
+      <!-- 8 -->
+      <div class="flex items-center gap-3 md:gap-4">
+        <div class="w-6 h-6 rounded-full bg-slate-400/15 flex items-center justify-center flex-shrink-0">
+          <i data-lucide="circle" class="w-3.5 h-3.5 text-slate-400"></i>
+        </div>
+        <div class="flex-1 min-w-0">
+          <div class="text-sm font-medium text-custom-muted">ゲーミフィケーション機能追加</div>
+          <div class="h-1.5 bg-custom-border rounded-full mt-1.5 overflow-hidden"></div>
+        </div>
+        <div class="text-[11px] font-bold text-custom-dim w-24 md:w-28 text-right flex-shrink-0">任意課題</div>
+      </div>
+    </div>
+  </div>
+
+  <h3 class="font-bold text-slate-900 mb-4 flex items-center gap-2">
+    <i data-lucide="rocket" class="w-4 h-4 text-custom-accent"></i>
+    今後の計画
+  </h3>
+
+  <div class="space-y-4">
+    <div class="bg-custom-surface border border-custom-border rounded-xl p-6 border-l-4 border-l-blue-500">
+      <div class="flex items-start gap-4">
+        <div class="w-10 h-10 rounded-lg bg-blue-500/10 flex items-center justify-center flex-shrink-0">
+          <i data-lucide="calendar" class="w-5 h-5 text-blue-600"></i>
+        </div>
+        <div>
+          <h4 class="font-bold text-slate-900 mb-1.5">夏休みは卒業制作に全てあてます</h4>
+          <p class="text-sm text-custom-muted leading-relaxed">残り 6 項目を通すには、まとまった時間が要ります。分散させずに一気に走り切ります。</p>
+        </div>
+      </div>
+    </div>
+    <div class="bg-custom-surface border border-custom-border rounded-xl p-6 border-l-4 border-l-purple-500">
+      <div class="flex items-start gap-4">
+        <div class="w-10 h-10 rounded-lg bg-purple-500/10 flex items-center justify-center flex-shrink-0">
+          <i data-lucide="sparkles" class="w-5 h-5 text-purple-600"></i>
+        </div>
+        <div>
+          <h4 class="font-bold text-slate-900 mb-1.5">追加課金して Fable 5 もガンガン使う覚悟です</h4>
+          <p class="text-sm text-custom-muted leading-relaxed">道具に投資して速度を買います。手が止まる時間をお金で減らせるなら、そこは迷いません。</p>
+        </div>
+      </div>
+    </div>
+    <div class="bg-custom-surface border border-custom-border rounded-xl p-6 border-l-4 border-l-emerald-500">
+      <div class="flex items-start gap-4">
+        <div class="w-10 h-10 rounded-lg bg-emerald-500/10 flex items-center justify-center flex-shrink-0">
+          <i data-lucide="flag" class="w-5 h-5 text-emerald-600"></i>
+        </div>
+        <div>
+          <h4 class="font-bold text-slate-900 mb-1.5">社内で実際に使えるレベルまで、何があってもやり切ります</h4>
+          <p class="text-sm text-custom-muted leading-relaxed">ゴールは「作品として完成すること」ではなく、<strong class="text-slate-800">同僚が明日から使えること</strong>です。</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+
+<!-- ============================================================ -->
+<!--  SECTION 6: 使用する技術                                      -->
+<!-- ============================================================ -->
+<section class="mb-16 md:mb-20">
+  <div class="flex items-center gap-3 mb-8">
+    <div class="flex items-center justify-center w-10 h-10 rounded-lg bg-slate-500/10 flex-shrink-0">
+      <i data-lucide="cpu" class="w-5 h-5 text-slate-600"></i>
+    </div>
+    <h2 class="text-xl md:text-2xl font-bold text-slate-900">使用する技術</h2>
+  </div>
+
+  <p class="mb-8 leading-relaxed">
+    パイプラインの各工程を、どの道具で担当するかの一覧です。<strong class="text-slate-900">新しさより「つながること」を優先</strong>して選んでいます。
+  </p>
+
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
+    <div class="flex gap-4 bg-custom-surface border border-custom-border rounded-xl p-5">
+      <div class="w-10 h-10 rounded-lg bg-blue-500/10 flex items-center justify-center flex-shrink-0">
+        <i data-lucide="layout-grid" class="w-5 h-5 text-blue-600"></i>
+      </div>
+      <div>
+        <h3 class="font-bold text-slate-900 mb-1">4 ペインワークスペース</h3>
+        <p class="text-sm text-custom-accent-light font-medium mb-1.5">Next.js + shadcn/ui</p>
+        <p class="text-sm text-custom-muted leading-relaxed">Next.js は React 製の Web アプリ土台。shadcn/ui は画面部品の詰め合わせで、見た目をそろえながら素早く組めます。</p>
+      </div>
+    </div>
+
+    <div class="flex gap-4 bg-custom-surface border border-custom-border rounded-xl p-5">
+      <div class="w-10 h-10 rounded-lg bg-slate-500/10 flex items-center justify-center flex-shrink-0">
+        <i data-lucide="git-branch" class="w-5 h-5 text-slate-700"></i>
+      </div>
+      <div>
+        <h3 class="font-bold text-slate-900 mb-1">ソース置場</h3>
+        <p class="text-sm text-custom-accent-light font-medium mb-1.5">GitHub</p>
+        <p class="text-sm text-custom-muted leading-relaxed">原稿もコードも同じ場所に置きます。「誰がいつ何を直したか」が全部残るのが、資料作りでも効いてきます。</p>
+      </div>
+    </div>
+
+    <div class="flex gap-4 bg-custom-surface border border-custom-border rounded-xl p-5">
+      <div class="w-10 h-10 rounded-lg bg-emerald-500/10 flex items-center justify-center flex-shrink-0">
+        <i data-lucide="workflow" class="w-5 h-5 text-emerald-600"></i>
+      </div>
+      <div>
+        <h3 class="font-bold text-slate-900 mb-1">自動実行</h3>
+        <p class="text-sm text-custom-accent-light font-medium mb-1.5">GitHub Actions</p>
+        <p class="text-sm text-custom-muted leading-relaxed">変更を検知して、変換 → ビルド → 公開を自動で流します。人が覚えておく手順を減らすための仕組みです。</p>
+      </div>
+    </div>
+
+    <div class="flex gap-4 bg-custom-surface border border-custom-border rounded-xl p-5">
+      <div class="w-10 h-10 rounded-lg bg-cyan-500/10 flex items-center justify-center flex-shrink-0">
+        <i data-lucide="globe" class="w-5 h-5 text-cyan-600"></i>
+      </div>
+      <div>
+        <h3 class="font-bold text-slate-900 mb-1">デプロイ先</h3>
+        <p class="text-sm text-custom-accent-light font-medium mb-1.5">GitHub Pages ／ Vercel</p>
+        <p class="text-sm text-custom-muted leading-relaxed">静的なページを配るだけの社内トライアル版は Pages に。動きのあるゲーミフィケーション版は Vercel に置き分けます。</p>
+      </div>
+    </div>
+
+    <div class="flex gap-4 bg-custom-surface border border-custom-border rounded-xl p-5">
+      <div class="w-10 h-10 rounded-lg bg-amber-500/10 flex items-center justify-center flex-shrink-0">
+        <i data-lucide="book-open" class="w-5 h-5 text-amber-600"></i>
+      </div>
+      <div>
+        <h3 class="font-bold text-slate-900 mb-1">HTML ページ作成</h3>
+        <p class="text-sm text-custom-accent-light font-medium mb-1.5">Nextra もしくは Starlight（検討中）</p>
+        <p class="text-sm text-custom-muted leading-relaxed">どちらも原稿からドキュメントサイトを生成する道具。Nextra は Next.js 上の定番、Starlight は Astro 製で静的配信が速く、検索や多言語が標準搭載という違いがあります。</p>
+        <p class="text-[10px] text-custom-dim mt-2">出典: <a href="https://www.pkgpulse.com/guides/fumadocs-vs-nextra-v4-vs-starlight-documentation-sites-2026" target="_blank" rel="noopener" class="underline decoration-custom-dim/30 hover:text-custom-accent transition-colors">Fumadocs vs Nextra v4 vs Starlight 2026 — PkgPulse</a></p>
+      </div>
+    </div>
+
+    <div class="flex gap-4 bg-custom-surface border border-custom-border rounded-xl p-5">
+      <div class="w-10 h-10 rounded-lg bg-purple-500/10 flex items-center justify-center flex-shrink-0">
+        <i data-lucide="share-2" class="w-5 h-5 text-purple-600"></i>
+      </div>
+      <div>
+        <h3 class="font-bold text-slate-900 mb-1">曼陀羅フローチャート</h3>
+        <p class="text-sm text-custom-accent-light font-medium mb-1.5">Mermaid → React Flow へ移行予定</p>
+        <p class="text-sm text-custom-muted leading-relaxed">Mermaid はテキストから図を生成する手軽な道具ですが、生成される図は基本的に静止画。React Flow なら節点をつかんで動かせる編集可能な図が作れます。</p>
+        <p class="text-[10px] text-custom-dim mt-2">出典: <a href="https://reactflow.dev/examples" target="_blank" rel="noopener" class="underline decoration-custom-dim/30 hover:text-custom-accent transition-colors">React Flow 公式サンプル集</a> ／ <a href="https://mermaid.js.org/syntax/flowchart.html" target="_blank" rel="noopener" class="underline decoration-custom-dim/30 hover:text-custom-accent transition-colors">Mermaid 公式ドキュメント</a></p>
+      </div>
+    </div>
+  </div>
+
+  <div class="bg-custom-surface border border-custom-border rounded-xl p-5">
+    <div class="flex items-start gap-3">
+      <div class="flex items-center justify-center w-10 h-10 rounded-lg bg-blue-500/10 flex-shrink-0">
+        <i data-lucide="key" class="w-5 h-5 text-blue-600"></i>
+      </div>
+      <div>
+        <h3 class="font-bold text-slate-900 mb-1">AI API キー</h3>
+        <p class="text-sm text-custom-accent-light font-medium mb-1.5">Claude API</p>
+        <p class="text-sm text-custom-muted leading-relaxed">企画作り・草稿作りのスキルと、ワークスペース内の AI 相談を動かす頭脳です。</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+
+<!-- ============================================================ -->
+<!--  SECTION 7: リンク                                            -->
+<!-- ============================================================ -->
+<section class="mb-16 md:mb-20">
+  <div class="flex items-center gap-3 mb-8">
+    <div class="flex items-center justify-center w-10 h-10 rounded-lg bg-custom-accent/10 flex-shrink-0">
+      <i data-lucide="link" class="w-5 h-5 text-custom-accent-light"></i>
+    </div>
+    <h2 class="text-xl md:text-2xl font-bold text-slate-900">リンク — 実物はこちら</h2>
+  </div>
+
+  <p class="mb-8 leading-relaxed">
+    説明だけでは伝わりきらない部分は、実物を見ていただくのがいちばん早いはずです。3 つとも公開済みで、そのまま開けます。
+  </p>
+
+  <div class="space-y-4">
+    <a href="https://ai-driven-school.vercel.app/" target="_blank" rel="noopener" class="flex items-start gap-4 bg-custom-surface border border-custom-border hover:border-custom-accent/40 hover:bg-custom-hover rounded-xl p-5 transition-colors">
+      <div class="w-11 h-11 rounded-lg bg-blue-500/10 flex items-center justify-center flex-shrink-0">
+        <i data-lucide="monitor" class="w-5 h-5 text-blue-600"></i>
+      </div>
+      <div class="min-w-0 flex-1">
+        <h3 class="font-bold text-slate-900 mb-1 flex items-center gap-1.5">
+          Vercel モックアップ
+          <i data-lucide="external-link" class="w-3.5 h-3.5 text-custom-dim"></i>
+        </h3>
+        <p class="text-sm text-custom-muted leading-relaxed mb-1.5">4 ペインワークスペースの動くモック。実際に触って構成を確認できます。</p>
+        <p class="text-xs text-custom-accent-light break-all">ai-driven-school.vercel.app</p>
+      </div>
+    </a>
+
+    <a href="https://github.com/ug-kitamura/AI_Driven_School/tree/main/dx-training-studio" target="_blank" rel="noopener" class="flex items-start gap-4 bg-custom-surface border border-custom-border hover:border-custom-accent/40 hover:bg-custom-hover rounded-xl p-5 transition-colors">
+      <div class="w-11 h-11 rounded-lg bg-slate-500/10 flex items-center justify-center flex-shrink-0">
+        <i data-lucide="git-branch" class="w-5 h-5 text-slate-700"></i>
+      </div>
+      <div class="min-w-0 flex-1">
+        <h3 class="font-bold text-slate-900 mb-1 flex items-center gap-1.5">
+          GitHub ソース置場
+          <i data-lucide="external-link" class="w-3.5 h-3.5 text-custom-dim"></i>
+        </h3>
+        <p class="text-sm text-custom-muted leading-relaxed mb-1.5">コードもスキルも原稿も、すべてこのリポジトリに集約しています。</p>
+        <p class="text-xs text-custom-accent-light break-all">github.com/ug-kitamura/AI_Driven_School/tree/main/dx-training-studio</p>
+      </div>
+    </a>
+
+    <a href="https://diagram-dx-training-studio4.surge.sh/" target="_blank" rel="noopener" class="flex items-start gap-4 bg-custom-surface border border-custom-border hover:border-custom-accent/40 hover:bg-custom-hover rounded-xl p-5 transition-colors">
+      <div class="w-11 h-11 rounded-lg bg-emerald-500/10 flex items-center justify-center flex-shrink-0">
+        <i data-lucide="message-square" class="w-5 h-5 text-emerald-600"></i>
+      </div>
+      <div class="min-w-0 flex-1">
+        <h3 class="font-bold text-slate-900 mb-1 flex items-center gap-1.5">
+          発表資料（コメント機能付き）
+          <i data-lucide="external-link" class="w-3.5 h-3.5 text-custom-dim"></i>
+        </h3>
+        <p class="text-sm text-custom-muted leading-relaxed mb-1.5">この企画の発表資料。読みながらその場でコメントを残せます。</p>
+        <p class="text-xs text-custom-accent-light break-all">diagram-dx-training-studio4.surge.sh</p>
+      </div>
+    </a>
+  </div>
+</section>
+
+
+<!-- ============================================================ -->
+<!--  SECTION 8: まとめ                                            -->
+<!-- ============================================================ -->
+<section>
+  <div class="flex items-center gap-3 mb-8">
+    <div class="flex items-center justify-center w-10 h-10 rounded-lg bg-emerald-500/10 flex-shrink-0">
+      <i data-lucide="check-circle" class="w-5 h-5 text-emerald-600"></i>
+    </div>
+    <h2 class="text-xl md:text-2xl font-bold text-slate-900">まとめ — 覚えて帰ってほしい 3 つ</h2>
+  </div>
+
+  <div class="space-y-4 mb-10">
+    <div class="bg-custom-surface border border-custom-border rounded-xl p-6 border-l-4 border-l-blue-500">
+      <div class="flex items-start gap-4">
+        <div class="text-2xl font-black text-blue-500 leading-none flex-shrink-0 mt-1">01</div>
+        <div>
+          <h3 class="font-bold text-slate-900 mb-2">課題は「教える時間が足りない」ではなく「届け方」</h3>
+          <p class="text-sm text-custom-muted leading-relaxed">
+            環境が Git / GitHub に変わり、習熟度に幅があり、トレーナーの工数は有限。この 3 つが同時に成り立つ以上、答えは人を増やすことではなく、自分のペースで独習できるコンテンツを用意することでした。
+          </p>
+        </div>
+      </div>
+    </div>
+
+    <div class="bg-custom-surface border border-custom-border rounded-xl p-6 border-l-4 border-l-emerald-500">
+      <div class="flex items-start gap-4">
+        <div class="text-2xl font-black text-emerald-500 leading-none flex-shrink-0 mt-1">02</div>
+        <div>
+          <h3 class="font-bold text-slate-900 mb-2">DX Training Studio は「工程の間」をなくす道具</h3>
+          <p class="text-sm text-custom-muted leading-relaxed">
+            企画・草稿は AI スキル、原稿は 4 ペインワークスペース、変換と公開は GitHub Actions。バラバラの道具を渡り歩かずに、企画から公開まで 1 本で通せることが価値の中心です。
+          </p>
+        </div>
+      </div>
+    </div>
+
+    <div class="bg-custom-surface border border-custom-border rounded-xl p-6 border-l-4 border-l-amber-500">
+      <div class="flex items-start gap-4">
+        <div class="text-2xl font-black text-amber-500 leading-none flex-shrink-0 mt-1">03</div>
+        <div>
+          <h3 class="font-bold text-slate-900 mb-2">合格条件は「端から端まで通ること」ひとつ</h3>
+          <p class="text-sm text-custom-muted leading-relaxed">
+            前半 3 項目は形になり、残るは変換・公開・仕上げ。ゲーミフィケーションは任意課題として切り分け、まずはパイプラインを通し切ることに集中します。
+          </p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="text-center bg-gradient-to-b from-custom-accent/5 to-transparent border border-custom-accent/10 rounded-xl p-8 md:p-10">
+    <i data-lucide="rocket" class="w-8 h-8 text-custom-accent mx-auto mb-4"></i>
+    <p class="text-lg font-bold text-slate-900 mb-3">目指すのは「作品」ではなく、明日から社内で使える道具です。</p>
+    <p class="text-custom-muted max-w-lg mx-auto leading-relaxed">
+      この夏、企画 → 草稿 → 原稿 → HTML → 公開のパイプラインを端から端まで通し切ります。最初の受講者が最初のレッスンを自分のペースで読み終える瞬間まで、やり切ります。
+    </p>
+  </div>
+</section>
+
+<!-- CONTENT_END -->
+  </main>
+  <footer class="max-w-3xl mx-auto px-5 pb-10 pt-6 border-t border-custom-border/30">
+    <p class="text-xs text-custom-dim text-center">図解ツールで作成</p>
+  </footer>
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <script>lucide.createIcons();</script>
+</body>
+</html>

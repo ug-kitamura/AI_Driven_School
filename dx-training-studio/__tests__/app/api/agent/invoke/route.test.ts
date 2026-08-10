@@ -7,9 +7,16 @@ vi.mock("@/lib/api-keys", () => ({
 vi.mock("@/lib/agent/skill-loader", () => ({
   loadSkill: vi.fn(),
   buildSkillSystemPrompt: vi.fn(),
+  getSkillCatalogRoots: vi.fn(() => [process.cwd()]),
+  resolveSkillDir: vi.fn(() => null),
 }));
 
 vi.mock("@/lib/agent/file-attachments", () => ({
+  resolveAttachmentsForMessage: vi.fn(() => ({ attachments: [] })),
+  enrichUserMessageWithAttachments: vi.fn((content: string) => content),
+}));
+
+vi.mock("@/lib/agent/workspace-file-attachments", () => ({
   resolveAttachmentsForMessage: vi.fn(() => ({ attachments: [] })),
   enrichUserMessageWithAttachments: vi.fn((content: string) => content),
 }));
@@ -66,6 +73,7 @@ describe("POST /api/agent/invoke", () => {
       description: "",
       variables: ["series"],
       tools: ["search_company_context", "select_company_context"],
+      assets: [],
       body: "system",
     });
     vi.mocked(buildSkillSystemPrompt).mockReturnValue({

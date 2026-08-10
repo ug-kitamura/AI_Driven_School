@@ -34,6 +34,8 @@ export const WORKSPACE_SETTINGS_CHANGED_EVENT =
 export type WorkspaceSettings = {
   aiApiKey: string | null;
   pixabayApiKey: string | null;
+  /** web_search 用の検索プロバイダ API キー（未設定なら人手フォールバック） */
+  searchApiKey: string | null;
   aiModel: AiModelSlug;
   theme: ThemeMode;
   paneDefaults: WorkspacePaneWidths;
@@ -53,6 +55,7 @@ const STORAGE_KEY = STORAGE_KEYS.settings;
 export const DEFAULT_WORKSPACE_SETTINGS: WorkspaceSettings = {
   aiApiKey: null,
   pixabayApiKey: null,
+  searchApiKey: null,
   aiModel: DEFAULT_AI_MODEL,
   theme: "system",
   paneDefaults: { ...PANE_WIDTH_DEFAULTS },
@@ -82,6 +85,8 @@ export function loadWorkspaceSettings(): WorkspaceSettings {
         typeof parsed.aiApiKey === "string" ? parsed.aiApiKey : null,
       pixabayApiKey:
         typeof parsed.pixabayApiKey === "string" ? parsed.pixabayApiKey : null,
+      searchApiKey:
+        typeof parsed.searchApiKey === "string" ? parsed.searchApiKey : null,
       aiModel: normalizeAiModel(parsed.aiModel),
       theme:
         parsed.theme === "dark" ||

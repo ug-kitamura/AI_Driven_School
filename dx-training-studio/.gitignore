@@ -1,3 +1,7 @@
+# workspace
+/workspace/
+!/workspace/.gitkeep
+
 # dependencies
 node_modules/
 

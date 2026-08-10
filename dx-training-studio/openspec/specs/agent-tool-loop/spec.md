@@ -47,7 +47,16 @@ Agent スキル実行において、DB 検索・ファイル書き込み等の�
 
 ### Requirement: server-side agent loop
 
-`POST /api/agent/invoke` は 1 回の HTTP リクエスト内で agent loop を実行しなければならない（SHALL）。model が tool_use を返した場合、サーバーは tool を実行し tool_result を messages に追加してから model を再呼び出ししなければならない（SHALL）。最終 assistant テキストまたはエラーで loop を終了しなければならない（SHALL）。loop 上限（例: 10 ターン）は設定可能でなければならない（SHALL）。
+`POST /api/agent/invoke` は 1 回の HTTP リクエスト内で agent loop を実行しなければならない（SHALL）。model が tool_use を返した場合、サーバーは tool を実行し tool_result を messages に追加してから model を再呼び出ししなければならない（SHALL）。最終 assistant テキストまたはエラーで loop を終了しなければならない（SHALL）。loop 上限（既定 24 ターン）は設定可能でなければならない（SHALL）。
+
+ツール実行は EBEX 式の防御を備えなければならない（SHALL）:
+
+- 壊れた tool_use（入力パース失敗・必須パラメータ欠落）は実行せず、recoverable なエラー結果と修正ガイダンスをモデルへ返す。max_tokens による途中切断が原因の場合はその旨の注記を付す
+- 同一のツールエラーが許容回数（既定 2 回）を超えて連続した場合、HTTP 422 でループを停止する
+- `AbortSignal` が中断を示した場合、残りのツールを実行せずループを終える
+- ツール実行前に案件フォルダの存在を検査し、消失時は HTTP 409 で停止する
+
+テキストとツール呼び出しのまとまりは `logical_turn` としてクライアントへ通知されなければならない（SHALL）。ツール実行は `ToolExecutionContext`（projectRoot・projectFolderId・実行中スキル・signal・search / generate 設定・dx 固有の contextMode）を介して行われなければならない（SHALL）。
 
 #### Scenario: 検索 tool 実行後に会話が継続する
 
@@ -64,6 +73,24 @@ Agent スキル実行において、DB 検索・ファイル書き込み等の�
 - **WHEN** tool 実行が loop 上限を超える
 
 - **THEN** HTTP 500 または 422 とエラーメッセージが返される
+
+#### Scenario: 壊れた tool_use を救済する
+
+- **WHEN** model が `write_file` を path なしで呼び出す
+
+- **THEN** ツールは実行されず、recoverable なエラーとガイダンスが tool_result としてモデルへ返り、ループは継続する
+
+#### Scenario: 同一エラー連続で停止する
+
+- **WHEN** 同一内容のツールエラーが 3 回連続で発生する
+
+- **THEN** HTTP 422 で「同一のツールエラーが連続したため停止」の旨が返る
+
+#### Scenario: ユーザー中断で残りツールを実行しない
+
+- **WHEN** ツール実行中にユーザーが中断する
+
+- **THEN** 当該ターンの残りツールは実行されず、ループは正常終了する
 
 ### Requirement: tool result の最小化
 

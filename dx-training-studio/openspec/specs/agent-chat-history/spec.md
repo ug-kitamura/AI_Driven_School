@@ -6,15 +6,15 @@ Agent ビューの会話履歴をブラウザ `localStorage` で永続化し、�
 ## Requirements
 ### Requirement: localStorage によるセッション永続化
 
-Agent ビューの会話は、レッスン ID 単位で永続化されなければならない（SHALL）。ローカル dev ではレッスンフォルダの `session.json`（`AgentChatStorage` 形式）を正本としなければならない（SHALL）。FS 書き込み不可環境では `localStorage` キー `dx-training-studio-agent-chat-v2` 内の当該 `lessonId` エントリを正本としなければならない（SHALL）。各セッションは `id`、`title`、`messages`、`activeSkillId`、`createdAt`、`updatedAt` を含めなければならない（SHALL）。**レッスンあたり**のセッション数上限は 10 でなければならない（SHALL）。上限超過時は `updatedAt` が最も古いセッションを削除しなければならない（SHALL）。
+Agent ビューの会話は、案件フォルダ単位で永続化されなければならない（SHALL）。ローカル dev では `workspace/.meta/sessions/` 配下の当該フォルダのセッションファイル（`AgentChatStorage` 形式）を正本としなければならない（SHALL）。FS 書き込み不可環境では `localStorage` キー `dx-training-studio-agent-chat-v2` 内の当該フォルダエントリを正本としなければならない（SHALL）。各セッションは `id`、`title`、`messages`、`activeSkillId`、`createdAt`、`updatedAt` を含めなければならない（SHALL）。**案件フォルダあたり**のセッション数上限は 10 でなければならない（SHALL）。上限超過時は `updatedAt` が最も古いセッションを削除しなければならない（SHALL）。
 
 永続化の debounce 保存は、**会話内容**（messages・activeSkillId 等の意味的スナップショット）が前回保存から変化した場合にのみ実行されなければならない（SHALL）。保存処理そのものが React state（`chatStorage` オブジェクト参照の更新等）を変化させるだけで、追加の保存を連鎖的にトリガーしてはならない（MUST NOT）。
 
-`messages` は user / assistant テキストに加え、tool call 履歴（tool 名・入力・要約 result）を含めてよい（MAY）。
+`messages` は user / assistant テキストに加え、tool call 履歴（tool 名・入力・要約 result）および logical turn 構造を含めてよい（MAY）。移植前のレッスン単位保存形式（既存 `session.json` / v2 `localStorage` エントリ）は読み込み可能であり続けなければならない（SHALL）。
 
 #### Scenario: 初回起動時に空セッションを作成する
 
-- **WHEN** 当該レッスンの `session.json` も v2 `localStorage` エントリも存在しない
+- **WHEN** 当該案件フォルダのセッションファイルも v2 `localStorage` エントリも存在しない
 
 - **THEN** 空のセッション 1 件が作成され、アクティブセッションとして表示される
 
@@ -22,13 +22,13 @@ Agent ビューの会話は、レッスン ID 単位で永続化されなけれ�
 
 - **WHEN** ユーザーがメッセージ送信後にページをリロードする
 
-- **THEN** 直前のアクティブレッスンの直前アクティブセッションの messages と activeSkillId が復元される
+- **THEN** 直前のアクティブ案件フォルダの直前アクティブセッションの messages と activeSkillId が復元される
 
 #### Scenario: メッセージ変更時に自動保存する
 
 - **WHEN** messages または activeSkillId が変更される
 
-- **THEN** 現在のアクティブセッションが debounce 後に `session.json`（または FS 不可時 `localStorage`）に保存される
+- **THEN** 現在のアクティブセッションが debounce 後に正本ストアに保存される
 
 - **AND** 保存内容が前回と同一の場合、追加の PUT は発行されない
 
@@ -40,9 +40,15 @@ Agent ビューの会話は、レッスン ID 単位で永続化されなけれ�
 
 #### Scenario: セッション上限で古いセッションを削除する
 
-- **WHEN** 当該レッスンで 11 件目のセッションが作成される
+- **WHEN** 当該案件フォルダで 11 件目のセッションが作成される
 
 - **THEN** `updatedAt` が最も古いセッションが削除され、10 件以内に収まる
+
+#### Scenario: 旧形式の履歴が読める
+
+- **WHEN** 移植前に保存されたレッスン単位の履歴が存在する
+
+- **THEN** 読み込みはエラーにならず、履歴が失われない
 
 ### Requirement: 履歴選択 UI
 
@@ -75,18 +81,27 @@ Agent ビュー内トップ（チャットメッセージ領域の直上）に�
 
 ### Requirement: レッスン単位のセッションスコープ
 
-Agent 会話履歴はレッスン ID 単位で分離されなければならない（SHALL）。レッスンを切り替えた場合、切替先レッスンの `AgentChatStorage` を load し、当該レッスンの sessions を表示しなければならない（SHALL）。切替元レッスンの進行中 state は flush して保存しなければならない（SHALL）。
+Agent 会話履歴は案件フォルダ（`workspace/<folder>/`）単位で分離されなければならない（SHALL）。案件フォルダを切り替えた場合、切替先フォルダの `AgentChatStorage` を load し、当該フォルダの sessions を表示しなければならない（SHALL）。切替元フォルダの進行中 state は flush して保存しなければならない（SHALL）。レッスン選択の切替はセッションスコープを変更してはならない（MUST NOT）。
 
-#### Scenario: レッスン切替後に当該レッスンの会話が表示される
+#### Scenario: フォルダ切替後に当該フォルダの会話が表示される
 
-- **WHEN** ユーザーがレッスン A で会話した後、レッスン B を選択して Agent ビューを表示する
-- **THEN** レッスン B の会話履歴（または空セッション）が表示される
-- **AND** レッスン A の会話は表示されない
+- **WHEN** ユーザーが案件フォルダ A で会話した後、案件フォルダ B を選択する
 
-#### Scenario: レッスン A に戻ると A の会話が復元される
+- **THEN** フォルダ B の会話履歴（または空セッション）が表示される
 
-- **WHEN** ユーザーがレッスン A → B → A と選択を切り替える
-- **THEN** レッスン A に戻った時点で A の保存済み会話が表示される
+- **AND** フォルダ A の会話は表示されない
+
+#### Scenario: フォルダ A に戻ると A の会話が復元される
+
+- **WHEN** ユーザーが案件フォルダ A → B → A と選択を切り替える
+
+- **THEN** フォルダ A に戻った時点で A の保存済み会話が表示される
+
+#### Scenario: レッスン切替ではセッションが変わらない
+
+- **WHEN** ユーザーがペイン2 でレッスンを切り替える
+
+- **THEN** ペイン4 のアクティブセッションは変化しない
 
 ### Requirement: セッション title を自動生成する
 

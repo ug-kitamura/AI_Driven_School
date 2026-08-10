@@ -92,11 +92,13 @@ invoke リクエストの user メッセージに含まれる `@path` トーク�
 
 ### Requirement: tool use 対応の invoke
 
-`POST /api/agent/invoke` は Anthropic Messages API に `tools` パラメータを渡せなければならない（SHALL）。スキル frontmatter の `tools:` 宣言に基づき tool schema を解決しなければならない（SHALL）。1 リクエスト内で tool 実行ループを完結させ、クライアントは 1 回の POST で最終応答まで受け取れなければならない（SHALL）。
+`POST /api/agent/invoke` は LLM API に `tools` パラメータを渡せなければならない（SHALL）。スキル frontmatter の `tools:` 宣言に基づき tool schema を解決しなければならない（SHALL）。1 リクエスト内で tool 実行ループを完結させ、クライアントは 1 回の POST で最終応答まで受け取れなければならない（SHALL）。
+
+SSE ストリームは次のイベントを送出しなければならない（SHALL）: `text_delta` / `tool_start` / `tool_end`（summary・display・result・tags 付き）/ `confirm_required`（実行前確認）/ `token_usage`（ターンごとの outputTokens）/ `logical_turn` / `done` / `error`。
 
 #### Scenario: tool 付き invoke がストリームを返す
 
-- **WHEN** create-draft で invoke が呼ばれ、model が tool_use を返す
+- **WHEN** スキル実行で model が tool_use を返す
 
 - **THEN** サーバーが tool を実行し、最終 assistant テキストまで `text/event-stream` で返す
 
@@ -104,7 +106,29 @@ invoke リクエストの user メッセージに含まれる `@path` トーク�
 
 - **WHEN** tool 実行が発生する
 
-- **THEN** SSE ストリームに tool 開始・完了を示すイベント（例: `tool_start`, `tool_end`）が含まれてよい
+- **THEN** SSE ストリームに `tool_start` / `tool_end` イベントが含まれ、`tool_end` には summary・display・result が含まれる
 
 - **AND** クライアントは折りたたみ UI 用に要約を表示できる
+
+#### Scenario: 確認要求イベント
+
+- **WHEN** 確認が必要なツール（書込等）が呼び出される
+
+- **THEN** SSE に `confirm_required` イベント（toolUseId・kind・path 等）が送出され、クライアントの決裁後にループが継続する
+
+### Requirement: 案件フォルダコンテキストの受け渡し
+
+invoke リクエストは対象の案件フォルダ ID（`workspace/` 配下のフォルダ名）を受け取れなければならない（SHALL）。ファイル系ツールを宣言するスキルの実行時、案件フォルダ ID が未指定の場合はファイル系ツールを提示してはならない（MUST NOT）。案件フォルダが実行中に消失した場合は HTTP 409 で停止しなければならない（SHALL）。
+
+#### Scenario: 案件フォルダ付き invoke
+
+- **WHEN** 案件フォルダ ID 付きで invoke が実行される
+
+- **THEN** ツール実行の書込境界が当該フォルダ + `contents/` に設定される
+
+#### Scenario: フォルダ消失時は 409
+
+- **WHEN** invoke 実行中に案件フォルダが外部で削除される
+
+- **THEN** HTTP 409 とエラーメッセージで停止する
 

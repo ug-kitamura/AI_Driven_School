@@ -1465,7 +1465,7 @@ export function AgentChatPane({
             stickToBottomRef.current = distanceFromBottom < 80;
           }}
         >
-          <div className="px-12 py-4">
+          <div className="px-3 py-4">
             {richMarkdown ? (
               messages.length === 0 ? (
                 <div className="flex h-full min-h-[12rem] items-center justify-center">
@@ -1479,7 +1479,7 @@ export function AgentChatPane({
                     <table className="w-full border-collapse text-sm">
                       <tbody>
                         <tr className="align-top">
-                          <td className="w-6 py-1 pr-2 font-bold text-success">
+                          <td className="w-6 py-1 pr-2 font-bold text-status-done">
                             ✓
                           </td>
                           <td className="py-1">
@@ -1487,7 +1487,7 @@ export function AgentChatPane({
                           </td>
                         </tr>
                         <tr className="align-top">
-                          <td className="w-6 py-1 pr-2 font-bold text-success">
+                          <td className="w-6 py-1 pr-2 font-bold text-status-done">
                             ✓
                           </td>
                           <td className="py-1">
@@ -1495,7 +1495,7 @@ export function AgentChatPane({
                           </td>
                         </tr>
                         <tr className="align-top">
-                          <td className="w-6 py-1 pr-2 font-bold text-success">
+                          <td className="w-6 py-1 pr-2 font-bold text-status-done">
                             ✓
                           </td>
                           <td className="py-1">
@@ -1685,7 +1685,7 @@ export function AgentChatPane({
       </div>
 
       {lastTurnTokens !== null ? (
-        <div className="flex items-center justify-end gap-3 px-12 py-1 text-[11px] text-muted-foreground">
+        <div className="flex items-center justify-end gap-3 px-3 py-1 text-[11px] text-muted-foreground">
           <span>直近ターン: {lastTurnTokens.toLocaleString()} tokens</span>
           <span>
             セッション累計: {sessionTokenTotal.toLocaleString()} tokens
@@ -1694,7 +1694,7 @@ export function AgentChatPane({
       ) : null}
 
       {storageWarning ? (
-        <div className="flex items-center justify-between gap-2 bg-secondary px-12 py-2 text-xs text-secondary-foreground">
+        <div className="flex items-center justify-between gap-2 bg-secondary px-3 py-2 text-xs text-secondary-foreground">
           <span>{storageWarning}</span>
           <Button
             type="button"
@@ -1708,7 +1708,7 @@ export function AgentChatPane({
       ) : null}
 
       {displayError ? (
-        <div className="flex items-center justify-between gap-2 bg-destructive/10 px-12 py-2 text-xs text-destructive">
+        <div className="flex items-center justify-between gap-2 bg-destructive/10 px-3 py-2 text-xs text-destructive">
           <span>{displayError}</span>
           {retryPayload ? (
             <Button
@@ -1724,7 +1724,7 @@ export function AgentChatPane({
         </div>
       ) : null}
 
-      <div className="relative z-10 shrink-0 bg-[var(--agent-chat-pane-bg)] px-12">
+      <div className="relative z-10 shrink-0 bg-[var(--agent-chat-pane-bg)] px-3">
         <AgentChatInput
           key={folderId || "no-project"}
           value={input}

@@ -22,8 +22,8 @@ next-env.d.ts
 .env.local
 
 # local storage
-images/
-local-db/
+/images/
+/local-db/
 contents/**/session.json
 
 # OpenSpec

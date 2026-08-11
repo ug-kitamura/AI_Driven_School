@@ -11,7 +11,7 @@ import { inlineHtmlAssets } from "@/lib/agent/tools/inline-html-assets";
  */
 const FIXTURE = path.resolve(
   process.cwd(),
-  "workspace/20260725-untitled2/_work/bosch-content.html",
+  "contents/シリーズA/コースB/レッスンC/_work/bosch-content.html",
 );
 
 /** Tailwind がセレクタで使うエスケープを戻して含有判定する */

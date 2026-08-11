@@ -5,14 +5,20 @@ TBD - created by archiving change port-ebex-agent-core. Update Purpose after arc
 ## Requirements
 ### Requirement: agent 書込契約の正本
 
-`contracts/agent-write-contract.md` が存在し、agent の書込境界・確認フロー・スキル作者向けの制約と作法を規定する正本でなければならない（SHALL）。書込境界は `contents-plan/`（作業ファイル）と `contents/`（レッスン草稿の着地）の 2 ルートを許可しなければならない（SHALL）。移行期間中は `workspace/` を暫定の 3 つ目のルートとして許可する——これは後続 change `retire-workspace-folder` で削除される。`docs/` への書込を許可してはならない（SHALL NOT）。ペイン4 agent の system プロンプトおよびスキルは、制約の内容を再掲せず本契約を参照しなければならない（SHALL）。EBEX の契約文書（`ebex-skill-contract.md`）を取り込んではならない（MUST NOT）。
+`contracts/agent-write-contract.md` が存在し、agent の書込境界・確認フロー・スキル作者向けの制約と作法を規定する正本でなければならない（SHALL）。書込境界は `contents-plan/`（作業ファイル）と `contents/`（レッスン草稿の着地）の **2 ルートのみ**を許可しなければならない（SHALL）。`workspace/` を許可ルートとして記載してはならない（MUST NOT）——移行期間中の暫定ルートは `retire-workspace-folder` で削除済み。`docs/` への書込を許可してはならない（SHALL NOT）。ペイン4 agent の system プロンプトおよびスキルは、制約の内容を再掲せず本契約を参照しなければならない（SHALL）。EBEX の契約文書（`ebex-skill-contract.md`）を取り込んではならない（MUST NOT）。
 
 契約は中間生成物の置き場を「案件フォルダ」ではなく run ディレクトリ（`contents-plan/runs/<run>/`）として記述しなければならない（SHALL）。
+
+**契約の記述と実装は一致していなければならない（SHALL）。** 契約が許可するルートは書込ツールの解決ロジックが実際に許可するルートと同一でなければならない。
 
 #### Scenario: 契約文書が存在する
 - **WHEN** `contracts/agent-write-contract.md` を開く
 - **THEN** 書込境界・確認ゲート・スキル作者向け制約が記載されている
-- **AND** 許可されるルートとして `contents-plan/` と `contents/` が明記されている
+- **AND** 許可されるルートとして `contents-plan/` と `contents/` のみが明記されている
+
+#### Scenario: 暫定ルートの記述が残っていない
+- **WHEN** 契約文書を検索する
+- **THEN** `workspace/` を許可ルートとする記述が存在しない
 
 #### Scenario: docs への書込は拒否される
 - **WHEN** agent が `docs/` 配下のファイルへ書き込もうとする

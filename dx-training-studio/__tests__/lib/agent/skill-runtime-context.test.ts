@@ -11,14 +11,15 @@ import {
 } from "@/lib/agent/skill-runtime-context";
 import {
   findOutsideProjectPathHints,
-  isPathInsideProjectFolder,
+  isPathInsideWriteRoots,
   listDefaultOutputDestinations,
 } from "@/lib/agent/skill-io-boundary";
+import { SCOPE } from "@/__tests__/helpers/work-scope-fixture";
 
 describe("buildSkillRuntimeContext", () => {
   it("mentions scope focus and boundary", () => {
     const text = buildSkillRuntimeContext({
-      projectFolderId: "demo",
+      workScopeKey: "demo",
       currentFileRelativePath: "sub/notes.md",
     });
     expect(text).toContain("Scope");
@@ -29,7 +30,7 @@ describe("buildSkillRuntimeContext", () => {
 
   it("includes an image/multimodal hint when imageIoSkipped is set", () => {
     const text = buildSkillRuntimeContext({
-      projectFolderId: "demo",
+      workScopeKey: "demo",
       imageIoSkipped: true,
     });
     expect(text).toContain("Image / Multimodal");
@@ -38,14 +39,14 @@ describe("buildSkillRuntimeContext", () => {
 
   it("omits the image/multimodal hint when imageIoSkipped is not set", () => {
     const text = buildSkillRuntimeContext({
-      projectFolderId: "demo",
+      workScopeKey: "demo",
     });
     expect(text).not.toContain("Image / Multimodal");
   });
 
   it("mentions skill discovery and read zone when skillId is set", () => {
     const text = buildSkillRuntimeContext({
-      projectFolderId: "demo",
+      workScopeKey: "demo",
       skillId: "minutes-maid",
     });
     expect(text).toContain("references/*");
@@ -60,7 +61,7 @@ describe("buildSkillRuntimeContext", () => {
 
   it("presents form→route mapping and the read-restraint note", () => {
     const text = buildSkillRuntimeContext({
-      projectFolderId: "demo",
+      workScopeKey: "demo",
       skillId: "minutes-maid",
     });
     // 形→経路の一意対応（copy_file 主経路・generate_and_write・run_script）
@@ -76,7 +77,7 @@ describe("buildSkillRuntimeContext", () => {
 
   it("does not mention run_skill_script when the skill has no scripts/", () => {
     const text = buildSkillRuntimeContext({
-      projectFolderId: "demo",
+      workScopeKey: "demo",
       skillId: "minutes-maid",
     });
     expect(text).not.toContain("run_skill_script");
@@ -88,7 +89,7 @@ describe("buildSkillRuntimeContext", () => {
     fs.mkdirSync(path.join(skillDir, "scripts"), { recursive: true });
 
     const text = buildSkillRuntimeContext({
-      projectFolderId: "demo",
+      workScopeKey: "demo",
       skillId: "with-scripts",
       skillDirAbsolute: skillDir,
     });
@@ -107,7 +108,7 @@ describe("buildSkillRuntimeContext", () => {
     fs.writeFileSync(path.join(skillDir, "references", "style.css"), "body{}");
 
     const text = buildSkillRuntimeContext({
-      projectFolderId: "demo",
+      workScopeKey: "demo",
       skillId: "any-skill",
       skillDirAbsolute: skillDir,
     });
@@ -139,7 +140,7 @@ describe("buildSkillRuntimeContext", () => {
     );
 
     const text = buildSkillRuntimeContext({
-      projectFolderId: "demo",
+      workScopeKey: "demo",
       skillId: "any-skill",
       skillDirAbsolute: skillDir,
       skillAssets: ["references/base.html"],
@@ -156,7 +157,7 @@ describe("buildSkillRuntimeContext", () => {
     fs.mkdirSync(skillDir, { recursive: true });
 
     const text = buildSkillRuntimeContext({
-      projectFolderId: "demo",
+      workScopeKey: "demo",
       skillId: "plain-skill",
       skillDirAbsolute: skillDir,
     });
@@ -167,13 +168,13 @@ describe("buildSkillRuntimeContext", () => {
 
   it("includes the _work/ intermediate-file convention without fixing output/", () => {
     const text = buildSkillRuntimeContext({
-      projectFolderId: "demo",
+      workScopeKey: "demo",
       skillId: "minutes-maid",
     });
     expect(text).toContain("_work/");
     expect(text).toMatch(/中間ファイル/);
-    // 置き場はプロジェクトフォルダ直下に固定し、成果物フォルダの位置に依存させない
-    expect(text).toMatch(/プロジェクトフォルダ直下の `_work\/`/);
+    // 置き場は作業フォルダ直下に固定し、成果物フォルダの位置に依存させない
+    expect(text).toMatch(/作業フォルダ直下の `_work\/`/);
     // 成果物の置き場としての output/ 固定はしない（例示のスキル相対パスは別）
     expect(text).not.toMatch(/成果物.*output\//);
   });
@@ -189,7 +190,7 @@ describe("buildSkillRuntimeContext", () => {
 
     // パーサが不正値を空配列にしたものとして渡す → スキャンにフォールバック
     const text = buildSkillRuntimeContext({
-      projectFolderId: "demo",
+      workScopeKey: "demo",
       skillId: "any-skill",
       skillDirAbsolute: skillDir,
       skillAssets: [],
@@ -279,30 +280,35 @@ describe("mergeSkillSystemPrompt", () => {
   });
 });
 
-describe("isPathInsideProjectFolder", () => {
-  it("accepts workspace prefix and relative paths", () => {
-    expect(isPathInsideProjectFolder("workspace/demo/a.md", "demo")).toBe(true);
-    expect(isPathInsideProjectFolder("sub/a.md", "demo")).toBe(true);
-    expect(isPathInsideProjectFolder("workspace/other/a.md", "demo")).toBe(
-      false,
+describe("isPathInsideWriteRoots", () => {
+  it("accepts the two write roots and work-folder-relative paths", () => {
+    expect(isPathInsideWriteRoots(`contents/${SCOPE}/a.md`, SCOPE)).toBe(true);
+    expect(isPathInsideWriteRoots("sub/a.md", SCOPE)).toBe(true);
+    expect(isPathInsideWriteRoots("contents-plan/plans/a.md", SCOPE)).toBe(
+      true,
     );
-    expect(isPathInsideProjectFolder("~/Downloads/x.md", "demo")).toBe(false);
+    expect(isPathInsideWriteRoots("~/Downloads/x.md", SCOPE)).toBe(false);
+    expect(isPathInsideWriteRoots("../outside/x.md", SCOPE)).toBe(false);
+    expect(isPathInsideWriteRoots("C:/Windows/system.ini", SCOPE)).toBe(false);
   });
 });
 
 describe("findOutsideProjectPathHints", () => {
-  it("finds other project and home paths", () => {
+  it("finds absolute, home and traversal paths", () => {
     const hints = findOutsideProjectPathHints(
-      "see workspace/other/file.md and ~/Downloads/a.md",
-      "demo",
+      "see ../other/file.md and ~/Downloads/a.md",
+      SCOPE,
     );
     expect(hints.some((h) => h.includes("other"))).toBe(true);
     expect(hints.some((h) => h.includes("Downloads"))).toBe(true);
   });
 
-  it("ignores in-project paths", () => {
+  it("ignores paths inside the write roots", () => {
     expect(
-      findOutsideProjectPathHints("use @workspace/demo/notes.md", "demo"),
+      findOutsideProjectPathHints(`use @contents/${SCOPE}/notes.md`, SCOPE),
+    ).toEqual([]);
+    expect(
+      findOutsideProjectPathHints("use contents-plan/plans/a.md", SCOPE),
     ).toEqual([]);
   });
 });

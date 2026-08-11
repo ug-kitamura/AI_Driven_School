@@ -9,12 +9,17 @@ import {
   skillHasScriptsDir,
   WRITE_FILE_CHAR_LIMIT,
 } from "@/lib/agent/tools/registry";
-import { createFile, createFolder } from "@/lib/workspace-mutations";
-import { getWorkspaceDir } from "@/lib/workspace-paths";
+import {
+  SCOPE,
+  makeScope,
+  makeScopeFile,
+  scopeAbsolute,
+  scopeDisplayPath,
+} from "@/__tests__/helpers/work-scope-fixture";
 
 const contextFor = (tmpDir: string, folderId: string) => ({
   projectRoot: tmpDir,
-  projectFolderId: folderId,
+  workScopeKey: folderId,
 });
 
 // dx は宣言制（差分台帳 #8）: frontmatter の tools 宣言に含まれるものだけ解決する
@@ -97,15 +102,15 @@ describe("skillHasScriptsDir", () => {
 describe("L1 discovery with file-scope path", () => {
   const setup = () => {
     const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "ebex-l1-file-"));
-    createFolder(tmpDir, "demo");
-    const outputDir = path.join(getWorkspaceDir(tmpDir), "demo", "output");
+    makeScope(tmpDir);
+    const outputDir = path.join(scopeAbsolute(tmpDir), "output");
     fs.mkdirSync(outputDir, { recursive: true });
     fs.writeFileSync(
       path.join(outputDir, "minutes.html"),
       "<html>PLACEHOLDER target</html>",
     );
     fs.writeFileSync(path.join(outputDir, "other.html"), "<html>target</html>");
-    return { tmpDir, context: contextFor(tmpDir, "demo") };
+    return { tmpDir, context: contextFor(tmpDir, SCOPE) };
   };
 
   it("search_content with file path searches only that file (no ENOTDIR)", async () => {
@@ -119,7 +124,7 @@ describe("L1 discovery with file-scope path", () => {
       hits: Array<{ path: string }>;
     };
     expect(result.hits).toHaveLength(1);
-    expect(result.hits[0].path).toBe("output/minutes.html");
+    expect(result.hits[0].path).toBe(scopeDisplayPath("output/minutes.html"));
     fs.rmSync(tmpDir, { recursive: true, force: true });
   });
 
@@ -131,7 +136,7 @@ describe("L1 discovery with file-scope path", () => {
       context,
     );
     expect(outcome.result).toMatchObject({
-      matches: ["output/minutes.html"],
+      matches: [scopeDisplayPath("output/minutes.html")],
     });
     fs.rmSync(tmpDir, { recursive: true, force: true });
   });
@@ -145,7 +150,7 @@ describe("L1 discovery with file-scope path", () => {
       context,
     );
     expect(outcome.result).toMatchObject({
-      matches: ["output/minutes.html"],
+      matches: [scopeDisplayPath("output/minutes.html")],
     });
     fs.rmSync(tmpDir, { recursive: true, force: true });
   });
@@ -222,15 +227,15 @@ describe("L1 discovery with file-scope path", () => {
 describe("executeRegisteredTool", () => {
   it("lists files in project folder", async () => {
     const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "ebex-tools-"));
-    createFolder(tmpDir, "demo");
-    createFile(tmpDir, "demo", "a.md", "a");
+    makeScope(tmpDir);
+    makeScopeFile(tmpDir, "a.md", "a");
     const outcome = await executeRegisteredTool(
       "list_files",
       { path: "." },
-      contextFor(tmpDir, "demo"),
+      contextFor(tmpDir, SCOPE),
     );
     expect(outcome.result).toMatchObject({
-      path: "workspace/demo/.",
+      path: scopeDisplayPath("."),
       entries: expect.arrayContaining([{ name: "a.md", type: "file" }]),
     });
     fs.rmSync(tmpDir, { recursive: true, force: true });
@@ -238,16 +243,16 @@ describe("executeRegisteredTool", () => {
 
   it("reads file with truncation metadata", async () => {
     const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "ebex-tools-"));
-    createFolder(tmpDir, "demo");
+    makeScope(tmpDir);
     const long = "x".repeat(100_001);
-    createFile(tmpDir, "demo", "big.txt", long);
+    makeScopeFile(tmpDir, "big.txt", long);
     const outcome = await executeRegisteredTool(
       "read_file",
       { path: "big.txt" },
-      contextFor(tmpDir, "demo"),
+      contextFor(tmpDir, SCOPE),
     );
     expect(outcome.result).toMatchObject({
-      path: "workspace/demo/big.txt",
+      path: scopeDisplayPath("big.txt"),
       truncated: true,
       totalChars: 100_001,
     });
@@ -259,19 +264,19 @@ describe("executeRegisteredTool", () => {
 
   it("writes new file and returns path and bytes only", async () => {
     const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "ebex-tools-"));
-    createFolder(tmpDir, "demo");
+    makeScope(tmpDir);
     const content = "# Minutes\n\nHello";
     const outcome = await executeRegisteredTool(
       "write_file",
       { path: "output/minutes.md", content },
-      contextFor(tmpDir, "demo"),
+      contextFor(tmpDir, SCOPE),
     );
     expect(outcome.result).toEqual({
-      path: "workspace/demo/output/minutes.md",
+      path: scopeDisplayPath("output/minutes.md"),
       bytes: Buffer.byteLength(content, "utf-8"),
     });
     const written = fs.readFileSync(
-      path.join(getWorkspaceDir(tmpDir), "demo", "output", "minutes.md"),
+      path.join(scopeAbsolute(tmpDir), "output", "minutes.md"),
       "utf-8",
     );
     expect(written).toBe(content);
@@ -280,7 +285,7 @@ describe("executeRegisteredTool", () => {
 
   it("writes html content as-is even when skill references/base.html exists", async () => {
     const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "ebex-tools-"));
-    createFolder(tmpDir, "demo");
+    makeScope(tmpDir);
     const skillDir = path.join(tmpDir, "skill-zone", "any-skill");
     fs.mkdirSync(path.join(skillDir, "references"), { recursive: true });
     fs.writeFileSync(
@@ -292,16 +297,16 @@ describe("executeRegisteredTool", () => {
       "write_file",
       { path: "output/out.html", content },
       {
-        ...contextFor(tmpDir, "demo"),
+        ...contextFor(tmpDir, SCOPE),
         skillId: "any-skill",
         skillDirAbsolute: skillDir,
       },
     );
     expect(outcome.result).toMatchObject({
-      path: "workspace/demo/output/out.html",
+      path: scopeDisplayPath("output/out.html"),
     });
     const written = fs.readFileSync(
-      path.join(getWorkspaceDir(tmpDir), "demo", "output", "out.html"),
+      path.join(scopeAbsolute(tmpDir), "output", "out.html"),
       "utf-8",
     );
     expect(written).toBe(content);
@@ -311,7 +316,7 @@ describe("executeRegisteredTool", () => {
 
   it("diverts write_file away from a framed template", async () => {
     const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "ebex-tools-"));
-    createFolder(tmpDir, "demo");
+    makeScope(tmpDir);
     const frame = [
       "<html><head></head><body>",
       "<!-- CONTENT_START -->",
@@ -319,28 +324,28 @@ describe("executeRegisteredTool", () => {
       "<!-- CONTENT_END -->",
       "</body></html>",
     ].join("\n");
-    createFile(tmpDir, "demo", "framed.html", frame);
+    makeScopeFile(tmpDir, "framed.html", frame);
 
     const outcome = await executeRegisteredTool(
       "write_file",
       { path: "framed.html", content: "<div>本文だけ</div>" },
-      contextFor(tmpDir, "demo"),
+      contextFor(tmpDir, SCOPE),
     );
 
     expect(outcome.result).toMatchObject({
       diverted: true,
-      path: "workspace/demo/_work/framed.html",
-      requestedPath: "workspace/demo/framed.html",
+      path: scopeDisplayPath("_work/framed.html"),
+      requestedPath: scopeDisplayPath("framed.html"),
     });
     expect(
       fs.readFileSync(
-        path.join(getWorkspaceDir(tmpDir), "demo", "framed.html"),
+        path.join(scopeAbsolute(tmpDir), "framed.html"),
         "utf-8",
       ),
     ).toBe(frame);
     expect(
       fs.readFileSync(
-        path.join(getWorkspaceDir(tmpDir), "demo", "_work", "framed.html"),
+        path.join(scopeAbsolute(tmpDir), "_work", "framed.html"),
         "utf-8",
       ),
     ).toBe("<div>本文だけ</div>");
@@ -349,20 +354,20 @@ describe("executeRegisteredTool", () => {
 
   it("writes through with write_file when the target has no markers", async () => {
     const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "ebex-tools-"));
-    createFolder(tmpDir, "demo");
-    createFile(tmpDir, "demo", "plain.html", "<p>旧</p>");
+    makeScope(tmpDir);
+    makeScopeFile(tmpDir, "plain.html", "<p>旧</p>");
 
     const outcome = await executeRegisteredTool(
       "write_file",
       { path: "plain.html", content: "<p>新</p>" },
-      contextFor(tmpDir, "demo"),
+      contextFor(tmpDir, SCOPE),
     );
 
-    expect(outcome.result).toMatchObject({ path: "workspace/demo/plain.html" });
+    expect(outcome.result).toMatchObject({ path: scopeDisplayPath("plain.html") });
     expect(outcome.result).not.toMatchObject({ diverted: true });
     expect(
       fs.readFileSync(
-        path.join(getWorkspaceDir(tmpDir), "demo", "plain.html"),
+        path.join(scopeAbsolute(tmpDir), "plain.html"),
         "utf-8",
       ),
     ).toBe("<p>新</p>");
@@ -371,12 +376,12 @@ describe("executeRegisteredTool", () => {
 
   it("rejects write_file content over the size limit without writing", async () => {
     const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "ebex-tools-"));
-    createFolder(tmpDir, "demo");
+    makeScope(tmpDir);
     const oversized = "x".repeat(WRITE_FILE_CHAR_LIMIT + 1);
     const outcome = await executeRegisteredTool(
       "write_file",
       { path: "output/big.html", content: oversized },
-      contextFor(tmpDir, "demo"),
+      contextFor(tmpDir, SCOPE),
     );
     expect(outcome.result).toMatchObject({
       recoverable: true,
@@ -387,7 +392,7 @@ describe("executeRegisteredTool", () => {
     );
     expect(
       fs.existsSync(
-        path.join(getWorkspaceDir(tmpDir), "demo", "output", "big.html"),
+        path.join(scopeAbsolute(tmpDir), "output", "big.html"),
       ),
     ).toBe(false);
     fs.rmSync(tmpDir, { recursive: true, force: true });
@@ -395,17 +400,17 @@ describe("executeRegisteredTool", () => {
 
   it("does not overwrite an existing file when content exceeds the limit", async () => {
     const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "ebex-tools-"));
-    createFolder(tmpDir, "demo");
-    createFile(tmpDir, "demo", "keep.html", "original");
+    makeScope(tmpDir);
+    makeScopeFile(tmpDir, "keep.html", "original");
     const oversized = "y".repeat(WRITE_FILE_CHAR_LIMIT + 1);
     const outcome = await executeRegisteredTool(
       "write_file",
       { path: "keep.html", content: oversized },
-      contextFor(tmpDir, "demo"),
+      contextFor(tmpDir, SCOPE),
     );
     expect(outcome.result).toMatchObject({ recoverable: true });
     const kept = fs.readFileSync(
-      path.join(getWorkspaceDir(tmpDir), "demo", "keep.html"),
+      path.join(scopeAbsolute(tmpDir), "keep.html"),
       "utf-8",
     );
     expect(kept).toBe("original");
@@ -414,26 +419,26 @@ describe("executeRegisteredTool", () => {
 
   it("writes content exactly at the size limit", async () => {
     const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "ebex-tools-"));
-    createFolder(tmpDir, "demo");
+    makeScope(tmpDir);
     const atLimit = "z".repeat(WRITE_FILE_CHAR_LIMIT);
     const outcome = await executeRegisteredTool(
       "write_file",
       { path: "output/edge.md", content: atLimit },
-      contextFor(tmpDir, "demo"),
+      contextFor(tmpDir, SCOPE),
     );
     expect(outcome.result).toMatchObject({
-      path: "workspace/demo/output/edge.md",
+      path: scopeDisplayPath("output/edge.md"),
     });
     fs.rmSync(tmpDir, { recursive: true, force: true });
   });
 
   it("blocks delete-like tool names", async () => {
     const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "ebex-tools-"));
-    createFolder(tmpDir, "demo");
+    makeScope(tmpDir);
     const outcome = await executeRegisteredTool(
       "delete_file",
       { path: "notes.md" },
-      contextFor(tmpDir, "demo"),
+      contextFor(tmpDir, SCOPE),
     );
     expect(outcome.result).toMatchObject({
       blocked: true,
@@ -445,11 +450,11 @@ describe("executeRegisteredTool", () => {
 
   it("blocks command execution tool names", async () => {
     const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "ebex-tools-"));
-    createFolder(tmpDir, "demo");
+    makeScope(tmpDir);
     const outcome = await executeRegisteredTool(
       "run_command",
       { command: "npm install" },
-      contextFor(tmpDir, "demo"),
+      contextFor(tmpDir, SCOPE),
     );
     expect(outcome.result).toMatchObject({
       blocked: true,
@@ -462,11 +467,11 @@ describe("executeRegisteredTool", () => {
 
   it("blocks subagent-like tool names", async () => {
     const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "ebex-tools-"));
-    createFolder(tmpDir, "demo");
+    makeScope(tmpDir);
     const outcome = await executeRegisteredTool(
       "Task",
       { prompt: "review" },
-      contextFor(tmpDir, "demo"),
+      contextFor(tmpDir, SCOPE),
     );
     expect(outcome.result).toMatchObject({
       blocked: true,
@@ -478,11 +483,11 @@ describe("executeRegisteredTool", () => {
 
   it("blocks MCP / external connector tool names", async () => {
     const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "ebex-tools-"));
-    createFolder(tmpDir, "demo");
+    makeScope(tmpDir);
     const outcome = await executeRegisteredTool(
       "mcp__github__get_issue",
       { query: "x" },
-      contextFor(tmpDir, "demo"),
+      contextFor(tmpDir, SCOPE),
     );
     expect(outcome.result).toMatchObject({
       blocked: true,
@@ -494,7 +499,7 @@ describe("executeRegisteredTool", () => {
 
   it("reads skill references via relative path without writing skill dir", async () => {
     const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "ebex-tools-"));
-    createFolder(tmpDir, "demo");
+    makeScope(tmpDir);
     const skillDir = path.join(tmpDir, ".claude", "skills", "minutes-maid");
     fs.mkdirSync(path.join(skillDir, "references"), { recursive: true });
     fs.writeFileSync(
@@ -508,7 +513,7 @@ describe("executeRegisteredTool", () => {
       { path: "references/purpose.md" },
       {
         projectRoot: tmpDir,
-        projectFolderId: "demo",
+        workScopeKey: SCOPE,
         skillId: "minutes-maid",
         skillDirAbsolute: skillDir,
       },
@@ -523,7 +528,7 @@ describe("executeRegisteredTool", () => {
       { path: "skill/minutes-maid/hack.md", content: "nope" },
       {
         projectRoot: tmpDir,
-        projectFolderId: "demo",
+        workScopeKey: SCOPE,
         skillId: "minutes-maid",
         skillDirAbsolute: skillDir,
       },
@@ -536,7 +541,7 @@ describe("executeRegisteredTool", () => {
 
   it("copies skill reference into project folder", async () => {
     const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "ebex-tools-"));
-    createFolder(tmpDir, "demo");
+    makeScope(tmpDir);
     const skillDir = path.join(tmpDir, ".claude", "skills", "minutes-maid");
     fs.mkdirSync(path.join(skillDir, "references"), { recursive: true });
     fs.writeFileSync(
@@ -549,17 +554,17 @@ describe("executeRegisteredTool", () => {
       { from: "references/base.html", to: "output/minutes.html" },
       {
         projectRoot: tmpDir,
-        projectFolderId: "demo",
+        workScopeKey: SCOPE,
         skillId: "minutes-maid",
         skillDirAbsolute: skillDir,
       },
     );
     expect(outcome.result).toMatchObject({
       from: "skill/minutes-maid/references/base.html",
-      to: "workspace/demo/output/minutes.html",
+      to: scopeDisplayPath("output/minutes.html"),
     });
     const written = fs.readFileSync(
-      path.join(getWorkspaceDir(tmpDir), "demo", "output", "minutes.html"),
+      path.join(scopeAbsolute(tmpDir), "output", "minutes.html"),
       "utf-8",
     );
     expect(written).toBe("<html>{{TITLE}}</html>");
@@ -568,8 +573,8 @@ describe("executeRegisteredTool", () => {
 
   it("rejects copy into skill directory", async () => {
     const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "ebex-tools-"));
-    createFolder(tmpDir, "demo");
-    createFile(tmpDir, "demo", "a.md", "a");
+    makeScope(tmpDir);
+    makeScopeFile(tmpDir, "a.md", "a");
     const skillDir = path.join(tmpDir, ".claude", "skills", "minutes-maid");
     fs.mkdirSync(skillDir, { recursive: true });
 
@@ -578,7 +583,7 @@ describe("executeRegisteredTool", () => {
       { from: "a.md", to: "skill/minutes-maid/out.md" },
       {
         projectRoot: tmpDir,
-        projectFolderId: "demo",
+        workScopeKey: SCOPE,
         skillId: "minutes-maid",
         skillDirAbsolute: skillDir,
       },
@@ -591,16 +596,16 @@ describe("executeRegisteredTool", () => {
 
   it("replaces placeholders in project file", async () => {
     const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "ebex-tools-"));
-    createFolder(tmpDir, "demo");
-    createFile(tmpDir, "demo", "out.html", "<h1>{{TITLE}}</h1>");
+    makeScope(tmpDir);
+    makeScopeFile(tmpDir, "out.html", "<h1>{{TITLE}}</h1>");
 
     const outcome = await executeRegisteredTool(
       "replace_in_file",
       { path: "out.html", replacements: { TITLE: "月例" } },
-      contextFor(tmpDir, "demo"),
+      contextFor(tmpDir, SCOPE),
     );
     expect(outcome.result).toEqual({
-      path: "workspace/demo/out.html",
+      path: scopeDisplayPath("out.html"),
       replacements: 1,
       templateStatus: {
         complete: true,
@@ -610,7 +615,7 @@ describe("executeRegisteredTool", () => {
     });
     expect(
       fs.readFileSync(
-        path.join(getWorkspaceDir(tmpDir), "demo", "out.html"),
+        path.join(scopeAbsolute(tmpDir), "out.html"),
         "utf-8",
       ),
     ).toBe("<h1>月例</h1>");
@@ -619,13 +624,13 @@ describe("executeRegisteredTool", () => {
 
   it("errors when replace finds no matches", async () => {
     const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "ebex-tools-"));
-    createFolder(tmpDir, "demo");
-    createFile(tmpDir, "demo", "out.html", "<h1>x</h1>");
+    makeScope(tmpDir);
+    makeScopeFile(tmpDir, "out.html", "<h1>x</h1>");
 
     const outcome = await executeRegisteredTool(
       "replace_in_file",
       { path: "out.html", replacements: { TITLE: "月例" } },
-      contextFor(tmpDir, "demo"),
+      contextFor(tmpDir, SCOPE),
     );
     expect(outcome.result).toMatchObject({
       error: expect.stringContaining("置換対象が見つかりません"),
@@ -635,8 +640,8 @@ describe("executeRegisteredTool", () => {
 
   it("hints whitespace-only near miss on replace_in_file miss", async () => {
     const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "ebex-tools-"));
-    createFolder(tmpDir, "demo");
-    createFile(tmpDir, "demo", "out.html", "</ol>\n    </div>");
+    makeScope(tmpDir);
+    makeScopeFile(tmpDir, "out.html", "</ol>\n    </div>");
 
     const outcome = await executeRegisteredTool(
       "replace_in_file",
@@ -645,7 +650,7 @@ describe("executeRegisteredTool", () => {
         old_string: "</ol> </div>",
         new_string: "x",
       },
-      contextFor(tmpDir, "demo"),
+      contextFor(tmpDir, SCOPE),
     );
     expect(outcome.result).toMatchObject({
       error: expect.stringContaining("近い候補（空白差のみ）"),
@@ -655,7 +660,7 @@ describe("executeRegisteredTool", () => {
     );
     expect(
       fs.readFileSync(
-        path.join(getWorkspaceDir(tmpDir), "demo", "out.html"),
+        path.join(scopeAbsolute(tmpDir), "out.html"),
         "utf-8",
       ),
     ).toBe("</ol>\n    </div>");
@@ -664,8 +669,8 @@ describe("executeRegisteredTool", () => {
 
   it("does not replace when miss has no whitespace-only candidate", async () => {
     const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "ebex-tools-"));
-    createFolder(tmpDir, "demo");
-    createFile(tmpDir, "demo", "out.html", "<p>hello</p>");
+    makeScope(tmpDir);
+    makeScopeFile(tmpDir, "out.html", "<p>hello</p>");
 
     const outcome = await executeRegisteredTool(
       "replace_in_file",
@@ -674,7 +679,7 @@ describe("executeRegisteredTool", () => {
         old_string: "</ol> </div>",
         new_string: "x",
       },
-      contextFor(tmpDir, "demo"),
+      contextFor(tmpDir, SCOPE),
     );
     expect(outcome.result).toMatchObject({
       error: expect.stringContaining("置換対象が見つかりません"),
@@ -687,21 +692,18 @@ describe("executeRegisteredTool", () => {
 
   it("warns on residual fill tokens after successful replace", async () => {
     const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "ebex-tools-"));
-    createFolder(tmpDir, "demo");
-    createFile(
-      tmpDir,
-      "demo",
-      "out.html",
+    makeScope(tmpDir);
+    makeScopeFile(tmpDir, "out.html",
       "<h1>{{TITLE}}</h1><p>{{TOPIC_TITLE_N}}</p>",
     );
 
     const outcome = await executeRegisteredTool(
       "replace_in_file",
       { path: "out.html", replacements: { TITLE: "月例" } },
-      contextFor(tmpDir, "demo"),
+      contextFor(tmpDir, SCOPE),
     );
     expect(outcome.result).toMatchObject({
-      path: "workspace/demo/out.html",
+      path: scopeDisplayPath("out.html"),
       replacements: 1,
       warning: expect.stringContaining("{{TOPIC_TITLE_N}}"),
     });
@@ -712,11 +714,8 @@ describe("executeRegisteredTool", () => {
 
   it("does not warn on HTML comments or span markers alone", async () => {
     const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "ebex-tools-"));
-    createFolder(tmpDir, "demo");
-    createFile(
-      tmpDir,
-      "demo",
-      "out.html",
+    makeScope(tmpDir);
+    makeScopeFile(tmpDir, "out.html",
       "<!-- FILL: note -->{{AGENDA_START}}\n{{AGENDA_END}}",
     );
 
@@ -728,10 +727,10 @@ describe("executeRegisteredTool", () => {
         end_marker: "{{AGENDA_END}}",
         content: "\n<li>ok</li>\n",
       },
-      contextFor(tmpDir, "demo"),
+      contextFor(tmpDir, SCOPE),
     );
     expect(outcome.result).toMatchObject({
-      path: "workspace/demo/out.html",
+      path: scopeDisplayPath("out.html"),
     });
     expect(outcome.result).not.toHaveProperty("warning");
     expect(outcome.display.tags ?? []).not.toContain("warning");
@@ -740,8 +739,8 @@ describe("executeRegisteredTool", () => {
 
   it("globs skill references/* with path omitted", async () => {
     const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "ebex-tools-"));
-    createFolder(tmpDir, "demo");
-    createFile(tmpDir, "demo", "notes.md", "n");
+    makeScope(tmpDir);
+    makeScopeFile(tmpDir, "notes.md", "n");
     const skillDir = path.join(tmpDir, ".claude", "skills", "viz");
     fs.mkdirSync(path.join(skillDir, "references"), { recursive: true });
     fs.writeFileSync(
@@ -754,7 +753,7 @@ describe("executeRegisteredTool", () => {
       { pattern: "references/*" },
       {
         projectRoot: tmpDir,
-        projectFolderId: "demo",
+        workScopeKey: SCOPE,
         skillId: "viz",
         skillDirAbsolute: skillDir,
       },
@@ -767,7 +766,7 @@ describe("executeRegisteredTool", () => {
 
   it("lists skill references when path is references", async () => {
     const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "ebex-tools-"));
-    createFolder(tmpDir, "demo");
+    makeScope(tmpDir);
     const skillDir = path.join(tmpDir, ".claude", "skills", "viz");
     fs.mkdirSync(path.join(skillDir, "references"), { recursive: true });
     fs.writeFileSync(
@@ -780,7 +779,7 @@ describe("executeRegisteredTool", () => {
       { path: "references" },
       {
         projectRoot: tmpDir,
-        projectFolderId: "demo",
+        workScopeKey: SCOPE,
         skillId: "viz",
         skillDirAbsolute: skillDir,
       },
@@ -794,8 +793,8 @@ describe("executeRegisteredTool", () => {
 
   it("keeps path-omitted list_files on project root not skill", async () => {
     const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "ebex-tools-"));
-    createFolder(tmpDir, "demo");
-    createFile(tmpDir, "demo", "a.md", "a");
+    makeScope(tmpDir);
+    makeScopeFile(tmpDir, "a.md", "a");
     const skillDir = path.join(tmpDir, ".claude", "skills", "viz");
     fs.mkdirSync(path.join(skillDir, "references"), { recursive: true });
     fs.writeFileSync(
@@ -808,7 +807,7 @@ describe("executeRegisteredTool", () => {
       {},
       {
         projectRoot: tmpDir,
-        projectFolderId: "demo",
+        workScopeKey: SCOPE,
         skillId: "viz",
         skillDirAbsolute: skillDir,
       },
@@ -817,7 +816,7 @@ describe("executeRegisteredTool", () => {
       path: string;
       entries: Array<{ name: string }>;
     };
-    expect(result.path).toBe("workspace/demo/.");
+    expect(result.path).toBe(scopeDisplayPath("."));
     expect(result.entries.map((e) => e.name)).toContain("a.md");
     expect(result.entries.map((e) => e.name)).not.toContain("references");
     fs.rmSync(tmpDir, { recursive: true, force: true });
@@ -825,7 +824,7 @@ describe("executeRegisteredTool", () => {
 
   it("globs **/base.html from skill when missing in project", async () => {
     const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "ebex-tools-"));
-    createFolder(tmpDir, "demo");
+    makeScope(tmpDir);
     const skillDir = path.join(tmpDir, ".claude", "skills", "viz");
     fs.mkdirSync(path.join(skillDir, "references"), { recursive: true });
     fs.writeFileSync(
@@ -838,7 +837,7 @@ describe("executeRegisteredTool", () => {
       { pattern: "**/base.html" },
       {
         projectRoot: tmpDir,
-        projectFolderId: "demo",
+        workScopeKey: SCOPE,
         skillId: "viz",
         skillDirAbsolute: skillDir,
       },
@@ -851,11 +850,8 @@ describe("executeRegisteredTool", () => {
 
   it("minutes-like frame: span replace + residual warning + whitespace hint", async () => {
     const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "ebex-tools-"));
-    createFolder(tmpDir, "demo");
-    createFile(
-      tmpDir,
-      "demo",
-      "minutes.html",
+    makeScope(tmpDir);
+    makeScopeFile(tmpDir, "minutes.html",
       [
         "<ol>",
         "{{AGENDA_ITEMS_START}}",
@@ -873,7 +869,7 @@ describe("executeRegisteredTool", () => {
         end_marker: "{{AGENDA_ITEMS_END}}\n</ol> </div>",
         content: "\n<li>x</li>\n",
       },
-      contextFor(tmpDir, "demo"),
+      contextFor(tmpDir, SCOPE),
     );
     expect(miss.result).toMatchObject({
       error: expect.stringContaining("end_marker"),
@@ -887,15 +883,15 @@ describe("executeRegisteredTool", () => {
         end_marker: "{{AGENDA_ITEMS_END}}",
         content: "\n<li>部長挨拶</li>\n",
       },
-      contextFor(tmpDir, "demo"),
+      contextFor(tmpDir, SCOPE),
     );
     expect(ok.result).toMatchObject({
-      path: "workspace/demo/minutes.html",
+      path: scopeDisplayPath("minutes.html"),
       warning: expect.stringContaining("{{MEETING_TITLE}}"),
     });
     expect(ok.display.tags).toContain("warning");
     const written = fs.readFileSync(
-      path.join(getWorkspaceDir(tmpDir), "demo", "minutes.html"),
+      path.join(scopeAbsolute(tmpDir), "minutes.html"),
       "utf-8",
     );
     expect(written).toContain("<li>部長挨拶</li>");
@@ -905,11 +901,8 @@ describe("executeRegisteredTool", () => {
 
   it("replaces between markers with content", async () => {
     const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "ebex-tools-"));
-    createFolder(tmpDir, "demo");
-    createFile(
-      tmpDir,
-      "demo",
-      "out.html",
+    makeScope(tmpDir);
+    makeScopeFile(tmpDir, "out.html",
       "<!-- CONTENT_START -->\nold\n<!-- CONTENT_END -->",
     );
 
@@ -921,14 +914,14 @@ describe("executeRegisteredTool", () => {
         end_marker: "<!-- CONTENT_END -->",
         content: "\nnew block\n",
       },
-      contextFor(tmpDir, "demo"),
+      contextFor(tmpDir, SCOPE),
     );
     expect(outcome.result).toMatchObject({
-      path: "workspace/demo/out.html",
+      path: scopeDisplayPath("out.html"),
       replacedChars: expect.any(Number),
     });
     const written = fs.readFileSync(
-      path.join(getWorkspaceDir(tmpDir), "demo", "out.html"),
+      path.join(scopeAbsolute(tmpDir), "out.html"),
       "utf-8",
     );
     expect(written).toBe(
@@ -939,14 +932,11 @@ describe("executeRegisteredTool", () => {
 
   it("replaces between markers from from_path", async () => {
     const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "ebex-tools-"));
-    createFolder(tmpDir, "demo");
-    createFile(
-      tmpDir,
-      "demo",
-      "out.html",
+    makeScope(tmpDir);
+    makeScopeFile(tmpDir, "out.html",
       "<!-- CONTENT_START --><!-- CONTENT_END -->",
     );
-    createFile(tmpDir, "demo", "partial.txt", "FROM_FILE");
+    makeScopeFile(tmpDir, "partial.txt", "FROM_FILE");
 
     const outcome = await executeRegisteredTool(
       "replace_between",
@@ -956,12 +946,12 @@ describe("executeRegisteredTool", () => {
         end_marker: "<!-- CONTENT_END -->",
         from_path: "partial.txt",
       },
-      contextFor(tmpDir, "demo"),
+      contextFor(tmpDir, SCOPE),
     );
-    expect(outcome.result).toMatchObject({ path: "workspace/demo/out.html" });
+    expect(outcome.result).toMatchObject({ path: scopeDisplayPath("out.html") });
     expect(
       fs.readFileSync(
-        path.join(getWorkspaceDir(tmpDir), "demo", "out.html"),
+        path.join(scopeAbsolute(tmpDir), "out.html"),
         "utf-8",
       ),
     ).toBe("<!-- CONTENT_START -->FROM_FILE<!-- CONTENT_END -->");
@@ -970,8 +960,8 @@ describe("executeRegisteredTool", () => {
 
   it("rejects replace_between when markers missing or both sources set", async () => {
     const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "ebex-tools-"));
-    createFolder(tmpDir, "demo");
-    createFile(tmpDir, "demo", "out.html", "no markers");
+    makeScope(tmpDir);
+    makeScopeFile(tmpDir, "out.html", "no markers");
 
     const missing = await executeRegisteredTool(
       "replace_between",
@@ -981,13 +971,13 @@ describe("executeRegisteredTool", () => {
         end_marker: "<!-- B -->",
         content: "x",
       },
-      contextFor(tmpDir, "demo"),
+      contextFor(tmpDir, SCOPE),
     );
     expect(missing.result).toMatchObject({
       error: expect.stringContaining("start_marker"),
     });
 
-    createFile(tmpDir, "demo", "marked.html", "<ol>\n</ol>\n    </div>");
+    makeScopeFile(tmpDir, "marked.html", "<ol>\n</ol>\n    </div>");
     const whitespaceMiss = await executeRegisteredTool(
       "replace_between",
       {
@@ -996,7 +986,7 @@ describe("executeRegisteredTool", () => {
         end_marker: "</ol> </div>",
         content: "x",
       },
-      contextFor(tmpDir, "demo"),
+      contextFor(tmpDir, SCOPE),
     );
     expect(whitespaceMiss.result).toMatchObject({
       error: expect.stringContaining("近い候補（空白差のみ）"),
@@ -1011,7 +1001,7 @@ describe("executeRegisteredTool", () => {
         content: "x",
         from_path: "out.html",
       },
-      contextFor(tmpDir, "demo"),
+      contextFor(tmpDir, SCOPE),
     );
     expect(both.result).toMatchObject({
       error: expect.stringContaining("同時"),
@@ -1021,7 +1011,7 @@ describe("executeRegisteredTool", () => {
 
   it("rejects replace_between and append_file into skill zone", async () => {
     const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "ebex-tools-"));
-    createFolder(tmpDir, "demo");
+    makeScope(tmpDir);
     const skillDir = path.join(tmpDir, ".claude", "skills", "viz");
     fs.mkdirSync(path.join(skillDir, "references"), { recursive: true });
     fs.writeFileSync(
@@ -1031,7 +1021,7 @@ describe("executeRegisteredTool", () => {
 
     const ctx = {
       projectRoot: tmpDir,
-      projectFolderId: "demo",
+      workScopeKey: SCOPE,
       skillId: "viz",
       skillDirAbsolute: skillDir,
     };
@@ -1062,21 +1052,21 @@ describe("executeRegisteredTool", () => {
 
   it("appends to existing and creates new files", async () => {
     const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "ebex-tools-"));
-    createFolder(tmpDir, "demo");
-    createFile(tmpDir, "demo", "partial.txt", "a");
+    makeScope(tmpDir);
+    makeScopeFile(tmpDir, "partial.txt", "a");
 
     const append = await executeRegisteredTool(
       "append_file",
       { path: "partial.txt", content: "b" },
-      contextFor(tmpDir, "demo"),
+      contextFor(tmpDir, SCOPE),
     );
     expect(append.result).toMatchObject({
-      path: "workspace/demo/partial.txt",
+      path: scopeDisplayPath("partial.txt"),
       created: false,
     });
     expect(
       fs.readFileSync(
-        path.join(getWorkspaceDir(tmpDir), "demo", "partial.txt"),
+        path.join(scopeAbsolute(tmpDir), "partial.txt"),
         "utf-8",
       ),
     ).toBe("ab");
@@ -1084,15 +1074,15 @@ describe("executeRegisteredTool", () => {
     const create = await executeRegisteredTool(
       "append_file",
       { path: "output/new.partial", content: "fresh" },
-      contextFor(tmpDir, "demo"),
+      contextFor(tmpDir, SCOPE),
     );
     expect(create.result).toMatchObject({
-      path: "workspace/demo/output/new.partial",
+      path: scopeDisplayPath("output/new.partial"),
       created: true,
     });
     expect(
       fs.readFileSync(
-        path.join(getWorkspaceDir(tmpDir), "demo", "output", "new.partial"),
+        path.join(scopeAbsolute(tmpDir), "output", "new.partial"),
         "utf-8",
       ),
     ).toBe("fresh");

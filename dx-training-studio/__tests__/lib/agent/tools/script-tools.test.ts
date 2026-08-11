@@ -9,21 +9,25 @@ import {
   preflightScriptToolCall,
   resolveToolDefinitions,
 } from "@/lib/agent/tools/registry";
-import { createFolder } from "@/lib/workspace-mutations";
+import {
+  SCOPE,
+  makeScope,
+  scopeDisplayPath,
+} from "@/__tests__/helpers/work-scope-fixture";
 
 function makeProject() {
   const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "ebex-script-tools-"));
-  createFolder(tmpDir, "demo");
+  makeScope(tmpDir);
   const skillDir = path.join(tmpDir, "skill-zone", "my-skill");
   fs.mkdirSync(path.join(skillDir, "scripts"), { recursive: true });
   fs.mkdirSync(path.join(skillDir, "references"), { recursive: true });
   const context = {
     projectRoot: tmpDir,
-    projectFolderId: "demo",
+    workScopeKey: SCOPE,
     skillId: "my-skill",
     skillDirAbsolute: skillDir,
   };
-  const projectDir = path.join(tmpDir, "workspace", "demo");
+  const projectDir = path.join(tmpDir, "contents", ...SCOPE.split("/"));
   return { tmpDir, skillDir, context, projectDir };
 }
 
@@ -59,7 +63,7 @@ describe("executeRegisteredTool run_script", () => {
       context,
     );
     expect(outcome.result).toMatchObject({
-      writes: ["workspace/demo/output.html"],
+      writes: [scopeDisplayPath("output.html")],
     });
     const record = outcome.result as Record<string, unknown>;
     expect(record.error).toBeUndefined();
@@ -70,15 +74,15 @@ describe("executeRegisteredTool run_script", () => {
     fs.rmSync(tmpDir, { recursive: true, force: true });
   });
 
-  it("rejects writes declared outside the project", async () => {
+  it("rejects writes declared outside the write roots", async () => {
     const { tmpDir, context } = makeProject();
-    createFolder(tmpDir, "other");
+    // 実行中スキル配下は読取専用ゾーン。書込ルート（contents/ と contents-plan/）の外側
     const outcome = await executeRegisteredTool(
       "run_script",
       {
         purpose: "テスト",
         code: `const fs = require("fs");`,
-        writes: ["workspace/other/escape.txt"],
+        writes: ["skill/my-skill/scripts/escape.cjs"],
       },
       context,
     );
@@ -166,11 +170,11 @@ describe("executeRegisteredTool run_skill_script", () => {
 
   it("rejects when no skill is running", async () => {
     const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "ebex-script-tools-"));
-    createFolder(tmpDir, "demo");
+    makeScope(tmpDir);
     const outcome = await executeRegisteredTool(
       "run_skill_script",
       { script_path: "scripts/build.cjs", purpose: "テスト" },
-      { projectRoot: tmpDir, projectFolderId: "demo" },
+      { projectRoot: tmpDir, workScopeKey: SCOPE },
     );
     expect(outcome.result).toMatchObject({
       error: expect.stringContaining("実行中スキルがない"),

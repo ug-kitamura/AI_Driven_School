@@ -6,9 +6,14 @@ import remarkGfm from "remark-gfm";
 import type { Components } from "react-markdown";
 import { cn } from "@/lib/utils";
 import type { AgentFileAttachment } from "@/lib/agent-chat-storage";
-import { ALLOWED_PREFIX } from "@/lib/workspace-constants";
 
-const WORKSPACE_REF_RE = /(@workspace\/[^\s@]+)/g;
+// @ 参照は書込ルートの 2 系統（正本ツリーと作業ツリー）
+const FILE_REF_RE = /(@(?:contents|contents-plan)\/[^\s@]+)/g;
+const FILE_REF_PREFIXES = ["@contents/", "@contents-plan/"];
+
+function isFileRef(part: string): boolean {
+  return FILE_REF_PREFIXES.some((prefix) => part.startsWith(prefix));
+}
 const remarkPlugins = [remarkGfm];
 
 const markdownComponents: Components = {
@@ -46,11 +51,11 @@ function MarkdownSegment({ content }: { content: string }) {
 }
 
 function PlainTextContent({ content }: { content: string }) {
-  const parts = content.split(WORKSPACE_REF_RE);
+  const parts = content.split(FILE_REF_RE);
   return (
     <>
       {parts.map((part, index) => {
-        if (part.startsWith("@workspace/")) {
+        if (isFileRef(part)) {
           return <FileRefChip key={`ref-${index}`} path={part.slice(1)} />;
         }
         if (!part) return null;
@@ -95,7 +100,7 @@ export const AgentChatMessageContent = memo(function AgentChatMessageContent({
   attachments,
 }: Props) {
   const segments = useMemo(
-    () => (richMarkdown ? content.split(WORKSPACE_REF_RE) : null),
+    () => (richMarkdown ? content.split(FILE_REF_RE) : null),
     [content, richMarkdown],
   );
   const structured = attachments ?? [];
@@ -123,19 +128,8 @@ export const AgentChatMessageContent = memo(function AgentChatMessageContent({
     >
       <AttachmentChips attachments={structured} />
       {segments?.map((part, index) => {
-        if (part.startsWith("@workspace/")) {
-          const path = part.slice(1);
-          return (
-            <FileRefChip
-              key={`ref-${index}`}
-              path={path}
-              name={
-                path.startsWith(ALLOWED_PREFIX)
-                  ? path.split("/").pop()
-                  : undefined
-              }
-            />
-          );
+        if (isFileRef(part)) {
+          return <FileRefChip key={`ref-${index}`} path={part.slice(1)} />;
         }
         if (!part) return null;
         return <MarkdownSegment key={`md-${index}`} content={part} />;

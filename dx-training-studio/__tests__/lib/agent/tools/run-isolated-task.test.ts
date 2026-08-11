@@ -23,14 +23,19 @@ import {
 import { resolveConfirmRequirement } from "@/lib/agent/tools/confirm-gate";
 import { resolveToolDefinitions } from "@/lib/agent/tools/registry";
 import type { ToolExecutionContext } from "@/lib/agent/tools/registry";
-import { createFolder } from "@/lib/workspace-mutations";
+import {
+  SCOPE,
+  makeScope,
+  makeScopeFile,
+  scopeDisplayPath,
+} from "@/__tests__/helpers/work-scope-fixture";
 
 function makeProject() {
   const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "ebex-isolated-task-"));
-  createFolder(tmpDir, "demo");
+  makeScope(tmpDir);
   const skillDir = path.join(tmpDir, "skill-zone", "my-skill");
   fs.mkdirSync(path.join(skillDir, "references"), { recursive: true });
-  const projectDir = path.join(tmpDir, "workspace", "demo");
+  const projectDir = path.join(tmpDir, "contents", ...SCOPE.split("/"));
   return { tmpDir, skillDir, projectDir };
 }
 
@@ -60,7 +65,7 @@ function makeContext(
 ): ToolExecutionContext {
   return {
     projectRoot: base.tmpDir,
-    projectFolderId: "demo",
+    workScopeKey: SCOPE,
     skillId: "my-skill",
     skillDirAbsolute: base.skillDir,
     generate: {
@@ -131,7 +136,7 @@ describe("executeRunIsolatedTask", () => {
       path: "output/eval.md",
     });
     expect(outcome.result).toMatchObject({
-      path: "workspace/demo/output/eval.md",
+      path: scopeDisplayPath("output/eval.md"),
     });
     expect(JSON.stringify(outcome.result)).not.toContain("レポート本文");
     const written = fs.readFileSync(
@@ -167,8 +172,8 @@ describe("executeRunIsolatedTask", () => {
     expect(fs.readFileSync(framePath, "utf-8")).toBe(frame);
     expect(outcome.result).toMatchObject({
       diverted: true,
-      path: "workspace/demo/_work/output__report.html",
-      requestedPath: "workspace/demo/output/report.html",
+      path: scopeDisplayPath("_work/output__report.html"),
+      requestedPath: scopeDisplayPath("output/report.html"),
       markerNames: ["BODY"],
     });
     expect(
@@ -226,8 +231,8 @@ describe("resolveConfirmRequirement for run_isolated_task", () => {
     const tmpDir = fs.mkdtempSync(
       path.join(os.tmpdir(), "ebex-isolated-task-confirm-"),
     );
-    createFolder(tmpDir, "demo");
-    const req = resolveConfirmRequirement(tmpDir, "demo", {
+    makeScope(tmpDir);
+    const req = resolveConfirmRequirement(tmpDir, SCOPE, {
       id: "t1",
       name: "run_isolated_task",
       input: { purpose: "評価", instruction: "評価して" },
@@ -240,15 +245,9 @@ describe("resolveConfirmRequirement for run_isolated_task", () => {
     const tmpDir = fs.mkdtempSync(
       path.join(os.tmpdir(), "ebex-isolated-task-confirm-"),
     );
-    createFolder(tmpDir, "demo");
-    fs.mkdirSync(path.join(tmpDir, "workspace", "demo", "output"), {
-      recursive: true,
-    });
-    fs.writeFileSync(
-      path.join(tmpDir, "workspace", "demo", "output", "eval.md"),
-      "old",
-    );
-    const req = resolveConfirmRequirement(tmpDir, "demo", {
+    makeScope(tmpDir);
+    makeScopeFile(tmpDir, "output/eval.md", "old");
+    const req = resolveConfirmRequirement(tmpDir, SCOPE, {
       id: "t1",
       name: "run_isolated_task",
       input: {

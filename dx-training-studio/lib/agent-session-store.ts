@@ -2,11 +2,11 @@ import fs from "node:fs";
 import path from "node:path";
 import { getContentsDir } from "@/lib/contents-loader";
 import {
-  parseSessionScope,
-  sessionScopeLevel,
-  sessionScopeRelativePath,
-  type SessionScope,
-} from "@/lib/session-scope";
+  parseWorkScope,
+  workScopeLevel,
+  workScopeSessionPath,
+  type WorkScope,
+} from "@/lib/work-scope";
 import type { AgentChatStorage } from "@/lib/agent-chat-storage";
 import { parseAgentChatStorage } from "@/lib/agent-chat-storage";
 
@@ -21,12 +21,12 @@ export function isAgentSessionFsWritable(): boolean {
  */
 export function resolveScopeSessionPath(
   projectRoot: string,
-  scope: SessionScope,
+  scope: WorkScope,
 ): string {
   const contentsDir = path.resolve(getContentsDir(projectRoot));
   const absolutePath = path.resolve(
     contentsDir,
-    sessionScopeRelativePath(scope),
+    workScopeSessionPath(scope),
   );
   if (!absolutePath.startsWith(contentsDir + path.sep)) {
     throw new Error("不正なスコープです");
@@ -35,13 +35,13 @@ export function resolveScopeSessionPath(
 }
 
 /** クエリ文字列からスコープを解決する。不正なら null。 */
-export function resolveScopeFromParam(raw: string | null): SessionScope | null {
-  return parseSessionScope(raw ?? "");
+export function resolveScopeFromParam(raw: string | null): WorkScope | null {
+  return parseWorkScope(raw ?? "");
 }
 
 export function readScopeSessionFile(
   projectRoot: string,
-  scope: SessionScope,
+  scope: WorkScope,
 ): AgentChatStorage | null {
   let sessionPath: string;
   try {
@@ -60,7 +60,7 @@ export function readScopeSessionFile(
 
 export function writeScopeSessionFile(
   projectRoot: string,
-  scope: SessionScope,
+  scope: WorkScope,
   storage: AgentChatStorage,
 ): void {
   if (!isAgentSessionFsWritable()) {
@@ -69,7 +69,7 @@ export function writeScopeSessionFile(
   const sessionPath = resolveScopeSessionPath(projectRoot, scope);
   const dir = path.dirname(sessionPath);
   if (!fs.existsSync(dir)) {
-    if (sessionScopeLevel(scope) === "root") {
+    if (workScopeLevel(scope) === "root") {
       // シリーズ 0 件の初期状態では contents/ 自体が無いことがある。
       // ここはアプリのデータルートなので作ってよい。
       fs.mkdirSync(dir, { recursive: true });

@@ -16,11 +16,6 @@ vi.mock("@/lib/agent/file-attachments", () => ({
   enrichUserMessageWithAttachments: vi.fn((content: string) => content),
 }));
 
-vi.mock("@/lib/agent/workspace-file-attachments", () => ({
-  resolveAttachmentsForMessage: vi.fn(() => ({ attachments: [] })),
-  enrichUserMessageWithAttachments: vi.fn((content: string) => content),
-}));
-
 vi.mock("@/lib/agent/agent-loop", () => ({
   createAgentLoopSseStream: vi.fn((run) => {
     const encoder = new TextEncoder();

@@ -16,7 +16,11 @@ import {
   SELECT_COMPANY_CONTEXT_SCHEMA,
   type SelectCompanyContextInput,
 } from "@/lib/agent/tools/select-company-context";
-import { resolveToolTargetPath } from "@/lib/agent/tools/fs-guard";
+import {
+  CONTENTS_DIR_NAME,
+  CONTENTS_PLAN_DIR_NAME,
+  resolveToolTargetPath,
+} from "@/lib/agent/tools/fs-guard";
 import {
   framedWriteDivertOutcome,
   resolveFramedWriteTarget,
@@ -36,7 +40,7 @@ import {
   type SearchProvider,
   type SearchSessionState,
 } from "@/lib/agent/tools/search-provider";
-import { WORKSPACE_DIR_NAME } from "@/lib/workspace-constants";
+import { parseWorkScope, workScopeBaseDir } from "@/lib/work-scope";
 import {
   formatNotFoundError,
   scanTemplateResiduals,
@@ -57,7 +61,7 @@ export type ToolExecutionOutcome = {
 
 export type ToolExecutionContext = {
   projectRoot: string;
-  projectFolderId: string;
+  workScopeKey: string;
   skillId?: string;
   skillDirAbsolute?: string;
   /** ユーザー中断シグナル。スクリプト実行の子プロセスを abort で即 kill する */
@@ -80,6 +84,11 @@ export type ToolExecutionContext = {
   /** dx 固有: 社内コンテキストの保存先モード（search/select_company_context が参照。差分台帳 #6） */
   contextMode?: ContextStorageMode;
 };
+
+/** 書込ツール用。正本ツリーの構造を壊す書込を拒否させる。 */
+function writePathOptions(context: ToolExecutionContext) {
+  return { ...skillPathOptions(context, false), forWrite: true };
+}
 
 function skillPathOptions(
   context: ToolExecutionContext,
@@ -661,14 +670,29 @@ type DiscoveryWalkZone = {
   toDisplayPath: (relativeFromRoot: string, absolutePath: string) => string;
 };
 
-function buildProjectWalkZone(
-  projectRootAbsolute: string,
+function isInsideDir(dirAbsolute: string, candidate: string): boolean {
+  return (
+    candidate === dirAbsolute || candidate.startsWith(dirAbsolute + path.sep)
+  );
+}
+
+/**
+ * リポジトリ内を歩くゾーン。
+ * パターン照合の基準は `rootAbsolute`、表示はリポジトリルート相対に揃える。
+ */
+function buildRepoWalkZone(
+  projectRoot: string,
+  rootAbsolute: string,
   baseAbsolute: string,
 ): DiscoveryWalkZone {
+  const rootRelative = path
+    .relative(projectRoot, rootAbsolute)
+    .replace(/\\/g, "/");
   return {
-    rootAbsolute: projectRootAbsolute,
+    rootAbsolute,
     baseAbsolute,
-    toDisplayPath: (relativeFromRoot) => relativeFromRoot,
+    toDisplayPath: (relativeFromRoot) =>
+      rootRelative ? `${rootRelative}/${relativeFromRoot}` : relativeFromRoot,
   };
 }
 
@@ -699,7 +723,7 @@ function resolveDiscoveryWalkZones(
 ): DiscoveryWalkZone[] | { error: string } {
   const baseResolved = resolveToolTargetPath(
     context.projectRoot,
-    context.projectFolderId,
+    context.workScopeKey,
     pathInput || ".",
     skillPathOptions(context, true),
   );
@@ -711,30 +735,24 @@ function resolveDiscoveryWalkZones(
     return [skillZone];
   }
 
-  // dx: contents/ ゾーンの一覧・検索は contents ルートで歩く（表示は contents/ 前置）
+  // 正本ツリー: 作業フォルダ配下ならパターンの基準も作業フォルダにする。
+  // モデルは明示プレフィックスのない相対パスを作業フォルダ基準で書くため、
+  // contents/ ルートを基準にすると `output/*.html` のようなパターンが外れる。
   if (baseResolved.zone === "contents") {
-    const contentsRoot = path.resolve(context.projectRoot, "contents");
+    const workDir = workDirAbsolute(context);
+    const root = isInsideDir(workDir, baseResolved.absolutePath)
+      ? workDir
+      : path.resolve(context.projectRoot, CONTENTS_DIR_NAME);
     return [
-      {
-        rootAbsolute: contentsRoot,
-        baseAbsolute: baseResolved.absolutePath,
-        toDisplayPath: (relativeFromRoot) => `contents/${relativeFromRoot}`,
-      },
+      buildRepoWalkZone(context.projectRoot, root, baseResolved.absolutePath),
     ];
   }
 
-  const projectRootResolved = resolveToolTargetPath(
-    context.projectRoot,
-    context.projectFolderId,
-    ".",
-    skillPathOptions(context, false),
-  );
-  if ("error" in projectRootResolved)
-    return { error: projectRootResolved.error };
-
+  // 作業ツリー（contents-plan/）: 基準は作業ツリーのルート
   return [
-    buildProjectWalkZone(
-      projectRootResolved.absolutePath,
+    buildRepoWalkZone(
+      context.projectRoot,
+      path.resolve(context.projectRoot, CONTENTS_PLAN_DIR_NAME),
       baseResolved.absolutePath,
     ),
   ];
@@ -758,7 +776,7 @@ function executeListFiles(
     typeof input.path === "string" && input.path.trim() ? input.path : "";
   const resolved = resolveToolTargetPath(
     context.projectRoot,
-    context.projectFolderId,
+    context.workScopeKey,
     targetInput || ".",
     skillPathOptions(context, true),
   );
@@ -993,7 +1011,7 @@ function executeReadFile(
   if (!inputPath.trim()) return errorOutcome("path が空です");
   const resolved = resolveToolTargetPath(
     context.projectRoot,
-    context.projectFolderId,
+    context.workScopeKey,
     inputPath,
     skillPathOptions(context, true),
   );
@@ -1048,9 +1066,9 @@ function executeWriteFile(
 
   const resolved = resolveToolTargetPath(
     context.projectRoot,
-    context.projectFolderId,
+    context.workScopeKey,
     inputPath,
-    skillPathOptions(context, false),
+    writePathOptions(context),
   );
   if ("error" in resolved) return errorOutcome(resolved.error);
   if (resolved.insideSkill) {
@@ -1063,7 +1081,7 @@ function executeWriteFile(
   const decision = resolveFramedWriteTarget({
     absolutePath: resolved.absolutePath,
     relativePath: resolved.relativePath,
-    projectFolderId: context.projectFolderId,
+    workScopeKey: context.workScopeKey,
     projectRoot: context.projectRoot,
   });
 
@@ -1103,9 +1121,9 @@ async function executeInlineHtmlAssets(
   for (const inputPath of requested) {
     const resolved = resolveToolTargetPath(
       context.projectRoot,
-      context.projectFolderId,
+      context.workScopeKey,
       inputPath,
-      skillPathOptions(context, false),
+      writePathOptions(context),
     );
     if ("error" in resolved) return errorOutcome(resolved.error);
     if (resolved.insideSkill) {
@@ -1180,7 +1198,7 @@ function executeCopyFile(
 
   const fromResolved = resolveToolTargetPath(
     context.projectRoot,
-    context.projectFolderId,
+    context.workScopeKey,
     fromPath,
     skillPathOptions(context, true),
   );
@@ -1188,9 +1206,9 @@ function executeCopyFile(
 
   const toResolved = resolveToolTargetPath(
     context.projectRoot,
-    context.projectFolderId,
+    context.workScopeKey,
     toPath,
-    skillPathOptions(context, false),
+    writePathOptions(context),
   );
   if ("error" in toResolved) return errorOutcome(toResolved.error);
   if (toResolved.insideSkill) {
@@ -1245,9 +1263,9 @@ function executeReplaceInFile(
 
   const resolved = resolveToolTargetPath(
     context.projectRoot,
-    context.projectFolderId,
+    context.workScopeKey,
     inputPath,
-    skillPathOptions(context, false),
+    writePathOptions(context),
   );
   if ("error" in resolved) return errorOutcome(resolved.error);
   if (resolved.insideSkill) {
@@ -1361,7 +1379,7 @@ function executeReplaceBetween(
   if (hasFromPath) {
     const fromResolved = resolveToolTargetPath(
       context.projectRoot,
-      context.projectFolderId,
+      context.workScopeKey,
       String(input.from_path).trim(),
       skillPathOptions(context, true),
     );
@@ -1389,9 +1407,9 @@ function executeReplaceBetween(
 
   const resolved = resolveToolTargetPath(
     context.projectRoot,
-    context.projectFolderId,
+    context.workScopeKey,
     inputPath,
-    skillPathOptions(context, false),
+    writePathOptions(context),
   );
   if ("error" in resolved) return errorOutcome(resolved.error);
   if (resolved.insideSkill) {
@@ -1455,9 +1473,9 @@ function executeAppendFile(
 
   const resolved = resolveToolTargetPath(
     context.projectRoot,
-    context.projectFolderId,
+    context.workScopeKey,
     inputPath,
-    skillPathOptions(context, false),
+    writePathOptions(context),
   );
   if ("error" in resolved) return errorOutcome(resolved.error);
   if (resolved.insideSkill) {
@@ -1496,9 +1514,9 @@ function executeMkdir(
   if (!inputPath.trim()) return errorOutcome("path が空です");
   const resolved = resolveToolTargetPath(
     context.projectRoot,
-    context.projectFolderId,
+    context.workScopeKey,
     inputPath,
-    skillPathOptions(context, false),
+    writePathOptions(context),
   );
   if ("error" in resolved) return errorOutcome(resolved.error);
   if (resolved.insideSkill) {
@@ -1515,12 +1533,25 @@ function executeMkdir(
   };
 }
 
-function projectDirAbsolute(context: ToolExecutionContext): string {
-  return path.resolve(
-    context.projectRoot,
-    WORKSPACE_DIR_NAME,
-    context.projectFolderId,
-  );
+/**
+ * スクリプトサンドボックスの cwd。作業フォルダ（フォーカス中のコンテンツフォルダ）。
+ * 明示プレフィックスのない相対パスの解決基準（`resolveToolTargetPath`）と同じ場所にする。
+ */
+function workDirAbsolute(context: ToolExecutionContext): string {
+  const scope = parseWorkScope(context.workScopeKey) ?? {};
+  return path.resolve(context.projectRoot, workScopeBaseDir(scope));
+}
+
+/** サンドボックスの共通オプション（cwd = 作業フォルダ、作業ツリーへの書込も許可） */
+function scriptSandboxOptions(context: ToolExecutionContext) {
+  return {
+    projectDirAbsolute: workDirAbsolute(context),
+    extraWriteDirsAbsolute: [
+      path.resolve(context.projectRoot, CONTENTS_PLAN_DIR_NAME),
+    ],
+    skillDirAbsolute: context.skillDirAbsolute,
+    ...(context.signal ? { signal: context.signal } : {}),
+  };
 }
 
 export const SCRIPT_TOOL_NAMES = new Set(["run_script", "run_skill_script"]);
@@ -1602,7 +1633,7 @@ export function resolveSkillScriptPath(
   }
   const resolved = resolveToolTargetPath(
     context.projectRoot,
-    context.projectFolderId,
+    context.workScopeKey,
     scriptPathInput,
     skillPathOptions(context, true),
   );
@@ -1668,9 +1699,9 @@ function executeRunScriptWritesTargets(
     if (typeof entry !== "string" || !entry.trim()) continue;
     const resolved = resolveToolTargetPath(
       context.projectRoot,
-      context.projectFolderId,
+      context.workScopeKey,
       entry,
-      skillPathOptions(context, false),
+      writePathOptions(context),
     );
     if ("error" in resolved) return { error: resolved.error };
     if (!resolved.insideProject) {
@@ -1695,11 +1726,7 @@ async function executeRunScript(
 
   const runResult = await runScriptInSandbox(
     { kind: "code", code },
-    {
-      projectDirAbsolute: projectDirAbsolute(context),
-      skillDirAbsolute: context.skillDirAbsolute,
-      ...(context.signal ? { signal: context.signal } : {}),
-    },
+    scriptSandboxOptions(context),
   );
   if (!runResult.ok) return scriptFailureOutcome(runResult);
 
@@ -1733,11 +1760,7 @@ async function executeRunSkillScript(
 
   const runResult = await runScriptInSandbox(
     { kind: "file", scriptPathAbsolute: resolved.absolutePath, args },
-    {
-      projectDirAbsolute: projectDirAbsolute(context),
-      skillDirAbsolute: context.skillDirAbsolute,
-      ...(context.signal ? { signal: context.signal } : {}),
-    },
+    scriptSandboxOptions(context),
   );
   if (!runResult.ok) return scriptFailureOutcome(runResult);
 

@@ -7,12 +7,12 @@ import {
   resolveToolDefinitions,
 } from "@/lib/agent/tools/registry";
 import { resolveConfirmRequirement } from "@/lib/agent/tools/confirm-gate";
-
-function createFolder(root: string, id: string): string {
-  const dir = path.join(root, "workspace", id);
-  fs.mkdirSync(path.join(dir, "output"), { recursive: true });
-  return dir;
-}
+import {
+  SCOPE,
+  makeScope,
+  scopeAbsolute,
+  scopeDisplayPath,
+} from "@/__tests__/helpers/work-scope-fixture";
 
 const SAMPLE = [
   '<!DOCTYPE html><html lang="ja"><head>',
@@ -47,14 +47,16 @@ describe("inline_html_assets tool", () => {
 
   it("processes multiple files in one call", async () => {
     const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "ebex-inline-"));
-    const folder = createFolder(tmpDir, "demo");
+    makeScope(tmpDir);
+    const folder = scopeAbsolute(tmpDir);
+    fs.mkdirSync(path.join(folder, "output"), { recursive: true });
     fs.writeFileSync(path.join(folder, "output", "ja.html"), SAMPLE, "utf-8");
     fs.writeFileSync(path.join(folder, "output", "en.html"), SAMPLE, "utf-8");
 
     const outcome = await executeRegisteredTool(
       "inline_html_assets",
       { paths: ["output/ja.html", "output/en.html"] },
-      { projectRoot: tmpDir, projectFolderId: "demo" },
+      { projectRoot: tmpDir, workScopeKey: SCOPE },
     );
 
     expect((outcome.result as { error?: string }).error).toBeUndefined();
@@ -79,11 +81,11 @@ describe("inline_html_assets tool", () => {
 
   it("rejects paths that escape the project folder", async () => {
     const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "ebex-inline-"));
-    createFolder(tmpDir, "demo");
+    makeScope(tmpDir);
     const outcome = await executeRegisteredTool(
       "inline_html_assets",
       { paths: ["../../etc/hosts"] },
-      { projectRoot: tmpDir, projectFolderId: "demo" },
+      { projectRoot: tmpDir, workScopeKey: SCOPE },
     );
     expect((outcome.result as { error?: string }).error).toBeTruthy();
     fs.rmSync(tmpDir, { recursive: true, force: true });
@@ -91,11 +93,11 @@ describe("inline_html_assets tool", () => {
 
   it("errors when a target does not exist", async () => {
     const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "ebex-inline-"));
-    createFolder(tmpDir, "demo");
+    makeScope(tmpDir);
     const outcome = await executeRegisteredTool(
       "inline_html_assets",
       { paths: ["output/missing.html"] },
-      { projectRoot: tmpDir, projectFolderId: "demo" },
+      { projectRoot: tmpDir, workScopeKey: SCOPE },
     );
     expect((outcome.result as { error?: string }).error).toContain("見つかりません");
     fs.rmSync(tmpDir, { recursive: true, force: true });

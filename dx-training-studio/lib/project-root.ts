@@ -2,7 +2,7 @@ import path from "node:path";
 
 /**
  * projectRoot = ユーザーの作業データの基準ルート。
- * `workspace/` / `workspace/.meta/` / `contents/` はここを基準に解決する。
+ * `contents/` / `contents-plan/` はここを基準に解決する。
  *
  * dx-training-studio は単体起動のみのため、EBEX の二層ルート
  * （`.ebex.host` 検出）は持たず、常に `process.cwd()` を返す。

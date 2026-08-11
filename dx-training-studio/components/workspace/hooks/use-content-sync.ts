@@ -16,6 +16,7 @@ const POLL_INTERVAL_MS = 3000;
 export function useContentSync(options: {
   /** 現在の series state（編集中レッスン content を保護するために使用） */
   series: Series[];
+  selectedSeriesId: string;
   selectedCourseId: string;
   selectedLessonId: string;
   onSeriesLoaded: (newSeries: Series[]) => void;
@@ -24,6 +25,7 @@ export function useContentSync(options: {
 }) {
   const {
     series,
+    selectedSeriesId,
     selectedCourseId,
     selectedLessonId,
     onSeriesLoaded,
@@ -33,6 +35,7 @@ export function useContentSync(options: {
 
   const lastFingerprintRef = useRef("");
   const seriesRef = useRef(series);
+  const selectedSeriesIdRef = useRef(selectedSeriesId);
   const selectedCourseIdRef = useRef(selectedCourseId);
   const selectedLessonIdRef = useRef(selectedLessonId);
   const pendingSaveRef = useRef(false);
@@ -40,6 +43,10 @@ export function useContentSync(options: {
   useEffect(() => {
     seriesRef.current = series;
   }, [series]);
+
+  useEffect(() => {
+    selectedSeriesIdRef.current = selectedSeriesId;
+  }, [selectedSeriesId]);
 
   useEffect(() => {
     selectedCourseIdRef.current = selectedCourseId;
@@ -82,6 +89,7 @@ export function useContentSync(options: {
         );
 
         const currentSelection: WorkspaceSelection = {
+          seriesId: selectedSeriesIdRef.current,
           courseId: selectedCourseIdRef.current,
           lessonId: selectedLessonIdRef.current,
         };
@@ -115,6 +123,7 @@ export function useContentSync(options: {
         }));
 
         if (
+          nextSelection.seriesId !== currentSelection.seriesId ||
           nextSelection.courseId !== currentSelection.courseId ||
           nextSelection.lessonId !== currentSelection.lessonId
         ) {

@@ -1,4 +1,11 @@
-import { ALLOWED_PREFIX } from "@/lib/workspace-constants";
+import { parseWorkScope, workScopeBaseDir } from "@/lib/work-scope";
+
+/** 作業フォルダ（フォーカス中のコンテンツフォルダ）の表示用プレフィックス */
+function scopePrefix(workScopeKey: string): string | null {
+  const scope = parseWorkScope(workScopeKey);
+  if (!scope) return null;
+  return `${workScopeBaseDir(scope)}/`;
+}
 
 export type OutputDestinationChoice = "same-folder" | "project-root";
 
@@ -10,60 +17,50 @@ export type OutputDestinationOption = {
 };
 
 /**
- * パスが当該プロジェクトフォルダの `_work/` 配下か（workspace/<folderId>/_work/...）。
+ * パスが作業フォルダの `_work/` 配下か（`contents/<フォーカス階層>/_work/...`）。
  * `_work/` はスキルが差し込み用の断片を書き溜める中間ファイル置き場であり、
  * 上書き確認の対象から恒常的に除外するために使う。
  */
 export function isPathInsideWorkDir(
   pathLike: string,
-  projectFolderId: string,
+  workScopeKey: string,
 ): boolean {
   const normalized = pathLike.replace(/\\/g, "/").trim();
-  if (!projectFolderId || !normalized) return false;
-  const prefix = `${ALLOWED_PREFIX}${projectFolderId}/_work/`;
-  return normalized.startsWith(prefix);
+  if (!normalized) return false;
+  const base = scopePrefix(workScopeKey);
+  if (!base) return false;
+  return normalized.startsWith(`${base}_work/`);
 }
 
 /**
- * パスが当該プロジェクトフォルダ配下か（workspace/<folderId>/...）。
+ * パスが書込許可ルートの内側か（作業フォルダ相対・`contents/`・`contents-plan/`）。
  */
-export function isPathInsideProjectFolder(
+export function isPathInsideWriteRoots(
   pathLike: string,
-  projectFolderId: string,
+  workScopeKey: string,
 ): boolean {
   const normalized = pathLike.replace(/\\/g, "/").trim();
-  if (!projectFolderId || !normalized) return false;
+  if (!normalized) return false;
   if (normalized.includes("..")) return false;
+  if (/^[a-zA-Z]:\//.test(normalized)) return false;
+  if (normalized.startsWith("/") || normalized.startsWith("~")) return false;
 
-  const prefix = `${ALLOWED_PREFIX}${projectFolderId}/`;
-  if (normalized.startsWith(prefix)) return true;
-
-  // プロジェクト相対（例: sub/a.md）は内側とみなす
-  if (
-    !normalized.startsWith(ALLOWED_PREFIX) &&
-    !/^[a-zA-Z]:\//.test(normalized) &&
-    !normalized.startsWith("/") &&
-    !normalized.startsWith("~")
-  ) {
-    return true;
-  }
-
-  return false;
+  // 明示プレフィックス付きは 2 ルートのみ、それ以外の相対は作業フォルダ基準で内側
+  return true;
 }
 
 /**
- * テキスト中から、プロジェクト外を指しそうなパス断片を拾う（ヒューリスティック）。
+ * テキスト中から、書込許可ルートの外を指しそうなパス断片を拾う（ヒューリスティック）。
  */
 export function findOutsideProjectPathHints(
   text: string,
-  projectFolderId: string,
+  workScopeKey: string,
 ): string[] {
-  if (!text.trim() || !projectFolderId) return [];
+  // 空文字はシリーズ 0 件（`contents/` 直下）を表す正当なスコープなので弾かない
+  if (!text.trim()) return [];
 
   const candidates = new Set<string>();
   const patterns = [
-    /@(workspace\/[^\s@]+)/g,
-    /\b(workspace\/[^\s)'"`]+)/g,
     /\b([A-Za-z]:[\\/][^\s)'"`]+)/g,
     /(~\/[^\s)'"`]+)/g,
     /(?<![A-Za-z0-9_/.-])(\.\.\/[^\s)'"`]+)/g,
@@ -73,19 +70,9 @@ export function findOutsideProjectPathHints(
     for (const match of text.matchAll(re)) {
       const raw = (match[1] ?? match[0]).replace(/[.,;:]+$/, "");
       if (!raw) continue;
-      if (!isPathInsideProjectFolder(raw, projectFolderId)) {
+      if (!isPathInsideWriteRoots(raw, workScopeKey)) {
         candidates.add(raw);
       }
-    }
-  }
-
-  // workspace/other-project/...
-  for (const match of text.matchAll(
-    /\bworkspace\/([^/\s]+)(?:\/[^\s)'"`]*)?/g,
-  )) {
-    const otherId = match[1];
-    if (otherId && otherId !== projectFolderId) {
-      candidates.add(match[0].replace(/[.,;:]+$/, ""));
     }
   }
 
@@ -93,7 +80,7 @@ export function findOutsideProjectPathHints(
 }
 
 export function listDefaultOutputDestinations(
-  projectFolderId: string,
+  workScopeKey: string,
   currentFileRelativePath?: string | null,
 ): OutputDestinationOption[] {
   const options: OutputDestinationOption[] = [];
@@ -114,7 +101,7 @@ export function listDefaultOutputDestinations(
 
   options.push({
     id: "project-root",
-    label: `プロジェクトフォルダ直下（${projectFolderId}/）`,
+    label: `作業フォルダ直下（${workScopeBaseDir(parseWorkScope(workScopeKey) ?? {})}/）`,
     relativeDir: "",
   });
 

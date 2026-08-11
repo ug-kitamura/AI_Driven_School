@@ -83,12 +83,13 @@ import {
 export function useSeriesMutations(options: {
   series: Series[];
   setSeries: React.Dispatch<React.SetStateAction<Series[]>>;
+  selectedSeriesId: string;
   selectedCourseId: string;
   selectedLessonId: string;
   setSelection: (selection: WorkspaceSelection) => void;
   onSaveError?: (msg: string) => void;
 }) {
-  const { series, setSeries, selectedCourseId, selectedLessonId, setSelection, onSaveError } =
+  const { series, setSeries, selectedSeriesId, selectedCourseId, selectedLessonId, setSelection, onSaveError } =
     options;
 
   const addSeries = useCallback(
@@ -110,6 +111,7 @@ export function useSeriesMutations(options: {
       const selection = resolveSelectionAfterDelete({
         prevSeries: series,
         nextSeries: next,
+        selectedSeriesId,
         selectedCourseId,
         selectedLessonId,
         deleted: { kind: "series", seriesId },
@@ -122,7 +124,7 @@ export function useSeriesMutations(options: {
         );
       }
     },
-    [series, selectedCourseId, selectedLessonId, setSeries, setSelection, onSaveError],
+    [series, selectedSeriesId, selectedCourseId, selectedLessonId, setSeries, setSelection, onSaveError],
   );
 
   const deleteCourse = useCallback(
@@ -133,6 +135,7 @@ export function useSeriesMutations(options: {
       const selection = resolveSelectionAfterDelete({
         prevSeries: series,
         nextSeries: next,
+        selectedSeriesId,
         selectedCourseId,
         selectedLessonId,
         deleted: { kind: "course", courseId },
@@ -147,7 +150,7 @@ export function useSeriesMutations(options: {
         }).catch((err: unknown) => onSaveError?.(`コース削除エラー: ${String(err)}`));
       }
     },
-    [series, selectedCourseId, selectedLessonId, setSeries, setSelection, onSaveError],
+    [series, selectedSeriesId, selectedCourseId, selectedLessonId, setSeries, setSelection, onSaveError],
   );
 
   const addCourse = useCallback(
@@ -288,7 +291,7 @@ export function useSeriesMutations(options: {
         newCourseId = remapped.remap.courseIds.get(courseId) ?? courseId;
         setSelection(
           remapSelection(
-            { courseId: selectedCourseId, lessonId: selectedLessonId },
+            { seriesId: selectedSeriesId, courseId: selectedCourseId, lessonId: selectedLessonId },
             remapped.remap,
           ),
         );
@@ -326,7 +329,7 @@ export function useSeriesMutations(options: {
         persistAll();
       }
     },
-    [series, selectedCourseId, selectedLessonId, setSeries, setSelection, onSaveError],
+    [series, selectedSeriesId, selectedCourseId, selectedLessonId, setSeries, setSelection, onSaveError],
   );
 
   const updateSeriesName = useCallback(
@@ -340,7 +343,7 @@ export function useSeriesMutations(options: {
       setSeries(next);
       setSelection(
         remapSelection(
-          { courseId: selectedCourseId, lessonId: selectedLessonId },
+          { seriesId: selectedSeriesId, courseId: selectedCourseId, lessonId: selectedLessonId },
           remap,
         ),
       );
@@ -353,7 +356,7 @@ export function useSeriesMutations(options: {
         onSaveError?.(`シリーズリネームエラー: ${String(err)}`),
       );
     },
-    [series, selectedCourseId, selectedLessonId, setSeries, setSelection, onSaveError],
+    [series, selectedSeriesId, selectedCourseId, selectedLessonId, setSeries, setSelection, onSaveError],
   );
 
   return {

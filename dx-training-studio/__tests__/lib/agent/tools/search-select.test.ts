@@ -152,7 +152,7 @@ describe("select-company-context", () => {
 function contextOnly(mode: "local" | "database") {
   return {
     projectRoot: process.cwd(),
-    projectFolderId: "",
+    workScopeKey: "",
     contextMode: mode,
   };
 }

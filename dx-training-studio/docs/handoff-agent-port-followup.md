@@ -1,6 +1,6 @@
-# 引き継ぎ: EBEX agent 移植のフォローアップ（UI 崩れ修正済み → change 3 → change 2）
+# 引き継ぎ: EBEX agent 移植のフォローアップ（→ contents-write-gate → connection-profiles）
 
-**やること**: UI 崩れの修正は完了済み。次はスキル適合（change 3）、最後に接続プロファイル（change 2）へ進む。
+**やること**: UI 崩れの修正と `workspace/` の廃止は完了済み。次は `contents/` 書込ゲート（`contents-write-gate`）、最後に接続プロファイル（`connection-profiles`）へ進む。
 
 本文書は `handoff-dx-training-create.md`（dx-training-create スキルの初回実行）とは別系統の引き継ぎ。同スキルの模範解答づくりは change 3 の後に合流する。
 
@@ -27,11 +27,11 @@
        既存計画書2本を docs/training-plan/ から移設。
        スキル2本と agent 書込契約を追従。build green / ブラウザ実機確認済み
 
-[次] retire-workspace-folder                                           ← ここ
-       workspace/ と周辺コード（ino 台帳・folder-guard・favorites・
-       workspace-folders API）を削除。ペイン4 のフォルダ選択 UI を撤去し、
-       添付を「選択レッスンの contents.md + plans/ + 最新3 run」へ。
-       書込境界から workspace/ を外す。session.json は現状維持
+[済] retire-workspace-folder    実装完了（2026-08-11）
+       `workspace/` とその周辺コードを全削除。セッションは contents/ 配下の
+       スコープ別 session.json へ。選択モデルにシリーズを追加し、書込境界を
+       contents-plan/ + contents/ の 2 ルートへ。ペイン4 のフォルダ選択 UI を撤去。
+       テスト 737 green / build green / ブラウザ実機確認済み。詳細は §6
 
 [後] contents-write-gate       contents/ 書込ゲート（Zod 検査・構造分類 A/B/C）+ ツール解禁
 [後] connection-profiles       接続プロファイル（独立。会社持ち込みの直前で可）
@@ -44,7 +44,8 @@
 
 ### リポジトリの状態
 
-ブランチ `dx-training-studio2`。移植の成果物・UI 崩れ修正ともコミット済み（Git 操作は別ツールで実施）。作業ツリーはクリーン。
+ブランチ `dx-training-studio2`。`adopt-contents-plan-layout` までの成果物はコミット済み。
+**`retire-workspace-folder` の作業は一部のみ自動コミット済み・大部分は未コミット**（§6 に内訳）。Git 操作は別ツールで実施。
 
 ### 参照すべき正本
 
@@ -114,20 +115,19 @@ contents-plan/
 
 ### 残っている作業
 
-**`retire-workspace-folder`**（次）
+**`retire-workspace-folder`**（完了・詳細は §6）
 - `workspace/` と周辺コード（`workspace-meta.ts` の ino 台帳・`project-folder-guard.ts`・
   `workspace-favorites*.ts`・`workspace-folders` API）を削除
 - ペイン4 のフォルダ選択 UI を撤去。ファイル添付は残し、既定を
   「選択レッスンの `contents.md` + `contents-plan/plans/` + 最新 3 run」へ
-- 書込境界から `workspace/` を外す（契約に暫定ルートとして明記済み）
-- ⚠ **書込境界の実装が契約に追いついていない。** `adopt-contents-plan-layout` は
-  ドキュメントとスキルのみを変更し、アプリコードに触っていない。そのため
-  `contracts/agent-write-contract.md` は `contents-plan/` への書込を許可しているが、
-  実装（`agent-file-tools` の解決ロジック・`project-folder-guard.ts`）はまだ
-  `workspace/` + `contents/` のままで、**ペイン4 から `contents-plan/` へは書けない**。
-  現時点で実害は無い（両スキルはペイン4 では動かさない前提）が、
-  この change で実装を合わせること。関連 spec も `案件フォルダ` の用語を引きずっている:
-  `agent-file-tools` / `agent-invoke-api` / `agent-chat-history` / `agent-tool-loop`
+- 書込境界から `workspace/` を外す（契約からも暫定ルートの記述を削除済み）
+- ✅ **書込境界の実装ギャップは解消済み**（2026-08-11）。
+  `adopt-contents-plan-layout` はドキュメントとスキルのみを変更しアプリコードに
+  触っていなかったため、契約が `contents-plan/` を許可しているのに実装は
+  `workspace/` + `contents/` のままという乖離があった。fs-guard を
+  `contents-plan/` + `contents/` へ付け替え済み
+- 相対パスの基準は**フォーカス中のコンテンツフォルダ**（EBEX 移植前の dx の挙動へ回帰）。
+  詳細は change の `design.md` D4b / D4c
 
 **`contents-write-gate`**（後）
 - Zod スキーマ+ファイル名規約の検査を書込ツールに差し込み、不合格は recoverable エラー+guidance で自己修正させる。構造分類も同じ差し込み点で: A=同名レッスン既存→上書き確認（confirm-gate がそのまま働く）/ B=既存シリーズ・コースへの追加→非ブロックのワーニング / C=新シリーズ発生→ワーニング+既存 slug との近似照合（タイプミス由来の意図せぬ新規作成をモデルに自己修正させる）
@@ -150,7 +150,86 @@ contents-plan/
 
 ## 5. 注意
 
-- ⚠ `handoff-dx-training-create.md` にある「勝手にコミットが生まれる」事象（2026-08-06）に引き続き注意。作業前後に `git log` を確認。**2026-08-11 にも再発**（handoff の編集が `c17ce74` として自動コミットされた）
+- ⚠ `handoff-dx-training-create.md` にある「勝手にコミットが生まれる」事象（2026-08-06）に引き続き注意。作業前後に `git log` を確認。**2026-08-11 に 2 回再発**（`c17ce74`=handoff の編集、`b210b7b`=retire-workspace-folder のグループ2 の 4 ファイル）。**作業途中でも勝手にコミットされうる前提で、区切りごとに `git log` を見ること**
 - dev サーバーは同一プロジェクトで 1 台まで（Next 16）。検証用サーバーを立てたら**必ず止める**（前セッションで放置→ EBUSY ロック→起動不能の事故があった。孤児 postcss ワーカーが `.next` を掴む）。既に 1 台動いている場合は起動せず、その URL に接続して検証する
-- `workspace/` は git 追跡外。`workspace/.meta/`（meta.json / sessions / diagnostics.log）はランタイムが自動生成する。**`retire-workspace-folder` で丸ごと削除される**
+- `workspace/` は削除済み（2026-08-11）。`.gitignore` の該当3行も落とした。**`.gitignore` を変更したので `.next` の削除が要る**（実施済み。dev サーバーが動いていた場合はブラウザのハードリロードも要る）
 - `contents-plan/runs/` は git 追跡外。`.gitignore` のパターンは**必ず anchored**（`/contents-plan/runs/`）。変更したら `.next` を削除する（Turbopack は `.gitignore` の変更を検知しない）
+
+---
+
+## 6. 【2026-08-11】retire-workspace-folder の実施記録
+
+**57/57 タスク完了。** change artifacts は
+`openspec/changes/retire-workspace-folder/`（proposal / design / specs 7本 / tasks）。
+タスクごとの判断メモは `tasks.md` に残してある。
+
+```
+着手前:  717 passed （97 files）
+完了時:  737 passed / 6 skipped （97 files）
+         削除したテスト 17 本を差し引いた 700 相当に対し +37
+型:      tsc --noEmit のアプリ側エラーはゼロ
+build:   green / ブラウザ実機確認済み
+```
+
+### 何が変わったか
+
+| 層 | before | after |
+|---|---|---|
+| セッションの保存先 | `workspace/.meta/sessions/<ino>.json` | `contents/<フォーカス階層>/session.json` |
+| 選択モデル | `{courseId, lessonId}` | `{seriesId, courseId, lessonId}`（判別フィールドは持たない） |
+| 相対パスの基準 | 案件フォルダ `workspace/<案件>/` | フォーカス中のコンテンツフォルダ |
+| 書込ルート | `workspace/` + `contents/` | `contents-plan/` + `contents/` |
+| ペイン4 | フォルダ選択ツリー + 作成ダイアログ | 撤去（スコープはペイン1〜3 のフォーカスが決める） |
+| 添付候補 | 案件フォルダ内の全ファイル | レッスン本文 + `contents-plan/plans/` + 最新 3 run |
+
+### 実装で確定したこと（再検討不要）
+
+- **作業フォルダ = フォーカス中のコンテンツフォルダ。** 相対パスの基準もセッションの
+  保存先も同じスコープ。ペイン4 にスコープが 2 つ並ばない
+- `contents-plan/` は書込許可ルートだが**相対パスの基準ではない**。明示プレフィックスで書く
+- `projectFolderId` → `workScopeKey` に改名済み
+- 構造の防御は `checkContentsWriteShape`。**幻のシリーズ・幻のコースになる 2 箇所だけ**を拒否。
+  「contents/ に置いてよいのはレッスン本文だけ」という方針は `contents-write-gate` の担当
+- **`outside-project-read` / `outside-project-write` の確認 kind は到達不能になった。**
+  2 ルート化により、ルート外のパスは確認ではなくパスガードのエラーで止まる。
+  防御として分岐は残してあるが、`ToolConfirmInlineCard` の該当ケースは死んでいる。
+  `contents-write-gate` で確認 kind を整理するときに落とすとよい
+
+### テスト付け替えで見つかった実装の穴（3 件、修正済み）
+
+旧世界を前提にした期待値を直す過程で、**テストが赤いままだったら気づかなかった実バグ**が出た。
+
+1. `projectDirAbsolute`（スクリプトサンドボックスの cwd）が `workspace/<案件>` のままで、
+   存在しない cwd により **run_script が全滅**していた（「不明なエラー」で失敗）
+2. サンドボックスの書込許可が 1 ルートだけで、`writes` に宣言できる `contents-plan/` へ
+   **実際には書けなかった** → `extraWriteDirsAbsolute` で 2 ルートへ
+3. 発見ツール（glob / search）の照合基準が `contents/` ルートになっており、
+   モデルが書く作業フォルダ相対のパターン（`output/*.html`）が**外れていた**
+
+### 削除したもの
+
+`lib/workspace-{meta,paths,path-utils,loader,mutations,constants,folder-text-excerpts,favorites,favorites-io,tree}.ts`
+/ `lib/rename-diagnostics.ts` / `lib/agent/{project-folder-guard,active-project-folders,generate-folder-name,workspace-file-attachments}.ts`
+/ `app/api/agent/workspace-folders/` / `workspace/` ディレクトリ / `.gitignore` の該当 3 行。
+
+**残した `workspace-*` は UI・設定系**（`workspace-file-icon` / `workspace-selection` /
+`workspace-settings` / `workspace-tree-path` / `workspace-unique-name`）。名前ではなく参照で判定した。
+
+### 踏んだ事故（同じ手順を繰り返さない）
+
+- `git checkout -- __tests__/lib/agent/tools/` を広く当て、書き直し済みの
+  fs-guard 2 ファイルを巻き戻した。**テストの一括復元は範囲を絞ること**
+- import 挿入の正規表現が既存の複数行 import 群を食い、13 ファイルが収集エラーになった。
+  `describe is not defined` が出たら import 位置を疑う
+- node のワンライナーでテンプレートリテラルを含む置換をするとクォートが壊れる。
+  複数行・バッククォートを含む編集は Edit ツールを使う。
+  **CRLF + BOM のファイル（`__tests__/hooks/*.test.ts` 等）は LF 前提の文字列置換が
+  黙って空振りする**
+- `.next` を消すと、動いている dev サーバーの HMR が中途半端な DOM を返す
+  （ペイン1 が丸ごと消えて見えた）。**ハードリロードで直る。サーバーの再起動は不要**
+
+### 未実施として残したこと
+
+- **コースを持たないシリーズの空状態文言**は実機で見ていない。`contents/` に該当する
+  シリーズが無く、検証のためだけに正本ツリーへシリーズを作るのは避けた。
+  文言分岐は `!course` / `!lesson` の単純条件

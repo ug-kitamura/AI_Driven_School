@@ -7,9 +7,14 @@ import {
   framedWriteDivertNotice,
   resolveFramedWriteTarget,
 } from "@/lib/agent/tools/framed-write-guard";
-import { createFolder } from "@/lib/workspace-mutations";
+import {
+  SCOPE,
+  makeScope,
+  makeScopeFile,
+  scopeDisplayPath,
+} from "@/__tests__/helpers/work-scope-fixture";
 
-const FOLDER_ID = "demo";
+const FOLDER_ID = SCOPE;
 
 let tmpDir: string;
 let projectDir: string;
@@ -27,8 +32,8 @@ function writeProjectFile(relative: string, content: string): void {
 function resolveFor(relative: string) {
   return resolveFramedWriteTarget({
     absolutePath: projectPath(relative),
-    relativePath: `workspace/${FOLDER_ID}/${relative}`,
-    projectFolderId: FOLDER_ID,
+    relativePath: `contents/${FOLDER_ID}/${relative}`,
+    workScopeKey: FOLDER_ID,
     projectRoot: tmpDir,
   });
 }
@@ -60,8 +65,8 @@ const MULTI_SECTION_FRAME = [
 
 beforeEach(() => {
   tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "ebex-framed-guard-"));
-  createFolder(tmpDir, FOLDER_ID);
-  projectDir = path.resolve(tmpDir, "workspace", FOLDER_ID);
+  makeScope(tmpDir);
+  projectDir = path.resolve(tmpDir, "contents", ...FOLDER_ID.split("/"));
 });
 
 afterEach(() => {
@@ -77,10 +82,10 @@ describe("resolveFramedWriteTarget", () => {
     expect(decision.kind).toBe("divert");
     if (decision.kind !== "divert") return;
     expect(decision.relativePath).toBe(
-      `workspace/${FOLDER_ID}/_work/output__bosch-company.html`,
+      `contents/${FOLDER_ID}/_work/output__bosch-company.html`,
     );
     expect(decision.requested.relativePath).toBe(
-      `workspace/${FOLDER_ID}/output/bosch-company.html`,
+      `contents/${FOLDER_ID}/output/bosch-company.html`,
     );
     expect(decision.markerNames).toEqual(["CONTENT"]);
   });
@@ -119,7 +124,7 @@ describe("resolveFramedWriteTarget", () => {
 
     expect(decision.kind).toBe("write");
     expect(decision.relativePath).toBe(
-      `workspace/${FOLDER_ID}/output/plain.html`,
+      `contents/${FOLDER_ID}/output/plain.html`,
     );
   });
 
@@ -143,7 +148,7 @@ describe("resolveFramedWriteTarget", () => {
 
     expect(decision.kind).toBe("write");
     expect(decision.relativePath).toBe(
-      `workspace/${FOLDER_ID}/_work/partial.html`,
+      `contents/${FOLDER_ID}/_work/partial.html`,
     );
   });
 

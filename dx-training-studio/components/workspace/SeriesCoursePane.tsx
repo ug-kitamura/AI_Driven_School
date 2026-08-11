@@ -71,6 +71,8 @@ import type { Series, Course } from "@/lib/schema";
 type Props = {
   workspaceName: string;
   series: Series[];
+  selectedSeriesId: string;
+  onSelectSeries: (seriesId: string) => void;
   selectedCourseId: string;
   onSelectCourse: (courseId: string) => void;
   onReorderSeries: (fromIndex: number, toIndex: number) => void;
@@ -227,6 +229,8 @@ function SortableSeriesBlock({
   onToggle,
   onDelete,
   onEditSeries,
+  isSeriesFocused,
+  onSelectSeries,
   selectedCourseId,
   onSelectCourse,
   onDeleteCourse,
@@ -239,6 +243,9 @@ function SortableSeriesBlock({
   onToggle: () => void;
   onDelete: () => void;
   onEditSeries: () => void;
+  /** コースを持たないシリーズを選択中（フォーカスがシリーズで止まっている） */
+  isSeriesFocused: boolean;
+  onSelectSeries: () => void;
   selectedCourseId: string;
   onSelectCourse: (courseId: string) => void;
   onDeleteCourse: (seriesId: string, courseId: string) => void;
@@ -313,10 +320,27 @@ function SortableSeriesBlock({
               </button>
             }
           />
+          {/* D&D ハンドルとクリック選択を兼ねる。SORTABLE_POINTER_ACTIVATION の
+              distance 制約により、8px 動かすまでドラッグは始まらない */}
           <span
             {...attributes}
             {...listeners}
-            className="min-w-0 flex-1 truncate rounded px-1 py-1.5 text-xs font-bold text-foreground transition-colors group-hover/series:cursor-grab group-hover/series:bg-muted/60 group-hover/series:text-primary active:cursor-grabbing sidebar-label"
+            role="button"
+            tabIndex={0}
+            aria-pressed={isSeriesFocused}
+            onClick={onSelectSeries}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+                onSelectSeries();
+              }
+            }}
+            className={cn(
+              "min-w-0 flex-1 truncate rounded px-1 py-1.5 text-xs font-bold transition-colors group-hover/series:cursor-grab group-hover/series:bg-muted/60 group-hover/series:text-primary active:cursor-grabbing sidebar-label",
+              isSeriesFocused
+                ? "bg-primary/10 text-primary"
+                : "text-foreground",
+            )}
           >
             {seriesItem.name}
           </span>
@@ -450,6 +474,8 @@ function SortableSeriesBlock({
 export function SeriesCoursePane({
   workspaceName,
   series,
+  selectedSeriesId,
+  onSelectSeries,
   selectedCourseId,
   onSelectCourse,
   onReorderSeries,
@@ -601,6 +627,10 @@ export function SeriesCoursePane({
                         onToggle={() => toggleSeries(s.id)}
                         onDelete={() => handleDeleteSeries(s.id)}
                         onEditSeries={() => openEditSeriesDialog(s.id)}
+                        isSeriesFocused={
+                          selectedSeriesId === s.id && !selectedCourseId
+                        }
+                        onSelectSeries={() => onSelectSeries(s.id)}
                         selectedCourseId={selectedCourseId}
                         onSelectCourse={onSelectCourse}
                         onDeleteCourse={onDeleteCourse}

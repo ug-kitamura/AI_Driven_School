@@ -3,8 +3,13 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { executeRegisteredTool } from "@/lib/agent/tools/registry";
-import { createFile, createFolder } from "@/lib/workspace-mutations";
-import { getWorkspaceDir } from "@/lib/workspace-paths";
+import {
+  SCOPE,
+  makeScope,
+  makeScopeFile,
+  scopeAbsolute,
+  scopeDisplayPath,
+} from "@/__tests__/helpers/work-scope-fixture";
 
 /**
  * minutes-maid 相当の read → write フローを API なしで通し試験する。
@@ -12,18 +17,18 @@ import { getWorkspaceDir } from "@/lib/workspace-paths";
 describe("minutes-maid-like file flow", () => {
   it("reads VTT and writes HTML output", async () => {
     const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "ebex-minutes-"));
-    createFolder(tmpDir, "20260712-minutes");
+    makeScope(tmpDir);
     const vtt = [
       "WEBVTT",
       "",
       "00:00:01.000 --> 00:00:05.000",
       "議題: 月次定例",
     ].join("\n");
-    createFile(tmpDir, "20260712-minutes", "meeting.vtt", vtt);
+    makeScopeFile(tmpDir, "meeting.vtt", vtt);
 
     const context = {
       projectRoot: tmpDir,
-      projectFolderId: "20260712-minutes",
+      workScopeKey: SCOPE,
     };
     const readOutcome = await executeRegisteredTool(
       "read_file",
@@ -31,7 +36,7 @@ describe("minutes-maid-like file flow", () => {
       context,
     );
     expect(readOutcome.result).toMatchObject({
-      path: "workspace/20260712-minutes/meeting.vtt",
+      path: scopeDisplayPath("meeting.vtt"),
       content: expect.stringContaining("WEBVTT"),
     });
 
@@ -42,17 +47,12 @@ describe("minutes-maid-like file flow", () => {
       context,
     );
     expect(writeOutcome.result).toEqual({
-      path: "workspace/20260712-minutes/output/minutes.html",
+      path: scopeDisplayPath("output/minutes.html"),
       bytes: Buffer.byteLength(html, "utf-8"),
     });
 
     const written = fs.readFileSync(
-      path.join(
-        getWorkspaceDir(tmpDir),
-        "20260712-minutes",
-        "output",
-        "minutes.html",
-      ),
+      path.join(scopeAbsolute(tmpDir), "output", "minutes.html"),
       "utf-8",
     );
     expect(written).toBe(html);

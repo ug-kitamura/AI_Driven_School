@@ -62,6 +62,7 @@ describe("useWorkspaceSelection", () => {
     const { result } = renderHook(() =>
       useWorkspaceSelection({
         series,
+        initialSeriesId: "",
         initialCourseId: "",
         initialLessonId: "",
       }),
@@ -80,6 +81,7 @@ describe("useWorkspaceSelection", () => {
     const { result } = renderHook(() =>
       useWorkspaceSelection({
         series,
+        initialSeriesId: "s1",
         initialCourseId: "c1",
         initialLessonId: "l1",
       }),
@@ -97,6 +99,7 @@ describe("useWorkspaceSelection", () => {
     const { result } = renderHook(() =>
       useWorkspaceSelection({
         series,
+        initialSeriesId: "s1",
         initialCourseId: "c1",
         initialLessonId: "l1",
       }),
@@ -140,6 +143,7 @@ describe("useWorkspaceSelection", () => {
       (props: { data: Series[] }) =>
         useWorkspaceSelection({
           series: props.data,
+          initialSeriesId: "s1",
           initialCourseId: "c1",
           initialLessonId: "l1",
         }),
@@ -149,7 +153,11 @@ describe("useWorkspaceSelection", () => {
     expect(result.current.selectedLessonId).toBe("l2");
 
     act(() => {
-      result.current.setSelection({ courseId: "c1", lessonId: "l2-renamed" });
+      result.current.setSelection({
+        seriesId: "s1",
+        courseId: "c1",
+        lessonId: "l2-renamed",
+      });
       rerender({ data: renamedSeries });
     });
 

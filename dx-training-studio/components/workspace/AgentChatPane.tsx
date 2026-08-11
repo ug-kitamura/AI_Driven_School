@@ -76,8 +76,8 @@ import {
   type AgentBuiltinCommand,
 } from "@/lib/agent-chat-suggestions";
 import {
-  loadLessonSession,
-  saveLessonSession,
+  loadScopeSession,
+  saveScopeSession,
 } from "@/lib/agent-session-client";
 import type {
   AgentChatController,
@@ -103,9 +103,7 @@ import { cn } from "@/lib/utils";
 import type { Course, Lesson, Series } from "@/lib/schema";
 import type { SkillSummary } from "@/lib/agent/skill-loader";
 import type { AgentChatDraftMap } from "@/components/workspace/agent-chat-draft";
-import { ALLOWED_PREFIX } from "@/lib/workspace-constants";
-import type { WorkspaceTreeNode } from "@/lib/workspace-loader";
-import { findTreeNode, folderExistsInTree } from "@/lib/workspace-tree";
+import { parseWorkScope, workScopeBaseDir } from "@/lib/work-scope";
 import { resolveInvokeSkillId } from "@/lib/agent/resolve-invoke-skill";
 import {
   findOutsideProjectPathHints,
@@ -118,18 +116,25 @@ import { OutputDestinationDialog } from "@/components/workspace/OutputDestinatio
 import { SUBAGENT_FALLBACK_USER_MESSAGE } from "@/lib/agent/subagent-fallback";
 import { IMAGE_IO_FALLBACK_USER_MESSAGE } from "@/lib/agent/image-io-fallback";
 
-function toProjectRelativePath(
+/** 開いているファイルのパスを作業フォルダ相対にする（範囲外なら undefined） */
+function toWorkScopeRelativePath(
   currentFilePath: string | null,
-  projectFolderId: string,
+  workScopeKey: string,
 ): string | undefined {
-  if (!currentFilePath || !projectFolderId) return undefined;
-  const prefix = `${ALLOWED_PREFIX}${projectFolderId}/`;
+  if (!currentFilePath) return undefined;
+  const scope = parseWorkScope(workScopeKey);
+  if (!scope) return undefined;
+  const prefix = `${workScopeBaseDir(scope)}/`;
   if (!currentFilePath.startsWith(prefix)) return undefined;
   return currentFilePath.slice(prefix.length);
 }
 
 type Props = {
-  folderId?: string;
+  /**
+   * 作業スコープ文字列（`serializeWorkScope` の出力）。会話の保存先と書込の基準を兼ねる。
+   * 空文字はシリーズ 0 件（`contents/` 直下）を表す正当な値。
+   */
+  scopeKey: string;
   currentFilePath?: string | null;
   series?: Series[];
   lesson?: Lesson;
@@ -142,7 +147,6 @@ type Props = {
   onControllerReady?: () => void;
   className?: string;
   richMarkdown?: boolean;
-  folders?: WorkspaceTreeNode[];
   /**
    * 未送信下書きの保持先。本コンポーネントはフォルダ切替でリマウントされるため、
    * リマウントをまたぐ状態は親から受け取る。
@@ -224,7 +228,7 @@ async function postToolConfirmDecision(
 }
 
 export function AgentChatPane({
-  folderId,
+  scopeKey,
   currentFilePath,
   series = [],
   lesson,
@@ -236,20 +240,15 @@ export function AgentChatPane({
   onControllerReady,
   className,
   richMarkdown = true,
-  folders = [],
   draftsRef: draftsRefProp,
   skills = [],
   skillsError = null,
 }: Props) {
   // key によるリマウント前提のため、scopeId はこのインスタンスの生涯を通じて不変。
-  const scopeId = folderId ?? lesson?.id;
-  // localStorage フォールバック専用のキー。folderId(表示名)の再利用による
-  // 履歴の誤復活を防ぐため ino を使う。scopeId 同様マウント時点で固定する。
-  const [sessionIno] = useState(() =>
-    folderId ? (findTreeNode(folders, folderId)?.ino ?? undefined) : undefined,
-  );
+  // スコープはパスなので、フォルダのリネームには session.json ごと追従する。
+  // 空文字（シリーズ 0 件）も正当なスコープなので、未設定と区別しない。
+  const scopeId = scopeKey;
   const filePath = currentFilePath ?? currentLessonPath ?? null;
-  const foldersRef = useRef(folders);
   const [chatStorage, setChatStorage] = useState<AgentChatStorage | null>(null);
   const [messages, setMessages] = useState<AgentChatMessage[]>([]);
   const [input, setInput] = useState("");
@@ -340,14 +339,6 @@ export function AgentChatPane({
   const draftsRef = draftsRefProp ?? localDraftsRef;
 
   useEffect(() => {
-    foldersRef.current = folders;
-  }, [folders]);
-
-  const canPersistToFolder = useCallback((targetFolderId: string) => {
-    return folderExistsInTree(foldersRef.current, targetFolderId);
-  }, []);
-
-  useEffect(() => {
     chatStorageRef.current = chatStorage;
   }, [chatStorage]);
 
@@ -392,10 +383,9 @@ export function AgentChatPane({
 
   const flushSessionToStorage = useCallback(
     async (lessonId: string): Promise<boolean> => {
-      if (!canPersistToFolder(lessonId)) return true;
       const snapshot = buildStorageSnapshot();
       if (!snapshot) return true;
-      const ok = await saveLessonSession(lessonId, snapshot, sessionIno);
+      const ok = await saveScopeSession(lessonId, snapshot);
       if (!ok) {
         setStorageWarning(
           "セッションの保存に失敗しました。容量不足の可能性があります。会話を続けると履歴が失われることがあります。",
@@ -405,11 +395,11 @@ export function AgentChatPane({
       }
       return ok;
     },
-    [buildStorageSnapshot, canPersistToFolder, sessionIno],
+    [buildStorageSnapshot],
   );
 
   const scheduleDebouncedPersist = useCallback(() => {
-    if (!scopeId || sessionSwitchRef.current === null) return;
+    if (sessionSwitchRef.current === null) return;
 
     if (persistTimerRef.current !== null) {
       window.clearTimeout(persistTimerRef.current);
@@ -560,21 +550,20 @@ export function AgentChatPane({
   }, [persistSession]);
 
   useEffect(() => {
-    if (!scopeId || sessionSwitchRef.current === null) return;
+    if (sessionSwitchRef.current === null) return;
     if (!chatStorageRef.current) return;
     persistSession(messages, activeSkillId);
   }, [messages, activeSkillId, scopeId, persistSession]);
 
   useEffect(() => {
     const handleBeforeUnload = () => {
-      if (!scopeId) return;
       const snapshot = buildStorageSnapshot();
       if (!snapshot) return;
-      void saveLessonSession(scopeId, snapshot, sessionIno);
+      void saveScopeSession(scopeId, snapshot);
     };
     window.addEventListener("beforeunload", handleBeforeUnload);
     return () => window.removeEventListener("beforeunload", handleBeforeUnload);
-  }, [buildStorageSnapshot, scopeId, sessionIno]);
+  }, [buildStorageSnapshot, scopeId]);
 
   // アンマウント（＝フォルダ切替）時の後始末。クロージャが見えるのは自分の
   // scopeId と自分の state だけなので、他フォルダへ書く経路が存在しない。
@@ -586,7 +575,6 @@ export function AgentChatPane({
         window.clearTimeout(persistTimerRef.current);
         persistTimerRef.current = null;
       }
-      if (!scopeId) return;
 
       // 未送信入力は親の Map に退避し、戻ってきたときに復元できるようにする
       if (inputRef.current || attachmentsRef.current.length > 0) {
@@ -604,23 +592,15 @@ export function AgentChatPane({
   }, [draftsRef, flushSessionToStorage, scopeId]);
 
   const loadContentFiles = useCallback(async () => {
-    if (folderId) {
-      const params = new URLSearchParams({ folderId });
-      const currentRelative = toProjectRelativePath(filePath, folderId);
-      if (currentRelative) params.set("current", currentRelative);
-      const res = await fetch(`/api/agent/files?${params.toString()}`);
-      const data = (await res.json()) as { files?: AgentFileOption[] };
-      return data.files ?? [];
-    }
-    const params = filePath ? `?current=${encodeURIComponent(filePath)}` : "";
-    const res = await fetch(`/api/agent/files${params}`);
+    const params = new URLSearchParams({ scope: scopeId });
+    if (filePath) params.set("current", filePath);
+    const res = await fetch(`/api/agent/files?${params.toString()}`);
     const data = (await res.json()) as { files?: AgentFileOption[] };
     return data.files ?? [];
-  }, [folderId, filePath]);
+  }, [scopeId, filePath]);
 
   const buildVariables = useCallback(
     (skillId: string): Record<string, string> | { error: string } => {
-      if (folderId) return {};
       if (skillId === "create-structure") {
         return buildCreateStructureVariables(series);
       }
@@ -642,7 +622,7 @@ export function AgentChatPane({
       }
       return {};
     },
-    [folderId, series, lesson, course],
+    [series, lesson, course],
   );
 
   const handleStop = useCallback(() => {
@@ -754,9 +734,7 @@ export function AgentChatPane({
       abortRef.current = controller;
 
       const settings = loadWorkspaceSettings();
-      const currentRelative = folderId
-        ? toProjectRelativePath(filePath, folderId)
-        : undefined;
+      const currentRelative = toWorkScopeRelativePath(filePath, scopeId);
       const payload = {
         skillId: options.skillId,
         variables: variablesResult,
@@ -767,17 +745,13 @@ export function AgentChatPane({
           ...(message.toolTurns ? { toolTurns: message.toolTurns } : {}),
           ...(message.attachments ? { attachments: message.attachments } : {}),
         })),
-        ...(folderId
-          ? {
-              runtimeFocus: {
-                projectFolderId: folderId,
-                currentFileRelativePath: currentRelative ?? null,
-                ...(options.preferredOutputDir !== undefined
-                  ? { preferredOutputDir: options.preferredOutputDir }
-                  : {}),
-              },
-            }
-          : {}),
+        runtimeFocus: {
+          workScopeKey: scopeId,
+          currentFileRelativePath: currentRelative ?? null,
+          ...(options.preferredOutputDir !== undefined
+            ? { preferredOutputDir: options.preferredOutputDir }
+            : {}),
+        },
       };
 
       const toolEvents: AgentToolEvent[] = [];
@@ -890,7 +864,7 @@ export function AgentChatPane({
     [
       buildVariables,
       filePath,
-      folderId,
+      scopeId,
       maybeGenerateSessionTitle,
       onOpenSettings,
       skills,
@@ -915,10 +889,10 @@ export function AgentChatPane({
         return;
       }
 
-      if (folderId && !options.outsideConfirmed) {
+      if (!options.outsideConfirmed) {
         const hints = findOutsideProjectPathHints(
           options.userMessage.content,
-          folderId,
+          scopeId,
         );
         if (hints.length > 0) {
           pendingInvokeRef.current = options;
@@ -929,16 +903,15 @@ export function AgentChatPane({
       }
 
       if (
-        folderId &&
         options.preferredOutputDir === undefined &&
         options.skillId !== "general-chat" &&
         /出力|export|書き込|保存先|ファイルに|output/i.test(
           options.userMessage.content,
         )
       ) {
-        const currentRelative = toProjectRelativePath(filePath, folderId);
+        const currentRelative = toWorkScopeRelativePath(filePath, scopeId);
         const destinations = listDefaultOutputDestinations(
-          folderId,
+          scopeId,
           currentRelative,
         );
         if (destinations.length > 1) {
@@ -959,7 +932,7 @@ export function AgentChatPane({
 
       await invokeSkill(options);
     },
-    [filePath, folderId, invokeSkill, skills],
+    [filePath, scopeId, invokeSkill, skills],
   );
 
   const handleSend = useCallback(
@@ -969,7 +942,7 @@ export function AgentChatPane({
 
       const skillId = resolveInvokeSkillId(activeSkillId);
 
-      if (skillId === "create-draft" && !lesson && !folderId) {
+      if (skillId === "create-draft" && !lesson) {
         setError("create-draft スキルはレッスン選択が必要です");
         return;
       }
@@ -995,7 +968,6 @@ export function AgentChatPane({
     [
       activeSkillId,
       beginInvokeWithGuards,
-      folderId,
       input,
       isStreaming,
       lesson,
@@ -1040,12 +1012,11 @@ export function AgentChatPane({
   // scopeId は key によるリマウントで固定されるため、この効果はマウント時に
   // 1 度だけ走る。離脱側の保存は自分のアンマウント時に行う（下のクリーンアップ）。
   useEffect(() => {
-    if (!scopeId) return;
 
     let cancelled = false;
 
     void (async () => {
-      const storage = await loadLessonSession(scopeId, sessionIno);
+      const storage = await loadScopeSession(scopeId);
       if (cancelled) return;
 
       setChatStorage(storage);
@@ -1063,7 +1034,7 @@ export function AgentChatPane({
     return () => {
       cancelled = true;
     };
-  }, [applySessionState, draftsRef, scopeId, sessionIno]);
+  }, [applySessionState, draftsRef, scopeId]);
 
   const handleSwitchSession = useCallback(
     (sessionId: string) => {
@@ -1079,7 +1050,7 @@ export function AgentChatPane({
       }
       persistSession(messages, activeSkillId);
       const next = switchSession(chatStorage, sessionId);
-      if (scopeId) void saveLessonSession(scopeId, next, sessionIno);
+      void saveScopeSession(scopeId, next);
       setChatStorage(next);
       applySessionState(sessionId, next);
       setHistoryOpen(false);
@@ -1090,7 +1061,6 @@ export function AgentChatPane({
       chatStorage,
       input,
       scopeId,
-      sessionIno,
       messages,
       persistSession,
     ],
@@ -1106,7 +1076,7 @@ export function AgentChatPane({
     }
     persistSession(messages, activeSkillId);
     const next = addSession(chatStorage);
-    if (scopeId) void saveLessonSession(scopeId, next, sessionIno);
+    void saveScopeSession(scopeId, next);
     setChatStorage(next);
     applySessionState(next.activeSessionId, next);
     setHistoryOpen(false);
@@ -1116,7 +1086,6 @@ export function AgentChatPane({
     chatStorage,
     input,
     scopeId,
-    sessionIno,
     messages,
     persistSession,
   ]);
@@ -1126,7 +1095,7 @@ export function AgentChatPane({
       if (!chatStorage) return;
       const wasActive = sessionId === chatStorage.activeSessionId;
       const next = deleteSession(chatStorage, sessionId);
-      if (scopeId) void saveLessonSession(scopeId, next, sessionIno);
+      void saveScopeSession(scopeId, next);
       setChatStorage(next);
       if (wasActive) {
         applySessionState(next.activeSessionId, next);
@@ -1134,7 +1103,7 @@ export function AgentChatPane({
       setDeleteSessionTargetId(null);
       setHistoryOpen(false);
     },
-    [applySessionState, chatStorage, scopeId, sessionIno],
+    [applySessionState, chatStorage, scopeId],
   );
 
   const requestDeleteSession = useCallback((sessionId: string) => {
@@ -1160,12 +1129,12 @@ export function AgentChatPane({
       editSessionTargetId,
       normalized,
     );
-    if (scopeId) void saveLessonSession(scopeId, next, sessionIno);
+    void saveScopeSession(scopeId, next);
     setChatStorage(next);
     llmTitleGeneratedSessionIdRef.current = editSessionTargetId;
     setEditSessionTargetId(null);
     setEditTitleDraft("");
-  }, [chatStorage, editSessionTargetId, editTitleDraft, scopeId, sessionIno]);
+  }, [chatStorage, editSessionTargetId, editTitleDraft, scopeId]);
 
   const canSaveEditTitle =
     normalizeStoredSessionTitle(editTitleDraft).length > 0;
@@ -1196,10 +1165,10 @@ export function AgentChatPane({
     sessionChromeRef.current = {
       sessionTitle,
       isStreaming,
-      projectFolderId: folderId ?? null,
+      workScopeKey: scopeId,
     };
     notifyControllerListeners();
-  }, [sessionTitle, isStreaming, folderId, notifyControllerListeners]);
+  }, [sessionTitle, isStreaming, scopeId, notifyControllerListeners]);
 
   useEffect(() => {
     if (!agentChatControllerRef) return;
@@ -1726,7 +1695,6 @@ export function AgentChatPane({
 
       <div className="relative z-10 shrink-0 bg-[var(--agent-chat-pane-bg)] px-3">
         <AgentChatInput
-          key={folderId || "no-project"}
           value={input}
           onChange={setInput}
           attachments={attachments}
@@ -1749,7 +1717,6 @@ export function AgentChatPane({
           onRegisterAddAttachment={(fn) => {
             addAttachmentRef.current = fn;
           }}
-          projectFolderId={folderId}
         />
       </div>
 

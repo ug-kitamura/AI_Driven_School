@@ -118,7 +118,7 @@ export async function executeRunIsolatedTask(
   if (parsed.path) {
     const resolved = resolveToolTargetPath(
       context.projectRoot,
-      context.projectFolderId,
+      context.workScopeKey,
       parsed.path,
       {
         skillId: context.skillId,
@@ -170,7 +170,7 @@ export async function executeRunIsolatedTask(
     const decision = resolveFramedWriteTarget({
       absolutePath: targetResolved.absolutePath,
       relativePath: targetResolved.relativePath,
-      projectFolderId: context.projectFolderId,
+      workScopeKey: context.workScopeKey,
       projectRoot: context.projectRoot,
     });
 

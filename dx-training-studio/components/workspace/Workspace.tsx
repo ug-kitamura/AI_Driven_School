@@ -3,6 +3,7 @@
 import { useState, useCallback, useMemo, useEffect, useRef } from "react";
 import { SidebarInset, SidebarProvider, useSidebar } from "@/components/ui/sidebar";
 import { cn } from "@/lib/utils";
+import type { WorkScope } from "@/lib/work-scope";
 import { GlobalHeader } from "@/components/workspace/GlobalHeader";
 import { SeriesCoursePane } from "@/components/workspace/SeriesCoursePane";
 import { LessonListPane } from "@/components/workspace/LessonListPane";
@@ -146,23 +147,42 @@ export function Workspace({
     return () => observer.disconnect();
   }, []);
 
+  const firstSeriesId = initialSeries[0]?.id ?? "";
   const firstCourseId = initialSeries[0]?.courses[0]?.id ?? "";
   const firstLessonId = initialSeries[0]?.courses[0]?.lessons[0]?.id ?? "";
 
   const {
+    selectedSeriesId,
     selectedCourseId,
     selectedLessonId,
     selectedCourse,
     selectedLesson,
     selectedSeriesName,
+    selectSeries,
     selectCourse,
     selectLesson,
     setSelection,
   } = useWorkspaceSelection({
     series,
+    initialSeriesId: firstSeriesId,
     initialCourseId: firstCourseId,
     initialLessonId: firstLessonId,
   });
+
+  // 作業スコープ。会話の保存先と、相対パスの基準を兼ねる。
+  // フォーカス階層（最深の非空）と 1 対 1 で対応する。
+  const workScope = useMemo<WorkScope>(
+    () => ({
+      ...(selectedSeriesName ? { series: selectedSeriesName } : {}),
+      ...(selectedSeriesName && selectedCourse
+        ? { course: selectedCourse.name }
+        : {}),
+      ...(selectedSeriesName && selectedCourse && selectedLesson
+        ? { lesson: selectedLesson.lesson }
+        : {}),
+    }),
+    [selectedSeriesName, selectedCourse, selectedLesson],
+  );
 
   const requestSelectionChange = useCallback((action: () => void) => {
     if (agentChatControllerRef.current?.isStreaming()) {
@@ -187,6 +207,13 @@ export function Workspace({
     [requestSelectionChange, selectCourse],
   );
 
+  const guardedSelectSeries = useCallback(
+    (seriesId: string) => {
+      requestSelectionChange(() => selectSeries(seriesId));
+    },
+    [requestSelectionChange, selectSeries],
+  );
+
   const handleConfirmStreamingSwitch = useCallback(async () => {
     const action = pendingSwitchRef.current;
     pendingSwitchRef.current = null;
@@ -207,6 +234,7 @@ export function Workspace({
   } = useSeriesMutations({
     series,
     setSeries,
+    selectedSeriesId,
     selectedCourseId,
     selectedLessonId,
     setSelection,
@@ -228,6 +256,7 @@ export function Workspace({
 
   const { setPendingSave } = useContentSync({
     series,
+    selectedSeriesId,
     selectedCourseId,
     selectedLessonId,
     onSeriesLoaded: handleSeriesLoaded,
@@ -246,6 +275,7 @@ export function Workspace({
   } = useLessonMutations({
     series,
     setSeries,
+    selectedSeriesId,
     selectedCourseId,
     selectedLessonId,
     setSelection,
@@ -382,6 +412,8 @@ export function Workspace({
         <SeriesCoursePane
           workspaceName={workspace.name}
           series={series}
+          selectedSeriesId={selectedSeriesId}
+          onSelectSeries={guardedSelectSeries}
           selectedCourseId={selectedCourseId}
           onSelectCourse={guardedSelectCourse}
           onReorderSeries={reorderSeries}
@@ -485,6 +517,7 @@ export function Workspace({
                   series={series}
                   lesson={selectedLesson}
                   course={selectedCourse}
+                  workScope={workScope}
                   pane3Mode={pane3Mode}
                   onInsertImage={insertImageMarkdown}
                   editorCommentPrompt={editorCommentPrompt}

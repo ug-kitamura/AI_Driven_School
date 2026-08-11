@@ -6,12 +6,8 @@ import {
   resolveSkillDir,
 } from "@/lib/agent/skill-loader";
 import {
-  enrichUserMessageWithAttachments as enrichWithWorkspaceAttachments,
-  resolveAttachmentsForMessage as resolveWorkspaceAttachments,
-} from "@/lib/agent/workspace-file-attachments";
-import {
-  enrichUserMessageWithAttachments as enrichWithContentAttachments,
-  resolveAttachmentsForMessage as resolveContentAttachments,
+  enrichUserMessageWithAttachments,
+  resolveAttachmentsForMessage,
 } from "@/lib/agent/file-attachments";
 import { createAgentLoopSseStream, runAgentLoop } from "@/lib/agent/agent-loop";
 import { clientMessagesToLlmMessages } from "@/lib/agent/message-history";
@@ -27,7 +23,6 @@ import {
   skillMentionsImageIO,
   IMAGE_IO_FALLBACK_MODEL_HINT,
 } from "@/lib/agent/image-io-fallback";
-import { markProjectFolderAgentActive } from "@/lib/agent/active-project-folders";
 import { getProjectRoot } from "@/lib/project-root";
 import { parseContextMode } from "@/lib/context-resolve";
 
@@ -70,7 +65,7 @@ const messageSchema = z.object({
 });
 
 const runtimeFocusSchema = z.object({
-  projectFolderId: z.string(),
+  workScopeKey: z.string(),
   currentFileRelativePath: z.string().nullable().optional(),
   preferredOutputDir: z.string().optional(),
 });
@@ -82,8 +77,8 @@ const bodySchema = z.object({
   runtimeFocus: runtimeFocusSchema.optional(),
 });
 
-/** 案件フォルダの文脈なしでも実行できるツール（社内コンテキスト検索のみ） */
-const FOLDER_INDEPENDENT_TOOLS = new Set([
+/** 作業スコープの文脈なしでも実行できるツール（社内コンテキスト検索のみ） */
+const SCOPE_INDEPENDENT_TOOLS = new Set([
   "search_company_context",
   "select_company_context",
 ]);
@@ -128,9 +123,10 @@ export async function POST(req: Request) {
   const mentionsSubagent = skillMentionsSubagent(skill.body);
   const mentionsImageIO = skillMentionsImageIO(skill.body);
   let systemPrompt = prompt;
-  if (focus?.projectFolderId) {
+  // 空文字はシリーズ 0 件（`contents/` 直下）を表す正当なスコープなので、focus の有無で見る
+  if (focus) {
     let runtime = buildSkillRuntimeContext({
-      projectFolderId: focus.projectFolderId,
+      workScopeKey: focus.workScopeKey,
       currentFileRelativePath: focus.currentFileRelativePath,
       skillId: skill.id,
       skillDirAbsolute,
@@ -141,7 +137,7 @@ export async function POST(req: Request) {
     if (focus.preferredOutputDir !== undefined) {
       const dirLabel =
         focus.preferredOutputDir === ""
-          ? "案件フォルダ直下"
+          ? "作業フォルダ直下"
           : focus.preferredOutputDir;
       runtime += `\n\nユーザが選んだ出力先の優先候補: \`${dirLabel}\`。`;
     }
@@ -166,65 +162,50 @@ export async function POST(req: Request) {
     );
   }
 
-  // @ 参照は 2 系統: `@workspace/...`（案件フォルダ）と `@contents/...`（正本ツリー）
+  // @ 参照は書込ルートの 2 系統（`@contents/...` と `@contents-plan/...`）
   const structuredPaths = latestMessage.attachments?.map((item) => item.path);
-  const workspaceAttachments = resolveWorkspaceAttachments(
+  const resolvedAttachments = resolveAttachmentsForMessage(
     projectRoot,
     latestMessage.content,
     structuredPaths,
   );
-  if ("error" in workspaceAttachments) {
-    return Response.json({ error: workspaceAttachments.error }, { status: 400 });
-  }
-  const contentAttachments = resolveContentAttachments(
-    projectRoot,
-    latestMessage.content,
-  );
-  if ("error" in contentAttachments) {
-    return Response.json({ error: contentAttachments.error }, { status: 400 });
+  if ("error" in resolvedAttachments) {
+    return Response.json(
+      { error: resolvedAttachments.error },
+      { status: 400 },
+    );
   }
 
   const enrichedLatest = {
     ...latestMessage,
-    content: enrichWithContentAttachments(
-      enrichWithWorkspaceAttachments(
-        latestMessage.content,
-        workspaceAttachments.attachments,
-      ),
-      contentAttachments.attachments,
+    content: enrichUserMessageWithAttachments(
+      latestMessage.content,
+      resolvedAttachments.attachments,
     ),
   };
 
   const invokeMessages = [...historyMessages, enrichedLatest];
   const llmMessages = clientMessagesToLlmMessages(invokeMessages);
-  // 案件フォルダ未指定時はファイル系ツールを提示しない（宣言があっても非表示）
+  // 作業スコープが渡らない呼び出しではファイル系ツールを提示しない（宣言があっても非表示）
   const declaredTools = skill.tools ?? [];
-  const toolNames = focus?.projectFolderId
+  const toolNames = focus
     ? declaredTools
-    : declaredTools.filter((name) => FOLDER_INDEPENDENT_TOOLS.has(name));
+    : declaredTools.filter((name) => SCOPE_INDEPENDENT_TOOLS.has(name));
   const contextMode = parseContextMode(req.headers.get("x-context-mode"));
 
-  const releaseActiveFolder = focus?.projectFolderId
-    ? markProjectFolderAgentActive(focus.projectFolderId)
-    : () => {};
-
   const stream = createAgentLoopSseStream(async (emit) => {
-    try {
-      return await runAgentLoop({
-        req,
-        system: systemPrompt,
-        messages: llmMessages,
-        toolNames,
-        emit,
-        signal: req.signal,
-        projectFolderId: focus?.projectFolderId,
-        skillId: skill.id,
-        skillDirAbsolute,
-        contextMode,
-      });
-    } finally {
-      releaseActiveFolder();
-    }
+    return await runAgentLoop({
+      req,
+      system: systemPrompt,
+      messages: llmMessages,
+      toolNames,
+      emit,
+      signal: req.signal,
+      workScopeKey: focus?.workScopeKey,
+      skillId: skill.id,
+      skillDirAbsolute,
+      contextMode,
+    });
   });
 
   return new Response(stream, {

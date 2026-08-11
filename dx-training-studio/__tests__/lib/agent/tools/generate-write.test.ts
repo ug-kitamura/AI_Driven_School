@@ -29,14 +29,19 @@ import {
   resolveToolDefinitions,
 } from "@/lib/agent/tools/registry";
 import type { ToolExecutionContext } from "@/lib/agent/tools/registry";
-import { createFile, createFolder } from "@/lib/workspace-mutations";
+import {
+  SCOPE,
+  makeScope,
+  makeScopeFile,
+  scopeDisplayPath,
+} from "@/__tests__/helpers/work-scope-fixture";
 
 function makeProject() {
   const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "ebex-generate-write-"));
-  createFolder(tmpDir, "demo");
+  makeScope(tmpDir);
   const skillDir = path.join(tmpDir, "skill-zone", "my-skill");
   fs.mkdirSync(path.join(skillDir, "references"), { recursive: true });
-  const projectDir = path.join(tmpDir, "workspace", "demo");
+  const projectDir = path.join(tmpDir, "contents", ...SCOPE.split("/"));
   return { tmpDir, skillDir, projectDir };
 }
 
@@ -66,7 +71,7 @@ function makeContext(
 ): ToolExecutionContext {
   return {
     projectRoot: base.tmpDir,
-    projectFolderId: "demo",
+    workScopeKey: SCOPE,
     skillId: "my-skill",
     skillDirAbsolute: base.skillDir,
     generate: {
@@ -184,7 +189,7 @@ describe("executeGenerateAndWrite", () => {
       sections: ["導入", "本論"],
     });
     expect(outcome.result).toMatchObject({
-      path: "workspace/demo/output/partial.html",
+      path: scopeDisplayPath("output/partial.html"),
       sections: 2,
       continuations: 0,
     });
@@ -218,7 +223,7 @@ describe("executeGenerateAndWrite", () => {
       sections: ["全体"],
     });
     expect(outcome.result).toMatchObject({
-      path: "workspace/demo/output/creative.html",
+      path: scopeDisplayPath("output/creative.html"),
     });
     const written = fs.readFileSync(
       path.join(base.projectDir, "output", "creative.html"),
@@ -368,7 +373,7 @@ describe("executeGenerateAndWrite", () => {
 
   it("includes context files from project and skill zone in the prompt", async () => {
     const base = makeProject();
-    createFile(base.tmpDir, "demo", "notes.md", "outline-content");
+    makeScopeFile(base.tmpDir, "notes.md", "outline-content");
     fs.writeFileSync(
       path.join(base.skillDir, "references", "model.html"),
       "model-answer-content",
@@ -394,9 +399,8 @@ describe("executeGenerateAndWrite", () => {
   it("surfaces context_paths truncation in result and display", async () => {
     const base = makeProject();
     // 読取上限を超える参照ファイル（軽量モデルでの品質低下の原因切り分けに使う）
-    createFile(
+    makeScopeFile(
       base.tmpDir,
-      "demo",
       "huge.md",
       "x".repeat(GENERATE_CONTEXT_FILE_CHAR_LIMIT + 1),
     );
@@ -412,7 +416,7 @@ describe("executeGenerateAndWrite", () => {
     const record = outcome.result as Record<string, unknown>;
     expect(record.error).toBeUndefined();
     // 子プロンプトの見出しと同じ解決後パスで示す
-    expect(record.truncatedContextPaths).toEqual(["workspace/demo/huge.md"]);
+    expect(record.truncatedContextPaths).toEqual([scopeDisplayPath("huge.md")]);
     expect(outcome.display.display).toContain("切り詰め");
     expect(outcome.display.display).toContain("huge.md");
     // 事実の報告に留め、リトライを促さない
@@ -422,7 +426,7 @@ describe("executeGenerateAndWrite", () => {
 
   it("omits truncation info when every context file fits", async () => {
     const base = makeProject();
-    createFile(base.tmpDir, "demo", "notes.md", "outline-content");
+    makeScopeFile(base.tmpDir, "notes.md", "outline-content");
     const { provider } = makeProvider([
       { text: "done", stopReason: "end_turn" },
     ]);
@@ -439,10 +443,10 @@ describe("executeGenerateAndWrite", () => {
     fs.rmSync(base.tmpDir, { recursive: true, force: true });
   });
 
-  it("rejects context_paths outside project and skill zones without calling the LLM", async () => {
+  it("rejects context_paths that escape the read zones without calling the LLM", async () => {
     const base = makeProject();
-    createFolder(base.tmpDir, "other");
-    createFile(base.tmpDir, "other", "secret.md", "secret");
+    fs.mkdirSync(path.join(base.tmpDir, "outside"), { recursive: true });
+    fs.writeFileSync(path.join(base.tmpDir, "outside", "secret.md"), "secret");
     const { provider, calls } = makeProvider([
       { text: "x", stopReason: "end_turn" },
     ]);
@@ -450,10 +454,10 @@ describe("executeGenerateAndWrite", () => {
       purpose: "p",
       path: "out.html",
       instruction: "書く",
-      context_paths: ["workspace/other/secret.md"],
+      context_paths: ["../../outside/secret.md"],
     });
     expect(outcome.result).toMatchObject({
-      error: expect.stringContaining("context_paths"),
+      error: expect.stringContaining("不正なパスです"),
     });
     expect(calls).toHaveLength(0);
     fs.rmSync(base.tmpDir, { recursive: true, force: true });
@@ -519,8 +523,8 @@ describe("executeGenerateAndWrite", () => {
     // 生成物は退避先に残る（エラーではなく成功として返る）
     expect(outcome.result).toMatchObject({
       diverted: true,
-      path: "workspace/demo/_work/output__diagram.html",
-      requestedPath: "workspace/demo/output/diagram.html",
+      path: scopeDisplayPath("_work/output__diagram.html"),
+      requestedPath: scopeDisplayPath("output/diagram.html"),
       markerNames: ["CONTENT"],
     });
     expect(outcome.result).not.toMatchObject({ error: expect.anything() });
@@ -549,7 +553,7 @@ describe("executeGenerateAndWrite", () => {
     });
 
     expect(outcome.result).toMatchObject({
-      path: "workspace/demo/output/plain.html",
+      path: scopeDisplayPath("output/plain.html"),
     });
     expect(outcome.result).not.toMatchObject({ diverted: true });
     expect(fs.readFileSync(target, "utf-8")).toBe("<div>新</div>");
@@ -583,7 +587,7 @@ describe("executeGenerateAndWrite", () => {
     });
 
     expect(outcome.result).toMatchObject({
-      path: "workspace/demo/output/diagram.html",
+      path: scopeDisplayPath("output/diagram.html"),
       marker: "CONTENT",
     });
     const written = fs.readFileSync(framePath, "utf-8");
@@ -686,7 +690,7 @@ describe("executeGenerateAndWrite", () => {
       diverted: true,
       markerNotFound: "NO_SUCH_SECTION",
       availableMarkers: ["AGENDA_LIST"],
-      path: "workspace/demo/_work/output__minutes.html",
+      path: scopeDisplayPath("_work/output__minutes.html"),
     });
     expect(
       fs.readFileSync(
@@ -702,7 +706,7 @@ describe("executeGenerateAndWrite", () => {
     const outcome = await executeGenerateAndWrite(
       {
         projectRoot: base.tmpDir,
-        projectFolderId: "demo",
+        workScopeKey: SCOPE,
       },
       { purpose: "p", path: "out.html", instruction: "書く" },
     );

@@ -1,5 +1,9 @@
 ﻿import { beforeEach, describe, expect, it } from "vitest";
 import {
+  focusCourse,
+  focusLesson,
+  focusSeries,
+  selectionLevel,
   resolveSelectionAfterContentReload,
   resolveSelectionAfterDelete,
   resolveInitialSelection,
@@ -65,11 +69,12 @@ describe("resolveSelectionAfterDelete", () => {
       resolveSelectionAfterDelete({
         prevSeries: sampleSeries,
         nextSeries: next,
+        selectedSeriesId: "s1",
         selectedCourseId: "c1",
         selectedLessonId: "l1",
         deleted: { kind: "series", seriesId: "s1" },
       }),
-    ).toEqual({ courseId: "c3", lessonId: "l3" });
+    ).toEqual({ seriesId: "s2", courseId: "c3", lessonId: "l3" });
   });
 
   it("keeps selection when deleting non-selected series", () => {
@@ -78,11 +83,12 @@ describe("resolveSelectionAfterDelete", () => {
       resolveSelectionAfterDelete({
         prevSeries: sampleSeries,
         nextSeries: next,
+        selectedSeriesId: "s1",
         selectedCourseId: "c1",
         selectedLessonId: "l1",
         deleted: { kind: "series", seriesId: "s2" },
       }),
-    ).toEqual({ courseId: "c1", lessonId: "l1" });
+    ).toEqual({ seriesId: "s1", courseId: "c1", lessonId: "l1" });
   });
 
   it("falls back when deleting selected course", () => {
@@ -94,11 +100,12 @@ describe("resolveSelectionAfterDelete", () => {
       resolveSelectionAfterDelete({
         prevSeries: sampleSeries,
         nextSeries: next,
+        selectedSeriesId: "s1",
         selectedCourseId: "c1",
         selectedLessonId: "l1",
         deleted: { kind: "course", courseId: "c1" },
       }),
-    ).toEqual({ courseId: "c2", lessonId: "l2" });
+    ).toEqual({ seriesId: "s1", courseId: "c2", lessonId: "l2" });
   });
 
   it("keeps selection when deleting non-selected course", () => {
@@ -110,11 +117,12 @@ describe("resolveSelectionAfterDelete", () => {
       resolveSelectionAfterDelete({
         prevSeries: sampleSeries,
         nextSeries: next,
+        selectedSeriesId: "s1",
         selectedCourseId: "c1",
         selectedLessonId: "l1",
         deleted: { kind: "course", courseId: "c2" },
       }),
-    ).toEqual({ courseId: "c1", lessonId: "l1" });
+    ).toEqual({ seriesId: "s1", courseId: "c1", lessonId: "l1" });
   });
 });
 
@@ -125,10 +133,11 @@ describe("resolveSelectionAfterContentReload", () => {
     ];
     expect(
       resolveSelectionAfterContentReload(data, data, {
+        seriesId: "s1",
         courseId: "c1",
         lessonId: "l1",
       }),
-    ).toEqual({ courseId: "c1", lessonId: "l1" });
+    ).toEqual({ seriesId: "s1", courseId: "c1", lessonId: "l1" });
   });
 
   it("remaps lesson selection after external file rename by matching body", () => {
@@ -167,10 +176,12 @@ describe("resolveSelectionAfterContentReload", () => {
 
     expect(
       resolveSelectionAfterContentReload(prev, fresh, {
+        seriesId: "s1",
         courseId: "course-A-コース",
         lessonId: "lesson-A-コース-旧名",
       }),
     ).toEqual({
+      seriesId: "s1",
       courseId: "course-A-コース",
       lessonId: "lesson-A-コース-新名",
     });
@@ -188,7 +199,7 @@ describe("resolveInitialSelection", () => {
     ]),
   ];
 
-  const fallback = { courseId: "c1", lessonId: "l1" };
+  const fallback = { seriesId: "s1", courseId: "c1", lessonId: "l1" };
 
   beforeEach(() => {
     localStorage.clear();
@@ -199,23 +210,172 @@ describe("resolveInitialSelection", () => {
   });
 
   it("restores stored lesson selection", () => {
-    saveStoredSelection({ courseId: "c1", lessonId: "l2" });
+    saveStoredSelection({ seriesId: "s1", courseId: "c1", lessonId: "l2" });
     expect(resolveInitialSelection(series, fallback)).toEqual({
+      seriesId: "s1",
       courseId: "c1",
       lessonId: "l2",
     });
   });
 
   it("falls back to first lesson when stored lesson is missing", () => {
-    saveStoredSelection({ courseId: "c1", lessonId: "missing" });
+    saveStoredSelection({ seriesId: "s1", courseId: "c1", lessonId: "missing" });
     expect(resolveInitialSelection(series, fallback)).toEqual({
+      seriesId: "s1",
       courseId: "c1",
       lessonId: "l1",
     });
   });
 
   it("returns fallback when stored course is missing", () => {
-    saveStoredSelection({ courseId: "missing", lessonId: "l1" });
+    saveStoredSelection({ seriesId: "missing", courseId: "missing", lessonId: "l1" });
     expect(resolveInitialSelection(series, fallback)).toEqual(fallback);
+  });
+});
+
+describe("フォーカス降下規則（下があれば先頭へ降り、無ければ止まる）", () => {
+  const full: Series[] = [
+    makeSeries("s1", [
+      course("c1", { lessons: [lesson("l1"), lesson("l2")] }),
+      course("c2", { lessons: [lesson("l3")] }),
+    ]),
+  ];
+  const courseWithoutLessons: Series[] = [makeSeries("s1", [course("c1")])];
+  const seriesWithoutCourses: Series[] = [makeSeries("s1", [])];
+
+  it("シリーズ選択で先頭コースの先頭レッスンまで降りる", () => {
+    expect(focusSeries(full, "s1")).toEqual({
+      seriesId: "s1",
+      courseId: "c1",
+      lessonId: "l1",
+    });
+  });
+
+  it("コースにレッスンが無ければコースで止まる", () => {
+    expect(focusSeries(courseWithoutLessons, "s1")).toEqual({
+      seriesId: "s1",
+      courseId: "c1",
+      lessonId: "",
+    });
+  });
+
+  it("シリーズにコースが無ければシリーズで止まる", () => {
+    expect(focusSeries(seriesWithoutCourses, "s1")).toEqual({
+      seriesId: "s1",
+      courseId: "",
+      lessonId: "",
+    });
+  });
+
+  it("コース選択は所属シリーズを逆引きして先頭レッスンへ降りる", () => {
+    expect(focusCourse(full, "c2")).toEqual({
+      seriesId: "s1",
+      courseId: "c2",
+      lessonId: "l3",
+    });
+  });
+
+  it("レッスン選択は所属コース・シリーズを逆引きする", () => {
+    expect(focusLesson(full, "l2")).toEqual({
+      seriesId: "s1",
+      courseId: "c1",
+      lessonId: "l2",
+    });
+  });
+
+  it("実在しない ID は空の選択になる", () => {
+    expect(focusSeries(full, "missing")).toEqual({
+      seriesId: "",
+      courseId: "",
+      lessonId: "",
+    });
+  });
+});
+
+describe("selectionLevel", () => {
+  it("最深の非空フィールドから導出する", () => {
+    expect(
+      selectionLevel({ seriesId: "s", courseId: "c", lessonId: "l" }),
+    ).toBe("lesson");
+    expect(selectionLevel({ seriesId: "s", courseId: "c", lessonId: "" })).toBe(
+      "course",
+    );
+    expect(selectionLevel({ seriesId: "s", courseId: "", lessonId: "" })).toBe(
+      "series",
+    );
+    expect(selectionLevel({ seriesId: "", courseId: "", lessonId: "" })).toBe(
+      "none",
+    );
+  });
+});
+
+describe("保存済み選択の後方互換", () => {
+  const series: Series[] = [
+    makeSeries("s1", [course("c1", { lessons: [lesson("l1"), lesson("l2")] })]),
+  ];
+  const fallback = { seriesId: "s1", courseId: "c1", lessonId: "l1" };
+
+  beforeEach(() => {
+    localStorage.clear();
+  });
+
+  it("seriesId を持たない旧形式でも courseId から補完する", () => {
+    // 旧形式をそのまま書き込む（saveStoredSelection は新形式で書くため直接操作）
+    localStorage.setItem(
+      "dx-training-studio-selection",
+      JSON.stringify({ courseId: "c1", lessonId: "l2" }),
+    );
+    expect(resolveInitialSelection(series, fallback)).toEqual({
+      seriesId: "s1",
+      courseId: "c1",
+      lessonId: "l2",
+    });
+  });
+
+  it("コースを持たないシリーズの選択を復元する", () => {
+    const emptySeries: Series[] = [makeSeries("s1", [])];
+    saveStoredSelection({ seriesId: "s1", courseId: "", lessonId: "" });
+    expect(
+      resolveInitialSelection(emptySeries, {
+        seriesId: "",
+        courseId: "",
+        lessonId: "",
+      }),
+    ).toEqual({ seriesId: "s1", courseId: "", lessonId: "" });
+  });
+});
+
+describe("resolveSelectionAfterDelete のシリーズ階層", () => {
+  it("最後のコースを削除するとシリーズにフォーカスが残る", () => {
+    const prev: Series[] = [makeSeries("s1", [course("c1", { lessons: [] })])];
+    const next: Series[] = [makeSeries("s1", [])];
+    expect(
+      resolveSelectionAfterDelete({
+        prevSeries: prev,
+        nextSeries: next,
+        selectedSeriesId: "s1",
+        selectedCourseId: "c1",
+        selectedLessonId: "",
+        deleted: { kind: "course", courseId: "c1" },
+      }),
+    ).toEqual({ seriesId: "s1", courseId: "", lessonId: "" });
+  });
+
+  it("フォーカス中のシリーズ自体を削除したら先頭シリーズへ降りる", () => {
+    const prev: Series[] = [
+      makeSeries("s1", []),
+      makeSeries("s2", [course("c3", { lessons: [lesson("l3")] })]),
+    ];
+    const next: Series[] = [prev[1]];
+    expect(
+      resolveSelectionAfterDelete({
+        prevSeries: prev,
+        nextSeries: next,
+        selectedSeriesId: "s1",
+        selectedCourseId: "",
+        selectedLessonId: "",
+        deleted: { kind: "series", seriesId: "s1" },
+      }),
+    ).toEqual({ seriesId: "s2", courseId: "c3", lessonId: "l3" });
   });
 });

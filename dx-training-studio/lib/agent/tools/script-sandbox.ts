@@ -18,8 +18,16 @@ export type ScriptSandboxTarget =
   | { kind: "file"; scriptPathAbsolute: string; args?: string[] };
 
 export type ScriptSandboxOptions = {
-  /** fs 書込を許可する唯一のディレクトリ（cwd にもなる） */
+  /**
+   * 作業フォルダ（フォーカス中のコンテンツフォルダ）。cwd になり、
+   * 明示プレフィックスのない相対パスの基準にもなる。
+   */
   projectDirAbsolute: string;
+  /**
+   * fs 書込を追加で許可するディレクトリ（作業ツリー `contents-plan/`）。
+   * 書込許可ルートが 2 つあるため、宣言できる writes と実際に書ける場所を一致させる。
+   */
+  extraWriteDirsAbsolute?: string[];
   /** fs 読取を追加で許可するディレクトリ（実行中スキル） */
   skillDirAbsolute?: string;
   timeoutMs?: number;
@@ -210,15 +218,20 @@ function buildPermissionArgs(
   scriptPathAbsolute: string,
   options: ScriptSandboxOptions,
 ): string[] {
+  const extraWriteDirs = options.extraWriteDirsAbsolute ?? [];
   const readTargets = [
     ...directoryPermissionPatterns(options.projectDirAbsolute),
+    ...extraWriteDirs.flatMap(directoryPermissionPatterns),
     scriptPathAbsolute,
   ];
   const resolvedSkillDir = resolveSkillDirForSandbox(options);
   if (resolvedSkillDir) {
     readTargets.push(...directoryPermissionPatterns(resolvedSkillDir));
   }
-  const writeTargets = directoryPermissionPatterns(options.projectDirAbsolute);
+  const writeTargets = [
+    ...directoryPermissionPatterns(options.projectDirAbsolute),
+    ...extraWriteDirs.flatMap(directoryPermissionPatterns),
+  ];
 
   // パスにカンマが含まれても壊れないよう、フラグを 1 対象ずつ繰り返す
   return [

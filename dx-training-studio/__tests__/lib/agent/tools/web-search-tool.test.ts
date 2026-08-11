@@ -15,7 +15,12 @@ import type {
   SearchProvider,
   SearchSessionState,
 } from "@/lib/agent/tools/search-provider";
-import { createFolder } from "@/lib/workspace-mutations";
+import {
+  SCOPE,
+  makeScope,
+  makeScopeFile,
+  scopeDisplayPath,
+} from "@/__tests__/helpers/work-scope-fixture";
 
 function makeContext(
   provider: SearchProvider | null,
@@ -26,13 +31,13 @@ function makeContext(
   session: SearchSessionState;
 } {
   const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "ebex-web-search-"));
-  createFolder(tmpDir, "demo");
+  makeScope(tmpDir);
   return {
     tmpDir,
     session,
     context: {
       projectRoot: tmpDir,
-      projectFolderId: "demo",
+      workScopeKey: SCOPE,
       search: { provider, session },
     },
   };
@@ -142,7 +147,7 @@ describe("web_search tool", () => {
 describe("resolveConfirmRequirement for web_search", () => {
   it("requires confirmation with query and purpose payload", () => {
     const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "ebex-web-search-"));
-    createFolder(tmpDir, "demo");
+    makeScope(tmpDir);
     const req = resolveConfirmRequirement(tmpDir, "demo", {
       id: "t1",
       name: "web_search",
@@ -158,7 +163,7 @@ describe("resolveConfirmRequirement for web_search", () => {
 
   it("still requires confirmation even when search is unavailable (skip happens after approval)", () => {
     const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "ebex-web-search-"));
-    createFolder(tmpDir, "demo");
+    makeScope(tmpDir);
     const req = resolveConfirmRequirement(tmpDir, "demo", {
       id: "t1",
       name: "web_search",
@@ -173,7 +178,7 @@ describe("resolveConfirmRequirement for web_search", () => {
 
   it("skips confirmation for empty query (handled as tool error)", () => {
     const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "ebex-web-search-"));
-    createFolder(tmpDir, "demo");
+    makeScope(tmpDir);
     const req = resolveConfirmRequirement(tmpDir, "demo", {
       id: "t1",
       name: "web_search",

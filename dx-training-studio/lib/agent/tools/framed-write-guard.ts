@@ -1,6 +1,6 @@
 import fs from "node:fs";
 import path from "node:path";
-import { ALLOWED_PREFIX, WORKSPACE_DIR_NAME } from "@/lib/workspace-constants";
+import { parseWorkScope, workScopeBaseDir } from "@/lib/work-scope";
 import { isPathInsideWorkDir } from "@/lib/agent/skill-io-boundary";
 import { findMarkerSectionNames } from "@/lib/agent/tools/replace-feedback";
 import type { ToolExecutionOutcome } from "@/lib/agent/tools/registry";
@@ -26,7 +26,7 @@ const PATH_FLATTEN_SEPARATOR = "__";
 export type FramedWriteTarget = {
   /** 実ファイルシステム上の絶対パス */
   absolutePath: string;
-  /** 表示用パス（`workspace/<folderId>/...`） */
+  /** 表示用パス（`contents/<フォーカス階層>/...`） */
   relativePath: string;
 };
 
@@ -45,24 +45,26 @@ export type FramedWriteDecision =
 export type ResolveFramedWriteTargetParams = {
   /** 書込先の絶対パス */
   absolutePath: string;
-  /** 書込先の表示用パス（`workspace/<folderId>/...`） */
+  /** 書込先の表示用パス（`contents/<フォーカス階層>/...`） */
   relativePath: string;
-  /** 対象プロジェクトフォルダ ID */
-  projectFolderId: string;
-  /** projectRoot（`workspace/` の親） */
+  /** 作業スコープ（`serializeWorkScope` の出力） */
+  workScopeKey: string;
+  /** リポジトリルート */
   projectRoot: string;
 };
 
 /**
- * 表示用パス（`workspace/<folderId>/a/b.html`）からプロジェクト相対（`a/b.html`）を得る。
- * プロジェクト配下でない場合は null。
+ * 表示用パス（`contents/<フォーカス階層>/a/b.html`）から作業フォルダ相対（`a/b.html`）を得る。
+ * 作業フォルダ配下でない場合は null。
  */
 function toProjectRelative(
   relativePath: string,
-  projectFolderId: string,
+  workScopeKey: string,
 ): string | null {
   const normalized = relativePath.replace(/\\/g, "/").trim();
-  const prefix = `${ALLOWED_PREFIX}${projectFolderId}/`;
+  const scope = parseWorkScope(workScopeKey);
+  if (!scope) return null;
+  const prefix = workScopeBaseDir(scope) + "/";
   if (!normalized.startsWith(prefix)) return null;
   const rest = normalized.slice(prefix.length);
   return rest || null;
@@ -112,24 +114,23 @@ export function deriveDivertRelativePath(projectRelativePath: string): string {
  */
 export function resolveDivertTarget(params: {
   relativePath: string;
-  projectFolderId: string;
+  workScopeKey: string;
   projectRoot: string;
 }): FramedWriteTarget | null {
   const projectRelative = toProjectRelative(
     params.relativePath,
-    params.projectFolderId,
+    params.workScopeKey,
   );
   if (!projectRelative) return null;
 
   const divertRelative = deriveDivertRelativePath(projectRelative);
-  const projectDirAbsolute = path.resolve(
-    params.projectRoot,
-    WORKSPACE_DIR_NAME,
-    params.projectFolderId,
-  );
+  const scope = parseWorkScope(params.workScopeKey);
+  if (!scope) return null;
+  const baseRelative = workScopeBaseDir(scope);
+  const projectDirAbsolute = path.resolve(params.projectRoot, baseRelative);
   return {
     absolutePath: path.resolve(projectDirAbsolute, divertRelative),
-    relativePath: `${ALLOWED_PREFIX}${params.projectFolderId}/${divertRelative}`,
+    relativePath: `${baseRelative}/${divertRelative}`,
   };
 }
 
@@ -140,7 +141,7 @@ export function resolveDivertTarget(params: {
 export function resolveFramedWriteTarget(
   params: ResolveFramedWriteTargetParams,
 ): FramedWriteDecision {
-  const { absolutePath, relativePath, projectFolderId, projectRoot } = params;
+  const { absolutePath, relativePath, workScopeKey, projectRoot } = params;
 
   const asWrite: FramedWriteDecision = {
     kind: "write",
@@ -149,9 +150,9 @@ export function resolveFramedWriteTarget(
   };
 
   // 中間ファイル置き場は退避先そのもの。ここを保護すると退避が自己参照的に連鎖する
-  if (isPathInsideWorkDir(relativePath, projectFolderId)) return asWrite;
+  if (isPathInsideWorkDir(relativePath, workScopeKey)) return asWrite;
 
-  const projectRelative = toProjectRelative(relativePath, projectFolderId);
+  const projectRelative = toProjectRelative(relativePath, workScopeKey);
   if (!projectRelative) return asWrite;
 
   const markerNames = detectMarkerNames(absolutePath);
@@ -159,7 +160,7 @@ export function resolveFramedWriteTarget(
 
   const divert = resolveDivertTarget({
     relativePath,
-    projectFolderId,
+    workScopeKey,
     projectRoot,
   });
   if (!divert) return asWrite;

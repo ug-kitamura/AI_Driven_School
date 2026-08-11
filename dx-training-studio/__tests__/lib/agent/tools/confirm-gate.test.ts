@@ -6,15 +6,20 @@ import {
   collectWrittenPathsFromToolResult,
   resolveConfirmRequirement,
 } from "@/lib/agent/tools/confirm-gate";
-import { createFile, createFolder } from "@/lib/workspace-mutations";
-import { getWorkspaceDir } from "@/lib/workspace-paths";
+import {
+  SCOPE,
+  makeScope,
+  makeScopeFile,
+  scopeAbsolute,
+  scopeDisplayPath,
+} from "@/__tests__/helpers/work-scope-fixture";
 
 describe("resolveConfirmRequirement", () => {
   it("does not require confirm for project-internal read tools", () => {
     const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "ebex-confirm-"));
-    createFolder(tmpDir, "demo");
-    createFile(tmpDir, "demo", "notes.md", "hello");
-    const req = resolveConfirmRequirement(tmpDir, "demo", {
+    makeScope(tmpDir);
+    makeScopeFile(tmpDir, "notes.md", "hello");
+    const req = resolveConfirmRequirement(tmpDir, SCOPE, {
       id: "t1",
       name: "read_file",
       input: { path: "notes.md" },
@@ -23,28 +28,23 @@ describe("resolveConfirmRequirement", () => {
     fs.rmSync(tmpDir, { recursive: true, force: true });
   });
 
-  it("requires confirm for outside-project read", () => {
+  it("does not confirm reads the path guard rejects", () => {
     const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "ebex-confirm-"));
-    createFolder(tmpDir, "demo");
-    createFolder(tmpDir, "other");
-    createFile(tmpDir, "other", "notes.md", "hello");
-    const req = resolveConfirmRequirement(tmpDir, "demo", {
+    makeScope(tmpDir);
+    // 書込ルートの外は確認ダイアログではなくツール自身のエラーで止まる
+    const req = resolveConfirmRequirement(tmpDir, SCOPE, {
       id: "t1",
       name: "read_file",
-      input: { path: "workspace/other/notes.md" },
+      input: { path: "../outside/notes.md" },
     });
-    expect(req).toEqual({
-      kind: "outside-project-read",
-      path: "workspace/other/notes.md",
-      isNew: false,
-    });
+    expect(req).toBeNull();
     fs.rmSync(tmpDir, { recursive: true, force: true });
   });
 
   it("does not require confirm for new write inside project", () => {
     const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "ebex-confirm-"));
-    createFolder(tmpDir, "demo");
-    const req = resolveConfirmRequirement(tmpDir, "demo", {
+    makeScope(tmpDir);
+    const req = resolveConfirmRequirement(tmpDir, SCOPE, {
       id: "t1",
       name: "write_file",
       input: { path: "output/new.md", content: "x" },
@@ -55,53 +55,47 @@ describe("resolveConfirmRequirement", () => {
 
   it("requires overwrite confirm for existing file inside project", () => {
     const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "ebex-confirm-"));
-    createFolder(tmpDir, "demo");
-    createFile(tmpDir, "demo", "notes.md", "old");
-    const req = resolveConfirmRequirement(tmpDir, "demo", {
+    makeScope(tmpDir);
+    makeScopeFile(tmpDir, "notes.md", "old");
+    const req = resolveConfirmRequirement(tmpDir, SCOPE, {
       id: "t1",
       name: "write_file",
       input: { path: "notes.md", content: "new" },
     });
     expect(req).toEqual({
       kind: "overwrite",
-      path: "workspace/demo/notes.md",
+      path: scopeDisplayPath("notes.md"),
       isNew: false,
     });
     fs.rmSync(tmpDir, { recursive: true, force: true });
   });
 
-  it("requires outside-project-write with isNew flag", () => {
+  it("does not confirm writes the path guard rejects", () => {
     const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "ebex-confirm-"));
-    createFolder(tmpDir, "demo");
-    createFolder(tmpDir, "other");
-    const req = resolveConfirmRequirement(tmpDir, "demo", {
+    makeScope(tmpDir);
+    const req = resolveConfirmRequirement(tmpDir, SCOPE, {
       id: "t1",
       name: "write_file",
-      input: { path: "workspace/other/new.md", content: "x" },
+      input: { path: "../outside/new.md", content: "x" },
     });
-    expect(req).toEqual({
-      kind: "outside-project-write",
-      path: "workspace/other/new.md",
-      isNew: true,
-    });
+    expect(req).toBeNull();
     fs.rmSync(tmpDir, { recursive: true, force: true });
   });
 
-  it("marks outside-project-write overwrite when file exists", () => {
+  it("requires overwrite confirm for existing files in the plan tree", () => {
     const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "ebex-confirm-"));
-    createFolder(tmpDir, "demo");
-    createFolder(tmpDir, "other");
-    const otherAbs = path.join(getWorkspaceDir(tmpDir), "other", "notes.md");
-    fs.mkdirSync(path.dirname(otherAbs), { recursive: true });
-    fs.writeFileSync(otherAbs, "old");
-    const req = resolveConfirmRequirement(tmpDir, "demo", {
+    makeScope(tmpDir);
+    const planPath = path.join(tmpDir, "contents-plan", "plans", "20260811.md");
+    fs.mkdirSync(path.dirname(planPath), { recursive: true });
+    fs.writeFileSync(planPath, "old");
+    const req = resolveConfirmRequirement(tmpDir, SCOPE, {
       id: "t1",
       name: "write_file",
-      input: { path: "workspace/other/notes.md", content: "new" },
+      input: { path: "contents-plan/plans/20260811.md", content: "new" },
     });
     expect(req).toEqual({
-      kind: "outside-project-write",
-      path: "workspace/other/notes.md",
+      kind: "overwrite",
+      path: "contents-plan/plans/20260811.md",
       isNew: false,
     });
     fs.rmSync(tmpDir, { recursive: true, force: true });
@@ -109,7 +103,7 @@ describe("resolveConfirmRequirement", () => {
 
   it("does not require confirm for skill-zone reads", () => {
     const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "ebex-confirm-"));
-    createFolder(tmpDir, "demo");
+    makeScope(tmpDir);
     const skillDir = path.join(tmpDir, ".claude", "skills", "minutes-maid");
     fs.mkdirSync(path.join(skillDir, "references"), { recursive: true });
     fs.writeFileSync(path.join(skillDir, "references", "purpose.md"), "x");
@@ -117,7 +111,7 @@ describe("resolveConfirmRequirement", () => {
 
     const req = resolveConfirmRequirement(
       tmpDir,
-      "demo",
+      SCOPE,
       {
         id: "t1",
         name: "read_file",
@@ -134,15 +128,15 @@ describe("resolveConfirmRequirement", () => {
 
   it("requires overwrite confirm when copy_file target exists", () => {
     const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "ebex-confirm-"));
-    createFolder(tmpDir, "demo");
-    createFile(tmpDir, "demo", "dest.html", "old");
+    makeScope(tmpDir);
+    makeScopeFile(tmpDir, "dest.html", "old");
     const skillDir = path.join(tmpDir, ".claude", "skills", "minutes-maid");
     fs.mkdirSync(path.join(skillDir, "references"), { recursive: true });
     fs.writeFileSync(path.join(skillDir, "references", "base.html"), "base");
 
     const req = resolveConfirmRequirement(
       tmpDir,
-      "demo",
+      SCOPE,
       {
         id: "t1",
         name: "copy_file",
@@ -152,7 +146,7 @@ describe("resolveConfirmRequirement", () => {
     );
     expect(req).toEqual({
       kind: "overwrite",
-      path: "workspace/demo/dest.html",
+      path: scopeDisplayPath("dest.html"),
       isNew: false,
     });
     fs.rmSync(tmpDir, { recursive: true, force: true });
@@ -160,16 +154,16 @@ describe("resolveConfirmRequirement", () => {
 
   it("requires overwrite confirm for replace_in_file on existing file", () => {
     const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "ebex-confirm-"));
-    createFolder(tmpDir, "demo");
-    createFile(tmpDir, "demo", "out.html", "{{TITLE}}");
-    const req = resolveConfirmRequirement(tmpDir, "demo", {
+    makeScope(tmpDir);
+    makeScopeFile(tmpDir, "out.html", "{{TITLE}}");
+    const req = resolveConfirmRequirement(tmpDir, SCOPE, {
       id: "t1",
       name: "replace_in_file",
       input: { path: "out.html", replacements: { TITLE: "x" } },
     });
     expect(req).toEqual({
       kind: "overwrite",
-      path: "workspace/demo/out.html",
+      path: scopeDisplayPath("out.html"),
       isNew: false,
     });
     fs.rmSync(tmpDir, { recursive: true, force: true });
@@ -177,12 +171,12 @@ describe("resolveConfirmRequirement", () => {
 
   it("skips overwrite when path was agent-created (skipOverwritePaths)", () => {
     const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "ebex-confirm-"));
-    createFolder(tmpDir, "demo");
-    createFile(tmpDir, "demo", "out.html", "{{TITLE}}");
-    const skip = new Set(["workspace/demo/out.html"]);
+    makeScope(tmpDir);
+    makeScopeFile(tmpDir, "out.html", "{{TITLE}}");
+    const skip = new Set([scopeDisplayPath("out.html")]);
     const req = resolveConfirmRequirement(
       tmpDir,
-      "demo",
+      SCOPE,
       {
         id: "t1",
         name: "replace_in_file",
@@ -196,17 +190,17 @@ describe("resolveConfirmRequirement", () => {
 
   it("skips overwrite for write_file after user approved once", () => {
     const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "ebex-confirm-"));
-    createFolder(tmpDir, "demo");
-    createFile(tmpDir, "demo", "notes.md", "old");
+    makeScope(tmpDir);
+    makeScopeFile(tmpDir, "notes.md", "old");
     const req = resolveConfirmRequirement(
       tmpDir,
-      "demo",
+      SCOPE,
       {
         id: "t1",
         name: "write_file",
         input: { path: "notes.md", content: "new" },
       },
-      { skipOverwritePaths: new Set(["workspace/demo/notes.md"]) },
+      { skipOverwritePaths: new Set([scopeDisplayPath("notes.md")]) },
     );
     expect(req).toBeNull();
     fs.rmSync(tmpDir, { recursive: true, force: true });
@@ -214,12 +208,12 @@ describe("resolveConfirmRequirement", () => {
 
   it("requires overwrite for replace_between and append_file on existing files", () => {
     const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "ebex-confirm-"));
-    createFolder(tmpDir, "demo");
-    createFile(tmpDir, "demo", "out.html", "x");
-    createFile(tmpDir, "demo", "partial.txt", "a");
+    makeScope(tmpDir);
+    makeScopeFile(tmpDir, "out.html", "x");
+    makeScopeFile(tmpDir, "partial.txt", "a");
 
     expect(
-      resolveConfirmRequirement(tmpDir, "demo", {
+      resolveConfirmRequirement(tmpDir, SCOPE, {
         id: "t1",
         name: "replace_between",
         input: {
@@ -231,32 +225,32 @@ describe("resolveConfirmRequirement", () => {
       }),
     ).toEqual({
       kind: "overwrite",
-      path: "workspace/demo/out.html",
+      path: scopeDisplayPath("out.html"),
       isNew: false,
     });
 
     expect(
-      resolveConfirmRequirement(tmpDir, "demo", {
+      resolveConfirmRequirement(tmpDir, SCOPE, {
         id: "t2",
         name: "append_file",
         input: { path: "partial.txt", content: "b" },
       }),
     ).toEqual({
       kind: "overwrite",
-      path: "workspace/demo/partial.txt",
+      path: scopeDisplayPath("partial.txt"),
       isNew: false,
     });
 
     expect(
       resolveConfirmRequirement(
         tmpDir,
-        "demo",
+        SCOPE,
         {
           id: "t3",
           name: "append_file",
           input: { path: "partial.txt", content: "b" },
         },
-        { skipOverwritePaths: new Set(["workspace/demo/partial.txt"]) },
+        { skipOverwritePaths: new Set([scopeDisplayPath("partial.txt")]) },
       ),
     ).toBeNull();
 
@@ -265,16 +259,15 @@ describe("resolveConfirmRequirement", () => {
 
   it("does not require overwrite confirm for existing files under _work/", () => {
     const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "ebex-confirm-"));
-    createFolder(tmpDir, "demo");
+    makeScope(tmpDir);
     const workAbs = path.join(
-      getWorkspaceDir(tmpDir),
-      "demo",
+      scopeAbsolute(tmpDir),
       "_work",
       "agenda_details_all.html",
     );
     fs.mkdirSync(path.dirname(workAbs), { recursive: true });
     fs.writeFileSync(workAbs, "old");
-    const req = resolveConfirmRequirement(tmpDir, "demo", {
+    const req = resolveConfirmRequirement(tmpDir, SCOPE, {
       id: "t1",
       name: "write_file",
       input: { path: "_work/agenda_details_all.html", content: "new" },
@@ -285,16 +278,16 @@ describe("resolveConfirmRequirement", () => {
 
   it("still requires overwrite confirm outside _work/ in the same project", () => {
     const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "ebex-confirm-"));
-    createFolder(tmpDir, "demo");
-    createFile(tmpDir, "demo", "_work_report.html", "old");
-    const req = resolveConfirmRequirement(tmpDir, "demo", {
+    makeScope(tmpDir);
+    makeScopeFile(tmpDir, "_work_report.html", "old");
+    const req = resolveConfirmRequirement(tmpDir, SCOPE, {
       id: "t1",
       name: "write_file",
       input: { path: "_work_report.html", content: "new" },
     });
     expect(req).toEqual({
       kind: "overwrite",
-      path: "workspace/demo/_work_report.html",
+      path: scopeDisplayPath("_work_report.html"),
       isNew: false,
     });
     fs.rmSync(tmpDir, { recursive: true, force: true });
@@ -304,10 +297,10 @@ describe("resolveConfirmRequirement", () => {
 describe("resolveConfirmRequirement for web_search", () => {
   it("uses web-search kind when search is available (key set)", () => {
     const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "ebex-confirm-"));
-    createFolder(tmpDir, "demo");
+    makeScope(tmpDir);
     const req = resolveConfirmRequirement(
       tmpDir,
-      "demo",
+      SCOPE,
       {
         id: "t1",
         name: "web_search",
@@ -322,10 +315,10 @@ describe("resolveConfirmRequirement for web_search", () => {
 
   it("uses web-search-manual kind when search is unavailable (no key)", () => {
     const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "ebex-confirm-"));
-    createFolder(tmpDir, "demo");
+    makeScope(tmpDir);
     const req = resolveConfirmRequirement(
       tmpDir,
-      "demo",
+      SCOPE,
       {
         id: "t1",
         name: "web_search",
@@ -340,10 +333,10 @@ describe("resolveConfirmRequirement for web_search", () => {
 
   it("returns null for empty query", () => {
     const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "ebex-confirm-"));
-    createFolder(tmpDir, "demo");
+    makeScope(tmpDir);
     const req = resolveConfirmRequirement(
       tmpDir,
-      "demo",
+      SCOPE,
       { id: "t1", name: "web_search", input: { query: "  " } },
       { searchAvailable: false },
     );
@@ -355,8 +348,8 @@ describe("resolveConfirmRequirement for web_search", () => {
 describe("resolveConfirmRequirement for script tools", () => {
   it("requires confirmation for run_script every time (no skip)", () => {
     const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "ebex-confirm-"));
-    createFolder(tmpDir, "demo");
-    createFile(tmpDir, "demo", "out.html", "old");
+    makeScope(tmpDir);
+    makeScopeFile(tmpDir, "out.html", "old");
     const call = {
       id: "t1",
       name: "run_script",
@@ -366,15 +359,15 @@ describe("resolveConfirmRequirement for script tools", () => {
         writes: ["out.html", "new.txt"],
       },
     };
-    const req = resolveConfirmRequirement(tmpDir, "demo", call, {
-      skipOverwritePaths: new Set(["workspace/demo/out.html"]),
+    const req = resolveConfirmRequirement(tmpDir, SCOPE, call, {
+      skipOverwritePaths: new Set([scopeDisplayPath("out.html")]),
     });
     expect(req).not.toBeNull();
     expect(req?.kind).toBe("run-script");
     expect(req?.script?.purpose).toBe("HTML の組み立て");
     expect(req?.script?.writes).toEqual([
-      { path: "workspace/demo/out.html", exists: true },
-      { path: "workspace/demo/new.txt", exists: false },
+      { path: scopeDisplayPath("out.html"), exists: true },
+      { path: scopeDisplayPath("new.txt"), exists: false },
     ]);
     expect(req?.script?.networkWarning).toBe(false);
     fs.rmSync(tmpDir, { recursive: true, force: true });
@@ -382,8 +375,8 @@ describe("resolveConfirmRequirement for script tools", () => {
 
   it("flags network access hints in run_script code", () => {
     const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "ebex-confirm-"));
-    createFolder(tmpDir, "demo");
-    const req = resolveConfirmRequirement(tmpDir, "demo", {
+    makeScope(tmpDir);
+    const req = resolveConfirmRequirement(tmpDir, SCOPE, {
       id: "t1",
       name: "run_script",
       input: {
@@ -398,8 +391,8 @@ describe("resolveConfirmRequirement for script tools", () => {
 
   it("returns null for run_script with empty code (broken tool_use path)", () => {
     const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "ebex-confirm-"));
-    createFolder(tmpDir, "demo");
-    const req = resolveConfirmRequirement(tmpDir, "demo", {
+    makeScope(tmpDir);
+    const req = resolveConfirmRequirement(tmpDir, SCOPE, {
       id: "t1",
       name: "run_script",
       input: { purpose: "テスト", code: "", writes: [] },
@@ -410,7 +403,7 @@ describe("resolveConfirmRequirement for script tools", () => {
 
   it("builds run-skill-script confirmation with script code preview", () => {
     const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "ebex-confirm-"));
-    createFolder(tmpDir, "demo");
+    makeScope(tmpDir);
     const skillDir = path.join(tmpDir, "skill-zone", "my-skill");
     fs.mkdirSync(path.join(skillDir, "scripts"), { recursive: true });
     fs.writeFileSync(
@@ -420,7 +413,7 @@ describe("resolveConfirmRequirement for script tools", () => {
     );
     const req = resolveConfirmRequirement(
       tmpDir,
-      "demo",
+      SCOPE,
       {
         id: "t1",
         name: "run_skill_script",
@@ -444,7 +437,7 @@ describe("resolveConfirmRequirement for script tools", () => {
 describe("resolveConfirmRequirement for generate_and_write", () => {
   it("requires confirmation every time, even for new and skip-listed paths", () => {
     const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "ebex-confirm-"));
-    createFolder(tmpDir, "demo");
+    makeScope(tmpDir);
     const call = {
       id: "t1",
       name: "generate_and_write",
@@ -456,12 +449,12 @@ describe("resolveConfirmRequirement for generate_and_write", () => {
         context_paths: ["notes.md"],
       },
     };
-    const req = resolveConfirmRequirement(tmpDir, "demo", call, {
-      skipOverwritePaths: new Set(["workspace/demo/output/partial.html"]),
+    const req = resolveConfirmRequirement(tmpDir, SCOPE, call, {
+      skipOverwritePaths: new Set([scopeDisplayPath("output/partial.html")]),
     });
     expect(req).not.toBeNull();
     expect(req?.kind).toBe("generate-write");
-    expect(req?.path).toBe("workspace/demo/output/partial.html");
+    expect(req?.path).toBe(scopeDisplayPath("output/partial.html"));
     expect(req?.isNew).toBe(true);
     expect(req?.generate).toEqual({
       purpose: "図解本文の生成",
@@ -474,14 +467,11 @@ describe("resolveConfirmRequirement for generate_and_write", () => {
 
   it("shows the target section when marker is given", () => {
     const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "ebex-confirm-"));
-    createFolder(tmpDir, "demo");
-    createFile(
-      tmpDir,
-      "demo",
-      "framed.html",
+    makeScope(tmpDir);
+    makeScopeFile(tmpDir, "framed.html",
       "<!-- CONTENT_START --><!-- CONTENT_END -->",
     );
-    const req = resolveConfirmRequirement(tmpDir, "demo", {
+    const req = resolveConfirmRequirement(tmpDir, SCOPE, {
       id: "t1",
       name: "generate_and_write",
       input: {
@@ -499,8 +489,8 @@ describe("resolveConfirmRequirement for generate_and_write", () => {
 
   it("omits marker from the payload when not given", () => {
     const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "ebex-confirm-"));
-    createFolder(tmpDir, "demo");
-    const req = resolveConfirmRequirement(tmpDir, "demo", {
+    makeScope(tmpDir);
+    const req = resolveConfirmRequirement(tmpDir, SCOPE, {
       id: "t1",
       name: "generate_and_write",
       input: { purpose: "p", path: "out.html", instruction: "書く" },
@@ -511,9 +501,9 @@ describe("resolveConfirmRequirement for generate_and_write", () => {
 
   it("marks overwrite when the target exists", () => {
     const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "ebex-confirm-"));
-    createFolder(tmpDir, "demo");
-    createFile(tmpDir, "demo", "out.html", "old");
-    const req = resolveConfirmRequirement(tmpDir, "demo", {
+    makeScope(tmpDir);
+    makeScopeFile(tmpDir, "out.html", "old");
+    const req = resolveConfirmRequirement(tmpDir, SCOPE, {
       id: "t1",
       name: "generate_and_write",
       input: { purpose: "p", path: "out.html", instruction: "書く" },
@@ -523,29 +513,44 @@ describe("resolveConfirmRequirement for generate_and_write", () => {
     fs.rmSync(tmpDir, { recursive: true, force: true });
   });
 
-  it("falls back to outside-project-write for outside targets", () => {
+  it("returns null for targets the path guard rejects", () => {
     const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "ebex-confirm-"));
-    createFolder(tmpDir, "demo");
-    createFolder(tmpDir, "other");
-    const req = resolveConfirmRequirement(tmpDir, "demo", {
+    makeScope(tmpDir);
+    const req = resolveConfirmRequirement(tmpDir, SCOPE, {
       id: "t1",
       name: "generate_and_write",
       input: {
         purpose: "p",
-        path: "workspace/other/out.html",
+        path: "../outside/out.html",
         instruction: "書く",
       },
     });
-    expect(req?.kind).toBe("outside-project-write");
-    expect(req?.path).toBe("workspace/other/out.html");
+    expect(req).toBeNull();
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+  });
+
+  it("confirms generate-write into the plan tree", () => {
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "ebex-confirm-"));
+    makeScope(tmpDir);
+    const req = resolveConfirmRequirement(tmpDir, SCOPE, {
+      id: "t1",
+      name: "generate_and_write",
+      input: {
+        purpose: "p",
+        path: "contents-plan/runs/20260811-demo/design-note.md",
+        instruction: "書く",
+      },
+    });
+    expect(req?.kind).toBe("generate-write");
+    expect(req?.path).toBe("contents-plan/runs/20260811-demo/design-note.md");
     expect(req?.isNew).toBe(true);
     fs.rmSync(tmpDir, { recursive: true, force: true });
   });
 
   it("returns null for missing instruction (broken tool_use path)", () => {
     const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "ebex-confirm-"));
-    createFolder(tmpDir, "demo");
-    const req = resolveConfirmRequirement(tmpDir, "demo", {
+    makeScope(tmpDir);
+    const req = resolveConfirmRequirement(tmpDir, SCOPE, {
       id: "t1",
       name: "generate_and_write",
       input: { purpose: "p", path: "out.html" },
@@ -556,26 +561,26 @@ describe("resolveConfirmRequirement for generate_and_write", () => {
 
   it("collects the generate_and_write result path for overwrite skip", () => {
     const paths = collectWrittenPathsFromToolResult({
-      path: "workspace/demo/output/partial.html",
+      path: scopeDisplayPath("output/partial.html"),
       bytes: 12345,
       sections: 2,
       continuations: 1,
       durationMs: 100,
     });
-    expect(paths).toEqual(["workspace/demo/output/partial.html"]);
+    expect(paths).toEqual([scopeDisplayPath("output/partial.html")]);
   });
 });
 
 describe("collectWrittenPathsFromToolResult with writes", () => {
   it("collects run_script writes for overwrite skip", () => {
     const paths = collectWrittenPathsFromToolResult({
-      writes: ["workspace/demo/out.html", "workspace/demo/new.txt"],
+      writes: [scopeDisplayPath("out.html"), scopeDisplayPath("new.txt")],
       stdout: "",
       durationMs: 10,
     });
     expect(paths).toEqual([
-      "workspace/demo/out.html",
-      "workspace/demo/new.txt",
+      scopeDisplayPath("out.html"),
+      scopeDisplayPath("new.txt"),
     ]);
   });
 });

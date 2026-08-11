@@ -54,9 +54,9 @@ Agent スキル実行において、DB 検索・ファイル書き込み等の�
 - 壊れた tool_use（入力パース失敗・必須パラメータ欠落）は実行せず、recoverable なエラー結果と修正ガイダンスをモデルへ返す。max_tokens による途中切断が原因の場合はその旨の注記を付す
 - 同一のツールエラーが許容回数（既定 2 回）を超えて連続した場合、HTTP 422 でループを停止する
 - `AbortSignal` が中断を示した場合、残りのツールを実行せずループを終える
-- ツール実行前に案件フォルダの存在を検査し、消失時は HTTP 409 で停止する
+- ツール実行前にフォーカススコープ対象ディレクトリの存在を検査し、消失時は HTTP 409 で停止する
 
-テキストとツール呼び出しのまとまりは `logical_turn` としてクライアントへ通知されなければならない（SHALL）。ツール実行は `ToolExecutionContext`（projectRoot・projectFolderId・実行中スキル・signal・search / generate 設定・dx 固有の contextMode）を介して行われなければならない（SHALL）。
+テキストとツール呼び出しのまとまりは `logical_turn` としてクライアントへ通知されなければならない（SHALL）。ツール実行は `ToolExecutionContext`（projectRoot・フォーカススコープ・実行中スキル・signal・search / generate 設定・dx 固有の contextMode）を介して行われなければならない（SHALL）。
 
 #### Scenario: 検索 tool 実行後に会話が継続する
 
@@ -68,29 +68,11 @@ Agent スキル実行において、DB 検索・ファイル書き込み等の�
 
 - **AND** 最終応答がクライアントにストリームされる
 
-#### Scenario: loop 上限超過
+#### Scenario: スコープ対象の消失時は停止する
 
-- **WHEN** tool 実行が loop 上限を超える
+- **WHEN** ツール実行前にフォーカススコープ対象のディレクトリが存在しない
 
-- **THEN** HTTP 500 または 422 とエラーメッセージが返される
-
-#### Scenario: 壊れた tool_use を救済する
-
-- **WHEN** model が `write_file` を path なしで呼び出す
-
-- **THEN** ツールは実行されず、recoverable なエラーとガイダンスが tool_result としてモデルへ返り、ループは継続する
-
-#### Scenario: 同一エラー連続で停止する
-
-- **WHEN** 同一内容のツールエラーが 3 回連続で発生する
-
-- **THEN** HTTP 422 で「同一のツールエラーが連続したため停止」の旨が返る
-
-#### Scenario: ユーザー中断で残りツールを実行しない
-
-- **WHEN** ツール実行中にユーザーが中断する
-
-- **THEN** 当該ターンの残りツールは実行されず、ループは正常終了する
+- **THEN** HTTP 409 で停止する
 
 ### Requirement: tool result の最小化
 

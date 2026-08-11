@@ -118,7 +118,7 @@ export function resolveGenerateContextFiles(
   for (const entry of contextPaths) {
     const resolved = resolveToolTargetPath(
       context.projectRoot,
-      context.projectFolderId,
+      context.workScopeKey,
       entry,
       {
         skillId: context.skillId,
@@ -416,12 +416,13 @@ export async function executeGenerateAndWrite(
 
   const targetResolved = resolveToolTargetPath(
     context.projectRoot,
-    context.projectFolderId,
+    context.workScopeKey,
     parsed.path,
     {
       skillId: context.skillId,
       skillDirAbsolute: context.skillDirAbsolute,
       preferSkillIfExists: false,
+      forWrite: true,
     },
   );
   if ("error" in targetResolved) return errorOutcome(targetResolved.error);
@@ -506,7 +507,7 @@ export async function executeGenerateAndWrite(
   const decision = resolveFramedWriteTarget({
     absolutePath: targetResolved.absolutePath,
     relativePath: targetResolved.relativePath,
-    projectFolderId: context.projectFolderId,
+    workScopeKey: context.workScopeKey,
     projectRoot: context.projectRoot,
   });
 
@@ -563,7 +564,7 @@ function writeIntoMarkerSection(params: {
   if (spliced === null) {
     const divert = resolveDivertTarget({
       relativePath: target.relativePath,
-      projectFolderId: context.projectFolderId,
+      workScopeKey: context.workScopeKey,
       projectRoot: context.projectRoot,
     });
     const available = existing ? findMarkerSectionNames(existing) : [];

@@ -35,21 +35,22 @@ vi.mock("@/lib/agent/tools/registry", async () => {
   };
 });
 
-vi.mock("@/lib/agent/project-folder-guard", async (importOriginal) => {
+vi.mock("@/lib/agent/work-scope-guard", async (importOriginal) => {
   const actual =
-    await importOriginal<typeof import("@/lib/agent/project-folder-guard")>();
+    await importOriginal<typeof import("@/lib/agent/work-scope-guard")>();
   return {
     ...actual,
-    checkProjectFolderExists: vi.fn(() => null),
+    checkWorkScopeExists: vi.fn(() => null),
   };
 });
 
 import { resolveLlmProvider } from "@/lib/agent/llm/resolve-provider";
 import { executeRegisteredTool } from "@/lib/agent/tools/registry";
 import {
-  checkProjectFolderExists,
-  AGENT_PROJECT_FOLDER_MISSING_ERROR,
-} from "@/lib/agent/project-folder-guard";
+  checkWorkScopeExists,
+  AGENT_WORK_SCOPE_MISSING_ERROR,
+} from "@/lib/agent/work-scope-guard";
+import { SCOPE, scopeDisplayPath } from "@/__tests__/helpers/work-scope-fixture";
 
 function mockProvider(turns: ProviderTurnResult[]) {
   let index = 0;
@@ -320,8 +321,8 @@ describe("runAgentLoop safety valves", () => {
   beforeEach(() => {
     vi.mocked(resolveLlmProvider).mockReset();
     vi.mocked(executeRegisteredTool).mockReset();
-    vi.mocked(checkProjectFolderExists).mockReset();
-    vi.mocked(checkProjectFolderExists).mockReturnValue(null);
+    vi.mocked(checkWorkScopeExists).mockReset();
+    vi.mocked(checkWorkScopeExists).mockReturnValue(null);
   });
 
   it("returns broken tool_use as recoverable tool_result and continues", async () => {
@@ -356,7 +357,7 @@ describe("runAgentLoop safety valves", () => {
       messages: [{ role: "user", content: "hi" }],
       toolNames: [],
       emit,
-      projectFolderId: "demo",
+      workScopeKey: SCOPE,
     });
 
     expect(result.ok).toBe(true);
@@ -408,7 +409,7 @@ describe("runAgentLoop safety valves", () => {
       messages: [{ role: "user", content: "hi" }],
       toolNames: [],
       emit: vi.fn(),
-      projectFolderId: "demo",
+      workScopeKey: SCOPE,
     });
 
     expect(result.ok).toBe(true);
@@ -446,7 +447,7 @@ describe("runAgentLoop safety valves", () => {
       messages: [{ role: "user", content: "hi" }],
       toolNames: [],
       emit,
-      projectFolderId: "demo",
+      workScopeKey: SCOPE,
     });
 
     expect(result.ok).toBe(true);
@@ -462,7 +463,7 @@ describe("runAgentLoop safety valves", () => {
 
   it("continues after 2 identical tool errors then stops on the 3rd", async () => {
     const errorResult = {
-      error: "ファイルが見つかりません: workspace/demo/x.md",
+      error: `ファイルが見つかりません: ${scopeDisplayPath("x.md")}`,
     };
     vi.mocked(executeRegisteredTool).mockResolvedValue({
       result: errorResult,
@@ -497,7 +498,7 @@ describe("runAgentLoop safety valves", () => {
       messages: [{ role: "user", content: "hi" }],
       toolNames: [],
       emit: vi.fn(),
-      projectFolderId: "demo",
+      workScopeKey: SCOPE,
     });
 
     expect(executeRegisteredTool).toHaveBeenCalledTimes(3);
@@ -507,9 +508,9 @@ describe("runAgentLoop safety valves", () => {
     expect(result.error).toContain("ファイルが見つかりません");
   });
 
-  it("aborts immediately when project folder is missing", async () => {
-    vi.mocked(checkProjectFolderExists).mockReturnValue(
-      `${AGENT_PROJECT_FOLDER_MISSING_ERROR} (workspace/demo)`,
+  it("aborts immediately when the work scope folder is missing", async () => {
+    vi.mocked(checkWorkScopeExists).mockReturnValue(
+      `${AGENT_WORK_SCOPE_MISSING_ERROR} (${scopeDisplayPath()})`,
     );
     vi.mocked(resolveLlmProvider).mockReturnValue({
       ok: true,
@@ -529,12 +530,12 @@ describe("runAgentLoop safety valves", () => {
       messages: [{ role: "user", content: "hi" }],
       toolNames: [],
       emit: vi.fn(),
-      projectFolderId: "demo",
+      workScopeKey: SCOPE,
     });
 
     expect(result).toEqual({
       ok: false,
-      error: `${AGENT_PROJECT_FOLDER_MISSING_ERROR} (workspace/demo)`,
+      error: `${AGENT_WORK_SCOPE_MISSING_ERROR} (${scopeDisplayPath()})`,
       status: 409,
     });
     expect(executeRegisteredTool).not.toHaveBeenCalled();
@@ -545,8 +546,8 @@ describe("runAgentLoop auto-nudge (3値判定)", () => {
   beforeEach(() => {
     vi.mocked(resolveLlmProvider).mockReset();
     vi.mocked(executeRegisteredTool).mockReset();
-    vi.mocked(checkProjectFolderExists).mockReset();
-    vi.mocked(checkProjectFolderExists).mockReturnValue(null);
+    vi.mocked(checkWorkScopeExists).mockReset();
+    vi.mocked(checkWorkScopeExists).mockReturnValue(null);
     delete process.env.EBEX_AUTO_NUDGE;
   });
 
@@ -599,7 +600,7 @@ describe("runAgentLoop auto-nudge (3値判定)", () => {
       messages: [{ role: "user", content: "作って" }],
       toolNames: [],
       emit,
-      projectFolderId: "demo",
+      workScopeKey: SCOPE,
     });
 
     expect(result.ok).toBe(true);
@@ -633,7 +634,7 @@ describe("runAgentLoop auto-nudge (3値判定)", () => {
       messages: [{ role: "user", content: "hi" }],
       toolNames: [],
       emit,
-      projectFolderId: "demo",
+      workScopeKey: SCOPE,
     });
 
     expect(result.ok).toBe(true);
@@ -677,7 +678,7 @@ describe("runAgentLoop auto-nudge (3値判定)", () => {
       messages: [{ role: "user", content: "作って" }],
       toolNames: [],
       emit,
-      projectFolderId: "demo",
+      workScopeKey: SCOPE,
     });
 
     expect(result.ok).toBe(true);
@@ -710,7 +711,7 @@ describe("runAgentLoop auto-nudge (3値判定)", () => {
       messages: [{ role: "user", content: "作って" }],
       toolNames: [],
       emit,
-      projectFolderId: "demo",
+      workScopeKey: SCOPE,
     });
 
     expect(result.ok).toBe(true);
@@ -743,7 +744,7 @@ describe("runAgentLoop auto-nudge (3値判定)", () => {
       messages: [{ role: "user", content: "作って" }],
       toolNames: [],
       emit: vi.fn(),
-      projectFolderId: "demo",
+      workScopeKey: SCOPE,
     });
 
     expect(result.ok).toBe(true);
@@ -773,7 +774,7 @@ describe("runAgentLoop auto-nudge (3値判定)", () => {
       messages: [{ role: "user", content: "作って" }],
       toolNames: [],
       emit,
-      projectFolderId: "demo",
+      workScopeKey: SCOPE,
     });
 
     expect(result.ok).toBe(true);

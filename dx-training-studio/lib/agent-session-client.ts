@@ -6,7 +6,7 @@ import {
 } from "@/lib/agent-chat-storage";
 
 /**
- * @param scopeKey `serializeSessionScope` が返すスコープ文字列。空文字はシリーズ 0 件
+ * @param scopeKey `serializeWorkScope` が返すスコープ文字列。空文字はシリーズ 0 件
  *   （`contents/` 直下）を表す正当な値であり、エラーではない。
  *   サーバー・localStorage フォールバックの双方で同じキーを使う——スコープはパスなので
  *   フォルダのリネームに追従し、ID の再利用による誤った履歴の引き当ても起きない。

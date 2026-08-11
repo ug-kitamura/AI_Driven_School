@@ -77,7 +77,7 @@ export type ConfirmRequirement = {
 
 export type ConfirmGateOptions = ResolveToolPathOptions & {
   /**
-   * 上書き確認をスキップするパス（`workspace/...` 相対）。
+   * 上書き確認をスキップするパス（表示用パス。リポジトリルート相対）。
    * AI が今セッションで作成したファイル、またはユーザーが一度許可したファイル。
    */
   skipOverwritePaths?: ReadonlySet<string>;
@@ -118,7 +118,7 @@ function shouldSkipOverwrite(
   if (!skipOverwritePaths || skipOverwritePaths.size === 0) return false;
   const normalized = normalizeConfirmPath(relativePath);
   if (skipOverwritePaths.has(normalized)) return true;
-  // input が project 相対（notes.md）で set が workspace/demo/notes.md の場合など
+  // input が作業フォルダ相対（notes.md）で set が contents/<階層>/notes.md の場合など
   for (const skipped of skipOverwritePaths) {
     if (skipped === normalized) return true;
     if (
@@ -133,7 +133,7 @@ function shouldSkipOverwrite(
 
 function resolveWriteConfirm(
   projectRoot: string,
-  projectFolderId: string,
+  workScopeKey: string,
   inputPath: string,
   options: ConfirmGateOptions,
   requireExistsForOverwrite: boolean,
@@ -141,7 +141,7 @@ function resolveWriteConfirm(
   const { skipOverwritePaths, ...skillOptions } = options;
   const resolved = resolveToolTargetPath(
     projectRoot,
-    projectFolderId,
+    workScopeKey,
     inputPath,
     {
       ...skillOptions,
@@ -163,7 +163,7 @@ function resolveWriteConfirm(
     if (shouldSkipOverwrite(resolved.relativePath, skipOverwritePaths)) {
       return null;
     }
-    if (isPathInsideWorkDir(resolved.relativePath, projectFolderId)) {
+    if (isPathInsideWorkDir(resolved.relativePath, workScopeKey)) {
       return null;
     }
     return { kind: "overwrite", path: resolved.relativePath, isNew: false };
@@ -177,13 +177,13 @@ function resolveWriteConfirm(
  * - 実行中スキル配下の読取は確認不要（書込は実行時に拒否）
  * - プロジェクト内の既存ファイルへの上書きは確認必要（`overwrite`）
  *   ただし AI 作成済み／一度許可済みパス（skipOverwritePaths）は不要
- * - プロジェクト外（`workspace/` 配下だが対象プロジェクト外）は読取/書込とも確認必要
+ * - 書込許可ルート（`contents/` と `contents-plan/`）の外はパスガードが拒否する
  */
 const SCRIPT_CODE_DISPLAY_CHAR_LIMIT = 20_000;
 
 function resolveScriptWrites(
   projectRoot: string,
-  projectFolderId: string,
+  workScopeKey: string,
   writesInput: unknown,
   options: ConfirmGateOptions,
 ): Array<{ path: string; exists: boolean }> {
@@ -193,7 +193,7 @@ function resolveScriptWrites(
     if (typeof entry !== "string" || !entry.trim()) continue;
     const resolved = resolveToolTargetPath(
       projectRoot,
-      projectFolderId,
+      workScopeKey,
       entry,
       {
         ...options,
@@ -215,7 +215,7 @@ function resolveScriptWrites(
  */
 function resolveScriptConfirm(
   projectRoot: string,
-  projectFolderId: string,
+  workScopeKey: string,
   call: ToolCall,
   options: ConfirmGateOptions,
 ): ConfirmRequirement | null {
@@ -227,7 +227,7 @@ function resolveScriptConfirm(
     if (!code.trim()) return null; // broken tool_use 経路で処理される
     const writes = resolveScriptWrites(
       projectRoot,
-      projectFolderId,
+      workScopeKey,
       call.input?.writes,
       options,
     );
@@ -249,7 +249,7 @@ function resolveScriptConfirm(
   if (!scriptPathInput.trim()) return null;
   const resolved = resolveToolTargetPath(
     projectRoot,
-    projectFolderId,
+    workScopeKey,
     scriptPathInput,
     { ...options, preferSkillIfExists: true },
   );
@@ -288,7 +288,7 @@ function resolveScriptConfirm(
  */
 function resolveGenerateConfirm(
   projectRoot: string,
-  projectFolderId: string,
+  workScopeKey: string,
   call: ToolCall,
   options: ConfirmGateOptions,
 ): ConfirmRequirement | null {
@@ -299,7 +299,7 @@ function resolveGenerateConfirm(
 
   const resolved = resolveToolTargetPath(
     projectRoot,
-    projectFolderId,
+    workScopeKey,
     inputPath,
     { ...options, preferSkillIfExists: false },
   );
@@ -350,7 +350,7 @@ function resolveGenerateConfirm(
  */
 function resolveIsolatedTaskConfirm(
   projectRoot: string,
-  projectFolderId: string,
+  workScopeKey: string,
   call: ToolCall,
   options: ConfirmGateOptions,
 ): ConfirmRequirement | null {
@@ -385,7 +385,7 @@ function resolveIsolatedTaskConfirm(
 
   const resolved = resolveToolTargetPath(
     projectRoot,
-    projectFolderId,
+    workScopeKey,
     inputPath,
     {
       ...options,
@@ -414,22 +414,22 @@ function resolveIsolatedTaskConfirm(
 
 export function resolveConfirmRequirement(
   projectRoot: string,
-  projectFolderId: string,
+  workScopeKey: string,
   call: ToolCall,
   options: ConfirmGateOptions = {},
 ): ConfirmRequirement | null {
   if (call.name === "run_script" || call.name === "run_skill_script") {
-    return resolveScriptConfirm(projectRoot, projectFolderId, call, options);
+    return resolveScriptConfirm(projectRoot, workScopeKey, call, options);
   }
 
   if (call.name === "generate_and_write") {
-    return resolveGenerateConfirm(projectRoot, projectFolderId, call, options);
+    return resolveGenerateConfirm(projectRoot, workScopeKey, call, options);
   }
 
   if (call.name === "run_isolated_task") {
     return resolveIsolatedTaskConfirm(
       projectRoot,
-      projectFolderId,
+      workScopeKey,
       call,
       options,
     );
@@ -480,7 +480,7 @@ export function resolveConfirmRequirement(
 
     const fromResolved = resolveToolTargetPath(
       projectRoot,
-      projectFolderId,
+      workScopeKey,
       from,
       {
         ...options,
@@ -497,7 +497,7 @@ export function resolveConfirmRequirement(
       }
     }
 
-    return resolveWriteConfirm(projectRoot, projectFolderId, to, options, true);
+    return resolveWriteConfirm(projectRoot, workScopeKey, to, options, true);
   }
 
   const isRead = READ_TOOL_NAMES.has(call.name);
@@ -510,7 +510,7 @@ export function resolveConfirmRequirement(
   if (isRead) {
     const resolved = resolveToolTargetPath(
       projectRoot,
-      projectFolderId,
+      workScopeKey,
       inputPath,
       {
         ...options,
@@ -534,7 +534,7 @@ export function resolveConfirmRequirement(
     call.name === "copy_file";
   return resolveWriteConfirm(
     projectRoot,
-    projectFolderId,
+    workScopeKey,
     inputPath,
     options,
     requireOverwrite ||

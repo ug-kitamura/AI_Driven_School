@@ -15,13 +15,6 @@ import {
   type AgentFileOption,
 } from "@/lib/agent-chat-suggestions";
 import { WorkspaceTooltip } from "@/components/workspace/WorkspaceTooltip";
-import {
-  ALLOWED_PREFIX,
-  INTERNAL_DRAG_MIME,
-  internalDragProjectMime,
-  parseInternalDragPayload,
-} from "@/lib/workspace-constants";
-import { getProjectFolderId } from "@/lib/workspace-tree";
 
 export type { AgentFileOption };
 
@@ -63,8 +56,6 @@ type Props = {
   onRegisterAddAttachment?: (
     fn: (attachment: AgentFileAttachment) => void,
   ) => void;
-  /** Agent チャットの対象プロジェクトフォルダ ID（DnD 添付の可否判定） */
-  projectFolderId?: string;
 };
 
 function detectSuggestion(
@@ -93,12 +84,6 @@ function detectSuggestion(
   }
 
   return null;
-}
-
-function workspaceRelativePath(filePath: string): string {
-  return filePath.startsWith(ALLOWED_PREFIX)
-    ? filePath.slice(ALLOWED_PREFIX.length)
-    : filePath;
 }
 
 const SUGGESTION_VISIBLE_COUNT = 5;
@@ -146,7 +131,6 @@ export function AgentChatInput({
   onLoadContentFiles,
   onBuiltinCommand,
   onRegisterAddAttachment,
-  projectFolderId = "",
 }: Props) {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const suggestionListRef = useRef<HTMLDivElement>(null);
@@ -154,7 +138,6 @@ export function AgentChatInput({
   const [contentFiles, setContentFiles] = useState<AgentFileOption[]>([]);
   const [filesLoading, setFilesLoading] = useState(false);
   const [highlightIndex, setHighlightIndex] = useState(0);
-  const [isTreeDragOver, setIsTreeDragOver] = useState(false);
 
   const syncTextareaHeight = useCallback(() => {
     const textarea = textareaRef.current;
@@ -469,7 +452,7 @@ export function AgentChatInput({
               className="inline-flex items-center gap-0.5 rounded-full bg-violet-500/10 py-0.5 pl-2 pr-1 text-xs text-violet-700 dark:text-violet-300"
             >
               <WorkspaceTooltip
-                label={workspaceRelativePath(file.path)}
+                label={file.path}
                 render={<span>{file.name}</span>}
               />
               <button
@@ -541,53 +524,7 @@ export function AgentChatInput({
           </div>
         ) : null}
 
-        <div
-          className={cn(
-            "relative flex flex-col overflow-hidden rounded-lg border bg-white dark:bg-muted",
-            isTreeDragOver
-              ? "border-primary ring-2 ring-primary"
-              : "border-border",
-          )}
-          onDragOver={(event) => {
-            const types = event.dataTransfer.types;
-            if (!types.includes(INTERNAL_DRAG_MIME)) return;
-            // 別プロジェクトのファイル（および所属 MIME を持たないフォルダ）は
-            // preventDefault しない＝ドロップ禁止のままハイライトも出さない
-            if (
-              !projectFolderId ||
-              !types.includes(internalDragProjectMime(projectFolderId))
-            ) {
-              return;
-            }
-            event.preventDefault();
-            setIsTreeDragOver(true);
-          }}
-          onDragLeave={(event) => {
-            if (
-              !event.currentTarget.contains(event.relatedTarget as Node | null)
-            ) {
-              setIsTreeDragOver(false);
-            }
-          }}
-          onDrop={(event) => {
-            const raw = event.dataTransfer.getData(INTERNAL_DRAG_MIME);
-            setIsTreeDragOver(false);
-            if (!raw) return;
-            event.preventDefault();
-            const payload = parseInternalDragPayload(raw);
-            if (payload?.kind !== "file") return;
-            if (
-              !projectFolderId ||
-              getProjectFolderId(payload.folderPath) !== projectFolderId
-            ) {
-              return;
-            }
-            addFileAttachment({
-              path: `${ALLOWED_PREFIX}${payload.folderPath}/${payload.fileName}`,
-              name: payload.fileName,
-            });
-          }}
-        >
+        <div className="relative flex flex-col overflow-hidden rounded-lg border border-border bg-white dark:bg-muted">
           <textarea
             ref={textareaRef}
             value={value}

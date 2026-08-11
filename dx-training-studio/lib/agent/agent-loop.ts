@@ -40,7 +40,6 @@ import {
   resolveModelProfile,
 } from "@/lib/agent/model-profiles";
 import { classifyTurnEnd, hasTextProgress } from "@/lib/agent/turn-end";
-import { appendDiagnosticsRecord } from "@/lib/rename-diagnostics";
 import {
   executeRegisteredTool,
   isScriptToolName,
@@ -65,7 +64,7 @@ import {
   SEARCH_MANUAL_RESULT_NOTICE,
   type SearchSessionState,
 } from "@/lib/agent/tools/search-provider";
-import { checkProjectFolderExists } from "@/lib/agent/project-folder-guard";
+import { checkWorkScopeExists } from "@/lib/agent/work-scope-guard";
 import type { ToolDefinition } from "@/lib/agent/llm/types";
 import { getProjectRoot } from "@/lib/project-root";
 
@@ -78,7 +77,7 @@ export type RunAgentLoopOptions = {
   toolNames: string[];
   emit: AgentLoopEmit;
   signal?: AbortSignal;
-  projectFolderId?: string;
+  workScopeKey?: string;
   skillId?: string;
   skillDirAbsolute?: string;
   /** dx 固有: 社内コンテキストの保存先モード（search/select_company_context 用） */
@@ -313,39 +312,41 @@ export async function runAgentLoop(
   const llmMessages = [...options.messages];
   const toolEvents: AgentToolEvent[] = [];
   const toolTurns: AgentLogicalTurn[] = [];
-  const projectFolderId = options.projectFolderId;
+  const workScopeKey = options.workScopeKey;
   const skillOptions = {
     skillId: options.skillId,
     skillDirAbsolute: options.skillDirAbsolute,
   };
   const searchProvider = resolveSearchProvider(options.req);
   const searchSession: SearchSessionState = { unavailable: false };
-  const toolContext: ToolExecutionContext | undefined = projectFolderId
-    ? {
-        projectRoot: getProjectRoot(),
-        projectFolderId,
-        ...skillOptions,
-        ...(options.signal ? { signal: options.signal } : {}),
-        search: { provider: searchProvider, session: searchSession },
-        generate: {
-          provider: providerResult.provider,
-          apiKey,
-          model: providerResult.model,
-          maxTokens,
-          signal: options.signal,
-          providerParams: profile.providerParams.generate,
-        },
-        ...(options.contextMode ? { contextMode: options.contextMode } : {}),
-      }
-    : options.contextMode
-      ? // dx: 案件フォルダなしでも社内コンテキスト検索ツールは動かす
-        // （ファイル系ツールはフォルダ必須のため invoke 側で非提示にする）
-        {
+  // 空文字は contents/ 直下を指す正当なスコープ。未指定（undefined）とは区別する
+  const toolContext: ToolExecutionContext | undefined =
+    workScopeKey !== undefined
+      ? {
           projectRoot: getProjectRoot(),
-          projectFolderId: "",
-          contextMode: options.contextMode,
+          workScopeKey,
+          ...skillOptions,
+          ...(options.signal ? { signal: options.signal } : {}),
+          search: { provider: searchProvider, session: searchSession },
+          generate: {
+            provider: providerResult.provider,
+            apiKey,
+            model: providerResult.model,
+            maxTokens,
+            signal: options.signal,
+            providerParams: profile.providerParams.generate,
+          },
+          ...(options.contextMode ? { contextMode: options.contextMode } : {}),
         }
-      : undefined;
+      : options.contextMode
+        ? // dx: 案件フォルダなしでも社内コンテキスト検索ツールは動かす
+          // （ファイル系ツールはフォルダ必須のため invoke 側で非提示にする）
+          {
+            projectRoot: getProjectRoot(),
+            workScopeKey: "",
+            contextMode: options.contextMode,
+          }
+        : undefined;
 
   const projectRoot = getProjectRoot();
 
@@ -398,36 +399,16 @@ export async function runAgentLoop(
     templateResidualByPath.set(record.path, remaining);
   };
 
-  const logTurnDiagnostics = (params: {
-    stopReason: string;
-    outputTokens?: number;
-    textChars: number;
-    toolCallCount: number;
-    continuations: number;
-    turnEnd?: string;
-  }) => {
-    // `.meta/diagnostics.log` の outputTokens と同じ値（可視トークン数）をクライアントへ通知する。
-    // セッション累計はチャットセッション（複数 invoke をまたぐ）単位のため、クライアント側で積算する。
-    if (params.outputTokens !== undefined) {
-      options.emit("token_usage", { outputTokens: params.outputTokens });
-    }
-    // テスト実行では実ワークスペースの diagnostics.log を汚染しない
-    if (process.env.VITEST) return;
-    appendDiagnosticsRecord(projectRoot, {
-      type: "turn",
-      timestamp: new Date().toISOString(),
-      model: providerResult.model,
-      stopReason: params.stopReason,
-      ...(params.outputTokens !== undefined
-        ? { outputTokens: params.outputTokens }
-        : {}),
-      textChars: params.textChars,
-      toolCallCount: params.toolCallCount,
-      continuations: params.continuations,
-      nudges,
-      leftoverArtifacts: totalLeftoverArtifacts(),
-      ...(params.turnEnd ? { turnEnd: params.turnEnd } : {}),
-    });
+  /**
+   * ターンの可視トークン数をクライアントへ通知する。
+   * セッション累計はチャットセッション（複数 invoke をまたぐ）単位のため、
+   * クライアント側で積算する。
+   *
+   * 診断ログのファイル追記は `retire-workspace-folder` で廃止した。
+   */
+  const emitTurnTokenUsage = (outputTokens?: number) => {
+    if (outputTokens === undefined) return;
+    options.emit("token_usage", { outputTokens });
   };
 
   const emitLogicalTurn = (turn: AgentLogicalTurn) => {
@@ -439,8 +420,8 @@ export async function runAgentLoop(
   };
 
   for (let turn = 0; turn < MAX_AGENT_LOOP_TURNS; turn += 1) {
-    if (projectFolderId) {
-      const missing = checkProjectFolderExists(projectRoot, projectFolderId);
+    if (workScopeKey) {
+      const missing = checkWorkScopeExists(projectRoot, workScopeKey);
       if (missing) {
         return { ok: false, error: missing, status: 409 };
       }
@@ -478,14 +459,7 @@ export async function runAgentLoop(
         hadAnyToolCalls: anyToolCallsInInvoke,
         leftoverArtifactCount: totalLeftoverArtifacts(),
       });
-      logTurnDiagnostics({
-        stopReason: turnResult.stopReason,
-        outputTokens: turnResult.outputTokens,
-        textChars: turnText.length,
-        toolCallCount: 0,
-        continuations: stepOutcome.continuations,
-        turnEnd,
-      });
+      emitTurnTokenUsage(turnResult.outputTokens);
 
       if (turnEnd === "stalled" && autoNudgeEnabled) {
         // 進捗判定: 直前の nudge 後テキストと比較（進捗なし 2 連続で停止）
@@ -540,8 +514,8 @@ export async function runAgentLoop(
       if (options.signal?.aborted) {
         return { ok: true, toolEvents, toolTurns };
       }
-      if (projectFolderId) {
-        const missing = checkProjectFolderExists(projectRoot, projectFolderId);
+      if (workScopeKey) {
+        const missing = checkWorkScopeExists(projectRoot, workScopeKey);
         if (missing) {
           return { ok: false, error: missing, status: 409 };
         }
@@ -587,7 +561,7 @@ export async function runAgentLoop(
         const requirement = toolContext
           ? resolveConfirmRequirement(
               toolContext.projectRoot,
-              toolContext.projectFolderId,
+              toolContext.workScopeKey,
               call,
               {
                 ...skillOptions,
@@ -737,13 +711,7 @@ export async function runAgentLoop(
       }
     }
 
-    logTurnDiagnostics({
-      stopReason: turnResult.stopReason,
-      outputTokens: turnResult.outputTokens,
-      textChars: turnText.length,
-      toolCallCount: turnResult.toolCalls.length,
-      continuations: stepOutcome.continuations,
-    });
+    emitTurnTokenUsage(turnResult.outputTokens);
 
     emitLogicalTurn({
       text: turnText || undefined,

@@ -583,6 +583,9 @@ export async function runAgentLoop(
             ...(requirement.inlineAssets
               ? { inlineAssets: requirement.inlineAssets }
               : {}),
+            ...(requirement.createFolder
+              ? { createFolder: requirement.createFolder }
+              : {}),
           });
           const resolution = await awaitToolConfirmDecision(
             call.id,

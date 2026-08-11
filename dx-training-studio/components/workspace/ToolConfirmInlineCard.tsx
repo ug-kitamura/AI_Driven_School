@@ -13,6 +13,12 @@ type Props = {
   onManualSubmit: (manualSearchText: string) => void;
 };
 
+const LEVEL_LABELS = {
+  series: "シリーズ",
+  course: "コース",
+  lesson: "レッスン",
+} as const;
+
 function describeRequest(request: ToolConfirmRequiredEvent): {
   title: string;
   description: string;
@@ -25,18 +31,15 @@ function describeRequest(request: ToolConfirmRequiredEvent): {
         description: `プロジェクト内の既存ファイルに上書きしようとしています。\n\n対象: ${request.path}\n\nこの操作は元に戻せません。`,
         actionLabel: "上書きする",
       };
-    case "outside-project-read":
+    case "create-content-folder": {
+      const folders = request.createFolder?.folders ?? [];
+      const lines = folders.map((f) => `  ${LEVEL_LABELS[f.level]}「${f.name}」`);
       return {
-        title: "プロジェクト外のファイルを読み取りますか？",
-        description: `開いているプロジェクトフォルダの外を指すファイルを読み取ろうとしています。\n\n対象: ${request.path}`,
-        actionLabel: "読み取りを許可",
+        title: "新しいフォルダを作成しますか？",
+        description: `教材ツリーに次のフォルダが新しく作られます。名前に打ち間違いがないか確認してください。\n\n${lines.join("\n")}\n\n対象: ${request.path}`,
+        actionLabel: "作成する",
       };
-    case "outside-project-write":
-      return {
-        title: "プロジェクト外へ書き込みますか？",
-        description: `開いているプロジェクトフォルダの外へ${request.isNew ? "新規ファイルを作成" : "既存ファイルを上書き"}しようとしています。\n\n対象: ${request.path}\n区別: ${request.isNew ? "新規作成" : "上書き"}`,
-        actionLabel: request.isNew ? "作成を許可" : "上書きを許可",
-      };
+    }
     case "run-script":
       return {
         title: "スクリプトを実行しますか？",

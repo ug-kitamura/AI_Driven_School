@@ -23,14 +23,21 @@ TBD - created by archiving change port-ebex-agent-core. Update Purpose after arc
 
 `contents-plan/` への書込は明示プレフィックス（`contents-plan/...`）で行わなければならない（SHALL）——相対パスの基準ではない。
 
-**正本ツリーの構造を壊さない。** `contents/` 配下に置いてよい成果物は**レッスン本文（`<レッスン名>/contents.md`）のみ**である。書込系ツールは、`contents/` 配下に新しいディレクトリを作る書込を、**フォーカス中のコースの直下にレッスンフォルダを作る場合を除いて**拒否しなければならない（SHALL）。
+**正本ツリーでは、予約された名前のファイルだけを拒否する。** それ以外のファイルは階層を問わず書込を許可しなければならない（SHALL）。判定は**書込先パスのみ**で行い、ファイル内容を参照してはならない（MUST NOT）。
 
-これはシリーズ階層および `contents/` 直下でとくに重要である。ローダーはそれらの階層のディレクトリを無条件にコース・シリーズとして解釈するため、中間生成物のディレクトリがそのまま**幻のコース・幻のシリーズ**として画面に現れ、`.meta.json` まで書き込まれる。中間生成物は `contents-plan/` へ置く。
+拒否しなければならない名前（SHALL）:
 
-なお frontmatter・ファイル名規約のスキーマ検査と構造分類（上書き確認・新シリーズの近似照合）は本要件の範囲外であり、後続 change `contents-write-gate` が担う。
+- `session.json` および `.meta.json` — アプリが管理する。agent が書くと安定 id や表示順が壊れる
+- `contents.md` のうち、レッスン階層（`contents/<シリーズ>/<コース>/<レッスン>/`）**以外**に置かれるもの — 偽のレッスン本文になるため
 
-#### Scenario: contents/ への書込は許可される
-- **WHEN** `write_file` が `contents/series-a/course-b/lesson-c.md` を対象に実行される
+ディレクトリ作成の深さによって書込を拒否してはならない（MUST NOT）——新しいシリーズ・コース・レッスンのフォルダを伴う書込は正当である。フォルダが新しく生まれる場合の実行前確認は `agent-confirm-gate` が規定する。
+
+拒否時のエラーメッセージは、拒否の理由・代替（別名にするか `contents-plan/` 配下へ書く）・拒否された実際のパスを含まなければならない（SHALL）。
+
+frontmatter のスキーマ検査は本要件の範囲外である——アプリが読込時に lesson frontmatter を正規化するため、書込時に重ねて検査しない。
+
+#### Scenario: レッスン本文への書込は許可される
+- **WHEN** `write_file` が `contents/シリーズA/コースB/レッスンC/contents.md` を対象に実行される
 - **THEN** 書込が実行される（確認ゲートの要件は agent-confirm-gate に従う）
 
 #### Scenario: contents-plan/ への書込は許可される
@@ -39,20 +46,36 @@ TBD - created by archiving change port-ebex-agent-core. Update Purpose after arc
 
 #### Scenario: 素の相対パスはフォーカス中のコンテンツフォルダへ解決される
 - **WHEN** レッスンにフォーカスした状態で `write_file` が `contents.md` を対象に実行される
-- **THEN** パスは `contents/<シリーズ>/<コース>/<レッスン>/contents.md` へ解決される
+- **THEN** パスは `contents/<シリーズ>/<コース>/<レッスン>/contents.md` へ解決され、書込が実行される
 
 #### Scenario: 素の相対パスはリポ直下へ届かない
 - **WHEN** `write_file` が `data/workspace.json` を対象に実行される
 - **THEN** パスはフォーカス中のコンテンツフォルダ配下へ解決され、リポ直下の `data/` には書き込まれない
 
-#### Scenario: シリーズ階層で新しいディレクトリを作れない
-- **WHEN** シリーズにフォーカスした状態で `write_file` が `メモ/note.md` を対象に実行される
-- **THEN** エラー結果（recoverable）が返り、中間生成物は `contents-plan/` へ置くよう案内される
-- **AND** `contents/<シリーズ>/メモ/` は作られない
-
-#### Scenario: コース直下のレッスンフォルダ作成は許可される
-- **WHEN** コースにフォーカスした状態で `write_file` が `新しいレッスン/contents.md` を対象に実行される
+#### Scenario: 予約名以外のファイルはどの階層でも許可される
+- **WHEN** `write_file` が `contents/シリーズA/コースB/レッスンC/memo.md` を対象に実行される
 - **THEN** 書込が実行される
+
+#### Scenario: レッスン配下の任意のディレクトリへ書ける
+- **WHEN** `write_file` が `contents/シリーズA/コースB/レッスンC/assets/diagram.svg` を対象に実行される
+- **THEN** 書込が実行される
+
+#### Scenario: レッスン階層以外の contents.md は拒否される
+- **WHEN** `write_file` が `contents/シリーズA/コースB/contents.md` を対象に実行される
+- **THEN** エラー結果が返り、置ける場所の案内が含まれる
+- **AND** ファイルは作られない
+
+#### Scenario: .meta.json への書込は拒否される
+- **WHEN** `write_file` が `contents/シリーズA/コースB/.meta.json` を対象に実行される
+- **THEN** エラー結果が返り、ファイルは書き換えられない
+
+#### Scenario: session.json への書込は拒否される
+- **WHEN** `write_file` が `contents/シリーズA/コースB/レッスンC/session.json` を対象に実行される
+- **THEN** エラー結果が返り、ファイルは書き換えられない
+
+#### Scenario: 新しいシリーズを伴うレッスン本文の書込は規約上は許可される
+- **WHEN** `write_file` が、いずれの階層も未作成の `contents/新シリーズ/新コース/新レッスン/contents.md` を対象に実行される
+- **THEN** パス規約による拒否は発生しない（実行前確認は agent-confirm-gate に従う）
 
 #### Scenario: workspace/ への書込は拒否される
 - **WHEN** `write_file` が `workspace/` 配下のパスを対象に実行される

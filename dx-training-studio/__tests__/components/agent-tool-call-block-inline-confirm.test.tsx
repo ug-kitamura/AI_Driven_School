@@ -45,6 +45,45 @@ describe("AgentToolCallBlock pendingConfirm (inline confirmation card)", () => {
     expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument();
   });
 
+  it("renders each new folder level with its label so typos are readable", () => {
+    const request: ToolConfirmRequiredEvent = {
+      toolUseId: "t-folder",
+      kind: "create-content-folder",
+      path: "contents/Git完全マスタシリーズ/新コース/新レッスン/contents.md",
+      isNew: true,
+      createFolder: {
+        folders: [
+          { level: "series", name: "Git完全マスタシリーズ" },
+          { level: "course", name: "新コース" },
+          { level: "lesson", name: "新レッスン" },
+        ],
+      },
+    };
+    const onApprove = vi.fn();
+
+    render(
+      <AgentToolCallBlock
+        events={[]}
+        pendingConfirm={request}
+        onConfirmApprove={onApprove}
+        onConfirmReject={vi.fn()}
+      />,
+    );
+
+    expect(
+      screen.getByText("新しいフォルダを作成しますか？"),
+    ).toBeInTheDocument();
+    // 打ち間違いを読んで判別できるよう、種別と名前が並ぶ
+    expect(
+      screen.getByText(/シリーズ「Git完全マスタシリーズ」/),
+    ).toBeInTheDocument();
+    expect(screen.getByText(/コース「新コース」/)).toBeInTheDocument();
+    expect(screen.getByText(/レッスン「新レッスン」/)).toBeInTheDocument();
+
+    fireEvent.click(screen.getByText("作成する"));
+    expect(onApprove).toHaveBeenCalledTimes(1);
+  });
+
   it("stays visible even when there are no paired tool events yet", () => {
     const request: ToolConfirmRequiredEvent = {
       toolUseId: "t2",

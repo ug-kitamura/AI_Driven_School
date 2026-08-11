@@ -1,7 +1,11 @@
 import fs from "node:fs";
 import path from "node:path";
 import { parseWorkScope, workScopeBaseDir } from "@/lib/work-scope";
-import { LESSON_CONTENTS_FILENAME } from "@/lib/lesson-paths";
+import {
+  CONTENT_META_FILENAME,
+  LESSON_CONTENTS_FILENAME,
+  LESSON_SESSION_FILENAME,
+} from "@/lib/lesson-paths";
 
 export type ToolPathZone = "project" | "skill" | "contents";
 
@@ -23,46 +27,80 @@ export type ResolvedToolPath = {
 
 export type ToolPathError = { error: string };
 
+/** ホスト非依存の論理プレフィックス（表示・入力の正本） */
+export const SKILL_LOGICAL_PREFIX = "skill/";
+/** 旧形式入力の互換（実行中スキル id のみ受理） */
+export const SKILL_LEGACY_PREFIX = ".claude/skills/";
+/** dx の書込ルート 1: 正本ツリー（レッスン草稿の着地） */
+export const CONTENTS_DIR_NAME = "contents";
+export const CONTENTS_PREFIX = `${CONTENTS_DIR_NAME}/`;
+/** dx の書込ルート 2: 作業ツリー（計画書・中間生成物） */
+export const CONTENTS_PLAN_DIR_NAME = "contents-plan";
+export const CONTENTS_PLAN_PREFIX = `${CONTENTS_PLAN_DIR_NAME}/`;
+
+/** レッスン本文が置かれる階層の深さ（`contents/<シリーズ>/<コース>/<レッスン>/`） */
+export const LESSON_FOLDER_DEPTH = 3;
+
+/** アプリが管理するファイル。agent は書き換えられない */
+const APP_OWNED_FILENAMES: readonly string[] = [
+  LESSON_SESSION_FILENAME,
+  CONTENT_META_FILENAME,
+];
+
 /**
- * 正本ツリーの**構造**を壊す書込を拒否する。
+ * 正本ツリー（`contents/`）への書込を検査する。
  *
- * ローダーは `contents/` 直下のディレクトリをシリーズ、シリーズ直下のディレクトリを
- * コースとして無条件に解釈する（`listLessonFolderNames` と違い `contents.md` の存在を
- * 要求しない）。そのため中間生成物のディレクトリがそこに生まれると、幻のシリーズ・
- * 幻のコースとして画面に現れ、`.meta.json` まで書き込まれてしまう。
+ * **ファイルは階層を問わず自由に置いてよい。** 予約された名前だけを拒否する。
  *
- * コース直下の新規ディレクトリは「新しいレッスン」として正当なので許可する。
- * レッスンフォルダ配下はローダーが走査しないため構造上は無害であり、ここでは拒否しない。
+ * - `session.json` / `.meta.json` — アプリが管理する。agent が書くと id や表示順が壊れる
+ * - `contents.md` — レッスン本文の予約名。レッスン階層
+ *   （`contents/<シリーズ>/<コース>/<レッスン>/`）以外に置くと偽のレッスン本文になる
  *
- * 「`contents/` に置いてよい成果物はレッスン本文だけ」という**方針**レベルの制限は、
- * frontmatter 検査や構造分類とあわせて後続 change `contents-write-gate` が担う。
- * 本関数は構造の防御に限る。
+ * ディレクトリの新設はここでは拒否しない。シリーズ・コース・レッスンと誤解される
+ * 階層のフォルダが生まれるときは、確認ゲート（`confirm-gate.ts`）が実行前に承認を取る。
+ *
+ * 判定は**書込先パスだけ**で行う。ファイル内容は見ない——アプリが読込・同期のたびに
+ * lesson frontmatter を正規化する（`normalizeAllLessonsInSeries`）ため、書込時に
+ * スキーマを重ねて検査しない。
  *
  * 呼ぶのは書込系ツールのみ。読取は制限しない。
  */
-export function checkContentsWriteShape(
+export function checkContentsWritePath(
   resolved: ResolvedToolPath,
 ): ToolPathError | null {
   if (resolved.zone !== "contents") return null;
 
-  const parentDir = path.dirname(resolved.absolutePath);
-  // 既存ディレクトリへのファイル書込は構造を壊さない
-  if (fs.existsSync(parentDir)) return null;
-
-  // 新しいディレクトリが生まれる。その深さがシリーズ・コースと誤解釈されるかを見る。
-  // contents/<A>/<B>/... のうち、<A>（シリーズ）と <B>（コース）の位置だけが危険。
+  // relativePath は `contents/...`。先頭の `contents` を落とす。
   const segments = resolved.relativePath.split("/").slice(1).filter(Boolean);
-  // segments.length は末尾のファイル名を含む。
-  // 2 = contents/<新A>/file      → <新A> が幻のシリーズ
-  // 3 = contents/<A>/<新B>/file  → <新B> が幻のコース
-  if (segments.length >= 4) return null;
+  const fileName = segments[segments.length - 1];
+  if (!fileName) return null;
 
-  const kind = segments.length <= 2 ? "シリーズ" : "コース";
-  return {
-    error:
-      `正本ツリー（contents/）のこの位置に新しいフォルダを作ると、幻の${kind}として` +
-      `画面に現れます。中間生成物は contents-plan/ 配下へ書いてください: ${resolved.relativePath}`,
-  };
+  if (APP_OWNED_FILENAMES.includes(fileName)) {
+    return {
+      error: [
+        `${fileName} はアプリが管理するファイルです。agent からは変更できません。`,
+        "レッスンの並び順はペイン1・2 のドラッグで変更してください。",
+        `書こうとしたパス: ${resolved.relativePath}`,
+      ].join("\n"),
+    };
+  }
+
+  // レッスン本文の予約名。レッスン階層以外に置くと偽の本文になる
+  if (
+    fileName === LESSON_CONTENTS_FILENAME &&
+    segments.length - 1 !== LESSON_FOLDER_DEPTH
+  ) {
+    return {
+      error: [
+        `${LESSON_CONTENTS_FILENAME} はレッスン本文の予約名です。`,
+        `置けるのは ${CONTENTS_PREFIX}<シリーズ>/<コース>/<レッスン>/ の直下だけです。`,
+        `作業ファイルは別の名前にするか ${CONTENTS_PLAN_PREFIX} 配下へ書いてください。`,
+        `書こうとしたパス: ${resolved.relativePath}`,
+      ].join("\n"),
+    };
+  }
+
+  return null;
 }
 
 export type ResolveToolPathOptions = {
@@ -74,22 +112,11 @@ export type ResolveToolPathOptions = {
    */
   preferSkillIfExists?: boolean;
   /**
-   * 書込ツールから呼ぶときに true。正本ツリーの構造を壊す書込
-   * （`contents/` 配下への新規フォルダ作成）を拒否する。
+   * 書込ツールから呼ぶときに true。正本ツリーへの書込を
+   * レッスン本文（`<レッスン名>/contents.md`）だけに限定する。
    */
   forWrite?: boolean;
 };
-
-/** ホスト非依存の論理プレフィックス（表示・入力の正本） */
-export const SKILL_LOGICAL_PREFIX = "skill/";
-/** 旧形式入力の互換（実行中スキル id のみ受理） */
-export const SKILL_LEGACY_PREFIX = ".claude/skills/";
-/** dx の書込ルート 1: 正本ツリー（レッスン草稿の着地） */
-export const CONTENTS_DIR_NAME = "contents";
-export const CONTENTS_PREFIX = `${CONTENTS_DIR_NAME}/`;
-/** dx の書込ルート 2: 作業ツリー（計画書・中間生成物） */
-export const CONTENTS_PLAN_DIR_NAME = "contents-plan";
-export const CONTENTS_PLAN_PREFIX = `${CONTENTS_PLAN_DIR_NAME}/`;
 
 function isUnsafePath(raw: string): boolean {
   return (
@@ -267,8 +294,8 @@ export function resolveToolTargetPath(
       inputPath,
     );
     if ("error" in r) return r;
-    const shape = options.forWrite ? checkContentsWriteShape(r) : null;
-    return shape ?? r;
+    const rule = options.forWrite ? checkContentsWritePath(r) : null;
+    return rule ?? r;
   }
 
   // 明示プレフィックスなし → 作業フォルダ（フォーカス中のコンテンツフォルダ）相対
@@ -288,8 +315,8 @@ export function resolveToolTargetPath(
 
   // モデルが素の相対パスを書いた場合でも、
   // 作業フォルダ側に無くスキル側にあればスキルを優先（読取時のみ）
-  const shape = options.forWrite ? checkContentsWriteShape(resolved) : null;
-  if (shape) return shape;
+  const rule = options.forWrite ? checkContentsWritePath(resolved) : null;
+  if (rule) return rule;
 
   if (
     options.preferSkillIfExists &&

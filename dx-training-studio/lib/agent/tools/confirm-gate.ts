@@ -1,5 +1,7 @@
 import fs from "node:fs";
+import path from "node:path";
 import {
+  CONTENTS_DIR_NAME,
   resolveToolTargetPath,
   type ResolveToolPathOptions,
   type ToolPathError,
@@ -7,6 +9,7 @@ import {
 import { detectNetworkAccessHint } from "@/lib/agent/tools/script-sandbox";
 import { normalizeMarkerName } from "@/lib/agent/tools/replace-feedback";
 import { isPathInsideWorkDir } from "@/lib/agent/skill-io-boundary";
+import { isContentFolderName } from "@/lib/contents-loader";
 import type { LlmMessage, ToolCall } from "@/lib/agent/llm/types";
 import type { ConfirmKind } from "@/lib/agent/tools/confirm-kind";
 
@@ -42,6 +45,20 @@ export type ConfirmInlineAssetsInfo = {
   targets: string[];
 };
 
+/** 正本ツリーで新しく作られる階層 */
+export type ConfirmCreatedFolder = {
+  /** どの階層か */
+  level: "series" | "course" | "lesson";
+  /** フォルダ名（ユーザーが打ち間違いを読んで判別できるよう原文のまま） */
+  name: string;
+};
+
+/** コンテンツフォルダ作成確認の表示ペイロード */
+export type ConfirmCreateFolderInfo = {
+  /** 新しく作られる階層。上位（シリーズ）から順に並ぶ */
+  folders: ConfirmCreatedFolder[];
+};
+
 /** generate_and_write 確認の表示ペイロード */
 export type ConfirmGenerateInfo = {
   /** 何のために生成するか（モデル申告） */
@@ -73,6 +90,8 @@ export type ConfirmRequirement = {
   generate?: ConfirmGenerateInfo;
   /** インライン化確認（kind: inline-assets）の表示情報 */
   inlineAssets?: ConfirmInlineAssetsInfo;
+  /** コンテンツフォルダ作成確認（kind: create-content-folder）の表示情報 */
+  createFolder?: ConfirmCreateFolderInfo;
 };
 
 export type ConfirmGateOptions = ResolveToolPathOptions & {
@@ -131,6 +150,37 @@ function shouldSkipOverwrite(
   return false;
 }
 
+/** 正本ツリーの階層順（上位から） */
+const CONTENT_FOLDER_LEVELS = ["series", "course", "lesson"] as const;
+
+/**
+ * 正本ツリーへの書込で**新しく生まれる構造の階層**を、上位から順に列挙する。
+ *
+ * 対象は `contents/` 直下から 3 段（シリーズ・コース・レッスン）だけ。
+ * レッスンより深いディレクトリはローダーが走査しないため確認しない。
+ * `_` / `.` 始まりも構造として解釈されない（`isContentFolderName`）ので確認しない。
+ *
+ * 既に全段が存在する場合は空配列（＝確認不要。上書き確認の判定へ落ちる）。
+ */
+function collectCreatedContentFolders(
+  projectRoot: string,
+  relativePath: string,
+): ConfirmCreatedFolder[] {
+  // 末尾のファイル名を除いたディレクトリ部分
+  const dirSegments = relativePath.split("/").slice(1, -1).filter(Boolean);
+
+  const created: ConfirmCreatedFolder[] = [];
+  let dir = path.resolve(projectRoot, CONTENTS_DIR_NAME);
+  for (const [index, level] of CONTENT_FOLDER_LEVELS.entries()) {
+    const name = dirSegments[index];
+    if (!name) break;
+    dir = path.resolve(dir, name);
+    if (!isContentFolderName(name)) continue;
+    if (!fs.existsSync(dir)) created.push({ level, name });
+  }
+  return created;
+}
+
 function resolveWriteConfirm(
   projectRoot: string,
   workScopeKey: string,
@@ -146,19 +196,32 @@ function resolveWriteConfirm(
     {
       ...skillOptions,
       preferSkillIfExists: false,
+      // 規約に反するパスは実行時にパスガードが拒否する。確認は出さない
+      forWrite: true,
     },
   );
   if ("error" in resolved) return null;
   if (resolved.insideSkill) return null;
+  if (!resolved.insideProject) return null;
+
+  // 新しいシリーズ・コース・レッスンが生まれる書込は、上書き判定より先に確認する
+  // （両者は排他: 階層が無ければファイルも存在しない）
+  if (resolved.zone === "contents") {
+    const folders = collectCreatedContentFolders(
+      projectRoot,
+      resolved.relativePath,
+    );
+    if (folders.length > 0) {
+      return {
+        kind: "create-content-folder",
+        path: resolved.relativePath,
+        isNew: true,
+        createFolder: { folders },
+      };
+    }
+  }
 
   const exists = fs.existsSync(resolved.absolutePath);
-  if (!resolved.insideProject) {
-    return {
-      kind: "outside-project-write",
-      path: resolved.relativePath,
-      isNew: !exists,
-    };
-  }
   if (exists && requireExistsForOverwrite) {
     if (shouldSkipOverwrite(resolved.relativePath, skipOverwritePaths)) {
       return null;
@@ -173,7 +236,9 @@ function resolveWriteConfirm(
 
 /**
  * ツール呼び出しがユーザー確認を要するかどうかを判定する。
- * - プロジェクト内の新規書込・L1/L2 発見/読取は確認不要
+ * - 正本ツリーに新しいシリーズ・コース・レッスンが生まれる書込は確認必要
+ *   （`create-content-folder`。3 階層まとめて 1 回。上書き確認とは排他）
+ * - それ以外のプロジェクト内の新規書込・L1/L2 発見/読取は確認不要
  * - 実行中スキル配下の読取は確認不要（書込は実行時に拒否）
  * - プロジェクト内の既存ファイルへの上書きは確認必要（`overwrite`）
  *   ただし AI 作成済み／一度許可済みパス（skipOverwritePaths）は不要
@@ -284,7 +349,7 @@ function resolveScriptConfirm(
  * generate_and_write の確認要求を組み立てる。
  * 子 LLM 呼び出し（API トークン消費）を伴うため、書込先が新規でも毎回確認する
  * （skipOverwritePaths によるスキップはしない）。
- * プロジェクト外への書込は既存の outside-project-write として確認する。
+ * 書込許可ルート外はパスガードが実行時に拒否するため、確認要求は出さない。
  */
 function resolveGenerateConfirm(
   projectRoot: string,
@@ -305,15 +370,9 @@ function resolveGenerateConfirm(
   );
   if ("error" in resolved) return null; // 実行時に拒否される
   if (resolved.insideSkill) return null; // 実行時に拒否される
+  if (!resolved.insideProject) return null; // 実行時に拒否される
 
   const exists = fs.existsSync(resolved.absolutePath);
-  if (!resolved.insideProject) {
-    return {
-      kind: "outside-project-write",
-      path: resolved.relativePath,
-      isNew: !exists,
-    };
-  }
 
   const toStringArray = (value: unknown): string[] =>
     Array.isArray(value)
@@ -394,15 +453,9 @@ function resolveIsolatedTaskConfirm(
   );
   if ("error" in resolved) return null; // 実行時に拒否される
   if (resolved.insideSkill) return null; // 実行時に拒否される
+  if (!resolved.insideProject) return null; // 実行時に拒否される
 
   const exists = fs.existsSync(resolved.absolutePath);
-  if (!resolved.insideProject) {
-    return {
-      kind: "outside-project-write",
-      path: resolved.relativePath,
-      isNew: !exists,
-    };
-  }
 
   return {
     kind: "isolated-task",
@@ -478,25 +531,8 @@ export function resolveConfirmRequirement(
         : null;
     if (!from || !to) return null;
 
-    const fromResolved = resolveToolTargetPath(
-      projectRoot,
-      workScopeKey,
-      from,
-      {
-        ...options,
-        preferSkillIfExists: true,
-      },
-    );
-    if (!("error" in fromResolved)) {
-      if (!fromResolved.insideProject && !fromResolved.insideSkill) {
-        return {
-          kind: "outside-project-read",
-          path: fromResolved.relativePath,
-          isNew: false,
-        };
-      }
-    }
-
+    // コピー元が読取許可ゾーン外の場合は実行時にパスガードが拒否する。
+    // 確認は書込先についてのみ行う。
     return resolveWriteConfirm(projectRoot, workScopeKey, to, options, true);
   }
 
@@ -507,24 +543,8 @@ export function resolveConfirmRequirement(
   const inputPath = extractPathInput(call);
   if (!inputPath) return null;
 
-  if (isRead) {
-    const resolved = resolveToolTargetPath(
-      projectRoot,
-      workScopeKey,
-      inputPath,
-      {
-        ...options,
-        preferSkillIfExists: true,
-      },
-    );
-    if ("error" in resolved) return null;
-    if (resolved.insideProject || resolved.insideSkill) return null;
-    return {
-      kind: "outside-project-read",
-      path: resolved.relativePath,
-      isNew: false,
-    };
-  }
+  // 読取は確認不要。読取許可ゾーン外はパスガードが実行時に拒否する
+  if (isRead) return null;
 
   const requireOverwrite =
     call.name === "write_file" ||

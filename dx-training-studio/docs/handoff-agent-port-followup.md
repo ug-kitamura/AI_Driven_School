@@ -1,8 +1,8 @@
-# 引き継ぎ: EBEX agent 移植のフォローアップ（→ contents-write-gate → connection-profiles）
+# 引き継ぎ: EBEX agent 移植のフォローアップ（→ connection-profiles）
 
-**やること**: UI 崩れの修正と `workspace/` の廃止は完了済み。次は `contents/` 書込ゲート（`contents-write-gate`）、最後に接続プロファイル（`connection-profiles`）へ進む。
+**やること**: UI 崩れの修正・`workspace/` の廃止・`contents/` 書込ゲートはすべて完了済み。**この系統に残っているのは接続プロファイル（`connection-profiles`）だけ**で、会社持ち込みの直前でよい。
 
-本文書は `handoff-dx-training-create.md`（dx-training-create スキルの初回実行）とは別系統の引き継ぎ。**同スキルの初回実行を塞いでいた前提（置き場の移設）は解消済みなので、そちらは本文書の完了を待たずに着手できる。** 合流点は `contents-write-gate` のツール解禁（→ §3）。
+本文書は `handoff-dx-training-create.md`（dx-training-create スキルの初回実行）とは別系統の引き継ぎ。**次の主線はそちら。** 本文書側で残る接点は、初回実行を観測したあとのツール解禁（frontmatter に `tools:` を 1 行）だけ（→ §7）。
 
 ---
 
@@ -33,7 +33,13 @@
        contents-plan/ + contents/ の 2 ルートへ。ペイン4 のフォルダ選択 UI を撤去。
        テスト 737 green / build green / ブラウザ実機確認済み。詳細は §6
 
-[後] contents-write-gate       contents/ 書込ゲート（Zod 検査・構造分類 A/B/C）+ ツール解禁
+[済] contents-write-gate       実装完了（2026-08-11）
+       contents/ の書込を「予約名だけ拒否」に整理し、シリーズ・コース・
+       レッスンのフォルダ作成に確認ダイアログを追加。ローダーが `_` `.` 始まりの
+       ディレクトリを構造から除外。到達不能だった確認 kind を削除。
+       テスト 764 green / build green / ブラウザ実機確認済み。詳細は §7
+       ⚠ 当初案（Zod 検査・構造分類 A/B/C・近似照合）は**全部破棄**した
+
 [後] connection-profiles       接続プロファイル（独立。会社持ち込みの直前で可）
 ```
 
@@ -44,13 +50,13 @@
 
 ### 次のアクション
 
-1. **コミットする。** `retire-workspace-folder` の成果物 **89 パスが未コミット**（変更 55 / 削除 19 / 追加 3 / リネーム 1 / ステージ済み 8 / 未追跡 3）。Git 操作は別ツールで実施。`git log` の先頭は `b210b7b` のままで、実装セッション中に勝手なコミットは発生していない
-2. `contents-write-gate` に着手する（→ §3）。差し込み点は用意済み
-3. `handoff-dx-training-create.md` の初回実行は**本文書と独立に着手できる**（前提の移設は完了済み）
+1. `handoff-dx-training-create.md` の**初回実行**（前提はすべて解消済み。ここが次の主線）
+2. ペイン4 への**ツール解禁**。`dx-training-create` の frontmatter に `tools:` を 1 行足すだけ。初回実行を観測してからでよい（→ §7）
+3. `connection-profiles`（独立。会社持ち込みの直前で可）
 
 ### リポジトリの状態
 
-ブランチ `dx-training-studio2`。`adopt-contents-plan-layout` までの成果物はコミット済み（`retire-workspace-folder` のグループ2 の 4 ファイルだけ自動コミット `b210b7b` に混入している）。残りは全て未コミット。
+ブランチ `dx-training-studio2`。`retire-workspace-folder` までの成果物は `7112e1b` / `48be3f6` でコミット済み。`contents-write-gate` の成果物は未コミット（コミットは別ツールで手作業）。
 
 ⚠ **`openspec/changes/` は `.gitignore:31` で追跡外。** アーカイブした change artifacts（判断メモを書き込んだ `tasks.md` を含む）は**このマシンにしか存在しない**。他環境へ渡すなら git 以外の手段が要る。**コミットされる設計の記録は `openspec/specs/` だけ。**
 
@@ -102,7 +108,7 @@
 
 ---
 
-## 3. 【完了】置き場の一本化と workspace 廃止 → 次は contents-write-gate
+## 3. 【完了】置き場の一本化と workspace 廃止
 
 **当初案は破棄した。** 案件フォルダ（`workspace/<案件>/`）を作業ファイルの置き場にする計画だったが、
 探索の結果**計画書の置き場は最初から `docs/training-plan/` に存在して動いていた**ことが判明し、
@@ -129,26 +135,10 @@ contents-plan/
 **フォーカス中のコンテンツフォルダ**（EBEX 移植前の dx の挙動へ回帰）。
 設計の根拠は change の `design.md` D4b / D4c。
 
-### 次: `contents-write-gate`
+### 次: `contents-write-gate` → **完了（→ §7）**
 
-**差し込み点はすでに用意されている。** `checkContentsWriteShape`（`lib/agent/tools/fs-guard.ts`）が
-`writePathOptions(context)` の `forWrite: true` 経由で全書込サイトから呼ばれている。
-今は構造の防御だけなので、**同じ関数の隣にスキーマ検査と構造分類を足す**形になる。
-
-- Zod スキーマ + ファイル名規約の検査を書込ツールに差し込み、不合格は recoverable エラー + guidance で自己修正させる。構造分類も同じ差し込み点で: **A**=同名レッスン既存→上書き確認（confirm-gate がそのまま働く）/ **B**=既存シリーズ・コースへの追加→非ブロックのワーニング / **C**=新シリーズ発生→ワーニング + 既存 slug との近似照合（タイプミス由来の意図せぬ新規作成をモデルに自己修正させる）
-- ツール解禁は frontmatter `tools:` の宣言制（実装は全部入っている。宣言 1 行で解禁）
-
-**この change で一緒に片付けるとよいもの:**
-
-- **到達不能になった確認 kind の掃除。** `outside-project-read` / `outside-project-write` は 2 ルート化で
-  死んだ（→ §6）。`confirm-kind.ts` / `ToolConfirmInlineCard.tsx` / `OutsideProjectPathDialog.tsx` が
-  対象。確認 kind を触るこの change で落とすのが自然
-- ⚠ **ツール解禁と `dx-training-create` の衝突を先に確認すること。** 同スキルは
-  `contents/<シリーズ>/<コース>/<レッスン>/` を**ディレクトリごと作る**が、`checkContentsWriteShape` は
-  新シリーズ・新コースになるディレクトリ作成を拒否する。現状は同スキルが `tools:` 未宣言で
-  ペイン4 から書けないため衝突していないだけ。**解禁する前に、新シリーズ・新コースの作成経路を
-  どう通すか（構造分類 C の警告で通すのか、ペイン1 の UI 操作に委ねるのか）を決める。**
-  詳細は `handoff-dx-training-create.md` §1.2
+`dx-training-create` との衝突は解消した。同スキルが `contents/<シリーズ>/<コース>/<レッスン>/` を
+ディレクトリごと作る動作は、確認ダイアログを 1 枚挟んで通るようになった。
 
 スキル編集は `creating-skills` スキルの SSoT 作法で。制約の正本は `contracts/agent-write-contract.md` を参照させ再掲しない。
 
@@ -263,3 +253,86 @@ build:   green / ブラウザ実機確認済み
 - **テスト側の型エラーが 8 件残っている**が、**すべて本 change 以前からのもの**
   （`estimatedMinutes` の綴り違い・`use-image-lists` の型・invoke route test の implicit any 等）。
   `npm run test` は 737 green、`tsc --noEmit` のアプリ側はゼロ。直すなら独立した掃除として
+
+---
+
+## 7. 【2026-08-11】contents-write-gate の実施記録
+
+change artifacts は `openspec/changes/archive/2026-08-11-contents-write-gate/`。
+本体 spec への同期は 4 capability 分を手作業で実施済み（MODIFIED 3 / ADDED 2）。
+
+```
+着手前:  737 passed / 6 skipped （97 files）
+完了時:  764 passed / 6 skipped （97 files）  +27
+型:      tsc --noEmit のアプリ側エラーはゼロ（テスト側の既存 8 件は着手前から）
+lint:    16 errors（着手前と同数。新規ゼロ）
+build:   green / ブラウザ実機確認済み
+```
+
+### 決まった規約
+
+**contents/ ではファイルは階層を問わず自由に置ける。予約名だけ拒否する。**
+
+| 対象 | 判定 |
+|---|---|
+| `session.json` / `.meta.json` | **拒否**（アプリが管理。id・表示順が壊れる） |
+| `contents.md`（レッスン階層） | 許可（レッスン本文の着地） |
+| `contents.md`（それ以外の階層） | **拒否**（偽の本文になる） |
+| その他のファイル（どの階層でも） | 許可 |
+| 新シリーズ・新コース・新レッスンのフォルダ | 許可。ただし**実行前に確認ダイアログ** |
+| レッスンより深いフォルダ | 許可（確認なし。構造を作らない） |
+| `_` `.` 始まりのフォルダ | 許可（確認なし。ローダーが構造として解釈しない） |
+
+### ⚠ 当初案は全部破棄した
+
+**「Zod スキーマ検査 + 構造分類 A/B/C + 近似照合」は一つも実装していない。** 再提案しないこと。
+
+- **Zod 検査**: アプリが読込・同期のたびに frontmatter を正規化する
+  （`Workspace.tsx:82` / `use-content-sync.ts:87` の `normalizeAllLessonsInSeries`）ので二重になる。
+  加えて内容検査は書込ツールごとに見えるものが違い（append は追記分だけ、mkdir は内容なし）、
+  正しくやるには共有の書込コミット関数を新設して 9 箇所を通す必要があった
+- **構造分類 A/B/C・近似照合**: 確認ダイアログにシリーズ名が原文で出るので、
+  打ち間違いはユーザーが読んで気づける。機能まるごと不要になった
+- **`recoverable` フラグの配線**: コード上どこからも読まれていない
+  （モデルが tool_result の JSON をテキストで読むだけ）。エラー文字列を良くするだけで済んだ
+
+### 実装中に方針転換した点（重要）
+
+**最初は「`contents/<S>/<C>/<L>/contents.md` のみ許可」で実装し、全テストで 40 件が落ちた。**
+内訳は `write_file` / `copy_file` / `replace_in_file` / `replace_between` / `append_file` /
+`generate_and_write` / `inline_html_assets` / 額縁退避 / `run_script` の `writes` 宣言
+——**ファイル系ツール一式が正本ツリーで使えなくなっていた**。
+
+守りたかったのは「フォルダがシリーズ・コース・レッスンと混同されないこと」であって、
+ファイルの自由を奪うことではなかった。**混同はフォルダ側（確認ゲート + ローダー除外）で解ける。**
+ユーザー判断で上表の形に緩め、40 件はそのまま green に戻った。
+
+### 実装で判明した事実
+
+- **書込ゲートにはテストが 1 本も無かった。** 旧 `checkContentsWriteShape` は `forWrite` 経路も
+  含めて未カバーで、そのせいで `mkdir contents/<新S>` が素通りする穴に誰も気づいていなかった
+  （深さの数え方が「末尾はファイル名」前提で、`mkdir` では 1 段ずれる）。今回テストを付けた
+- **`OutsideProjectPathDialog` は生きていた。** 引き継ぎでは「死んだ確認 kind の道連れで削除」と
+  見込んでいたが、実際は確認 kind と無関係の機能で、**送信前にユーザーの入力文から
+  プロジェクト外を指すパス表記を検出して警告する**（`findOutsideProjectPathHints` 駆動・専用テストあり）。
+  削除していない。死んでいたのは `ToolConfirmInlineCard` の 2 ケースと kind 定義だけ
+- **ローダーはディレクトリ名を一切見ていなかった**（`isDirectory()` のみ）。`_work` は
+  フォーカスが「シリーズ」「contents 直下」のとき幻のコース・幻のシリーズになる。
+  `.meta.json` の `order` に残った名前も同じフィルタで弾くようにした
+- **退避機能（`resolveFramedWriteTarget`）は無変更。** 退避先は「モデルが推測できる決まった場所」で
+  なければならず、`contents-plan/runs/<run>/` へ向けようにも**「現在の run」はスキル側の
+  約束事でホストは知らない**ため計算できない
+
+### 未実施として残したこと
+
+- **ツール解禁はしていない。** 現在どのスキルもファイル書込ツールを宣言していない
+  （`general-chat` / `create-draft` は社内コンテキスト検索のみ）＝ペイン4 から `contents/` へ書く
+  経路は現時点でゼロ。本 change は先回りの防御。解禁は初回実行を観測してから `tools:` を 1 行
+- **確認カードは実機ではなくレンダリングテストで検証した**（上記のとおり発火経路が無いため）
+- **退避機能が `contents-plan/` を保護していない。** `toProjectRelative` がフォーカス中の
+  `contents/` 配下しか見ないため、額縁テンプレートが実際に置かれる `contents-plan/runs/` では
+  発火しない。守る先と実際の置き場がずれているが、必要な形は分割出力を実際に使ってからでないと
+  決まらないので触っていない
+- `content-folder-loader` spec の前半に**旧設計の記述が残っている**（`_series-order.json` /
+  `_course.json` / 数値プレフィックス）。実装は `.meta.json` の `order` で動いており乖離している。
+  本 change の範囲外として触っていない

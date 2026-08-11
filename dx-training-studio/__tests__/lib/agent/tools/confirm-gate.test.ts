@@ -292,6 +292,109 @@ describe("resolveConfirmRequirement", () => {
     });
     fs.rmSync(tmpDir, { recursive: true, force: true });
   });
+
+  it("does not confirm app-owned files the path guard rejects", () => {
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "ebex-confirm-"));
+    makeScope(tmpDir);
+    makeScopeFile(tmpDir, ".meta.json", "{}");
+    const req = resolveConfirmRequirement(tmpDir, SCOPE, {
+      id: "t1",
+      name: "write_file",
+      input: { path: ".meta.json", content: "{}" },
+    });
+    expect(req).toBeNull();
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+  });
+
+  it("confirms folder creation for a brand-new series/course/lesson", () => {
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "ebex-confirm-"));
+    fs.mkdirSync(path.join(tmpDir, "contents"), { recursive: true });
+    const req = resolveConfirmRequirement(tmpDir, SCOPE, {
+      id: "t1",
+      name: "write_file",
+      input: { path: "contents/新S/新C/新L/contents.md", content: "x" },
+    });
+    expect(req).toEqual({
+      kind: "create-content-folder",
+      path: "contents/新S/新C/新L/contents.md",
+      isNew: true,
+      createFolder: {
+        folders: [
+          { level: "series", name: "新S" },
+          { level: "course", name: "新C" },
+          { level: "lesson", name: "新L" },
+        ],
+      },
+    });
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+  });
+
+  it("confirms only the lesson level when series and course already exist", () => {
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "ebex-confirm-"));
+    makeScope(tmpDir);
+    const req = resolveConfirmRequirement(tmpDir, SCOPE, {
+      id: "t1",
+      name: "write_file",
+      input: { path: "contents/シリーズA/コースB/新L/contents.md", content: "x" },
+    });
+    expect(req).toEqual({
+      kind: "create-content-folder",
+      path: "contents/シリーズA/コースB/新L/contents.md",
+      isNew: true,
+      createFolder: { folders: [{ level: "lesson", name: "新L" }] },
+    });
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+  });
+
+  it("does not confirm folder creation when every level exists", () => {
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "ebex-confirm-"));
+    makeScope(tmpDir);
+    const req = resolveConfirmRequirement(tmpDir, SCOPE, {
+      id: "t1",
+      name: "write_file",
+      input: { path: "contents.md", content: "x" },
+    });
+    expect(req).toBeNull();
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+  });
+
+  it("does not confirm folder creation below the lesson level", () => {
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "ebex-confirm-"));
+    makeScope(tmpDir);
+    // レッスン配下の新規ディレクトリは構造を作らないので確認不要
+    const req = resolveConfirmRequirement(tmpDir, SCOPE, {
+      id: "t1",
+      name: "write_file",
+      input: { path: "assets/diagram.svg", content: "x" },
+    });
+    expect(req).toBeNull();
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+  });
+
+  it("does not confirm folder creation for _ prefixed levels", () => {
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "ebex-confirm-"));
+    fs.mkdirSync(path.join(tmpDir, "contents"), { recursive: true });
+    const req = resolveConfirmRequirement(tmpDir, SCOPE, {
+      id: "t1",
+      name: "write_file",
+      input: { path: "contents/_work/report.html", content: "x" },
+    });
+    expect(req).toBeNull();
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+  });
+
+  it("prefers overwrite over folder creation for an existing lesson", () => {
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "ebex-confirm-"));
+    makeScope(tmpDir);
+    makeScopeFile(tmpDir, "contents.md", "old");
+    const req = resolveConfirmRequirement(tmpDir, SCOPE, {
+      id: "t1",
+      name: "write_file",
+      input: { path: "contents.md", content: "new" },
+    });
+    expect(req?.kind).toBe("overwrite");
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+  });
 });
 
 describe("resolveConfirmRequirement for web_search", () => {

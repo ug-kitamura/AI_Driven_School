@@ -32,6 +32,29 @@ export type ToolConfirmInlineAssetsInfo = {
   targets: string[];
 };
 
+export type ToolConfirmCreatedFolder = {
+  level: "series" | "course" | "lesson";
+  name: string;
+};
+
+export type ToolConfirmCreateFolderInfo = {
+  /** 新しく作られる階層。上位（シリーズ）から順に並ぶ */
+  folders: ToolConfirmCreatedFolder[];
+};
+
+const FOLDER_LEVELS = new Set(["series", "course", "lesson"]);
+
+function parseCreatedFolders(value: unknown): ToolConfirmCreatedFolder[] {
+  if (!Array.isArray(value)) return [];
+  return value.flatMap((entry) => {
+    if (!entry || typeof entry !== "object") return [];
+    const { level, name } = entry as Record<string, unknown>;
+    if (typeof level !== "string" || !FOLDER_LEVELS.has(level)) return [];
+    if (typeof name !== "string" || !name) return [];
+    return [{ level: level as ToolConfirmCreatedFolder["level"], name }];
+  });
+}
+
 export type ToolConfirmRequiredEvent = {
   toolUseId: string;
   kind: ToolConfirmKind;
@@ -41,6 +64,7 @@ export type ToolConfirmRequiredEvent = {
   search?: ToolConfirmSearchInfo;
   generate?: ToolConfirmGenerateInfo;
   inlineAssets?: ToolConfirmInlineAssetsInfo;
+  createFolder?: ToolConfirmCreateFolderInfo;
 };
 
 export type AgentStreamCallbacks = {
@@ -302,6 +326,14 @@ export async function consumeAgentStream(
                         : [],
                     }
                   : undefined;
+              const rawCreateFolder =
+                data.createFolder && typeof data.createFolder === "object"
+                  ? (data.createFolder as Record<string, unknown>)
+                  : null;
+              const createFolder: ToolConfirmCreateFolderInfo | undefined =
+                rawCreateFolder
+                  ? { folders: parseCreatedFolders(rawCreateFolder.folders) }
+                  : undefined;
               callbacks.onConfirmRequired?.({
                 toolUseId: data.toolUseId,
                 kind,
@@ -311,6 +343,7 @@ export async function consumeAgentStream(
                 ...(search ? { search } : {}),
                 ...(generate ? { generate } : {}),
                 ...(inlineAssets ? { inlineAssets } : {}),
+                ...(createFolder ? { createFolder } : {}),
               });
             }
             break;

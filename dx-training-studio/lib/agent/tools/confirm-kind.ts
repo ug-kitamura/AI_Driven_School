@@ -5,8 +5,7 @@
  */
 export const CONFIRM_KINDS = [
   "overwrite",
-  "outside-project-read",
-  "outside-project-write",
+  "create-content-folder",
   "run-script",
   "run-skill-script",
   "generate-write",

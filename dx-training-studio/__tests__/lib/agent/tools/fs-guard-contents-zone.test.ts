@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
 import path from "node:path";
-import { resolveToolTargetPath } from "@/lib/agent/tools/fs-guard";
+import {
+  checkContentsWritePath,
+  resolveToolTargetPath,
+} from "@/lib/agent/tools/fs-guard";
 
 const PROJECT_ROOT = path.resolve("C:/tmp/dx-root");
 /** フォーカス中のレッスン（作業フォルダ = contents/<S>/<C>/<L>/） */
@@ -135,5 +138,120 @@ describe("resolveToolTargetPath（dx 2 ルート境界）", () => {
   it("不正なスコープは拒否される", () => {
     const resolved = resolveToolTargetPath(PROJECT_ROOT, "../escape", "a.md");
     expect(resolved).toHaveProperty("error");
+  });
+});
+
+/**
+ * 正本ツリーへ書けるのは `contents/<S>/<C>/<L>/contents.md` だけ。
+ * 判定はパスのみで、ディスク上の存在も内容も見ない（`contents-write-gate`）。
+ */
+describe("checkContentsWritePath（正本ツリーの書込規約）", () => {
+  /** ディスクに触れずに contents ゾーンの解決結果を組み立てる */
+  function writeTarget(relativePath: string) {
+    return resolveToolTargetPath(PROJECT_ROOT, SCOPE, relativePath, {
+      forWrite: true,
+    });
+  }
+
+  it("レッスン本文への書込は許可される", () => {
+    const resolved = writeTarget("contents/シリーズA/コースB/レッスンC/contents.md");
+    expect(resolved).not.toHaveProperty("error");
+  });
+
+  it("素の相対パス contents.md はフォーカス中のレッスンへ解決され許可される", () => {
+    const resolved = writeTarget("contents.md");
+    expect(resolved).not.toHaveProperty("error");
+    if ("error" in resolved) return;
+    expect(resolved.relativePath).toBe(`contents/${SCOPE}/contents.md`);
+  });
+
+  it("いずれの階層も未作成でもパス規約では止めない（確認ゲートの担当）", () => {
+    const resolved = writeTarget("contents/新S/新C/新L/contents.md");
+    expect(resolved).not.toHaveProperty("error");
+  });
+
+  it("予約名以外のファイルはどの階層でも許可される", () => {
+    for (const p of [
+      "contents/memo.md",
+      "contents/シリーズA/memo.md",
+      "contents/シリーズA/コースB/memo.md",
+      "contents/シリーズA/コースB/レッスンC/memo.md",
+      "contents/シリーズA/コースB/レッスンC/assets/diagram.svg",
+      "contents/シリーズA/コースB/レッスンC/_work/report.html",
+    ]) {
+      expect(writeTarget(p)).not.toHaveProperty("error");
+    }
+  });
+
+  it(".meta.json はどの階層でも拒否される（アプリ管理）", () => {
+    for (const p of [
+      "contents/.meta.json",
+      "contents/シリーズA/.meta.json",
+      "contents/シリーズA/コースB/.meta.json",
+      "contents/シリーズA/コースB/レッスンC/.meta.json",
+    ]) {
+      expect(writeTarget(p)).toHaveProperty("error");
+    }
+  });
+
+  it("session.json はどの階層でも拒否される（アプリ管理）", () => {
+    for (const p of [
+      "contents/シリーズA/コースB/レッスンC/session.json",
+      "contents/シリーズA/session.json",
+    ]) {
+      expect(writeTarget(p)).toHaveProperty("error");
+    }
+  });
+
+  it("contents.md はレッスン階層以外では拒否される", () => {
+    for (const p of [
+      "contents/contents.md",
+      "contents/シリーズA/contents.md",
+      "contents/シリーズA/コースB/contents.md",
+      "contents/シリーズA/コースB/レッスンC/assets/contents.md",
+    ]) {
+      expect(writeTarget(p)).toHaveProperty("error");
+    }
+  });
+
+  it("アプリ管理ファイルの拒否メッセージに理由と実際のパスが含まれる", () => {
+    const resolved = writeTarget("contents/シリーズA/.meta.json");
+    expect(resolved).toHaveProperty("error");
+    if (!("error" in resolved)) return;
+    expect(resolved.error).toContain(".meta.json");
+    expect(resolved.error).toContain("contents/シリーズA/.meta.json");
+  });
+
+  it("contents.md 誤配置の拒否メッセージに置ける場所と実際のパスが含まれる", () => {
+    const resolved = writeTarget("contents/シリーズA/contents.md");
+    expect(resolved).toHaveProperty("error");
+    if (!("error" in resolved)) return;
+    expect(resolved.error).toContain("<シリーズ>/<コース>/<レッスン>/");
+    expect(resolved.error).toContain("contents/シリーズA/contents.md");
+  });
+
+  it("読取（forWrite なし）では規約を適用しない", () => {
+    const resolved = resolveToolTargetPath(
+      PROJECT_ROOT,
+      SCOPE,
+      "contents/シリーズA/.meta.json",
+    );
+    expect(resolved).not.toHaveProperty("error");
+  });
+
+  it("contents-plan/ 配下は規約の対象外", () => {
+    const resolved = writeTarget("contents-plan/runs/20260811-demo/note.md");
+    expect(resolved).not.toHaveProperty("error");
+  });
+
+  it("contents ゾーン以外は素通しする", () => {
+    const outcome = checkContentsWritePath({
+      absolutePath: path.join(PROJECT_ROOT, "contents-plan", "a.md"),
+      relativePath: "contents-plan/a.md",
+      insideProject: true,
+      insideSkill: false,
+      zone: "project",
+    });
+    expect(outcome).toBeNull();
   });
 });

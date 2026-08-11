@@ -184,15 +184,33 @@ export function getContentsFingerprint(projectRoot: string): string {
  * - FS にあるが order にないエントリを末尾に追加する
  * ロード前に呼ぶことで「直接追加・削除されたフォルダ/ファイル」を自動的に反映できる。
  */
+/**
+ * 正本ツリーの構造（シリーズ・コース・レッスン）として解釈してよいディレクトリ名か。
+ *
+ * `_` / `.` 始まりは予約とみなして除外する。中間ファイル置き場（`_work/`）は
+ * フォーカス中のフォルダ直下に作られるため、シリーズ階層や `contents/` 直下に
+ * フォーカスした状態では、除外しないと幻のコース・幻のシリーズとして画面に現れる。
+ *
+ * 判定はディレクトリ名だけで行う（中身・作成者を問わない）。ファイルには適用しない
+ * ——`.meta.json` は従来どおり読む。
+ */
+export function isContentFolderName(name: string): boolean {
+  return !name.startsWith("_") && !name.startsWith(".");
+}
+
+/** 構造として解釈してよいサブディレクトリ名の一覧 */
+function listContentDirNames(dir: string): string[] {
+  return fs
+    .readdirSync(dir, { withFileTypes: true })
+    .filter((e) => e.isDirectory() && isContentFolderName(e.name))
+    .map((e) => e.name);
+}
+
 export function reconcileOrderFiles(projectRoot: string): void {
   const contentsDir = getContentsDir(projectRoot);
   if (!fs.existsSync(contentsDir)) return;
 
-  const actualSeries = new Set(
-    fs.readdirSync(contentsDir, { withFileTypes: true })
-      .filter((e) => e.isDirectory())
-      .map((e) => e.name),
-  );
+  const actualSeries = new Set(listContentDirNames(contentsDir));
   const contentsMeta = readMetaJson(contentsDir);
   const seriesOrder = Array.isArray(contentsMeta.order) ? (contentsMeta.order as string[]) : [];
   const reconciledSeries = reconcileOrder(seriesOrder, actualSeries);
@@ -205,11 +223,7 @@ export function reconcileOrderFiles(projectRoot: string): void {
     const seriesDir = path.join(contentsDir, seriesName);
     if (!fs.existsSync(seriesDir)) continue;
 
-    const actualCourses = new Set(
-      fs.readdirSync(seriesDir, { withFileTypes: true })
-        .filter((e) => e.isDirectory())
-        .map((e) => e.name),
-    );
+    const actualCourses = new Set(listContentDirNames(seriesDir));
     const seriesMeta = readMetaJson(seriesDir);
     const courseOrder = Array.isArray(seriesMeta.order) ? (seriesMeta.order as string[]) : [];
     const reconciledCourses = reconcileOrder(courseOrder, actualCourses);
@@ -252,14 +266,15 @@ export function loadContentsFolder(projectRoot: string): Series[] {
   const contentsMeta = readMetaJson(contentsDir);
   const seriesOrder = Array.isArray(contentsMeta.order) ? (contentsMeta.order as string[]) : [];
 
-  const actualSeriesDirs = fs
-    .readdirSync(contentsDir, { withFileTypes: true })
-    .filter((e) => e.isDirectory())
-    .map((e) => e.name);
+  const actualSeriesDirs = listContentDirNames(contentsDir);
 
   const effectiveSeries =
     seriesOrder.length > 0
-      ? seriesOrder.filter((name) => fs.existsSync(path.join(contentsDir, name)))
+      ? seriesOrder.filter(
+          (name) =>
+            isContentFolderName(name) &&
+            fs.existsSync(path.join(contentsDir, name)),
+        )
       : [...actualSeriesDirs].sort();
 
   const result: Series[] = [];
@@ -280,14 +295,15 @@ export function loadContentsFolder(projectRoot: string): Series[] {
 
     const courseOrder = Array.isArray(seriesMeta.order) ? (seriesMeta.order as string[]) : [];
 
-    const actualCourseDirs = fs
-      .readdirSync(seriesDir, { withFileTypes: true })
-      .filter((e) => e.isDirectory())
-      .map((e) => e.name);
+    const actualCourseDirs = listContentDirNames(seriesDir);
 
     const effectiveCourses =
       courseOrder.length > 0
-        ? courseOrder.filter((name) => fs.existsSync(path.join(seriesDir, name)))
+        ? courseOrder.filter(
+            (name) =>
+              isContentFolderName(name) &&
+              fs.existsSync(path.join(seriesDir, name)),
+          )
         : [...actualCourseDirs].sort();
 
     const courses: Course[] = [];
@@ -415,6 +431,7 @@ function listLessonFolderNames(courseDir: string): Set<string> {
   if (!fs.existsSync(courseDir)) return names;
   for (const entry of fs.readdirSync(courseDir, { withFileTypes: true })) {
     if (!entry.isDirectory()) continue;
+    if (!isContentFolderName(entry.name)) continue;
     const contentsPath = path.join(courseDir, entry.name, LESSON_CONTENTS_FILENAME);
     if (fs.existsSync(contentsPath)) {
       names.add(entry.name);

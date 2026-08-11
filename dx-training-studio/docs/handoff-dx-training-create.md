@@ -17,6 +17,10 @@
        └ references/lesson-template.md     138行
        → スキルはロード可能。空振り確認（L05）で出力の形まで検証済み
 
+[要] adopt-contents-plan-layout             ← 初回実行の前に必須（→ 1.1）
+       スキルの入出力パスが変わる。現状のパス指定は実ファイルに
+       マッチしないため、通す前に回すと入力を見つけられない
+
 [次] 初回実行（コース単位で1本）                    ← ここ
      出来の良い1本を模範解答に昇格
      模範解答を使う手順をスキルに組み込む（要 change）
@@ -25,17 +29,32 @@
      旧スキル削除（`create-draft` / `create-structure`・手作業）
 ```
 
-### リポジトリの状態（未コミット3件）
+### リポジトリの状態
 
-```
-A  dx-training-studio/.claude/skills/dx-training-create/SKILL.md
-A  dx-training-studio/.claude/skills/dx-training-create/references/lesson-template.md
-M  dx-training-studio/openspec/specs/training-create-skill/spec.md
-```
-
-ブランチ `dx-training-create`。コミットするかは人が決める。
+前版に記録されていた未コミット3件は **`6ab8d36` でコミット済み**（2026-08-11 確認）。現ブランチは **`dx-training-studio2`**（`dx-training-create` ではない）。
 
 ⚠ **このリポジトリでは、誰も `git commit` を叩いていないのにコミットが生まれ、新規ファイルが勝手にステージされることがある**（2026-08-06 に `7ae5a53` が発生）。Studio か何かの自動 git 連携が疑われる。作業前後に `git log` を見ること。
+
+### 1.1 【2026-08-11 追記】スキルの入出力パスが変わる
+
+別系統の検討（`handoff-agent-port-followup.md`）で `workspace/` の廃止と作業ファイルの配置見直しが決まった。**本文書の作業に入る前に change `adopt-contents-plan-layout` を通すこと。**
+
+| | 旧 | 新 |
+|---|---|---|
+| 計画書（入力） | `docs/training-plan-*.md` | `contents-plan/plans/<yyyymmdd>-<slug>.md` |
+| 設計メモ | `docs/<yyyymmdd>/{シリーズslug}-{コースslug}.md` | `contents-plan/runs/<yyyymmdd>-<slug>/design-note.md` |
+| レビュー | （ファイル保存の規定なし） | 同 run 内 `review-<レッスン名>.md` |
+| 曼陀羅 | （ファイル保存の規定なし） | 同 run 内 `mandala.md` |
+
+要点は3つ。
+
+- **現状の `docs/training-plan-*.md` は実ファイルにマッチしない。** 実体は `docs/training-plan/training-plan-2026080{4,5}.md` で、グロブがディレクトリ階層を跨げていない。**通す前に初回実行すると入力を見つけられない**
+- **識別子はフォルダ名が持ち、ファイル名は役割だけを表す。** これにより SKILL.md フェーズ3 の範囲別ファイル名表と**同日再実行の連番規則が廃止**される（→ 6章）
+- **計画書は「最新の1本」ではなくユーザーに選ばせる**
+
+`contents-plan/plans/` は git 追跡、`contents-plan/runs/` は**追跡外**（家↔会社のやり取りを記録に残さない方針。2026-08-11 決定）。設計メモを社内PCへ渡す手段は git 以外になる — 2.1 の観察で「ファイルとして残っているか」は引き続き見るが、**コミットされていないことは異常ではない**。
+
+`workspace/` の廃止とペイン4 のフォルダ選択 UI 撤去は change `retire-workspace-folder` の担当で、本文書の作業とは独立。
 
 ---
 
@@ -123,7 +142,8 @@ M  dx-training-studio/openspec/specs/training-create-skill/spec.md
 
 | 観点 | 見るところ |
 |---|---|
-| フェーズを飛ばさないか | 設計メモのファイルが承認前に作られているか。承認なしに執筆に入らないか |
+| フェーズを飛ばさないか | 設計メモ（`contents-plan/runs/<run>/design-note.md`）が承認前に作られているか。承認なしに執筆に入らないか |
+| レビュー・曼陀羅をファイルに残すか | 同 run 内に `review-<レッスン名>.md` / `mandala.md` が出ているか。チャットに流して終わっていないか（新規追加の指示なので、初回は特に見る） |
 | 穴の粒度 | 社内の穴が「答えるべき問い」になっているか。一般論が混ざっていないか |
 | references を読むか | `design-principles.md` と `lesson-template.md` を実際に開いているか。開かないなら参照が弱い |
 | 分量 | `estimated_minutes` に対して本文が膨らみすぎていないか |
@@ -262,7 +282,7 @@ loader が `order` の末尾に新シリーズ名を追記する。**草稿を�
 
 - planning home は **`dx-training-studio/`**（リポジトリルートではない）。ルートから叩くと `No OpenSpec changes directory found`
 - `openspec validate <change> --strict` は**リポジトリルートからだと `Unknown item` になる**。planning home に入ってから叩く
-- **`openspec-sync-specs` スキルはこの環境に無い。** archive 時の同期は手作業。本体 spec を直接書き、`npx openspec validate --specs` で**42件**通ることを確認する
+- **`openspec-sync-specs` スキルはこの環境に無い。** archive 時の同期は手作業。本体 spec を直接書き、`npx openspec validate --specs` が通ることを確認する。**件数は change ごとに増える**（前版の「42件」は古い。2026-08-11 時点で 53 件）ので、数を暗記せず実行時の出力で見る
 - `openspec/changes/` は `.gitignore` されている。**コミットされるのは `openspec/specs/` だけ** — 設計の記録はそこにしか残らない
 - アーティファクトは日本語で書く
 
@@ -288,7 +308,7 @@ loader が `order` の末尾に新シリーズ名を追記する。**草稿を�
 | 昇格基準 | **本文書 3.3 に案。初回実行で実際に判定して確定させる** |
 | 完了条件の置き場所 | work6.md の「〜できたら完了です」を5章構成のどこに置くか。初回草稿を見てから（→ 2.3.2） |
 | 模範解答を2本にするか | 手順型の出来を見てから（3.4） |
-| 同日再実行時の古いメモの扱い | 連番（最大+1）までは決めたが、古い版を消すかは未定 |
+| ~~同日再実行時の古いメモの扱い~~ | **解消（2026-08-11）**。連番規則は廃止され、再実行ごとに run フォルダが分かれる。古い run はそのまま残す（→ 1.1） |
 | spec 前半5件の書きぶり | `抽出元と網羅` 等が過去の作業記録に読める。`## Purpose` も実態とずれている。**中身は生きているので消さない。** 直すなら別 change |
 
 ---
@@ -297,8 +317,8 @@ loader が `order` の末尾に新シリーズ名を追記する。**草稿を�
 
 - 穴埋めスキル（社内側）
 - 社内コンテキストDB の逆向き運用
-- ebex 機能の Studio 移植
-- Studio 側の改修（コメント種別の判定、未充足の穴の一覧表示）
+- ~~ebex 機能の Studio 移植~~ — **別系統で実施済み**（`port-ebex-agent-core`、2026-08-10 archive）。本文書の作業としては引き続き対象外
+- Studio 側の改修（コメント種別の判定、未充足の穴の一覧表示、ペイン4 の UI 整理）
 - 旧スキル（`create-draft` / `create-structure`）の削除 — **後日手作業**
 - 計画書の再修正
 - `training-create-skill` spec の要件削除（6章の最終行を参照）

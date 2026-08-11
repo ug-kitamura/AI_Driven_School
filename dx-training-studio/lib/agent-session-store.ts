@@ -1,15 +1,12 @@
 import fs from "node:fs";
 import path from "node:path";
+import { getContentsDir } from "@/lib/contents-loader";
 import {
-  resolveFolderPath,
-  SESSION_FILENAME,
-  getProjectFolderId,
-} from "@/lib/workspace-paths";
-import {
-  getMetaSessionPath,
-  getMetaSessionsDir,
-  resolveProjectIno,
-} from "@/lib/workspace-meta";
+  parseSessionScope,
+  sessionScopeLevel,
+  sessionScopeRelativePath,
+  type SessionScope,
+} from "@/lib/session-scope";
 import type { AgentChatStorage } from "@/lib/agent-chat-storage";
 import { parseAgentChatStorage } from "@/lib/agent-chat-storage";
 
@@ -18,70 +15,69 @@ export function isAgentSessionFsWritable(): boolean {
 }
 
 /**
- * セッション保存先は `.meta/sessions/<ino>.json`。
- * folderId（プロジェクトフォルダ名）からの ino 解決はここで行い、
- * API・クライアントには folderPath ベースの契約を維持する。
+ * セッションの保存先は `contents/` 配下のフォーカス階層の `session.json`。
+ * フォルダをリネームしてもファイルごと移動するため、安定 ID を持たないレッスンでも
+ * 履歴が追従する。
  */
-export function resolveFolderSessionPath(
+export function resolveScopeSessionPath(
   projectRoot: string,
-  folderId: string,
-): string | null {
-  const resolved = resolveProjectIno(projectRoot, folderId);
-  if ("error" in resolved) return null;
-  return getMetaSessionPath(projectRoot, resolved.ino);
-}
-
-/** 移行前データ用のレガシーパス（フォルダ内 session.json）。読み取り専用。 */
-function resolveLegacySessionPath(
-  projectRoot: string,
-  folderId: string,
-): string | null {
-  const resolved = resolveFolderPath(
-    projectRoot,
-    getProjectFolderId(folderId.trim()),
+  scope: SessionScope,
+): string {
+  const contentsDir = path.resolve(getContentsDir(projectRoot));
+  const absolutePath = path.resolve(
+    contentsDir,
+    sessionScopeRelativePath(scope),
   );
-  if ("error" in resolved) return null;
-  return path.join(resolved.absolutePath, SESSION_FILENAME);
+  if (!absolutePath.startsWith(contentsDir + path.sep)) {
+    throw new Error("不正なスコープです");
+  }
+  return absolutePath;
 }
 
-export function readFolderSessionFile(
+/** クエリ文字列からスコープを解決する。不正なら null。 */
+export function resolveScopeFromParam(raw: string | null): SessionScope | null {
+  return parseSessionScope(raw ?? "");
+}
+
+export function readScopeSessionFile(
   projectRoot: string,
-  folderId: string,
+  scope: SessionScope,
 ): AgentChatStorage | null {
-  const sessionPath = resolveFolderSessionPath(projectRoot, folderId);
-  if (sessionPath && fs.existsSync(sessionPath)) {
-    const storage = readStorageFile(sessionPath);
-    if (storage) return storage;
-  }
-  // マイグレーション未実行のワークスペースに対する防御的フォールバック
-  const legacyPath = resolveLegacySessionPath(projectRoot, folderId);
-  if (legacyPath && fs.existsSync(legacyPath)) {
-    return readStorageFile(legacyPath);
-  }
-  return null;
-}
-
-function readStorageFile(filePath: string): AgentChatStorage | null {
+  let sessionPath: string;
   try {
-    const raw = fs.readFileSync(filePath, "utf-8");
+    sessionPath = resolveScopeSessionPath(projectRoot, scope);
+  } catch {
+    return null;
+  }
+  if (!fs.existsSync(sessionPath)) return null;
+  try {
+    const raw = fs.readFileSync(sessionPath, "utf-8");
     return parseAgentChatStorage(JSON.parse(raw));
   } catch {
     return null;
   }
 }
 
-export function writeFolderSessionFile(
+export function writeScopeSessionFile(
   projectRoot: string,
-  folderId: string,
+  scope: SessionScope,
   storage: AgentChatStorage,
 ): void {
   if (!isAgentSessionFsWritable()) {
     throw new Error("AGENT_SESSION_FS_DISABLED");
   }
-  const sessionPath = resolveFolderSessionPath(projectRoot, folderId);
-  if (!sessionPath) {
-    throw new Error(`Folder not found: ${folderId}`);
+  const sessionPath = resolveScopeSessionPath(projectRoot, scope);
+  const dir = path.dirname(sessionPath);
+  if (!fs.existsSync(dir)) {
+    if (sessionScopeLevel(scope) === "root") {
+      // シリーズ 0 件の初期状態では contents/ 自体が無いことがある。
+      // ここはアプリのデータルートなので作ってよい。
+      fs.mkdirSync(dir, { recursive: true });
+    } else {
+      // シリーズ/コース/レッスンが消えた状態。
+      // session.json のためだけにコンテンツのディレクトリを作らない。
+      throw new Error(`Scope not found: ${sessionPath}`);
+    }
   }
-  fs.mkdirSync(getMetaSessionsDir(projectRoot), { recursive: true });
   fs.writeFileSync(sessionPath, JSON.stringify(storage, null, 2), "utf-8");
 }

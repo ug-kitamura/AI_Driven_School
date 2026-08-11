@@ -6,18 +6,17 @@ import {
 } from "@/lib/agent-chat-storage";
 
 /**
- * @param folderId サーバー API への問い合わせキー（プロジェクトフォルダ名。サーバー側で ino へ解決される）
- * @param ino localStorage フォールバック専用のキー。プロジェクト名の再利用による
- *   誤った履歴の引き当てを防ぐため、フォルダ名ではなく ino を使う。取得できない場合は
- *   folderId にフォールバックする（no-project 状態など）。
+ * @param scopeKey `serializeSessionScope` が返すスコープ文字列。空文字はシリーズ 0 件
+ *   （`contents/` 直下）を表す正当な値であり、エラーではない。
+ *   サーバー・localStorage フォールバックの双方で同じキーを使う——スコープはパスなので
+ *   フォルダのリネームに追従し、ID の再利用による誤った履歴の引き当ても起きない。
  */
-export async function loadFolderSession(
-  folderId: string,
-  ino?: string,
+export async function loadScopeSession(
+  scopeKey: string,
 ): Promise<AgentChatStorage> {
   try {
     const res = await fetch(
-      `/api/agent/session?folderId=${encodeURIComponent(folderId)}`,
+      `/api/agent/session?scope=${encodeURIComponent(scopeKey)}`,
     );
     if (res.ok) {
       const data = (await res.json()) as AgentChatStorage;
@@ -29,17 +28,16 @@ export async function loadFolderSession(
     /* fall through to localStorage */
   }
 
-  return loadFolderAgentChatStorage(ino ?? folderId) ?? createInitialStorage();
+  return loadFolderAgentChatStorage(scopeKey) ?? createInitialStorage();
 }
 
-export async function saveFolderSession(
-  folderId: string,
+export async function saveScopeSession(
+  scopeKey: string,
   storage: AgentChatStorage,
-  ino?: string,
 ): Promise<boolean> {
   try {
     const res = await fetch(
-      `/api/agent/session?folderId=${encodeURIComponent(folderId)}`,
+      `/api/agent/session?scope=${encodeURIComponent(scopeKey)}`,
       {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
@@ -51,11 +49,5 @@ export async function saveFolderSession(
     /* fall through */
   }
 
-  return saveFolderAgentChatStorage(ino ?? folderId, storage);
+  return saveFolderAgentChatStorage(scopeKey, storage);
 }
-
-/** @deprecated use loadFolderSession */
-export const loadLessonSession = loadFolderSession;
-
-/** @deprecated use saveFolderSession */
-export const saveLessonSession = saveFolderSession;

@@ -2,7 +2,7 @@
 
 **やること**: UI 崩れの修正と `workspace/` の廃止は完了済み。次は `contents/` 書込ゲート（`contents-write-gate`）、最後に接続プロファイル（`connection-profiles`）へ進む。
 
-本文書は `handoff-dx-training-create.md`（dx-training-create スキルの初回実行）とは別系統の引き継ぎ。同スキルの模範解答づくりは change 3 の後に合流する。
+本文書は `handoff-dx-training-create.md`（dx-training-create スキルの初回実行）とは別系統の引き継ぎ。**同スキルの初回実行を塞いでいた前提（置き場の移設）は解消済みなので、そちらは本文書の完了を待たずに着手できる。** 合流点は `contents-write-gate` のツール解禁（→ §3）。
 
 ---
 
@@ -42,10 +42,17 @@
 上記 3 本に分けた。決定の経緯は `adopt-contents-plan-layout` の `design.md`、
 スキル側の影響は `handoff-dx-training-create.md` §1.1 を参照。
 
+### 次のアクション
+
+1. **コミットする。** `retire-workspace-folder` の成果物 **89 パスが未コミット**（変更 55 / 削除 19 / 追加 3 / リネーム 1 / ステージ済み 8 / 未追跡 3）。Git 操作は別ツールで実施。`git log` の先頭は `b210b7b` のままで、実装セッション中に勝手なコミットは発生していない
+2. `contents-write-gate` に着手する（→ §3）。差し込み点は用意済み
+3. `handoff-dx-training-create.md` の初回実行は**本文書と独立に着手できる**（前提の移設は完了済み）
+
 ### リポジトリの状態
 
-ブランチ `dx-training-studio2`。`adopt-contents-plan-layout` までの成果物はコミット済み。
-**`retire-workspace-folder` の作業は一部のみ自動コミット済み・大部分は未コミット**（§6 に内訳）。Git 操作は別ツールで実施。
+ブランチ `dx-training-studio2`。`adopt-contents-plan-layout` までの成果物はコミット済み（`retire-workspace-folder` のグループ2 の 4 ファイルだけ自動コミット `b210b7b` に混入している）。残りは全て未コミット。
+
+⚠ **`openspec/changes/` は `.gitignore:31` で追跡外。** アーカイブした change artifacts（判断メモを書き込んだ `tasks.md` を含む）は**このマシンにしか存在しない**。他環境へ渡すなら git 以外の手段が要る。**コミットされる設計の記録は `openspec/specs/` だけ。**
 
 ### 参照すべき正本
 
@@ -53,9 +60,12 @@
 |---|---|
 | 移植の決定ロック・実装状況 | メモリ `project-dx-agent-port`（Claude のセッション間メモリ） |
 | UI 崩れの機構・復旧手順 | メモリ `project-tailwind-gitignore-trap`（Claude のセッション間メモリ） |
-| change artifacts（proposal / design / specs / tasks） | `openspec/changes/port-ebex-agent-core/` |
-| dx 化の差分台帳（EBEX から意図的に変えた 8 点） | 同 `design.md` D1 の表 |
+| 移植の change artifacts | `openspec/changes/archive/2026-08-10-port-ebex-agent-core/` |
+| 置き場再設計の change artifacts | `openspec/changes/archive/2026-08-11-adopt-contents-plan-layout/` |
+| workspace 廃止の change artifacts | `openspec/changes/archive/2026-08-11-retire-workspace-folder/` |
+| dx 化の差分台帳（EBEX から意図的に変えた 8 点） | 移植 change の `design.md` D1 の表 |
 | agent の書込制約の正本 | `contracts/agent-write-contract.md` |
+| 要件の正本（唯一コミットされる） | `openspec/specs/`（2026-08-11 時点で 54 capability） |
 
 ---
 
@@ -92,7 +102,7 @@
 
 ---
 
-## 3. 課題 1【2026-08-11 更新】: 置き場の一本化と workspace 廃止
+## 3. 【完了】置き場の一本化と workspace 廃止 → 次は contents-write-gate
 
 **当初案は破棄した。** 案件フォルダ（`workspace/<案件>/`）を作業ファイルの置き場にする計画だったが、
 探索の結果**計画書の置き場は最初から `docs/training-plan/` に存在して動いていた**ことが判明し、
@@ -113,25 +123,32 @@ contents-plan/
 識別子は**フォルダ名が持ち、ファイル名は役割だけを表す**。この帰結として範囲別ファイル名と
 同日再実行の連番規則が廃止された。セッション（`session.json`）は各フォルダのまま変更しない。
 
-### 残っている作業
+### `retire-workspace-folder`（完了 2026-08-11・詳細は §6）
 
-**`retire-workspace-folder`**（完了・詳細は §6）
-- `workspace/` と周辺コード（`workspace-meta.ts` の ino 台帳・`project-folder-guard.ts`・
-  `workspace-favorites*.ts`・`workspace-folders` API）を削除
-- ペイン4 のフォルダ選択 UI を撤去。ファイル添付は残し、既定を
-  「選択レッスンの `contents.md` + `contents-plan/plans/` + 最新 3 run」へ
-- 書込境界から `workspace/` を外す（契約からも暫定ルートの記述を削除済み）
-- ✅ **書込境界の実装ギャップは解消済み**（2026-08-11）。
-  `adopt-contents-plan-layout` はドキュメントとスキルのみを変更しアプリコードに
-  触っていなかったため、契約が `contents-plan/` を許可しているのに実装は
-  `workspace/` + `contents/` のままという乖離があった。fs-guard を
-  `contents-plan/` + `contents/` へ付け替え済み
-- 相対パスの基準は**フォーカス中のコンテンツフォルダ**（EBEX 移植前の dx の挙動へ回帰）。
-  詳細は change の `design.md` D4b / D4c
+`workspace/` と周辺コードを全削除し、書込境界を契約に一致させた。相対パスの基準は
+**フォーカス中のコンテンツフォルダ**（EBEX 移植前の dx の挙動へ回帰）。
+設計の根拠は change の `design.md` D4b / D4c。
 
-**`contents-write-gate`**（後）
-- Zod スキーマ+ファイル名規約の検査を書込ツールに差し込み、不合格は recoverable エラー+guidance で自己修正させる。構造分類も同じ差し込み点で: A=同名レッスン既存→上書き確認（confirm-gate がそのまま働く）/ B=既存シリーズ・コースへの追加→非ブロックのワーニング / C=新シリーズ発生→ワーニング+既存 slug との近似照合（タイプミス由来の意図せぬ新規作成をモデルに自己修正させる）
+### 次: `contents-write-gate`
+
+**差し込み点はすでに用意されている。** `checkContentsWriteShape`（`lib/agent/tools/fs-guard.ts`）が
+`writePathOptions(context)` の `forWrite: true` 経由で全書込サイトから呼ばれている。
+今は構造の防御だけなので、**同じ関数の隣にスキーマ検査と構造分類を足す**形になる。
+
+- Zod スキーマ + ファイル名規約の検査を書込ツールに差し込み、不合格は recoverable エラー + guidance で自己修正させる。構造分類も同じ差し込み点で: **A**=同名レッスン既存→上書き確認（confirm-gate がそのまま働く）/ **B**=既存シリーズ・コースへの追加→非ブロックのワーニング / **C**=新シリーズ発生→ワーニング + 既存 slug との近似照合（タイプミス由来の意図せぬ新規作成をモデルに自己修正させる）
 - ツール解禁は frontmatter `tools:` の宣言制（実装は全部入っている。宣言 1 行で解禁）
+
+**この change で一緒に片付けるとよいもの:**
+
+- **到達不能になった確認 kind の掃除。** `outside-project-read` / `outside-project-write` は 2 ルート化で
+  死んだ（→ §6）。`confirm-kind.ts` / `ToolConfirmInlineCard.tsx` / `OutsideProjectPathDialog.tsx` が
+  対象。確認 kind を触るこの change で落とすのが自然
+- ⚠ **ツール解禁と `dx-training-create` の衝突を先に確認すること。** 同スキルは
+  `contents/<シリーズ>/<コース>/<レッスン>/` を**ディレクトリごと作る**が、`checkContentsWriteShape` は
+  新シリーズ・新コースになるディレクトリ作成を拒否する。現状は同スキルが `tools:` 未宣言で
+  ペイン4 から書けないため衝突していないだけ。**解禁する前に、新シリーズ・新コースの作成経路を
+  どう通すか（構造分類 C の警告で通すのか、ペイン1 の UI 操作に委ねるのか）を決める。**
+  詳細は `handoff-dx-training-create.md` §1.2
 
 スキル編集は `creating-skills` スキルの SSoT 作法で。制約の正本は `contracts/agent-write-contract.md` を参照させ再掲しない。
 
@@ -152,16 +169,18 @@ contents-plan/
 
 - ⚠ `handoff-dx-training-create.md` にある「勝手にコミットが生まれる」事象（2026-08-06）に引き続き注意。作業前後に `git log` を確認。**2026-08-11 に 2 回再発**（`c17ce74`=handoff の編集、`b210b7b`=retire-workspace-folder のグループ2 の 4 ファイル）。**作業途中でも勝手にコミットされうる前提で、区切りごとに `git log` を見ること**
 - dev サーバーは同一プロジェクトで 1 台まで（Next 16）。検証用サーバーを立てたら**必ず止める**（前セッションで放置→ EBUSY ロック→起動不能の事故があった。孤児 postcss ワーカーが `.next` を掴む）。既に 1 台動いている場合は起動せず、その URL に接続して検証する
-- `workspace/` は削除済み（2026-08-11）。`.gitignore` の該当3行も落とした。**`.gitignore` を変更したので `.next` の削除が要る**（実施済み。dev サーバーが動いていた場合はブラウザのハードリロードも要る）
-- `contents-plan/runs/` は git 追跡外。`.gitignore` のパターンは**必ず anchored**（`/contents-plan/runs/`）。変更したら `.next` を削除する（Turbopack は `.gitignore` の変更を検知しない）
+- `workspace/` は削除済み（2026-08-11）。`.gitignore` の該当3行も落とし、`.next` も削除済み
+- `contents-plan/runs/` と `openspec/changes/` は git 追跡外。`.gitignore` のパターンは**必ず anchored**（`/contents-plan/runs/`）。変更したら `.next` を削除する（Turbopack は `.gitignore` の変更を検知しない）
+- **CRLF + BOM のファイルがある**（`__tests__/hooks/*.test.ts` 等）。LF 前提の文字列置換が黙って空振りするので、複数行の編集は Edit ツールを使う
 
 ---
 
 ## 6. 【2026-08-11】retire-workspace-folder の実施記録
 
 **57/57 タスク完了。** change artifacts は
-`openspec/changes/retire-workspace-folder/`（proposal / design / specs 7本 / tasks）。
-タスクごとの判断メモは `tasks.md` に残してある。
+`openspec/changes/archive/2026-08-11-retire-workspace-folder/`（proposal / design / specs 7本 / tasks）。
+タスクごとの判断メモは `tasks.md` に残してある（**追跡外なのでこのマシンのみ**）。
+本体 spec への同期は 7 capability 分を手作業で実施済み（MODIFIED 9 / RENAMED 2 / ADDED 1）。
 
 ```
 着手前:  717 passed （97 files）
@@ -228,8 +247,19 @@ build:   green / ブラウザ実機確認済み
 - `.next` を消すと、動いている dev サーバーの HMR が中途半端な DOM を返す
   （ペイン1 が丸ごと消えて見えた）。**ハードリロードで直る。サーバーの再起動は不要**
 
+### アーカイブ手順の注意
+
+**`openspec archive` は使えない。** delta を spec へ再適用しようとするため、タスク 10.2 で
+手作業同期した本 change では RENAMED の元見出しが見つからず中断する
+（`agent-chat-history RENAMED failed ... source not found` → `Aborted. No files were changed.`）。
+`adopt-contents-plan-layout` と同じく**ディレクトリ移動でアーカイブした**。
+手作業同期を伴う change では今後もこの手順になる。
+
 ### 未実施として残したこと
 
 - **コースを持たないシリーズの空状態文言**は実機で見ていない。`contents/` に該当する
   シリーズが無く、検証のためだけに正本ツリーへシリーズを作るのは避けた。
   文言分岐は `!course` / `!lesson` の単純条件
+- **テスト側の型エラーが 8 件残っている**が、**すべて本 change 以前からのもの**
+  （`estimatedMinutes` の綴り違い・`use-image-lists` の型・invoke route test の implicit any 等）。
+  `npm run test` は 737 green、`tsc --noEmit` のアプリ側はゼロ。直すなら独立した掃除として

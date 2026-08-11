@@ -2,6 +2,9 @@
 /workspace/
 !/workspace/.gitkeep
 
+# skills work folder
+/contents-plan/runs/
+
 # dependencies
 node_modules/
 

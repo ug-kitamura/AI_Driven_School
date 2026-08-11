@@ -22,9 +22,25 @@
        `components/workspace/` を Tailwind のソース走査から丸ごと除外
        していたこと（詳細は §2）
 
-[次] change 3: スキル適合 + workspace 運用（propose から）             ← ここ
-[後] change 2: 接続プロファイル（会社持ち込みの直前で可）
+[済] adopt-contents-plan-layout（2026-08-11）
+       作業ファイルの置き場を contents-plan/ に新設（plans/ は追跡、runs/ は追跡外）。
+       既存計画書2本を docs/training-plan/ から移設。
+       スキル2本と agent 書込契約を追従。build green / ブラウザ実機確認済み
+
+[次] retire-workspace-folder                                           ← ここ
+       workspace/ と周辺コード（ino 台帳・folder-guard・favorites・
+       workspace-folders API）を削除。ペイン4 のフォルダ選択 UI を撤去し、
+       添付を「選択レッスンの contents.md + plans/ + 最新3 run」へ。
+       書込境界から workspace/ を外す。session.json は現状維持
+
+[後] contents-write-gate       contents/ 書込ゲート（Zod 検査・構造分類 A/B/C）+ ツール解禁
+[後] connection-profiles       接続プロファイル（独立。会社持ち込みの直前で可）
 ```
+
+**当初の「change 3: スキル適合 + workspace 運用」は分割された。** 探索の結果、
+作業ファイルの置き場は `workspace/` ではなく `contents-plan/` に一本化する方針となり、
+上記 3 本に分けた。決定の経緯は `adopt-contents-plan-layout` の `design.md`、
+スキル側の影響は `handoff-dx-training-create.md` §1.1 を参照。
 
 ### リポジトリの状態
 
@@ -75,15 +91,49 @@
 
 ---
 
-## 3. 課題 1: change 3「スキル適合 + workspace 運用」（次はここから）
+## 3. 課題 1【2026-08-11 更新】: 置き場の一本化と workspace 廃止
 
-`/opsx:propose` から。決定済みの内容（詳細はメモリ project-dx-agent-port）:
+**当初案は破棄した。** 案件フォルダ（`workspace/<案件>/`）を作業ファイルの置き場にする計画だったが、
+探索の結果**計画書の置き場は最初から `docs/training-plan/` に存在して動いていた**ことが判明し、
+`workspace/` は不要と判断した。`workspace/` が `contents/` と別名前空間になることで
+「ワークフォルダが二重」という問題そのものを生んでいた点も却下理由。
 
-- **dx-training-plan**: 案件フォルダの新規作成（自動命名 `{yyyymmdd}-{テーマslug}`、EBEX の `generate-folder-name` を流用）+ 出力を `workspace/<案件>/training-plan.md` へ
-- **dx-training-create**: 案件フォルダ選択で入力（training-plan.md）を解決。レッスン草稿は `contents/` へ直接着地（ユーザーがペイン3 で作り込む）、メモ・レビュー等の付随文書は案件フォルダへ
-- **contents/ 書込ゲート**: Zod スキーマ+ファイル名規約の検査を書込ツールに差し込み、不合格は recoverable エラー+guidance で自己修正させる。構造分類も同じ差し込み点で: A=同名レッスン既存→上書き確認（confirm-gate がそのまま働く）/ B=既存シリーズ・コースへの追加→非ブロックのワーニング / C=新シリーズ発生→ワーニング+既存 slug との近似照合（タイプミス由来の意図せぬ新規作成をモデルに自己修正させる）
-- スキル編集は `creating-skills` スキルの SSoT 作法で。制約の正本は `contracts/agent-write-contract.md` を参照させ再掲しない
+### 決定した配置
+
+```
+contents-plan/
+├─ plans/<yyyymmdd>-<slug>.md          ← 計画書。git 追跡
+└─ runs/<yyyymmdd>-<slug>/             ← create 1 実行分。git 追跡外
+    ├─ design-note.md
+    ├─ review-<レッスン名>.md
+    └─ mandala.md
+```
+
+識別子は**フォルダ名が持ち、ファイル名は役割だけを表す**。この帰結として範囲別ファイル名と
+同日再実行の連番規則が廃止された。セッション（`session.json`）は各フォルダのまま変更しない。
+
+### 残っている作業
+
+**`retire-workspace-folder`**（次）
+- `workspace/` と周辺コード（`workspace-meta.ts` の ino 台帳・`project-folder-guard.ts`・
+  `workspace-favorites*.ts`・`workspace-folders` API）を削除
+- ペイン4 のフォルダ選択 UI を撤去。ファイル添付は残し、既定を
+  「選択レッスンの `contents.md` + `contents-plan/plans/` + 最新 3 run」へ
+- 書込境界から `workspace/` を外す（契約に暫定ルートとして明記済み）
+- ⚠ **書込境界の実装が契約に追いついていない。** `adopt-contents-plan-layout` は
+  ドキュメントとスキルのみを変更し、アプリコードに触っていない。そのため
+  `contracts/agent-write-contract.md` は `contents-plan/` への書込を許可しているが、
+  実装（`agent-file-tools` の解決ロジック・`project-folder-guard.ts`）はまだ
+  `workspace/` + `contents/` のままで、**ペイン4 から `contents-plan/` へは書けない**。
+  現時点で実害は無い（両スキルはペイン4 では動かさない前提）が、
+  この change で実装を合わせること。関連 spec も `案件フォルダ` の用語を引きずっている:
+  `agent-file-tools` / `agent-invoke-api` / `agent-chat-history` / `agent-tool-loop`
+
+**`contents-write-gate`**（後）
+- Zod スキーマ+ファイル名規約の検査を書込ツールに差し込み、不合格は recoverable エラー+guidance で自己修正させる。構造分類も同じ差し込み点で: A=同名レッスン既存→上書き確認（confirm-gate がそのまま働く）/ B=既存シリーズ・コースへの追加→非ブロックのワーニング / C=新シリーズ発生→ワーニング+既存 slug との近似照合（タイプミス由来の意図せぬ新規作成をモデルに自己修正させる）
 - ツール解禁は frontmatter `tools:` の宣言制（実装は全部入っている。宣言 1 行で解禁）
+
+スキル編集は `creating-skills` スキルの SSoT 作法で。制約の正本は `contracts/agent-write-contract.md` を参照させ再掲しない。
 
 ---
 
@@ -100,6 +150,7 @@
 
 ## 5. 注意
 
-- ⚠ `handoff-dx-training-create.md` にある「勝手にコミットが生まれる」事象（2026-08-06）に引き続き注意。作業前後に `git log` を確認
-- dev サーバーは同一プロジェクトで 1 台まで（Next 16）。検証用サーバーを立てたら**必ず止める**（前セッションで放置→ EBUSY ロック→起動不能の事故があった。孤児 postcss ワーカーが `.next` を掴む）
-- `workspace/` は git 追跡外。`workspace/.meta/`（meta.json / sessions / diagnostics.log）はランタイムが自動生成する
+- ⚠ `handoff-dx-training-create.md` にある「勝手にコミットが生まれる」事象（2026-08-06）に引き続き注意。作業前後に `git log` を確認。**2026-08-11 にも再発**（handoff の編集が `c17ce74` として自動コミットされた）
+- dev サーバーは同一プロジェクトで 1 台まで（Next 16）。検証用サーバーを立てたら**必ず止める**（前セッションで放置→ EBUSY ロック→起動不能の事故があった。孤児 postcss ワーカーが `.next` を掴む）。既に 1 台動いている場合は起動せず、その URL に接続して検証する
+- `workspace/` は git 追跡外。`workspace/.meta/`（meta.json / sessions / diagnostics.log）はランタイムが自動生成する。**`retire-workspace-folder` で丸ごと削除される**
+- `contents-plan/runs/` は git 追跡外。`.gitignore` のパターンは**必ず anchored**（`/contents-plan/runs/`）。変更したら `.next` を削除する（Turbopack は `.gitignore` の変更を検知しない）

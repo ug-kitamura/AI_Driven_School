@@ -2,10 +2,11 @@
   "version": "0.0.1",
   "configurations": [
     {
-      "name": "ebex-dev",
+      "name": "dx-training-studio",
       "runtimeExecutable": "npm",
-      "runtimeArgs": ["--prefix", "ebex", "run", "dev"],
-      "port": 3001
+      "runtimeArgs": ["--prefix", "dx-training-studio", "run", "dev"],
+      "port": 3000,
+      "autoPort": true
     }
   ]
 }

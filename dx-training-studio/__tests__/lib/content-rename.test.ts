@@ -74,12 +74,14 @@ describe("applySeriesRename", () => {
     expect(
       remapSelection(
         {
+          seriesId: "srs-series-a-abc123",
           courseId: "crs-course-1-def456",
           lessonId: "lesson-シリーズA-コース1-レッスン1",
         },
         remap,
       ),
     ).toEqual({
+      seriesId: "srs-series-a-abc123",
       courseId: "crs-course-1-def456",
       lessonId: "lesson-シリーズA改-コース1-レッスン1",
     });
@@ -107,12 +109,14 @@ describe("remapCourseAndLessonIds", () => {
     expect(
       remapSelection(
         {
+          seriesId: "srs-series-a-abc123",
           courseId: "crs-course-1-def456",
           lessonId: "lesson-シリーズA-コース1-レッスン1",
         },
         remap,
       ),
     ).toEqual({
+      seriesId: "srs-series-a-abc123",
       courseId: "crs-course-1-def456",
       lessonId: "lesson-シリーズA-コース1改-レッスン1",
     });

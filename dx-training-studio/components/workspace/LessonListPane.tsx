@@ -522,11 +522,15 @@ export function LessonListPane({
     </Dialog>
   );
 
+  // フォーカスは「下があれば降りる」規則なので、course が無いのは
+  // 選び忘れではなくフォーカス中のシリーズにコースが 1 つも無い場合だけ
   if (!course) {
     return (
       <>
         <div className="flex h-full w-full items-center justify-center bg-card text-muted-foreground text-sm">
-          コースを選択してください
+          {series.length === 0
+            ? "シリーズがまだありません"
+            : "このシリーズにはまだコースがありません"}
         </div>
         {miniMandalaDialog}
       </>

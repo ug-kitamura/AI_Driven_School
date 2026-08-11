@@ -79,6 +79,11 @@
   --shadow-opacity: var(--shadow-opacity);
   --color-shadow-color: var(--shadow-color);
   --color-destructive-foreground: var(--destructive-foreground);
+  /* ステータスカラーを役割トークンとして配線する。
+     これがないと `text-status-done` が生成されない */
+  --color-status-done: var(--status-done);
+  --color-status-wip: var(--status-wip);
+  --color-status-draft: var(--status-draft);
 }
 
 :root {

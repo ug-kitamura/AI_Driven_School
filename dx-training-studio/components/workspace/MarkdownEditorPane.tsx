@@ -76,6 +76,7 @@ type DiffState =
 
 export function MarkdownEditorPane({
   lesson,
+  course,
   mode,
   onModeChange,
   onUpdateContent,
@@ -193,10 +194,14 @@ export function MarkdownEditorPane({
     lesson?.lesson,
   ]);
 
+  // フォーカスは「下があれば降りる」規則なので、lesson が無いのは
+  // 選び忘れではなくフォーカス階層より下が空の場合だけ
   if (!lesson) {
     return (
       <div className="flex flex-1 items-center justify-center text-muted-foreground text-sm">
-        レッスンを選択してください
+        {course
+          ? "このコースにはまだレッスンがありません"
+          : "このシリーズにはまだコースがありません"}
       </div>
     );
   }

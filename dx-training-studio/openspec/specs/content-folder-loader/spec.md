@@ -72,3 +72,30 @@
 - **WHEN** レッスンフォルダの `contents.md` が更新される
 - **THEN** `GET /api/content/mtime` の `fingerprint` は変化する
 
+### Requirement: アンダースコア・ドット始まりのディレクトリを構造から除外する
+
+`contents/` の走査において、名前が `_` または `.` で始まるディレクトリをシリーズ・コース・レッスンとして解釈してはならない（MUST NOT）。除外はディレクトリ名のみで判定しなければならない（SHALL）——中に何が入っているか、誰が作ったか（agent / スクリプト / 手作業）を条件にしてはならない（MUST NOT）。
+
+中間ファイル置き場（`_work/`）はフォーカス中のフォルダ直下に作られるため、シリーズ階層および `contents/` 直下にフォーカスした状態では、除外しなければ幻のコース・幻のシリーズとして画面に現れる。
+
+本要件はファイルには適用しない（MAY）——`.meta.json` 等の設定ファイルは従来どおり読み込む。
+
+#### Scenario: contents/ 直下の _work は シリーズにならない
+- **WHEN** `contents/_work/` が存在する状態で `/api/content/load` を呼ぶ
+- **THEN** 返される `Series[]` に `_work` という名前のシリーズは含まれない
+
+#### Scenario: シリーズ配下の _work はコースにならない
+- **WHEN** `contents/シリーズA/_work/` が存在する状態で `/api/content/load` を呼ぶ
+- **THEN** シリーズA の `courses` に `_work` という名前のコースは含まれない
+
+#### Scenario: ドット始まりのディレクトリも除外される
+- **WHEN** `contents/.tmp/` が存在する状態で `/api/content/load` を呼ぶ
+- **THEN** 返される `Series[]` に `.tmp` という名前のシリーズは含まれない
+
+#### Scenario: 通常のフォルダは従来どおり読み込まれる
+- **WHEN** `contents/シリーズA/コースB/レッスンC/contents.md` が存在する
+- **THEN** シリーズA・コースB・レッスンC が従来どおり構築される
+
+#### Scenario: .meta.json は引き続き読み込まれる
+- **WHEN** `contents/シリーズA/コースB/.meta.json` に `order` が記載されている
+- **THEN** その順序がロード結果に反映される

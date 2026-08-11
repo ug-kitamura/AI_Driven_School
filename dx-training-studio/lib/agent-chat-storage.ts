@@ -1,4 +1,9 @@
-import type { AgentToolEvent } from "@/lib/agent/llm/types";
+import type { AgentToolEvent, AgentLogicalTurn } from "@/lib/agent/llm/types";
+
+export type AgentFileAttachment = {
+  path: string;
+  name: string;
+};
 
 export type AgentChatMessage = {
   id: string;
@@ -6,6 +11,8 @@ export type AgentChatMessage = {
   content: string;
   createdAt?: string;
   toolEvents?: AgentToolEvent[];
+  toolTurns?: AgentLogicalTurn[];
+  attachments?: AgentFileAttachment[];
 };
 
 export type AgentChatSession = {
@@ -15,6 +22,10 @@ export type AgentChatSession = {
   activeSkillId: string | null;
   createdAt: string;
   updatedAt: string;
+  /** 直近ターンの可視トークン数（フォルダ往復で表示を残すため永続化）。未計測は null/未設定 */
+  lastTurnTokens?: number | null;
+  /** セッション累計の可視トークン数（同上） */
+  sessionTokenTotal?: number;
 };
 
 export type AgentChatStorage = {
@@ -25,7 +36,14 @@ export type AgentChatStorage = {
 
 export type AgentChatStorageV2 = {
   version: 2;
-  lessons: Record<string, AgentChatStorage>;
+  folders: Record<string, AgentChatStorage>;
+};
+
+/** @deprecated use folders key — migration reads legacy `lessons` */
+type AgentChatStorageV2Legacy = {
+  version: 2;
+  lessons?: Record<string, AgentChatStorage>;
+  folders?: Record<string, AgentChatStorage>;
 };
 
 import { STORAGE_KEYS } from "@/lib/storage-keys";
@@ -58,7 +76,9 @@ export function isPlaceholderSessionTitle(
   return title === deriveSessionTitle(trimmed);
 }
 
-export function createEmptySession(now = new Date().toISOString()): AgentChatSession {
+export function createEmptySession(
+  now = new Date().toISOString(),
+): AgentChatSession {
   return {
     id: createSessionId(),
     title: DEFAULT_SESSION_TITLE,
@@ -78,13 +98,17 @@ export function createInitialStorage(): AgentChatStorage {
   };
 }
 
-function sortSessionsByUpdatedAt(sessions: AgentChatSession[]): AgentChatSession[] {
+function sortSessionsByUpdatedAt(
+  sessions: AgentChatSession[],
+): AgentChatSession[] {
   return [...sessions].sort(
     (a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime(),
   );
 }
 
-export function enforceSessionLimit(sessions: AgentChatSession[]): AgentChatSession[] {
+export function enforceSessionLimit(
+  sessions: AgentChatSession[],
+): AgentChatSession[] {
   if (sessions.length <= MAX_AGENT_CHAT_SESSIONS) return sessions;
   const sorted = sortSessionsByUpdatedAt(sessions);
   return sorted.slice(0, MAX_AGENT_CHAT_SESSIONS);
@@ -93,7 +117,11 @@ export function enforceSessionLimit(sessions: AgentChatSession[]): AgentChatSess
 export function parseAgentChatStorage(raw: unknown): AgentChatStorage | null {
   if (!raw || typeof raw !== "object") return null;
   const parsed = raw as AgentChatStorage;
-  if (parsed.version !== 1 || !parsed.activeSessionId || !Array.isArray(parsed.sessions)) {
+  if (
+    parsed.version !== 1 ||
+    !parsed.activeSessionId ||
+    !Array.isArray(parsed.sessions)
+  ) {
     return null;
   }
   const sessions = enforceSessionLimit(parsed.sessions);
@@ -105,18 +133,22 @@ export function parseAgentChatStorage(raw: unknown): AgentChatStorage | null {
 
 function loadV2Root(): AgentChatStorageV2 {
   if (typeof window === "undefined") {
-    return { version: 2, lessons: {} };
+    return { version: 2, folders: {} };
   }
   try {
     const raw = localStorage.getItem(AGENT_CHAT_STORAGE_V2_KEY);
-    if (!raw) return { version: 2, lessons: {} };
-    const parsed = JSON.parse(raw) as AgentChatStorageV2;
-    if (parsed.version !== 2 || !parsed.lessons || typeof parsed.lessons !== "object") {
-      return { version: 2, lessons: {} };
+    if (!raw) return { version: 2, folders: {} };
+    const parsed = JSON.parse(raw) as AgentChatStorageV2Legacy;
+    if (parsed.version !== 2) {
+      return { version: 2, folders: {} };
     }
-    return parsed;
+    const folders = parsed.folders ?? parsed.lessons ?? {};
+    if (typeof folders !== "object") {
+      return { version: 2, folders: {} };
+    }
+    return { version: 2, folders };
   } catch {
-    return { version: 2, lessons: {} };
+    return { version: 2, folders: {} };
   }
 }
 
@@ -130,15 +162,17 @@ function saveV2Root(root: AgentChatStorageV2): boolean {
   }
 }
 
-export function loadLessonAgentChatStorage(lessonId: string): AgentChatStorage | null {
+export function loadFolderAgentChatStorage(
+  folderId: string,
+): AgentChatStorage | null {
   const root = loadV2Root();
-  const storage = root.lessons[lessonId];
+  const storage = root.folders[folderId];
   if (!storage) return null;
   return parseAgentChatStorage(storage);
 }
 
-export function saveLessonAgentChatStorage(
-  lessonId: string,
+export function saveFolderAgentChatStorage(
+  folderId: string,
   storage: AgentChatStorage,
 ): boolean {
   const normalized: AgentChatStorage = {
@@ -147,9 +181,49 @@ export function saveLessonAgentChatStorage(
     sessions: enforceSessionLimit(storage.sessions),
   };
   const root = loadV2Root();
-  root.lessons[lessonId] = normalized;
+  root.folders[folderId] = normalized;
   return saveV2Root(root);
 }
+
+/** localStorage フォールバックの `folders[key]` エントリを削除する（プロジェクト削除時のクリーンアップ用）。 */
+export function deleteFolderAgentChatStorage(key: string): void {
+  const root = loadV2Root();
+  if (!(key in root.folders)) return;
+  delete root.folders[key];
+  saveV2Root(root);
+}
+
+/**
+ * 旧形式(フォルダ名文字列キー)の `folders` エントリを、新形式(ino キー)へ一括移行する。
+ * `folderIdToIno` は現存するプロジェクトの folderId(表示名) → ino 対応表。
+ * 対応する ino が見つからない旧エントリ（既に削除されたプロジェクト由来）は移行せず破棄する。
+ * 冪等: 既に ino キーへ移行済みのエントリや対応表に無い旧キーは触らない。
+ */
+export function migrateAgentChatStorageKeysToIno(
+  folderIdToIno: Record<string, string>,
+): void {
+  const root = loadV2Root();
+  let changed = false;
+  for (const [folderId, ino] of Object.entries(folderIdToIno)) {
+    if (folderId === ino) continue;
+    if (!(folderId in root.folders)) continue;
+    if (ino in root.folders) {
+      delete root.folders[folderId];
+      changed = true;
+      continue;
+    }
+    root.folders[ino] = root.folders[folderId];
+    delete root.folders[folderId];
+    changed = true;
+  }
+  if (changed) saveV2Root(root);
+}
+
+/** @deprecated use loadFolderAgentChatStorage */
+export const loadLessonAgentChatStorage = loadFolderAgentChatStorage;
+
+/** @deprecated use saveFolderAgentChatStorage */
+export const saveLessonAgentChatStorage = saveFolderAgentChatStorage;
 
 /** @deprecated v1 global storage — 新規コードでは loadLessonAgentChatStorage を使用 */
 export function loadAgentChatStorage(): AgentChatStorage | null {
@@ -187,13 +261,26 @@ export function ensureAgentChatStorage(): AgentChatStorage {
   return initial;
 }
 
-export function getActiveSession(storage: AgentChatStorage): AgentChatSession | undefined {
-  return storage.sessions.find((session) => session.id === storage.activeSessionId);
+export function getActiveSession(
+  storage: AgentChatStorage,
+): AgentChatSession | undefined {
+  return storage.sessions.find(
+    (session) => session.id === storage.activeSessionId,
+  );
 }
 
 export function updateActiveSession(
   storage: AgentChatStorage,
-  updates: Partial<Pick<AgentChatSession, "messages" | "activeSkillId" | "title">>,
+  updates: Partial<
+    Pick<
+      AgentChatSession,
+      | "messages"
+      | "activeSkillId"
+      | "title"
+      | "lastTurnTokens"
+      | "sessionTokenTotal"
+    >
+  >,
 ): AgentChatStorage {
   const now = new Date().toISOString();
   const sessions = storage.sessions.map((session) => {
@@ -224,8 +311,12 @@ function enforceStorage(storage: AgentChatStorage): AgentChatStorage {
   return { version: 1, activeSessionId, sessions };
 }
 
-export function switchSession(storage: AgentChatStorage, sessionId: string): AgentChatStorage {
-  if (!storage.sessions.some((session) => session.id === sessionId)) return storage;
+export function switchSession(
+  storage: AgentChatStorage,
+  sessionId: string,
+): AgentChatStorage {
+  if (!storage.sessions.some((session) => session.id === sessionId))
+    return storage;
   return { ...storage, activeSessionId: sessionId };
 }
 
@@ -253,18 +344,27 @@ export function updateSessionTitle(
   return { ...storage, sessions: enforceSessionLimit(sessions) };
 }
 
-export function deleteSession(storage: AgentChatStorage, sessionId: string): AgentChatStorage {
-  const remaining = storage.sessions.filter((session) => session.id !== sessionId);
+export function deleteSession(
+  storage: AgentChatStorage,
+  sessionId: string,
+): AgentChatStorage {
+  const remaining = storage.sessions.filter(
+    (session) => session.id !== sessionId,
+  );
   if (remaining.length === 0) {
     const fresh = createEmptySession();
     return { version: 1, activeSessionId: fresh.id, sessions: [fresh] };
   }
   const activeSessionId =
-    storage.activeSessionId === sessionId ? remaining[0].id : storage.activeSessionId;
+    storage.activeSessionId === sessionId
+      ? remaining[0].id
+      : storage.activeSessionId;
   return enforceStorage({ version: 1, activeSessionId, sessions: remaining });
 }
 
-export function listSessionsSorted(storage: AgentChatStorage): AgentChatSession[] {
+export function listSessionsSorted(
+  storage: AgentChatStorage,
+): AgentChatSession[] {
   return sortSessionsByUpdatedAt(storage.sessions);
 }
 
@@ -294,7 +394,12 @@ function messageTimestampFromId(id: string): string | null {
 }
 
 export function exportSessionAsMarkdown(session: AgentChatSession): string {
-  const lines = [`# ${session.title}`, "", `Exported: ${new Date().toISOString()}`, ""];
+  const lines = [
+    `# ${session.title}`,
+    "",
+    `Exported: ${new Date().toISOString()}`,
+    "",
+  ];
   for (const message of session.messages) {
     const heading = message.role === "user" ? "## User" : "## Assistant";
     lines.push(heading, "", message.content, "");

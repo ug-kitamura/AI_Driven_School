@@ -17,7 +17,15 @@
        └ references/lesson-template.md     138行
        → スキルはロード可能。空振り確認（L05）で出力の形まで検証済み
 
-[次] 初回実行（コース単位で1本）                    ← ここ
+[済] adopt-contents-plan-layout       archive 済み（2026-08-11）
+       スキルの入出力パスを contents-plan/ へ移設済み。
+       計画書2本は contents-plan/plans/2026080{4,5}-dx-training.md に実在。
+       docs/training-plan/ は消えている（→ 1.1）
+
+[済] retire-workspace-folder         実装完了（2026-08-11・未コミット）
+       別系統の change。本文書の作業への影響は 1.2 を読むこと
+
+[次] 初回実行（コース単位で1本）                    ← ここ。**前提はすべて解消済み**
      出来の良い1本を模範解答に昇格
      模範解答を使う手順をスキルに組み込む（要 change）
 
@@ -25,17 +33,65 @@
      旧スキル削除（`create-draft` / `create-structure`・手作業）
 ```
 
-### リポジトリの状態（未コミット3件）
+### リポジトリの状態
 
-```
-A  dx-training-studio/.claude/skills/dx-training-create/SKILL.md
-A  dx-training-studio/.claude/skills/dx-training-create/references/lesson-template.md
-M  dx-training-studio/openspec/specs/training-create-skill/spec.md
-```
+前版に記録されていた未コミット3件は **`6ab8d36` でコミット済み**（2026-08-11 確認）。現ブランチは **`dx-training-studio2`**（`dx-training-create` ではない）。
 
-ブランチ `dx-training-create`。コミットするかは人が決める。
+⚠ **`retire-workspace-folder` の成果物 89 パスが未コミットで作業ツリーに載っている**（2026-08-11 時点）。初回実行で `contents/` に草稿を作ると、**その差分が既存の未コミット分と混ざる**。先にコミットしてから回すのが安全（→ `handoff-agent-port-followup.md` §1「次のアクション」）。
 
-⚠ **このリポジトリでは、誰も `git commit` を叩いていないのにコミットが生まれ、新規ファイルが勝手にステージされることがある**（2026-08-06 に `7ae5a53` が発生）。Studio か何かの自動 git 連携が疑われる。作業前後に `git log` を見ること。
+⚠ **このリポジトリでは、誰も `git commit` を叩いていないのにコミットが生まれ、新規ファイルが勝手にステージされることがある**（2026-08-06 に `7ae5a53`、2026-08-11 に `c17ce74` と `b210b7b` が発生）。Studio か何かの自動 git 連携が疑われる。**作業途中でも勝手にコミットされうる前提で、区切りごとに `git log` を見ること。**
+
+### 1.1 【解決済み 2026-08-11】スキルの入出力パス
+
+`adopt-contents-plan-layout` で移設完了。**スキル側も追従済みなので、そのまま回せる。**
+
+| | 旧 | 現 |
+|---|---|---|
+| 計画書（入力） | `docs/training-plan-*.md` | `contents-plan/plans/<yyyymmdd>-<slug>.md` |
+| 設計メモ | `docs/<yyyymmdd>/{シリーズslug}-{コースslug}.md` | `contents-plan/runs/<yyyymmdd>-<slug>/design-note.md` |
+| レビュー | （ファイル保存の規定なし） | 同 run 内 `review-<レッスン名>.md` |
+| 曼陀羅 | （ファイル保存の規定なし） | 同 run 内 `mandala.md` |
+
+実測（2026-08-11）: `contents-plan/plans/` に `20260804-dx-training.md` と `20260805-dx-training.md` が実在。`docs/training-plan/` は消えている。`contents-plan/runs/` はまだ空——**初回実行が最初の run を作る。**
+
+覚えておくこと。
+
+- **識別子はフォルダ名が持ち、ファイル名は役割だけを表す。** これにより SKILL.md フェーズ3 の範囲別ファイル名表と**同日再実行の連番規則が廃止**された（→ 6章）
+- **計画書は「最新の1本」ではなくユーザーに選ばせる**（SKILL.md フェーズ1 に反映済み）
+- `contents-plan/plans/` は git 追跡、`contents-plan/runs/` は**追跡外**（家↔会社のやり取りを記録に残さない方針。2026-08-11 決定）。設計メモを社内PCへ渡す手段は git 以外になる — 2.1 の観察で「ファイルとして残っているか」は引き続き見るが、**コミットされていないことは異常ではない**
+
+### 1.2 【2026-08-11 追記】`retire-workspace-folder` が本作業に効く2点
+
+別系統の change だが、**独立ではなくなった**。
+
+#### (a) ペイン4 の添付候補が本作業の成果物を拾うようになった
+
+ペイン4 のフォルダ選択 UI が撤去され、`@` 参照の候補が次の3種になった。
+
+1. `contents/` 配下の `contents.md`（レッスン本文）
+2. `contents-plan/plans/` 配下（計画書）
+3. `contents-plan/runs/` の**更新日時が新しい上位3件**の run ディレクトリ配下
+
+つまり**初回実行で作った設計メモ・レビュー・曼陀羅が、そのままペイン4 の添付候補に出る**。一覧は最新3 run に絞られるが、**読取は古い run も可能**（過去に貼った参照が時間経過で読めなくなるのを避けるため）。
+
+会話のスコープはペイン1〜3 のフォーカス階層（シリーズ / コース / レッスン）が決める。レッスンを選べばそのレッスンの会話、コースを選べばコースの会話になる。
+
+#### (b) 【解決済み 2026-08-11】新シリーズ・新コースの作成は確認ダイアログで通る
+
+`contents-write-gate` で決着した。**深さでディレクトリ作成を拒否する防御は廃止された。**
+
+| 作る場所 | 判定 |
+|---|---|
+| `contents/<新シリーズ>/<新コース>/<新レッスン>/contents.md` | 許可。**実行前に確認ダイアログ 1 枚**（3 階層まとめて提示） |
+| `contents/<既存S>/<既存C>/<新レッスン>/contents.md` | 許可。確認はレッスン 1 件だけ提示 |
+| すべて既存（上書き） | 従来どおり上書き確認。フォルダ作成の確認は出ない |
+| レッスンフォルダ配下の任意ファイル | 許可（確認なし） |
+
+**本スキルの「出力先は `contents/<シリーズ名>/<コース名>/<レッスン名>/contents.md`。ディレクトリごと作る」（SKILL.md フェーズ5）はそのまま成立する。スキルの変更は不要**（確認はホスト側で定義されている）。
+
+書けないのは `session.json` / `.meta.json`（アプリが管理）だけ。**この帰結として、レッスンの並び順はスキルからは直せない**（4.5 の「`order` を後から直す」はペイン1・2 のドラッグで人がやる作業になる）。
+
+**解禁はまだしていない。** 本スキルは frontmatter に `tools:` を宣言していないため、ペイン4 ではファイル系ツールが提示されず、**Claude Code で回す前提**のまま。初回実行を観測してから 1 行足す。→ `handoff-agent-port-followup.md` §7。
 
 ---
 
@@ -123,7 +179,8 @@ M  dx-training-studio/openspec/specs/training-create-skill/spec.md
 
 | 観点 | 見るところ |
 |---|---|
-| フェーズを飛ばさないか | 設計メモのファイルが承認前に作られているか。承認なしに執筆に入らないか |
+| フェーズを飛ばさないか | 設計メモ（`contents-plan/runs/<run>/design-note.md`）が承認前に作られているか。承認なしに執筆に入らないか |
+| レビュー・曼陀羅をファイルに残すか | 同 run 内に `review-<レッスン名>.md` / `mandala.md` が出ているか。チャットに流して終わっていないか（新規追加の指示なので、初回は特に見る） |
 | 穴の粒度 | 社内の穴が「答えるべき問い」になっているか。一般論が混ざっていないか |
 | references を読むか | `design-principles.md` と `lesson-template.md` を実際に開いているか。開かないなら参照が弱い |
 | 分量 | `estimated_minutes` に対して本文が膨らみすぎていないか |
@@ -254,6 +311,8 @@ loader が `order` の末尾に新シリーズ名を追記する。**草稿を�
 
 `order` には実在するディレクトリだけを書く。後からコースやレッスンを足したら、**親の `.meta.json` の `order` を計画書の順に直す**。直さないと末尾に追加されて並びが崩れる。
 
+⚠ **2026-08-11 追記: ペイン4 の agent は `.meta.json` を書けない**（`contents-write-gate` でアプリ管理ファイルとして保護された）。ペイン4 経由で回す場合、並べ替えは**ペイン1・2 のドラッグで人がやる**。Claude Code で回す場合は従来どおり直接編集できる。
+
 ---
 
 ## 5. 守るべき作法
@@ -262,7 +321,9 @@ loader が `order` の末尾に新シリーズ名を追記する。**草稿を�
 
 - planning home は **`dx-training-studio/`**（リポジトリルートではない）。ルートから叩くと `No OpenSpec changes directory found`
 - `openspec validate <change> --strict` は**リポジトリルートからだと `Unknown item` になる**。planning home に入ってから叩く
-- **`openspec-sync-specs` スキルはこの環境に無い。** archive 時の同期は手作業。本体 spec を直接書き、`npx openspec validate --specs` で**42件**通ることを確認する
+- **`openspec-sync-specs` スキルはこの環境に無い。** archive 時の同期は手作業。本体 spec を直接書き、`npx openspec validate --specs` が通ることを確認する。**件数は change ごとに増える**（前版の「42件」は古い。2026-08-11 時点で 54 件）ので、数を暗記せず実行時の出力で見る
+- ⚠ **手作業同期した change は `openspec archive` が使えない。** delta を spec へ再適用しようとして、RENAMED の元見出しが無いと `Aborted. No files were changed.` で止まる。`openspec/changes/archive/<yyyy-mm-dd>-<change名>/` へ**ディレクトリ移動でアーカイブする**
+- delta 側の要件見出しは必ず `### Requirement: <名前>`。**要件内の小見出しに level-3 を使わない** — 同期すると要件がシナリオから切り離され、`validate --specs` が「scenario が無い」で落ちる（2026-08-11 に踏んだ）。太字段落にする
 - `openspec/changes/` は `.gitignore` されている。**コミットされるのは `openspec/specs/` だけ** — 設計の記録はそこにしか残らない
 - アーティファクトは日本語で書く
 
@@ -288,7 +349,8 @@ loader が `order` の末尾に新シリーズ名を追記する。**草稿を�
 | 昇格基準 | **本文書 3.3 に案。初回実行で実際に判定して確定させる** |
 | 完了条件の置き場所 | work6.md の「〜できたら完了です」を5章構成のどこに置くか。初回草稿を見てから（→ 2.3.2） |
 | 模範解答を2本にするか | 手順型の出来を見てから（3.4） |
-| 同日再実行時の古いメモの扱い | 連番（最大+1）までは決めたが、古い版を消すかは未定 |
+| ~~同日再実行時の古いメモの扱い~~ | **解消（2026-08-11）**。連番規則は廃止され、再実行ごとに run フォルダが分かれる。古い run はそのまま残す（→ 1.1） |
+| ~~ペイン4 でのツール解禁と、新シリーズ・新コース作成の衝突~~ | **解消（2026-08-11・`contents-write-gate`）。** 深さでディレクトリ作成を拒否する防御は廃止され、新シリーズ・新コース・新レッスンは**確認ダイアログ 1 枚**で通るようになった。本スキルの「ディレクトリごと作る」動作はそのまま成立する。解禁は `tools:` を 1 行足すだけ（→ 1.2b） |
 | spec 前半5件の書きぶり | `抽出元と網羅` 等が過去の作業記録に読める。`## Purpose` も実態とずれている。**中身は生きているので消さない。** 直すなら別 change |
 
 ---
@@ -297,8 +359,8 @@ loader が `order` の末尾に新シリーズ名を追記する。**草稿を�
 
 - 穴埋めスキル（社内側）
 - 社内コンテキストDB の逆向き運用
-- ebex 機能の Studio 移植
-- Studio 側の改修（コメント種別の判定、未充足の穴の一覧表示）
+- ~~ebex 機能の Studio 移植~~ — **別系統で実施済み**（`port-ebex-agent-core`、2026-08-10 archive）。本文書の作業としては引き続き対象外
+- Studio 側の改修（コメント種別の判定、未充足の穴の一覧表示）。~~ペイン4 の UI 整理~~ は **`retire-workspace-folder` で実施済み**（フォルダ選択 UI 撤去。2026-08-11。→ 1.2a）
 - 旧スキル（`create-draft` / `create-structure`）の削除 — **後日手作業**
 - 計画書の再修正
 - `training-create-skill` spec の要件削除（6章の最終行を参照）

@@ -26,9 +26,9 @@ import { normalizeTags, type LessonMetaFields } from "@/lib/lesson-frontmatter";
 import { STATUS_LABELS, type Lesson, type LessonStatus } from "@/lib/schema";
 
 const STATUS_ICONS: Record<LessonStatus, React.ReactNode> = {
-  open: <CircleDashed className="h-3.5 w-3.5 text-[--status-draft]" />,
-  in_progress: <Loader className="h-3.5 w-3.5 text-[--status-wip]" />,
-  done: <CircleCheck className="h-3.5 w-3.5 text-[--status-done]" />,
+  open: <CircleDashed className="size-3.5 text-status-draft" />,
+  in_progress: <Loader className="size-3.5 text-status-wip" />,
+  done: <CircleCheck className="size-3.5 text-status-done" />,
 };
 
 /** 未設定 */

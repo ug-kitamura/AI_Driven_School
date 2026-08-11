@@ -149,6 +149,14 @@ describe("select-company-context", () => {
   });
 });
 
+function contextOnly(mode: "local" | "database") {
+  return {
+    projectRoot: process.cwd(),
+    workScopeKey: "",
+    contextMode: mode,
+  };
+}
+
 describe("tool registry", () => {
   beforeEach(() => {
     vi.mocked(getContextRepository).mockReset();
@@ -162,7 +170,7 @@ describe("tool registry", () => {
     const outcome = await executeRegisteredTool(
       "search_company_context",
       { query: "git" },
-      "local",
+      contextOnly("local"),
     );
     expect(outcome.display.summary).toBe("0件");
   });
@@ -175,7 +183,7 @@ describe("tool registry", () => {
     const outcome = await executeRegisteredTool(
       "select_company_context",
       { ids: [42] },
-      "local",
+      contextOnly("local"),
     );
     expect(outcome.display.summary).toBe("1件");
   });

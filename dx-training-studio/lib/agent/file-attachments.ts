@@ -5,7 +5,15 @@ import { LESSON_CONTENTS_FILENAME } from "@/lib/lesson-paths";
 
 export const ALLOWED_PREFIX = `${CONTENTS_DIR_NAME}/`;
 
-const ATTACHMENT_TOKEN_RE = /@((?:contents\/)[^\s@]+)/g;
+/** 作業ツリー（計画書・run）。書込契約の 2 ルート目 */
+export const CONTENTS_PLAN_DIR_NAME = "contents-plan";
+export const PLANS_PREFIX = `${CONTENTS_PLAN_DIR_NAME}/plans/`;
+export const RUNS_PREFIX = `${CONTENTS_PLAN_DIR_NAME}/runs/`;
+
+/** ピッカーに並べる run ディレクトリの数（更新日時の新しい順） */
+export const RECENT_RUN_LIMIT = 3;
+
+const ATTACHMENT_TOKEN_RE = /@((?:contents|contents-plan)\/[^\s@]+)/g;
 
 export type ContentFileRef = {
   path: string;
@@ -18,6 +26,24 @@ export function extractAttachmentTokens(text: string): string[] {
     tokens.add(match[1]);
   }
   return [...tokens];
+}
+
+/**
+ * @ 参照できるパスは 3 種。
+ * - 正本ツリーのレッスン本文（`contents/**\/contents.md`）
+ * - 計画置き場（`contents-plan/plans/...`）
+ * - run ディレクトリ（`contents-plan/runs/...`）
+ *
+ * ピッカーに並ぶ run は最新 3 件だけだが、読取は run 全体を許す。
+ * 一覧は更新日時で変わるため、過去に貼った参照が時間経過で読めなくなるのを避ける。
+ */
+export function isAllowedAttachmentPath(relativePath: string): boolean {
+  const normalized = relativePath.replace(/\\/g, "/");
+  if (normalized.includes("..")) return false;
+  if (normalized.startsWith(PLANS_PREFIX) || normalized.startsWith(RUNS_PREFIX)) {
+    return normalized.split("/").every((part) => part.length > 0);
+  }
+  return isAllowedContentMdPath(normalized);
 }
 
 export function isAllowedContentMdPath(relativePath: string): boolean {
@@ -33,13 +59,18 @@ export function resolveAllowedContentPath(
   relativePath: string,
 ): { absolutePath: string; relativePath: string } | { error: string } {
   const normalized = relativePath.replace(/\\/g, "/");
-  if (!isAllowedContentMdPath(normalized)) {
+  if (!isAllowedAttachmentPath(normalized)) {
     return { error: `許可されていないパスです: ${relativePath}` };
   }
 
   const absolutePath = path.resolve(projectRoot, normalized);
-  const contentsDir = path.resolve(getContentsDir(projectRoot));
-  if (!absolutePath.startsWith(contentsDir + path.sep) && absolutePath !== contentsDir) {
+  const rootDir = normalized.startsWith(ALLOWED_PREFIX)
+    ? path.resolve(getContentsDir(projectRoot))
+    : path.resolve(projectRoot, CONTENTS_PLAN_DIR_NAME);
+  if (
+    !absolutePath.startsWith(rootDir + path.sep) &&
+    absolutePath !== rootDir
+  ) {
     return { error: `許可されていないパスです: ${relativePath}` };
   }
   if (!fs.existsSync(absolutePath)) {
@@ -65,11 +96,17 @@ export function readAttachmentContents(
 export function resolveAttachmentsForMessage(
   projectRoot: string,
   message: string,
-): { attachments: Array<{ path: string; content: string }> } | { error: string } {
-  const tokens = extractAttachmentTokens(message);
+  structuredPaths?: ReadonlyArray<string>,
+):
+  | { attachments: Array<{ path: string; content: string }> }
+  | { error: string } {
+  const paths =
+    structuredPaths && structuredPaths.length > 0
+      ? [...new Set(structuredPaths.map((p) => p.replace(/\\/g, "/")))]
+      : extractAttachmentTokens(message);
   const attachments: Array<{ path: string; content: string }> = [];
-  for (const token of tokens) {
-    const result = readAttachmentContents(projectRoot, token);
+  for (const relativePath of paths) {
+    const result = readAttachmentContents(projectRoot, relativePath);
     if ("error" in result) return { error: result.error };
     attachments.push(result);
   }
@@ -112,7 +149,68 @@ export function listContentMarkdownFiles(projectRoot: string): ContentFileRef[] 
   return results.sort((a, b) => a.path.localeCompare(b.path));
 }
 
-/** 選択中レッスンを先頭、残りは path のアルファベット順 */
+function listFilesUnder(
+  projectRoot: string,
+  absoluteDir: string,
+): ContentFileRef[] {
+  if (!fs.existsSync(absoluteDir)) return [];
+  const results: ContentFileRef[] = [];
+  const stack = [absoluteDir];
+  while (stack.length > 0) {
+    const dir = stack.pop()!;
+    for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+      if (entry.name.startsWith(".")) continue;
+      const absolute = path.join(dir, entry.name);
+      if (entry.isDirectory()) {
+        stack.push(absolute);
+        continue;
+      }
+      if (!entry.isFile()) continue;
+      results.push({
+        path: path.relative(projectRoot, absolute).replace(/\\/g, "/"),
+        name: entry.name,
+      });
+    }
+  }
+  return results.sort((a, b) => a.path.localeCompare(b.path));
+}
+
+/** 計画置き場のファイル */
+export function listPlanFiles(projectRoot: string): ContentFileRef[] {
+  return listFilesUnder(
+    projectRoot,
+    path.join(projectRoot, CONTENTS_PLAN_DIR_NAME, "plans"),
+  );
+}
+
+/** 更新日時の新しい run ディレクトリ上位 `limit` 件のファイル */
+export function listRecentRunFiles(
+  projectRoot: string,
+  limit = RECENT_RUN_LIMIT,
+): ContentFileRef[] {
+  const runsDir = path.join(projectRoot, CONTENTS_PLAN_DIR_NAME, "runs");
+  if (!fs.existsSync(runsDir)) return [];
+
+  const runDirs = fs
+    .readdirSync(runsDir, { withFileTypes: true })
+    .filter((entry) => entry.isDirectory() && !entry.name.startsWith("."))
+    .map((entry) => {
+      const absolute = path.join(runsDir, entry.name);
+      return { absolute, mtimeMs: fs.statSync(absolute).mtimeMs };
+    })
+    .sort((a, b) => b.mtimeMs - a.mtimeMs)
+    .slice(0, limit);
+
+  return runDirs.flatMap((run) => listFilesUnder(projectRoot, run.absolute));
+}
+
+/**
+ * @ 参照ピッカーの並び。
+ *
+ * `currentPath`（ペイン3 で開いているレッスン本文）は、**レッスンにフォーカス
+ * している場合だけ**先頭に置く。コース・シリーズにフォーカスしているときは
+ * 開いているファイルが作業対象とは限らないため、先頭固定はかえって外れる。
+ */
 export function orderContentFilesForPicker(
   files: ContentFileRef[],
   currentPath?: string | null,

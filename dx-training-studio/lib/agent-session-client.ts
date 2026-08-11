@@ -1,14 +1,22 @@
 import {
   createInitialStorage,
-  loadLessonAgentChatStorage,
-  saveLessonAgentChatStorage,
+  loadFolderAgentChatStorage,
+  saveFolderAgentChatStorage,
   type AgentChatStorage,
 } from "@/lib/agent-chat-storage";
 
-export async function loadLessonSession(lessonId: string): Promise<AgentChatStorage> {
+/**
+ * @param scopeKey `serializeWorkScope` が返すスコープ文字列。空文字はシリーズ 0 件
+ *   （`contents/` 直下）を表す正当な値であり、エラーではない。
+ *   サーバー・localStorage フォールバックの双方で同じキーを使う——スコープはパスなので
+ *   フォルダのリネームに追従し、ID の再利用による誤った履歴の引き当ても起きない。
+ */
+export async function loadScopeSession(
+  scopeKey: string,
+): Promise<AgentChatStorage> {
   try {
     const res = await fetch(
-      `/api/agent/session?lessonId=${encodeURIComponent(lessonId)}`,
+      `/api/agent/session?scope=${encodeURIComponent(scopeKey)}`,
     );
     if (res.ok) {
       const data = (await res.json()) as AgentChatStorage;
@@ -20,16 +28,16 @@ export async function loadLessonSession(lessonId: string): Promise<AgentChatStor
     /* fall through to localStorage */
   }
 
-  return loadLessonAgentChatStorage(lessonId) ?? createInitialStorage();
+  return loadFolderAgentChatStorage(scopeKey) ?? createInitialStorage();
 }
 
-export async function saveLessonSession(
-  lessonId: string,
+export async function saveScopeSession(
+  scopeKey: string,
   storage: AgentChatStorage,
 ): Promise<boolean> {
   try {
     const res = await fetch(
-      `/api/agent/session?lessonId=${encodeURIComponent(lessonId)}`,
+      `/api/agent/session?scope=${encodeURIComponent(scopeKey)}`,
       {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
@@ -41,5 +49,5 @@ export async function saveLessonSession(
     /* fall through */
   }
 
-  return saveLessonAgentChatStorage(lessonId, storage);
+  return saveFolderAgentChatStorage(scopeKey, storage);
 }

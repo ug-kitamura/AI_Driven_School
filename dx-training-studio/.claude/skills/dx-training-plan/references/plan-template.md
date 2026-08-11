@@ -1,6 +1,6 @@
 # 計画書テンプレート
 
-出力する計画書の章立てと記述例。実例は `dx-training-studio/docs/training-plan-YYYYMMDD.md` を参照。
+出力する計画書の章立てと記述例。実例は `dx-training-studio/contents-plan/plans/` 配下の既存の計画書を参照。
 
 ## 目次
 

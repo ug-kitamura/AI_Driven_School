@@ -300,3 +300,98 @@ describe("contentsExists", () => {
     expect(contentsExists(tmpDir)).toBe(true);
   });
 });
+
+/**
+ * 中間ファイル置き場（`_work/`）がシリーズ・コースとして画面に現れないこと。
+ * 判定はディレクトリ名だけで行うため、誰が作ったかを問わない（`contents-write-gate`）。
+ */
+describe("アンダースコア・ドット始まりのディレクトリ除外", () => {
+  let tmpDir: string;
+  let contentsDir: string;
+
+  beforeEach(() => {
+    tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "contents-hidden-test-"));
+    contentsDir = path.join(tmpDir, "contents");
+  });
+
+  afterEach(() => {
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+  });
+
+  it("contents/_work/ はシリーズにならない", () => {
+    writeLesson(contentsDir, "シリーズA", "コースB", "レッスンC", "本文");
+    writeFile(path.join(contentsDir, "_work", "report.html"), "x");
+
+    const result = loadContentsFolder(tmpDir);
+    expect(result.map((s) => s.name)).toEqual(["シリーズA"]);
+  });
+
+  it("シリーズ配下の _work/ はコースにならない", () => {
+    writeLesson(contentsDir, "シリーズA", "コースB", "レッスンC", "本文");
+    writeFile(path.join(contentsDir, "シリーズA", "_work", "note.md"), "x");
+
+    const result = loadContentsFolder(tmpDir);
+    expect(result[0]?.courses.map((c) => c.name)).toEqual(["コースB"]);
+  });
+
+  it("コース配下の _work/ はレッスンにならない", () => {
+    writeLesson(contentsDir, "シリーズA", "コースB", "レッスンC", "本文");
+    writeFile(
+      path.join(contentsDir, "シリーズA", "コースB", "_work", LESSON_CONTENTS_FILENAME),
+      "x",
+    );
+
+    const result = loadContentsFolder(tmpDir);
+    expect(result[0]?.courses[0]?.lessons.map((l) => l.lesson)).toEqual([
+      "レッスンC",
+    ]);
+  });
+
+  it("ドット始まりのディレクトリも除外される", () => {
+    writeLesson(contentsDir, "シリーズA", "コースB", "レッスンC", "本文");
+    writeFile(path.join(contentsDir, ".tmp", "x.md"), "x");
+
+    const result = loadContentsFolder(tmpDir);
+    expect(result.map((s) => s.name)).toEqual(["シリーズA"]);
+  });
+
+  it("order に残った _work は無視される", () => {
+    writeLesson(contentsDir, "シリーズA", "コースB", "レッスンC", "本文");
+    writeFile(path.join(contentsDir, "_work", "report.html"), "x");
+    writeJson(path.join(contentsDir, ".meta.json"), {
+      order: ["_work", "シリーズA"],
+    });
+
+    const result = loadContentsFolder(tmpDir);
+    expect(result.map((s) => s.name)).toEqual(["シリーズA"]);
+  });
+
+  it("reconcileOrderFiles は _work を order へ書き込まない", () => {
+    writeLesson(contentsDir, "シリーズA", "コースB", "レッスンC", "本文");
+    writeFile(path.join(contentsDir, "_work", "report.html"), "x");
+
+    reconcileOrderFiles(tmpDir);
+
+    const meta = JSON.parse(
+      fs.readFileSync(path.join(contentsDir, ".meta.json"), "utf-8"),
+    );
+    expect(meta.order).not.toContain("_work");
+  });
+
+  it("通常のフォルダは従来どおり読み込まれ、.meta.json も読まれる", () => {
+    writeLesson(contentsDir, "シリーズA", "コースB", "レッスンC", "本文");
+    writeLesson(contentsDir, "シリーズA", "コースB", "レッスンD", "本文");
+    writeJson(path.join(contentsDir, "シリーズA", "コースB", ".meta.json"), {
+      order: ["レッスンD", "レッスンC"],
+      target: "初学者",
+    });
+
+    const result = loadContentsFolder(tmpDir);
+    const course = result[0]?.courses[0];
+    expect(course?.lessons.map((l) => l.lesson)).toEqual([
+      "レッスンD",
+      "レッスンC",
+    ]);
+    expect(course?.target).toBe("初学者");
+  });
+});

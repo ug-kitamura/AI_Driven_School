@@ -1,9 +1,10 @@
 "use client";
 
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import dynamic from "next/dynamic";
 import { Bot, ImageIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { serializeWorkScope, type WorkScope } from "@/lib/work-scope";
 import { Pane4Toggle } from "@/components/workspace/Pane4Toggle";
 import {
   PaneSegmentControl,
@@ -14,6 +15,8 @@ import { ImageManagerPane } from "@/components/workspace/ImageManagerPane";
 import { useAgentSessionChrome } from "@/components/workspace/use-agent-session-chrome";
 import type { ImageManagerTab } from "@/components/workspace/image-manager/types";
 import type { AgentChatController } from "@/lib/agent-chat-controller";
+import type { AgentChatDraftMap } from "@/components/workspace/agent-chat-draft";
+import type { SkillSummary } from "@/lib/agent/skill-loader";
 import type { Pane4View } from "@/lib/pane4-view-storage";
 import { savePane4View } from "@/lib/pane4-view-storage";
 import type { Course, Lesson, Series } from "@/lib/schema";
@@ -54,6 +57,8 @@ export type Pane4ShellProps = {
   series: Series[];
   lesson: Lesson | undefined;
   course: Course | undefined;
+  /** 作業スコープ。会話の保存先と書込の基準を兼ねる。フォーカス階層と 1 対 1。 */
+  workScope: WorkScope;
   pane3Mode: Pane3Mode;
   onInsertImage: (markdown: string) => boolean;
   editorCommentPrompt: string | null;
@@ -72,6 +77,7 @@ export function Pane4Shell({
   series,
   lesson,
   course,
+  workScope,
   pane3Mode,
   onInsertImage,
   editorCommentPrompt,
@@ -84,6 +90,28 @@ export function Pane4Shell({
 }: Pane4ShellProps) {
   const [controllerVersion, setControllerVersion] = useState(0);
   const [activeImageTab, setActiveImageTab] = useState<ImageManagerTab>("used");
+
+  // スコープが変わったら AgentChatPane を key でリマウントする。
+  // 空文字はシリーズ 0 件（contents/ 直下）を表す正当なスコープ。
+  const scopeKey = serializeWorkScope(workScope);
+
+  // スキルカタログと未送信下書きはスコープ非依存。
+  // AgentChatPane はスコープ切替でリマウントされるため、ここで保持する。
+  const [skills, setSkills] = useState<SkillSummary[]>([]);
+  const [skillsError, setSkillsError] = useState<string | null>(null);
+  const draftsRef = useRef<AgentChatDraftMap>(new Map());
+
+  useEffect(() => {
+    void fetch("/api/agent/skills")
+      .then((res) => res.json())
+      .then((data: { skills?: SkillSummary[] }) => {
+        setSkills(data.skills ?? []);
+        setSkillsError(null);
+      })
+      .catch(() => {
+        setSkillsError("スキル一覧の取得に失敗しました");
+      });
+  }, []);
 
   const sessionChrome = useAgentSessionChrome(
     agentChatControllerRef,
@@ -134,27 +162,31 @@ export function Pane4Shell({
       <div className="relative min-h-0 flex-1 overflow-hidden">
         <div
           className={cn(
-            "absolute inset-0",
+            "absolute inset-0 flex flex-col",
             pane4View !== "agent" && "hidden",
           )}
         >
-          <AgentChatPane
-            series={series}
-            lesson={lesson}
-            course={course}
-            currentLessonPath={currentLessonPath}
-            onOpenSettings={onOpenSettings}
-            onOverwriteEditor={onOverwriteEditor}
-            agentChatControllerRef={agentChatControllerRef}
-            onControllerReady={onControllerReady}
-            richMarkdown={pane4View === "agent"}
-          />
+          <div className="min-h-0 flex-1">
+            <AgentChatPane
+              key={scopeKey || "root-scope"}
+              scopeKey={scopeKey}
+              series={series}
+              lesson={lesson}
+              course={course}
+              currentLessonPath={currentLessonPath}
+              onOpenSettings={onOpenSettings}
+              onOverwriteEditor={onOverwriteEditor}
+              agentChatControllerRef={agentChatControllerRef}
+              onControllerReady={onControllerReady}
+              richMarkdown={pane4View === "agent"}
+              draftsRef={draftsRef}
+              skills={skills}
+              skillsError={skillsError}
+            />
+          </div>
         </div>
         <div
-          className={cn(
-            "absolute inset-0",
-            pane4View !== "images" && "hidden",
-          )}
+          className={cn("absolute inset-0", pane4View !== "images" && "hidden")}
         >
           <ImageManagerPane
             series={series}

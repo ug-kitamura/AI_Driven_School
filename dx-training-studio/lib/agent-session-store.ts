@@ -1,7 +1,12 @@
 import fs from "node:fs";
 import path from "node:path";
-import { findLessonLocationById } from "@/lib/contents-loader";
-import { LESSON_SESSION_FILENAME } from "@/lib/lesson-paths";
+import { getContentsDir } from "@/lib/contents-loader";
+import {
+  parseWorkScope,
+  workScopeLevel,
+  workScopeSessionPath,
+  type WorkScope,
+} from "@/lib/work-scope";
 import type { AgentChatStorage } from "@/lib/agent-chat-storage";
 import { parseAgentChatStorage } from "@/lib/agent-chat-storage";
 
@@ -9,21 +14,42 @@ export function isAgentSessionFsWritable(): boolean {
   return process.env.AGENT_SESSION_FS !== "disabled";
 }
 
-export function resolveLessonSessionPath(
+/**
+ * セッションの保存先は `contents/` 配下のフォーカス階層の `session.json`。
+ * フォルダをリネームしてもファイルごと移動するため、安定 ID を持たないレッスンでも
+ * 履歴が追従する。
+ */
+export function resolveScopeSessionPath(
   projectRoot: string,
-  lessonId: string,
-): string | null {
-  const location = findLessonLocationById(projectRoot, lessonId);
-  if (!location) return null;
-  return path.join(location.lessonDir, LESSON_SESSION_FILENAME);
+  scope: WorkScope,
+): string {
+  const contentsDir = path.resolve(getContentsDir(projectRoot));
+  const absolutePath = path.resolve(
+    contentsDir,
+    workScopeSessionPath(scope),
+  );
+  if (!absolutePath.startsWith(contentsDir + path.sep)) {
+    throw new Error("不正なスコープです");
+  }
+  return absolutePath;
 }
 
-export function readLessonSessionFile(
+/** クエリ文字列からスコープを解決する。不正なら null。 */
+export function resolveScopeFromParam(raw: string | null): WorkScope | null {
+  return parseWorkScope(raw ?? "");
+}
+
+export function readScopeSessionFile(
   projectRoot: string,
-  lessonId: string,
+  scope: WorkScope,
 ): AgentChatStorage | null {
-  const sessionPath = resolveLessonSessionPath(projectRoot, lessonId);
-  if (!sessionPath || !fs.existsSync(sessionPath)) return null;
+  let sessionPath: string;
+  try {
+    sessionPath = resolveScopeSessionPath(projectRoot, scope);
+  } catch {
+    return null;
+  }
+  if (!fs.existsSync(sessionPath)) return null;
   try {
     const raw = fs.readFileSync(sessionPath, "utf-8");
     return parseAgentChatStorage(JSON.parse(raw));
@@ -32,18 +58,26 @@ export function readLessonSessionFile(
   }
 }
 
-export function writeLessonSessionFile(
+export function writeScopeSessionFile(
   projectRoot: string,
-  lessonId: string,
+  scope: WorkScope,
   storage: AgentChatStorage,
 ): void {
   if (!isAgentSessionFsWritable()) {
     throw new Error("AGENT_SESSION_FS_DISABLED");
   }
-  const sessionPath = resolveLessonSessionPath(projectRoot, lessonId);
-  if (!sessionPath) {
-    throw new Error(`Lesson not found: ${lessonId}`);
+  const sessionPath = resolveScopeSessionPath(projectRoot, scope);
+  const dir = path.dirname(sessionPath);
+  if (!fs.existsSync(dir)) {
+    if (workScopeLevel(scope) === "root") {
+      // シリーズ 0 件の初期状態では contents/ 自体が無いことがある。
+      // ここはアプリのデータルートなので作ってよい。
+      fs.mkdirSync(dir, { recursive: true });
+    } else {
+      // シリーズ/コース/レッスンが消えた状態。
+      // session.json のためだけにコンテンツのディレクトリを作らない。
+      throw new Error(`Scope not found: ${sessionPath}`);
+    }
   }
-  fs.mkdirSync(path.dirname(sessionPath), { recursive: true });
   fs.writeFileSync(sessionPath, JSON.stringify(storage, null, 2), "utf-8");
 }

@@ -23,7 +23,9 @@ export async function POST(req: Request) {
     return Response.json({ error: "Invalid request body" }, { status: 400 });
   }
 
-  const hasAssistant = parsed.data.messages.some((message) => message.role === "assistant");
+  const hasAssistant = parsed.data.messages.some(
+    (message) => message.role === "assistant",
+  );
   if (!hasAssistant) {
     return Response.json({ error: "Invalid request body" }, { status: 400 });
   }

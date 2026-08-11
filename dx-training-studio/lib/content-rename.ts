@@ -13,6 +13,8 @@ export function remapSelection(
   remap: IdRemap,
 ): WorkspaceSelection {
   return {
+    // シリーズの安定 ID はリネームで変わらないため remap 対象に含めない
+    seriesId: selection.seriesId,
     courseId: remap.courseIds.get(selection.courseId) ?? selection.courseId,
     lessonId: remap.lessonIds.get(selection.lessonId) ?? selection.lessonId,
   };

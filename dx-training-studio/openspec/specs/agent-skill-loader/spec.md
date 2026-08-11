@@ -79,3 +79,19 @@
 - **WHEN** `/api/agent/skills` を呼び出す
 - **THEN** `create-draft` 等 `hidden` 未指定のスキルは従来どおり含まれる
 
+### Requirement: scripts/ 同梱の検出とスキルディレクトリの提供
+
+スキル読み込みは、スキルディレクトリに `scripts/` が同梱されているかを検出できなければならない（SHALL）。`run_skill_script` のツール定義は、実行中スキルに `scripts/` が存在する場合にのみ解決されなければならない（SHALL）。invoke route はツール実行のためにスキルディレクトリの絶対パス（`skillDirAbsolute`）をエージェントループへ提供しなければならない（SHALL）。
+
+#### Scenario: scripts/ 同梱スキルで run_skill_script が有効になる
+
+- **WHEN** `tools: [run_skill_script]` を宣言し `scripts/` を同梱するスキルが invoke される
+
+- **THEN** ツール定義に `run_skill_script` が含まれる
+
+#### Scenario: scripts/ なしのスキルでは解決されない
+
+- **WHEN** `scripts/` を持たないスキルが `run_skill_script` を宣言して invoke される
+
+- **THEN** ツール定義に `run_skill_script` は含まれない
+

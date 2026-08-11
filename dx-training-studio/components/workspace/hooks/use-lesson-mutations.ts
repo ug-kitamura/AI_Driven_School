@@ -68,6 +68,7 @@ function findLessonInSeries(series: Series[], lessonId: string): Lesson | null {
 export function useLessonMutations(options: {
   series: Series[];
   setSeries: React.Dispatch<React.SetStateAction<Series[]>>;
+  selectedSeriesId: string;
   selectedCourseId: string;
   selectedLessonId: string;
   setSelection: (selection: WorkspaceSelection) => void;
@@ -77,6 +78,7 @@ export function useLessonMutations(options: {
   const {
     series,
     setSeries,
+    selectedSeriesId,
     selectedCourseId,
     selectedLessonId,
     setSelection,
@@ -293,7 +295,7 @@ export function useLessonMutations(options: {
           rename;
         setSelection(
           remapSelection(
-            { courseId: selectedCourseId, lessonId },
+            { seriesId: selectedSeriesId, courseId: selectedCourseId, lessonId },
             { courseIds: new Map(), lessonIds: new Map([[lessonId, newId]]) },
           ),
         );
@@ -312,7 +314,7 @@ export function useLessonMutations(options: {
         persistMeta();
       }
     },
-    [isLessonPersistable, selectedCourseId, setSeries, setSelection, onSaveError],
+    [isLessonPersistable, selectedSeriesId, selectedCourseId, setSeries, setSelection, onSaveError],
   );
 
   const updateLessonStatus = useCallback(
@@ -363,7 +365,7 @@ export function useLessonMutations(options: {
           ),
         })),
       );
-      setSelection({ courseId, lessonId: newLesson.id });
+      setSelection({ seriesId: selectedSeriesId, courseId, lessonId: newLesson.id });
       setPendingSave?.(true);
       callContentApi("create", {
         type: "lesson",
@@ -424,7 +426,7 @@ export function useLessonMutations(options: {
         })),
       );
       if (selectedLessonId === lessonId) {
-        setSelection({ courseId: selectedCourseId, lessonId: "" });
+        setSelection({ seriesId: selectedSeriesId, courseId: selectedCourseId, lessonId: "" });
       }
       if (seriesName && courseName && lessonName) {
         cleanupLessonOnDisk(seriesName, courseName, lessonName).catch(

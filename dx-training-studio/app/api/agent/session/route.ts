@@ -1,10 +1,12 @@
 import { z } from "zod";
 import {
   isAgentSessionFsWritable,
-  readLessonSessionFile,
-  writeLessonSessionFile,
+  readScopeSessionFile,
+  resolveScopeFromParam,
+  writeScopeSessionFile,
 } from "@/lib/agent-session-store";
 import { parseAgentChatStorage } from "@/lib/agent-chat-storage";
+import { getProjectRoot } from "@/lib/project-root";
 
 const storageSchema = z.object({
   version: z.literal(1),
@@ -14,9 +16,10 @@ const storageSchema = z.object({
 
 export async function GET(req: Request) {
   const url = new URL(req.url);
-  const lessonId = url.searchParams.get("lessonId")?.trim();
-  if (!lessonId) {
-    return Response.json({ error: "lessonId が必要です" }, { status: 400 });
+  // 空文字はシリーズ 0 件（contents/ 直下）を表す正当なスコープ。
+  const scope = resolveScopeFromParam(url.searchParams.get("scope"));
+  if (!scope) {
+    return Response.json({ error: "不正な scope です" }, { status: 400 });
   }
 
   if (!isAgentSessionFsWritable()) {
@@ -26,9 +29,12 @@ export async function GET(req: Request) {
     );
   }
 
-  const storage = readLessonSessionFile(process.cwd(), lessonId);
+  const storage = readScopeSessionFile(getProjectRoot(), scope);
   if (!storage) {
-    return Response.json({ error: "session が見つかりません" }, { status: 404 });
+    return Response.json(
+      { error: "session が見つかりません" },
+      { status: 404 },
+    );
   }
 
   return Response.json(storage);
@@ -36,9 +42,9 @@ export async function GET(req: Request) {
 
 export async function PUT(req: Request) {
   const url = new URL(req.url);
-  const lessonId = url.searchParams.get("lessonId")?.trim();
-  if (!lessonId) {
-    return Response.json({ error: "lessonId が必要です" }, { status: 400 });
+  const scope = resolveScopeFromParam(url.searchParams.get("scope"));
+  if (!scope) {
+    return Response.json({ error: "不正な scope です" }, { status: 400 });
   }
 
   if (!isAgentSessionFsWritable()) {
@@ -66,11 +72,11 @@ export async function PUT(req: Request) {
   }
 
   try {
-    writeLessonSessionFile(process.cwd(), lessonId, storage);
+    writeScopeSessionFile(getProjectRoot(), scope, storage);
     return Response.json({ ok: true });
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
-    if (message.includes("Lesson not found")) {
+    if (message.includes("Scope not found")) {
       return Response.json({ error: message }, { status: 404 });
     }
     return Response.json({ error: message }, { status: 500 });

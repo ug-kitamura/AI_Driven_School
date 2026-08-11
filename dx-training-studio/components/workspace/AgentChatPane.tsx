@@ -1,7 +1,18 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Check, ChevronDown, Copy, FilePen, History, Pencil, Plus, RotateCcw, Trash2 } from "lucide-react";
+import {
+  Check,
+  ChevronDown,
+  Copy,
+  FilePen,
+  History,
+  Loader2,
+  Pencil,
+  Plus,
+  RotateCcw,
+  Trash2,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -28,15 +39,17 @@ import {
 } from "@/components/workspace/AgentChatInput";
 import { AgentChatMessageContent } from "@/components/workspace/AgentChatMessageContent";
 import { AgentToolCallBlock } from "@/components/workspace/AgentToolCallBlock";
-import { aiRequestHeaders } from "@/components/workspace/image-manager/image-manager-utils";
-import { AI_KEY_ERROR } from "@/components/workspace/image-manager/image-manager-constants";
+import { aiRequestHeaders, AI_KEY_ERROR } from "@/lib/agent-request-headers";
 import {
   buildCreateDraftVariables,
   buildCreateStructureVariables,
 } from "@/lib/agent/invoke-context";
 import { extractMarkdownBlock } from "@/lib/extract-markdown-block";
-import { consumeAgentStream } from "@/lib/agent/stream-client";
-import type { AgentToolEvent } from "@/lib/agent/llm/types";
+import {
+  consumeAgentStream,
+  type ToolConfirmRequiredEvent,
+} from "@/lib/agent/stream-client";
+import type { AgentLogicalTurn, AgentToolEvent } from "@/lib/agent/llm/types";
 import {
   addSession,
   DEFAULT_SESSION_TITLE,
@@ -55,11 +68,26 @@ import {
   updateSessionTitle,
   type AgentChatMessage,
   type AgentChatStorage,
+  type AgentFileAttachment,
 } from "@/lib/agent-chat-storage";
-import { loadLessonSession, saveLessonSession } from "@/lib/agent-session-client";
-import type { AgentChatController, AgentSessionChrome } from "@/lib/agent-chat-controller";
+import {
+  AGENT_SUMMARY_PROMPT,
+  formatSkillCatalogMessage,
+  type AgentBuiltinCommand,
+} from "@/lib/agent-chat-suggestions";
+import {
+  loadScopeSession,
+  saveScopeSession,
+} from "@/lib/agent-session-client";
+import type {
+  AgentChatController,
+  AgentSessionChrome,
+} from "@/lib/agent-chat-controller";
 import { resolveModelLabel } from "@/lib/agent/model-labels";
-import { getLessonBody, normalizeDraftMarkdownForLesson } from "@/lib/lesson-frontmatter";
+import {
+  getLessonBody,
+  normalizeDraftMarkdownForLesson,
+} from "@/lib/lesson-frontmatter";
 import { collectAllLessonTags } from "@/lib/lesson-tags";
 import {
   loadWorkspaceSettings,
@@ -74,19 +102,59 @@ import { WorkspaceTooltip } from "@/components/workspace/WorkspaceTooltip";
 import { cn } from "@/lib/utils";
 import type { Course, Lesson, Series } from "@/lib/schema";
 import type { SkillSummary } from "@/lib/agent/skill-loader";
+import type { AgentChatDraftMap } from "@/components/workspace/agent-chat-draft";
+import { parseWorkScope, workScopeBaseDir } from "@/lib/work-scope";
 import { resolveInvokeSkillId } from "@/lib/agent/resolve-invoke-skill";
+import {
+  findOutsideProjectPathHints,
+  listDefaultOutputDestinations,
+  type OutputDestinationChoice,
+  type OutputDestinationOption,
+} from "@/lib/agent/skill-io-boundary";
+import { OutsideProjectPathDialog } from "@/components/workspace/OutsideProjectPathDialog";
+import { OutputDestinationDialog } from "@/components/workspace/OutputDestinationDialog";
+import { SUBAGENT_FALLBACK_USER_MESSAGE } from "@/lib/agent/subagent-fallback";
+import { IMAGE_IO_FALLBACK_USER_MESSAGE } from "@/lib/agent/image-io-fallback";
+
+/** 開いているファイルのパスを作業フォルダ相対にする（範囲外なら undefined） */
+function toWorkScopeRelativePath(
+  currentFilePath: string | null,
+  workScopeKey: string,
+): string | undefined {
+  if (!currentFilePath) return undefined;
+  const scope = parseWorkScope(workScopeKey);
+  if (!scope) return undefined;
+  const prefix = `${workScopeBaseDir(scope)}/`;
+  if (!currentFilePath.startsWith(prefix)) return undefined;
+  return currentFilePath.slice(prefix.length);
+}
 
 type Props = {
-  series: Series[];
-  lesson: Lesson | undefined;
-  course: Course | undefined;
-  currentLessonPath: string | null;
+  /**
+   * 作業スコープ文字列（`serializeWorkScope` の出力）。会話の保存先と書込の基準を兼ねる。
+   * 空文字はシリーズ 0 件（`contents/` 直下）を表す正当な値。
+   */
+  scopeKey: string;
+  currentFilePath?: string | null;
+  series?: Series[];
+  lesson?: Lesson;
+  course?: Course;
+  /** @deprecated use currentFilePath */
+  currentLessonPath?: string | null;
   onOpenSettings: () => void;
   onOverwriteEditor?: (markdown: string) => void;
   agentChatControllerRef?: React.MutableRefObject<AgentChatController | null>;
   onControllerReady?: () => void;
   className?: string;
   richMarkdown?: boolean;
+  /**
+   * 未送信下書きの保持先。本コンポーネントはフォルダ切替でリマウントされるため、
+   * リマウントをまたぐ状態は親から受け取る。
+   */
+  draftsRef?: React.MutableRefObject<AgentChatDraftMap>;
+  /** スキルカタログ。フォルダ非依存なので親が保持する。 */
+  skills?: SkillSummary[];
+  skillsError?: string | null;
 };
 
 function computeSessionFingerprint(
@@ -99,12 +167,16 @@ function computeSessionFingerprint(
       role: message.role,
       content: message.content,
       toolEvents: message.toolEvents,
+      toolTurns: message.toolTurns,
+      attachments: message.attachments,
     })),
     activeSkillId: nextSkillId,
   });
 }
 
-function collectContextTagsFromMessages(messages: AgentChatMessage[]): string[] {
+function collectContextTagsFromMessages(
+  messages: AgentChatMessage[],
+): string[] {
   const tags: string[] = [];
   for (const message of messages) {
     for (const event of message.toolEvents ?? []) {
@@ -125,15 +197,40 @@ function isAbortError(error: unknown): boolean {
 }
 
 function createMessageId(): string {
-  return `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+  if (typeof crypto !== "undefined" && "randomUUID" in crypto) {
+    return crypto.randomUUID();
+  }
+  return `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
 }
 
 function readModelLabelFromSettings(): string {
   return resolveModelLabel(loadWorkspaceSettings().aiModel);
 }
 
+async function postToolConfirmDecision(
+  toolUseId: string,
+  decision: "approve" | "reject",
+  manualSearchText?: string,
+): Promise<void> {
+  try {
+    await fetch("/api/agent/tool-confirm", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        toolUseId,
+        decision,
+        ...(manualSearchText !== undefined ? { manualSearchText } : {}),
+      }),
+    });
+  } catch {
+    // ストリーム側は TTL タイムアウトで安全側（拒否）に確定する
+  }
+}
+
 export function AgentChatPane({
-  series,
+  scopeKey,
+  currentFilePath,
+  series = [],
   lesson,
   course,
   currentLessonPath,
@@ -143,19 +240,35 @@ export function AgentChatPane({
   onControllerReady,
   className,
   richMarkdown = true,
+  draftsRef: draftsRefProp,
+  skills = [],
+  skillsError = null,
 }: Props) {
-  const lessonId = lesson?.id;
+  // key によるリマウント前提のため、scopeId はこのインスタンスの生涯を通じて不変。
+  // スコープはパスなので、フォルダのリネームには session.json ごと追従する。
+  // 空文字（シリーズ 0 件）も正当なスコープなので、未設定と区別しない。
+  const scopeId = scopeKey;
+  const filePath = currentFilePath ?? currentLessonPath ?? null;
   const [chatStorage, setChatStorage] = useState<AgentChatStorage | null>(null);
   const [messages, setMessages] = useState<AgentChatMessage[]>([]);
   const [input, setInput] = useState("");
+  const [attachments, setAttachments] = useState<AgentFileAttachment[]>([]);
   const [activeSkillId, setActiveSkillId] = useState<string | null>(null);
   const [isStreaming, setIsStreaming] = useState(false);
-  const [streamingAssistantId, setStreamingAssistantId] = useState<string | null>(null);
+  const [subagentNoticeVisible, setSubagentNoticeVisible] = useState(false);
+  const [streamingAssistantId, setStreamingAssistantId] = useState<
+    string | null
+  >(null);
   const [error, setError] = useState<string | null>(null);
+  const [storageWarning, setStorageWarning] = useState<string | null>(null);
   const [modelLabel, setModelLabel] = useState("");
   const [historyOpen, setHistoryOpen] = useState(false);
-  const [deleteSessionTargetId, setDeleteSessionTargetId] = useState<string | null>(null);
-  const [editSessionTargetId, setEditSessionTargetId] = useState<string | null>(null);
+  const [deleteSessionTargetId, setDeleteSessionTargetId] = useState<
+    string | null
+  >(null);
+  const [editSessionTargetId, setEditSessionTargetId] = useState<string | null>(
+    null,
+  );
   const [editTitleDraft, setEditTitleDraft] = useState("");
   const [copiedMessageId, setCopiedMessageId] = useState<string | null>(null);
   const [retryPayload, setRetryPayload] = useState<{
@@ -168,7 +281,33 @@ export function AgentChatPane({
     content: string;
   } | null>(null);
 
+  const [pendingToolConfirm, setPendingToolConfirm] =
+    useState<ToolConfirmRequiredEvent | null>(null);
+
+  const [outsidePaths, setOutsidePaths] = useState<string[]>([]);
+  const [outsideDialogOpen, setOutsideDialogOpen] = useState(false);
+  const [outputOptions, setOutputOptions] = useState<OutputDestinationOption[]>(
+    [],
+  );
+  const [outputDialogOpen, setOutputDialogOpen] = useState(false);
+  const [selectedOutputId, setSelectedOutputId] =
+    useState<OutputDestinationChoice | null>(null);
+  const [imageIoDialogOpen, setImageIoDialogOpen] = useState(false);
+  const [lastTurnTokens, setLastTurnTokens] = useState<number | null>(null);
+  const [sessionTokenTotal, setSessionTokenTotal] = useState(0);
+  const pendingInvokeRef = useRef<{
+    userMessage: AgentChatMessage;
+    history: AgentChatMessage[];
+    skillId: string;
+    outsideConfirmed?: boolean;
+    imageIoConfirmed?: boolean;
+    preferredOutputDir?: string;
+  } | null>(null);
+
   const abortRef = useRef<AbortController | null>(null);
+  const addAttachmentRef = useRef<
+    ((attachment: AgentFileAttachment) => void) | null
+  >(null);
   const stopContextRef = useRef<{
     userMessage: AgentChatMessage;
     assistantId: string;
@@ -181,14 +320,23 @@ export function AgentChatPane({
   const sessionChromeRef = useRef<AgentSessionChrome | null>(null);
   const stickToBottomRef = useRef(true);
   const sessionSwitchRef = useRef<string | null>(null);
-  const currentLessonIdRef = useRef<string | null>(null);
   const chatStorageRef = useRef<AgentChatStorage | null>(null);
   const messagesRef = useRef<AgentChatMessage[]>([]);
   const activeSkillIdRef = useRef<string | null>(null);
+  // トークン表示はセッションに永続化して、フォルダ往復後も残す
+  const lastTurnTokensRef = useRef<number | null>(null);
+  const sessionTokenTotalRef = useRef(0);
+  // 切替中断時に保留中の tool 確認を解決するため、最新値を ref で参照する
+  const pendingToolConfirmRef = useRef<ToolConfirmRequiredEvent | null>(null);
   const lastPersistedFingerprintRef = useRef("");
   const persistTimerRef = useRef<number | null>(null);
-
-  const [skills, setSkills] = useState<SkillSummary[]>([]);
+  // 未送信の入力（本文＋添付）をプロジェクト（scopeId）単位でメモリ保持し、
+  // 別プロジェクトへ移動して戻った際に復元する。リロードでは失われる（ref のため）。
+  // 保持先はリマウントされない親（AgentPane）にあり、ここでは参照だけを持つ。
+  const inputRef = useRef("");
+  const attachmentsRef = useRef<AgentFileAttachment[]>([]);
+  const localDraftsRef = useRef<AgentChatDraftMap>(new Map());
+  const draftsRef = draftsRefProp ?? localDraftsRef;
 
   useEffect(() => {
     chatStorageRef.current = chatStorage;
@@ -202,23 +350,56 @@ export function AgentChatPane({
     activeSkillIdRef.current = activeSkillId;
   }, [activeSkillId]);
 
+  useEffect(() => {
+    lastTurnTokensRef.current = lastTurnTokens;
+  }, [lastTurnTokens]);
+
+  useEffect(() => {
+    sessionTokenTotalRef.current = sessionTokenTotal;
+  }, [sessionTokenTotal]);
+
+  useEffect(() => {
+    pendingToolConfirmRef.current = pendingToolConfirm;
+  }, [pendingToolConfirm]);
+
+  useEffect(() => {
+    inputRef.current = input;
+  }, [input]);
+
+  useEffect(() => {
+    attachmentsRef.current = attachments;
+  }, [attachments]);
+
   const buildStorageSnapshot = useCallback((): AgentChatStorage | null => {
     const storage = chatStorageRef.current;
     if (!storage) return null;
     return updateActiveSession(storage, {
       messages: messagesRef.current,
       activeSkillId: activeSkillIdRef.current,
+      lastTurnTokens: lastTurnTokensRef.current,
+      sessionTokenTotal: sessionTokenTotalRef.current,
     });
   }, []);
 
-  const flushSessionToStorage = useCallback(async (lessonId: string) => {
-    const snapshot = buildStorageSnapshot();
-    if (!snapshot) return;
-    await saveLessonSession(lessonId, snapshot);
-  }, [buildStorageSnapshot]);
+  const flushSessionToStorage = useCallback(
+    async (lessonId: string): Promise<boolean> => {
+      const snapshot = buildStorageSnapshot();
+      if (!snapshot) return true;
+      const ok = await saveScopeSession(lessonId, snapshot);
+      if (!ok) {
+        setStorageWarning(
+          "セッションの保存に失敗しました。容量不足の可能性があります。会話を続けると履歴が失われることがあります。",
+        );
+      } else {
+        setStorageWarning(null);
+      }
+      return ok;
+    },
+    [buildStorageSnapshot],
+  );
 
   const scheduleDebouncedPersist = useCallback(() => {
-    if (!lessonId || sessionSwitchRef.current === null) return;
+    if (sessionSwitchRef.current === null) return;
 
     if (persistTimerRef.current !== null) {
       window.clearTimeout(persistTimerRef.current);
@@ -226,8 +407,6 @@ export function AgentChatPane({
 
     persistTimerRef.current = window.setTimeout(() => {
       persistTimerRef.current = null;
-      const targetLessonId = currentLessonIdRef.current;
-      if (!targetLessonId) return;
 
       const fingerprint = computeSessionFingerprint(
         messagesRef.current,
@@ -235,11 +414,11 @@ export function AgentChatPane({
       );
       if (fingerprint === lastPersistedFingerprintRef.current) return;
 
-      void flushSessionToStorage(targetLessonId).then(() => {
+      void flushSessionToStorage(scopeId).then(() => {
         lastPersistedFingerprintRef.current = fingerprint;
       });
     }, 800);
-  }, [flushSessionToStorage, lessonId]);
+  }, [flushSessionToStorage, scopeId]);
 
   const scrollChatToBottom = useCallback(() => {
     const element = chatScrollRef.current;
@@ -253,25 +432,16 @@ export function AgentChatPane({
   }, [messages, isStreaming, streamingAssistantId, scrollChatToBottom]);
 
   useEffect(() => {
-    if (!richMarkdown) return;
-    void fetch("/api/agent/skills")
-      .then((res) => res.json())
-      .then((data: { skills?: SkillSummary[] }) => {
-        setSkills(data.skills ?? []);
-      })
-      .catch(() => {
-        setError("スキル一覧の取得に失敗しました");
-      });
-  }, [richMarkdown]);
-
-  useEffect(() => {
     const syncModelLabel = () => {
       setModelLabel(readModelLabelFromSettings());
     };
     syncModelLabel();
     window.addEventListener(WORKSPACE_SETTINGS_CHANGED_EVENT, syncModelLabel);
     return () => {
-      window.removeEventListener(WORKSPACE_SETTINGS_CHANGED_EVENT, syncModelLabel);
+      window.removeEventListener(
+        WORKSPACE_SETTINGS_CHANGED_EVENT,
+        syncModelLabel,
+      );
     };
   }, []);
 
@@ -304,13 +474,16 @@ export function AgentChatPane({
           (current?.title === DEFAULT_SESSION_TITLE &&
           nextMessages.some((message) => message.role === "user")
             ? deriveSessionTitle(
-                nextMessages.find((message) => message.role === "user")?.content ?? "",
+                nextMessages.find((message) => message.role === "user")
+                  ?.content ?? "",
               )
-            : current?.title ?? DEFAULT_SESSION_TITLE);
+            : (current?.title ?? DEFAULT_SESSION_TITLE));
         return updateActiveSession(prev, {
           messages: nextMessages,
           activeSkillId: nextSkillId,
           title,
+          lastTurnTokens: lastTurnTokensRef.current,
+          sessionTokenTotal: sessionTokenTotalRef.current,
         });
       });
       scheduleDebouncedPersist();
@@ -326,7 +499,9 @@ export function AgentChatPane({
     if (llmTitleGeneratedSessionIdRef.current === sessionId) return;
 
     const currentMessages = messagesRef.current;
-    const firstUserMessage = currentMessages.find((message) => message.role === "user");
+    const firstUserMessage = currentMessages.find(
+      (message) => message.role === "user",
+    );
     const hasAssistantReply = currentMessages.some(
       (message) => message.role === "assistant" && message.content.trim(),
     );
@@ -334,7 +509,9 @@ export function AgentChatPane({
 
     const currentSession = getActiveSession(storage);
     if (!currentSession) return;
-    if (!isPlaceholderSessionTitle(currentSession.title, firstUserMessage.content)) {
+    if (
+      !isPlaceholderSessionTitle(currentSession.title, firstUserMessage.content)
+    ) {
       llmTitleGeneratedSessionIdRef.current = sessionId;
       return;
     }
@@ -347,7 +524,10 @@ export function AgentChatPane({
         headers: aiRequestHeaders(settings),
         body: JSON.stringify({
           messages: currentMessages
-            .filter((message) => message.role === "user" || message.role === "assistant")
+            .filter(
+              (message) =>
+                message.role === "user" || message.role === "assistant",
+            )
             .map((message) => ({
               role: message.role,
               content: message.content,
@@ -369,64 +549,55 @@ export function AgentChatPane({
     }
   }, [persistSession]);
 
-  const interruptForSwitch = useCallback(async () => {
-    if (!isStreaming) return;
-
-    const assistantId = streamingAssistantId;
-    abortRef.current?.abort();
-    abortRef.current = null;
-    setIsStreaming(false);
-    setStreamingAssistantId(null);
-    stopContextRef.current = null;
-
-    if (assistantId) {
-      setMessages((prev) =>
-        prev.map((message) =>
-          message.id === assistantId ? { ...message, content: message.content || "…" } : message,
-        ),
-      );
-    }
-
-    const lessonId = currentLessonIdRef.current;
-    if (lessonId) {
-      await flushSessionToStorage(lessonId);
-    }
-  }, [flushSessionToStorage, isStreaming, streamingAssistantId]);
-
   useEffect(() => {
-    if (!lessonId || sessionSwitchRef.current === null) return;
+    if (sessionSwitchRef.current === null) return;
     if (!chatStorageRef.current) return;
     persistSession(messages, activeSkillId);
-  }, [messages, activeSkillId, lessonId, persistSession]);
+  }, [messages, activeSkillId, scopeId, persistSession]);
 
   useEffect(() => {
     const handleBeforeUnload = () => {
-      const targetLessonId = currentLessonIdRef.current;
-      if (!targetLessonId) return;
       const snapshot = buildStorageSnapshot();
       if (!snapshot) return;
-      void saveLessonSession(targetLessonId, snapshot);
+      void saveScopeSession(scopeId, snapshot);
     };
     window.addEventListener("beforeunload", handleBeforeUnload);
     return () => window.removeEventListener("beforeunload", handleBeforeUnload);
-  }, [buildStorageSnapshot]);
+  }, [buildStorageSnapshot, scopeId]);
 
+  // アンマウント（＝フォルダ切替）時の後始末。クロージャが見えるのは自分の
+  // scopeId と自分の state だけなので、他フォルダへ書く経路が存在しない。
   useEffect(() => {
+    // 親が保持する Map の実体はマウント中不変。cleanup 用に掴んでおく
+    const drafts = draftsRef.current;
     return () => {
       if (persistTimerRef.current !== null) {
         window.clearTimeout(persistTimerRef.current);
+        persistTimerRef.current = null;
       }
+
+      // 未送信入力は親の Map に退避し、戻ってきたときに復元できるようにする
+      if (inputRef.current || attachmentsRef.current.length > 0) {
+        drafts.set(scopeId, {
+          input: inputRef.current,
+          attachments: attachmentsRef.current,
+        });
+      } else {
+        drafts.delete(scopeId);
+      }
+
+      // 完了はアンマウント後でよい。書き込み先は新旧で別ファイルなので競合しない
+      void flushSessionToStorage(scopeId);
     };
-  }, []);
+  }, [draftsRef, flushSessionToStorage, scopeId]);
 
   const loadContentFiles = useCallback(async () => {
-    const params = currentLessonPath
-      ? `?current=${encodeURIComponent(currentLessonPath)}`
-      : "";
-    const res = await fetch(`/api/agent/files${params}`);
+    const params = new URLSearchParams({ scope: scopeId });
+    if (filePath) params.set("current", filePath);
+    const res = await fetch(`/api/agent/files?${params.toString()}`);
     const data = (await res.json()) as { files?: AgentFileOption[] };
     return data.files ?? [];
-  }, [currentLessonPath]);
+  }, [scopeId, filePath]);
 
   const buildVariables = useCallback(
     (skillId: string): Record<string, string> | { error: string } => {
@@ -460,6 +631,7 @@ export function AgentChatPane({
     abortRef.current = null;
     setIsStreaming(false);
     setStreamingAssistantId(null);
+    setSubagentNoticeVisible(false);
     setRetryPayload(null);
     setError(null);
 
@@ -476,11 +648,43 @@ export function AgentChatPane({
     }
   }, []);
 
+  /**
+   * フォルダ切替に伴う中断（A 案）。進行中ストリームを abort するが、停止ボタンと違い
+   * 入力欄への復元はしない。partial な assistant 応答（本文あり）は残して永続化する。
+   * 本文が空の assistant プレースホルダのみ取り除く。
+   */
+  const interruptForSwitch = useCallback(() => {
+    if (!abortRef.current) return;
+    const stopContext = stopContextRef.current;
+    abortRef.current.abort();
+    abortRef.current = null;
+    setIsStreaming(false);
+    setStreamingAssistantId(null);
+    setSubagentNoticeVisible(false);
+    // 開いている tool 確認は宙吊りにせず拒否で閉じる（サーバ側は abort signal でも
+    // 解決されるが、クライアント表示を確実に閉じ、明示的に reject を送る）
+    const pending = pendingToolConfirmRef.current;
+    if (pending) {
+      void postToolConfirmDecision(pending.toolUseId, "reject");
+      setPendingToolConfirm(null);
+    }
+    if (stopContext) {
+      setMessages((prev) =>
+        prev.filter(
+          (message) =>
+            message.id !== stopContext.assistantId || message.content,
+        ),
+      );
+      stopContextRef.current = null;
+    }
+  }, []);
+
   const invokeSkill = useCallback(
     async (options: {
       userMessage: AgentChatMessage;
       history: AgentChatMessage[];
       skillId: string;
+      preferredOutputDir?: string;
     }) => {
       const variablesResult = buildVariables(options.skillId);
       if ("error" in variablesResult) {
@@ -491,19 +695,31 @@ export function AgentChatPane({
       const assistantId = createMessageId();
       const assistantCreatedAt = new Date().toISOString();
 
-      setMessages((prev) => [
-        ...prev,
-        options.userMessage,
-        {
-          id: assistantId,
-          role: "assistant",
-          content: "",
-          createdAt: assistantCreatedAt,
-          toolEvents: [],
-        },
-      ]);
+      // 再送時は同じ userMessage が既に残っている（失敗時に assistant のみ削除するため）。
+      // 同じ id を再追加すると React の key 重複になるので、未追加のときだけ足す。
+      setMessages((prev) => {
+        const hasUser = prev.some(
+          (message) => message.id === options.userMessage.id,
+        );
+        return [
+          ...(hasUser ? prev : [...prev, options.userMessage]),
+          {
+            id: assistantId,
+            role: "assistant",
+            content: "",
+            createdAt: assistantCreatedAt,
+            toolEvents: [],
+          },
+        ];
+      });
       setIsStreaming(true);
       setStreamingAssistantId(assistantId);
+      setSubagentNoticeVisible(
+        Boolean(
+          skills.find((skill) => skill.id === options.skillId)
+            ?.mentionsSubagent,
+        ),
+      );
       setError(null);
       setRetryPayload({
         userMessage: options.userMessage,
@@ -518,6 +734,7 @@ export function AgentChatPane({
       abortRef.current = controller;
 
       const settings = loadWorkspaceSettings();
+      const currentRelative = toWorkScopeRelativePath(filePath, scopeId);
       const payload = {
         skillId: options.skillId,
         variables: variablesResult,
@@ -525,18 +742,25 @@ export function AgentChatPane({
           role: message.role,
           content: message.content,
           ...(message.toolEvents ? { toolEvents: message.toolEvents } : {}),
+          ...(message.toolTurns ? { toolTurns: message.toolTurns } : {}),
+          ...(message.attachments ? { attachments: message.attachments } : {}),
         })),
+        runtimeFocus: {
+          workScopeKey: scopeId,
+          currentFileRelativePath: currentRelative ?? null,
+          ...(options.preferredOutputDir !== undefined
+            ? { preferredOutputDir: options.preferredOutputDir }
+            : {}),
+        },
       };
 
       const toolEvents: AgentToolEvent[] = [];
+      const toolTurns: AgentLogicalTurn[] = [];
 
       try {
         const res = await fetch("/api/agent/invoke", {
           method: "POST",
-          headers: {
-            ...aiRequestHeaders(settings),
-            "x-context-mode": settings.contextStorage,
-          },
+          headers: aiRequestHeaders(settings),
           body: JSON.stringify(payload),
           signal: controller.signal,
         });
@@ -587,6 +811,28 @@ export function AgentChatPane({
                 ),
               );
             },
+            onLogicalTurn: (turn) => {
+              toolTurns.push(turn);
+              setMessages((prev) =>
+                prev.map((message) =>
+                  message.id === assistantId
+                    ? { ...message, toolTurns: [...toolTurns] }
+                    : message,
+                ),
+              );
+            },
+            onTokenUsage: (event) => {
+              setLastTurnTokens(event.outputTokens);
+              setSessionTokenTotal((prev) => prev + event.outputTokens);
+            },
+            onConfirmRequired: (event) => {
+              setPendingToolConfirm(event);
+            },
+            onUnknownConfirmKind: (event) => {
+              // クライアントが表示できない確認種別。ダイアログを出せないまま
+              // サーバ側の確認待ち（5 分 TTL）を無言で待たせないよう即時拒否する。
+              void postToolConfirmDecision(event.toolUseId, "reject");
+            },
           },
           controller.signal,
         );
@@ -599,7 +845,9 @@ export function AgentChatPane({
         const message =
           err instanceof Error ? err.message : "スキル実行に失敗しました";
         setError(message);
-        setMessages((prev) => prev.filter((message) => message.id !== assistantId));
+        setMessages((prev) =>
+          prev.filter((message) => message.id !== assistantId),
+        );
         stopContextRef.current = null;
         if (message === AI_KEY_ERROR) {
           onOpenSettings();
@@ -610,84 +858,183 @@ export function AgentChatPane({
         }
         setIsStreaming(false);
         setStreamingAssistantId(null);
+        setSubagentNoticeVisible(false);
       }
     },
-    [buildVariables, maybeGenerateSessionTitle, onOpenSettings],
+    [
+      buildVariables,
+      filePath,
+      scopeId,
+      maybeGenerateSessionTitle,
+      onOpenSettings,
+      skills,
+    ],
   );
 
-  const handleSend = useCallback(async () => {
-    const trimmed = input.trim();
-    if (!trimmed || isStreaming) return;
+  const beginInvokeWithGuards = useCallback(
+    async (options: {
+      userMessage: AgentChatMessage;
+      history: AgentChatMessage[];
+      skillId: string;
+      outsideConfirmed?: boolean;
+      imageIoConfirmed?: boolean;
+      preferredOutputDir?: string;
+    }) => {
+      if (
+        !options.imageIoConfirmed &&
+        skills.find((skill) => skill.id === options.skillId)?.mentionsImageIO
+      ) {
+        pendingInvokeRef.current = options;
+        setImageIoDialogOpen(true);
+        return;
+      }
 
-    const skillId = resolveInvokeSkillId(activeSkillId);
+      if (!options.outsideConfirmed) {
+        const hints = findOutsideProjectPathHints(
+          options.userMessage.content,
+          scopeId,
+        );
+        if (hints.length > 0) {
+          pendingInvokeRef.current = options;
+          setOutsidePaths(hints);
+          setOutsideDialogOpen(true);
+          return;
+        }
+      }
 
-    if (skillId === "create-draft" && !lesson) {
-      setError("create-draft スキルはレッスン選択が必要です");
-      return;
-    }
+      if (
+        options.preferredOutputDir === undefined &&
+        options.skillId !== "general-chat" &&
+        /出力|export|書き込|保存先|ファイルに|output/i.test(
+          options.userMessage.content,
+        )
+      ) {
+        const currentRelative = toWorkScopeRelativePath(filePath, scopeId);
+        const destinations = listDefaultOutputDestinations(
+          scopeId,
+          currentRelative,
+        );
+        if (destinations.length > 1) {
+          pendingInvokeRef.current = options;
+          setOutputOptions(destinations);
+          setSelectedOutputId(destinations[0]?.id ?? null);
+          setOutputDialogOpen(true);
+          return;
+        }
+        if (destinations.length === 1) {
+          await invokeSkill({
+            ...options,
+            preferredOutputDir: destinations[0].relativeDir,
+          });
+          return;
+        }
+      }
 
-    const userMessage: AgentChatMessage = {
-      id: createMessageId(),
-      role: "user",
-      content: trimmed,
-      createdAt: new Date().toISOString(),
-    };
-    stickToBottomRef.current = true;
-    setInput("");
-    await invokeSkill({
-      userMessage,
-      history: messages,
-      skillId,
-    });
-  }, [activeSkillId, input, invokeSkill, isStreaming, lesson, messages]);
+      await invokeSkill(options);
+    },
+    [filePath, scopeId, invokeSkill, skills],
+  );
+
+  const handleSend = useCallback(
+    async (attachments: AgentFileAttachment[] = []) => {
+      const trimmed = input.trim();
+      if (!trimmed || isStreaming) return;
+
+      const skillId = resolveInvokeSkillId(activeSkillId);
+
+      if (skillId === "create-draft" && !lesson) {
+        setError("create-draft スキルはレッスン選択が必要です");
+        return;
+      }
+
+      const userMessage: AgentChatMessage = {
+        id: createMessageId(),
+        role: "user",
+        content: trimmed,
+        createdAt: new Date().toISOString(),
+        ...(attachments.length > 0 ? { attachments } : {}),
+      };
+      stickToBottomRef.current = true;
+      // 入力を空にすれば、アンマウント時の後始末が下書きを破棄する。
+      // 下書き Map への書き込み口はそこ 1 箇所に集約する。
+      setInput("");
+      setAttachments([]);
+      await beginInvokeWithGuards({
+        userMessage,
+        history: messages,
+        skillId,
+      });
+    },
+    [
+      activeSkillId,
+      beginInvokeWithGuards,
+      input,
+      isStreaming,
+      lesson,
+      messages,
+    ],
+  );
 
   const handleRetry = useCallback(async () => {
     if (!retryPayload || isStreaming) return;
-    await invokeSkill({
+    await beginInvokeWithGuards({
       userMessage: retryPayload.userMessage,
       history: retryPayload.history,
       skillId: resolveInvokeSkillId(activeSkillId),
     });
-  }, [activeSkillId, invokeSkill, isStreaming, retryPayload]);
+  }, [activeSkillId, beginInvokeWithGuards, isStreaming, retryPayload]);
 
-  const applySessionState = useCallback((sessionId: string, storage: AgentChatStorage) => {
-    const session = storage.sessions.find((item) => item.id === sessionId);
-    if (!session) return;
-    sessionSwitchRef.current = session.id;
-    setMessages(session.messages);
-    setActiveSkillId(session.activeSkillId);
-    setInput("");
-    setError(null);
-    setRetryPayload(null);
-  }, []);
+  const applySessionState = useCallback(
+    (sessionId: string, storage: AgentChatStorage) => {
+      const session = storage.sessions.find((item) => item.id === sessionId);
+      if (!session) return;
+      sessionSwitchRef.current = session.id;
+      // 過去の再送バグ等で同 id が残っていても描画キーが衝突しないよう、先勝ちで重複を落とす
+      const seen = new Set<string>();
+      const deduped = session.messages.filter((message) => {
+        if (seen.has(message.id)) return false;
+        seen.add(message.id);
+        return true;
+      });
+      setMessages(deduped);
+      setActiveSkillId(session.activeSkillId);
+      setInput("");
+      setAttachments([]);
+      setError(null);
+      setRetryPayload(null);
+      // トークン表示は無条件リセットせず、保存値から復元する（往復しても残す）
+      setLastTurnTokens(session.lastTurnTokens ?? null);
+      setSessionTokenTotal(session.sessionTokenTotal ?? 0);
+    },
+    [],
+  );
 
+  // scopeId は key によるリマウントで固定されるため、この効果はマウント時に
+  // 1 度だけ走る。離脱側の保存は自分のアンマウント時に行う（下のクリーンアップ）。
   useEffect(() => {
-    if (!lessonId) return;
 
     let cancelled = false;
 
-    async function loadLessonChat(targetLessonId: string) {
-      const prevId = currentLessonIdRef.current;
-      if (prevId && prevId !== targetLessonId) {
-        await flushSessionToStorage(prevId);
-      }
-
-      const storage = await loadLessonSession(targetLessonId);
+    void (async () => {
+      const storage = await loadScopeSession(scopeId);
       if (cancelled) return;
 
-      currentLessonIdRef.current = targetLessonId;
-      lastPersistedFingerprintRef.current = "";
       setChatStorage(storage);
       applySessionState(storage.activeSessionId, storage);
       sessionSwitchRef.current = storage.activeSessionId;
-    }
-
-    void loadLessonChat(lessonId);
+      // 戻ってきたプロジェクトの未送信入力を復元する（applySessionState の
+      // クリアより後に実行するため、下書きがあれば上書きされる）
+      const draft = draftsRef.current.get(scopeId);
+      if (draft) {
+        setInput(draft.input);
+        setAttachments(draft.attachments);
+      }
+    })();
 
     return () => {
       cancelled = true;
     };
-  }, [applySessionState, flushSessionToStorage, lessonId]);
+  }, [applySessionState, draftsRef, scopeId]);
 
   const handleSwitchSession = useCallback(
     (sessionId: string) => {
@@ -695,38 +1042,60 @@ export function AgentChatPane({
         setHistoryOpen(false);
         return;
       }
-      if (input.trim() && !window.confirm("入力中の内容は失われます。切り替えますか？")) {
+      if (
+        input.trim() &&
+        !window.confirm("入力中の内容は失われます。切り替えますか？")
+      ) {
         return;
       }
       persistSession(messages, activeSkillId);
       const next = switchSession(chatStorage, sessionId);
-      if (lessonId) void saveLessonSession(lessonId, next);
+      void saveScopeSession(scopeId, next);
       setChatStorage(next);
       applySessionState(sessionId, next);
       setHistoryOpen(false);
     },
-    [activeSkillId, applySessionState, chatStorage, input, lessonId, messages, persistSession],
+    [
+      activeSkillId,
+      applySessionState,
+      chatStorage,
+      input,
+      scopeId,
+      messages,
+      persistSession,
+    ],
   );
 
   const handleNewSession = useCallback(() => {
     if (!chatStorage) return;
-    if (input.trim() && !window.confirm("入力中の内容は失われます。新規会話を開始しますか？")) {
+    if (
+      input.trim() &&
+      !window.confirm("入力中の内容は失われます。新規会話を開始しますか？")
+    ) {
       return;
     }
     persistSession(messages, activeSkillId);
     const next = addSession(chatStorage);
-    if (lessonId) void saveLessonSession(lessonId, next);
+    void saveScopeSession(scopeId, next);
     setChatStorage(next);
     applySessionState(next.activeSessionId, next);
     setHistoryOpen(false);
-  }, [activeSkillId, applySessionState, chatStorage, input, lessonId, messages, persistSession]);
+  }, [
+    activeSkillId,
+    applySessionState,
+    chatStorage,
+    input,
+    scopeId,
+    messages,
+    persistSession,
+  ]);
 
   const handleDeleteSession = useCallback(
     (sessionId: string) => {
       if (!chatStorage) return;
       const wasActive = sessionId === chatStorage.activeSessionId;
       const next = deleteSession(chatStorage, sessionId);
-      if (lessonId) void saveLessonSession(lessonId, next);
+      void saveScopeSession(scopeId, next);
       setChatStorage(next);
       if (wasActive) {
         applySessionState(next.activeSessionId, next);
@@ -734,39 +1103,46 @@ export function AgentChatPane({
       setDeleteSessionTargetId(null);
       setHistoryOpen(false);
     },
-    [applySessionState, chatStorage, lessonId],
+    [applySessionState, chatStorage, scopeId],
   );
 
   const requestDeleteSession = useCallback((sessionId: string) => {
     setDeleteSessionTargetId(sessionId);
   }, []);
 
-  const openEditSessionTitle = useCallback(
-    (sessionId: string) => {
-      const session = chatStorageRef.current?.sessions.find((item) => item.id === sessionId);
-      if (!session) return;
-      setEditSessionTargetId(sessionId);
-      setEditTitleDraft(session.title);
-    },
-    [],
-  );
+  const openEditSessionTitle = useCallback((sessionId: string) => {
+    const session = chatStorageRef.current?.sessions.find(
+      (item) => item.id === sessionId,
+    );
+    if (!session) return;
+    setEditSessionTargetId(sessionId);
+    setEditTitleDraft(session.title);
+  }, []);
 
   const handleSaveSessionTitle = useCallback(() => {
     if (!chatStorage || !editSessionTargetId) return;
     const normalized = normalizeStoredSessionTitle(editTitleDraft);
     if (!normalized) return;
 
-    const next = updateSessionTitle(chatStorage, editSessionTargetId, normalized);
-    if (lessonId) void saveLessonSession(lessonId, next);
+    const next = updateSessionTitle(
+      chatStorage,
+      editSessionTargetId,
+      normalized,
+    );
+    void saveScopeSession(scopeId, next);
     setChatStorage(next);
     llmTitleGeneratedSessionIdRef.current = editSessionTargetId;
     setEditSessionTargetId(null);
     setEditTitleDraft("");
-  }, [chatStorage, editSessionTargetId, editTitleDraft, lessonId]);
+  }, [chatStorage, editSessionTargetId, editTitleDraft, scopeId]);
 
-  const canSaveEditTitle = normalizeStoredSessionTitle(editTitleDraft).length > 0;
+  const canSaveEditTitle =
+    normalizeStoredSessionTitle(editTitleDraft).length > 0;
 
   const sessionTitle = activeSession?.title ?? DEFAULT_SESSION_TITLE;
+
+  // スキル取得の失敗は親が持つため、state へ複製せず表示時に合流させる
+  const displayError = error ?? skillsError;
 
   const notifyControllerListeners = useCallback(() => {
     for (const listener of controllerListenersRef.current) {
@@ -786,21 +1162,30 @@ export function AgentChatPane({
   }, [historyOpen]);
 
   useEffect(() => {
-    sessionChromeRef.current = { sessionTitle };
+    sessionChromeRef.current = {
+      sessionTitle,
+      isStreaming,
+      workScopeKey: scopeId,
+    };
     notifyControllerListeners();
-  }, [sessionTitle, notifyControllerListeners]);
+  }, [sessionTitle, isStreaming, scopeId, notifyControllerListeners]);
 
   useEffect(() => {
     if (!agentChatControllerRef) return;
     agentChatControllerRef.current = {
       isStreaming: () => isStreaming,
-      interruptForSwitch,
       getSessionChrome: () => sessionChromeRef.current,
       subscribe: (listener) => {
         controllerListenersRef.current.add(listener);
         return () => {
           controllerListenersRef.current.delete(listener);
         };
+      },
+      addFileAttachment: (attachment) => {
+        addAttachmentRef.current?.(attachment);
+      },
+      interruptForSwitch: () => {
+        interruptForSwitch();
       },
     };
     onControllerReady?.();
@@ -809,28 +1194,70 @@ export function AgentChatPane({
     };
   }, [
     agentChatControllerRef,
-    interruptForSwitch,
     isStreaming,
+    interruptForSwitch,
     onControllerReady,
   ]);
 
   const handleBuiltinCommand = useCallback(
-    (command: "clear" | "export") => {
+    (command: AgentBuiltinCommand["id"]) => {
       if (command === "clear") {
         if (chatStorage) {
           setDeleteSessionTargetId(chatStorage.activeSessionId);
         }
         return;
       }
-      if (activeSession) {
-        downloadSessionMarkdown({
-          ...activeSession,
-          messages,
-          activeSkillId,
+      if (command === "export") {
+        if (activeSession) {
+          downloadSessionMarkdown({
+            ...activeSession,
+            messages,
+            activeSkillId,
+          });
+        }
+        return;
+      }
+      if (command === "skill") {
+        const catalogMessage: AgentChatMessage = {
+          id: createMessageId(),
+          role: "assistant",
+          content: formatSkillCatalogMessage(skills),
+          createdAt: new Date().toISOString(),
+        };
+        stickToBottomRef.current = true;
+        setMessages((prev) => [...prev, catalogMessage]);
+        setError(null);
+        setRetryPayload(null);
+        requestAnimationFrame(() => scrollChatToBottom());
+        return;
+      }
+      if (command === "summary") {
+        if (isStreaming) return;
+        const userMessage: AgentChatMessage = {
+          id: createMessageId(),
+          role: "user",
+          content: AGENT_SUMMARY_PROMPT,
+          createdAt: new Date().toISOString(),
+        };
+        stickToBottomRef.current = true;
+        setInput("");
+        void beginInvokeWithGuards({
+          userMessage,
+          history: messages,
+          skillId: resolveInvokeSkillId(null),
         });
       }
     },
-    [activeSession, activeSkillId, chatStorage, messages],
+    [
+      activeSession,
+      activeSkillId,
+      beginInvokeWithGuards,
+      chatStorage,
+      isStreaming,
+      messages,
+      scrollChatToBottom,
+      skills,
+    ],
   );
 
   const deleteSessionTarget = useMemo(
@@ -851,6 +1278,20 @@ export function AgentChatPane({
     }
   }, []);
 
+  const handleToolConfirmDecision = useCallback(
+    async (decision: "approve" | "reject", manualSearchText?: string) => {
+      const request = pendingToolConfirm;
+      if (!request) return;
+      setPendingToolConfirm(null);
+      await postToolConfirmDecision(
+        request.toolUseId,
+        decision,
+        manualSearchText,
+      );
+    },
+    [pendingToolConfirm],
+  );
+
   const handleConfirmOverwrite = useCallback(() => {
     if (!overwriteTarget || !onOverwriteEditor || !lesson) return;
     const extracted = extractMarkdownBlock(overwriteTarget.content);
@@ -869,8 +1310,13 @@ export function AgentChatPane({
   }, [lesson, messages, onOverwriteEditor, overwriteTarget, series]);
 
   return (
-    <div className={cn("agent-chat-pane flex h-full min-h-0 flex-col", className)}>
-      <div ref={historyRef} className="relative z-10 shrink-0 bg-[var(--agent-chat-pane-bg)] px-3 pt-3 pb-2">
+    <div
+      className={cn("agent-chat-pane flex h-full min-h-0 flex-col", className)}
+    >
+      <div
+        ref={historyRef}
+        className="relative z-10 shrink-0 bg-[var(--agent-chat-pane-bg)] px-3 pt-3 pb-2"
+      >
         <div className="flex items-center gap-2">
           <Button
             type="button"
@@ -897,78 +1343,90 @@ export function AgentChatPane({
         </div>
         {historyOpen ? (
           <div className="absolute left-3 top-full z-30 mt-1 max-h-64 w-max max-w-[calc(100%-1.5rem)] overflow-y-auto rounded-md border border-border bg-popover shadow-md">
-                {sortedSessions.map((session) => (
-                  <div
-                    key={session.id}
-                    className={cn(
-                      "flex w-fit min-w-0 max-w-full flex-col gap-0.5 border-b border-border px-3 py-2 text-left text-xs last:border-b-0 hover:bg-muted/60",
-                      session.id === chatStorage?.activeSessionId && "bg-muted",
-                    )}
+            {sortedSessions.map((session) => (
+              <div
+                key={session.id}
+                className={cn(
+                  "flex w-fit min-w-0 max-w-full flex-col gap-0.5 border-b border-border px-3 py-2 text-left text-xs last:border-b-0 hover:bg-muted/60",
+                  session.id === chatStorage?.activeSessionId && "bg-muted",
+                )}
+              >
+                <button
+                  type="button"
+                  className="block max-w-full truncate whitespace-nowrap text-left font-medium text-foreground"
+                  title={session.title}
+                  onClick={() => handleSwitchSession(session.id)}
+                >
+                  {session.title}
+                </button>
+                <div className="flex w-full min-w-0 items-center gap-1">
+                  <button
+                    type="button"
+                    className="min-w-0 flex-1 truncate text-left text-muted-foreground"
+                    onClick={() => handleSwitchSession(session.id)}
                   >
-                    <button
-                      type="button"
-                      className="block max-w-full truncate whitespace-nowrap text-left font-medium text-foreground"
-                      title={session.title}
-                      onClick={() => handleSwitchSession(session.id)}
-                    >
-                      {session.title}
-                    </button>
-                    <div className="flex w-full min-w-0 items-center gap-1">
-                      <button
+                    {session.activeSkillId ?? "スキル未選択"} ·{" "}
+                    {session.messages.length} 件 ·{" "}
+                    {formatSessionUpdatedAt(session.updatedAt)}
+                  </button>
+                  <WorkspaceTooltip
+                    label="タイトルを編集"
+                    render={
+                      <Button
                         type="button"
-                        className="min-w-0 flex-1 truncate text-left text-muted-foreground"
-                        onClick={() => handleSwitchSession(session.id)}
+                        variant="ghost"
+                        size="icon"
+                        className="size-6 shrink-0 text-muted-foreground"
+                        aria-label="タイトルを編集"
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          openEditSessionTitle(session.id);
+                        }}
                       >
-                        {session.activeSkillId ?? "スキル未選択"} · {session.messages.length} 件 ·{" "}
-                        {formatSessionUpdatedAt(session.updatedAt)}
-                      </button>
-                      <WorkspaceTooltip
-                        label="タイトルを編集"
-                        render={
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="icon"
-                            className="size-6 shrink-0 text-muted-foreground"
-                            aria-label="タイトルを編集"
-                            onClick={(event) => {
-                              event.stopPropagation();
-                              openEditSessionTitle(session.id);
-                            }}
-                          >
-                            <Pencil className="size-3.5" />
-                          </Button>
-                        }
-                      />
-                      <WorkspaceTooltip
-                        label="会話を削除"
-                        render={
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="icon"
-                            className="size-6 shrink-0 text-muted-foreground hover:text-destructive"
-                            aria-label="会話を削除"
-                            onClick={(event) => {
-                              event.stopPropagation();
-                              requestDeleteSession(session.id);
-                            }}
-                          >
-                            <Trash2 className="size-3" />
-                          </Button>
-                        }
-                      />
-                    </div>
-                  </div>
-                ))}
+                        <Pencil className="size-3.5" />
+                      </Button>
+                    }
+                  />
+                  <WorkspaceTooltip
+                    label="会話を削除"
+                    render={
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        className="size-6 shrink-0 text-muted-foreground hover:text-destructive"
+                        aria-label="会話を削除"
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          requestDeleteSession(session.id);
+                        }}
+                      >
+                        <Trash2 className="size-3" />
+                      </Button>
+                    }
+                  />
+                </div>
+              </div>
+            ))}
           </div>
         ) : null}
       </div>
 
-      <div className="relative min-h-0 flex-1">
+      <div className="relative flex min-h-0 flex-1 flex-col">
+        {subagentNoticeVisible ? (
+          <div
+            className="shrink-0 border-b bg-muted/60 px-3 py-2 text-xs text-muted-foreground"
+            role="status"
+          >
+            {SUBAGENT_FALLBACK_USER_MESSAGE}
+          </div>
+        ) : null}
+        {/* 背景色は祖先と同値だが、スクロール領域自身を不透明レイヤにするために
+            ここへ置く。透明なままだと上に重なるフェードとの兼ね合いでスクロール
+            時にテキストが重ね描きされ、太字でにじんで見えることがある。 */}
         <div
           ref={chatScrollRef}
-          className="workspace-scrollbar h-full min-h-0 overflow-y-auto overscroll-y-contain"
+          className="workspace-scrollbar min-h-0 flex-1 overflow-y-auto overscroll-y-contain bg-[var(--agent-chat-pane-bg)]"
           onScroll={(event) => {
             const element = event.currentTarget;
             const distanceFromBottom =
@@ -976,115 +1434,258 @@ export function AgentChatPane({
             stickToBottomRef.current = distanceFromBottom < 80;
           }}
         >
-          <div className="px-12 py-4">
-        {richMarkdown ? (
-          messages.length === 0 ? (
-          <div className="flex h-full min-h-[12rem] items-center justify-center text-sm text-muted-foreground">
-            本日はどのようなお手伝いをさせていただけますか？
-          </div>
-        ) : (
-          <div className="flex flex-col gap-6">
-            {messages.map((message) => {
-              const isStreamingMessage =
-                isStreaming && message.id === streamingAssistantId;
-              const showActions =
-                message.role === "assistant" &&
-                !isStreamingMessage &&
-                Boolean(message.content);
-              const copied = copiedMessageId === message.id;
-
-              if (message.role === "user") {
-                return (
-                  <div key={message.id} className="flex w-full justify-end">
-                    <div className="max-w-[min(70%,28rem)] rounded-2xl bg-muted px-3 py-2 text-sm text-foreground">
-                      <AgentChatMessageContent
-                        content={message.content}
-                        variant="user"
-                        richMarkdown={richMarkdown}
-                      />
+          <div className="px-3 py-4">
+            {richMarkdown ? (
+              messages.length === 0 ? (
+                <div className="flex h-full min-h-[12rem] items-center justify-center">
+                  <div className="flex max-w-md flex-col gap-3 text-sm text-muted-foreground">
+                    <div className="text-center text-sm">
+                      ── 注意とお願い ──
                     </div>
+                    <p>
+                      スキルに書かれた処理をすべてそのまま実行できるとは限りません。できないことは、代わりの進め方でお手伝いします。
+                    </p>
+                    <table className="w-full border-collapse text-sm">
+                      <tbody>
+                        <tr className="align-top">
+                          <td className="w-6 py-1 pr-2 font-bold text-status-done">
+                            ✓
+                          </td>
+                          <td className="py-1">
+                            この作業フォルダの中で、読む・書く・変換する
+                          </td>
+                        </tr>
+                        <tr className="align-top">
+                          <td className="w-6 py-1 pr-2 font-bold text-status-done">
+                            ✓
+                          </td>
+                          <td className="py-1">
+                            大きな成果物も分割して着実に仕上げる
+                          </td>
+                        </tr>
+                        <tr className="align-top">
+                          <td className="w-6 py-1 pr-2 font-bold text-status-done">
+                            ✓
+                          </td>
+                          <td className="py-1">
+                            スクリプトは確認のうえ実行します（外部への通信は原則しません）
+                          </td>
+                        </tr>
+                        <tr className="align-top">
+                          <td className="w-6 py-1 pr-2 font-bold text-destructive">
+                            ✗
+                          </td>
+                          <td className="py-1">
+                            スキルは自動で始まりません → / で選んでください
+                          </td>
+                        </tr>
+                        <tr className="align-top">
+                          <td className="w-6 py-1 pr-2 font-bold text-destructive">
+                            ✗
+                          </td>
+                          <td className="py-1">
+                            サブエージェントには対応していません →
+                            同じセッション内で順に処理します
+                          </td>
+                        </tr>
+                        <tr className="align-top">
+                          <td className="w-6 py-1 pr-2 font-bold text-destructive">
+                            ✗
+                          </td>
+                          <td className="py-1">
+                            Web 検索は原則しません →
+                            検索ワードをお渡しするので、結果と URL
+                            を貼ってください
+                          </td>
+                        </tr>
+                        <tr className="align-top">
+                          <td className="w-6 py-1 pr-2 font-bold text-destructive">
+                            ✗
+                          </td>
+                          <td className="py-1">
+                            フォルダの外は触りません／ファイルは削除しません
+                          </td>
+                        </tr>
+                        <tr className="align-top">
+                          <td className="w-6 py-1 pr-2 font-bold text-destructive">
+                            ✗
+                          </td>
+                          <td className="py-1">
+                            画像の生成・読み取りには対応していません
+                          </td>
+                        </tr>
+                      </tbody>
+                    </table>
                   </div>
-                );
-              }
-
-              return (
-                <div key={message.id} className="flex w-full flex-col gap-2 text-sm">
-                  {message.toolEvents && message.toolEvents.length > 0 ? (
-                    <AgentToolCallBlock events={message.toolEvents} />
-                  ) : null}
-                  {message.content ? (
-                    <AgentChatMessageContent
-                      content={message.content}
-                      richMarkdown={richMarkdown}
-                    />
-                  ) : (
-                    <span className="text-muted-foreground">...</span>
-                  )}
-                  {showActions ? (
-                    <div className="flex items-center gap-2">
-                      <WorkspaceTooltip
-                        label={copied ? "コピー済み" : "コピー"}
-                        render={
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="icon"
-                            className="size-7"
-                            aria-label={copied ? "コピー済み" : "コピー"}
-                            onClick={() => void handleCopy(message.id, message.content)}
-                          >
-                            {copied ? (
-                              <Check className="size-3.5" />
-                            ) : (
-                              <Copy className="size-3.5" />
-                            )}
-                          </Button>
-                        }
-                      />
-                      {onOverwriteEditor && lesson ? (
-                        <WorkspaceTooltip
-                          label="エディタに上書き"
-                          render={
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              size="icon"
-                              className="size-7"
-                              aria-label="エディタに上書き"
-                              onClick={() =>
-                                setOverwriteTarget({
-                                  messageId: message.id,
-                                  content: message.content,
-                                })
-                              }
-                            >
-                              <FilePen className="size-3.5" />
-                            </Button>
-                          }
-                        />
-                      ) : null}
-                      <span className="text-xs text-muted-foreground">
-                        {formatMessageTimestamp(message)}
-                      </span>
-                    </div>
-                  ) : null}
                 </div>
-              );
-            })}
-          </div>
-        )
-        ) : null}
+              ) : (
+                <div className="flex flex-col gap-6">
+                  {messages.map((message) => {
+                    const isStreamingMessage =
+                      isStreaming && message.id === streamingAssistantId;
+                    const showActions =
+                      message.role === "assistant" &&
+                      !isStreamingMessage &&
+                      Boolean(message.content);
+                    const copied = copiedMessageId === message.id;
+
+                    if (message.role === "user") {
+                      return (
+                        <div
+                          key={message.id}
+                          className="flex w-full justify-end"
+                        >
+                          <div className="max-w-[min(70%,28rem)] rounded-2xl bg-muted px-3 py-2 text-sm text-foreground">
+                            <AgentChatMessageContent
+                              content={message.content}
+                              variant="user"
+                              richMarkdown={richMarkdown}
+                              attachments={message.attachments}
+                            />
+                          </div>
+                        </div>
+                      );
+                    }
+
+                    return (
+                      <div
+                        key={message.id}
+                        className="flex w-full flex-col gap-2 text-sm"
+                      >
+                        {(message.toolEvents &&
+                          message.toolEvents.length > 0) ||
+                        (isStreamingMessage && pendingToolConfirm) ? (
+                          <AgentToolCallBlock
+                            events={message.toolEvents ?? []}
+                            pendingConfirm={
+                              isStreamingMessage ? pendingToolConfirm : null
+                            }
+                            onConfirmApprove={() =>
+                              void handleToolConfirmDecision("approve")
+                            }
+                            onConfirmReject={() =>
+                              void handleToolConfirmDecision("reject")
+                            }
+                            onConfirmManualSubmit={(text) =>
+                              void handleToolConfirmDecision("approve", text)
+                            }
+                          />
+                        ) : null}
+                        {message.content ? (
+                          <AgentChatMessageContent
+                            content={message.content}
+                            richMarkdown={richMarkdown}
+                          />
+                        ) : isStreamingMessage ? null : (
+                          <span className="text-muted-foreground">...</span>
+                        )}
+                        {isStreamingMessage ? (
+                          <Loader2
+                            className="size-4 shrink-0 animate-spin text-muted-foreground"
+                            aria-label="応答生成中"
+                          />
+                        ) : null}
+                        {showActions ? (
+                          <div className="flex items-center gap-2">
+                            <WorkspaceTooltip
+                              label={copied ? "コピー済み" : "コピー"}
+                              render={
+                                <Button
+                                  type="button"
+                                  variant="ghost"
+                                  size="icon"
+                                  className="size-7"
+                                  aria-label={copied ? "コピー済み" : "コピー"}
+                                  onClick={() =>
+                                    void handleCopy(message.id, message.content)
+                                  }
+                                >
+                                  {copied ? (
+                                    <Check className="size-3.5" />
+                                  ) : (
+                                    <Copy className="size-3.5" />
+                                  )}
+                                </Button>
+                              }
+                            />
+                            {onOverwriteEditor && lesson ? (
+                              <WorkspaceTooltip
+                                label="エディタに上書き"
+                                render={
+                                  <Button
+                                    type="button"
+                                    variant="ghost"
+                                    size="icon"
+                                    className="size-7"
+                                    aria-label="エディタに上書き"
+                                    onClick={() =>
+                                      setOverwriteTarget({
+                                        messageId: message.id,
+                                        content: message.content,
+                                      })
+                                    }
+                                  >
+                                    <FilePen className="size-3.5" />
+                                  </Button>
+                                }
+                              />
+                            ) : null}
+                            <span className="text-xs text-muted-foreground">
+                              {formatMessageTimestamp(message)}
+                            </span>
+                          </div>
+                        ) : null}
+                      </div>
+                    );
+                  })}
+                </div>
+              )
+            ) : null}
           </div>
         </div>
-        <div aria-hidden className="agent-chat-pane__scroll-fade agent-chat-pane__scroll-fade-top" />
-        <div aria-hidden className="agent-chat-pane__scroll-fade agent-chat-pane__scroll-fade-bottom" />
+        <div
+          aria-hidden
+          className="agent-chat-pane__scroll-fade agent-chat-pane__scroll-fade-top"
+        />
+        <div
+          aria-hidden
+          className="agent-chat-pane__scroll-fade agent-chat-pane__scroll-fade-bottom"
+        />
       </div>
 
-      {error ? (
-        <div className="flex items-center justify-between gap-2 bg-destructive/10 px-12 py-2 text-xs text-destructive">
-          <span>{error}</span>
+      {lastTurnTokens !== null ? (
+        <div className="flex items-center justify-end gap-3 px-3 py-1 text-[11px] text-muted-foreground">
+          <span>直近ターン: {lastTurnTokens.toLocaleString()} tokens</span>
+          <span>
+            セッション累計: {sessionTokenTotal.toLocaleString()} tokens
+          </span>
+        </div>
+      ) : null}
+
+      {storageWarning ? (
+        <div className="flex items-center justify-between gap-2 bg-secondary px-3 py-2 text-xs text-secondary-foreground">
+          <span>{storageWarning}</span>
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            onClick={() => setStorageWarning(null)}
+          >
+            閉じる
+          </Button>
+        </div>
+      ) : null}
+
+      {displayError ? (
+        <div className="flex items-center justify-between gap-2 bg-destructive/10 px-3 py-2 text-xs text-destructive">
+          <span>{displayError}</span>
           {retryPayload ? (
-            <Button type="button" variant="ghost" size="sm" onClick={() => void handleRetry()}>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={() => void handleRetry()}
+            >
               <RotateCcw className="size-3" />
               再送
             </Button>
@@ -1092,26 +1693,30 @@ export function AgentChatPane({
         </div>
       ) : null}
 
-      <div className="relative z-10 shrink-0 bg-[var(--agent-chat-pane-bg)] px-12">
+      <div className="relative z-10 shrink-0 bg-[var(--agent-chat-pane-bg)] px-3">
         <AgentChatInput
-        value={input}
-        onChange={setInput}
-        onSend={() => void handleSend()}
-        onAfterSend={() => {
-          stickToBottomRef.current = true;
-          requestAnimationFrame(() => scrollChatToBottom());
-        }}
-        onStop={handleStop}
-        disabled={false}
-        isLoading={isStreaming}
-        modelLabel={modelLabel}
-        skills={skills}
-        activeSkillId={activeSkillId}
-        activeSkillName={activeSkill?.name ?? null}
-        onActiveSkillChange={setActiveSkillId}
-        onLoadContentFiles={loadContentFiles}
-        onBuiltinCommand={handleBuiltinCommand}
-        createDraftDisabled={!lesson}
+          value={input}
+          onChange={setInput}
+          attachments={attachments}
+          onAttachmentsChange={setAttachments}
+          onSend={(attachments) => void handleSend(attachments)}
+          onAfterSend={() => {
+            stickToBottomRef.current = true;
+            requestAnimationFrame(() => scrollChatToBottom());
+          }}
+          onStop={handleStop}
+          disabled={pendingToolConfirm !== null}
+          isLoading={isStreaming}
+          modelLabel={modelLabel}
+          skills={skills}
+          activeSkillId={activeSkillId}
+          activeSkillName={activeSkill?.name ?? null}
+          onActiveSkillChange={setActiveSkillId}
+          onLoadContentFiles={loadContentFiles}
+          onBuiltinCommand={handleBuiltinCommand}
+          onRegisterAddAttachment={(fn) => {
+            addAttachmentRef.current = fn;
+          }}
         />
       </div>
 
@@ -1211,7 +1816,8 @@ export function AgentChatPane({
           <AlertDialogHeader>
             <AlertDialogTitle>レッスン本文を上書きしますか？</AlertDialogTitle>
             <AlertDialogDescription>
-              AI 応答の Markdown 内容で現在のレッスン本文を置き換えます。この操作は元に戻せません。
+              AI 応答の Markdown
+              内容で現在のレッスン本文を置き換えます。この操作は元に戻せません。
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -1222,6 +1828,122 @@ export function AgentChatPane({
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* ターン実行中の確認要求（overwrite / run-script / run-skill-script /
+          generate-write / inline-assets / web-search / web-search-manual）は
+          モーダルではなく、ペイン3のチャット欄に AgentToolCallBlock 経由で
+          インライン表示する（ToolConfirmInlineCard）。Radix のポータル型
+          モーダルを経由しないため、連続確認での状態残留は構造的に生じない。 */}
+
+      <AlertDialog
+        open={imageIoDialogOpen}
+        onOpenChange={(open) => {
+          if (!open) {
+            const pending = pendingInvokeRef.current;
+            if (pending) {
+              setInput(pending.userMessage.content);
+              pendingInvokeRef.current = null;
+            }
+            setImageIoDialogOpen(false);
+          }
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              画像・マルチモーダルには対応していません
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {IMAGE_IO_FALLBACK_USER_MESSAGE}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel
+              onClick={() => {
+                const pending = pendingInvokeRef.current;
+                if (pending) {
+                  setInput(pending.userMessage.content);
+                  pendingInvokeRef.current = null;
+                }
+                setImageIoDialogOpen(false);
+              }}
+            >
+              中止
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                const pending = pendingInvokeRef.current;
+                setImageIoDialogOpen(false);
+                if (!pending) return;
+                pendingInvokeRef.current = null;
+                void beginInvokeWithGuards({
+                  ...pending,
+                  imageIoConfirmed: true,
+                });
+              }}
+            >
+              スキップして続行
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <OutsideProjectPathDialog
+        open={outsideDialogOpen}
+        paths={outsidePaths}
+        onCancel={() => {
+          const pending = pendingInvokeRef.current;
+          if (pending) {
+            setInput(pending.userMessage.content);
+            pendingInvokeRef.current = null;
+          }
+          setOutsideDialogOpen(false);
+          setOutsidePaths([]);
+        }}
+        onConfirm={() => {
+          const pending = pendingInvokeRef.current;
+          setOutsideDialogOpen(false);
+          setOutsidePaths([]);
+          if (!pending) return;
+          pendingInvokeRef.current = null;
+          void beginInvokeWithGuards({
+            ...pending,
+            outsideConfirmed: true,
+          });
+        }}
+      />
+
+      <OutputDestinationDialog
+        open={outputDialogOpen}
+        options={outputOptions}
+        selectedId={selectedOutputId}
+        onSelect={setSelectedOutputId}
+        onCancel={() => {
+          const pending = pendingInvokeRef.current;
+          if (pending) {
+            setInput(pending.userMessage.content);
+            pendingInvokeRef.current = null;
+          }
+          setOutputDialogOpen(false);
+          setOutputOptions([]);
+          setSelectedOutputId(null);
+        }}
+        onConfirm={() => {
+          const pending = pendingInvokeRef.current;
+          const selected = outputOptions.find(
+            (option) => option.id === selectedOutputId,
+          );
+          setOutputDialogOpen(false);
+          setOutputOptions([]);
+          setSelectedOutputId(null);
+          if (!pending || !selected) return;
+          pendingInvokeRef.current = null;
+          void invokeSkill({
+            ...pending,
+            preferredOutputDir: selected.relativeDir,
+          });
+        }}
+      />
     </div>
   );
 }

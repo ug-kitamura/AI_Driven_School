@@ -8,7 +8,7 @@ DX Training Studio の `Workspace.tsx` 状態管理における hook 責務境�
 
 ### Requirement: 削除後の選択状態は pure function で決定する
 
-シリーズまたはコース削除後の `selectedCourseId` / `selectedLessonId` は、`lib/workspace-selection.ts` の pure function（`resolveSelectionAfterDelete`）で決定しなければならない（SHALL）。`setSeries` の updater 内から別の `setState` を呼んではならない（MUST NOT）。
+シリーズまたはコース削除後の `selectedSeriesId` / `selectedCourseId` / `selectedLessonId` は、`lib/workspace-selection.ts` の pure function（`resolveSelectionAfterDelete`）で決定しなければならない（SHALL）。`setSeries` の updater 内から別の `setState` を呼んではならない（MUST NOT）。決定結果はフォーカス降下規則（下の階層があれば先頭へ降り、無ければその階層で止まる）に従わなければならない（SHALL）。
 
 #### Scenario: 選択中シリーズ削除後に先頭コースへフォールバック
 
@@ -30,11 +30,21 @@ DX Training Studio の `Workspace.tsx` 状態管理における hook 責務境�
 #### Scenario: レッスン削除で選択中レッスンが消えた場合
 
 - **WHEN** ユーザーが選択中のレッスンを削除する
-- **THEN** `selectedLessonId` は空文字になる
+- **THEN** `selectedLessonId` は空文字になり、フォーカスはコースに止まる
+
+#### Scenario: 最後のコースを削除するとシリーズにフォーカスが残る
+
+- **WHEN** ユーザーがシリーズ内の最後のコースを削除する
+- **THEN** `selectedCourseId` と `selectedLessonId` は空文字になる
+- **AND** `selectedSeriesId` は当該シリーズのままで、フォーカスはシリーズに止まる
 
 ### Requirement: 選択状態は useWorkspaceSelection hook に集約する
 
-`selectedCourseId`・`selectedLessonId`・派生 `selectedCourse` / `selectedLesson`・`selectCourse` / `selectLesson` は `useWorkspaceSelection` hook に集約しなければならない（SHALL）。`selectCourse` は当該コースの最初のレッスンを自動選択しなければならない（SHALL）。
+`selectedSeriesId`・`selectedCourseId`・`selectedLessonId`・派生 `selectedSeries` / `selectedCourse` / `selectedLesson`・`selectSeries` / `selectCourse` / `selectLesson` は `useWorkspaceSelection` hook に集約しなければならない（SHALL）。
+
+選択操作は**フォーカス降下規則**に従わなければならない（SHALL）: 下の階層が存在すればその先頭へ降り、存在しなければその階層で止まる。`selectSeries` は当該シリーズの最初のコース（さらにその最初のレッスン）を自動選択しなければならない（SHALL）。`selectCourse` は当該コースの最初のレッスンを自動選択しなければならない（SHALL）。
+
+フォーカス階層は `selectedSeriesId` / `selectedCourseId` / `selectedLessonId` の**最深の非空フィールドから導出**しなければならない（SHALL）。フォーカス階層を表す判別フィールドを別に保持してはならない（MUST NOT）——下の階層が空でないのに上で止まる状態は降下規則により存在しないため、判別フィールドは状態との不整合を生むだけになる。
 
 #### Scenario: コース選択で先頭レッスンが選ばれる
 
@@ -44,7 +54,18 @@ DX Training Studio の `Workspace.tsx` 状態管理における hook 責務境�
 #### Scenario: レッスンなしコース選択
 
 - **WHEN** ユーザーがレッスン 0 件のコースを選択する
-- **THEN** `selectedLessonId` は空文字になる
+- **THEN** `selectedLessonId` は空文字になり、フォーカスはコースになる
+
+#### Scenario: シリーズ選択で先頭コースの先頭レッスンまで降りる
+
+- **WHEN** ユーザーがコースとレッスンを含むシリーズを選択する
+- **THEN** 当該シリーズの最初のコース ID が `selectedCourseId` になる
+- **AND** そのコースの最初のレッスン ID が `selectedLessonId` になる
+
+#### Scenario: コースなしシリーズ選択
+
+- **WHEN** ユーザーがコース 0 件のシリーズを選択する
+- **THEN** `selectedCourseId` と `selectedLessonId` は空文字になり、フォーカスはシリーズになる
 
 ### Requirement: シリーズ/コース CRUD は useSeriesMutations hook に集約する
 
@@ -78,3 +99,17 @@ DX Training Studio の `Workspace.tsx` 状態管理における hook 責務境�
 
 - **WHEN** ユーザーが Pane3 でレッスン本文を編集する
 - **THEN** セッション内の `series` state が更新される
+
+### Requirement: 保存済み選択の後方互換
+
+`localStorage` に保存された選択状態が `seriesId` を持たない旧形式（`{ courseId, lessonId }`）であっても、読み込みが失敗してはならない（MUST NOT）。旧形式を読んだ場合は `courseId` から所属シリーズを逆引きして `seriesId` を補完しなければならない（SHALL）。逆引きできない場合はフォールバックの選択を使わなければならない（SHALL）。
+
+#### Scenario: 旧形式の選択を読み込む
+
+- **WHEN** `localStorage` に `{ courseId, lessonId }` のみが保存されている状態で起動する
+- **THEN** エラーにならず、`courseId` の所属シリーズが `selectedSeriesId` に補完される
+
+#### Scenario: 逆引きできない旧形式
+
+- **WHEN** 保存された `courseId` が現在の `contents/` に存在しない
+- **THEN** フォールバックの選択が使われる

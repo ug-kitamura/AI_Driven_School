@@ -5,6 +5,7 @@ import { ArrowUp, Square, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import type { SkillSummary } from "@/lib/agent/skill-loader";
+import type { AgentFileAttachment } from "@/lib/agent-chat-storage";
 import {
   filterBuiltinCommands,
   filterContentFiles,
@@ -13,6 +14,7 @@ import {
   type AgentBuiltinCommand,
   type AgentFileOption,
 } from "@/lib/agent-chat-suggestions";
+import { WorkspaceTooltip } from "@/components/workspace/WorkspaceTooltip";
 
 export type { AgentFileOption };
 
@@ -29,12 +31,16 @@ type SuggestionItem = {
   key: string;
   primary: string;
   secondary: string;
+  file?: AgentFileOption;
 };
 
 type Props = {
   value: string;
   onChange: (value: string) => void;
-  onSend: () => void;
+  /** 添付チップ（親が保持し、プロジェクト往復で復元する） */
+  attachments: AgentFileAttachment[];
+  onAttachmentsChange: (attachments: AgentFileAttachment[]) => void;
+  onSend: (attachments: AgentFileAttachment[]) => void;
   onAfterSend?: () => void;
   onStop?: () => void;
   disabled?: boolean;
@@ -46,10 +52,16 @@ type Props = {
   onActiveSkillChange: (skillId: string | null) => void;
   onLoadContentFiles: () => Promise<AgentFileOption[]>;
   onBuiltinCommand?: (command: AgentBuiltinCommand["id"]) => void;
-  createDraftDisabled?: boolean;
+  /** 外部（Pane 1 の add to chat 等）から添付チップを追加する関数を登録する */
+  onRegisterAddAttachment?: (
+    fn: (attachment: AgentFileAttachment) => void,
+  ) => void;
 };
 
-function detectSuggestion(value: string, cursor: number): SuggestionState | null {
+function detectSuggestion(
+  value: string,
+  cursor: number,
+): SuggestionState | null {
   const beforeCursor = value.slice(0, cursor);
   const atMatch = /@([^\s@]*)$/.exec(beforeCursor);
   if (atMatch) {
@@ -104,6 +116,8 @@ function clampHighlightIndex(index: number, itemCount: number): number {
 export function AgentChatInput({
   value,
   onChange,
+  attachments: fileAttachments,
+  onAttachmentsChange,
   onSend,
   onAfterSend,
   onStop,
@@ -116,7 +130,7 @@ export function AgentChatInput({
   onActiveSkillChange,
   onLoadContentFiles,
   onBuiltinCommand,
-  createDraftDisabled = false,
+  onRegisterAddAttachment,
 }: Props) {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const suggestionListRef = useRef<HTMLDivElement>(null);
@@ -159,8 +173,8 @@ export function AgentChatInput({
 
   const filteredSkills = useMemo(() => {
     const query = suggestion?.kind === "skill" ? suggestion.query : "";
-    return filterSkills(skills, query, createDraftDisabled);
-  }, [skills, suggestion, createDraftDisabled]);
+    return filterSkills(skills, query);
+  }, [skills, suggestion]);
 
   const filteredCommands = useMemo(() => {
     if (suggestion?.kind !== "skill") return [];
@@ -194,16 +208,16 @@ export function AgentChatInput({
     return visibleFileOptions.map((file) => ({
       kind: "file" as const,
       key: file.path,
-      primary: file.name,
-      secondary: file.path,
+      primary: file.relativePath ?? file.path,
+      secondary: file.name,
+      file,
     }));
   }, [filteredCommands, filteredSkills, suggestion?.kind, visibleFileOptions]);
 
-  const activeHighlightIndex = clampHighlightIndex(highlightIndex, visibleItems.length);
-
-  useEffect(() => {
-    setHighlightIndex((index) => clampHighlightIndex(index, visibleItems.length));
-  }, [visibleItems.length]);
+  const activeHighlightIndex = clampHighlightIndex(
+    highlightIndex,
+    visibleItems.length,
+  );
 
   useEffect(() => {
     if (!suggestion || visibleItems.length === 0) return;
@@ -215,23 +229,16 @@ export function AgentChatInput({
     item?.scrollIntoView({ block: "nearest" });
   }, [activeHighlightIndex, suggestion, visibleItems.length]);
 
-  useEffect(() => {
-    if (suggestion?.kind !== "file") return;
-
-    let cancelled = false;
+  const loadContentFilesForSuggestion = useCallback(() => {
     setFilesLoading(true);
     void onLoadContentFiles()
       .then((files) => {
-        if (!cancelled) setContentFiles(files);
+        setContentFiles(files);
       })
       .finally(() => {
-        if (!cancelled) setFilesLoading(false);
+        setFilesLoading(false);
       });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [suggestion?.kind, onLoadContentFiles]);
+  }, [onLoadContentFiles]);
 
   const suggestionEmptyMessage =
     suggestion?.kind === "file"
@@ -239,7 +246,7 @@ export function AgentChatInput({
         ? "ファイル一覧を読み込み中..."
         : suggestion.query
           ? "一致するファイルがありません"
-          : "contents/ 内に .md ファイルがありません"
+          : "プロジェクト内にファイルがありません"
       : "一致するスキルまたはコマンドがありません";
 
   const updateSuggestionFromCursor = useCallback(() => {
@@ -251,6 +258,9 @@ export function AgentChatInput({
     }
     const cursor = textarea.selectionStart ?? textarea.value.length;
     const next = detectSuggestion(textarea.value, cursor);
+    if (next?.kind === "file") {
+      loadContentFilesForSuggestion();
+    }
     setSuggestion((prev) => {
       const unchanged =
         prev?.kind === next?.kind &&
@@ -261,13 +271,17 @@ export function AgentChatInput({
       }
       return next;
     });
-  }, []);
+  }, [loadContentFilesForSuggestion]);
 
   const handleInputChange = (event: React.ChangeEvent<HTMLTextAreaElement>) => {
     const next = event.target.value;
     const cursor = event.target.selectionStart ?? next.length;
+    const detected = next ? detectSuggestion(next, cursor) : null;
     onChange(next);
-    setSuggestion(next ? detectSuggestion(next, cursor) : null);
+    if (detected?.kind === "file") {
+      loadContentFilesForSuggestion();
+    }
+    setSuggestion(detected);
     setHighlightIndex(0);
   };
 
@@ -298,14 +312,20 @@ export function AgentChatInput({
   );
 
   const applyFileSelection = useCallback(
-    (filePath: string) => {
+    (file: AgentFileOption) => {
       const textarea = textareaRef.current;
       if (!textarea || !suggestion || suggestion.kind !== "file") return;
-      const token = `@${filePath}`;
+      const token = file.name;
       const before = value.slice(0, suggestion.start);
       const after = value.slice(textarea.selectionStart);
       const next = `${before}${token} ${after}`;
       onChange(next);
+      if (!fileAttachments.some((item) => item.path === file.path)) {
+        onAttachmentsChange([
+          ...fileAttachments,
+          { path: file.path, name: file.name },
+        ]);
+      }
       setSuggestion(null);
       requestAnimationFrame(() => {
         textarea.focus();
@@ -313,18 +333,56 @@ export function AgentChatInput({
         textarea.setSelectionRange(pos, pos);
       });
     },
-    [onChange, suggestion, value],
+    [fileAttachments, onAttachmentsChange, onChange, suggestion, value],
   );
+
+  const removeFileAttachment = useCallback(
+    (filePath: string) => {
+      onAttachmentsChange(
+        fileAttachments.filter((item) => item.path !== filePath),
+      );
+    },
+    [fileAttachments, onAttachmentsChange],
+  );
+
+  const addFileAttachment = useCallback(
+    (attachment: AgentFileAttachment) => {
+      if (fileAttachments.some((item) => item.path === attachment.path)) {
+        return;
+      }
+      onAttachmentsChange([...fileAttachments, attachment]);
+      // @ 由来と同様、本文にもファイル名トークンを挿入する（末尾に追記）
+      const base = value.replace(/[ \t]+$/, "");
+      onChange(
+        base
+          ? `${base}${base.endsWith("\n") ? "" : " "}${attachment.name} `
+          : `${attachment.name} `,
+      );
+    },
+    [fileAttachments, onAttachmentsChange, onChange, value],
+  );
+
+  useEffect(() => {
+    onRegisterAddAttachment?.(addFileAttachment);
+  }, [addFileAttachment, onRegisterAddAttachment]);
 
   const submitMessage = useCallback(() => {
     if (disabled || isLoading || !value.trim()) return;
-    onSend();
+    onSend([...fileAttachments]);
     onAfterSend?.();
     requestAnimationFrame(() => {
       textareaRef.current?.focus();
       syncTextareaHeight();
     });
-  }, [disabled, isLoading, onAfterSend, onSend, syncTextareaHeight, value]);
+  }, [
+    disabled,
+    fileAttachments,
+    isLoading,
+    onAfterSend,
+    onSend,
+    syncTextareaHeight,
+    value,
+  ]);
 
   const handleKeyDown = (event: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (suggestion) {
@@ -350,8 +408,8 @@ export function AgentChatInput({
             applySkillSelection(item.key);
           } else if (item.kind === "command") {
             applyCommandSelection(item.key as AgentBuiltinCommand["id"]);
-          } else {
-            applyFileSelection(item.key);
+          } else if (item.file) {
+            applyFileSelection(item.file);
           }
           return;
         }
@@ -369,23 +427,44 @@ export function AgentChatInput({
     }
   };
 
+  const showChipRow = Boolean(activeSkillId) || fileAttachments.length > 0;
+
   return (
     <div className="flex shrink-0 flex-col gap-2 py-3">
-      {activeSkillId ? (
-        <div className="flex items-center gap-2">
-          <span className="rounded-full bg-primary/10 px-2 py-0.5 text-xs text-primary">
-            {activeSkillName ?? activeSkillId}
-          </span>
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon"
-            className="size-6"
-            aria-label="スキル選択を解除"
-            onClick={() => onActiveSkillChange(null)}
-          >
-            <X className="size-3" />
-          </Button>
+      {showChipRow ? (
+        <div className="flex flex-wrap items-center gap-2">
+          {activeSkillId ? (
+            <span className="inline-flex items-center gap-0.5 rounded-full bg-primary/10 py-0.5 pl-2 pr-1 text-xs text-primary">
+              <span>{activeSkillName ?? activeSkillId}</span>
+              <button
+                type="button"
+                className="inline-flex size-4 items-center justify-center rounded-full text-inherit hover:bg-primary/15"
+                aria-label="スキル選択を解除"
+                onClick={() => onActiveSkillChange(null)}
+              >
+                <X className="size-3" />
+              </button>
+            </span>
+          ) : null}
+          {fileAttachments.map((file) => (
+            <span
+              key={file.path}
+              className="inline-flex items-center gap-0.5 rounded-full bg-violet-500/10 py-0.5 pl-2 pr-1 text-xs text-violet-700 dark:text-violet-300"
+            >
+              <WorkspaceTooltip
+                label={file.path}
+                render={<span>{file.name}</span>}
+              />
+              <button
+                type="button"
+                className="inline-flex size-4 items-center justify-center rounded-full text-inherit hover:bg-violet-500/15"
+                aria-label={`${file.name} の添付を解除`}
+                onClick={() => removeFileAttachment(file.path)}
+              >
+                <X className="size-3" />
+              </button>
+            </span>
+          ))}
         </div>
       ) : null}
 
@@ -393,7 +472,7 @@ export function AgentChatInput({
         {suggestion ? (
           <div
             ref={suggestionListRef}
-            className="absolute inset-x-0 bottom-full z-20 mb-1 overflow-y-auto overscroll-y-contain rounded-md border border-border bg-popover shadow-md"
+            className="workspace-scrollbar absolute inset-x-0 bottom-full z-20 mb-1 overflow-y-auto overscroll-y-contain rounded-md border border-border bg-popover shadow-md"
             style={{ maxHeight: `calc(${SUGGESTION_VISIBLE_COUNT} * 3.5rem)` }}
           >
             {filesLoading || visibleItems.length > 0 ? (
@@ -410,7 +489,9 @@ export function AgentChatInput({
                     className={cn(
                       "flex w-full shrink-0 flex-col justify-center gap-0.5 px-3 text-left text-xs",
                       SUGGESTION_ITEM_HEIGHT_CLASS,
-                      index === activeHighlightIndex ? "bg-muted" : "hover:bg-muted/60",
+                      index === activeHighlightIndex
+                        ? "bg-muted"
+                        : "hover:bg-muted/60",
                     )}
                     onMouseDown={(event) => event.preventDefault()}
                     onMouseEnter={() => setHighlightIndex(index)}
@@ -418,16 +499,20 @@ export function AgentChatInput({
                       if (item.kind === "skill") {
                         applySkillSelection(item.key);
                       } else if (item.kind === "command") {
-                        applyCommandSelection(item.key as AgentBuiltinCommand["id"]);
-                      } else {
-                        applyFileSelection(item.key);
+                        applyCommandSelection(
+                          item.key as AgentBuiltinCommand["id"],
+                        );
+                      } else if (item.file) {
+                        applyFileSelection(item.file);
                       }
                     }}
                   >
                     <span className="font-medium text-foreground">
                       {item.kind === "file" ? item.primary : `/${item.key}`}
                     </span>
-                    <span className="truncate text-muted-foreground">{item.secondary}</span>
+                    <span className="truncate text-muted-foreground">
+                      {item.secondary}
+                    </span>
                   </button>
                 ))
               )
@@ -439,7 +524,7 @@ export function AgentChatInput({
           </div>
         ) : null}
 
-        <div className="flex flex-col overflow-hidden rounded-lg border border-border bg-white dark:bg-muted">
+        <div className="relative flex flex-col overflow-hidden rounded-lg border border-border bg-white dark:bg-muted">
           <textarea
             ref={textareaRef}
             value={value}

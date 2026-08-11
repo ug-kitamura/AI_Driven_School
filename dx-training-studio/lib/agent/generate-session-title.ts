@@ -76,8 +76,12 @@ export function hasTitleGenerationExchange(
   messages: TitleGenerationMessage[],
 ): boolean {
   return (
-    messages.some((message) => message.role === "user" && message.content.trim()) &&
-    messages.some((message) => message.role === "assistant" && message.content.trim())
+    messages.some(
+      (message) => message.role === "user" && message.content.trim(),
+    ) &&
+    messages.some(
+      (message) => message.role === "assistant" && message.content.trim(),
+    )
   );
 }
 
@@ -100,7 +104,11 @@ export async function generateSessionTitle(
 
   const providerResult = resolveLlmProvider(req);
   if (!providerResult.ok) {
-    return { ok: false, error: providerResult.error, status: providerResult.status };
+    return {
+      ok: false,
+      error: providerResult.error,
+      status: providerResult.status,
+    };
   }
 
   const firstExchange = extractFirstExchange(messages);
@@ -132,7 +140,10 @@ function extractFirstExchange(
       role: message.role,
       content: message.content,
     });
-    if (result.some((item) => item.role === "user") && result.some((item) => item.role === "assistant")) {
+    if (
+      result.some((item) => item.role === "user") &&
+      result.some((item) => item.role === "assistant")
+    ) {
       break;
     }
   }

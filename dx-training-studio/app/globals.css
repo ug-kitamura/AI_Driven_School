@@ -166,6 +166,15 @@
     var(--border)
   );
   --workspace-scrollbar-thumb-hover: var(--muted-foreground);
+  /*
+   * レッスン本文のコード用フォント（編集モード・プレビュー・差分で共有する正本）。
+   * 3 者で同じ字送りにならないとアスキーアートの罫線がビュー間でズレる。
+   * `--font-mono`（JetBrains Mono 先頭）は罫線素片・日本語のグリフを持たず、
+   * ASCII だけ別フォントになる混植を起こすためここでは使わない。
+   */
+  --font-code:
+    ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono",
+    "Courier New", monospace;
   /* GitHub アラート（レッスンプレビュー）: 種別ごとのアクセント色。背景は算出する */
   --alert-note: oklch(0.55 0.17 255);
   --alert-tip: oklch(0.53 0.15 150);
@@ -509,12 +518,12 @@
   }
 
   /*
-   * コードブロックの等幅: ASCII と CJK を同一フォントから出し、全角幅を半角の
-   * 2 倍に揃える（アスキーアートの罫線がズレないようにする）。
+   * コードブロックのフォントは編集モードと同一にする（`--font-code`）。
+   * 編集画面で揃って見えるアスキーアートが、プレビューでも同じ字送りで並ぶ。
    * Agent チャットは対象外。
    */
   .lesson-preview:not(.agent-chat-message) pre code {
-    font-family: "BIZ UDGothic", "MS Gothic", monospace;
+    font-family: var(--font-code);
   }
 
   /* Agent チャット: プレビュー同等の Markdown をコンパクトに */
@@ -689,9 +698,7 @@ html.dark .lesson-content-editor .cm-foldGutter.lesson-fold-gutter span.lesson-f
 
 /* Pane3 差分: 編集モード .cm-lineNumbers + 行番号列と本文間の空白ガター */
 .lesson-diff-view {
-  font-family:
-    ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono",
-    "Courier New", monospace;
+  font-family: var(--font-code);
   font-size: 0.875rem;
   line-height: 1.375rem;
   overscroll-behavior: contain;

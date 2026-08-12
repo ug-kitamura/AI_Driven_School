@@ -60,8 +60,8 @@ function createLessonEditorLayout(
         overflow: "auto",
         overscrollBehavior: "contain",
         backgroundColor: editorBg,
-        fontFamily:
-          'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace',
+        // 正本は globals.css の `--font-code`（プレビュー・差分と共有）
+        fontFamily: "var(--font-code)",
         fontSize: `${fontSizePx}px`,
         lineHeight: `${lineHeightPx}px`,
       },

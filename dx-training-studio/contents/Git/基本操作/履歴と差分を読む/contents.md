@@ -6,7 +6,7 @@ status: open
 description: status・log・diffの3つを使い分けて、いま何がどうなっているかを自分で確かめられるようになる
 tags: [git, basics]
 estimated_minutes: 15
-author:
+author: 
 ---
 
 # 履歴と差分を読む

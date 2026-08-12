@@ -33,16 +33,25 @@
 
 ### Requirement: run ディレクトリ内のファイル名規約
 
-`contents-plan/runs/<run>/` 配下のファイル名は次の 3 種でなければならない（SHALL）: 設計メモは `design-note.md`、レビューはレッスンごとに `review-<レッスン名>.md`、曼陀羅案は `mandala.md`。設計メモを `training-draft.md` のように草稿と紛らわしい名前にしてはならない（SHALL NOT）。
+`contents-plan/runs/<run>/` 配下の構成は次でなければならない（SHALL）: 設計メモは直下に `design-note.md`、曼陀羅案は直下に `mandala.md`、レビューは **`reviews/` サブディレクトリ配下にレッスンごとに `<レッスン名>.md`**。設計メモを `training-draft.md` のように草稿と紛らわしい名前にしてはならない（SHALL NOT）。
+
+レビューをサブディレクトリに畳むのは、**レッスン本数に比例して増える唯一のファイル種別**だからである。run につき1つしか生まれない設計メモ・曼陀羅案に対しては、サブディレクトリを作ってはならない（SHALL NOT）。
+
+レビューのファイル名に `review-` の接頭辞を付けてはならない（SHALL NOT）——役割は `reviews/` が表す。
 
 #### Scenario: run の中身を確認する
 - **WHEN** コース単位の実行が完了した run ディレクトリを開く
-- **THEN** `design-note.md` と `mandala.md` が 1 つずつ存在する
-- **AND** 執筆したレッスンの本数分の `review-<レッスン名>.md` が存在する
+- **THEN** 直下に `design-note.md` と `mandala.md` が 1 つずつ存在する
+- **AND** `reviews/` に、執筆したレッスンの本数分の `<レッスン名>.md` が存在する
 
 #### Scenario: 読み手が設計メモを一意に特定できる
 - **WHEN** run ディレクトリから設計メモを探す
-- **THEN** 範囲や実行回数を考慮せず `design-note.md` を読めばよい
+- **THEN** 範囲や実行回数を考慮せず直下の `design-note.md` を読めばよい
+- **AND** レビューの本数が増えても直下のファイル数は変わらない
+
+#### Scenario: 既存 run は移行しない
+- **WHEN** レビューが直下に `review-<レッスン名>.md` として置かれた過去の run が存在する
+- **THEN** その run はそのまま残してよく、新しい構成へ移し替えることを要求しない
 
 ### Requirement: 計画書のファイル名規約
 

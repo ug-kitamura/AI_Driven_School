@@ -1,12 +1,12 @@
 ---
-series: Git
-course: 基本操作
+series: Git基礎シリーズ
+course: Git基本操作コース
 lesson: 最初のコミット
-status: open
+status: in_progress
 description: 練習用リポジトリでaddとcommitの流れを通し、生成物を.gitignoreで除外できるようになる
 tags: [git, basics]
 estimated_minutes: 15
-author: 
+author: Kitamura
 ---
 
 # 最初のコミット
@@ -27,11 +27,14 @@ author:
 
 このフォルダを Git のリポジトリにするのが、7つの操作の1つ目、`init` です。
 
-```
+```bash
 git init
 ```
 
-`Initialized empty Git repository in ...` と表示されれば成功です。これで何が起きたかというと、このフォルダの中に **`.git` という隠しフォルダ＝セーブデータの保管庫**が作られました。三大エリアのレッスンで学んだ「リポジトリ」の実体がこれです。**`.git` の中を開いたり消したりはしません**——消すと、このフォルダの履歴が全部消えます。
+`Initialized empty Git repository in ...` と表示されれば成功です。これで何が起きたかというと、このフォルダの中に **`.git` という隠しフォルダ＝セーブデータの保管庫**が作られました。三大エリアのレッスンで学んだ「リポジトリ」の実体がこれです。
+
+> [!CAUTION]
+> **`.git` フォルダの中を開いたり消したりしないでください。** 消すと、このフォルダの履歴が全部消えます。
 
 ## いまの状態を聞く
 
@@ -39,11 +42,11 @@ git init
 
 ここで、2つ目の操作 `status` を打ちます。
 
-```
+```bash
 git status
 ```
 
-```
+```text
 Untracked files:
         memo.txt
 ```
@@ -56,7 +59,7 @@ Untracked files:
 
 三大エリアの地図の通り、セーブは2段階です。まず**セーブに含める変更を選び**（add）、それから**セーブします**（commit）。
 
-```
+```bash
 git add memo.txt
 ```
 
@@ -64,7 +67,7 @@ git add memo.txt
 
 続いてセーブ本番です。
 
-```
+```bash
 git commit -m "メモを追加"
 ```
 
@@ -72,13 +75,13 @@ git commit -m "メモを追加"
 
 最後にもう一度 `git status` を打つと、こう返ってきます。
 
-```
+```text
 nothing to commit, working tree clean
 ```
 
 「セーブすべきものは何もない」——つまり**全部の変更がセーブ済み**という意味です。三大エリアのレッスンで「表示されない＝リポジトリのセーブと同じ状態」と予告しましたが、その実物がこの表示です。おめでとうございます、最初のコミットが完成しました。
 
-*出典: Pro Git 日本語版「変更内容のリポジトリへの記録」 — https://git-scm.com/book/ja/v2/Git-%E3%81%AE%E5%9F%BA%E6%9C%AC-%E5%A4%89%E6%9B%B4%E5%86%85%E5%AE%B9%E3%81%AE%E3%83%AA%E3%83%9D%E3%82%B8%E3%83%88%E3%83%AA%E3%81%B8%E3%81%AE%E8%A8%98%E9%8C%B2 （2026年8月取得）*
+*出典: [Pro Git 日本語版「変更内容のリポジトリへの記録」](https://git-scm.com/book/ja/v2/Git-%E3%81%AE%E5%9F%BA%E6%9C%AC-%E5%A4%89%E6%9B%B4%E5%86%85%E5%AE%B9%E3%81%AE%E3%83%AA%E3%83%9D%E3%82%B8%E3%83%88%E3%83%AA%E3%81%B8%E3%81%AE%E8%A8%98%E9%8C%B2)（2026年8月取得）*
 
 ## VSCode ではこう見える
 
@@ -86,6 +89,8 @@ nothing to commit, working tree clean
 
 <!--
 VSCode の Source Control（ソース管理）ビューの UI mock。左端のアクティビティバーに枝分かれ形のソース管理アイコン。パネルには「変更」の見出しの下にファイル名 memo.txt が並び、ファイル名の右に「＋」ボタン。パネル上部にコミットメッセージの入力欄と青い「コミット」ボタン。「＋ ＝ git add」「コミット ボタン ＝ git commit」の対応ラベルを添える
+
+実際の画面との一致が重要な図。生成品質が悪い場合はスクリーンショットで代用すること。
 -->
 ![VSCode ソース管理ビューでの add と commit の対応](images/vscode-source-control-add-commit.png)
 

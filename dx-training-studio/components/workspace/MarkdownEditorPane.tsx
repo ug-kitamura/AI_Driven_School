@@ -3,8 +3,6 @@
 import { useEffect, useRef, useState, useCallback, useMemo } from "react";
 import dynamic from "next/dynamic";
 import ReactMarkdown from "react-markdown";
-import remarkGfm from "remark-gfm";
-import rehypeHighlight from "rehype-highlight";
 import { GitCompare, Code, Eye, Edit3 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -20,7 +18,11 @@ import {
 import type { LessonContentEditorHandle } from "@/components/workspace/LessonContentEditor";
 import type { Course, Lesson, Series } from "@/lib/schema";
 import type { Pane3Mode } from "@/components/workspace/Workspace";
-import { createLessonPreviewMarkdownComponents } from "@/lib/lesson-preview-markdown";
+import {
+  createLessonPreviewMarkdownComponents,
+  lessonPreviewRehypePlugins,
+  lessonPreviewRemarkPlugins,
+} from "@/lib/lesson-preview-markdown";
 import "@/styles/hljs/lesson-preview-hljs.css";
 
 const LessonContentEditor = dynamic(
@@ -258,8 +260,8 @@ export function MarkdownEditorPane({
             <div className={LESSON_PREVIEW_CLASS}>
               <ReactMarkdown
                 key={`${lesson.id}-${imageAssetsRevision}`}
-                remarkPlugins={[remarkGfm]}
-                rehypePlugins={[rehypeHighlight]}
+                remarkPlugins={lessonPreviewRemarkPlugins}
+                rehypePlugins={lessonPreviewRehypePlugins}
                 components={previewMarkdownComponents}
               >
                 {previewBody}

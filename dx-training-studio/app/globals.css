@@ -166,6 +166,13 @@
     var(--border)
   );
   --workspace-scrollbar-thumb-hover: var(--muted-foreground);
+  /* GitHub アラート（レッスンプレビュー）: 種別ごとのアクセント色。背景は算出する */
+  --alert-note: oklch(0.55 0.17 255);
+  --alert-tip: oklch(0.53 0.15 150);
+  --alert-important: oklch(0.52 0.2 300);
+  --alert-warning: oklch(0.62 0.14 80);
+  --alert-caution: oklch(0.55 0.2 25);
+  --alert-tint: 8%;
   color-scheme: light;
 }
 
@@ -233,6 +240,13 @@
   --shadow-xl:
     0px 10px 20px 0px hsl(0 0% 0% / 0.3), 0px 8px 10px -1px hsl(0 0% 0% / 0.3);
   --shadow-2xl: 0px 10px 20px 0px hsl(0 0% 0% / 0.75);
+  /* GitHub アラート: 暗背景でも読めるよう明度を上げ、地の色は濃くする */
+  --alert-note: oklch(0.72 0.13 250);
+  --alert-tip: oklch(0.74 0.15 150);
+  --alert-important: oklch(0.74 0.14 300);
+  --alert-warning: oklch(0.8 0.14 85);
+  --alert-caution: oklch(0.72 0.16 25);
+  --alert-tint: 16%;
 }
 
 @layer base {
@@ -429,6 +443,78 @@
 
   .lesson-preview th {
     @apply bg-muted/40 font-semibold text-foreground;
+  }
+
+  /* 折りたたみ（<details>）: 本文の答えや補足を隠す */
+  .lesson-preview details {
+    @apply my-4 rounded-lg border border-border bg-muted/20 px-4 py-2;
+  }
+
+  .lesson-preview details > summary {
+    @apply -mx-1 cursor-pointer rounded px-1 py-1 font-semibold text-foreground;
+  }
+
+  .lesson-preview details > summary:hover {
+    @apply bg-muted/60;
+  }
+
+  .lesson-preview details[open] > summary {
+    @apply mb-2 border-b border-border pb-2;
+  }
+
+  /* GitHub アラート（rehype-github-alerts の出力）: 種別ごとに色分けする */
+  .lesson-preview .markdown-alert {
+    --alert-color: var(--alert-note);
+    @apply my-4 rounded-lg border-l-4 py-2 pl-4 pr-3;
+    border-left-color: var(--alert-color);
+    background-color: color-mix(
+      in oklab,
+      var(--alert-color) var(--alert-tint),
+      transparent
+    );
+  }
+
+  .lesson-preview .markdown-alert-tip {
+    --alert-color: var(--alert-tip);
+  }
+
+  .lesson-preview .markdown-alert-important {
+    --alert-color: var(--alert-important);
+  }
+
+  .lesson-preview .markdown-alert-warning {
+    --alert-color: var(--alert-warning);
+  }
+
+  .lesson-preview .markdown-alert-caution {
+    --alert-color: var(--alert-caution);
+  }
+
+  .lesson-preview .markdown-alert > :first-child {
+    @apply mt-0;
+  }
+
+  .lesson-preview .markdown-alert > :last-child {
+    @apply mb-0;
+  }
+
+  .lesson-preview .markdown-alert-title {
+    @apply mb-1 flex items-center gap-2 font-semibold;
+    color: var(--alert-color);
+  }
+
+  .lesson-preview .markdown-alert-title svg {
+    @apply size-4 shrink-0;
+    fill: currentColor;
+  }
+
+  /*
+   * コードブロックの等幅: ASCII と CJK を同一フォントから出し、全角幅を半角の
+   * 2 倍に揃える（アスキーアートの罫線がズレないようにする）。
+   * Agent チャットは対象外。
+   */
+  .lesson-preview:not(.agent-chat-message) pre code {
+    font-family: "BIZ UDGothic", "MS Gothic", monospace;
   }
 
   /* Agent チャット: プレビュー同等の Markdown をコンパクトに */

@@ -36,9 +36,12 @@
        改善は change 4本に分割: ①Studio プレビュー改修 → ②create スキル改善
        / ③plan スキル命名規則 → ④社内コンテキスト参照梯子
 
-[済] ① enhance-lesson-preview-markdown       実装完了（2026-08-12・未コミット）
-       details / CJK太字 / 等幅フォント / GitHubアラート / diff・bash 色分け。
+[済] ① enhance-lesson-preview-markdown       archive 済み（2026-08-12・未コミット）
+       details / GitHubアラート / CJK太字 / コードフォント / diff・bash 色分け。
+       本体 spec 同期済み（training-studio-lesson-content に要件5件追加・54件 green）
        → スキル側へのアラート・diff フェンス推奨の追記が解禁された（②で実施）
+       ⚠ コードフォントは `--font-code`（globals.css）が正本。編集モード・プレビュー・
+         差分ビューの3者が参照する。ここがズレるとアスキーアートが崩れる
 
 [次] ②③④ の change 化と実装                        ← ここ
      完了後に原稿更新パス（既存 Git シリーズ6本）→ GitHub or Python シリーズで

@@ -20,16 +20,16 @@ DX Training Studio の Agent ビュー向け API を定義する。`POST /api/ag
 - **THEN** HTTP 401 と設定を促すエラーメッセージが返される
 
 ### Requirement: 既存 API キー解決の流用
-スキル実行 API は既存の `resolveAiApiKey()` を使用して API キーを解決しなければならない（SHALL）。モデルは **`x-ai-model` リクエストヘッダーを優先**し、ヘッダーが無いとき **`process.env.AI_MODEL`**、それも無いとき **`claude-sonnet-4-6`** を用いなければならない（SHALL）。`gpt-5-nano` 等の未対応 slug がサーバーに到達した場合、HTTP 400 と「このモデルは未対応です」を返さなければならない（SHALL）。
+スキル実行 API は既存の `resolveAiApiKey()` を使用して API キーを解決しなければならない（SHALL）。モデルは **`x-ai-model` リクエストヘッダーを優先**し、ヘッダーが無いとき **`process.env.AI_MODEL`**、それも無いとき **`claude-sonnet-5`** を用いなければならない（SHALL）。`gpt-5-nano` 等の未対応 slug がサーバーに到達した場合、HTTP 400 と「このモデルは未対応です」を返さなければならない（SHALL）。
 
 #### Scenario: WorkspaceSettings の API キーを使用する
 - **WHEN** WorkspaceSettings に AI API キーが設定されている
 - **THEN** そのキーで Anthropic API が呼び出される
 
 #### Scenario: x-ai-model ヘッダーを優先する
-- **WHEN** クライアントが `x-ai-model: claude-sonnet-4-6` を送信する
+- **WHEN** クライアントが `x-ai-model: claude-sonnet-5` を送信する
 - **AND** 環境変数 `AI_MODEL` が別の値に設定されている
-- **THEN** Anthropic API 呼び出しは `claude-sonnet-4-6` を用いる
+- **THEN** Anthropic API 呼び出しは `claude-sonnet-5` を用いる
 
 #### Scenario: 未対応モデルを拒否する
 - **WHEN** クライアントが `x-ai-model: gpt-5-nano` を送信する

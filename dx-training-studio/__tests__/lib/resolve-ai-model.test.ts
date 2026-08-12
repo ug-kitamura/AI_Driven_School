@@ -18,8 +18,8 @@ describe("resolveAiModelSlug", () => {
 
   it("prefers x-ai-model header", () => {
     process.env.AI_MODEL = "claude-opus-4-6";
-    const req = requestWithHeaders({ "x-ai-model": "claude-sonnet-4-6" });
-    expect(resolveAiModelSlug(req)).toBe("claude-sonnet-4-6");
+    const req = requestWithHeaders({ "x-ai-model": "claude-sonnet-5" });
+    expect(resolveAiModelSlug(req)).toBe("claude-sonnet-5");
   });
 
   it("falls back to AI_MODEL env", () => {
@@ -37,8 +37,8 @@ describe("resolveAiModelSlug", () => {
 
 describe("resolveAiModel", () => {
   it("accepts supported model", () => {
-    const req = requestWithHeaders({ "x-ai-model": "claude-sonnet-4-6" });
-    expect(resolveAiModel(req)).toEqual({ ok: true, model: "claude-sonnet-4-6" });
+    const req = requestWithHeaders({ "x-ai-model": "claude-sonnet-5" });
+    expect(resolveAiModel(req)).toEqual({ ok: true, model: "claude-sonnet-5" });
   });
 
   it("rejects unsupported model", () => {

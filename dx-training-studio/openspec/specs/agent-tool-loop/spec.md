@@ -179,7 +179,7 @@ agent loop は LLM プロバイダ固有 API を直接呼び出してはなら�
 
 #### Scenario: 初回実装は Anthropic adapter のみ
 
-- **WHEN** `x-ai-model: claude-sonnet-4-6` で invoke が実行される
+- **WHEN** `x-ai-model: claude-sonnet-5` で invoke が実行される
 
 - **THEN** Anthropic adapter が tool use 付き stream を実行する
 

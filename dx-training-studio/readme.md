@@ -45,13 +45,11 @@ cp .env.example .env.local
 
 | slug | 表示名 | 保存 |
 |------|--------|------|
-| `claude-sonnet-4-6` | Claude Sonnet 4.6 | ✓（既定） |
-| `claude-sonnet-5` | Claude Sonnet 5 | ✓ |
-| `claude-opus-4-7` | Claude Opus 4.7 | ✓ |
+| `gpt-5-nano` | GPT 5 nano | 未対応（保存拒否） |
+| `claude-haiku-4-5` | Claude Haiku 4.5 | ✓ |
+| `claude-sonnet-5` | Claude Sonnet 5 | ✓（既定） |
 | `claude-opus-4-8` | Claude Opus 4.8 | ✓ |
 | `claude-fable-5` | Claude Fable 5 | ✓ |
-| `claude-haiku-4-5` | Claude Haiku 4.5 | ✓ |
-| `gpt-5-nano` | GPT 5 nano | 未対応（保存拒否） |
 
 - slug は Anthropic API の model ID と一致
 - Agent チャット・AI 画像・Web 検索・社内コンテキスト整形など **全 AI 呼び出し**で使用

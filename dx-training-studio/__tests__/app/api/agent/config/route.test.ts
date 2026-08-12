@@ -4,9 +4,7 @@ import { resolveModelLabel } from "@/lib/agent/model-labels";
 
 describe("resolveModelLabel", () => {
   it("maps known model slugs", () => {
-    expect(resolveModelLabel("claude-sonnet-4-6")).toBe("Claude Sonnet 4.6");
     expect(resolveModelLabel("claude-sonnet-5")).toBe("Claude Sonnet 5");
-    expect(resolveModelLabel("claude-opus-4-7")).toBe("Claude Opus 4.7");
     expect(resolveModelLabel("claude-opus-4-8")).toBe("Claude Opus 4.8");
     expect(resolveModelLabel("claude-fable-5")).toBe("Claude Fable 5");
     expect(resolveModelLabel("claude-haiku-4-5")).toBe("Claude Haiku 4.5");

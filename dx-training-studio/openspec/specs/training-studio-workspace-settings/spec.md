@@ -179,31 +179,23 @@ Web タブの検索 API 呼び出し時、クライアントは `x-pixabay-api-k
 
 ### Requirement: AI モデルを設定ダイアログで選択する
 
-設定ダイアログは **横幅** セクションと **API** セクションの間に **AI モデル** セクションを配置しなければならない（SHALL）。選択肢は次の 7 件とし、**この順序**で表示しなければならない（SHALL）:
+設定ダイアログは **横幅** セクションと **API** セクションの間に **AI モデル** セクションを配置しなければならない（SHALL）。選択肢は次の 5 件とし、**この順序**で表示しなければならない（SHALL）:
 
 | slug | 表示ラベル | 保存 |
 |------|-----------|------|
-| `claude-sonnet-4-6` | Claude Sonnet 4.6 | 可（デフォルト） |
-| `claude-sonnet-5` | Claude Sonnet 5 | 可 |
-| `claude-opus-4-7` | Claude Opus 4.7 | 可 |
+| `gpt-5-nano` | GPT 5 nano | 不可（未対応） |
+| `claude-haiku-4-5` | Claude Haiku 4.5 | 可 |
+| `claude-sonnet-5` | Claude Sonnet 5 | 可（デフォルト） |
 | `claude-opus-4-8` | Claude Opus 4.8 | 可 |
 | `claude-fable-5` | Claude Fable 5 | 可 |
-| `claude-haiku-4-5` | Claude Haiku 4.5 | 可 |
-| `gpt-5-nano` | GPT 5 nano | 不可（未対応） |
 
-各 slug は Anthropic API の model ID と一致しなければならない（SHALL）。未設定時の既定値は `claude-sonnet-4-6` でなければならない（SHALL）。保存操作で **`aiModel`** を `dx-training-studio-settings` に格納しなければならない（SHALL）。クライアントは AI 系 API 呼び出し時 **`x-ai-model`** ヘッダーで slug を渡さなければならない（SHALL）。サーバーは **`x-ai-model` ヘッダーを優先**し、ヘッダーが無いときのみ **`process.env.AI_MODEL`** を参照し、それも無いときは **`claude-sonnet-4-6`** を用いなければならない（SHALL）。
+各 slug は Anthropic API の model ID と一致しなければならない（SHALL）。未設定時の既定値は `claude-sonnet-5` でなければならない（SHALL）。保存操作で **`aiModel`** を `dx-training-studio-settings` に格納しなければならない（SHALL）。クライアントは AI 系 API 呼び出し時 **`x-ai-model`** ヘッダーで slug を渡さなければならない（SHALL）。サーバーは **`x-ai-model` ヘッダーを優先**し、ヘッダーが無いときのみ **`process.env.AI_MODEL`** を参照し、それも無いときは **`claude-sonnet-5`** を用いなければならない（SHALL）。一覧に存在しない slug（削除済みの `claude-sonnet-4-6` や `claude-opus-4-7` を含む）が渡された場合、既定値 `claude-sonnet-5` にフォールバックしなければならない（SHALL）。
 
-#### Scenario: デフォルトは Claude Sonnet 4.6
+#### Scenario: デフォルトは Claude Sonnet 5
 
 - **WHEN** ユーザーが初めて設定ダイアログを開く
 - **AND** `aiModel` が未保存である
-- **THEN** Claude Sonnet 4.6 が選択されている
-
-#### Scenario: Claude Sonnet 4.6 を保存できる
-
-- **WHEN** ユーザーが Claude Sonnet 4.6 を選択して保存する
-- **THEN** `aiModel` が `claude-sonnet-4-6` として永続化される
-- **AND** 設定ダイアログが閉じる
+- **THEN** Claude Sonnet 5 が選択されている
 
 #### Scenario: Claude Sonnet 5 を保存できる
 
@@ -229,6 +221,12 @@ Web タブの検索 API 呼び出し時、クライアントは `x-pixabay-api-k
 - **WHEN** ユーザーが Claude Opus 4.8 を保存している
 - **AND** AI タブで生成を実行する
 - **THEN** リクエストに `x-ai-model: claude-opus-4-8` が含まれる
+
+#### Scenario: 削除済みモデルの保存値はデフォルトにフォールバックする
+
+- **WHEN** ユーザーが過去に `claude-sonnet-4-6` を `aiModel` として保存している
+- **AND** モデル一覧から `claude-sonnet-4-6` が削除された状態でアプリを開く
+- **THEN** 設定ダイアログには既定値の Claude Sonnet 5 が選択されている
 
 ### Requirement: 社内コンテキストの管理モードを設定できる
 

@@ -24,7 +24,7 @@ description: |
 - `contents/` — 検査対象。レッスン本文と各階層の `.meta.json`
 - `contents-plan/plans/` — 計画書。曼陀羅の**意図**の参考であって正ではない（→ 受講順の正本）
 - `dx-training-create/references/design-principles.md` — 内容品質と、書いてはいけないものの基準
-- `dx-training-create/references/lesson-template.md` — frontmatter・穴・画像・出典の**形式**の基準
+- `dx-training-create/references/lesson-template.md` — frontmatter・空欄・画像・出典の**形式**の基準
 - `dx-training-create/references/model-answer/` — トンマナの基準。**無くてよい**（→ `references/quality-checks.md`）
 - `contracts/image-slot-contract.md` — 画像コメントの書式
 - `contracts/agent-write-contract.md` — run ディレクトリの作法
@@ -52,7 +52,7 @@ description: |
 どこまでレビューしますか？
 
   1. 整合チェック（推奨・短時間）
-     名前・受講順・「次のレッスンで」等の参照・画像や穴の残りなど、
+     名前・受講順・「次のレッスンで」等の参照・画像や空欄の残りなど、
      構成をいじると壊れやすい箇所を点検します。
      → コースの追加・並び替え・改名のあとの確認に
 
@@ -110,7 +110,7 @@ description: |
 | 修正案 | どう直すかの案。直すのは人 |
 | 重さ | blocking / advisory |
 
-**blocking は「受講者に届いたら実害が出る」ものだけ。** 名前や参照の食い違い、埋まっていない穴、出典の形式違反など。判断に幅があるもの、好みに寄るもの、外部要因で揺れるもの（リンクの到達失敗など）は advisory にする。
+**blocking は「受講者に届いたら実害が出る」ものだけ。** 名前や参照の食い違い、埋まっていない空欄、出典の形式違反など。判断に幅があるもの、好みに寄るもの、外部要因で揺れるもの（リンクの到達失敗など）は advisory にする。
 
 サマリには **blocking の件数とリリース可否**を1行で書く。blocking が0件なら通過。
 

@@ -88,11 +88,11 @@
 
 ### D. 社内データ
 
-穴の記法は `dx-training-create/references/lesson-template.md`。
+空欄の記法は `dx-training-create/references/lesson-template.md`。
 
-- 穴が残っていないか。**リリース前は blocking**
+- 空欄が残っていないか。**リリース前は blocking**
 - `context-outbox.json` を持つ run があり、社内コンテキストへ未登録のまま残っていないか
-- 穴の周りに一般論が書かれていないか——埋め忘れても文章として自然に読めてしまう箇所
+- 空欄の周りに一般論が書かれていないか——埋め忘れても文章として自然に読めてしまう箇所
 
 ### E. 出典（形式）
 

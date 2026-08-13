@@ -84,6 +84,8 @@ index ddc1c4c..d834c01 100644
 
 VSCode では、ソース管理ビューで変更されたファイル名を**クリックするだけ**で、変更前と変更後が左右に並んだ比較画面が開きます。`+`/`-` の記号の代わりに、増えた行は緑、消えた行は赤の背景で示されます。読み方の頭はコマンドと同じです——**何が増え、何が消えたか**。
 
+![VSCodeのソース管理ビューでファイルをクリックして差分を表示する画面](images/vscode-diff-view.png)
+
 *出典: [Visual Studio Code 公式ドキュメント「Source Control」](https://code.visualstudio.com/docs/sourcecontrol/overview)（2026年8月取得）*
 
 ## やってみる

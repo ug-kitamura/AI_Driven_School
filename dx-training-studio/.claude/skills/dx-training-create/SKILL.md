@@ -23,7 +23,7 @@ description: |
 ## 依存
 
 - `contents-plan/plans/` — 入力。**どれを使うかはユーザーに選ばせる**（→ 入力の把握）
-- `references/design-principles.md` — **質**の判断材料
+- `references/design-principles.md` — **質**の判断材料と、書いてはいけないもの
 - `references/lesson-template.md` — **形式**（frontmatter・章立て・穴の記法・出典）
 - `references/model-answer/` — 模範解答。**無くてよい**（後述）
 - `contracts/image-slot-contract.md` — 画像コメントの書式。**変更しない**
@@ -146,7 +146,7 @@ run ディレクトリの作法は [`contracts/agent-write-contract.md`](../../.
 
 - **用語の呼び名** — 設計メモの用語表と本文が一致しているか
 - **穴の一覧（解決表の段3）** — 穴にする計画だった箇所が、本文で穴を介さない断定文になっていないか。段1で解決した箇所には出典が添えられているか
-- **画像計画** — 置く予定だった図が本文にあるか
+- **画像計画** — 置く予定だった図が本文にあるか。図を置く節に**コメントが実在するか**（本文だけ書いてコメントを落としていないか）
 
 ずれを見つけたらここで直す。**レビューに回してから気づくのでは遅い**——執筆者が自分で気づける種類のずれで、レビューの指摘枠を使う価値がない。
 
@@ -232,5 +232,5 @@ CJK 幅で枠が多少ずれても構わない。**接続の向きと、確定�
 
 ## references
 
-- [references/design-principles.md](references/design-principles.md) — 本文を書くときの判断材料
+- [references/design-principles.md](references/design-principles.md) — 本文を書くときの判断材料と、書いてはいけないもの
 - [references/lesson-template.md](references/lesson-template.md) — レッスン1本の形式

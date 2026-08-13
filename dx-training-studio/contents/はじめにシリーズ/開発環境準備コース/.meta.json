@@ -1,0 +1,8 @@
+{
+  "order": [
+    "Chocolatey のセットアップ",
+    "VSCodeのインストールと初期設定"
+  ],
+  "target": "chocolatey / VSCode を入れていない人",
+  "id": "crs-n-sojhjp-2nx20n"
+}

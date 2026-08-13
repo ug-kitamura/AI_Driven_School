@@ -2,7 +2,7 @@
 series: Git基礎シリーズ
 course: Git環境構築コース
 lesson: Gitのインストールと初期設定
-status: done
+status: in_progress
 description: 社内インストールシステムから Git を申請・導入し、名前とメールを設定してコマンドが打てる状態にする
 tags: [git, setup]
 estimated_minutes: 15

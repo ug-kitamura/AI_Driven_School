@@ -70,6 +70,12 @@ git restore --staged memo.txt
 
 ソース管理ビューの変更ファイルの横にある**「変更を破棄」（くるっと戻る矢印のアイコン）**が `git restore` に対応します。押す前に確認ダイアログが出るのはコマンドと違う点で、VSCode なりの安全装置です。add の取り消し（`--staged` 相当）は、ステージ済みファイルの横の「−」ボタンです。
 
+<!--
+VSCode のソース管理ビューの UI mock。左端のアクティビティバーに枝分かれ形のソース管理アイコン。サイドバーに「ステージされている変更」の見出しの下にファイル名 memo.txt とその右に「−」ボタン、「変更」の見出しの下に別のファイル名とその右にくるっと戻る矢印の「変更を破棄」アイコン。画面の再現のみ。実際の画面に表示されない説明ラベル・ヒント・タイトルを加えない。
+実際の画面との一致が重要な図。生成品質が悪い場合はスクリーンショットで代用すること。
+-->
+![VSCodeのソース管理ビューのUIモック](images/vscode-source-control-view.png)
+
 *出典: [Visual Studio Code 公式ドキュメント「Staging and committing changes」](https://code.visualstudio.com/docs/sourcecontrol/staging-commits)（2026年8月取得）*
 
 ## やってみる

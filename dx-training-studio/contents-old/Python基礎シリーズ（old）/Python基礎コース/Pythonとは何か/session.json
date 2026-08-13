@@ -1,0 +1,17 @@
+{
+  "version": 1,
+  "activeSessionId": "1782631360598-cyt8edxf",
+  "sessions": [
+    {
+      "id": "1782631360598-cyt8edxf",
+      "title": "新しい会話",
+      "messages": [],
+      "activeSkillId": null,
+      "createDraftContext": null,
+      "createdAt": "2026-06-28T07:22:40.598Z",
+      "updatedAt": "2026-08-12T12:16:51.070Z",
+      "lastTurnTokens": null,
+      "sessionTokenTotal": 0
+    }
+  ]
+}

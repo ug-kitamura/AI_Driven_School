@@ -1,0 +1,15 @@
+{
+  "version": 1,
+  "activeSessionId": "1782631641361-1ykpz0j1",
+  "sessions": [
+    {
+      "id": "1782631641361-1ykpz0j1",
+      "title": "新しい会話",
+      "messages": [],
+      "activeSkillId": null,
+      "createDraftContext": null,
+      "createdAt": "2026-06-28T07:27:21.361Z",
+      "updatedAt": "2026-07-03T13:39:13.150Z"
+    }
+  ]
+}

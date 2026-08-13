@@ -1,0 +1,154 @@
+{
+  "version": 1,
+  "activeSessionId": "1782639223760-pyv5e7qa",
+  "sessions": [
+    {
+      "id": "1782639223760-pyv5e7qa",
+      "title": "以下をベースにレッスンを作って  # 初期設定（名前・メール…",
+      "messages": [
+        {
+          "id": "1782645419430-m5epif",
+          "role": "user",
+          "content": "以下をベースにレッスンを作って  # 初期設定（名前・メールアドレス）\n\nGitを使い始める前に、名前とメールアドレスを設定します。\n\n```bash\ngit config --global user.name \"あなたの名前\"\ngit config --global user.email \"your@email.com\"\n```",
+          "createdAt": "2026-06-28T11:16:59.430Z"
+        },
+        {
+          "id": "1782645419432-akyrpq",
+          "role": "assistant",
+          "content": "承知しました！まず社内コンテキストを検索してから草稿を作成します。\n\nレッスン内容（`git config` による初期設定）に合わせて、以下のキーワードで検索することを提案します。\n\n検索キーワード: git config\n\nこのキーワードで社内コンテキストを検索します。問題なければ **ok** と、別のキーワードをお使いなら **`検索キーワード: 別の語`** と返信してください。",
+          "createdAt": "2026-06-28T11:16:59.433Z"
+        },
+        {
+          "id": "1782645434854-4zzvln",
+          "role": "user",
+          "content": "まぁいいかな",
+          "createdAt": "2026-06-28T11:17:14.854Z"
+        },
+        {
+          "id": "1782645434862-ymqb0a",
+          "role": "assistant",
+          "content": "ありがとうございます！では「git config」で検索します。\n\n検索キーワード: git config",
+          "createdAt": "2026-06-28T11:17:14.863Z"
+        },
+        {
+          "id": "1782645450085-dgvro6",
+          "role": "user",
+          "content": "つづき",
+          "createdAt": "2026-06-28T11:17:30.085Z"
+        },
+        {
+          "id": "1782645450092-v0o3dl",
+          "role": "assistant",
+          "content": "検索結果が 0 件でした。社内コンテキストにまだ関連情報が登録されていないようです。\n\n---\n\n📋 **ヒット件数: 0 件**\n\n登録をご希望の場合は、GlobalHeader の「社内コンテキスト」ダイアログからドキュメントを追加できます。\n\n---\n\n社内コンテキストなしで、レッスン情報と既存本文のみをベースに草稿を生成することもできます。**このまま草稿を作成してよいですか？**",
+          "createdAt": "2026-06-28T11:17:30.092Z"
+        },
+        {
+          "id": "1782645464770-t3eowy",
+          "role": "user",
+          "content": "もう一回検索しなおして",
+          "createdAt": "2026-06-28T11:17:44.770Z"
+        },
+        {
+          "id": "1782645464779-2kwgf6",
+          "role": "assistant",
+          "content": "かしこまりました。別のキーワードをご提案します。\n\n検索キーワード: git 初期設定\n\nこのキーワードで再検索します。問題なければ **ok**、変更があれば **`検索キーワード: 別の語`** と返信してください。",
+          "createdAt": "2026-06-28T11:17:44.779Z"
+        },
+        {
+          "id": "1782645469126-5j5ddo",
+          "role": "user",
+          "content": "ok",
+          "createdAt": "2026-06-28T11:17:49.126Z"
+        },
+        {
+          "id": "1782645470022-a4uh2s",
+          "role": "assistant",
+          "content": "検索結果が返ってきました！2件ヒットしています。\n\n| # | タイトル | ソース URL | 最終更新日 | タグ |\n|---|---------|-----------|-----------|------|\n| 1 | NMS Git ブランチ運用ルール | https://docupedia.example.local/new-major-system/git-branch-strategy | 2025-11-17 | git, new-major-system, branch-strategy, pull-request, security |\n| 2 | DX研修・日常開発向け 最低限ツールセットアップ手順（Git / SourceTree / VS Code） | https://intranet.example.com/blog/dev-tools/setup-guide | 2026-01-31 | git, sourcetree, vscode |\n\n---\n\n草稿に参照したい item を教えてください。\n\n- **`2`** — セットアップ手順はレッスン内容と直接関係しそうです\n- **`1`** — ブランチ運用ルールは今回のレッスン（初期設定）とはやや遠いかもしれません\n- **`all`** / **`none`** も可能です",
+          "createdAt": "2026-06-28T11:17:50.022Z"
+        },
+        {
+          "id": "1782645494092-6ejzsr",
+          "role": "user",
+          "content": "1かな",
+          "createdAt": "2026-06-28T11:18:14.092Z"
+        },
+        {
+          "id": "1782645494102-cwvlcs",
+          "role": "assistant",
+          "content": "選択確定: 1",
+          "createdAt": "2026-06-28T11:18:14.103Z"
+        },
+        {
+          "id": "1782645507445-dwxt38",
+          "role": "user",
+          "content": "つづき",
+          "createdAt": "2026-06-28T11:18:27.445Z"
+        },
+        {
+          "id": "1782645507454-nmczbl",
+          "role": "assistant",
+          "content": "選択確定した item 1「NMS Git ブランチ運用ルール」の内容を確認しました。\n\nただし、このドキュメントはブランチ運用ルール（`feature/*`、`main`、PR ルール等）が主な内容で、今回のレッスン「初期設定（名前・メールアドレス）」とは直接関係しない情報が多いです。\n\n草稿への織り込みとしては、以下のような形が考えられます：\n\n- **コミットメッセージのルール**（`NMS-1234: ログイン API の…` 形式）に触れる箇所で、「名前・メールアドレスの設定がコミット履歴に反映される」という文脈で軽く参照\n- その他の NMS 固有ルールは今回のレッスン範囲外のため省略\n\n---\n\nこの方針で草稿を生成してよいですか？ **ok** と返信いただければ草稿を作成します。",
+          "createdAt": "2026-06-28T11:18:27.454Z"
+        },
+        {
+          "id": "1782645531035-ote8v8",
+          "role": "user",
+          "content": "2のほうが良いかも",
+          "createdAt": "2026-06-28T11:18:51.035Z"
+        },
+        {
+          "id": "1782645531044-za8l4m",
+          "role": "assistant",
+          "content": "選択確定: 2",
+          "createdAt": "2026-06-28T11:18:51.045Z"
+        },
+        {
+          "id": "1782645536224-f09fw3",
+          "role": "user",
+          "content": "つづき",
+          "createdAt": "2026-06-28T11:18:56.224Z"
+        },
+        {
+          "id": "1782645536234-f89q0n",
+          "role": "assistant",
+          "content": "選択確定した item 2「DX研修・日常開発向け 最低限ツールセットアップ手順（Git / SourceTree / VS Code）」を草稿に織り込みます。\n\n**使用するコンテキスト:**\n- ✅ DX研修・日常開発向け 最低限ツールセットアップ手順（Git / SourceTree / VS Code）\n\n主に以下の情報を草稿に盛り込む予定です：\n- Git のインストールは社内申請が必要（個人での直接ダウンロード不可）\n- インストール確認コマンド（`git --version`）\n- 操作ツールの選択（SourceTree / VS Code / ターミナル）\n\n---\n\nこの方針で草稿を生成してよいですか？ **ok** と返信いただければ草稿を作成します。",
+          "createdAt": "2026-06-28T11:18:56.235Z"
+        },
+        {
+          "id": "1782645557642-zexw0j",
+          "role": "user",
+          "content": "1でいってみよう",
+          "createdAt": "2026-06-28T11:19:17.642Z"
+        },
+        {
+          "id": "1782645557654-cm9unz",
+          "role": "assistant",
+          "content": "選択確定: 1",
+          "createdAt": "2026-06-28T11:19:17.655Z"
+        },
+        {
+          "id": "1782645569332-e6lw69",
+          "role": "user",
+          "content": "なぜ途中で止まるのですか？",
+          "createdAt": "2026-06-28T11:19:29.332Z"
+        },
+        {
+          "id": "1782645569344-1noamj",
+          "role": "assistant",
+          "content": "ご不便をおかけしてすみません！プロトコル上、選択確定後に一度ユーザーの承認を待つ設計になっています。\n\n改めて確認します。item 1「NMS Git ブランチ運用ルール」を参照して草稿を生成します。\n\n**織り込み方針：**\n- `git config` で設定した名前・メールアドレスがコミット履歴に残ること、そのためコミットメッセージのルール（例: `NMS-1234: 概要`）と合わせて正確な設定が重要であることに触れる\n- ブランチ運用ルール本体は今回のレッスン範囲外のため省略\n- NMS 固有情報は `> **NMS ワンポイント**` の blockquote で区別する\n\n**このまま草稿を生成します。**\n\n```markdown\n---\nseries: Git完全マスターシリーズ\ncourse: Git環境構築コース\nlesson: 初期設定（名前・メールアドレス）\nstatus: in_progress\ndescription: git config で名前とメールアドレスを設定する\ntags: [git, config]\nestimated_minutes: 10\nauthor: 山田太郎\n---\n\n# 初期設定（名前・メールアドレス）\n\n## 学習目標\n\nこのレッスンを終えると、以下ができるようになります。\n\n- `git config` コマンドで名前とメールアドレスをグローバル設定できる\n- 設定内容を確認・修正できる\n- 設定がコミット履歴にどう反映されるかを説明できる\n\n---\n\n## なぜ設定が必要なのか\n\nGit はコミット（変更の記録）を作成するたびに、**誰が・いつ変更したか**を自動的に記録します。この「誰が」にあたる情報が、ここで設定する名前とメールアドレスです。\n\n設定を行わないままコミットすると、履歴に正しい作成者情報が残らず、チームでの作業に支障をきたす場合があります。\n\n> **NMS ワンポイント**\n> NMS プロジェクトでは、コミットメッセージの先頭にチケット ID を付与するルールがあります（例: `NMS-1234: ログイン API のバリデーション追加`）。コミット履歴には名前・メールアドレスとともにこのメッセージも残るため、**最初の設定を正確に行うことが特に重要**です。\n> 詳細は社内 Git ブランチ運用ルール（`https://docupedia.example.local/new-major-system/git-branch-strategy`）を参照してください。\n\n---\n\n## 手順\n\n### 1. 名前を設定する\n\n```bash\ngit config --global user.name \"あなたの名前\"\n```\n\n**例:**\n\n```bash\ngit config --global user.name \"山田 太郎\"\n```\n\n> `--global` オプションを付けると、そのコンピュータ上のすべての Git リポジトリに共通して適用されます。\n\n---\n\n### 2. メールアドレスを設定する\n\n```bash\ngit config --global user.email \"your@email.com\"\n```\n\n**例:**\n\n```bash\ngit config --global user.email \"yamada.taro@example.com\"\n```\n\n> 社内プロジェクトでは、会社のメールアドレスを使用することを推奨します。\n\n---\n\n### 3. 設定内容を確認する\n\n設定が正しく反映されているか、以下のコマンドで確認しましょう。\n\n```bash\ngit config --global user.name\ngit config --global user.email\n```\n\nすべての設定を一覧表示したい場合は：\n\n```bash\ngit config --list\n```\n\n---\n\n### 4. 設定を修正したい場合\n\n入力ミスがあった場合は、同じコマンドを再度実行するだけで上書きできます。\n\n```bash\ngit config --global user.name \"正しい名前\"\ngit config --global user.email \"correct@email.com\"\n```\n\n---\n\n## 確認ポイント\n\n- [ ] `git config --global user.name` を実行して、自分の名前が表示されることを確認した\n- [ ] `git config --global user.email` を実行して、メールアドレスが表示されることを確認した\n- [ ] 表示された内容に誤字・脱字がないことを確認した\n\n---\n\n## まとめ\n\n| 設定項目 | コマンド |\n|---------|---------|\n| 名前 | `git config --global user.name \"名前\"` |\n| メールアドレス | `git config --global user.email \"メール\"` |\n| 設定確認 | `git config --list` |\n\n名前とメールアドレスの設定は、Git を使う上での最初の一歩です。次のレッスンでは、実際にリポジトリを作成して Git の基本操作を学びます。\n```",
+          "createdAt": "2026-06-28T11:19:29.344Z"
+        }
+      ],
+      "activeSkillId": "create-draft",
+      "createDraftContext": {
+        "contextItemsJson": "[]",
+        "searchResults": [],
+        "searchPerformed": false,
+        "searchResultsApproved": false,
+        "selectedContextItems": null
+      },
+      "createdAt": "2026-06-28T09:33:43.760Z",
+      "updatedAt": "2026-07-03T09:20:41.959Z"
+    }
+  ]
+}

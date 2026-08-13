@@ -12,7 +12,7 @@ describe("model-profiles", () => {
   });
 
   it("raises the large Claude group's maxOutputTokens to 64000", () => {
-    const sonnet = resolveModelProfile("claude-sonnet-4-6");
+    const sonnet = resolveModelProfile("claude-sonnet-5");
     expect(sonnet.maxOutputTokens).toBe(64000);
     expect(sonnet.continuations).toEqual({
       generatePerSection: 4,

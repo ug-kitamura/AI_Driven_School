@@ -8,8 +8,8 @@ import { cn } from "@/lib/utils";
 import type { AgentFileAttachment } from "@/lib/agent-chat-storage";
 
 // @ 参照は書込ルートの 2 系統（正本ツリーと作業ツリー）
-const FILE_REF_RE = /(@(?:contents|contents-plan)\/[^\s@]+)/g;
-const FILE_REF_PREFIXES = ["@contents/", "@contents-plan/"];
+const FILE_REF_RE = /(@(?:contents|contents-work)\/[^\s@]+)/g;
+const FILE_REF_PREFIXES = ["@contents/", "@contents-work/"];
 
 function isFileRef(part: string): boolean {
   return FILE_REF_PREFIXES.some((prefix) => part.startsWith(prefix));

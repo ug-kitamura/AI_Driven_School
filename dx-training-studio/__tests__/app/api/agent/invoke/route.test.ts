@@ -84,7 +84,7 @@ describe("POST /api/agent/invoke", () => {
         method: "POST",
         headers: {
           "content-type": "application/json",
-          "x-ai-model": "claude-sonnet-4-6",
+          "x-ai-model": "claude-sonnet-5",
         },
         body: JSON.stringify({
           skillId: "create-draft",

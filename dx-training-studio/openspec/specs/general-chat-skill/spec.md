@@ -22,9 +22,19 @@
 
 ### Requirement: general-chat の役割
 
-`general-chat` スキルは、DX Training Studio の教材制作における壁打ち・汎用相談を目的としなければならない（SHALL）。社内コンテキスト検索 tool を必要に応じて利用できなければならない（SHALL）。本格的な草稿生成等は専用スキル（例: `create-draft`）の利用を案内しなければならない（SHALL）。
+`general-chat` スキルは、DX Training Studio の教材制作における壁打ち・汎用相談を目的としなければならない（SHALL）。社内コンテキスト検索 tool を必要に応じて利用できなければならない（SHALL）。企画・構成の深掘りは `dx-training-plan` の、レッスン草稿の執筆は `dx-training-create` の利用を案内しなければならない（SHALL）。
 
 #### Scenario: 社内コンテキスト検索 tool が利用可能
 
 - **WHEN** `general-chat` で invoke が実行される
 - **THEN** `search_company_context` および `select_company_context` tool が LLM に提供される
+
+#### Scenario: 企画・構成の相談は dx-training-plan を案内する
+
+- **WHEN** ユーザーが `general-chat` でシリーズ・コース・レッスンの構成や企画について相談する
+- **THEN** 応答は `dx-training-plan` スキルの利用を案内する
+
+#### Scenario: 草稿執筆の相談は dx-training-create を案内する
+
+- **WHEN** ユーザーが `general-chat` でレッスン本文の執筆について相談する
+- **THEN** 応答は `dx-training-create` スキルの利用を案内する

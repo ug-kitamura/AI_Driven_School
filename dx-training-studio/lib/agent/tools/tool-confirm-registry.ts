@@ -13,8 +13,13 @@ export type ToolConfirmResolution = {
   manualSearchText?: string;
 };
 
-/** 確認待ちのタイムアウト（無応答時は自動的に「拒否」で確定する）。 */
-export const TOOL_CONFIRM_TTL_MS = 5 * 60 * 1000;
+/**
+ * 確認待ちのタイムアウト（無応答時は自動的に「拒否」で確定する）。
+ * 確認待ち中は LLM 呼出が発生しないため、長くしても API 費用は増えない
+ * （暴走・費用の防壁は agent-loop の継続上限が担う）。生成に数分かかる
+ * スキル実行では 5 分だと離席中に切れて再依頼の往復が生じたため 1 時間にした。
+ */
+export const TOOL_CONFIRM_TTL_MS = 60 * 60 * 1000;
 
 type PendingEntry = {
   resolve: (resolution: ToolConfirmResolution) => void;

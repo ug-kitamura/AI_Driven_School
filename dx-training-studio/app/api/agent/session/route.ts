@@ -1,9 +1,8 @@
 import { z } from "zod";
 import {
   isAgentSessionFsWritable,
-  readScopeSessionFile,
-  resolveScopeFromParam,
-  writeScopeSessionFile,
+  readAgentSessionFile,
+  writeAgentSessionFile,
 } from "@/lib/agent-session-store";
 import { parseAgentChatStorage } from "@/lib/agent-chat-storage";
 import { getProjectRoot } from "@/lib/project-root";
@@ -14,14 +13,8 @@ const storageSchema = z.object({
   sessions: z.array(z.unknown()),
 });
 
-export async function GET(req: Request) {
-  const url = new URL(req.url);
-  // 空文字はシリーズ 0 件（contents/ 直下）を表す正当なスコープ。
-  const scope = resolveScopeFromParam(url.searchParams.get("scope"));
-  if (!scope) {
-    return Response.json({ error: "不正な scope です" }, { status: 400 });
-  }
-
+// 保存先は単一なので、スコープを受け取らない。
+export async function GET() {
   if (!isAgentSessionFsWritable()) {
     return Response.json(
       { error: "ファイルシステムへの session 保存は利用できません" },
@@ -29,7 +22,7 @@ export async function GET(req: Request) {
     );
   }
 
-  const storage = readScopeSessionFile(getProjectRoot(), scope);
+  const storage = readAgentSessionFile(getProjectRoot());
   if (!storage) {
     return Response.json(
       { error: "session が見つかりません" },
@@ -41,12 +34,6 @@ export async function GET(req: Request) {
 }
 
 export async function PUT(req: Request) {
-  const url = new URL(req.url);
-  const scope = resolveScopeFromParam(url.searchParams.get("scope"));
-  if (!scope) {
-    return Response.json({ error: "不正な scope です" }, { status: 400 });
-  }
-
   if (!isAgentSessionFsWritable()) {
     return Response.json(
       { error: "ファイルシステムへの session 保存は利用できません" },
@@ -72,13 +59,10 @@ export async function PUT(req: Request) {
   }
 
   try {
-    writeScopeSessionFile(getProjectRoot(), scope, storage);
+    writeAgentSessionFile(storage, getProjectRoot());
     return Response.json({ ok: true });
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
-    if (message.includes("Scope not found")) {
-      return Response.json({ error: message }, { status: 404 });
-    }
     return Response.json({ error: message }, { status: 500 });
   }
 }

@@ -1,0 +1,137 @@
+{
+  "version": 1,
+  "activeSessionId": "1782640691193-a7omqp6h",
+  "sessions": [
+    {
+      "id": "1782640691193-a7omqp6h",
+      "title": "新しい会話",
+      "messages": [],
+      "activeSkillId": null,
+      "createDraftContext": null,
+      "createdAt": "2026-06-28T09:58:11.193Z",
+      "updatedAt": "2026-08-02T06:28:47.208Z"
+    },
+    {
+      "id": "1782635375862-kmv2ohmn",
+      "title": "原稿よろしく",
+      "messages": [
+        {
+          "id": "1782640541471-p6bi0y",
+          "role": "user",
+          "content": "原稿よろしく",
+          "createdAt": "2026-06-28T09:55:41.471Z"
+        },
+        {
+          "id": "1782640541473-4kjhvo",
+          "role": "assistant",
+          "content": "まずは社内コンテキストの検索キーワードを提案します。\n\n検索キーワード: GitHub アカウント作成 — このキーワードで社内コンテキストを検索します。修正があればキーワードをそのまま返信、問題なければ「ok」と返信してください。",
+          "createdAt": "2026-06-28T09:55:41.473Z"
+        },
+        {
+          "id": "1782640550922-3mpw6w",
+          "role": "user",
+          "content": "ok",
+          "createdAt": "2026-06-28T09:55:50.922Z"
+        },
+        {
+          "id": "1782640551849-xqrp8c",
+          "role": "assistant",
+          "content": "検索結果が **0 件** でした。\n\n社内コンテキストに関連情報を登録したい場合は、GlobalHeader の「社内コンテキスト」ダイアログからご登録ください。\n\n---\n\n社内コンテキストなしで、レッスン情報のみをもとに草稿を生成することもできます。\nこのまま草稿生成に進めてよいですか？ **「ok」** と返信してください。",
+          "createdAt": "2026-06-28T09:55:51.850Z"
+        },
+        {
+          "id": "1782640565647-a327dr",
+          "role": "user",
+          "content": "Git で検索しなおすと",
+          "createdAt": "2026-06-28T09:56:05.647Z"
+        },
+        {
+          "id": "1782640565916-17udg5",
+          "role": "assistant",
+          "content": "承知しました。改めてキーワードを提案します。\n\n検索キーワード: Git — このキーワードで社内コンテキストを検索します。修正があればキーワードをそのまま返信、問題なければ「ok」と返信してください。",
+          "createdAt": "2026-06-28T09:56:05.916Z"
+        },
+        {
+          "id": "1782640570414-u3bai6",
+          "role": "user",
+          "content": "ok",
+          "createdAt": "2026-06-28T09:56:10.414Z"
+        },
+        {
+          "id": "1782640570422-sff5cp",
+          "role": "assistant",
+          "content": "検索結果が **2 件** ヒットしました。使用するアイテムを選択してください。\n\n| # | タイトル | ソース URL | 最終更新日 | タグ |\n|---|---|---|---|---|\n| 1 | NMS Git ブランチ運用ルール | https://docupedia.example.local/new-major-system/git-branch-strategy | 2025-11-17 | git, new-major-system, branch-strategy, pull-request, security |\n| 2 | DX研修・日常開発向け 最低限ツールセットアップ手順（Git / SourceTree / VS Code） | https://intranet.example.com/blog/dev-tools/setup-guide | 2026-01-31 | git, sourcetree, vscode |\n\n番号を選択して返信してください：\n- **`1,2`** のように番号指定（複数可）\n- **`all`** — 全件使用\n- **`0`** — 使用しない（社内コンテキストなしで生成）",
+          "createdAt": "2026-06-28T09:56:10.422Z"
+        },
+        {
+          "id": "1782640580001-4x85im",
+          "role": "user",
+          "content": "0",
+          "createdAt": "2026-06-28T09:56:20.001Z"
+        },
+        {
+          "id": "1782640580010-4b8kuw",
+          "role": "assistant",
+          "content": "承知しました。社内コンテキストは使用しません。\n\nレッスン情報のみをもとに、**「GitHubアカウントの作成」** の草稿を生成します。進めてよいですか？ **「ok」** と返信してください。",
+          "createdAt": "2026-06-28T09:56:20.010Z"
+        },
+        {
+          "id": "1782640585230-675q26",
+          "role": "user",
+          "content": "ok",
+          "createdAt": "2026-06-28T09:56:25.230Z"
+        },
+        {
+          "id": "1782640585237-0l8g8w",
+          "role": "assistant",
+          "content": "以下が草稿です。\n\n```markdown\n---\nseries: Git完全マスターシリーズ\ncourse: GitHub入門コース\nlesson: GitHubアカウントの作成\nstatus: open\ndescription: GitHubアカウントを新規作成し、開発の第一歩を踏み出すための手順を学びます。\ntags: [git, setup, onboarding]\nestimated_minutes: 10\nauthor: \"\"\n---\n\n# GitHubアカウントの作成\n\n## 学習目標\n\nこのレッスンを終えると、以下ができるようになります。\n\n- GitHub の公式サイトでアカウントを新規作成できる\n- 基本的なプロフィール設定を完了できる\n- メール認証を通過し、GitHub を利用可能な状態にできる\n\n---\n\n## 事前準備\n\n- 有効なメールアドレス（未登録のもの）\n- 使用するブラウザ（Chrome / Firefox / Edge など最新版推奨）\n\n---\n\n## 手順\n\n### 1. GitHub 公式サイトにアクセスする\n\nブラウザで以下の URL を開きます。\n\n```\nhttps://github.com\n```\n\n<!-- スクリーンショット: GitHub トップページ（Sign up ボタンが見える状態） -->\n\n---\n\n### 2. サインアップを開始する\n\nトップページ右上の **「Sign up」** ボタンをクリックします。\n\n<!-- スクリーンショット: Sign up ボタンのクローズアップ -->\n\n---\n\n### 3. アカウント情報を入力する\n\n以下の情報を順に入力します。\n\n| 項目 | 内容 |\n|------|------|\n| メールアドレス | 事前準備で用意したアドレス |\n| パスワード | 15 文字以上、または数字・小文字を含む 8 文字以上 |\n| ユーザー名 | 英数字・ハイフンのみ使用可。後から変更可能 |\n\n> **ユーザー名のポイント**  \n> ユーザー名は公開 URL（例: `https://github.com/yourname`）に使われます。  \n> チーム内で識別しやすい名前にしておくと便利です。\n\n<!-- スクリーンショット: サインアップフォームの入力例 -->\n\n---\n\n### 4. ロボット認証を通過する\n\n画面の指示に従い、パズル形式の認証（CAPTCHA）を完了します。\n\n<!-- スクリーンショット: CAPTCHA 画面の例 -->\n\n---\n\n### 5. メール認証を行う\n\n登録したメールアドレスに GitHub から認証コードが届きます。\n\n1. メールを開き、**6 桁の認証コード** を確認する\n2. GitHub の画面にコードを入力する\n\n<!-- スクリーンショット: メール認証コード入力画面 -->\n\n> メールが届かない場合は、迷惑メールフォルダを確認してください。  \n> それでも届かない場合は **「Resend code」** をクリックして再送できます。\n\n---\n\n### 6. プラン選択\n\n**「Free」** プランが選択されていることを確認し、そのまま進みます。  \n（個人利用・オープンソース開発には Free プランで十分です）\n\n<!-- スクリーンショット: プラン選択画面 -->\n\n---\n\n### 7. アカウント作成完了\n\nダッシュボード画面が表示されればアカウント作成は完了です。\n\n<!-- スクリーンショット: GitHub ダッシュボード（初回ログイン直後） -->\n\n---\n\n## 確認ポイント\n\n- [ ] GitHub にログインできる\n- [ ] ダッシュボードが表示される\n- [ ] プロフィールページ（`https://github.com/ユーザー名`）にアクセスできる\n\n---\n\n## 次のステップ\n\nアカウント作成が完了したら、次のレッスンでは **SSH キーの設定** や **リポジトリの作成** に進みます。\n```\n\n---\n\n内容の修正・追記があればお知らせください。",
+          "createdAt": "2026-06-28T09:56:25.238Z"
+        }
+      ],
+      "activeSkillId": "create-draft",
+      "createDraftContext": {
+        "contextItemsJson": "[]",
+        "searchResults": [
+          {
+            "id": 1,
+            "title": "NMS Git ブランチ運用ルール",
+            "body": "# NMS Git ブランチ運用ルール\n\n本書は社内新規プロジェクト「new major system」（以下 NMS）における Git ブランチ運用ルールを定める。  \n基本方針は Git Flow をベースとし、本プロジェクトのリリース頻度・レビュー体制に合わせて簡略化している。\n\n---\n\n## 対象リポジトリ\n\n- NMS 本体アプリケーション\n- NMS インフラ定義（Terraform 等）\n- NMS 付随バッチ・ワーカー\n\n---\n\n## 永続ブランチ\n\n| ブランチ | 役割 |\n|---|---|\n| `main` | 本番相当。常にデプロイ可能な状態を保つ |\n| `develop` | 次リリース向けの統合ブランチ |\n\n---\n\n## 作業ブランチの種類\n\n| 種別 | 用途 | 作成元 | 反映先 |\n|---|---|---|---|\n| `feature/*` | 機能開発 | `develop` | `develop` |\n| `release/*` | リリース準備 | `develop` | `main` / `develop` |\n| `hotfix/*` | 本番障害対応 | `main` | `main` / `develop` |\n\n---\n\n## ブランチ作成ルール\n\n- `feature` / `release` / `hotfix` は、原則として `main` または `develop` から直接作成する\n- ブランチからブランチを切ること（例: `feature/A` から `feature/B` を切る）は**原則禁止**\n\n### 例外として許容するケース\n\n以下の場合に限り、ブランチからブランチを切ることを許容する。**PR 説明欄に理由と削除予定日を必ず記載すること。**\n\n1. **release ブランチ上でのリリースブロッカー修正**  \n   命名: `hotfix/release-<version>-<概要>`\n\n2. **長期 feature ブランチの rebase / conflict 解消用一時ブランチ**  \n   命名: `tmp/<元ブランチ名>-<担当者>`  \n   マージ後 24 時間以内に削除する\n\n3. **Tech Lead が事前承認した PoC ブランチ**  \n   最長 2 週間。`develop` への PR 必須\n\n---\n\n## マージ・Pull Request ルール\n\n- すべての変更は Pull Request（以下 PR）経由で取り込む。ローカル merge のみでの共有は禁止\n- `main` への直接 push / 直接 merge は禁止（管理者含む）\n- `develop` への merge も PR 必須\n- PR は CI（lint / unit test / build）が Green になるまで merge 不可\n- **merge 方式は原則 Squash merge**。`release` / `hotfix` の `main` 反映時のみ merge commit を許容\n- PR マージ後、作業ブランチは必ず削除する（「Delete branch」は merge 実行者の責務）\n- リモートに残存ブランチがある場合、週次で Tech Lead が棚卸しし、不要ブランチを削除する\n\n---\n\n## レビュー・承認\n\n- すべての PR に approver（承認者）を **1 名以上**アサインする\n- `main` または `release/*` への merge は **approver 2 名以上**を推奨（うち 1 名は Tech Lead または delegate）\n- 作成者自身による Self-approve は禁止\n- セキュリティ関連・認証・個人情報を扱う変更は **SecOps レビュー必須**（SecOps グループを reviewer に追加）\n\n---\n\n## 命名規則\n\n| 種別 | 形式 | 例 |\n|---|---|---|\n| feature | `feature/<チケットID>-<短い英語スラッグ>` | `feature/NMS-1234-login-api` |\n| release | `release/<semver>` | `release/1.2.0` |\n| hotfix | `hotfix/<チケットID>-<短い英語スラッグ>` | `hotfix/NMS-5678-null-pointer` |\n\n---\n\n## コミットメッセージ\n\n- 先頭にチケット ID を付与する  \n  例: `NMS-1234: ログイン API のバリデーション追加`\n- WIP コミットを `develop` / `main` に残さない（PR 前に squash または fixup）\n\n---\n\n## 禁止事項\n\n- `main` への force push\n- `develop` への force push（rebase 運用は Tech Lead 承認・チーム全体周知のうえ実施する場合のみ）\n- レビュー未完了 PR の merge\n- 2 週間超放置の feature ブランチ（放置時は Tech Lead が rebase または close を判断）\n\n---\n\n## 参考リンク\n\n- 社内 Git 入門: `https://docupedia.example.local/engineering/git-basics`\n- NMS アーキテクチャ概要: `https://docupedia.example.local/new-major-system/architecture`\n\n---\n\n## 問い合わせ\n\nNMS Tech Lead / `#nms-dev` Slack チャンネル\n\n---\n\n## 改訂履歴\n\n| 日付 | 内容 |\n|---|---|\n| 2025-11-18 | 初版（プロジェクトキックオフに合わせて制定） |\n| 2025-09-02 | 草案（Git Flow ベース案） |",
+            "tags": [
+              "git",
+              "new-major-system",
+              "branch-strategy",
+              "pull-request",
+              "security"
+            ],
+            "source_url": "https://docupedia.example.local/new-major-system/git-branch-strategy",
+            "source_last_updated_at": "2025-11-17",
+            "created_by": "ugkit",
+            "updated_by": "ugkit",
+            "created_at": "2026-06-27T04:21:01.474Z",
+            "updated_at": "2026-06-27T09:14:01.662Z"
+          },
+          {
+            "id": 2,
+            "title": "DX研修・日常開発向け 最低限ツールセットアップ手順（Git / SourceTree / VS Code）",
+            "body": "## 概要\n\nDX 研修や日常開発を開始する前に、以下のツールを社内手順に従ってセットアップしてください。\n\n- **個人での直接ダウンロードは不可**（いずれのツールも）\n- 申請からインストール完了まで数日かかる場合があるため、**研修開始の 1 週間前には申請を出すことを推奨**\n\n---\n\n## Git と SourceTree のインストール\n\n### 申請・インストール手順\n\n1. 社内独自の承認システムから申請を出す\n2. 承認後、社内のソフトウェア配布ポータルから Git をインストールする\n   - Git のインストーラには **SourceTree が同梱**されており、両方が一緒にインストールされる\n\n### Git 操作ツールの選択\n\n| ツール | 向いている人 |\n|---|---|\n| SourceTree | Git 操作に慣れていない方。GUI でコミット履歴・ブランチ状態を確認しやすい |\n| VS Code 内蔵 Git 機能 / ターミナル（`git` コマンド） | VS Code に慣れている方 |\n\nどちらを使うかは個人の作業スタイルに合わせて選んでください。\n\n### インストール確認\n\nターミナルまたは SourceTree から以下を実行し、バージョンが表示されることを確認してください。\n\n```\ngit --version\n```\n\n表示されない場合は **IT ヘルプデスクへ問い合わせ**てください。\n\n---\n\n## Visual Studio Code のインストール\n\n公式サイトからの直接ダウンロードは不可。社内では以下 **2 通り**の方法があります。\n\n### 方法 1：社内インストールシステムを使う（Git と同じ経路）\n\n1. 社内独自の承認システムから申請を出す\n2. 承認後、社内のソフトウェア配布ポータルから VS Code をインストールする\n\n> **ヒント**: Git をこれからインストールする場合は、Git 申請と同時に VS Code も選んで申請すると手続きが一度で済む\n\n### 方法 2：社内 Chocolatey ベースのパッケージ管理システムを使う\n\n1. 社内ポータルから申請・承認を受ける\n2. 指定された手順に従ってインストールする\n\n> Chocolatey 経由の場合、今後のアップデートも同じ仕組みで配布されることがある\n\n### 方法の選び方\n\n- 所属部署の IT ポリシーや既に使っている配布経路に合わせて選択する\n- 迷った場合は IT ヘルプデスクに「**VS Code のインストール方法**」として問い合わせると、推奨ルートを案内してもらえる\n\n### インストール後の確認\n\n- VS Code を起動する\n- 拡張機能（Japanese Language Pack など）が必要な場合は、**社内ポータルで追加申請が必要かどうか**を確認する\n\n---\n\n## セットアップ完了の確認\n\nGit と VS Code のセットアップが完了したら、以下ができる状態になっているか自己チェックリストで確認してください。\n\n- [ ] Git リポジトリのクローンができる\n- [ ] VS Code でファイルの編集ができる",
+            "tags": [
+              "git",
+              "sourcetree",
+              "vscode"
+            ],
+            "source_url": "https://intranet.example.com/blog/dev-tools/setup-guide",
+            "source_last_updated_at": "2026-01-31",
+            "created_by": "ugkit",
+            "updated_by": "ugkit",
+            "created_at": "2026-06-27T08:58:30.498Z",
+            "updated_at": "2026-06-27T08:58:30.498Z"
+          }
+        ],
+        "searchPerformed": true,
+        "selectionConfirmed": true
+      },
+      "createdAt": "2026-06-28T08:29:35.862Z",
+      "updatedAt": "2026-06-28T09:56:45.755Z"
+    }
+  ]
+}

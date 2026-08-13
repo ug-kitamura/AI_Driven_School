@@ -12,10 +12,10 @@ export type ToolPathZone = "project" | "skill" | "contents";
 export type ResolvedToolPath = {
   /** 実ファイルシステム上の絶対パス */
   absolutePath: string;
-  /** 表示用パス（`contents/...`・`contents-plan/...`・`skill/<id>/...`） */
+  /** 表示用パス（`contents/...`・`contents-work/...`・`skill/<id>/...`） */
   relativePath: string;
   /**
-   * 書込許可ゾーン内かどうか（dx は 2 ルート: `contents/` 配下または `contents-plan/` 配下）。
+   * 書込許可ゾーン内かどうか（dx は 2 ルート: `contents/` 配下または `contents-work/` 配下）。
    * EBEX ではプロジェクトフォルダ単一ルートの意味だったフラグを、書込可否の意味のまま
    * 両ゾーンに立てる（下流の書込判定・確認ゲートを変えないため）。
    */
@@ -35,8 +35,11 @@ export const SKILL_LEGACY_PREFIX = ".claude/skills/";
 export const CONTENTS_DIR_NAME = "contents";
 export const CONTENTS_PREFIX = `${CONTENTS_DIR_NAME}/`;
 /** dx の書込ルート 2: 作業ツリー（計画書・中間生成物） */
-export const CONTENTS_PLAN_DIR_NAME = "contents-plan";
+export const CONTENTS_PLAN_DIR_NAME = "contents-work";
 export const CONTENTS_PLAN_PREFIX = `${CONTENTS_PLAN_DIR_NAME}/`;
+/** 作業ツリー内の、agent が書けない領域（agent 自身の会話履歴） */
+export const AGENT_SESSION_DIR_NAME = "sessions";
+export const AGENT_SESSION_PREFIX = `${CONTENTS_PLAN_PREFIX}${AGENT_SESSION_DIR_NAME}/`;
 
 /** レッスン本文が置かれる階層の深さ（`contents/<シリーズ>/<コース>/<レッスン>/`） */
 export const LESSON_FOLDER_DEPTH = 3;
@@ -95,6 +98,33 @@ export function checkContentsWritePath(
         `${LESSON_CONTENTS_FILENAME} はレッスン本文の予約名です。`,
         `置けるのは ${CONTENTS_PREFIX}<シリーズ>/<コース>/<レッスン>/ の直下だけです。`,
         `作業ファイルは別の名前にするか ${CONTENTS_PLAN_PREFIX} 配下へ書いてください。`,
+        `書こうとしたパス: ${resolved.relativePath}`,
+      ].join("\n"),
+    };
+  }
+
+  return null;
+}
+
+/**
+ * 作業ツリー（`contents-work/`）への書込を検査する。
+ *
+ * 拒否するのは `contents-work/sessions/` 配下だけ。ここは agent 自身の会話履歴の
+ * 保存先で、agent が書くと実行中の会話が壊れる。`plans/` `runs/` は自由に書いてよい。
+ *
+ * 判定は**ディレクトリ単位**で行う——ファイル名で判定すると、保存形式が変わったときに
+ * 保護が漏れる。
+ */
+export function checkContentsPlanWritePath(
+  resolved: ResolvedToolPath,
+): ToolPathError | null {
+  if (!resolved.relativePath.startsWith(CONTENTS_PLAN_PREFIX)) return null;
+
+  if (`${resolved.relativePath}/`.startsWith(AGENT_SESSION_PREFIX)) {
+    return {
+      error: [
+        `${AGENT_SESSION_PREFIX} は agent の会話履歴の保存先です。agent からは変更できません。`,
+        `作業ファイルは ${CONTENTS_PLAN_PREFIX}plans/ か ${CONTENTS_PLAN_PREFIX}runs/ 配下へ書いてください。`,
         `書こうとしたパス: ${resolved.relativePath}`,
       ].join("\n"),
     };
@@ -248,7 +278,7 @@ function resolveUnderRoot(
  * - 明示プレフィックスなしの相対（例: `contents.md`) → 作業フォルダ配下
  *   （フォーカス中のコンテンツフォルダ。レッスン → コース → シリーズ → `contents/`）
  * - `contents/...` → 正本ツリー配下として解釈
- * - `contents-plan/...` → 作業ツリー配下として解釈（計画書・中間生成物）
+ * - `contents-work/...` → 作業ツリー配下として解釈（計画書・中間生成物）
  * - `skill/<実行中skillId>/...` → skillDirAbsolute（読取許可ゾーン）
  * - `.claude/skills/<実行中skillId>/...` → 互換マップ（同上）
  * - 相対パスがスキル側に実在する場合（preferSkillIfExists）→ スキル側を優先
@@ -266,7 +296,7 @@ export function resolveToolTargetPath(
   if (isUnsafePath(raw)) {
     if (raw.includes("..")) return { error: `不正なパスです: ${inputPath}` };
     return {
-      error: `contents/ 配下・contents-plan/ 配下・実行中スキル配下のみ操作できます: ${inputPath}`,
+      error: `contents/ 配下・contents-work/ 配下・実行中スキル配下のみ操作できます: ${inputPath}`,
     };
   }
 
@@ -275,13 +305,16 @@ export function resolveToolTargetPath(
 
   // 書込ルート 2: 作業ツリー（計画書・中間生成物）。明示プレフィックスでのみ届く。
   if (raw === CONTENTS_PLAN_DIR_NAME || raw.startsWith(CONTENTS_PLAN_PREFIX)) {
-    return resolveUnderRoot(
+    const r = resolveUnderRoot(
       projectRoot,
       CONTENTS_PLAN_DIR_NAME,
       raw,
       "project",
       inputPath,
     );
+    if ("error" in r) return r;
+    const rule = options.forWrite ? checkContentsPlanWritePath(r) : null;
+    return rule ?? r;
   }
 
   // 書込ルート 1: 正本ツリー。レッスン草稿の直接着地に使う。

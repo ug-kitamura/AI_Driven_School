@@ -8,7 +8,7 @@ TBD - created by archiving change port-ebex-agent-core. Update Purpose after arc
 `resolveModelProfile(model)` は、モデル slug ごとに `maxOutputTokens`・`continuations`（generatePerSection / textPerTurn / nudgeMax）・`providerParams`（agent / generate スロット）を返さなければならない（SHALL）。既知モデルの初期値は EBEX の `BASE_MODEL_PROFILES` と同値でなければならない（SHALL）。プロファイル未登録の未知モデルには保守側（締め）の既定 `nudgeMax: 2 / textPerTurn: 4 / generatePerSection: 4` を返さなければならない（SHALL）。
 
 #### Scenario: 既知モデルのプロファイル解決
-- **WHEN** `resolveModelProfile("claude-sonnet-4-6")` を呼ぶ
+- **WHEN** `resolveModelProfile("claude-sonnet-5")` を呼ぶ
 - **THEN** EBEX と同値のプロファイル（maxOutputTokens 64000、nudgeMax 2 等）が返る
 
 #### Scenario: 未知モデルは締め側の既定

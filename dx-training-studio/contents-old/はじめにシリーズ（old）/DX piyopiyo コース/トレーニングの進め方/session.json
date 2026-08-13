@@ -1,0 +1,36 @@
+{
+  "version": 1,
+  "activeSessionId": "1782631365514-itm6szcx",
+  "sessions": [
+    {
+      "id": "1782631365514-itm6szcx",
+      "title": "挨拶と教材制作アシスタントの紹介",
+      "messages": [
+        {
+          "id": "27fdd49e-8eb6-4eb7-964f-68ebb2f986ea",
+          "role": "user",
+          "content": "hello",
+          "createdAt": "2026-08-11T13:09:37.975Z"
+        },
+        {
+          "id": "5f3f105f-1d7c-4195-9cec-bd9627c88a68",
+          "role": "assistant",
+          "content": "こんにちは！👋\n\n**DX Training Studio 教材制作アシスタント**です。レッスン構成のアイデア出し、教材内容の整理、学習設計のご相談など、お気軽にどうぞ。\n\n何かお手伝いできることはありますか？",
+          "createdAt": "2026-08-11T13:09:37.977Z",
+          "toolEvents": [],
+          "toolTurns": [
+            {
+              "text": "こんにちは！👋\n\n**DX Training Studio 教材制作アシスタント**です。レッスン構成のアイデア出し、教材内容の整理、学習設計のご相談など、お気軽にどうぞ。\n\n何かお手伝いできることはありますか？"
+            }
+          ]
+        }
+      ],
+      "activeSkillId": null,
+      "createDraftContext": null,
+      "createdAt": "2026-06-28T07:22:45.514Z",
+      "updatedAt": "2026-08-12T15:46:19.731Z",
+      "lastTurnTokens": 88,
+      "sessionTokenTotal": 88
+    }
+  ]
+}

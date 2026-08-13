@@ -35,8 +35,8 @@ Agent ビュー（Pane 4）にはメッセージ入力欄と送信ボタンを�
 #### Scenario: 保存済みモデル名を表示する
 
 - **WHEN** Pane 4 の Agent ビューが表示される
-- **AND** ワークスペース設定に `aiModel: claude-sonnet-4-6` が保存されている
-- **THEN** 入力欄フッター行の左側に `Claude Sonnet 4.6` が表示される
+- **AND** ワークスペース設定に `aiModel: claude-sonnet-5` が保存されている
+- **THEN** 入力欄フッター行の左側に `Claude Sonnet 5` が表示される
 
 #### Scenario: 設定保存後にフッター表示が更新される
 

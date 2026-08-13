@@ -33,7 +33,7 @@ export function isPathInsideWorkDir(
 }
 
 /**
- * パスが書込許可ルートの内側か（作業フォルダ相対・`contents/`・`contents-plan/`）。
+ * パスが書込許可ルートの内側か（作業フォルダ相対・`contents/`・`contents-work/`）。
  */
 export function isPathInsideWriteRoots(
   pathLike: string,

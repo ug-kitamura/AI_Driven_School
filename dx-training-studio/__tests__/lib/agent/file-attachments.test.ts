@@ -71,28 +71,28 @@ describe("file-attachments", () => {
     expect(files.map((file) => file.name)).toEqual(["first", "second"]);
   });
 
-  it("extracts @contents-plan tokens too", () => {
+  it("extracts @contents-work tokens too", () => {
     const tokens = extractAttachmentTokens(
-      "@contents-plan/plans/20260811-onenote.md と @contents-plan/runs/20260811-x/design-note.md を見て",
+      "@contents-work/plans/20260811-onenote.md と @contents-work/runs/20260811-x/design-note.md を見て",
     );
     expect(tokens).toEqual([
-      "contents-plan/plans/20260811-onenote.md",
-      "contents-plan/runs/20260811-x/design-note.md",
+      "contents-work/plans/20260811-onenote.md",
+      "contents-work/runs/20260811-x/design-note.md",
     ]);
   });
 
   it("allows the plan tree but not other repo paths", () => {
-    expect(isAllowedAttachmentPath("contents-plan/plans/a.md")).toBe(true);
+    expect(isAllowedAttachmentPath("contents-work/plans/a.md")).toBe(true);
     expect(
-      isAllowedAttachmentPath("contents-plan/runs/20260811-x/note.md"),
+      isAllowedAttachmentPath("contents-work/runs/20260811-x/note.md"),
     ).toBe(true);
-    expect(isAllowedAttachmentPath("contents-plan/other/a.md")).toBe(false);
+    expect(isAllowedAttachmentPath("contents-work/other/a.md")).toBe(false);
     expect(isAllowedAttachmentPath("docs/handoff.md")).toBe(false);
     expect(isAllowedAttachmentPath("contents/a/b/c/draft.md")).toBe(false);
   });
 
   it("reads plan tree files", () => {
-    const relative = "contents-plan/plans/20260811-onenote.md";
+    const relative = "contents-work/plans/20260811-onenote.md";
     writeFile(path.join(tmpDir, relative), "# Plan");
     expect(readAttachmentContents(tmpDir, relative)).toEqual({
       path: relative,
@@ -101,18 +101,18 @@ describe("file-attachments", () => {
   });
 
   it("lists plan files", () => {
-    writeFile(path.join(tmpDir, "contents-plan/plans/b.md"), "b");
-    writeFile(path.join(tmpDir, "contents-plan/plans/a.md"), "a");
+    writeFile(path.join(tmpDir, "contents-work/plans/b.md"), "b");
+    writeFile(path.join(tmpDir, "contents-work/plans/a.md"), "a");
     expect(listPlanFiles(tmpDir).map((f) => f.path)).toEqual([
-      "contents-plan/plans/a.md",
-      "contents-plan/plans/b.md",
+      "contents-work/plans/a.md",
+      "contents-work/plans/b.md",
     ]);
   });
 
   it("lists only the newest run directories, by mtime", () => {
     const runs = ["old", "mid", "new", "newest"];
     runs.forEach((name, index) => {
-      const dir = path.join(tmpDir, "contents-plan/runs", name);
+      const dir = path.join(tmpDir, "contents-work/runs", name);
       writeFile(path.join(dir, "design-note.md"), name);
       const stamp = new Date(2026, 0, 1 + index);
       fs.utimesSync(dir, stamp, stamp);

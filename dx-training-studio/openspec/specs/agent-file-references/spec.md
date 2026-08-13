@@ -23,14 +23,14 @@ Agent invoke 時に参照可能な `contents/` 配下 markdown ファイルの�
 参照可能ファイルは次の 3 つに限定されなければならない（SHALL）:
 
 1. `contents/` 配下の `contents.md`
-2. `contents-plan/plans/` 配下のファイル
-3. `contents-plan/runs/` の**更新日時が新しい上位 3 件の run ディレクトリ**配下のファイル
+2. `contents-work/plans/` 配下のファイル
+3. `contents-work/runs/` の**更新日時が新しい上位 3 件の run ディレクトリ**配下のファイル
 
 それ以外のパス（`images/` `.claude/` `docs/` `data/` `lib/` 等）は一覧にも invoke 添付にも含めてはならない（SHALL NOT）。`workspace/` 配下を含めてはならない（MUST NOT）。
 
 既定の候補一覧は、フォーカス中レッスンの `contents.md` を先頭に置かなければならない（SHALL）。レッスンにフォーカスしていない場合は、いずれの `contents.md` も先頭に固定してはならない（MUST NOT）——コース・シリーズにフォーカスしているとき、開いているファイルが作業対象とは限らないため。一覧そのものは階層を問わず上記 3 種すべてを含めてよい（MAY）。
 
-読取許可は一覧より広く、`contents-plan/runs/` 配下は run の新旧を問わず参照できなければならない（SHALL）。一覧は更新日時で変わるため、過去に貼った参照が時間経過で読めなくなってはならない（MUST NOT）。
+読取許可は一覧より広く、`contents-work/runs/` 配下は run の新旧を問わず参照できなければならない（SHALL）。一覧は更新日時で変わるため、過去に貼った参照が時間経過で読めなくなってはならない（MUST NOT）。
 
 #### Scenario: 許可外パスを一覧に含めない
 
@@ -39,7 +39,7 @@ Agent invoke 時に参照可能な `contents/` 配下 markdown ファイルの�
 
 #### Scenario: 計画書と最新 run が一覧に含まれる
 
-- **WHEN** `contents-plan/plans/` に計画書があり、`contents-plan/runs/` に 5 件の run ディレクトリがある
+- **WHEN** `contents-work/plans/` に計画書があり、`contents-work/runs/` に 5 件の run ディレクトリがある
 - **THEN** 計画書と、更新日時が新しい 3 件の run ディレクトリ配下のファイルが応答に含まれる
 - **AND** 古い 2 件の run ディレクトリ配下のファイルは含まれない
 

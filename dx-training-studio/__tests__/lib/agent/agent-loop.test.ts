@@ -328,7 +328,7 @@ describe("runAgentLoop safety valves", () => {
   it("returns broken tool_use as recoverable tool_result and continues", async () => {
     vi.mocked(resolveLlmProvider).mockReturnValue({
       ok: true,
-      model: "claude-sonnet-4-6",
+      model: "claude-sonnet-5",
       provider: mockProvider([
         {
           text: "",
@@ -386,7 +386,7 @@ describe("runAgentLoop safety valves", () => {
   it("returns missing path as recoverable tool_result without executing", async () => {
     vi.mocked(resolveLlmProvider).mockReturnValue({
       ok: true,
-      model: "claude-sonnet-4-6",
+      model: "claude-sonnet-5",
       provider: mockProvider([
         {
           text: "",
@@ -419,7 +419,7 @@ describe("runAgentLoop safety valves", () => {
   it("returns generate_and_write schema guidance for missing instruction", async () => {
     vi.mocked(resolveLlmProvider).mockReturnValue({
       ok: true,
-      model: "claude-sonnet-4-6",
+      model: "claude-sonnet-5",
       provider: mockProvider([
         {
           text: "",
@@ -472,7 +472,7 @@ describe("runAgentLoop safety valves", () => {
 
     vi.mocked(resolveLlmProvider).mockReturnValue({
       ok: true,
-      model: "claude-sonnet-4-6",
+      model: "claude-sonnet-5",
       provider: mockProvider([
         {
           text: "",
@@ -514,7 +514,7 @@ describe("runAgentLoop safety valves", () => {
     );
     vi.mocked(resolveLlmProvider).mockReturnValue({
       ok: true,
-      model: "claude-sonnet-4-6",
+      model: "claude-sonnet-5",
       provider: mockProvider([
         {
           text: "hi",
@@ -576,7 +576,7 @@ describe("runAgentLoop auto-nudge (3値判定)", () => {
   it("auto-continues a stalled turn until artifacts are complete", async () => {
     vi.mocked(resolveLlmProvider).mockReturnValue({
       ok: true,
-      model: "claude-sonnet-4-6",
+      model: "claude-sonnet-5",
       provider: mockProvider([
         toolStep("t1"),
         // 埋め残しがある状態での自発的終了 → stalled → 自動 nudge
@@ -616,7 +616,7 @@ describe("runAgentLoop auto-nudge (3値判定)", () => {
   it("emits token_usage per turn with the visible output token count", async () => {
     vi.mocked(resolveLlmProvider).mockReturnValue({
       ok: true,
-      model: "claude-sonnet-4-6",
+      model: "claude-sonnet-5",
       provider: mockProvider([
         {
           text: "完了しました。",
@@ -657,7 +657,7 @@ describe("runAgentLoop auto-nudge (3値判定)", () => {
     );
     vi.mocked(resolveLlmProvider).mockReturnValue({
       ok: true,
-      model: "claude-sonnet-4-6",
+      model: "claude-sonnet-5",
       provider: mockProvider([
         {
           text: "",
@@ -690,7 +690,7 @@ describe("runAgentLoop auto-nudge (3値判定)", () => {
   it("does not nudge when the model is waiting for user confirmation", async () => {
     vi.mocked(resolveLlmProvider).mockReturnValue({
       ok: true,
-      model: "claude-sonnet-4-6",
+      model: "claude-sonnet-5",
       provider: mockProvider([
         toolStep("t1"),
         {
@@ -724,7 +724,7 @@ describe("runAgentLoop auto-nudge (3値判定)", () => {
     process.env.EBEX_AUTO_NUDGE = "disabled";
     vi.mocked(resolveLlmProvider).mockReturnValue({
       ok: true,
-      model: "claude-sonnet-4-6",
+      model: "claude-sonnet-5",
       provider: mockProvider([
         toolStep("t1"),
         {
@@ -754,7 +754,7 @@ describe("runAgentLoop auto-nudge (3値判定)", () => {
   it("stops with a notice when the nudge limit is exhausted without progress", async () => {
     vi.mocked(resolveLlmProvider).mockReturnValue({
       ok: true,
-      model: "claude-sonnet-4-6", // nudgeMax = 2
+      model: "claude-sonnet-5", // nudgeMax = 2
       provider: mockProvider([
         toolStep("t1"),
         { text: "同じ報告です。", stopReason: "end_turn", toolCalls: [] },

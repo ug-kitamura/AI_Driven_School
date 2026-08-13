@@ -15,7 +15,6 @@ import { ImageManagerPane } from "@/components/workspace/ImageManagerPane";
 import { useAgentSessionChrome } from "@/components/workspace/use-agent-session-chrome";
 import type { ImageManagerTab } from "@/components/workspace/image-manager/types";
 import type { AgentChatController } from "@/lib/agent-chat-controller";
-import type { AgentChatDraftMap } from "@/components/workspace/agent-chat-draft";
 import type { SkillSummary } from "@/lib/agent/skill-loader";
 import type { Pane4View } from "@/lib/pane4-view-storage";
 import { savePane4View } from "@/lib/pane4-view-storage";
@@ -99,7 +98,6 @@ export function Pane4Shell({
   // AgentChatPane はスコープ切替でリマウントされるため、ここで保持する。
   const [skills, setSkills] = useState<SkillSummary[]>([]);
   const [skillsError, setSkillsError] = useState<string | null>(null);
-  const draftsRef = useRef<AgentChatDraftMap>(new Map());
 
   useEffect(() => {
     void fetch("/api/agent/skills")
@@ -167,8 +165,9 @@ export function Pane4Shell({
           )}
         >
           <div className="min-h-0 flex-1">
+            {/* フォーカスが変わってもリマウントしない。会話の保存先は単一で、
+                読み直しても内容は同じであり、実行中の表示を失うだけになる */}
             <AgentChatPane
-              key={scopeKey || "root-scope"}
               scopeKey={scopeKey}
               series={series}
               lesson={lesson}
@@ -179,7 +178,6 @@ export function Pane4Shell({
               agentChatControllerRef={agentChatControllerRef}
               onControllerReady={onControllerReady}
               richMarkdown={pane4View === "agent"}
-              draftsRef={draftsRef}
               skills={skills}
               skillsError={skillsError}
             />

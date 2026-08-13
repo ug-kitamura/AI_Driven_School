@@ -1,54 +1,36 @@
 import fs from "node:fs";
 import path from "node:path";
-import { getContentsDir } from "@/lib/contents-loader";
-import {
-  parseWorkScope,
-  workScopeLevel,
-  workScopeSessionPath,
-  type WorkScope,
-} from "@/lib/work-scope";
+import { getProjectRoot } from "@/lib/project-root";
 import type { AgentChatStorage } from "@/lib/agent-chat-storage";
 import { parseAgentChatStorage } from "@/lib/agent-chat-storage";
+
+/**
+ * Agent 会話の保存先。フォーカス階層によらず常にこの 1 本を読み書きする。
+ *
+ * `contents/`（教材の正本ツリー）ではなく作業ファイル側に置くのは、スキルの 1 実行が
+ * 複数フォルダを横断して書くため——フォーカス先に会話を残すと、後からどこで話したかを
+ * 探せない。教材ツリーの退避・リネームで会話が道連れになる問題も同時に消える。
+ *
+ * 全セッションが 1 ファイルに入るのは `AgentChatStorage` が元から複数セッション構造の
+ * ため。保存のたびの全書き換えが重くなったら per-session 分割を検討する。
+ */
+export const AGENT_SESSION_DIR = "contents-work/sessions";
+export const AGENT_SESSION_FILENAME = "agent-chat.json";
+export const AGENT_SESSION_PATH = `${AGENT_SESSION_DIR}/${AGENT_SESSION_FILENAME}`;
 
 export function isAgentSessionFsWritable(): boolean {
   return process.env.AGENT_SESSION_FS !== "disabled";
 }
 
-/**
- * セッションの保存先は `contents/` 配下のフォーカス階層の `session.json`。
- * フォルダをリネームしてもファイルごと移動するため、安定 ID を持たないレッスンでも
- * 履歴が追従する。
- */
-export function resolveScopeSessionPath(
-  projectRoot: string,
-  scope: WorkScope,
-): string {
-  const contentsDir = path.resolve(getContentsDir(projectRoot));
-  const absolutePath = path.resolve(
-    contentsDir,
-    workScopeSessionPath(scope),
-  );
-  if (!absolutePath.startsWith(contentsDir + path.sep)) {
-    throw new Error("不正なスコープです");
-  }
-  return absolutePath;
+/** 保存先の絶対パス。 */
+export function resolveAgentSessionPath(projectRoot: string): string {
+  return path.resolve(projectRoot, AGENT_SESSION_PATH);
 }
 
-/** クエリ文字列からスコープを解決する。不正なら null。 */
-export function resolveScopeFromParam(raw: string | null): WorkScope | null {
-  return parseWorkScope(raw ?? "");
-}
-
-export function readScopeSessionFile(
-  projectRoot: string,
-  scope: WorkScope,
+export function readAgentSessionFile(
+  projectRoot: string = getProjectRoot(),
 ): AgentChatStorage | null {
-  let sessionPath: string;
-  try {
-    sessionPath = resolveScopeSessionPath(projectRoot, scope);
-  } catch {
-    return null;
-  }
+  const sessionPath = resolveAgentSessionPath(projectRoot);
   if (!fs.existsSync(sessionPath)) return null;
   try {
     const raw = fs.readFileSync(sessionPath, "utf-8");
@@ -58,26 +40,20 @@ export function readScopeSessionFile(
   }
 }
 
-export function writeScopeSessionFile(
-  projectRoot: string,
-  scope: WorkScope,
+export function writeAgentSessionFile(
   storage: AgentChatStorage,
+  projectRoot: string = getProjectRoot(),
 ): void {
   if (!isAgentSessionFsWritable()) {
     throw new Error("AGENT_SESSION_FS_DISABLED");
   }
-  const sessionPath = resolveScopeSessionPath(projectRoot, scope);
+  const sessionPath = resolveAgentSessionPath(projectRoot);
   const dir = path.dirname(sessionPath);
+  // contents-work/ はアプリの作業データルートなので、無ければ作ってよい。
+  // （コンテンツのディレクトリは session のためだけには作らない、という旧来の制約は
+  //   保存先が contents/ から出たことで不要になった）
   if (!fs.existsSync(dir)) {
-    if (workScopeLevel(scope) === "root") {
-      // シリーズ 0 件の初期状態では contents/ 自体が無いことがある。
-      // ここはアプリのデータルートなので作ってよい。
-      fs.mkdirSync(dir, { recursive: true });
-    } else {
-      // シリーズ/コース/レッスンが消えた状態。
-      // session.json のためだけにコンテンツのディレクトリを作らない。
-      throw new Error(`Scope not found: ${sessionPath}`);
-    }
+    fs.mkdirSync(dir, { recursive: true });
   }
   fs.writeFileSync(sessionPath, JSON.stringify(storage, null, 2), "utf-8");
 }

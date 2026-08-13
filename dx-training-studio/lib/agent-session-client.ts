@@ -1,23 +1,18 @@
 import {
   createInitialStorage,
-  loadFolderAgentChatStorage,
-  saveFolderAgentChatStorage,
+  loadAgentSessionFallback,
+  saveAgentSessionFallback,
   type AgentChatStorage,
 } from "@/lib/agent-chat-storage";
 
 /**
- * @param scopeKey `serializeWorkScope` が返すスコープ文字列。空文字はシリーズ 0 件
- *   （`contents/` 直下）を表す正当な値であり、エラーではない。
- *   サーバー・localStorage フォールバックの双方で同じキーを使う——スコープはパスなので
- *   フォルダのリネームに追従し、ID の再利用による誤った履歴の引き当ても起きない。
+ * Agent 会話の読み書き。保存先はサーバー・localStorage フォールバックとも**単一**で、
+ * ペイン1〜3 のフォーカスによって切り替わらない——スキルの 1 実行は複数フォルダを
+ * 横断して書くため、フォーカス先に会話を紐づけると後から探せなくなる。
  */
-export async function loadScopeSession(
-  scopeKey: string,
-): Promise<AgentChatStorage> {
+export async function loadAgentSession(): Promise<AgentChatStorage> {
   try {
-    const res = await fetch(
-      `/api/agent/session?scope=${encodeURIComponent(scopeKey)}`,
-    );
+    const res = await fetch("/api/agent/session");
     if (res.ok) {
       const data = (await res.json()) as AgentChatStorage;
       if (data.version === 1 && Array.isArray(data.sessions)) {
@@ -28,26 +23,22 @@ export async function loadScopeSession(
     /* fall through to localStorage */
   }
 
-  return loadFolderAgentChatStorage(scopeKey) ?? createInitialStorage();
+  return loadAgentSessionFallback() ?? createInitialStorage();
 }
 
-export async function saveScopeSession(
-  scopeKey: string,
+export async function saveAgentSession(
   storage: AgentChatStorage,
 ): Promise<boolean> {
   try {
-    const res = await fetch(
-      `/api/agent/session?scope=${encodeURIComponent(scopeKey)}`,
-      {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(storage),
-      },
-    );
+    const res = await fetch("/api/agent/session", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(storage),
+    });
     if (res.ok) return true;
   } catch {
     /* fall through */
   }
 
-  return saveFolderAgentChatStorage(scopeKey, storage);
+  return saveAgentSessionFallback(storage);
 }

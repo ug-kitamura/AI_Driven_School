@@ -85,17 +85,17 @@ describe("resolveConfirmRequirement", () => {
   it("requires overwrite confirm for existing files in the plan tree", () => {
     const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "ebex-confirm-"));
     makeScope(tmpDir);
-    const planPath = path.join(tmpDir, "contents-plan", "plans", "20260811.md");
+    const planPath = path.join(tmpDir, "contents-work", "plans", "20260811.md");
     fs.mkdirSync(path.dirname(planPath), { recursive: true });
     fs.writeFileSync(planPath, "old");
     const req = resolveConfirmRequirement(tmpDir, SCOPE, {
       id: "t1",
       name: "write_file",
-      input: { path: "contents-plan/plans/20260811.md", content: "new" },
+      input: { path: "contents-work/plans/20260811.md", content: "new" },
     });
     expect(req).toEqual({
       kind: "overwrite",
-      path: "contents-plan/plans/20260811.md",
+      path: "contents-work/plans/20260811.md",
       isNew: false,
     });
     fs.rmSync(tmpDir, { recursive: true, force: true });
@@ -640,12 +640,12 @@ describe("resolveConfirmRequirement for generate_and_write", () => {
       name: "generate_and_write",
       input: {
         purpose: "p",
-        path: "contents-plan/runs/20260811-demo/design-note.md",
+        path: "contents-work/runs/20260811-demo/design-note.md",
         instruction: "書く",
       },
     });
     expect(req?.kind).toBe("generate-write");
-    expect(req?.path).toBe("contents-plan/runs/20260811-demo/design-note.md");
+    expect(req?.path).toBe("contents-work/runs/20260811-demo/design-note.md");
     expect(req?.isNew).toBe(true);
     fs.rmSync(tmpDir, { recursive: true, force: true });
   });

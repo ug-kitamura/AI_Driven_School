@@ -20,16 +20,16 @@ DX Training Studio の Agent ビュー向け API を定義する。`POST /api/ag
 - **THEN** HTTP 401 と設定を促すエラーメッセージが返される
 
 ### Requirement: 既存 API キー解決の流用
-スキル実行 API は既存の `resolveAiApiKey()` を使用して API キーを解決しなければならない（SHALL）。モデルは **`x-ai-model` リクエストヘッダーを優先**し、ヘッダーが無いとき **`process.env.AI_MODEL`**、それも無いとき **`claude-sonnet-4-6`** を用いなければならない（SHALL）。`gpt-5-nano` 等の未対応 slug がサーバーに到達した場合、HTTP 400 と「このモデルは未対応です」を返さなければならない（SHALL）。
+スキル実行 API は既存の `resolveAiApiKey()` を使用して API キーを解決しなければならない（SHALL）。モデルは **`x-ai-model` リクエストヘッダーを優先**し、ヘッダーが無いとき **`process.env.AI_MODEL`**、それも無いとき **`claude-sonnet-5`** を用いなければならない（SHALL）。`gpt-5-nano` 等の未対応 slug がサーバーに到達した場合、HTTP 400 と「このモデルは未対応です」を返さなければならない（SHALL）。
 
 #### Scenario: WorkspaceSettings の API キーを使用する
 - **WHEN** WorkspaceSettings に AI API キーが設定されている
 - **THEN** そのキーで Anthropic API が呼び出される
 
 #### Scenario: x-ai-model ヘッダーを優先する
-- **WHEN** クライアントが `x-ai-model: claude-sonnet-4-6` を送信する
+- **WHEN** クライアントが `x-ai-model: claude-sonnet-5` を送信する
 - **AND** 環境変数 `AI_MODEL` が別の値に設定されている
-- **THEN** Anthropic API 呼び出しは `claude-sonnet-4-6` を用いる
+- **THEN** Anthropic API 呼び出しは `claude-sonnet-5` を用いる
 
 #### Scenario: 未対応モデルを拒否する
 - **WHEN** クライアントが `x-ai-model: gpt-5-nano` を送信する
@@ -118,13 +118,13 @@ SSE ストリームは次のイベントを送出しなければならない（S
 
 ### Requirement: フォーカススコープの受け渡し
 
-invoke リクエストは対象の**フォーカススコープ**（`contents/` 内の相対パス。シリーズ / コース / レッスンのいずれか、またはシリーズ 0 件時の空）を受け取れなければならない（SHALL）。スコープの識別子にレッスン ID のような導出値を使ってはならない（MUST NOT）——名前の連結は名前に区切り文字が含まれると曖昧になるため。ファイル系ツールを宣言するスキルの実行時、書込境界は `contents-plan/` + `contents/` に設定されなければならない（SHALL）。フォーカス対象のディレクトリが実行中に消失した場合は HTTP 409 で停止しなければならない（SHALL）。
+invoke リクエストは対象の**フォーカススコープ**（`contents/` 内の相対パス。シリーズ / コース / レッスンのいずれか、またはシリーズ 0 件時の空）を受け取れなければならない（SHALL）。スコープの識別子にレッスン ID のような導出値を使ってはならない（MUST NOT）——名前の連結は名前に区切り文字が含まれると曖昧になるため。ファイル系ツールを宣言するスキルの実行時、書込境界は `contents-work/` + `contents/` に設定されなければならない（SHALL）。フォーカス対象のディレクトリが実行中に消失した場合は HTTP 409 で停止しなければならない（SHALL）。
 
 #### Scenario: フォーカススコープ付き invoke
 
 - **WHEN** フォーカススコープ付きで invoke が実行される
 
-- **THEN** ツール実行の書込境界が `contents-plan/` + `contents/` に設定される
+- **THEN** ツール実行の書込境界が `contents-work/` + `contents/` に設定される
 
 #### Scenario: スコープ対象の消失時は 409
 
@@ -136,5 +136,5 @@ invoke リクエストは対象の**フォーカススコープ**（`contents/` 
 
 - **WHEN** `contents/` にシリーズが存在せず、スコープが空の状態で invoke が実行される
 
-- **THEN** 書込境界は `contents-plan/` + `contents/` のまま実行される
+- **THEN** 書込境界は `contents-work/` + `contents/` のまま実行される
 

@@ -24,7 +24,7 @@ export type ScriptSandboxOptions = {
    */
   projectDirAbsolute: string;
   /**
-   * fs 書込を追加で許可するディレクトリ（作業ツリー `contents-plan/`）。
+   * fs 書込を追加で許可するディレクトリ（作業ツリー `contents-work/`）。
    * 書込許可ルートが 2 つあるため、宣言できる writes と実際に書ける場所を一致させる。
    */
   extraWriteDirsAbsolute?: string[];

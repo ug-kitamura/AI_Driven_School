@@ -46,18 +46,18 @@ describe("resolveToolTargetPath（dx 2 ルート境界）", () => {
     );
   });
 
-  it("contents-plan/ 配下は作業ツリーとして解決される", () => {
+  it("contents-work/ 配下は作業ツリーとして解決される", () => {
     const resolved = resolveToolTargetPath(
       PROJECT_ROOT,
       SCOPE,
-      "contents-plan/runs/20260811-demo/design-note.md",
+      "contents-work/runs/20260811-demo/design-note.md",
     );
     expect(resolved).not.toHaveProperty("error");
     if ("error" in resolved) return;
     expect(resolved.zone).toBe("project");
     expect(resolved.insideProject).toBe(true);
     expect(resolved.relativePath).toBe(
-      "contents-plan/runs/20260811-demo/design-note.md",
+      "contents-work/runs/20260811-demo/design-note.md",
     );
   });
 
@@ -239,15 +239,15 @@ describe("checkContentsWritePath（正本ツリーの書込規約）", () => {
     expect(resolved).not.toHaveProperty("error");
   });
 
-  it("contents-plan/ 配下は規約の対象外", () => {
-    const resolved = writeTarget("contents-plan/runs/20260811-demo/note.md");
+  it("contents-work/ 配下は規約の対象外", () => {
+    const resolved = writeTarget("contents-work/runs/20260811-demo/note.md");
     expect(resolved).not.toHaveProperty("error");
   });
 
   it("contents ゾーン以外は素通しする", () => {
     const outcome = checkContentsWritePath({
-      absolutePath: path.join(PROJECT_ROOT, "contents-plan", "a.md"),
-      relativePath: "contents-plan/a.md",
+      absolutePath: path.join(PROJECT_ROOT, "contents-work", "a.md"),
+      relativePath: "contents-work/a.md",
       insideProject: true,
       insideSkill: false,
       zone: "project",

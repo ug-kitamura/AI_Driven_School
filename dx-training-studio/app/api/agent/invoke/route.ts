@@ -162,7 +162,7 @@ export async function POST(req: Request) {
     );
   }
 
-  // @ 参照は書込ルートの 2 系統（`@contents/...` と `@contents-plan/...`）
+  // @ 参照は書込ルートの 2 系統（`@contents/...` と `@contents-work/...`）
   const structuredPaths = latestMessage.attachments?.map((item) => item.path);
   const resolvedAttachments = resolveAttachmentsForMessage(
     projectRoot,

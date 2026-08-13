@@ -171,7 +171,7 @@ export function buildSkillRuntimeContext(focus: SkillRuntimeFocus): string {
     "",
     "### Scope",
     `既定の舞台は作業フォルダ \`${workDir}/\` である。明示プレフィックスのない相対パスはここを基準に解決される。`,
-    "計画書・中間生成物は作業ツリー（`contents-plan/` 配下）へ、明示プレフィックス付きで書くこと。",
+    "計画書・中間生成物は作業ツリー（`contents-work/` 配下）へ、明示プレフィックス付きで書くこと。",
     ...(skillId
       ? [
           `実行中スキルの参照ファイル（\`SKILL.md\` と同じフォルダ配下、例: \`references/*\`）は確認なしで発見（list/glob/search）および読取できる。`,
@@ -190,7 +190,7 @@ export function buildSkillRuntimeContext(focus: SkillRuntimeFocus): string {
     `出力が明示されていないときの第一の焦点は、開いているファイルと同じフォルダ（\`${sameFolder === "." ? "作業フォルダ直下" : sameFolder}\`）、次点は作業フォルダ直下である。`,
     "",
     "### Boundary",
-    "書込許可ルート（`contents/` と `contents-plan/`）の外のパスに触れるときは、推測で進めずユーザ確認を前提とすること。",
+    "書込許可ルート（`contents/` と `contents-work/`）の外のパスに触れるときは、推測で進めずユーザ確認を前提とすること。",
     "場の中で出力候補が複数あるときは勝手に確定せず、候補を示して選ばせること。",
     ...(focus.mentionsSubagent
       ? ["", "### Subagent", SUBAGENT_FALLBACK_MODEL_HINT]

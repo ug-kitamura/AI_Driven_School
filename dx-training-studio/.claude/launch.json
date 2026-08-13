@@ -3,6 +3,8 @@
   "configurations": [
     {
       "name": "dx-training-studio",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "dev"],
       "port": 3000,
       "url": "http://localhost:3000"
     }

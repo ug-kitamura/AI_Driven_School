@@ -12,10 +12,10 @@ export type ToolPathZone = "project" | "skill" | "contents";
 export type ResolvedToolPath = {
   /** 実ファイルシステム上の絶対パス */
   absolutePath: string;
-  /** 表示用パス（`contents/...`・`contents-plan/...`・`skill/<id>/...`） */
+  /** 表示用パス（`contents/...`・`contents-work/...`・`skill/<id>/...`） */
   relativePath: string;
   /**
-   * 書込許可ゾーン内かどうか（dx は 2 ルート: `contents/` 配下または `contents-plan/` 配下）。
+   * 書込許可ゾーン内かどうか（dx は 2 ルート: `contents/` 配下または `contents-work/` 配下）。
    * EBEX ではプロジェクトフォルダ単一ルートの意味だったフラグを、書込可否の意味のまま
    * 両ゾーンに立てる（下流の書込判定・確認ゲートを変えないため）。
    */
@@ -35,7 +35,7 @@ export const SKILL_LEGACY_PREFIX = ".claude/skills/";
 export const CONTENTS_DIR_NAME = "contents";
 export const CONTENTS_PREFIX = `${CONTENTS_DIR_NAME}/`;
 /** dx の書込ルート 2: 作業ツリー（計画書・中間生成物） */
-export const CONTENTS_PLAN_DIR_NAME = "contents-plan";
+export const CONTENTS_PLAN_DIR_NAME = "contents-work";
 export const CONTENTS_PLAN_PREFIX = `${CONTENTS_PLAN_DIR_NAME}/`;
 
 /** レッスン本文が置かれる階層の深さ（`contents/<シリーズ>/<コース>/<レッスン>/`） */
@@ -248,7 +248,7 @@ function resolveUnderRoot(
  * - 明示プレフィックスなしの相対（例: `contents.md`) → 作業フォルダ配下
  *   （フォーカス中のコンテンツフォルダ。レッスン → コース → シリーズ → `contents/`）
  * - `contents/...` → 正本ツリー配下として解釈
- * - `contents-plan/...` → 作業ツリー配下として解釈（計画書・中間生成物）
+ * - `contents-work/...` → 作業ツリー配下として解釈（計画書・中間生成物）
  * - `skill/<実行中skillId>/...` → skillDirAbsolute（読取許可ゾーン）
  * - `.claude/skills/<実行中skillId>/...` → 互換マップ（同上）
  * - 相対パスがスキル側に実在する場合（preferSkillIfExists）→ スキル側を優先
@@ -266,7 +266,7 @@ export function resolveToolTargetPath(
   if (isUnsafePath(raw)) {
     if (raw.includes("..")) return { error: `不正なパスです: ${inputPath}` };
     return {
-      error: `contents/ 配下・contents-plan/ 配下・実行中スキル配下のみ操作できます: ${inputPath}`,
+      error: `contents/ 配下・contents-work/ 配下・実行中スキル配下のみ操作できます: ${inputPath}`,
     };
   }
 

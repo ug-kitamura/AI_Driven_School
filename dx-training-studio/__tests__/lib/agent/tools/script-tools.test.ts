@@ -76,7 +76,7 @@ describe("executeRegisteredTool run_script", () => {
 
   it("rejects writes declared outside the write roots", async () => {
     const { tmpDir, context } = makeProject();
-    // 実行中スキル配下は読取専用ゾーン。書込ルート（contents/ と contents-plan/）の外側
+    // 実行中スキル配下は読取専用ゾーン。書込ルート（contents/ と contents-work/）の外側
     const outcome = await executeRegisteredTool(
       "run_script",
       {

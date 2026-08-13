@@ -284,7 +284,7 @@ describe("isPathInsideWriteRoots", () => {
   it("accepts the two write roots and work-folder-relative paths", () => {
     expect(isPathInsideWriteRoots(`contents/${SCOPE}/a.md`, SCOPE)).toBe(true);
     expect(isPathInsideWriteRoots("sub/a.md", SCOPE)).toBe(true);
-    expect(isPathInsideWriteRoots("contents-plan/plans/a.md", SCOPE)).toBe(
+    expect(isPathInsideWriteRoots("contents-work/plans/a.md", SCOPE)).toBe(
       true,
     );
     expect(isPathInsideWriteRoots("~/Downloads/x.md", SCOPE)).toBe(false);
@@ -308,7 +308,7 @@ describe("findOutsideProjectPathHints", () => {
       findOutsideProjectPathHints(`use @contents/${SCOPE}/notes.md`, SCOPE),
     ).toEqual([]);
     expect(
-      findOutsideProjectPathHints("use contents-plan/plans/a.md", SCOPE),
+      findOutsideProjectPathHints("use contents-work/plans/a.md", SCOPE),
     ).toEqual([]);
   });
 });

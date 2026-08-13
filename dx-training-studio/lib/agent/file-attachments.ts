@@ -6,14 +6,14 @@ import { LESSON_CONTENTS_FILENAME } from "@/lib/lesson-paths";
 export const ALLOWED_PREFIX = `${CONTENTS_DIR_NAME}/`;
 
 /** 作業ツリー（計画書・run）。書込契約の 2 ルート目 */
-export const CONTENTS_PLAN_DIR_NAME = "contents-plan";
+export const CONTENTS_PLAN_DIR_NAME = "contents-work";
 export const PLANS_PREFIX = `${CONTENTS_PLAN_DIR_NAME}/plans/`;
 export const RUNS_PREFIX = `${CONTENTS_PLAN_DIR_NAME}/runs/`;
 
 /** ピッカーに並べる run ディレクトリの数（更新日時の新しい順） */
 export const RECENT_RUN_LIMIT = 3;
 
-const ATTACHMENT_TOKEN_RE = /@((?:contents|contents-plan)\/[^\s@]+)/g;
+const ATTACHMENT_TOKEN_RE = /@((?:contents|contents-work)\/[^\s@]+)/g;
 
 export type ContentFileRef = {
   path: string;
@@ -31,8 +31,8 @@ export function extractAttachmentTokens(text: string): string[] {
 /**
  * @ 参照できるパスは 3 種。
  * - 正本ツリーのレッスン本文（`contents/**\/contents.md`）
- * - 計画置き場（`contents-plan/plans/...`）
- * - run ディレクトリ（`contents-plan/runs/...`）
+ * - 計画置き場（`contents-work/plans/...`）
+ * - run ディレクトリ（`contents-work/runs/...`）
  *
  * ピッカーに並ぶ run は最新 3 件だけだが、読取は run 全体を許す。
  * 一覧は更新日時で変わるため、過去に貼った参照が時間経過で読めなくなるのを避ける。

@@ -22,7 +22,7 @@ description: |
 ## 依存
 
 - `contents/` — 検査対象。レッスン本文と各階層の `.meta.json`
-- `contents-plan/plans/` — 計画書。曼陀羅の**意図**の参考であって正ではない（→ 受講順の正本）
+- `contents-work/plans/` — 計画書。曼陀羅の**意図**の参考であって正ではない（→ 受講順の正本）
 - `dx-training-create/references/design-principles.md` — 内容品質と、書いてはいけないものの基準
 - `dx-training-create/references/lesson-template.md` — frontmatter・空欄・画像・出典の**形式**の基準
 - `dx-training-create/references/model-answer/` — トンマナの基準。**無くてよい**（→ `references/quality-checks.md`）
@@ -90,7 +90,7 @@ description: |
 
 ## 出力規約
 
-出力先は run ディレクトリ（`contents-plan/runs/<yyyymmdd>-review/`）。作法は [`contracts/agent-write-contract.md`](../../../contracts/agent-write-contract.md) に従う。**`contents/` には何も書かない。**
+出力先は run ディレクトリ（`contents-work/runs/<yyyymmdd>-review/`）。作法は [`contracts/agent-write-contract.md`](../../../contracts/agent-write-contract.md) に従う。**`contents/` には何も書かない。**
 
 | 置くもの | 中身 |
 |---|---|

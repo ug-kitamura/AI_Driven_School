@@ -23,7 +23,7 @@ description: |
 
 `contents/` 配下のディレクトリと `.meta.json` を読み、既存のシリーズ・コース・レッスン構成を把握する。読めない環境や `contents/` が無い場合は、既存構成の有無をユーザーに確認してから進める。
 
-**`contents-plan/plans/` に既存の計画書があれば必ず読む。** 新しい計画が既存構成と**どう並ぶか、どこを置き換えるか**を必ず検討する。
+**`contents-work/plans/` に既存の計画書があれば必ず読む。** 新しい計画が既存構成と**どう並ぶか、どこを置き換えるか**を必ず検討する。
 
 ---
 
@@ -124,7 +124,7 @@ description: |
 
 `references/plan-template.md` の章立てに従って計画書を出力する。時間予算の集計と、決定の根拠および却下した案は省略しない。
 
-**出力先は `contents-plan/plans/<yyyymmdd>-<slug>.md`。** slug は計画の対象を短く表す ASCII。既存の計画書を置き換える場合も上書きせず新しい日付で出し、本文の冒頭で前版を参照する。置き場の役割と作法は [`contracts/agent-write-contract.md`](../../../contracts/agent-write-contract.md) に従う。
+**出力先は `contents-work/plans/<yyyymmdd>-<slug>.md`。** slug は計画の対象を短く表す ASCII。既存の計画書を置き換える場合も上書きせず新しい日付で出し、本文の冒頭で前版を参照する。置き場の役割と作法は [`contracts/agent-write-contract.md`](../../../contracts/agent-write-contract.md) に従う。
 
 ---
 

@@ -32,8 +32,8 @@ describe("GET /api/agent/files", () => {
     projectRoot = fs.mkdtempSync(path.join(os.tmpdir(), "agent-files-route-"));
     writeFile("contents/シリーズA/コースA1/レッスンZ/contents.md", "# Z");
     writeFile(LESSON_CONTENTS, "# C");
-    writeFile("contents-plan/plans/20260811-onenote.md", "# plan");
-    writeFile("contents-plan/runs/20260811-run/design-note.md", "# note");
+    writeFile("contents-work/plans/20260811-onenote.md", "# plan");
+    writeFile("contents-work/runs/20260811-run/design-note.md", "# note");
   });
 
   afterEach(() => {
@@ -43,8 +43,8 @@ describe("GET /api/agent/files", () => {
   it("offers lesson bodies, plans and recent runs", async () => {
     const files = await listFiles({ scope: SCOPE });
     expect(files).toContain(LESSON_CONTENTS);
-    expect(files).toContain("contents-plan/plans/20260811-onenote.md");
-    expect(files).toContain("contents-plan/runs/20260811-run/design-note.md");
+    expect(files).toContain("contents-work/plans/20260811-onenote.md");
+    expect(files).toContain("contents-work/runs/20260811-run/design-note.md");
   });
 
   it("puts the open lesson body first when focused on a lesson", async () => {

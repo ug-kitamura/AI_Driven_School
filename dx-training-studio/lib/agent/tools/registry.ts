@@ -748,7 +748,7 @@ function resolveDiscoveryWalkZones(
     ];
   }
 
-  // 作業ツリー（contents-plan/）: 基準は作業ツリーのルート
+  // 作業ツリー（contents-work/）: 基準は作業ツリーのルート
   return [
     buildRepoWalkZone(
       context.projectRoot,

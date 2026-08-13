@@ -242,7 +242,7 @@ function resolveWriteConfirm(
  * - 実行中スキル配下の読取は確認不要（書込は実行時に拒否）
  * - プロジェクト内の既存ファイルへの上書きは確認必要（`overwrite`）
  *   ただし AI 作成済み／一度許可済みパス（skipOverwritePaths）は不要
- * - 書込許可ルート（`contents/` と `contents-plan/`）の外はパスガードが拒否する
+ * - 書込許可ルート（`contents/` と `contents-work/`）の外はパスガードが拒否する
  */
 const SCRIPT_CODE_DISPLAY_CHAR_LIMIT = 20_000;
 

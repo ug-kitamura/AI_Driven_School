@@ -1,15 +1,15 @@
 import { describe, expect, it, vi, afterEach } from "vitest";
 import {
-  saveFolderAgentChatStorage,
+  saveAgentSessionFallback,
   createInitialStorage,
-  AGENT_CHAT_STORAGE_V2_KEY,
+  AGENT_CHAT_STORAGE_KEY,
 } from "@/lib/agent-chat-storage";
 
-describe("saveFolderAgentChatStorage failure", () => {
+describe("saveAgentSessionFallback failure", () => {
   afterEach(() => {
     vi.unstubAllGlobals();
     try {
-      localStorage.removeItem(AGENT_CHAT_STORAGE_V2_KEY);
+      localStorage.removeItem(AGENT_CHAT_STORAGE_KEY);
     } catch {
       // ignore
     }
@@ -25,6 +25,6 @@ describe("saveFolderAgentChatStorage failure", () => {
       removeItem: () => undefined,
     });
 
-    expect(saveFolderAgentChatStorage("demo-folder", storage)).toBe(false);
+    expect(saveAgentSessionFallback(storage)).toBe(false);
   });
 });

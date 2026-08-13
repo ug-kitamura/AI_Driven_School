@@ -5,19 +5,24 @@
 トレーニングスキル（`dx-training-plan` / `dx-training-create`）が生む作業ファイルの置き場である `contents-work/` のディレクトリ規約を定める。`plans/` と `runs/` の役割分担、識別子をフォルダ名が持つ命名原則、run ディレクトリ内のファイル名規約、git 追跡の方針を扱う。特定スキルに属さない横断的な取り決めであり、`training-plan-skill` / `training-create-skill` はここを参照する。レッスン草稿の着地先（`contents/`）は `content-folder-loader` と `training-create-skill` の担当領域。
 
 本 capability は `contents-plan-layout` を改名したもの（2026-08-13・`contents-work-rename`）。
-
 ## Requirements
 ### Requirement: contents-work ディレクトリの構成
 
-トレーニングスキルの作業ファイルは `contents-work/` 配下に置かなければならない（SHALL）。`contents-work/plans/` には計画書を、`contents-work/runs/` には1実行分の作業ファイルを置かなければならない（SHALL）。`docs/` 配下および `workspace/` 配下に作業ファイルを新規に出力してはならない（SHALL NOT）。
+トレーニングスキルの作業ファイルは `contents-work/` 配下に置かなければならない（SHALL）。`contents-work/plans/` には計画書を、`contents-work/runs/` には1実行分の作業ファイルを、`contents-work/sessions/` には Agent の会話履歴を置かなければならない（SHALL）。`docs/` 配下および `workspace/` 配下に作業ファイルを新規に出力してはならない（SHALL NOT）。
+
+会話履歴を `contents/`（教材の正本ツリー）配下に置いてはならない（MUST NOT）——教材ツリーにアプリの管理ファイルが混ざると、フォルダの退避・リネームで会話が道連れになる。
 
 #### Scenario: 作業ファイルの置き場を確認する
 - **WHEN** `contents-work/` を開く
-- **THEN** `plans/` と `runs/` の 2 つのディレクトリが存在する
+- **THEN** `plans/` と `runs/` と `sessions/` の 3 つのディレクトリが存在する
 
 #### Scenario: docs 配下へ出力しない
 - **WHEN** スキルが計画書または設計メモを出力する
 - **THEN** 出力先は `contents-work/` 配下であり、`docs/` 配下には作られない
+
+#### Scenario: 会話履歴は教材ツリーに置かれない
+- **WHEN** Agent の会話が保存される
+- **THEN** 保存先は `contents-work/sessions/` 配下であり、`contents/` 配下には作られない
 
 ### Requirement: 識別子はフォルダ名が持つ
 
@@ -64,7 +69,7 @@
 
 ### Requirement: git 追跡の方針
 
-`contents-work/plans/` は git の追跡対象でなければならない（SHALL）。`contents-work/runs/` は追跡対象から除外しなければならない（SHALL）。`.gitignore` のパターンは先頭スラッシュ付きの anchored 形式（`/contents-work/runs/`）で記述しなければならない（SHALL）——非 anchored のディレクトリ名は任意の深さの同名ディレクトリにマッチし、Tailwind のソース走査から意図しないディレクトリを除外する事故が過去に発生している。
+`contents-work/plans/` は git の追跡対象でなければならない（SHALL）。`contents-work/runs/` および `contents-work/sessions/` は追跡対象から除外しなければならない（SHALL）。`.gitignore` のパターンは先頭スラッシュ付きの anchored 形式（`/contents-work/runs/`・`/contents-work/sessions/`）で記述しなければならない（SHALL）——非 anchored のディレクトリ名は任意の深さの同名ディレクトリにマッチし、Tailwind のソース走査から意図しないディレクトリを除外する事故が過去に発生している。
 
 #### Scenario: 計画書は追跡される
 - **WHEN** `contents-work/plans/` に計画書を追加する
@@ -74,7 +79,11 @@
 - **WHEN** `contents-work/runs/` に設計メモを出力する
 - **THEN** `git status` に現れない
 
+#### Scenario: 会話履歴は追跡されない
+- **WHEN** Agent の会話が `contents-work/sessions/` に保存される
+- **THEN** `git status` に現れない
+
 #### Scenario: gitignore は anchored で書く
 - **WHEN** `.gitignore` の `contents-work` 関連の行を確認する
-- **THEN** `/contents-work/runs/` と先頭スラッシュ付きで記述されている
+- **THEN** `/contents-work/runs/` と `/contents-work/sessions/` が先頭スラッシュ付きで記述されている
 

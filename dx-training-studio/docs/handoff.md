@@ -11,10 +11,10 @@
 ```
 [次] 検証実行で見つかった課題への対応              ← 主線。2章
        課題5件の聞き取りと方針決定は 2026-08-13 完了。
-       ① TTL 延長  実装済み（両リポ・未コミット）
-       ② リネーム  実装・archive とも完了（未コミット）
-       ③ セッション一本化 ← 次はこれ。propose から
-       A 側（L01 情緒要件・画像密度規定）は別系統で続く
+       ①②③ すべて完了（2026-08-13・archive 済み）
+       残るのは A 側（L01 情緒要件・画像密度の扱い）。
+       別セッションで explore / grill-me して決着させる。
+       次の create 実行（GitHub / Python）までに
 
 [次] 曼陀羅の辺#2 を張る（人の作業・すぐ終わる）
        開発環境準備コースができ、辺の両端が揃った。
@@ -80,7 +80,9 @@
 
 - **モデルの使い分け**: 原稿は **Claude Code × Fable 5**、画像・軽作業は **studio ペイン4 × Sonnet 5**。ペイン4 を fable/opus で回すのは費用面から避ける。→ A-1 の深追い（Sonnet 5 向け規則遵守チューニング）は優先度低。A-2 は Fable 5 でも効くので進める
 - **課題1**: `TOOL_CONFIRM_TTL_MS` を 5分 → **1時間**に延長。**実施済み（2026-08-13・両リポ・対象テスト green・未コミット）。**暴走・費用の防壁は max_tokens 継続上限・nudge 総回数上限・進捗なし打ち切り（`agent-loop.ts`）が別レイヤで担っており、確認 TTL は費用防壁ではない（確認待ち中は API 呼出ゼロ）。**EBEX も同時修正**（`ebex/lib/agent/tools/tool-confirm-registry.ts:17` に同一定数を確認済み）
-- **課題5**: セッションは **root 一本化**し、置き場は **`contents-work/sessions/` へ移設**（`contents/` から出す）。fs-guard に移設先の予約名保護を足す（`contents-work/` は agent の書込許可ルートのため）。WorkScope の「@参照候補・フォーカス文脈」の役割は残す。パス基準の固定化（相対パス基準の廃止）は**別件として切り出し、今回の change に同梱しない**
+- **課題5**: セッションは **root 一本化**し、置き場は **`contents-work/sessions/agent-chat.json` へ移設**。**完了**（2026-08-13・`unify-agent-session-to-root`）。fs-guard は `contents-work/sessions/` 配下をディレクトリ単位で拒否する。WorkScope の「@参照候補・フォーカス文脈・相対パス基準」の役割は残した。パス基準の固定化（相対パス基準の廃止）は**別件のまま**
+  - **副産物**: `key` リマウントを外したので、**実行中にレッスンを見に行っても中断しなくなった**（EBEX は「切替で中断」を選んだが、あちらはフォルダ＝案件で前提が違う）。フォルダ別の下書き退避 Map と localStorage の入れ子構造（`folders` + ino 移行）も不要になり削除した
+  - **移行の実測**: `contents/**/session.json` は9ファイルあったが**中身があったのは1つだけ**（39メッセージ「シリーズ作成の計画書選定と生成範囲確認」＝課題5で行方不明になった当の会話）。残り8つはフォーカスしただけで生まれた空ファイル。1件を移して9ファイルとも削除した
 - **`contents-plan` → `contents-work` リネームを実施**（8章の保留を解除）。git 追跡は `contents-work/plans/` = 追跡、`runs/` と `sessions/` = 追跡外。`.gitignore` は **anchored パターン**で書く（6章の罠）
 - **B 側は3本、この順で**: ① 確認 TTL 延長（極小・EBEX も同時。**spec は時間の数値を縛っていない（`agent-confirm-gate` は挙動のみ）ため要件変更なし = 通常作業**として直し、本文書に記録する） → ② contents-work リネーム（機械的・参照約140箇所 + 追跡外 `runs/` の手動移動。spec 本文のパス表記が変わるので change） → ③ セッション一本化＋移設（spec `agent-session-persistence` の要件書換を伴う change）。逆順にやると③で書く参照を②でもう一度書き換える羽目になる
 - **A 側は別系統で2点**: 計画書 §6 L01 への情緒要件の追記（9章の「計画書の再修正」禁止は構成の作り直しを指すので、仕様セルへの追記は抵触しない判断）と、手順型レッスンの画像密度の扱い。**次の create 実行（GitHub / Python）までに決着させる**
@@ -281,7 +283,7 @@ references/model-answer/
 | frontmatter の `series` / `course` | **ディレクトリ名から導出される**（`lib/lesson-frontmatter.ts` の `normalizeLessonMeta`）。ずれてもエラーにはならず、読み書きのたびに上書きされる |
 | Studio の rename API | シリーズ・コース改名時に**レッスンの frontmatter を同期しない**（`order` の更新のみ。レッスン改名のときだけ frontmatter を触る）。ディスク上のテキストは古いまま残るので**手で合わせる**。将来の静的サイト生成は frontmatter を直読みするため効いてくる |
 | `contents/.meta.json` の `order` | loader が実体に合わせて整理する。名前が変わると**末尾へ動く**ので、並び順を保ちたければ自分で書き換える |
-| `session.json` | gitignore 対象。一緒に移動するだけ |
+| 会話履歴 | **影響なし**（2026-08-13 以降）。保存先が `contents-work/sessions/` に移り、`contents/` の外に出た |
 | 画像参照 | レッスンパスを含まないため影響なし |
 
 ### 7.3 `.meta.json` と `contents/` への書込
@@ -295,6 +297,7 @@ references/model-answer/
 | 対象 | 判定 |
 |---|---|
 | `session.json` / `.meta.json` | **拒否**（アプリが管理。id・表示順が壊れる） |
+| `contents-work/sessions/` 配下（どの名前でも） | **拒否**（agent 自身の会話履歴。書くと実行中の会話が壊れる） |
 | `contents.md`（レッスン階層） | 許可 |
 | `contents.md`（それ以外の階層） | **拒否**（偽の本文になる） |
 | その他のファイル（どの階層でも） | 許可 |
@@ -308,6 +311,8 @@ references/model-answer/
 ```
 contents-work/
 ├─ plans/<yyyymmdd>-<slug>.md          ← 計画書。git 追跡
+├─ sessions/agent-chat.json            ← ペイン4 の会話（全部で1本）。git 追跡外
+│                                         agent は書込禁止（fs-guard がディレクトリ単位で拒否）
 └─ runs/<yyyymmdd>-<slug>/             ← create 1実行分。git 追跡外
     ├─ design-note.md
     ├─ mandala.md                      ← 曼陀羅の図（確定＝実線 / 提案＝破線）を含む
@@ -337,7 +342,7 @@ contents-work/
 | AI・GitHub・Python シリーズの表示名 | **原稿作成時に再検討**。「完全マスター」表記は Git で改めたのと同じ論点を抱える（AI は1レッスン15分）。**急がない** — slug は表示名と独立なのでコストはディレクトリのリネームだけ。各シリーズの create 実行時、フェーズ1の確認ゲートで目に入る |
 | Git シリーズの画像生成 | 「変更を取り消す」「履歴と差分を読む」の VSCode 節は**プロンプトコメントだけ置いた状態**。ペイン4 で生成・挿入するのが残り |
 | 計画書の曼陀羅 ASCII 図の枠ズレ | 2026-08-12 の改名時から、シリーズ名が枠幅に合っていない（AI・GitHub も同様）。**名前が全部決まった時点で図ごと引き直す**のが安い。中身（辺の構造）は正しい |
-| `extract-markdown-block` テストの失敗 | `contents/Python基礎シリーズ/...` を読むが、当該ディレクトリは `（old）` 付きに改名済み。しかも読み先の `session.json` は gitignore 対象で**新しいクローンでも通らない**。フィクスチャ化が要る（他は787件 green） |
+| `extract-markdown-block` テストの失敗 | `contents/Python基礎シリーズ/.../session.json` を読むが、当該ディレクトリは `（old）` 付きに改名済み。**さらに 2026-08-13 のセッション一本化で `contents/` 配下の `session.json` は全廃**したので、もう復活しない。フィクスチャ化が要る（他は789件 green） |
 | `contents-work` リネーム | **完了**（2026-08-13・`2026-08-13-contents-work-rename` として archive 済み）。spec は9 capability 同期・`contents-plan-layout` → `contents-work-layout` に改名。**未コミット** |
 | `content-folder-loader` spec の旧設計記述 | 前半に `_series-order.json` / `_course.json` / 数値プレフィックスが残っている。実装は `.meta.json` の `order` で動いており乖離。直すなら別 change |
 | `training-create-skill` spec 前半5件の書きぶり | `抽出元と網羅` 等が過去の作業記録に読める。`## Purpose` も実態とずれている。**中身は生きているので消さない。** 直すなら別 change |

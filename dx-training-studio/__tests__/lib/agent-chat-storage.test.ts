@@ -1,7 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
   AGENT_CHAT_STORAGE_KEY,
-  AGENT_CHAT_STORAGE_V2_KEY,
   addSession,
   createEmptySession,
   createInitialStorage,
@@ -9,16 +8,13 @@ import {
   deleteSession,
   deriveSessionTitle,
   enforceSessionLimit,
-  ensureAgentChatStorage,
   exportSessionAsMarkdown,
   formatMessageTimestamp,
   getActiveSession,
   isPlaceholderSessionTitle,
-  loadAgentChatStorage,
-  loadLessonAgentChatStorage,
+  loadAgentSessionFallback,
   MAX_AGENT_CHAT_SESSIONS,
-  saveAgentChatStorage,
-  saveLessonAgentChatStorage,
+  saveAgentSessionFallback,
   switchSession,
   updateActiveSession,
   updateSessionTitle,
@@ -31,7 +27,7 @@ describe("agent-chat-storage", () => {
   });
 
   it("creates initial storage when empty", () => {
-    const storage = ensureAgentChatStorage();
+    const storage = createInitialStorage();
     expect(storage.sessions).toHaveLength(1);
     expect(storage.activeSessionId).toBe(storage.sessions[0]?.id);
     expect(storage.sessions[0]?.title).toBe(DEFAULT_SESSION_TITLE);
@@ -44,9 +40,9 @@ describe("agent-chat-storage", () => {
       activeSkillId: "create-draft",
       title: deriveSessionTitle("hello"),
     });
-    saveAgentChatStorage(withMessage);
+    saveAgentSessionFallback(withMessage);
 
-    const loaded = loadAgentChatStorage();
+    const loaded = loadAgentSessionFallback();
     expect(loaded?.sessions[0]?.messages).toEqual([
       { id: "m1", role: "user", content: "hello" },
     ]);
@@ -136,21 +132,22 @@ describe("agent-chat-storage", () => {
     expect(markdown).toContain("回答");
   });
 
-  it("persists and restores per-lesson v2 storage", () => {
+  it("フォールバックはキーを 1 本しか使わない", () => {
     const initial = createInitialStorage();
-    saveLessonAgentChatStorage("lesson-a", initial);
-    const loaded = loadLessonAgentChatStorage("lesson-a");
-    expect(loaded?.activeSessionId).toBe(initial.activeSessionId);
-    expect(localStorage.getItem(AGENT_CHAT_STORAGE_V2_KEY)).toContain(
-      "lesson-a",
+    saveAgentSessionFallback(initial);
+
+    expect(loadAgentSessionFallback()?.activeSessionId).toBe(
+      initial.activeSessionId,
     );
+    // スコープ別のキーを作らない（サーバー側の保存先が単一のため）
+    expect(Object.keys(localStorage)).toEqual([AGENT_CHAT_STORAGE_KEY]);
   });
 
   it("returns false when localStorage throws on save", () => {
     vi.spyOn(Storage.prototype, "setItem").mockImplementation(() => {
       throw new Error("quota");
     });
-    expect(saveAgentChatStorage(createInitialStorage())).toBe(false);
+    expect(saveAgentSessionFallback(createInitialStorage())).toBe(false);
     expect(localStorage.getItem(AGENT_CHAT_STORAGE_KEY)).toBeNull();
   });
 

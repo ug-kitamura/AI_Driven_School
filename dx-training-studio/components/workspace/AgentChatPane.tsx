@@ -76,8 +76,8 @@ import {
   type AgentBuiltinCommand,
 } from "@/lib/agent-chat-suggestions";
 import {
-  loadScopeSession,
-  saveScopeSession,
+  loadAgentSession,
+  saveAgentSession,
 } from "@/lib/agent-session-client";
 import type {
   AgentChatController,
@@ -102,7 +102,6 @@ import { WorkspaceTooltip } from "@/components/workspace/WorkspaceTooltip";
 import { cn } from "@/lib/utils";
 import type { Course, Lesson, Series } from "@/lib/schema";
 import type { SkillSummary } from "@/lib/agent/skill-loader";
-import type { AgentChatDraftMap } from "@/components/workspace/agent-chat-draft";
 import { parseWorkScope, workScopeBaseDir } from "@/lib/work-scope";
 import { resolveInvokeSkillId } from "@/lib/agent/resolve-invoke-skill";
 import {
@@ -131,7 +130,8 @@ function toWorkScopeRelativePath(
 
 type Props = {
   /**
-   * 作業スコープ文字列（`serializeWorkScope` の出力）。会話の保存先と書込の基準を兼ねる。
+   * 作業スコープ文字列（`serializeWorkScope` の出力）。書込の基準・`@` 参照候補・
+   * invoke の送信値に使う。**会話の保存先は決めない**（保存先は単一）。
    * 空文字はシリーズ 0 件（`contents/` 直下）を表す正当な値。
    */
   scopeKey: string;
@@ -147,11 +147,6 @@ type Props = {
   onControllerReady?: () => void;
   className?: string;
   richMarkdown?: boolean;
-  /**
-   * 未送信下書きの保持先。本コンポーネントはフォルダ切替でリマウントされるため、
-   * リマウントをまたぐ状態は親から受け取る。
-   */
-  draftsRef?: React.MutableRefObject<AgentChatDraftMap>;
   /** スキルカタログ。フォルダ非依存なので親が保持する。 */
   skills?: SkillSummary[];
   skillsError?: string | null;
@@ -240,12 +235,11 @@ export function AgentChatPane({
   onControllerReady,
   className,
   richMarkdown = true,
-  draftsRef: draftsRefProp,
   skills = [],
   skillsError = null,
 }: Props) {
-  // key によるリマウント前提のため、scopeId はこのインスタンスの生涯を通じて不変。
-  // スコープはパスなので、フォルダのリネームには session.json ごと追従する。
+  // フォーカスが変わると scopeId も変わる（リマウントはしない）。会話の保存先には
+  // 使わず、invoke の送信値・`@` 参照候補・相対パスの基準としてだけ使う。
   // 空文字（シリーズ 0 件）も正当なスコープなので、未設定と区別しない。
   const scopeId = scopeKey;
   const filePath = currentFilePath ?? currentLessonPath ?? null;
@@ -330,13 +324,10 @@ export function AgentChatPane({
   const pendingToolConfirmRef = useRef<ToolConfirmRequiredEvent | null>(null);
   const lastPersistedFingerprintRef = useRef("");
   const persistTimerRef = useRef<number | null>(null);
-  // 未送信の入力（本文＋添付）をプロジェクト（scopeId）単位でメモリ保持し、
-  // 別プロジェクトへ移動して戻った際に復元する。リロードでは失われる（ref のため）。
-  // 保持先はリマウントされない親（AgentPane）にあり、ここでは参照だけを持つ。
+  // 未送信の入力（本文＋添付）。フォーカス変更でリマウントしないため、
+  // 退避の仕組みは要らず state のまま保持される。
   const inputRef = useRef("");
   const attachmentsRef = useRef<AgentFileAttachment[]>([]);
-  const localDraftsRef = useRef<AgentChatDraftMap>(new Map());
-  const draftsRef = draftsRefProp ?? localDraftsRef;
 
   useEffect(() => {
     chatStorageRef.current = chatStorage;
@@ -382,10 +373,10 @@ export function AgentChatPane({
   }, []);
 
   const flushSessionToStorage = useCallback(
-    async (lessonId: string): Promise<boolean> => {
+    async (): Promise<boolean> => {
       const snapshot = buildStorageSnapshot();
       if (!snapshot) return true;
-      const ok = await saveScopeSession(lessonId, snapshot);
+      const ok = await saveAgentSession(snapshot);
       if (!ok) {
         setStorageWarning(
           "セッションの保存に失敗しました。容量不足の可能性があります。会話を続けると履歴が失われることがあります。",
@@ -414,11 +405,11 @@ export function AgentChatPane({
       );
       if (fingerprint === lastPersistedFingerprintRef.current) return;
 
-      void flushSessionToStorage(scopeId).then(() => {
+      void flushSessionToStorage().then(() => {
         lastPersistedFingerprintRef.current = fingerprint;
       });
     }, 800);
-  }, [flushSessionToStorage, scopeId]);
+  }, [flushSessionToStorage]);
 
   const scrollChatToBottom = useCallback(() => {
     const element = chatScrollRef.current;
@@ -553,43 +544,29 @@ export function AgentChatPane({
     if (sessionSwitchRef.current === null) return;
     if (!chatStorageRef.current) return;
     persistSession(messages, activeSkillId);
-  }, [messages, activeSkillId, scopeId, persistSession]);
+  }, [messages, activeSkillId, persistSession]);
 
   useEffect(() => {
     const handleBeforeUnload = () => {
       const snapshot = buildStorageSnapshot();
       if (!snapshot) return;
-      void saveScopeSession(scopeId, snapshot);
+      void saveAgentSession(snapshot);
     };
     window.addEventListener("beforeunload", handleBeforeUnload);
     return () => window.removeEventListener("beforeunload", handleBeforeUnload);
-  }, [buildStorageSnapshot, scopeId]);
+  }, [buildStorageSnapshot]);
 
-  // アンマウント（＝フォルダ切替）時の後始末。クロージャが見えるのは自分の
-  // scopeId と自分の state だけなので、他フォルダへ書く経路が存在しない。
+  // アンマウント時の後始末。フォーカス変更ではリマウントしないため、ここが走るのは
+  // 本当にペインが消えるときだけ。未送信入力は state のまま保持されるので退避しない。
   useEffect(() => {
-    // 親が保持する Map の実体はマウント中不変。cleanup 用に掴んでおく
-    const drafts = draftsRef.current;
     return () => {
       if (persistTimerRef.current !== null) {
         window.clearTimeout(persistTimerRef.current);
         persistTimerRef.current = null;
       }
-
-      // 未送信入力は親の Map に退避し、戻ってきたときに復元できるようにする
-      if (inputRef.current || attachmentsRef.current.length > 0) {
-        drafts.set(scopeId, {
-          input: inputRef.current,
-          attachments: attachmentsRef.current,
-        });
-      } else {
-        drafts.delete(scopeId);
-      }
-
-      // 完了はアンマウント後でよい。書き込み先は新旧で別ファイルなので競合しない
-      void flushSessionToStorage(scopeId);
+      void flushSessionToStorage();
     };
-  }, [draftsRef, flushSessionToStorage, scopeId]);
+  }, [flushSessionToStorage]);
 
   const loadContentFiles = useCallback(async () => {
     const params = new URLSearchParams({ scope: scopeId });
@@ -1009,32 +986,25 @@ export function AgentChatPane({
     [],
   );
 
-  // scopeId は key によるリマウントで固定されるため、この効果はマウント時に
-  // 1 度だけ走る。離脱側の保存は自分のアンマウント時に行う（下のクリーンアップ）。
+  // 保存先は単一なので、読み込むのはマウント時の 1 度だけ。
+  // **フォーカス変更で読み直さない** — 内容は同じで、実行中の会話の表示を失うだけになる。
+  // そのため scopeId を依存に入れてはいけない。
   useEffect(() => {
-
     let cancelled = false;
 
     void (async () => {
-      const storage = await loadScopeSession(scopeId);
+      const storage = await loadAgentSession();
       if (cancelled) return;
 
       setChatStorage(storage);
       applySessionState(storage.activeSessionId, storage);
       sessionSwitchRef.current = storage.activeSessionId;
-      // 戻ってきたプロジェクトの未送信入力を復元する（applySessionState の
-      // クリアより後に実行するため、下書きがあれば上書きされる）
-      const draft = draftsRef.current.get(scopeId);
-      if (draft) {
-        setInput(draft.input);
-        setAttachments(draft.attachments);
-      }
     })();
 
     return () => {
       cancelled = true;
     };
-  }, [applySessionState, draftsRef, scopeId]);
+  }, [applySessionState]);
 
   const handleSwitchSession = useCallback(
     (sessionId: string) => {
@@ -1050,7 +1020,7 @@ export function AgentChatPane({
       }
       persistSession(messages, activeSkillId);
       const next = switchSession(chatStorage, sessionId);
-      void saveScopeSession(scopeId, next);
+      void saveAgentSession(next);
       setChatStorage(next);
       applySessionState(sessionId, next);
       setHistoryOpen(false);
@@ -1076,7 +1046,7 @@ export function AgentChatPane({
     }
     persistSession(messages, activeSkillId);
     const next = addSession(chatStorage);
-    void saveScopeSession(scopeId, next);
+    void saveAgentSession(next);
     setChatStorage(next);
     applySessionState(next.activeSessionId, next);
     setHistoryOpen(false);
@@ -1095,7 +1065,7 @@ export function AgentChatPane({
       if (!chatStorage) return;
       const wasActive = sessionId === chatStorage.activeSessionId;
       const next = deleteSession(chatStorage, sessionId);
-      void saveScopeSession(scopeId, next);
+      void saveAgentSession(next);
       setChatStorage(next);
       if (wasActive) {
         applySessionState(next.activeSessionId, next);
@@ -1129,7 +1099,7 @@ export function AgentChatPane({
       editSessionTargetId,
       normalized,
     );
-    void saveScopeSession(scopeId, next);
+    void saveAgentSession(next);
     setChatStorage(next);
     llmTitleGeneratedSessionIdRef.current = editSessionTargetId;
     setEditSessionTargetId(null);

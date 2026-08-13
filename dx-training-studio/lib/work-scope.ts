@@ -1,8 +1,11 @@
 import { sanitizeFilename } from "@/lib/content-filename";
-import { LESSON_SESSION_FILENAME } from "@/lib/lesson-paths";
 
 /**
- * Agent 会話のスコープ。ペイン1〜3 のフォーカス階層と 1 対 1 で対応する。
+ * 作業スコープ。ペイン1〜3 のフォーカス階層と 1 対 1 で対応する。
+ *
+ * 用途は「相対パスの基準」「`@` 参照候補」「invoke への受け渡し」の 3 つ。
+ * **Agent 会話の保存先は決めない** — 保存先は単一（`lib/agent-session-store.ts` の
+ * `AGENT_SESSION_PATH`）で、フォーカスを変えても会話は切り替わらない。
  *
  * フォーカスは「下の階層があれば先頭へ降り、無ければその階層で止まる」規則で決まるため、
  * 下位が埋まっているのに上位で止まる状態は存在しない。したがって階層を表す判別フィールドは
@@ -66,15 +69,6 @@ export function parseWorkScope(raw: string): WorkScope | null {
     ...(course ? { course } : {}),
     ...(lesson ? { lesson } : {}),
   };
-}
-
-/**
- * スコープに対応する `session.json` の、`contents/` からの相対パス。
- * ino ではなくパスをキーにするのは、`contents/` が git 追跡下で他マシンへ渡るため。
- */
-export function workScopeSessionPath(scope: WorkScope): string {
-  const dir = serializeWorkScope(scope);
-  return dir ? `${dir}/${LESSON_SESSION_FILENAME}` : LESSON_SESSION_FILENAME;
 }
 
 /**

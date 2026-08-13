@@ -1,5 +1,6 @@
 # skills work folder
 /contents-work/runs/
+/contents-work/sessions/
 
 # dependencies
 node_modules/
@@ -23,7 +24,6 @@ next-env.d.ts
 # local storage
 /images/
 /local-db/
-contents/**/session.json
 
 # OpenSpec
 .claude/commands/opsx/

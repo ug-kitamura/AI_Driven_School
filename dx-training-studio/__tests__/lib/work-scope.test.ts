@@ -3,7 +3,6 @@ import {
   parseWorkScope,
   serializeWorkScope,
   workScopeLevel,
-  workScopeSessionPath,
 } from "@/lib/work-scope";
 
 describe("workScopeLevel", () => {
@@ -72,12 +71,3 @@ describe("parseWorkScope", () => {
   });
 });
 
-describe("workScopeSessionPath", () => {
-  it("各階層の session.json を指す", () => {
-    expect(
-      workScopeSessionPath({ series: "S", course: "C", lesson: "L" }),
-    ).toBe("S/C/L/session.json");
-    expect(workScopeSessionPath({ series: "S" })).toBe("S/session.json");
-    expect(workScopeSessionPath({})).toBe("session.json");
-  });
-});

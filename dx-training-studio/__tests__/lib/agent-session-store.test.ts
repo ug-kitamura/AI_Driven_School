@@ -3,20 +3,11 @@ import os from "node:os";
 import path from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import {
-  readScopeSessionFile,
-  writeScopeSessionFile,
+  AGENT_SESSION_PATH,
+  readAgentSessionFile,
+  writeAgentSessionFile,
 } from "@/lib/agent-session-store";
 import { createInitialStorage } from "@/lib/agent-chat-storage";
-
-const SERIES = "シリーズA";
-const COURSE = "コースB";
-const LESSON = "レッスンC";
-
-function makeContents(root: string, ...segments: string[]): string {
-  const dir = path.join(root, "contents", ...segments);
-  fs.mkdirSync(dir, { recursive: true });
-  return dir;
-}
 
 describe("agent-session-store", () => {
   let tmpDir: string;
@@ -27,97 +18,60 @@ describe("agent-session-store", () => {
     }
   });
 
-  it("レッスンスコープを contents 配下の session.json に書く", () => {
+  it("会話を contents-work/sessions/agent-chat.json に書く", () => {
     tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "dx-session-"));
-    const lessonDir = makeContents(tmpDir, SERIES, COURSE, LESSON);
     const storage = createInitialStorage();
-    const scope = { series: SERIES, course: COURSE, lesson: LESSON };
 
-    writeScopeSessionFile(tmpDir, scope, storage);
+    writeAgentSessionFile(storage, tmpDir);
 
-    expect(fs.existsSync(path.join(lessonDir, "session.json"))).toBe(true);
-    expect(readScopeSessionFile(tmpDir, scope)?.activeSessionId).toBe(
+    expect(fs.existsSync(path.join(tmpDir, AGENT_SESSION_PATH))).toBe(true);
+    expect(readAgentSessionFile(tmpDir)?.activeSessionId).toBe(
       storage.activeSessionId,
     );
   });
 
-  it("コーススコープとレッスンスコープは別ファイルになる", () => {
+  it("保存先ディレクトリが無ければ作る", () => {
     tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "dx-session-"));
-    makeContents(tmpDir, SERIES, COURSE, LESSON);
-    const courseScope = { series: SERIES, course: COURSE };
-    const lessonScope = { series: SERIES, course: COURSE, lesson: LESSON };
+    expect(fs.existsSync(path.join(tmpDir, "contents-work"))).toBe(false);
 
-    const courseStorage = createInitialStorage();
-    const lessonStorage = createInitialStorage();
-    writeScopeSessionFile(tmpDir, courseScope, courseStorage);
-    writeScopeSessionFile(tmpDir, lessonScope, lessonStorage);
+    writeAgentSessionFile(createInitialStorage(), tmpDir);
 
-    expect(readScopeSessionFile(tmpDir, courseScope)?.activeSessionId).toBe(
-      courseStorage.activeSessionId,
-    );
-    expect(readScopeSessionFile(tmpDir, lessonScope)?.activeSessionId).toBe(
-      lessonStorage.activeSessionId,
-    );
-    expect(courseStorage.activeSessionId).not.toBe(
-      lessonStorage.activeSessionId,
-    );
+    expect(fs.existsSync(path.join(tmpDir, AGENT_SESSION_PATH))).toBe(true);
   });
 
-  it("シリーズスコープを contents/<シリーズ>/session.json に書く", () => {
+  it("contents/ 配下には書かない（教材ツリーを汚さない）", () => {
     tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "dx-session-"));
-    const seriesDir = makeContents(tmpDir, SERIES);
-    const scope = { series: SERIES };
 
-    writeScopeSessionFile(tmpDir, scope, createInitialStorage());
+    writeAgentSessionFile(createInitialStorage(), tmpDir);
 
-    expect(fs.existsSync(path.join(seriesDir, "session.json"))).toBe(true);
+    expect(fs.existsSync(path.join(tmpDir, "contents"))).toBe(false);
   });
 
-  it("シリーズ 0 件でも contents 直下に書ける", () => {
+  it("書き込みは同じ 1 本を上書きし、履歴が分岐しない", () => {
     tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "dx-session-"));
-    const storage = createInitialStorage();
+    const first = createInitialStorage();
+    const second = createInitialStorage();
 
-    writeScopeSessionFile(tmpDir, {}, storage);
+    writeAgentSessionFile(first, tmpDir);
+    writeAgentSessionFile(second, tmpDir);
 
-    expect(fs.existsSync(path.join(tmpDir, "contents", "session.json"))).toBe(
-      true,
+    expect(readAgentSessionFile(tmpDir)?.activeSessionId).toBe(
+      second.activeSessionId,
     );
-    expect(readScopeSessionFile(tmpDir, {})?.activeSessionId).toBe(
-      storage.activeSessionId,
-    );
+    expect(first.activeSessionId).not.toBe(second.activeSessionId);
   });
 
-  it("フォルダをリネームしても session.json が一緒に移動するため履歴が残る", () => {
+  it("保存先が無い場合の読み取りは null を返す", () => {
     tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "dx-session-"));
-    makeContents(tmpDir, SERIES, COURSE, LESSON);
-    const storage = createInitialStorage();
-    writeScopeSessionFile(
-      tmpDir,
-      { series: SERIES, course: COURSE, lesson: LESSON },
-      storage,
-    );
-
-    // ディスク上のリネーム（session.json はフォルダの中にあるので付いてくる）
-    const courseDir = path.join(tmpDir, "contents", SERIES, COURSE);
-    fs.renameSync(path.join(courseDir, LESSON), path.join(courseDir, "改名後"));
-
-    const loaded = readScopeSessionFile(tmpDir, {
-      series: SERIES,
-      course: COURSE,
-      lesson: "改名後",
-    });
-    expect(loaded?.activeSessionId).toBe(storage.activeSessionId);
+    expect(readAgentSessionFile(tmpDir)).toBeNull();
   });
 
-  it("存在しないスコープの読み取りは null を返す", () => {
+  it("壊れた JSON は null を返す（例外を投げない）", () => {
     tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "dx-session-"));
-    expect(readScopeSessionFile(tmpDir, { series: "無い" })).toBeNull();
-  });
+    const target = path.join(tmpDir, AGENT_SESSION_PATH);
+    fs.mkdirSync(path.dirname(target), { recursive: true });
+    fs.writeFileSync(target, "{ broken", "utf-8");
 
-  it("コンテンツのディレクトリが無い場合は書き込まず Scope not found を投げる", () => {
-    tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "dx-session-"));
-    expect(() =>
-      writeScopeSessionFile(tmpDir, { series: "無い" }, createInitialStorage()),
-    ).toThrow(/Scope not found/);
+    expect(readAgentSessionFile(tmpDir)).toBeNull();
   });
 });

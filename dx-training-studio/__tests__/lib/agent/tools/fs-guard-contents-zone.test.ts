@@ -244,6 +244,21 @@ describe("checkContentsWritePath（正本ツリーの書込規約）", () => {
     expect(resolved).not.toHaveProperty("error");
   });
 
+  it("contents-work/sessions/ への書込は拒否される", () => {
+    const resolved = writeTarget("contents-work/sessions/agent-chat.json");
+    expect(resolved).toHaveProperty("error");
+  });
+
+  it("contents-work/sessions/ 配下は名前によらず拒否される", () => {
+    const resolved = writeTarget("contents-work/sessions/any-other-name.json");
+    expect(resolved).toHaveProperty("error");
+  });
+
+  it("contents-work/plans/ は sessions と紛らわしくても許可される", () => {
+    const resolved = writeTarget("contents-work/plans/sessions-memo.md");
+    expect(resolved).not.toHaveProperty("error");
+  });
+
   it("contents ゾーン以外は素通しする", () => {
     const outcome = checkContentsWritePath({
       absolutePath: path.join(PROJECT_ROOT, "contents-work", "a.md"),

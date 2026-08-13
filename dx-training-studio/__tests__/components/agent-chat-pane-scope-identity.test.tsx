@@ -6,25 +6,22 @@ import {
   cleanup,
   fireEvent,
 } from "@testing-library/react";
-import { useRef } from "react";
 import { AgentChatPane } from "@/components/workspace/AgentChatPane";
-import type { AgentChatDraftMap } from "@/components/workspace/agent-chat-draft";
 import type {
   AgentChatSession,
   AgentChatStorage,
 } from "@/lib/agent-chat-storage";
 
-/** どの scopeKey のセッションかを session id の接頭辞で判別できるようにする。 */
-function makeSession(scopeKey: string, suffix: string): AgentChatSession {
+function makeSession(suffix: string): AgentChatSession {
   const now = new Date().toISOString();
   return {
-    id: `${scopeKey}--${suffix}`,
-    title: `${scopeKey} の会話`,
+    id: `session--${suffix}`,
+    title: "保存済みの会話",
     messages: [
       {
-        id: `${scopeKey}--msg`,
+        id: `msg--${suffix}`,
         role: "user",
-        content: `${scopeKey} で送ったメッセージ`,
+        content: "保存済みのメッセージ",
         createdAt: now,
       },
     ],
@@ -34,78 +31,55 @@ function makeSession(scopeKey: string, suffix: string): AgentChatSession {
   };
 }
 
-function makeStorage(scopeKey: string): AgentChatStorage {
-  const session = makeSession(scopeKey, "s1");
+function makeStorage(): AgentChatStorage {
+  const session = makeSession("s1");
   return { version: 1, activeSessionId: session.id, sessions: [session] };
 }
 
-type SavedCall = { scopeKey: string; storage: AgentChatStorage };
-
-let saved: SavedCall[];
-let stored: Record<string, AgentChatStorage>;
+let saved: AgentChatStorage[];
+let stored: AgentChatStorage | null;
+let loadCount: number;
 
 function installFetch() {
   vi.stubGlobal(
     "fetch",
     vi.fn(async (input: string, init?: RequestInit) => {
-      if (input.startsWith("/api/agent/session?")) {
-        const scopeKey = decodeURIComponent(
-          new URL(input, "http://localhost").searchParams.get("scope") ?? "",
-        );
+      if (input === "/api/agent/session") {
         if (init?.method === "PUT") {
           const storage = JSON.parse(String(init.body)) as AgentChatStorage;
-          saved.push({ scopeKey, storage });
-          stored[scopeKey] = storage;
+          saved.push(storage);
+          stored = storage;
           return { ok: true, json: async () => ({ ok: true }) };
         }
-        const existing = stored[scopeKey];
-        if (!existing) {
+        loadCount += 1;
+        if (!stored) {
           return { ok: false, status: 404, json: async () => ({}) };
         }
-        return { ok: true, json: async () => existing };
+        const snapshot = stored;
+        return { ok: true, json: async () => snapshot };
       }
       return { ok: true, json: async () => ({}) };
     }),
   );
 }
 
-/** AgentPane と同じく key でリマウントし、下書きを外側で保持するラッパー。 */
+/** ペイン4 と同じ描画。key を渡さない（フォーカス変更でリマウントしない）。 */
 function Harness({ scopeKey }: { scopeKey: string }) {
-  const draftsRef = useRef<AgentChatDraftMap>(new Map());
   return (
     <AgentChatPane
-      key={scopeKey}
       scopeKey={scopeKey}
       currentFilePath={null}
       onOpenSettings={() => {}}
-      draftsRef={draftsRef}
       skills={[]}
     />
   );
 }
 
-/**
- * 不変条件: どのフォルダへの保存も、そのフォルダに属する session id しか含まない。
- * session id は `<scopeKey>--<suffix>` の形にしてあるので所有者を判定できる。
- */
-function assertNoForeignSessions(calls: SavedCall[]) {
-  for (const call of calls) {
-    for (const session of call.storage.sessions) {
-      const owner = session.id.includes("--")
-        ? session.id.split("--")[0]
-        : call.scopeKey;
-      expect(
-        owner === call.scopeKey,
-        `${call.scopeKey} の保存に ${owner} のセッション (${session.id}) が混入した`,
-      ).toBe(true);
-    }
-  }
-}
-
-describe("AgentChatPane の作業スコープ同一性", () => {
+describe("AgentChatPane はフォーカス変更でセッションを切り替えない", () => {
   beforeEach(() => {
     saved = [];
-    stored = { "proj-a": makeStorage("proj-a") };
+    stored = makeStorage();
+    loadCount = 0;
     installFetch();
   });
 
@@ -115,57 +89,59 @@ describe("AgentChatPane の作業スコープ同一性", () => {
     vi.restoreAllMocks();
   });
 
-  it("未使用フォルダへ切り替えても前フォルダの会話が残らない", async () => {
-    const view = render(<Harness scopeKey="proj-a" />);
-    expect(await screen.findByText("proj-a で送ったメッセージ")).toBeVisible();
+  it("スコープが変わっても表示中の会話が残る", async () => {
+    const view = render(<Harness scopeKey="シリーズA/コースB/レッスンC" />);
+    expect(await screen.findByText("保存済みのメッセージ")).toBeVisible();
 
-    view.rerender(<Harness scopeKey="proj-b" />);
+    view.rerender(<Harness scopeKey="シリーズX" />);
 
-    // 読み込みの往復を待たず、切替と同時に消えていること。
-    // 非同期ロードの完了待ちで前フォルダの会話が残る状態を弾く。
-    expect(
-      screen.queryByText("proj-a で送ったメッセージ"),
-    ).not.toBeInTheDocument();
-
-    await waitFor(() => {
-      expect(saved.some((call) => call.scopeKey === "proj-a")).toBe(true);
-    });
-    assertNoForeignSessions(saved);
+    expect(screen.getByText("保存済みのメッセージ")).toBeVisible();
   });
 
-  it("切替直後に新規会話を実行しても他フォルダのセッションを書き込まない", async () => {
-    const view = render(<Harness scopeKey="proj-a" />);
-    await screen.findByText("proj-a で送ったメッセージ");
+  it("スコープが変わってもセッションを読み直さない", async () => {
+    const view = render(<Harness scopeKey="シリーズA/コースB/レッスンC" />);
+    await screen.findByText("保存済みのメッセージ");
+    expect(loadCount).toBe(1);
 
-    // セッション読み込みの完了を待たずに新規会話を実行する（破損の再現経路）
-    view.rerender(<Harness scopeKey="proj-b" />);
-    fireEvent.click(screen.getByRole("button", { name: /新規/ }));
+    view.rerender(<Harness scopeKey="シリーズX" />);
+    view.rerender(<Harness scopeKey="シリーズY/コースZ" />);
 
+    // 読み直すと実行中の会話の表示を失うため、マウント時の 1 回だけであること
     await waitFor(() => {
-      expect(saved.length).toBeGreaterThan(0);
+      expect(loadCount).toBe(1);
     });
-    assertNoForeignSessions(saved);
-    expect(stored["proj-b"]?.sessions ?? []).not.toContainEqual(
-      expect.objectContaining({ id: expect.stringContaining("proj-a") }),
-    );
   });
 
-  it("下書きは往復で復元され、別フォルダには漏れない", async () => {
-    const view = render(<Harness scopeKey="proj-a" />);
-    await screen.findByText("proj-a で送ったメッセージ");
+  it("スコープが変わっても未送信の入力が消えない", async () => {
+    const view = render(<Harness scopeKey="シリーズA/コースB/レッスンC" />);
+    await screen.findByText("保存済みのメッセージ");
 
     fireEvent.change(screen.getByRole("textbox"), {
       target: { value: "書きかけ" },
     });
 
-    view.rerender(<Harness scopeKey="proj-b" />);
-    await waitFor(() => {
-      expect(screen.getByRole("textbox")).toHaveValue("");
-    });
+    view.rerender(<Harness scopeKey="シリーズX" />);
 
-    view.rerender(<Harness scopeKey="proj-a" />);
+    expect(screen.getByRole("textbox")).toHaveValue("書きかけ");
+  });
+
+  it("保存はスコープを問わず同じ 1 本へ書く", async () => {
+    const view = render(<Harness scopeKey="シリーズA/コースB/レッスンC" />);
+    await screen.findByText("保存済みのメッセージ");
+
+    view.rerender(<Harness scopeKey="シリーズX" />);
+    fireEvent.click(screen.getByRole("button", { name: /新規/ }));
+
     await waitFor(() => {
-      expect(screen.getByRole("textbox")).toHaveValue("書きかけ");
+      expect(saved.length).toBeGreaterThan(0);
     });
+    // 保存先はクエリを持たない単一エンドポイント。スコープ別のファイルは生まれない
+    const fetchMock = globalThis.fetch as unknown as {
+      mock: { calls: [string, RequestInit?][] };
+    };
+    const sessionCalls = fetchMock.mock.calls
+      .map(([url]) => url)
+      .filter((url) => url.startsWith("/api/agent/session"));
+    expect(sessionCalls.every((url) => url === "/api/agent/session")).toBe(true);
   });
 });

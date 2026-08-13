@@ -30,6 +30,8 @@ TBD - created by archiving change port-ebex-agent-core. Update Purpose after arc
 - `session.json` および `.meta.json` — アプリが管理する。agent が書くと安定 id や表示順が壊れる
 - `contents.md` のうち、レッスン階層（`contents/<シリーズ>/<コース>/<レッスン>/`）**以外**に置かれるもの — 偽のレッスン本文になるため
 
+**作業ファイルのルートでは、`contents-work/sessions/` 配下への書込を拒否しなければならない（SHALL）。** ここは agent 自身の会話履歴の保存先であり、agent が書くと実行中の会話が壊れる。判定は**ディレクトリ単位**で行わなければならない（SHALL）——ファイル名で判定すると、保存形式が変わったときに保護が漏れる。`contents-work/` のそれ以外の配下（`plans/` `runs/`）への書込は許可しなければならない（SHALL）。
+
 ディレクトリ作成の深さによって書込を拒否してはならない（MUST NOT）——新しいシリーズ・コース・レッスンのフォルダを伴う書込は正当である。フォルダが新しく生まれる場合の実行前確認は `agent-confirm-gate` が規定する。
 
 拒否時のエラーメッセージは、拒否の理由・代替（別名にするか `contents-work/` 配下へ書く）・拒否された実際のパスを含まなければならない（SHALL）。
@@ -72,6 +74,14 @@ frontmatter のスキーマ検査は本要件の範囲外である——アプ�
 #### Scenario: session.json への書込は拒否される
 - **WHEN** `write_file` が `contents/シリーズA/コースB/レッスンC/session.json` を対象に実行される
 - **THEN** エラー結果が返り、ファイルは書き換えられない
+
+#### Scenario: 会話履歴の保存先への書込は拒否される
+- **WHEN** `write_file` が `contents-work/sessions/agent-chat.json` を対象に実行される
+- **THEN** エラー結果が返り、ファイルは書き換えられない
+
+#### Scenario: 会話履歴のディレクトリ配下は名前によらず拒否される
+- **WHEN** `write_file` が `contents-work/sessions/any-other-name.json` を対象に実行される
+- **THEN** エラー結果が返り、ファイルは作られない
 
 #### Scenario: 新しいシリーズを伴うレッスン本文の書込は規約上は許可される
 - **WHEN** `write_file` が、いずれの階層も未作成の `contents/新シリーズ/新コース/新レッスン/contents.md` を対象に実行される

@@ -3,6 +3,19 @@ name: dx-training-create
 description: |
   トレーニング計画書をもとに、レッスンの本文草稿を `contents/` に生成するスキル。設計メモで内容を詰め、1レッスンずつ執筆する。
   「レッスンの草稿を作って」「レッスン本文を書いて」「コースの中身を作って」「計画書からレッスンを生成して」「レッスンを執筆して」と依頼された際に使用する。
+tools:
+  - list_files
+  - glob_files
+  - read_file
+  - search_content
+  - write_file
+  - mkdir
+  - generate_and_write
+  - replace_in_file
+  - web_search
+  - search_company_context
+  - select_company_context
+  - run_isolated_task
 ---
 
 # レッスン草稿作成スキル
@@ -228,7 +241,7 @@ CJK 幅で枠が多少ずれても構わない。**接続の向きと、確定�
 - **`contracts/` を変更しない**
 - **`references/design-principles.md` を変更しない**
 - 出力は日本語
-- 理想環境（Claude Code・強いモデル）を前提にする。Studio の Pane4 Agent では動かない
+- **品質が最大になるのは理想環境**（Claude Code・強いモデル）。Studio の Pane4 でも動くが、ホストが機能を落とす箇所がある（→ [`contracts/agent-write-contract.md`](../../../contracts/agent-write-contract.md)）。**Pane4 では `.meta.json` を書けない**ので、`order` と `target` は人がペイン1・2 で直す
 
 ## references
 

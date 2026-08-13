@@ -2,7 +2,7 @@
 series: Git基礎シリーズ
 course: Git基本操作コース
 lesson: 最初のコミット
-status: in_progress
+status: done
 description: 練習用リポジトリで add と commit の流れを通し、生成物を.gitignoreで除外できるようになる
 tags: [git, basics]
 estimated_minutes: 15

@@ -2,7 +2,7 @@
 series: Git基礎シリーズ
 course: Git概念コース
 lesson: Gitの三大エリア
-status: in_progress
+status: done
 description: 作業ツリー・ステージ・リポジトリの3つの場所を地図として持ち、変更がどこにあるかを説明できるようになる
 tags: [git, concepts]
 estimated_minutes: 15

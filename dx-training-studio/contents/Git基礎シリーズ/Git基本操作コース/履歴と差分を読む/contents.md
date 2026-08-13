@@ -2,7 +2,7 @@
 series: Git基礎シリーズ
 course: Git基本操作コース
 lesson: 履歴と差分を読む
-status: in_progress
+status: done
 description: status・log・diffの3つを使い分けて、いま何がどうなっているかを自分で確かめられるようになる
 tags: [git, basics]
 estimated_minutes: 15

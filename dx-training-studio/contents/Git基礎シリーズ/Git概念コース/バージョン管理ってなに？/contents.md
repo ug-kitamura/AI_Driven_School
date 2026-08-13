@@ -2,7 +2,7 @@
 series: Git基礎シリーズ
 course: Git概念コース
 lesson: バージョン管理ってなに？
-status: in_progress
+status: done
 description: 「最終版2」が並ぶフォルダを入口に、バージョン管理が必要な理由を3つ挙げられるようになる
 tags: [git, concepts]
 estimated_minutes: 15

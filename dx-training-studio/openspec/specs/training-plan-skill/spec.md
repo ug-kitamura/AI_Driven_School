@@ -3,9 +3,7 @@
 ## Purpose
 
 目的から逆算してトレーニング構成をゼロから設計し、シリーズ / コース / レッスンの構成と仕様を計画書として出力する `dx-training-plan` Agent スキルの要件を規定する。対話フェーズの順序、トレーニング構成と曼陀羅構成の優先順位、計画書の章立て、`references/` の役割分担を定める。あわせて、要求と供給の突き合わせ・変更に伴う再チェック・計画書の自己レビューという検証の責任も定める。
-
 ## Requirements
-
 ### Requirement: 計画スキルの存在とパッケージ構成
 `dx-training-plan` スキルが `dx-training-studio/.claude/skills/dx-training-plan/SKILL.md` に存在しなければならない（SHALL）。スキルは `SKILL.md` と `references/` からなる標準構成を取らなければならず（SHALL）、`references/` には設計原則・曼陀羅ガイド・計画書テンプレート・検証手順を配置しなければならない（SHALL）。`SKILL.md` は各 `references/` への参照に留め、参照先の内容を重複して記述してはならない（SHALL NOT）。
 
@@ -71,7 +69,7 @@
 - **THEN** 曼陀羅の分岐・合流の具体案を提示しない
 
 ### Requirement: 既存構成の把握
-スキルは既存のトレーニング構成を `contents/` 配下のファイルを読んで把握しなければならない（SHALL）。既存の計画書（`contents-plan/plans/` 配下）が存在する場合はそれも読まなければならない（SHALL）。Studio 固有の変数注入機構に依存してはならない（SHALL NOT）。新しい計画が既存構成とどう並ぶか、またはどこを置き換えるかを検討しなければならない（SHALL）。
+スキルは既存のトレーニング構成を `contents/` 配下のファイルを読んで把握しなければならない（SHALL）。既存の計画書（`contents-work/plans/` 配下）が存在する場合はそれも読まなければならない（SHALL）。Studio 固有の変数注入機構に依存してはならない（SHALL NOT）。新しい計画が既存構成とどう並ぶか、またはどこを置き換えるかを検討しなければならない（SHALL）。
 
 既存計画書を土台にする場合、スキルはフェーズ0として、フェーズ1の各項目が既存計画書で埋まっているかを判定しなければならない（SHALL）。**埋まっている項目を黙って引き継いではならない（SHALL NOT）。** 引き継ぐ内容を要約して提示し、確認を取らなければならない（SHALL）。空の項目はフェーズ1の作法で個別に問わなければならない（SHALL）。
 
@@ -80,7 +78,7 @@
 - **THEN** 配下のディレクトリと `.meta.json` を読んで既存のシリーズ・コース・レッスン構成を把握する
 
 #### Scenario: 既存計画書を読み取る
-- **WHEN** スキルが起動し、`contents-plan/plans/` に既存の計画書が存在する
+- **WHEN** スキルが起動し、`contents-work/plans/` に既存の計画書が存在する
 - **THEN** その計画書を読み、フェーズ1の各項目に対応する記述の有無を判定する
 
 #### Scenario: 引き継ぐ前提の確認を取る
@@ -103,14 +101,14 @@
 - **THEN** 変更を実行せず、提案として提示する
 
 ### Requirement: 計画書の出力
-スキルは合意された構成を計画書として markdown で出力しなければならない（SHALL）。計画書は `contents-plan/plans/<yyyymmdd>-<slug>.md` に出力しなければならない（SHALL）。計画書は `references/plan-template.md` が定める章立てに従わなければならない（SHALL）。時間予算の集計と、決定の根拠および却下した案を省略してはならない（SHALL NOT）。構成はアスキーアートで示さなければならない（SHALL）。
+スキルは合意された構成を計画書として markdown で出力しなければならない（SHALL）。計画書は `contents-work/plans/<yyyymmdd>-<slug>.md` に出力しなければならない（SHALL）。計画書は `references/plan-template.md` が定める章立てに従わなければならない（SHALL）。時間予算の集計と、決定の根拠および却下した案を省略してはならない（SHALL NOT）。構成はアスキーアートで示さなければならない（SHALL）。
 
 レッスン仕様には、画像素材が AI 生成・フリー素材で用意できるものか、人手による撮影または録画が必要なものかの区別を記さなければならない（SHALL）。人手が必要なレッスンの本数を制作体制の章で積算しなければならない（SHALL）。個々の画像の指示内容を計画書に記述してはならない（SHALL NOT）。
 
 #### Scenario: 計画書を出力する
 - **WHEN** ユーザーがフェーズ3の内容を承認する
 - **THEN** `references/plan-template.md` の章立てに従った計画書を markdown で出力する
-- **AND** 出力先は `contents-plan/plans/<yyyymmdd>-<slug>.md` である
+- **AND** 出力先は `contents-work/plans/<yyyymmdd>-<slug>.md` である
 
 #### Scenario: 構成を図で示す
 - **WHEN** 計画書に全体構造と曼陀羅構成を記載する
@@ -271,3 +269,4 @@
 
 - **WHEN** レッスン草稿作成スキルが計画書をもとに `contents/` へ出力する
 - **THEN** 出力先のシリーズ名・コース名・レッスン名は計画書の記載と一致する
+

@@ -183,21 +183,21 @@
 
 ### Requirement: 計画書の入力とユーザーによる選択
 
-スキルは計画書を `contents-plan/plans/` 配下から読み込まなければならない（SHALL）。複数の計画書が存在する場合、**どれを使うかをユーザーに選ばせなければならない**（SHALL）。最新の 1 本を自動的に選んではならない（SHALL NOT）。
+スキルは計画書を `contents-work/plans/` 配下から読み込まなければならない（SHALL）。複数の計画書が存在する場合、**どれを使うかをユーザーに選ばせなければならない**（SHALL）。最新の 1 本を自動的に選んではならない（SHALL NOT）。
 
 #### Scenario: 計画書を選ばせる
 
-- **WHEN** `contents-plan/plans/` に複数の計画書が存在する状態でスキルが起動する
+- **WHEN** `contents-work/plans/` に複数の計画書が存在する状態でスキルが起動する
 - **THEN** 候補が一覧で提示され、ユーザーが 1 本を選ぶまで先に進まない
 
 #### Scenario: 計画書が 1 本しかない
 
-- **WHEN** `contents-plan/plans/` に計画書が 1 本だけ存在する
+- **WHEN** `contents-work/plans/` に計画書が 1 本だけ存在する
 - **THEN** その 1 本を対象として確認を取る
 
 #### Scenario: 計画書が存在しない
 
-- **WHEN** `contents-plan/plans/` に計画書が存在しない
+- **WHEN** `contents-work/plans/` に計画書が存在しない
 - **THEN** 計画書がない旨を報告し、`dx-training-plan` の実行を促す
 
 ### Requirement: フェーズ1で名前と slug の確認ゲートを通す
@@ -232,9 +232,9 @@
 
 ### Requirement: 設計メモの出力
 
-執筆の前に設計メモを出力し、ユーザーの承認を得なければならない（SHALL）。設計メモは `contents-plan/runs/<yyyymmdd>-<slug>/design-note.md` に出力しなければならない（SHALL）。範囲（全体 / シリーズ / コース / レッスン）に応じてファイル名を変えてはならない（SHALL NOT）——範囲と対象は run ディレクトリ名が表す（`contents-plan-layout` を参照）。設計メモは**要求と供給の突き合わせを兼ねなければならない**（SHALL）。
+執筆の前に設計メモを出力し、ユーザーの承認を得なければならない（SHALL）。設計メモは `contents-work/runs/<yyyymmdd>-<slug>/design-note.md` に出力しなければならない（SHALL）。範囲（全体 / シリーズ / コース / レッスン）に応じてファイル名を変えてはならない（SHALL NOT）——範囲と対象は run ディレクトリ名が表す（`contents-work-layout` を参照）。設計メモは**要求と供給の突き合わせを兼ねなければならない**（SHALL）。
 
-`contents-plan/runs/` は git の追跡対象外である。設計メモに書かれた社内素材の作業リストを別の環境へ渡す手段は問わないが、**チャットに流して済ませてはならない**（SHALL NOT）——ファイルとして残らなければ届かない。
+`contents-work/runs/` は git の追跡対象外である。設計メモに書かれた社内素材の作業リストを別の環境へ渡す手段は問わないが、**チャットに流して済ませてはならない**（SHALL NOT）——ファイルとして残らなければ届かない。
 
 > **2026-08-11 の変更**: 旧要件は出力先を `docs/<yyyymmdd>/` とし、範囲別に4種のファイル名（`overall.md` / `{シリーズslug}.md` / `{シリーズslug}-{コースslug}.md` / `{シリーズslug}-{コースslug}-{レッスンslug}.md`）を使い分け、同日再実行時に既存の最大連番+1 を付けることを求めていた。識別子を run ディレクトリ名が持つ方式に変更したため、いずれも不要となり削除した。経緯は archive の `adopt-contents-plan-layout/design.md` D2 を参照。
 
@@ -243,7 +243,7 @@
 - **WHEN** 情報収集フェーズが終わる
 - **THEN** 設計メモ案が提示される
 - **AND** ユーザーが承認するまで本文の執筆に進まない
-- **AND** 承認された設計メモは `contents-plan/runs/<yyyymmdd>-<slug>/design-note.md` に書き出される
+- **AND** 承認された設計メモは `contents-work/runs/<yyyymmdd>-<slug>/design-note.md` に書き出される
 
 #### Scenario: 範囲によらず同じファイル名を使う
 
@@ -252,7 +252,7 @@
 
 #### Scenario: 同日に再実行する
 
-- **WHEN** `contents-plan/runs/20260806-start-setup/` が既に存在する状態で同じコースを再実行する
+- **WHEN** `contents-work/runs/20260806-start-setup/` が既に存在する状態で同じコースを再実行する
 - **THEN** 別の run ディレクトリが作られ、その中に `design-note.md` が出力される
 - **AND** 既存の run ディレクトリの `design-note.md` は上書きされない
 
@@ -420,7 +420,7 @@ outbox を書き出した時点と run の終了時に、**dx-training-studio �
 
 ### Requirement: 同一シリーズの用語とたとえを run をまたいで引き継ぐ
 
-設計メモを作る際、スキルは `contents-plan/runs/` 配下の**同一シリーズを対象とした過去の設計メモを探して読まなければならない**（SHALL）。見つかった場合、そこで固定された用語の呼び名とたとえの体系を**引き継がなければならない**（SHALL）。引き継いだ内容は今回の設計メモにも記さなければならない（SHALL）。
+設計メモを作る際、スキルは `contents-work/runs/` 配下の**同一シリーズを対象とした過去の設計メモを探して読まなければならない**（SHALL）。見つかった場合、そこで固定された用語の呼び名とたとえの体系を**引き継がなければならない**（SHALL）。引き継いだ内容は今回の設計メモにも記さなければならない（SHALL）。
 
 過去の設計メモが存在しない場合は、引き継ぎを行わずに進めなければならない（SHALL）。これを異常として扱ってはならない（SHALL NOT）。
 
@@ -433,7 +433,7 @@ outbox を書き出した時点と run の終了時に、**dx-training-studio �
 
 #### Scenario: そのシリーズの初回実行
 
-- **WHEN** `contents-plan/runs/` に同一シリーズを対象とした設計メモが存在しない
+- **WHEN** `contents-work/runs/` に同一シリーズを対象とした設計メモが存在しない
 - **THEN** 引き継ぎを行わずに設計メモを作成する
 
 ### Requirement: 1レッスンごとに設計メモと突き合わせる

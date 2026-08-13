@@ -5,9 +5,9 @@ TBD - created by archiving change port-ebex-agent-core. Update Purpose after arc
 ## Requirements
 ### Requirement: agent 書込契約の正本
 
-`contracts/agent-write-contract.md` が存在し、agent の書込境界・確認フロー・スキル作者向けの制約と作法を規定する正本でなければならない（SHALL）。書込境界は `contents-plan/`（作業ファイル）と `contents/`（レッスン草稿の着地）の **2 ルートのみ**を許可しなければならない（SHALL）。`workspace/` を許可ルートとして記載してはならない（MUST NOT）——移行期間中の暫定ルートは `retire-workspace-folder` で削除済み。`docs/` への書込を許可してはならない（SHALL NOT）。ペイン4 agent の system プロンプトおよびスキルは、制約の内容を再掲せず本契約を参照しなければならない（SHALL）。EBEX の契約文書（`ebex-skill-contract.md`）を取り込んではならない（MUST NOT）。
+`contracts/agent-write-contract.md` が存在し、agent の書込境界・確認フロー・スキル作者向けの制約と作法を規定する正本でなければならない（SHALL）。書込境界は `contents-work/`（作業ファイル）と `contents/`（レッスン草稿の着地）の **2 ルートのみ**を許可しなければならない（SHALL）。`workspace/` を許可ルートとして記載してはならない（MUST NOT）——移行期間中の暫定ルートは `retire-workspace-folder` で削除済み。`docs/` への書込を許可してはならない（SHALL NOT）。ペイン4 agent の system プロンプトおよびスキルは、制約の内容を再掲せず本契約を参照しなければならない（SHALL）。EBEX の契約文書（`ebex-skill-contract.md`）を取り込んではならない（MUST NOT）。
 
-契約は中間生成物の置き場を「案件フォルダ」ではなく run ディレクトリ（`contents-plan/runs/<run>/`）として記述しなければならない（SHALL）。
+契約は中間生成物の置き場を「案件フォルダ」ではなく run ディレクトリ（`contents-work/runs/<run>/`）として記述しなければならない（SHALL）。
 
 契約は正本ツリーへの書込条件を、**予約された名前だけを拒否する**形で記述しなければならない（SHALL）——アプリが管理するファイル（各階層のメタ情報・セッション）と、レッスン階層以外に置かれたレッスン本文の予約名。それ以外のファイルは階層を問わず書けることを記述しなければならない（SHALL）。ディレクトリ作成の深さによる制限として記述してはならない（MUST NOT）。契約は、新しいシリーズ・コース・レッスンが生まれる書込に実行前のユーザー確認が入ることを確認フローの節に記述しなければならない（SHALL）。
 
@@ -20,7 +20,7 @@ TBD - created by archiving change port-ebex-agent-core. Update Purpose after arc
 #### Scenario: 契約文書が存在する
 - **WHEN** `contracts/agent-write-contract.md` を開く
 - **THEN** 書込境界・確認ゲート・スキル作者向け制約が記載されている
-- **AND** 許可されるルートとして `contents-plan/` と `contents/` のみが明記されている
+- **AND** 許可されるルートとして `contents-work/` と `contents/` のみが明記されている
 
 #### Scenario: 暫定ルートの記述が残っていない
 - **WHEN** 契約文書を検索する
@@ -54,3 +54,4 @@ TBD - created by archiving change port-ebex-agent-core. Update Purpose after arc
 #### Scenario: 後続 change の予告が残っていない
 - **WHEN** 契約文書を検索する
 - **THEN** スキーマ検査・構造分類を後続 change が担うという記述が存在しない
+

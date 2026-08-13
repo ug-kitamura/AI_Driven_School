@@ -12,11 +12,8 @@
 [次] 検証実行で見つかった課題への対応              ← 主線。2章
        課題5件の聞き取りと方針決定は 2026-08-13 完了。
        ① TTL 延長  実装済み（両リポ・未コミット）
-       ② リネーム  実装済み・未 archive（未コミット）
-          → 次にやるのは `openspec archive contents-work-rename -y`
-       ③ セッション一本化は ② の archive 後に propose する
-       （delta の土台になる contents-work-layout が ② の
-        archive で生まれるため。5.1 の archive 順序の罠）。
+       ② リネーム  実装・archive とも完了（未コミット）
+       ③ セッション一本化 ← 次はこれ。propose から
        A 側（L01 情緒要件・画像密度規定）は別系統で続く
 
 [次] 曼陀羅の辺#2 を張る（人の作業・すぐ終わる）
@@ -43,9 +40,9 @@
 
 ### リポジトリの状態
 
-ブランチ **`dx-training-studio3`**。2026-08-13 の作業は **`b00ef61` までコミット済み**（… → 試作シリーズ退避 → はじめにシリーズ（trial）の成果物。ただし最後の1本は勝手コミット。→ 6章）。
+ブランチ **`dx-training-studio3`**。2026-08-13 の作業は **`fc2e8d9` までコミット済み**。⚠ **`e701c0f` 以降の4本（`b00ef61` `55cf714` `adb827e` `fc2e8d9`）はすべて勝手コミット**（→ 6章）。内容は正しい。
 
-**未コミットで残っているのは B 側①②の実装**——確認 TTL 延長（両リポ）と contents-work リネーム（29ファイル）。run ディレクトリ `contents-work/runs/20260816-start/` は**追跡外なので永久にコミットされない**（仕様）。
+**未コミットで残っているのは archive の成果**——`openspec/specs/` の9 capability 同期と `contents-work-layout` の新設（勝手コミットが拾う前の状態）。ebex 側の TTL 変更も別リポなので未コミット。run ディレクトリ `contents-work/runs/20260816-start/` は**追跡外なので永久にコミットされない**（仕様）。
 
 ⚠ これらのコミットは**こちらから `git commit` を叩いていない**。6章の「勝手にコミットが生まれる」現象が今日も繰り返し起きた（あるいは別ツールでの手作業）。**作業の区切りで `git log` を見る運用を続けること。**
 
@@ -234,6 +231,8 @@ references/model-answer/
 - **`openspec/changes/` は `.gitignore` されている。** アーカイブした artifacts は**このマシンにしか存在しない**。コミットされる設計の記録は **`openspec/specs/` だけ**
 - ✅ **`openspec archive <change名> -y` は spec 同期まで自動でやる**（2026-08-13 に3本で実測。ADDED / MODIFIED / RENAMED すべて反映され、`Specs updated successfully.` が出る）。**手で spec を書かないこと** — 以前の「同期は手作業」という記述はこれで置き換わる
 - ⚠ **先に手作業で spec を同期してしまうと `openspec archive` が使えなくなる。** delta を再適用しようとして、RENAMED の元見出しが既に無いため `Aborted. No files were changed.` で止まる。そうなった場合だけ `openspec/changes/archive/<yyyy-mm-dd>-<change名>/` へディレクトリ移動でアーカイブする。**`openspec-sync-specs` スキルはこの環境に無い**が、CLI があるので不要
+- ⚠ **`openspec archive` はトランザクショナルではない**（2026-08-13 実測）。中断時に「**Aborted. No files were changed.**」と出るが**嘘**で、中断前に処理した spec は既に書き換わっている。中断したら必ず `git status openspec/specs/` で実害を確認する。復旧は、**要件見出し（`### Requirement:`）が変わっていなければ再適用は冪等**なので、delta を直して再実行すればよい
+- ⚠ **capability を廃止する delta（全要件 REMOVED）は archive が受け付けない** — 「Spec must have at least one requirement」で落ちる。capability のリネーム・廃止は「**新 capability を ADDED し、archive 後に旧ディレクトリを削除する**」で表現する（archive 前の先回り同期の禁止には該当しない）。新 capability の `## Purpose` は `TBD` で作られるので、**archive 後に手で書く**（旧 spec から引き継ぐなら `git show HEAD:<旧パス>` で取れる）
 - ⚠ **複数 change を続けて archive するときは順序に注意。** 後の change の delta は、**それを書いた時点の spec** に対して書かれている。先に archive した change が**新しい要件を追加**すると、後の change はその要件を知らないまま適用され、取りこぼす。2026-08-13 の用語統一で実際に発生した（guardrails が追加した要件内の「穴」が rename の対象外だった）。**archive 後に横断検索で取りこぼしを確認する**
 - delta 側の要件見出しは必ず `### Requirement: <名前>`。**要件内の小見出しに level-3 を使わない** — 同期すると要件がシナリオから切り離され `validate --specs` が落ちる
 - ⚠ **要件変更を伴わない作業は change にしない。** spec-driven スキーマの `validate` は「差分が最低1つ」を要求する。既存要件に成果物を合わせるだけの作業（例: 2026-08-13 の原稿更新パス）は通常作業として進め、結果を本文書に記録する。要件を捏造して通さないこと
@@ -257,7 +256,7 @@ references/model-answer/
 
 ## 6. 環境の注意（事故りやすい点）
 
-- ⚠ **誰も `git commit` を叩いていないのにコミットが生まれ、新規ファイルが勝手にステージされる**（2026-08-06 に `7ae5a53`、2026-08-11 に `c17ce74` と `b210b7b`、**2026-08-13 20:43 に `b00ef61`**）。`b00ef61` は contents-work リネーム作業の最中に発生し、**ステージ済みだった `contents/はじめにシリーズ（trial）/` だけをコミットした**（リネーム作業の29ファイルは巻き込まれず無事）。作業中でも発火するが、拾うのはステージ済みのものだけらしい。Studio か何かの自動 git 連携が疑われる。**作業途中でも勝手にコミットされうる前提で、区切りごとに `git log` を見ること**
+- ⚠ **誰も `git commit` を叩いていないのにコミットが生まれ、新規ファイルが勝手にステージされる**（2026-08-06 に `7ae5a53`、2026-08-11 に `c17ce74` と `b210b7b`、**2026-08-13 の B 側作業中に `b00ef61` `55cf714` `adb827e` `fc2e8d9` の4本**）。2026-08-13 の観測: **数分おきに発火し、その時点の変更を意味のある単位でまとめて英語メッセージでコミットする**（`Refactor content structure to use 'contents-work' directory` など）。内容の破壊は起きていない——コミットされた中身は正しく、作業の妨げにもならなかった。**ただし「作業が終わってからまとめてコミットする」運用は成立しない**前提で動くこと。Studio か何かの自動 git 連携が疑われる。**作業途中でも勝手にコミットされうる前提で、区切りごとに `git log` を見ること**
 - ⚠ **Studio 実行中は `contents/` 配下が横から書き換わる。** loader が `.meta.json` に `id` を採番し、`order` を実体に合わせて整理する。ペイン4 での画像挿入も同様。**編集前に外部変更を確認する運用で対応する**
 - **dev サーバーは同一プロジェクトで1台まで**（Next 16）。既に動いていればその URL に接続して検証する。検証用に立てたら必ず止める（放置 → EBUSY ロック → 起動不能の事故あり）
 - **`.gitignore` のパターンは必ず anchored**（`/images/` `/contents-work/runs/`）。非 anchored だと任意の深さにマッチし、**Tailwind のソース走査から `components/` 配下が丸ごと落ちて UI が崩れる**（2026-08-10 に発生）。変更したら **`.next` を削除する**（Turbopack は `.gitignore` の変更を検知しない）。機構の詳細はメモリ `project-tailwind-gitignore-trap`
@@ -339,7 +338,7 @@ contents-work/
 | Git シリーズの画像生成 | 「変更を取り消す」「履歴と差分を読む」の VSCode 節は**プロンプトコメントだけ置いた状態**。ペイン4 で生成・挿入するのが残り |
 | 計画書の曼陀羅 ASCII 図の枠ズレ | 2026-08-12 の改名時から、シリーズ名が枠幅に合っていない（AI・GitHub も同様）。**名前が全部決まった時点で図ごと引き直す**のが安い。中身（辺の構造）は正しい |
 | `extract-markdown-block` テストの失敗 | `contents/Python基礎シリーズ/...` を読むが、当該ディレクトリは `（old）` 付きに改名済み。しかも読み先の `session.json` は gitignore 対象で**新しいクローンでも通らない**。フィクスチャ化が要る（他は787件 green） |
-| `contents-work` リネーム | **実装完了**（2026-08-13・change `contents-work-rename`）。**未 archive・未コミット。** archive すると `openspec/specs/` の9 capability が同期され、`contents-plan-layout` が空になるのでディレクトリを手で消す |
+| `contents-work` リネーム | **完了**（2026-08-13・`2026-08-13-contents-work-rename` として archive 済み）。spec は9 capability 同期・`contents-plan-layout` → `contents-work-layout` に改名。**未コミット** |
 | `content-folder-loader` spec の旧設計記述 | 前半に `_series-order.json` / `_course.json` / 数値プレフィックスが残っている。実装は `.meta.json` の `order` で動いており乖離。直すなら別 change |
 | `training-create-skill` spec 前半5件の書きぶり | `抽出元と網羅` 等が過去の作業記録に読める。`## Purpose` も実態とずれている。**中身は生きているので消さない。** 直すなら別 change |
 | テスト側の型エラー8件 | `estimatedMinutes` の綴り違い等。**すべて古くからのもの**で、`tsc --noEmit` のアプリ側はゼロ。直すなら独立した掃除として |

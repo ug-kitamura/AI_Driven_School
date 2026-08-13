@@ -61,7 +61,7 @@ TBD - created by archiving change add-dx-training-review-skill. Update Purpose a
 - **THEN** ずれの内容が advisory として報告され、blocking にはならない
 
 ### Requirement: 指摘は run ディレクトリにファイル出力し修正は行わない
-指摘は `contents-plan/runs/<yyyymmdd>-review/` に、対象ファイル・位置・項目（コードと名称の併記）・指摘内容・修正案・blocking / advisory の別を付けてファイル出力しなければならない（MUST）。blocking 件数とリリース可否を一言で示すサマリを含めなければならない（MUST）。スキルは `contents/`・計画書・既存スキル・`contracts/` を変更してはならず（MUST NOT）、指摘の反映は人が判断する。レビュー役は根本的なやり直しを提案してはならない（MUST NOT）。
+指摘は `contents-work/runs/<yyyymmdd>-review/` に、対象ファイル・位置・項目（コードと名称の併記）・指摘内容・修正案・blocking / advisory の別を付けてファイル出力しなければならない（MUST）。blocking 件数とリリース可否を一言で示すサマリを含めなければならない（MUST）。スキルは `contents/`・計画書・既存スキル・`contracts/` を変更してはならず（MUST NOT）、指摘の反映は人が判断する。レビュー役は根本的なやり直しを提案してはならない（MUST NOT）。
 
 #### Scenario: レビュー完了時の成果物
 - **WHEN** レビューが完了した

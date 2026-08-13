@@ -91,6 +91,7 @@ TBD - created by archiving change port-ebex-agent-core. Update Purpose after arc
 - **THEN** ツールブロックに各階層の種別と名前が表示され、承認 / 拒否ボタンが提供される
 
 #### Scenario: ルート外のパスは確認ではなくエラーになる
-- **WHEN** ツール入力に `contents/` `contents-plan/` いずれの配下でもないパスが指定される
+- **WHEN** ツール入力に `contents/` `contents-work/` いずれの配下でもないパスが指定される
 - **THEN** 確認要求は送出されず、エラー結果が tool_result として返る
 - **AND** プロジェクト外パス専用の確認ダイアログは存在しない
+

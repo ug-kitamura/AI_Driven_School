@@ -4,5 +4,9 @@
     "Gitの三大エリア"
   ],
   "target": "バージョン管理を全く知らない開発者",
-  "id": "crs-n-ih0z-lwbmql"
+  "id": "crs-n-ih0z-lwbmql",
+  "cross_series_prev": [
+    "crs-n-sojhjp-2nx20n"
+  ],
+  "cross_series_next": []
 }

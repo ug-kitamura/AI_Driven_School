@@ -3,7 +3,7 @@ series: Git基礎シリーズ
 course: Git基本操作コース
 lesson: 最初のコミット
 status: in_progress
-description: 練習用リポジトリでaddとcommitの流れを通し、生成物を.gitignoreで除外できるようになる
+description: 練習用リポジトリで add と commit の流れを通し、生成物を.gitignoreで除外できるようになる
 tags: [git, basics]
 estimated_minutes: 15
 author: Kitamura
@@ -25,7 +25,7 @@ author: Kitamura
 2. VSCode の「ファイル」→「フォルダーを開く」でそのフォルダを開く
 3. 「ターミナル」→「新しいターミナル」でターミナルを開く
 
-このフォルダを Git のリポジトリにするのが、7つの操作の1つ目、`init` です。
+このフォルダを Git のリポジトリにするのが、シリーズの最初のレッスンで約束した7つの基本操作の1つ目、`init` です。
 
 ```bash
 git init
@@ -124,7 +124,7 @@ status から `output.json` が消えていれば成功（代わりに `.gitigno
 
 ## まとめ
 
-今日増えた操作は `init`・`status`・`add`・`commit` の4つ。持ち帰りは次の4点です。
+このレッスンで増えた操作は `init`・`status`・`add`・`commit` の4つ。持ち帰りは次の4点です。
 
 1. `git init` — フォルダをリポジトリにする（最初に1回だけ）
 2. `git status` — 迷ったらこれ。今の状態を聞く

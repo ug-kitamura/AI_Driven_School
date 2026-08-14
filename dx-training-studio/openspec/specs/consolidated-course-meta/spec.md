@@ -77,3 +77,39 @@
 
 - **WHEN** `contents/.meta.json` の `order` が `["A", "B"]` である
 - **THEN** `loadContentsFolder()` はシリーズを A → B の順に返す
+
+---
+
+### Requirement: 各階層の .meta.json は公開サイト向けフィールドを持てる
+
+各階層の `.meta.json` は、必須フィールドに加えて以下の公開サイト向けフィールドを持ってよい（MAY）。ローダーはこれらを読み込み、ロード結果に反映しなければならない（SHALL）。フィールドの意味・制約は `publishing-meta-fields` の規定に従う。
+
+- 全体 `contents/.meta.json`: `description` / `description_en`
+- シリーズ `.meta.json`: `slug` / `description` / `catch` / `cover` / `name_en` / `description_en` / `catch_en`
+- コース `.meta.json`: `slug` / `description` / `catch` / `name_en` / `description_en` / `catch_en`
+
+```json
+{
+  "id": "srs-git-klejoi",
+  "order": ["Git概念コース", "Git環境構築コース", "Git基本操作コース"],
+  "slug": "git-basics",
+  "description": "バージョン管理の考え方と Git の基本操作を身につけるシリーズ",
+  "catch": "セーブポイントのある開発へ",
+  "cover": "cover-git-basics.png"
+}
+```
+
+#### Scenario: シリーズ .meta.json の公開サイト向けフィールドを読み込む
+
+- **WHEN** シリーズ `.meta.json` に `slug` / `description` / `catch` / `cover` が記述されている
+- **THEN** `loadContentsFolder()` が返すシリーズ情報にそれらの値が反映されている
+
+#### Scenario: コース .meta.json の公開サイト向けフィールドを読み込む
+
+- **WHEN** コース `.meta.json` に `slug` / `description` / `catch` が記述されている
+- **THEN** `loadContentsFolder()` が返す `Course` にそれらの値が反映されている
+
+#### Scenario: 全体 contents/.meta.json の description を読み込む
+
+- **WHEN** `contents/.meta.json` に `description` が記述されている
+- **THEN** ロード結果から全体の `description` を取得できる

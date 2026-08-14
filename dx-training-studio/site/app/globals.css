@@ -1,0 +1,338 @@
+/* DX Training Mandala — Nextra テーマへの最小限の上乗せ */
+
+:root {
+  --dxm-brand: #007bc0;
+  --dxm-brand-soft: rgba(0, 123, 192, 0.12);
+}
+
+.dxm-logo {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-weight: 700;
+}
+
+/* ===== パンくず ===== */
+
+.dxm-breadcrumbs {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.85rem;
+  color: color-mix(in srgb, currentColor 65%, transparent);
+  margin-bottom: 1rem;
+}
+
+.dxm-breadcrumb-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.dxm-breadcrumbs a:hover {
+  color: var(--dxm-brand);
+  text-decoration: underline;
+}
+
+.dxm-breadcrumb-sep {
+  opacity: 0.5;
+}
+
+.dxm-lesson-header {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  margin-bottom: 1rem;
+}
+
+.dxm-lesson-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.dxm-lesson-badges:empty {
+  display: none;
+}
+
+/* ===== バッジ ===== */
+
+.dxm-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.05rem 0.45rem;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  line-height: 1.6;
+  white-space: nowrap;
+}
+
+.dxm-badge-in_progress {
+  background: color-mix(in srgb, #f59e0b 20%, transparent);
+  color: #b45309;
+}
+
+.dxm-badge-open {
+  background: color-mix(in srgb, currentColor 12%, transparent);
+  opacity: 0.75;
+}
+
+.dxm-badge-untranslated {
+  background: var(--dxm-brand-soft);
+  color: var(--dxm-brand);
+}
+
+/* ===== トップページ ===== */
+
+.dxm-hero {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  margin-bottom: 2rem;
+}
+
+.dxm-hero-cover {
+  width: 100%;
+  max-height: 260px;
+  object-fit: cover;
+  border-radius: 0.75rem;
+}
+
+.dxm-hero-catch {
+  font-size: 1.05rem;
+  font-weight: 600;
+  color: var(--dxm-brand);
+}
+
+.dxm-hero-title {
+  font-size: 1.9rem;
+  font-weight: 800;
+  line-height: 1.3;
+}
+
+.dxm-hero-cta {
+  align-self: flex-start;
+  padding: 0.45rem 1rem;
+  border-radius: 0.5rem;
+  background: var(--dxm-brand);
+  color: #fff;
+  font-weight: 600;
+}
+
+.dxm-section-title {
+  font-size: 1.2rem;
+  font-weight: 700;
+  margin: 2rem 0 0.75rem;
+}
+
+.dxm-card-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.dxm-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  padding: 0.9rem 1rem;
+  border: 1px solid color-mix(in srgb, currentColor 12%, transparent);
+  border-radius: 0.6rem;
+}
+
+.dxm-card:hover {
+  border-color: var(--dxm-brand);
+}
+
+.dxm-card-title {
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.dxm-card-meta {
+  font-size: 0.82rem;
+  opacity: 0.7;
+}
+
+.dxm-card-catch {
+  font-size: 0.85rem;
+  color: var(--dxm-brand);
+}
+
+/* ===== 曼陀羅 ===== */
+
+.dxm-mandala {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin: 1rem 0 2rem;
+}
+
+.dxm-mandala-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.dxm-mandala-toggle {
+  padding: 0.15rem 0.6rem;
+  border: 1px solid color-mix(in srgb, currentColor 18%, transparent);
+  border-radius: 999px;
+  font-size: 0.78rem;
+}
+
+.dxm-mandala-toggle[aria-pressed="true"] {
+  background: color-mix(in srgb, currentColor 8%, transparent);
+  opacity: 0.75;
+}
+
+.dxm-mandala-canvas {
+  border: 1px solid color-mix(in srgb, currentColor 12%, transparent);
+  border-radius: 0.6rem;
+  overflow: hidden;
+}
+
+.dxm-node {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  padding: 0.5rem 0.7rem;
+  border: 1px solid color-mix(in srgb, currentColor 22%, transparent);
+  border-radius: 0.5rem;
+  background: var(--nextra-bg, #fff);
+  cursor: pointer;
+  transition:
+    opacity 0.15s ease,
+    border-color 0.15s ease;
+}
+
+.dxm-node-compact {
+  flex-direction: row;
+  align-items: center;
+  gap: 0.4rem;
+  width: 190px;
+  height: 44px;
+}
+
+.dxm-node-card {
+  width: 230px;
+  height: 116px;
+}
+
+.dxm-node-collapsed {
+  width: 210px;
+  height: 72px;
+  border-style: dashed;
+}
+
+.dxm-node-title {
+  font-size: 0.85rem;
+  font-weight: 700;
+  line-height: 1.35;
+}
+
+.dxm-node-catch {
+  font-size: 0.74rem;
+  color: var(--dxm-brand);
+}
+
+.dxm-node-meta {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.7rem;
+  opacity: 0.7;
+  margin-top: auto;
+}
+
+.dxm-node-series {
+  font-size: 0.68rem;
+  opacity: 0.7;
+}
+
+.dxm-node-pin {
+  align-self: flex-start;
+  font-size: 0.65rem;
+  font-weight: 700;
+  color: #fff;
+  background: var(--dxm-brand);
+  border-radius: 999px;
+  padding: 0.05rem 0.4rem;
+}
+
+.dxm-node-dot {
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 999px;
+  flex: none;
+  background: currentColor;
+  opacity: 0.35;
+}
+
+.dxm-node-dot-done {
+  background: var(--dxm-brand);
+  opacity: 1;
+}
+
+.dxm-node-dot-in_progress {
+  background: #f59e0b;
+  opacity: 1;
+}
+
+.dxm-node-current {
+  border-color: var(--dxm-brand);
+  border-width: 2px;
+}
+
+.dxm-node-ghost {
+  opacity: 0.5;
+  border-style: dashed;
+}
+
+.dxm-node-dimmed {
+  opacity: 0.2;
+}
+
+.react-flow__edge.dxm-edge-cross .react-flow__edge-path {
+  stroke-dasharray: 6 3;
+}
+
+.react-flow__edge.dxm-edge-dimmed {
+  opacity: 0.15;
+}
+
+/* ホバートレースはポインタを持つ環境だけの上乗せ。タッチでは発動させない */
+@media (hover: none) {
+  .dxm-node-dimmed {
+    opacity: 1;
+  }
+
+  .react-flow__edge.dxm-edge-dimmed {
+    opacity: 1;
+  }
+}
+
+.dxm-lang-toggle {
+  font-size: 0.8rem;
+  font-weight: 600;
+  padding: 0.2rem 0.55rem;
+  border-radius: 0.4rem;
+  border: 1px solid color-mix(in srgb, currentColor 20%, transparent);
+}
+
+.dxm-logo-mark {
+  width: 1.1rem;
+  height: 1.1rem;
+  border-radius: 0.3rem;
+  background: var(--dxm-brand);
+  /* 曼陀羅のノードを模した点 */
+  background-image:
+    radial-gradient(circle at 50% 22%, #fff 18%, transparent 19%),
+    radial-gradient(circle at 50% 78%, #fff 18%, transparent 19%),
+    radial-gradient(circle at 20% 50%, #fff 15%, transparent 16%),
+    radial-gradient(circle at 80% 50%, #fff 15%, transparent 16%);
+}

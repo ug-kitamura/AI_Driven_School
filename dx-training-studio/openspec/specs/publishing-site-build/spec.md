@@ -1,0 +1,110 @@
+# publishing-site-build Specification
+
+## Purpose
+
+正本 `contents/` から公開サイト（DX Training Mandala）の入力を生成する変換の要件を規定する。
+
+## Requirements
+
+### Requirement: contents/ を走査して公開サイトの入力を生成する
+
+変換スクリプトは `contents/` を走査し、Nextra が期待する配置（`site/content/` 配下の `.md` と `_meta` ファイル）を生成しなければならない（SHALL）。`contents/` を変更・削除してはならない（SHALL NOT）——正本は読み取り専用として扱う。生成物はビルドのたびに作り直せるものとし、git の追跡対象にしてはならない（SHALL NOT）。
+
+走査は `lib/contents-loader.ts` の走査規則（`_` / `.` 始まりディレクトリの除外、`.meta.json` の `order` による並び）に従わなければならない（SHALL）。
+
+#### Scenario: 正本から Nextra の入力を生成する
+
+- **WHEN** `contents/` にシリーズ・コース・レッスンが存在する状態で変換スクリプトを実行する
+- **THEN** `site/content/` 配下に各レッスンの `.md` と各階層の `_meta` が生成される
+- **AND** `contents/` 配下のファイルは変更されていない
+
+#### Scenario: 生成物が追跡対象外である
+
+- **WHEN** 変換スクリプトを実行した後に `git status` を見る
+- **THEN** 生成物は追跡対象外であり、コミット候補に現れない
+
+### Requirement: URL は正本の slug から決まる
+
+公開サイトの URL は `/{シリーズslug}/{コースslug}/{レッスンslug}` でなければならない（SHALL）。slug の出所はシリーズ・コースの `.meta.json` とレッスンの frontmatter とし、ディレクトリ名から自動生成してはならない（SHALL NOT）。
+
+**slug が欠落しているエンティティ、形式（`lib/schema.ts` の `SLUG_PATTERN`）に反する slug、同じ親の中で重複する slug が1つでもある場合、変換を中断してエラーで終了しなければならない**（SHALL）。エラーメッセージには対象のパスと理由を含めなければならない（SHALL）。
+
+#### Scenario: slug から URL が決まる
+
+- **WHEN** シリーズ slug `git`、コース slug `concepts`、レッスン slug `what-is-version-control` のレッスンを変換する
+- **THEN** そのレッスンの URL は `/git/concepts/what-is-version-control` になる
+
+#### Scenario: slug 欠落で変換を止める
+
+- **WHEN** slug を持たないコースが `contents/` に存在する状態で変換を実行する
+- **THEN** 変換は中断し、対象のパスと欠落の理由を含むエラーで終了する
+- **AND** 生成物は出力されない
+
+#### Scenario: 兄弟間で重複する slug を検出する
+
+- **WHEN** 同一シリーズ内の2つのコースが同じ slug を持つ
+- **THEN** 変換は中断し、重複した slug と対象パスを含むエラーで終了する
+
+#### Scenario: 別の親であれば同じ slug を許す
+
+- **WHEN** `はじめにシリーズ` のコースと `Git基礎シリーズ` のコースがどちらも slug `setup` を持つ
+- **THEN** 変換は成功し、`/start/setup` と `/git/setup` が生成される
+
+### Requirement: サイドバーの表示名は正本の日本語名を使う
+
+生成する `_meta` は、URL 用の slug をキーに、表示名として正本のシリーズ名・コース名・レッスン名（日本語）を割り当てなければならない（SHALL）。並び順は各階層の `.meta.json` の `order` に従わなければならない（SHALL）。
+
+#### Scenario: 日本語名がサイドバーに出る
+
+- **WHEN** slug `git` / 名前 `Git基礎シリーズ` のシリーズを変換する
+- **THEN** 生成された `_meta` は `git` に対して表示名 `Git基礎シリーズ` を割り当てる
+
+#### Scenario: order に従って並ぶ
+
+- **WHEN** コース `.meta.json` の `order` が計画順で名前の昇順と一致しない
+- **THEN** 生成された `_meta` のレッスンの並びは `order` と一致する
+
+### Requirement: 画像の参照先はビルド時に切り替わり、デプロイ先によらず同一である
+
+画像の参照先は**ビルド時の設定でローカル / Blob を切り替えられ**なければならない（SHALL）。設定は**コミットされる設定ファイル**に置かなければならない（SHALL）——デプロイ先ごとの環境変数で切り替えてはならない（SHALL NOT）。GitHub Pages 向けビルドと Vercel 向けビルドは、**常に同一の参照先**を使わなければならない（SHALL）。
+
+ローカルモードでは、本文が参照する正本画像（`images/<file>`）をサイトの静的アセットへコピーし、参照を書き換えなければならない（SHALL）。Blob モードでは Blob の URL へ書き換えなければならない（SHALL）。
+
+**参照された画像の実体が存在しない場合、ビルドは失敗しなければならない**（SHALL）——参照切れを公開前に検出する。
+
+#### Scenario: ローカルモードで画像をコピーする
+
+- **WHEN** 画像モードをローカルに設定して変換とビルドを実行する
+- **THEN** 本文が参照する正本画像がサイトの静的アセットへコピーされ、ページから読み込める
+
+#### Scenario: Pages と Vercel で参照先が変わらない
+
+- **WHEN** 同一のコミットから Pages 向けと Vercel 向けのビルドをそれぞれ実行する
+- **THEN** どちらのビルドでも画像の参照先モードは同一である
+
+#### Scenario: 参照切れでビルドが落ちる
+
+- **WHEN** 本文が存在しない画像ファイルを参照している
+- **THEN** ビルドが失敗し、どのレッスンのどの参照かが分かる
+
+### Requirement: 日本語をルート、英語を /en サブツリーに置く
+
+日本語のページは URL のルート、英語のページは `/en` を前置したサブツリーに生成しなければならない（SHALL）。言語の切り替えはトグル操作とし、ブラウザ言語による自動リダイレクトを行ってはならない（SHALL NOT）——`output: 'export'` では middleware が動かない。
+
+英語ページの本文は同フォルダの `contents.en.md` を使い、**存在しない場合は日本語本文へフォールバックし、未翻訳であることを示すバッジを表示しなければならない**（SHALL）。表示テキスト（シリーズ名・コース名・description・catch）は `.meta.json` の `_en` フィールドを使い、無ければ日本語へフォールバックしなければならない（SHALL）。
+
+#### Scenario: 日本語と英語の URL
+
+- **WHEN** レッスン `/git/concepts/what-is-version-control` を変換する
+- **THEN** 日本語ページは `/git/concepts/what-is-version-control`、英語ページは `/en/git/concepts/what-is-version-control` に生成される
+
+#### Scenario: 未翻訳レッスンのフォールバック
+
+- **WHEN** `contents.en.md` を持たないレッスンの英語ページを開く
+- **THEN** 日本語の本文が表示される
+- **AND** 未翻訳であることを示すバッジが表示される
+
+#### Scenario: メタの英語フォールバック
+
+- **WHEN** `name_en` を持たないシリーズの英語ページを開く
+- **THEN** 日本語のシリーズ名が表示され、エラーにならない

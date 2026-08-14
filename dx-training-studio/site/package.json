@@ -1,0 +1,32 @@
+{
+  "name": "dx-training-mandala",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build:content": "node --experimental-strip-types scripts/build-content.mts",
+    "dev": "npm run build:content && next dev",
+    "build": "npm run build:content && next build",
+    "start": "npx serve out",
+    "test": "vitest run",
+    "lint": "next lint"
+  },
+  "dependencies": {
+    "@dagrejs/dagre": "^1.1.5",
+    "@xyflow/react": "^12.11.3",
+    "next": "^16.3.1",
+    "nextra": "^4.6.1",
+    "nextra-theme-docs": "^4.6.1",
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8"
+  },
+  "devDependencies": {
+    "@types/node": "^24.10.1",
+    "@types/react": "^19.2.7",
+    "typescript": "^5.9.3",
+    "vitest": "^3.2.4"
+  },
+  "overrides": {
+    "zod": "4.3.6"
+  }
+}

@@ -8,6 +8,14 @@
      ダークでは「より濃く」だと沈むので、同じ関係を保つために明るい側へ振る。 */
   --dxm-release-color: #1f2937;
 
+  /* GitHub アラートの種別色。Studio のプレビューと同じ値を使う */
+  --alert-note: oklch(0.55 0.17 255);
+  --alert-tip: oklch(0.53 0.15 150);
+  --alert-important: oklch(0.52 0.2 300);
+  --alert-warning: oklch(0.62 0.14 80);
+  --alert-caution: oklch(0.55 0.2 25);
+  --alert-tint: 8%;
+
   /* ラベルの種別色（状態=赤系 / 所要時間=緑系 / 受講形態=青系） */
   --dxm-label-status-bg: color-mix(in srgb, #dc2626 14%, transparent);
   --dxm-label-status-fg: #b91c1c;
@@ -18,6 +26,13 @@
 
 :is(html.dark, .dark) {
   --dxm-release-color: #e5e5e5;
+
+  --alert-note: oklch(0.72 0.13 250);
+  --alert-tip: oklch(0.74 0.15 150);
+  --alert-important: oklch(0.74 0.14 300);
+  --alert-warning: oklch(0.8 0.14 85);
+  --alert-caution: oklch(0.72 0.16 25);
+  --alert-tint: 16%;
 
   /* 暗い地では濃い文字色が沈むので、前景だけ明るい側へ振る */
   --dxm-label-status-fg: #fca5a5;
@@ -56,6 +71,63 @@
   font-weight: 600;
   font-variant-numeric: tabular-nums;
   color: var(--dxm-release-color);
+}
+
+/* ===== GitHub アラート（rehype-github-alerts の出力） =====
+   種別ごとの色分けは Studio のプレビュー（`app/globals.css` の `.lesson-preview`）と
+   同じ設計にする——執筆者が見ている姿と読者が見る姿を揃えるため */
+
+.markdown-alert {
+  --alert-color: var(--alert-note);
+  margin: 1rem 0;
+  padding: 0.5rem 0.75rem 0.5rem 1rem;
+  border-left: 4px solid var(--alert-color);
+  border-radius: 0.5rem;
+  background: color-mix(
+    in oklab,
+    var(--alert-color) var(--alert-tint),
+    transparent
+  );
+}
+
+.markdown-alert-tip {
+  --alert-color: var(--alert-tip);
+}
+
+.markdown-alert-important {
+  --alert-color: var(--alert-important);
+}
+
+.markdown-alert-warning {
+  --alert-color: var(--alert-warning);
+}
+
+.markdown-alert-caution {
+  --alert-color: var(--alert-caution);
+}
+
+.markdown-alert > :first-child {
+  margin-top: 0;
+}
+
+.markdown-alert > :last-child {
+  margin-bottom: 0;
+}
+
+.markdown-alert-title {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.25rem;
+  font-weight: 600;
+  color: var(--alert-color);
+}
+
+.markdown-alert-title svg {
+  width: 1rem;
+  height: 1rem;
+  flex-shrink: 0;
+  fill: currentColor;
 }
 
 /* ===== パンくず ===== */

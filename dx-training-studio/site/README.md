@@ -85,7 +85,7 @@ git tag v0.1.0 && git push origin v0.1.0
 
 - タグは **`main` に含まれるコミット**に打つこと。作業ブランチのコミットに打つとワークフローが検証で止める（`git merge-base --is-ancestor`）
 - Pages はサブパス配信なので `NEXT_PUBLIC_BASE_PATH=/AI_Driven_School` 付きでビルドし、Vercel は付けずにビルドする。同じコミットから2回ビルドして配る
-- リリース番号（タグ名）は `NEXT_PUBLIC_SITE_RELEASE` としてビルドに渡され、フッターに出る。ローカルビルドでは `dev` になる
+- リリース番号（タグ名）は `NEXT_PUBLIC_SITE_RELEASE` としてビルドに渡され、**サイドバー最上部**に出る。ローカルビルドでは**何も表示されない**（行も余白も出ない）
 
 ### 事前に必要な設定（人が行う）
 
@@ -118,7 +118,10 @@ git tag v0.1.0 && git push origin v0.1.0
 ## 既知の制約
 
 - **`zod` を 4.3.6 に固定している**（`package.json` の `overrides`）。Nextra 4.6.x は zod 4.4.x と衝突し、`Layout` の `children` 検証で全ページのプリレンダが落ちる（[shuding/nextra#5008](https://github.com/shuding/nextra/issues/5008)）。**上流が修正されたら overrides を外す**——判断は Nextra のリリースノートで #5008 の修正を確認してから
+- **ビルドは webpack に固定している**（`package.json` の `--webpack`）。`next.config.mjs` が rehype プラグイン（GitHub アラート）を関数で渡しており、Turbopack はローダー options をシリアライズ可能な値に限るため「does not have serializable options」で落ちる。unified は文字列でのプラグイン指定を受け付けないので、外せるのは上流が対応してから
 - **トップページを `content/` の `index.mdx` として生成している**。Next.js は同階層に `[series]` と Nextra の `[[...mdxPath]]` を同居できないため、`app/` 直下に独自ルートを作れない
+- ⚠ **テーマの `<Layout>` を動的セグメント配下のレイアウトに置かないこと**（いまは `components/SiteShell.tsx` がルートレイアウトから描いている）。`app/[[...mdxPath]]/layout.tsx` に戻すと、クライアント遷移のたびにレイアウトが作り直されて next-themes の `<script>` が再マウントされ、console エラーが再発する
+- **リリース番号はサイドバーの `::before`** で描いている（テーマに差し込み口が無いため）。テーマのクラス名 `.nextra-sidebar` に依存するので、Nextra 更新時に消えることがある
 - **曼陀羅のホバートレース**は、現在のコンテンツでは見た目に変化が出ない。全コースが1本の鎖で繋がっており、どのノードから辿っても全ノードが経路に入るため（シリーズが増えて枝分かれすると効く）
 
 ## 構成
@@ -127,8 +130,8 @@ git tag v0.1.0 && git push origin v0.1.0
 site/
 ├─ scripts/build-content.mts   変換の入口
 │  └─ lib/                     content-source（正本読み取り）/ site-model / emit / images
-├─ app/                        layout・Nextra カタチオール・アイコン
-├─ components/                 ページ / 曼陀羅 / パンくず / バッジ
+├─ app/                        ルートレイアウト・グローバル CSS・supergraphic / hero・アイコン
+├─ components/                 SiteShell（テーマの Layout）/ ページ / 曼陀羅 / ラベル
 ├─ lib/                        site-data・locale-path・asset-path・mandala（graph / layout）
 └─ __tests__/                  変換・曼陀羅グラフ・Studio ローダーとの突き合わせ
 ```

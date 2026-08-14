@@ -2,7 +2,7 @@
 
 **次の主線は「はじめにシリーズの再生成」**（→ 3章）。Claude Code × Fable 5 で作り直す。方針決定・スキル側の実装は完了済みで、残るのは実行だけ。
 
-公開サイト **DX Training Mandala**（`site/`）は 2026-08-14 に**課題対応まで完了**した（→ 2章）。実コンテンツで37ページが生成でき、検索・曼陀羅・言語切替が動く。残っているのは**人の作業**（公開の外部設定・画像の差し替え・値入れ）だけ。
+公開サイト **DX Training Mandala**（`site/`）は 2026-08-15 の表示改善（`site-display-refinements`）まで完了した（→ 2章）。実コンテンツで37ページが生成でき、検索・曼陀羅・言語切替が動く。残っているのは**人の作業**（公開の外部設定・値入れ・曼陀羅の辺の目視）だけ。
 
 **完了した作業の経緯は書かない** — 記録は `openspec/changes/archive/<日付>-<change名>/` の `design.md` と `tasks.md` が正本（⚠ ただし追跡外。→ 6.1）。本文書に残すのは**次に必要な知識と未決事項だけ**。
 
@@ -21,10 +21,11 @@
        git 連携解除 / Secrets 登録 / 初回タグ push。
        public 化の判断とセット（2.6）
 
-[次] サイトの人手作業（すぐ終わる・2.5）
-       全体トップのヒーロー画像を差し替える
+[次] サイトの人手作業（すぐ終わる・2.4）
+       曼陀羅の辺を目視する（矢印の向き・大きさ・色 /
+         アニメーション / 順序辺=実線・跨ぎ辺=破線）
+         ← ブラウザペインでは辺が描かれず機械で確認できない唯一の項目
        コース4本に style を入れる（Studio のコースメタ編集）
-       曼陀羅の辺アニメーションを目視で確認する
 
 [次] 曼陀羅の辺#2 を張る（人の作業・すぐ終わる）
        Git概念コース/.meta.json の cross_series_prev へ
@@ -59,7 +60,7 @@
 | 置き場 | `site/`（Studio とは独立した npm プロジェクト。正本 `../contents` を**読み取るだけ**） |
 | 技術 | Nextra 4（Next.js 16 / React 19）＋ React Flow ＋ dagre ＋ Pagefind。`output: 'export'` の静的サイト |
 | 手順書 | **`site/README.md` が正本**（起動・検索・設定・デプロイ・既知の制約） |
-| テスト | 70件（変換・emit・画像・曼陀羅グラフ・style 読取・Studio ローダーとの突き合わせ） |
+| テスト | 65件（変換・emit・画像・曼陀羅グラフ・style 読取・リリース情報・Studio ローダーとの突き合わせ） |
 
 ```bash
 cd site
@@ -71,15 +72,20 @@ npm run start   # out/ をローカル配信
 
 **ポート**: EBEX=3000 / Studio=3001 / site=3002。
 
-**実装済みの機能**: トップ3階層の自動生成、レッスンページ（ラベル行＝準備中 / 所要時間 / 受講形態、右端に `written by`）、Nextra 内蔵パンくず、Pagefind 全文検索、曼陀羅3種（全体＝シリーズ枠付き / シリーズ / コース＝横型）、ノードクリック遷移、ゴーストノード、シリーズ折りたたみ、選択言語だけのサイドバー、`/en` ツリー（未翻訳は日本語フォールバック＋バッジ）、supergraphic 帯、フッターのリリース番号。
+**実装済みの機能**: トップ3階層の自動生成（見出しは「{名前}　～{catch}～」）、レッスンページ（ラベル行＝状態 / 所要時間 / 受講形態、右端に「著者: …」）、Nextra 内蔵パンくず（全体トップとシリーズトップには出さない）、GitHub アラート（`> [!TIP]` 等）、Pagefind 全文検索、曼陀羅3種（全体＝シリーズ枠付き / シリーズ＝自シリーズだけ枠付き / コース＝縦型）、ノードクリック遷移、ゴーストノード、シリーズ折りたたみ、選択言語だけのサイドバー、`/en` ツリー（未翻訳は日本語フォールバック＋バッジ）、supergraphic 帯、サイドバー最上部のリリース番号。**フッターは無い。**
 
 ### 2.2 触るときに知っておくこと
 
 - **変換スクリプトが入口**（`site/scripts/build-content.mts`）。正本の走査 → slug 検証 → `content/**` と `content/site-data.json` の生成 → 画像コピー、の順。ページ側は `site-data.json` しか見ない
 - **生成物は毎回作り直される**（`content/` `public/images/` `out/`）。**ここを直接編集しても次のビルドで消える**——直すのは `scripts/` か `components/` か正本
 - **トップページは `content/**/index.mdx` として生成され、MDX からコンポーネントを呼ぶ**。Next.js は同階層に `[series]` と Nextra の `[[...mdxPath]]` を同居できないため、`app/` 直下に独自ルートを作れない（この制約は動かせない）
-- **テーマの `<Layout>` は `app/[[...mdxPath]]/layout.tsx` にある**（ルートの `app/layout.tsx` には `<html>`/`<body>`/supergraphic/`<Head>` だけ）。**サイドバーを言語ごとに出し分けるため**、ルートパスを見られる場所で pageMap を組み立てている（`/en` は `getPageMap("/en")`、それ以外はルートから `en` を除外）
+- ⚠ **テーマの `<Layout>` を動的セグメント配下のレイアウトに置かないこと。** いまは `components/SiteShell.tsx`（`"use client"`）がルートレイアウトから描いている。**`app/[[...mdxPath]]/layout.tsx` に戻すと console エラーが再発する**——`[[...mdxPath]]` は全ページが同じセグメントの別の値なので、クライアント遷移のたびにレイアウトごと作り直され、next-themes の `<script>` が再マウントされて `Encountered a script tag while rendering React component` と、その巻き添えの `Element type is invalid` を撒く（2026-08-15 に実測・根治）
+- **言語別サイドバーは params ではなく `usePathname()` で解決する**（SiteShell）。`getPageMap("/en")` は「ルート pageMap の `en` フォルダの children」と同一なので、サーバーで2回引かずクライアントで導出できる。`usePathname()` はプリレンダ時にも実ルートを返すため、静的 HTML の時点で正しい言語のツリーになる
 - **サイドバーの「概要」項目は出さない。** シリーズ・コースの index に `asIndexPage: true` を付けてフォルダ自身をページにしている
+- ⚠ **`_meta.js` の `theme` は子の階層へ継承される**（`nextra/dist/client/normalize-pages.js` の `pageThemeContext`）。シリーズでパンくずを切ったぶんは**コース階層で明示的に戻している**——戻さないとコース・レッスンのパンくずまで消える
+- ⚠ **dev / build とも `--webpack` が必須**（`package.json` の scripts）。`next.config.mjs` が rehype プラグイン（GitHub アラート）を関数で渡しており、Turbopack はローダー options をシリアライズ可能な値に限るため「does not have serializable options」で落ちる。unified は文字列でのプラグイン指定を受け付けないので逃げ道は webpack だけ
+- **リリース番号はサイドバーの `::before`** で描く（テーマに差し込み口が無いため）。値はルートレイアウトが `<body>` の `--dxm-release` に入れる。**タグ由来でないビルドでは変数を置かない**ので `content` が無効になり、擬似要素ごと生成されない＝行も余白も出ない
+- **ヒーロー画像は切り抜かない**（`width:100%; height:auto`）。**縦横比がそのまま高さになる**ので、差し替えるときは 3.75:1 前後に揃える
 - **検索インデックスはビルドでしか作られない**（Pagefind の postbuild）。`public/_pagefind`（dev 用）と `out/_pagefind`（配信用）の**両方に出すのが要点**——`output: 'export'` では postbuild の時点で `out/` へのコピーが終わっているため
 - ⚠ **`--nextra-*` CSS 変数は `17,17,17` 形式のトリプレット。** 色として使うには `rgb(var(--nextra-bg))` と包む。`var(--nextra-bg, #fff)` は無効な指定になる（2026-08-14 に既存バグとして発見・修正済み）
 - **slug が1つでも欠けると変換が中断する**（URL を決められないため）。エラーメッセージに対象と理由が出る
@@ -103,10 +109,10 @@ npm run start   # out/ をローカル配信
 
 | 項目 | 内容 |
 |---|---|
-| **トップのヒーロー画像** | `site/app/hero.png` に青のグラデーションのプレースホルダが入っている。**同名で置き換えるだけ**で反映される（コード変更不要・高さ190px・全幅） |
+| **曼陀羅の辺の目視** | 矢印（向き・大きさ・色）・アニメーション・順序辺=実線 / 跨ぎ辺=破線。**ブラウザペインでは辺そのものが描かれない**ので機械で確認できない（→ 7章）。`<marker>` 定義の生成までは確認済み |
 | **コースの `style`** | 検証で DX入門コースに `hands-on` を設定済み。**残り4コースは未設定**（Studio のコースメタ編集 → 受講形態） |
-| **曼陀羅の辺アニメーション** | 全辺 `animated: true` に変更したが、**ブラウザペインでは目視確認できていない**（→ 7章）。サイトを開いたときに見ること |
 | **`catch` が未設定のコースがある** | シリーズは2本とも設定済み。コースは create スキルが今後自動で書くが、既存分は手で入れた範囲 |
+| **`images/web-2562325-2.jpg` の扱い** | ヒーロー画像の元データ。`site/app/hero.jpg` にコピー済みなので**正本 `images/` には不要**。未追跡のまま残っているので、消すか判断する |
 
 ### 2.5 既知の弱点・仮置き
 
@@ -114,6 +120,9 @@ npm run start   # out/ をローカル配信
 |---|---|
 | **英語は器だけ** | `/en` はビルドされるが中身は全部日本語フォールバック。`contents.en.md` と `.meta.json` の `*_en` は未記入 |
 | **`zod` を 4.3.6 に固定している** | Nextra 4.6.x が zod 4.4.x と衝突し全ページのプリレンダが落ちる（[nextra#5008](https://github.com/shuding/nextra/issues/5008)）。**上流修正後に `package.json` の `overrides` を外す** |
+| **ビルドを webpack に固定している** | Turbopack はローダー options に関数を渡せず、rehype プラグイン（GitHub アラート）が乗らない。**Nextra か unified が文字列でのプラグイン指定に対応したら `--webpack` を外せる** |
+| **テーマ内部の class 名に依存している** | リリース番号は `.nextra-sidebar::before`、Studio の帯は `[data-slot="sidebar-*"]`。テーマ・shadcn の更新で変わりうる。壊れ方は「番号が出ない」「帯が覆われる」で機能影響は無い |
+| **曼陀羅の矢印の色が固定値** | SVG の `<marker>` は CSS 変数を引けないため、両テーマで読める中間グレー（`#9aa0a6`）を辺と矢印に直接指定している。テーマ別に色を変えるなら辺の色分けごと作り直し |
 | **Blob 画像モードは未実装** | 器（設定値と分岐）だけあり、選ぶとエラーで停止する。現 Blob は `access: "private"` で公開参照できないため、使うなら public 再アップロードが前提 |
 | **ローカルの `npm ci` が EPERM で落ちる** | Windows で native モジュールがプロセスに掴まれるため。**CI（ubuntu）では起きない**。ローカルは `npm install` を使う |
 | **`cover` フィールドは温存だが未使用** | シリーズトップの画像表示を廃止したため、どのページでも表示しない。将来使うなら表示側から作り直す |
@@ -283,7 +292,9 @@ references/model-answer/
 - ⚠ **`contents/` の JSON を CLI から触るときは `node -e` で書く。** PowerShell の `Out-File -Encoding utf8` は **BOM を付ける**ため `JSON.parse` が失敗し、**ローダーが「メタ無し」と判断して `id` を再採番し `slug`/`description`/`catch`/`target` を消す**（2026-08-14 に実際に発生・`git checkout` で復旧）
 - ⚠ **Studio 実行中は `contents/` 配下が横から書き換わる。** loader が `.meta.json` に `id` を採番し `order` を整理する。ペイン4 での画像挿入も同様。**編集前に外部変更を確認する**
 - ⚠ **テストの前に dev サーバーを止める。** 動かしたまま Studio のテストを回すと `compileCss`（`inline-html-assets.test.ts`）が5秒タイムアウトで落ちる（単体なら 377ms）。実装の異常ではなくマシン負荷
-- ⚠ **ブラウザペインでは React Flow の辺が描画されない。** ノードの実測（ResizeObserver / rAF）が完了するまでノードは `visibility: hidden` で辺も描かれず、**ペイン非表示だと計測が完了しない**。辺が0件・fitView 未適用に見えても実装の異常ではない。同様に **Base UI の Select はポップアップが座標を持たず操作できない**。機構はメモリ `project-browser-pane-verification-limits`
+- ⚠ **ブラウザペインでは React Flow の辺が描画されない。** ノードの実測（ResizeObserver / rAF）が完了するまでノードは `visibility: hidden` で辺も描かれず、**ペイン非表示だと計測が完了しない**。辺が0件・fitView 未適用（`scale(1)` のまま）に見えても実装の異常ではない。同様に **Base UI の Select はポップアップが座標を持たず操作できない**。機構はメモリ `project-browser-pane-verification-limits`
+  - **ノード・ミニマップ・DOM 構造・CSS の実測値は取れる**（2026-08-15 に実証）。`javascript_tool` で `getComputedStyle` や `getBoundingClientRect` を読み、`a.click()` でクライアント遷移を起こせば console エラーの有無まで確認できる。**座標クリック（`computer`）は効かないので DOM の `.click()` を使う**
+  - ⚠ **React の dev 専用の警告・エラー全文は本番ビルドでは出ない。** `Element type is invalid` の詳細メッセージなどを追うときは **`npm run dev` で確認する**（`npm run start` の静的配信では出ない）
 - **dev サーバーは同一プロジェクトで1台まで**（Next 16）。検証用に立てたら必ず止める（放置 → EBUSY ロック → 起動不能の事故あり）
 - **`.gitignore` のパターンは必ず anchored**（`/images/` `/site/out/`）。非 anchored だと任意の深さにマッチし、**Tailwind のソース走査から `components/` 配下が丸ごと落ちて UI が崩れる**。変更したら **`.next` を削除する**。機構はメモリ `project-tailwind-gitignore-trap`
 - **CRLF + BOM のファイルがある**（`__tests__/hooks/*.test.ts` 等）。LF 前提の文字列置換が黙って空振りするので、複数行の編集は Edit ツールを使う
@@ -367,6 +378,8 @@ contents-work/
 | **public 化するか / 専用 public リポにするか** | スイープ済み・秘密情報ゼロ。論点は勤務先の特定（履歴の企業メール1件）のみ。**保留中**（2.6） |
 | **公開の外部設定** | Pages の Source / Vercel プロジェクトと git 連携解除 / Secrets 3本 / 初回タグ。**コード側は完成、人の作業が未実施**（2.3） |
 | **`zod` 4.3.6 固定を外す時期** | nextra#5008 の上流修正待ち（2.5） |
+| **site を Turbopack に戻す時期** | rehype プラグインを関数で渡している間は不可。Nextra か unified が文字列指定に対応したら `--webpack` を外す（2.5） |
+| **アラートの見出しが英語** | `rehype-github-alerts` の既定が `Important` / `Tip` 等。Studio のプレビューと同じなので**揃ってはいる**が、受講者向けに和訳するなら両方の設定を同時に変える |
 | 昇格基準の項目2 | 1本目では**判定できなかった**（社内の空欄が無いレッスンのため）。空欄を含む候補が出たときが初判定（5章） |
 | 模範解答を2本にするか | 2本目は**再生成の後に判断**（5章） |
 | `dx-training-review` の指摘の採否 | **blocking 2・4・6 の修正と advisory 51件の採否が未着手**（3章末） |
@@ -375,7 +388,8 @@ contents-work/
 | `reviews/` の規約外ファイル | `_all.md` と `横断.md` が生成された。create の規約は `reviews/<レッスン名>.md` のみ。review スキルの規約と混ざった可能性 |
 | Git シリーズの画像生成 | 「変更を取り消す」「履歴と差分を読む」の VSCode 節は**プロンプトコメントだけ置いた状態**。ペイン4 で生成・挿入するのが残り |
 | 計画書の曼陀羅 ASCII 図の枠ズレ | シリーズ名が枠幅に合っていない。**名前が全部決まった時点で図ごと引き直す**のが安い。中身（辺の構造）は正しい |
-| `extract-markdown-block` テストの失敗 | 改名済み・全廃済みの `session.json` を読むため復活しない。**フィクスチャ化が要る**（他は green） |
+| `extract-markdown-block` テストの失敗 | 改名済み・全廃済みの `session.json` を読むため復活しない。**フィクスチャ化が要る** |
+| `compileCss` テストの失敗 | dev サーバー稼働中は5秒タイムアウトで落ちる（→ 7章）。**上の1件と合わせて Studio の既知の失敗2件**で、これ以外は green（818 passed） |
 | **Studio の `tsc --noEmit` が site/ を巻き込む** | `tsconfig.json` の `include` が `**/*.ts(x)`・`exclude` が `node_modules` だけなので、**独自の tsconfig を持つ `site/` まで型検査して73件エラーを出す**。実害は「アプリ側の型エラーを見つけにくい」こと（アプリ側自体はゼロ）。直すなら `exclude` に `site` を足すだけ |
 | `resolveHeadContent()` がデッドコード | 差分 API が使うのは `lib/lesson-git-diff.ts` の `resolveLessonGitDiff()`。`lesson-head-content.ts` から実際に使われているのは `toRepoRelativePath` と `HeadSource` 型だけ。消すかどうかは別途判断 |
 | 完了済み移行スクリプト3本 | `migrate-content.ts`（数値プレフィックス廃止）/ `migrate-lesson-folders.ts` / `migrate-stable-ids.ts`。実行済みで再実行の余地がない。掃除の候補（急がない） |

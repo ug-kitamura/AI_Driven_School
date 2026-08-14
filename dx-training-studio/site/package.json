@@ -5,8 +5,8 @@
   "type": "module",
   "scripts": {
     "build:content": "node --experimental-strip-types scripts/build-content.mts",
-    "dev": "npm run build:content && next dev -p 3002",
-    "build": "npm run build:content && next build",
+    "dev": "npm run build:content && next dev --webpack -p 3002",
+    "build": "npm run build:content && next build --webpack",
     "postbuild": "pagefind --site .next/server/app --output-path public/_pagefind && node -e \"require('fs').cpSync('public/_pagefind','out/_pagefind',{recursive:true})\"",
     "start": "npx serve out -l 3002",
     "test": "vitest run",
@@ -19,7 +19,8 @@
     "nextra": "^4.6.1",
     "nextra-theme-docs": "^4.6.1",
     "react": "^19.2.8",
-    "react-dom": "^19.2.8"
+    "react-dom": "^19.2.8",
+    "rehype-github-alerts": "^4.2.0"
   },
   "devDependencies": {
     "@types/node": "^24.10.1",

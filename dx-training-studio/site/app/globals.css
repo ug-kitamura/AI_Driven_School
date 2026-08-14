@@ -39,6 +39,38 @@
   opacity: 0.5;
 }
 
+/* ===== フッター ===== */
+
+.dxm-footer {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  width: 100%;
+  font-size: 0.82rem;
+}
+
+.dxm-footer-meta {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.dxm-footer-release {
+  padding: 0.05rem 0.45rem;
+  border-radius: 999px;
+  background: var(--dxm-brand-soft);
+  color: var(--dxm-brand);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.dxm-footer-meta a:hover {
+  color: var(--dxm-brand);
+  text-decoration: underline;
+}
+
 .dxm-lesson-header {
   display: flex;
   flex-direction: column;

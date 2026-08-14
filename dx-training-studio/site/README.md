@@ -20,13 +20,13 @@ npm run test    # 変換・曼陀羅グラフのテスト
 
 変換スクリプト（`scripts/build-content.mts`）が毎回作り直すため、**すべて git 追跡対象外**。
 
-| 生成物 | 中身 |
-| --- | --- |
-| `content/**/*.md` | レッスン本文（日本語＝ルート、英語＝`en/` サブツリー） |
-| `content/**/index.mdx` | 全体・シリーズ・コースのトップページ |
-| `content/**/_meta.js` | サイドバー（slug → 日本語表示名、`order` 順） |
-| `content/site-data.json` | 全階層のメタと曼陀羅グラフ |
-| `public/images/*` | 本文とヒーローが参照する正本画像のコピー |
+| 生成物                   | 中身                                                   |
+| ------------------------ | ------------------------------------------------------ |
+| `content/**/*.md`        | レッスン本文（日本語＝ルート、英語＝`en/` サブツリー） |
+| `content/**/index.mdx`   | 全体・シリーズ・コースのトップページ                   |
+| `content/**/_meta.js`    | サイドバー（slug → 日本語表示名、`order` 順）          |
+| `content/site-data.json` | 全階層のメタと曼陀羅グラフ                             |
+| `public/images/*`        | 本文とヒーローが参照する正本画像のコピー               |
 
 ## 設定（`site.config.json`）
 
@@ -52,15 +52,46 @@ NEXT_PUBLIC_BASE_PATH=/AI_Driven_School npm run build
 
 未設定ならルート配信（Vercel・ローカル）。生の `<img>` には basePath が自動で付かないため、`lib/asset-path.ts` の `assetPath()` を通す。
 
+## デプロイ
+
+ワークフローは2本。**契機が違う**ので混ぜない。
+
+| ワークフロー                   | 契機                                           | やること                                   |
+| ------------------------------ | ---------------------------------------------- | ------------------------------------------ |
+| `dx-training-site-ci.yml`      | `site/` `contents/` `images/` を含む push / PR | 変換 → ビルド → テスト。**デプロイしない** |
+| `dx-training-site-release.yml` | `v*` タグの push                               | Pages と Vercel へ配信                     |
+
+```bash
+git tag v0.1.0 && git push origin v0.1.0
+```
+
+- タグは **`main` に含まれるコミット**に打つこと。作業ブランチのコミットに打つとワークフローが検証で止める（`git merge-base --is-ancestor`）
+- Pages はサブパス配信なので `NEXT_PUBLIC_BASE_PATH=/AI_Driven_School` 付きでビルドし、Vercel は付けずにビルドする。同じコミットから2回ビルドして配る
+- リリース番号（タグ名）は `NEXT_PUBLIC_SITE_RELEASE` としてビルドに渡され、フッターに出る。ローカルビルドでは `dev` になる
+
+### 事前に必要な設定（人が行う）
+
+1. **GitHub Pages**: リポジトリの Settings → Pages → Source を **GitHub Actions** にする。**Pages 配信にはリポジトリが public である必要がある**（Free プラン）。CI と Vercel は private のままでも動く
+2. **Vercel**: 公開サイト用のプロジェクトを新規作成し、**git 連携を切る**（連携したままだと push のたびに公開され、「タグでのみ配信」が崩れる）。Studio 本体のプロジェクトとは別にすること
+3. **Secrets**: `VERCEL_TOKEN` / `VERCEL_ORG_ID` / `VERCEL_PROJECT_ID` をリポジトリに登録する。**未登録なら Vercel のジョブはスキップされ、Pages だけでリリースが完結する**（失敗にはならない）
+
+### 注意: Pages は1リポジトリ1サイト
+
+この repo の Pages は `commit-track-tool-report.yml`（comitora レポート）も使う。**両方を出すと互いに丸ごと上書きする**。当面は comitora を手動実行する際に `deploy_pages: false` を選ぶ運用で回避する。
+
+### 将来: 専用 public リポ方式へ切り替える場合
+
+「成果物のみを別の public リポへ push する」方式に変える場合、変更は `dx-training-site-release.yml` の冒頭 `env` と `deploy-pages` ジョブに閉じる。**`site/` のコードと `scripts/` の変換処理は変更不要**。
+
 ## 正本に必要なもの
 
 変換は **slug が1つでも欠けていると中断する**（URL を決められないため）。
 
-| 階層 | 置き場 | 必須 | 任意 |
-| --- | --- | --- | --- |
-| 全体 | `contents/.meta.json` | — | `description` / `description_en` |
-| シリーズ | `contents/<series>/.meta.json` | `slug` | `description` / `catch` / `cover` / `*_en` |
-| コース | `.../<course>/.meta.json` | `slug` | `description` / `catch` / `target` / `*_en` |
+| 階層     | 置き場                                 | 必須   | 任意                                                  |
+| -------- | -------------------------------------- | ------ | ----------------------------------------------------- |
+| 全体     | `contents/.meta.json`                  | —      | `description` / `description_en`                      |
+| シリーズ | `contents/<series>/.meta.json`         | `slug` | `description` / `catch` / `cover` / `*_en`            |
+| コース   | `.../<course>/.meta.json`              | `slug` | `description` / `catch` / `target` / `*_en`           |
 | レッスン | `.../<lesson>/contents.md` frontmatter | `slug` | `id` / `status` / `description` / `estimated_minutes` |
 
 - **画像**: 本文の `images/<file>` とシリーズの `cover` は、**正本 `../images/<file>` に実体が必要**。無いとビルドが失敗する（参照切れの検出を兼ねる）

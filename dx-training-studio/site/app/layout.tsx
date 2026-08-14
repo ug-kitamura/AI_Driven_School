@@ -4,6 +4,7 @@ import { Head } from "nextra/components";
 import { getPageMap } from "nextra/page-map";
 import siteConfig from "@/site.config.json";
 import { LanguageToggle } from "@/components/LanguageToggle";
+import { SiteFooter } from "@/components/SiteFooter";
 import "nextra-theme-docs/style.css";
 import "./globals.css";
 
@@ -45,7 +46,11 @@ export default async function RootLayout({
           docsRepositoryBase={siteConfig.repositoryUrl}
           editLink={null}
           feedback={{ content: null }}
-          footer={<Footer>{siteConfig.siteName}</Footer>}
+          footer={
+            <Footer>
+              <SiteFooter />
+            </Footer>
+          }
         >
           {children}
         </Layout>

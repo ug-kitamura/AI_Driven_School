@@ -1,8 +1,10 @@
 # 引き継ぎ: dx-training-studio
 
-**次の主線は「はじめにシリーズの再生成」**（→ 2章）。2026-08-13 に**はじめにシリーズ3レッスンをペイン4 × Sonnet 5 で完走**して課題5件が出た。**A 側・B 側とも方針決定・実装まで完了**（→ 2章）。残るのは、更新したスキルで **はじめにシリーズを Claude Code × Fable 5 で作り直す**こと。trial（`（trial）` 付き）は参考に留め、引っ張られない。ほかに残っているのは `connection-profiles` だけで、急がない。
+**次の主線は「公開サイトの改善」**（→ 2章）。2026-08-14 に公開サイト **DX Training Mandala**（`site/`）を作り切り、実コンテンツで37ページが生成できる状態になった。**サイトを実際に見て複数の課題が見つかっている**——その洗い出しと対応が次のセッションの仕事。
 
-本文書は `handoff-agent-port-followup.md`（EBEX agent 移植系統）と `handoff-dx-training-create.md`（スキル系統）を 2026-08-13 に統合したもの。**完了した作業の経緯は書かない** — 記録は `openspec/changes/archive/<日付>-<change名>/` の `design.md` と `tasks.md` が正本（⚠ ただし追跡外。→ 5.1）。
+サイト以外の系統（原稿・スキル）は 2026-08-13 の状態のまま止まっている。**「はじめにシリーズの再生成」が第2の主線**（→ 3章）で、A 側・B 側とも方針決定・実装まで完了しており、残るのは Claude Code × Fable 5 で作り直すこと。ほかに残っているのは `connection-profiles` だけで、急がない。
+
+本文書は `handoff-agent-port-followup.md`（EBEX agent 移植系統）と `handoff-dx-training-create.md`（スキル系統）を 2026-08-13 に統合したもの。**完了した作業の経緯は書かない** — 記録は `openspec/changes/archive/<日付>-<change名>/` の `design.md` と `tasks.md` が正本（⚠ ただし追跡外。→ 6.1）。
 
 ---
 

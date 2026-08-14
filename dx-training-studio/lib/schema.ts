@@ -32,6 +32,26 @@ const localizedTextFields = {
   catch_en: z.string().optional(),
 };
 
+/**
+ * コースの受講形態。表示ラベルは表示側が locale ごとに持つ
+ * （日本語: 独習 / 講義 / ハンズオン、英語: 値そのまま小文字）
+ */
+export const COURSE_STYLES = ["self-study", "lecture", "hands-on"] as const;
+export const courseStyleSchema = z.enum(COURSE_STYLES);
+export type CourseStyle = z.infer<typeof courseStyleSchema>;
+
+/** 語彙内なら採用し、未設定・語彙外はどちらも undefined に落とす */
+export function parseCourseStyle(value: unknown): CourseStyle | undefined {
+  return courseStyleSchema.safeParse(value).data;
+}
+
+/** Studio の編集 UI で出す日本語ラベル（公開サイトの表示は site 側が持つ） */
+export const COURSE_STYLE_LABELS: Record<CourseStyle, string> = {
+  "self-study": "独習",
+  lecture: "講義",
+  "hands-on": "ハンズオン",
+};
+
 /** シリーズ・コースが共通で持つ公開サイト向けフィールド */
 const publishingMetaFields = {
   slug: slugSchema.optional(),
@@ -66,6 +86,8 @@ export const courseSchema = z.object({
   id: z.string(),
   name: z.string(),
   target: z.string().optional(),
+  /** 受講形態。語彙外の値は読み込み時に未設定へ落とす */
+  style: courseStyleSchema.optional().catch(undefined),
   /** 別シリーズの前コース ID のみ。同シリーズ内の前後は series.courses[] の順序で表す */
   cross_series_prev: z.array(z.string()).default([]),
   /** 別シリーズの次コース ID のみ。同シリーズ内の前後は series.courses[] の順序で表す */
@@ -111,6 +133,7 @@ export const courseMetaSchema = z.object({
   id: z.string().optional(),
   order: z.array(z.string()).default([]),
   target: z.string().optional(),
+  style: courseStyleSchema.optional().catch(undefined),
   cross_series_prev: z.array(z.string()).default([]),
   cross_series_next: z.array(z.string()).default([]),
   ...publishingMetaFields,

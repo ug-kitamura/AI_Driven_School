@@ -6,7 +6,10 @@ import type { Course, Series } from "@/lib/schema";
 async function saveCourseMeta(
   seriesName: string,
   courseName: string,
-  meta: Pick<Course, "target" | "cross_series_prev" | "cross_series_next">,
+  meta: Pick<
+    Course,
+    "target" | "style" | "cross_series_prev" | "cross_series_next"
+  >,
 ): Promise<void> {
   const res = await fetch("/api/content/save-course", {
     method: "POST",
@@ -15,6 +18,8 @@ async function saveCourseMeta(
       series: seriesName,
       course: courseName,
       target: meta.target ?? "",
+      // 未設定は空文字で送る（API 側が既存キーを除去する）
+      style: meta.style ?? "",
       cross_series_prev: meta.cross_series_prev,
       cross_series_next: meta.cross_series_next,
     }),
@@ -29,6 +34,7 @@ async function persistCourseMetas(
     items.map(({ seriesName, course }) =>
       saveCourseMeta(seriesName, course.name, {
         target: course.target,
+        style: course.style,
         cross_series_prev: course.cross_series_prev,
         cross_series_next: course.cross_series_next,
       }),
@@ -225,7 +231,7 @@ export function useSeriesMutations(options: {
       courseId: string,
       meta: Pick<
         Course,
-        "name" | "target" | "cross_series_prev" | "cross_series_next"
+        "name" | "target" | "style" | "cross_series_prev" | "cross_series_next"
       >,
     ) => {
       let oldCourseName: string | undefined;
@@ -266,6 +272,7 @@ export function useSeriesMutations(options: {
             ...c,
             name: newName,
             target: meta.target,
+            style: meta.style,
             lessons: c.lessons.map((l) =>
               reconcileLesson({ ...l, course: newName }, ctx),
             ),

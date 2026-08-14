@@ -39,6 +39,13 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
   META_DIALOG_CONTROL,
   META_DIALOG_FORM,
   META_DIALOG_GRID,
@@ -63,7 +70,8 @@ import {
   scaleMiniMandalaThumbnailSvg,
 } from "@/lib/mermaid-workspace-theme";
 import { renderMermaidDiagram } from "@/lib/mermaid-render";
-import type { Series, Course, Lesson } from "@/lib/schema";
+import type { Series, Course, CourseStyle, Lesson } from "@/lib/schema";
+import { COURSE_STYLES, COURSE_STYLE_LABELS } from "@/lib/schema";
 import {
   buildMiniMandalaGraphInput,
   filterCrossSeriesIds,
@@ -72,6 +80,17 @@ import {
   wouldCourseMetaEditCreateCycle,
   type MiniMandalaGraphInput,
 } from "@/lib/course-flow";
+
+/** Select は空文字を値に使えないため、未設定を表すセンチネル */
+const COURSE_STYLE_UNSET = "__unset__";
+
+const COURSE_STYLE_SELECT_ITEMS: Array<{ value: string; label: string }> = [
+  { value: COURSE_STYLE_UNSET, label: "未設定" },
+  ...COURSE_STYLES.map((style) => ({
+    value: style,
+    label: COURSE_STYLE_LABELS[style],
+  })),
+];
 
 type Props = {
   series: Series[];
@@ -86,7 +105,7 @@ type Props = {
     courseId: string,
     meta: Pick<
       Course,
-      "name" | "target" | "cross_series_prev" | "cross_series_next"
+      "name" | "target" | "style" | "cross_series_prev" | "cross_series_next"
     >,
   ) => void;
   onUpdateLessonStatus: (lessonId: string, status: Lesson["status"]) => void;
@@ -293,11 +312,14 @@ export function LessonListPane({
   const [editMeta, setEditMeta] = useState<{
     name: string;
     target: string;
+    /** 空文字は「未設定」 */
+    style: CourseStyle | "";
     crossSeriesPrev: string[];
     crossSeriesNext: string[];
   }>({
     name: "",
     target: "",
+    style: "",
     crossSeriesPrev: [],
     crossSeriesNext: [],
   });
@@ -571,6 +593,7 @@ export function LessonListPane({
               setEditMeta({
                 name: course.name,
                 target: course.target ?? "",
+                style: course.style ?? "",
                 crossSeriesPrev: filterCrossSeriesIds(
                   series,
                   course.id,
@@ -747,7 +770,7 @@ export function LessonListPane({
                 className={META_DIALOG_CONTROL}
               />
             </MetaDialogField>
-            <MetaDialogField className="col-span-2">
+            <MetaDialogField>
               <Label>受講対象者</Label>
               <Input
                 value={editMeta.target}
@@ -760,6 +783,34 @@ export function LessonListPane({
                 placeholder="例: Git未経験の開発者"
                 className={META_DIALOG_CONTROL}
               />
+            </MetaDialogField>
+            <MetaDialogField>
+              <Label htmlFor="course-meta-style">受講形態</Label>
+              <Select
+                items={COURSE_STYLE_SELECT_ITEMS}
+                value={editMeta.style || COURSE_STYLE_UNSET}
+                onValueChange={(v) => {
+                  if (!v) return;
+                  setEditMeta((prev) => ({
+                    ...prev,
+                    style: v === COURSE_STYLE_UNSET ? "" : (v as CourseStyle),
+                  }));
+                }}
+              >
+                <SelectTrigger
+                  id="course-meta-style"
+                  className={cn(META_DIALOG_CONTROL, "w-full")}
+                >
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {COURSE_STYLE_SELECT_ITEMS.map((opt) => (
+                    <SelectItem key={opt.value} value={opt.value}>
+                      {opt.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </MetaDialogField>
             <MetaDialogField>
               <Label>前のコース（同シリーズ）</Label>
@@ -838,6 +889,7 @@ export function LessonListPane({
                 onUpdateCourseMeta(course.id, {
                   name: editMeta.name.trim() || course.name,
                   target: editMeta.target || undefined,
+                  style: editMeta.style || undefined,
                   cross_series_prev: crossSeriesPrev,
                   cross_series_next: crossSeriesNext,
                 });

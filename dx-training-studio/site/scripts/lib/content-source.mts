@@ -30,6 +30,18 @@ export type LessonMeta = {
   dir: string;
 };
 
+/** コースの受講形態。Studio の `lib/schema.ts` と同じ語彙 */
+export const COURSE_STYLES = ["self-study", "lecture", "hands-on"] as const;
+export type CourseStyle = (typeof COURSE_STYLES)[number];
+
+/** 語彙内なら採用し、未設定・語彙外はどちらも undefined（Studio ローダーと同じ解釈） */
+function courseStyle(value: unknown): CourseStyle | undefined {
+  return typeof value === "string" &&
+    (COURSE_STYLES as readonly string[]).includes(value)
+    ? (value as CourseStyle)
+    : undefined;
+}
+
 export type CourseMeta = {
   name: string;
   id?: string;
@@ -37,6 +49,7 @@ export type CourseMeta = {
   description?: string;
   catch?: string;
   target?: string;
+  style?: CourseStyle;
   nameEn?: string;
   descriptionEn?: string;
   catchEn?: string;
@@ -233,6 +246,7 @@ function readCourse(seriesDir: string, courseName: string): CourseMeta {
     description: str(meta.description),
     catch: str(meta.catch),
     target: str(meta.target) ?? str(meta.target_audience),
+    style: courseStyle(meta.style),
     nameEn: str(meta.name_en),
     descriptionEn: str(meta.description_en),
     catchEn: str(meta.catch_en),

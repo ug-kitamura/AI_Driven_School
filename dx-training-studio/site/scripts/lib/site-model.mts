@@ -5,6 +5,7 @@
 import type {
   ContentsRoot,
   CourseMeta,
+  CourseStyle,
   LessonStatus,
   SeriesMeta,
 } from "./content-source.mts";
@@ -46,6 +47,7 @@ export type SiteCourse = {
   catch?: string;
   catchEn?: string;
   target?: string;
+  style?: CourseStyle;
   crossSeriesPrev: string[];
   crossSeriesNext: string[];
   lessons: SiteLesson[];
@@ -84,6 +86,8 @@ export type MandalaNode = {
   totalMinutes: number;
   /** コース内レッスンの status 集計から決まる代表状態 */
   status: LessonStatus;
+  /** コースの受講形態（未設定なら無し） */
+  style?: CourseStyle;
 };
 
 export type MandalaEdge = {
@@ -211,6 +215,7 @@ function buildCourse(seriesSlug: string, course: CourseMeta): SiteCourse {
     catch: course.catch,
     catchEn: course.catchEn,
     target: course.target,
+    style: course.style,
     crossSeriesPrev: course.crossSeriesPrev,
     crossSeriesNext: course.crossSeriesNext,
     lessons,
@@ -260,6 +265,7 @@ export function buildMandalaGraph(series: SiteSeries[]): MandalaGraph {
         lessonCount: course.lessons.length,
         totalMinutes: course.totalMinutes,
         status: aggregateStatus(course.lessons.map((l) => l.status)),
+        style: course.style,
       };
       nodes.push(node);
       if (course.id) byCourseId.set(course.id, node);

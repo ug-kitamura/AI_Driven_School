@@ -12,7 +12,8 @@ import {
   normalizeLessonMeta,
   createLessonContentTemplate,
 } from "@/lib/lesson-frontmatter";
-import type { Course, Lesson, Series } from "@/lib/schema";
+import type { Course, CourseStyle, Lesson, Series } from "@/lib/schema";
+import { parseCourseStyle } from "@/lib/schema";
 import {
   LESSON_CONTENTS_FILENAME,
   LESSON_SESSION_FILENAME,
@@ -402,6 +403,7 @@ export function loadContentsFolder(projectRoot: string): Series[] {
         id: courseId,
         name: courseName,
         target: courseMeta.target,
+        ...(courseMeta.style ? { style: courseMeta.style } : {}),
         cross_series_prev: courseMeta.cross_series_prev,
         cross_series_next: courseMeta.cross_series_next,
         lessons,
@@ -459,6 +461,7 @@ export function loadContentsMeta(projectRoot: string): {
 
 function loadCourseMeta(courseDir: string): {
   target: string;
+  style?: CourseStyle;
   cross_series_prev: string[];
   cross_series_next: string[];
   order: string[];
@@ -506,6 +509,7 @@ function loadCourseMeta(courseDir: string): {
         : typeof meta.target_audience === "string"
           ? meta.target_audience
           : "",
+    style: parseCourseStyle(meta.style),
     cross_series_prev: Array.isArray(meta.cross_series_prev)
       ? (meta.cross_series_prev as string[])
       : [],

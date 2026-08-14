@@ -168,6 +168,21 @@ describe("buildSiteData", () => {
     const data = buildSiteData(r);
     expect(data.series[0]!.courses[0]!.lessons[0]!.untranslated).toBe(false);
   });
+
+  it("コースの style を伝える", () => {
+    const r = root();
+    r.series[0]!.courses[0]!.style = "hands-on";
+    const data = buildSiteData(r);
+    expect(data.series[0]!.courses[0]!.style).toBe("hands-on");
+    // ④ の曼陀羅ラベルが読むため、ノード側にも載せる
+    const graph = buildMandalaGraph(data.series);
+    expect(graph.nodes[0]!.style).toBe("hands-on");
+  });
+
+  it("style 未設定のコースには持たせない", () => {
+    const data = buildSiteData(root());
+    expect(data.series[0]!.courses[0]!.style).toBeUndefined();
+  });
 });
 
 describe("buildMandalaGraph", () => {
@@ -186,6 +201,8 @@ describe("buildMandalaGraph", () => {
       totalMinutes: 15,
       status: "done",
     });
+    // 未設定のコースはノードにも持たせない
+    expect(graph.nodes[0]!.style).toBeUndefined();
   });
 
   it("同一シリーズの並びを order 辺にする", () => {

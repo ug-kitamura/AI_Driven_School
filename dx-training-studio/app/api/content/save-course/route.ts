@@ -6,11 +6,14 @@ import {
   readMetaJson,
   writeMetaJson,
 } from "@/lib/contents-loader";
+import { courseStyleSchema } from "@/lib/schema";
 
 const schema = z.object({
   series: z.string().min(1),
   course: z.string().min(1),
   target: z.string().default(""),
+  // 未設定は「キーを書かない」で表すため、空文字と欠落の両方を受ける
+  style: courseStyleSchema.or(z.literal("")).optional(),
   cross_series_prev: z.array(z.string()).default([]),
   cross_series_next: z.array(z.string()).default([]),
 });
@@ -31,7 +34,7 @@ export async function POST(req: Request) {
     );
   }
 
-  const { series, course, target, cross_series_prev, cross_series_next } = parsed.data;
+  const { series, course, target, style, cross_series_prev, cross_series_next } = parsed.data;
   const contentsDir = getContentsDir(process.cwd());
   const seriesDir = findSeriesDir(contentsDir, series);
   if (!seriesDir) {
@@ -44,8 +47,22 @@ export async function POST(req: Request) {
 
   try {
     const existing = readMetaJson(courseDir);
-    const { target_audience: _legacy, ...rest } = existing as Record<string, unknown> & { target_audience?: unknown };
-    writeMetaJson(courseDir, { ...rest, target, cross_series_prev, cross_series_next });
+    // 未設定の表現は「キー無し」の1通りに保つため、既存の style も一度落とす
+    const {
+      target_audience: _legacy,
+      style: _existingStyle,
+      ...rest
+    } = existing as Record<string, unknown> & {
+      target_audience?: unknown;
+      style?: unknown;
+    };
+    writeMetaJson(courseDir, {
+      ...rest,
+      target,
+      ...(style ? { style } : {}),
+      cross_series_prev,
+      cross_series_next,
+    });
     return Response.json({ ok: true });
   } catch (err) {
     return Response.json({ error: String(err) }, { status: 500 });

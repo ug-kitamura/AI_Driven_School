@@ -3,9 +3,7 @@
 ## Purpose
 
 シリーズ・コース・レッスンの順序とコースメタデータを `.meta.json` に統合し、旧来の `_series-order.json` 等を廃止する要件を規定する。
-
 ## Requirements
-
 ### Requirement: コース .meta.json に order・対象者・曼陀羅情報を統合する
 
 コースフォルダの `.meta.json` は以下のすべてのフィールドを持たなければならない（SHALL）：
@@ -113,3 +111,25 @@
 
 - **WHEN** `contents/.meta.json` に `description` が記述されている
 - **THEN** ロード結果から全体の `description` を取得できる
+
+### Requirement: コース .meta.json は受講形態 style を持てる
+
+コース `.meta.json` は任意フィールド `style` を持ってよい（MAY）。値は `self-study`（独習）/ `lecture`（講義）/ `hands-on`（ハンズオン）の3値のいずれかとする（SHALL）。ローダーはこれを読み込み、ロード結果の `Course` に反映しなければならない（SHALL）。未設定のコースはエラーにしてはならない（SHALL NOT）——既存コースは未設定のまま動き続ける。3値以外の値が書かれていた場合は未設定として扱い、読み込みを失敗させてはならない（SHALL NOT）。
+
+表示の規約（表示側の実装は別 change）: 未設定はラベル非表示。日本語ラベルは「独習 / 講義 / ハンズオン」、英語ラベルは小文字の `self-study` / `lecture` / `hands-on`。
+
+#### Scenario: style を読み込む
+
+- **WHEN** コース `.meta.json` に `"style": "hands-on"` が記述されている
+- **THEN** `loadContentsFolder()` が返す `Course` の `style` は `hands-on` である
+
+#### Scenario: 未設定でも壊れない
+
+- **WHEN** コース `.meta.json` に `style` キーが無い
+- **THEN** 読み込みは成功し、`Course` の `style` は未設定である
+
+#### Scenario: 語彙外の値は未設定として扱う
+
+- **WHEN** コース `.meta.json` に `"style": "seminar"`（語彙外）が記述されている
+- **THEN** 読み込みは成功し、`Course` の `style` は未設定である
+

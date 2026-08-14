@@ -77,6 +77,33 @@ describe("loadContentsFolder", () => {
     expect(result[0].courses[0].lessons[0].tags).toEqual(["git"]);
   });
 
+  describe("コースの受講形態 style", () => {
+    function loadCourseWithStyle(meta: Record<string, unknown>) {
+      const contentsDir = path.join(tmpDir, "contents");
+      const lessonContent = `---\nseries: S\ncourse: C\nlesson: L\nstatus: done\ndescription: d\ntags: []\nestimated_minutes: 10\nauthor: a\n---\n\n本文\n`;
+      writeLesson(contentsDir, "S", "C", "L", lessonContent);
+      writeJson(path.join(contentsDir, "S", "C", ".meta.json"), {
+        order: ["L"],
+        ...meta,
+      });
+      writeJson(path.join(contentsDir, "S", ".meta.json"), { order: ["C"] });
+      writeJson(path.join(contentsDir, ".meta.json"), { order: ["S"] });
+      return loadContentsFolder(tmpDir)[0].courses[0];
+    }
+
+    it("語彙内の style を読み込む", () => {
+      expect(loadCourseWithStyle({ style: "hands-on" }).style).toBe("hands-on");
+    });
+
+    it("style キーが無くても読み込みは成功し未設定になる", () => {
+      expect(loadCourseWithStyle({}).style).toBeUndefined();
+    });
+
+    it("語彙外の style は未設定として扱う", () => {
+      expect(loadCourseWithStyle({ style: "seminar" }).style).toBeUndefined();
+    });
+  });
+
   it("falls back to folder path when frontmatter is broken", () => {
     const contentsDir = path.join(tmpDir, "contents");
     writeLesson(contentsDir, "シリーズA", "コースA", "レッスンA", "フロントマターなし\n\n本文\n");

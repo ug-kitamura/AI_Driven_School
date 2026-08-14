@@ -607,6 +607,7 @@ export function listCoursesNeedingMetaPersist(
         isEdited &&
         (oldC.name !== c.name ||
           oldC.target !== c.target ||
+          oldC.style !== c.style ||
           linksChanged);
       if (linksChanged || editedMetaChanged) {
         out.push({ seriesName: s.name, course: c });

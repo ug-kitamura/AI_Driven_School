@@ -25,6 +25,7 @@ type Shape = {
     courses: Array<{
       name: string;
       slug?: string;
+      style?: string;
       lessons: Array<{ name: string; slug?: string; status: string }>;
     }>;
   }>;
@@ -40,6 +41,7 @@ function loadViaStudio(): { shape: Shape } | { error: string } {
       courses: s.courses.map((c) => ({
         name: c.name,
         slug: c.slug,
+        style: c.style,
         lessons: c.lessons.map((l) => ({ name: l.lesson, slug: l.slug, status: l.status })),
       })),
     }));
@@ -87,6 +89,7 @@ function loadViaSite(): Shape {
       courses: s.courses.map((c) => ({
         name: c.name,
         slug: c.slug,
+        style: c.style,
         lessons: c.lessons.map((l) => ({
           name: l.name,
           slug: l.slug,

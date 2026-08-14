@@ -106,7 +106,7 @@ npm run start   # out/ をローカル配信
 | # | change | 内容 |
 |---|---|---|
 | ① | 起動と検索の修理 | ポート3本 / start.bat / Pagefind 導入 / supergraphic 2箇所。**完了・archive 済み（2026-08-14）→ 下の「①の実施記録」** |
-| ② | style メタ拡張 | schema / コース編集モーダル / site への伝搬 / parity テスト |
+| ② | style メタ拡張 | schema / コース編集モーダル / site への伝搬 / parity テスト。**完了（2026-08-14・`add-course-style-meta`）→ 下の「②の実施記録」。未 archive / 未コミット** |
 | ③ | サイトのナビとページ構成 | 下記 |
 | ④ | 曼陀羅リデザイン | 下記 |
 | ⑤ | `data/` の掃除（後発・9章参照） | `content.json` 撤去 / 移行スクリプト削除 / spec 2本 |
@@ -141,6 +141,19 @@ change `fix-site-launch-and-search` を実装。**19タスク全完了**。`open
 - **supergraphic**: `images/supergraphic.png` を `app/supergraphic.png` へ移動し、`site/app/supergraphic.png` へコピー。Studio は EBEX と同じ Tailwind（`h-1.5 w-full object-cover`）、site は Tailwind 非採用なので `globals.css` に `.dxm-supergraphic` を追加。両方で高さ6px・全幅・最上部を実測確認
 - **`.gitignore`**: `site/.gitignore` は存在せず Studio 側に集約されていたので、そこへ `/site/public/_pagefind/` を anchored で追記
 - **テスト**: site 57件 green / Studio 811件 green。失敗は既知の `extract-markdown-block` 1件のみ（9章）。⚠ **dev サーバーを動かしたまま Studio のテストを回すと `compileCss` が 5秒タイムアウトで落ちる**（単体なら 377ms）。テスト前に dev を止めること
+
+### 2.2.2 ②の実施記録（2026-08-14 完了・未 archive / 未コミット）
+
+change `add-course-style-meta` を実装。**14タスク全完了**。Studio 811→**821件 green**（既知の `extract-markdown-block` 1件のみ失敗）、site 57→**63件 green**。
+
+- **データの流路**: `.meta.json` の `style` → `lib/schema.ts`（`COURSE_STYLES` / `courseStyleSchema` / `parseCourseStyle` / `COURSE_STYLE_LABELS`）→ `contents-loader` → コースメタ編集モーダル → `save-course` API → `.meta.json`。site 側は `content-source.mts` → `site-model.mts` → `site-data.json`
+- **未設定の表現は「キー無し」の1通り**に統一（API が保存のたび既存 `style` を一度落として書き直す）。語彙外の値は**読込時に未設定へ落とす**（両ローダーで同じ解釈・parity テストで担保）
+- ⚠ **`listCoursesNeedingMetaPersist`（`lib/course-flow.ts`）に style の比較を足す必要があった**。ここを忘れると「style だけ変更」が保存されずに消える。**コースメタに項目を足すときは必ずこの関数も直すこと**
+- ⚠ **shadcn base（Base UI）の `Select` はラベル解決に Root の `items` を渡す必要がある**。`SelectItem` の children だけではトリガーに生の value が出る（`__unset__` と表示された）。既存の `LessonMetaPanel` が `items` を渡しているのが正しい流儀
+- **曼陀羅ノード（`MandalaNode`）にも `style` を載せた**。④ が表示だけに専念できるようにするため（変換スクリプトを再度触らずに済む）
+- **既存コースへの値入れは人の作業**。検証で DX入門コースに `hands-on` を設定済み（そのまま残してある）。残り4コースは未設定
+
+⚠ **検証中に事故を起こしたので記録する**: `.meta.json` を **PowerShell の `Out-File -Encoding utf8` で書いたら BOM が付き**、`JSON.parse` が失敗 → ローダーが「メタ無し」と判断して **`id` を再採番し、`slug` / `description` / `catch` / `target` を消した**。`git checkout` で復元済み（被害はこの1ファイルのみ・元の `id` も復旧）。**`contents/` の JSON を CLI から触るときは `node -e` で書く**（BOM が付かない）。7章の CRLF+BOM 注意と同根。
 
 ### 2.3 触るときに知っておくこと
 
@@ -501,6 +514,7 @@ contents-work/
 | `content-folder-loader` spec の旧設計記述 | 前半に `_series-order.json` / `_course.json` / 数値プレフィックスが残っている。実装は `.meta.json` の `order` で動いており乖離。直すなら別 change |
 | `training-create-skill` spec 前半5件の書きぶり | `抽出元と網羅` 等が過去の作業記録に読める。`## Purpose` も実態とずれている。**中身は生きているので消さない。** 直すなら別 change |
 | テスト側の型エラー8件 | `estimatedMinutes` の綴り違い等。**すべて古くからのもの**で、`tsc --noEmit` のアプリ側はゼロ。直すなら独立した掃除として |
+| **Studio の `tsc --noEmit` が site/ を巻き込んで73件エラーを出す**（2026-08-14 発見） | `tsconfig.json` の `include` が `**/*.ts(x)`・`exclude` が `node_modules` だけなので、**独自の tsconfig とパスエイリアスを持つ `site/` まで型検査してしまう**（`Cannot find module '@/lib/site-data'` 等）。`site/` を追加した時点からの既存問題で、実害は「アプリ側の型エラーを見つけにくい」こと（アプリ側自体はゼロ）。直すなら `exclude` に `site` を足すだけ。site の型検査は `site/` 側で別に回す |
 | **`data/` の掃除**（2026-08-14 決定済み） | **`data/content.json` は撤去する（決定・change ⑤）**——旧 JSON 形式時代の遺物で、用途の「HEAD に md が無いレッスン」の差分フォールバック（`lib/lesson-head-content.ts`）は全9レッスンの md が追跡済みの現在実質死んでいる。撤去は spec 2本（`training-studio-lesson-content` のフォールバック要件削除・`content-migration-script` capability 廃止）＋ `scripts/migrate-content.ts` 削除を伴う change。**`data/workspace.json` は現状維持で確定**（アプリ名・アイコン設定として使用中。ハードコード化も検討したが困っていないので変えない）。実施はサイト改善4本の後 |
 | 退避機能が `contents-work/` を保護していない | `toProjectRelative` がフォーカス中の `contents/` 配下しか見ないため、額縁テンプレートが実際に置かれる `contents-work/runs/` では発火しない。必要な形は分割出力を実際に使ってからでないと決まらない |
 

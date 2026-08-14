@@ -40,7 +40,7 @@ TBD - created by archiving change course-order-and-mandala. Update Purpose after
 
 ### Requirement: コースメタ編集モーダルの項目
 
-コースメタ編集ダイアログは、次の項目を提供しなければならない（SHALL）: 編集可能な受講対象者（単一行テキスト）; 読取専用の同シリーズの前コース（最大1件、`i-1` の日本語表示名）; 読取専用の同シリーズの次コース（最大1件、`i+1` の日本語表示名）; 編集可能な別シリーズの前コース（0件以上、日本語名で多選択、`cross_series_prev` に ID 保存）; 編集可能な別シリーズの次コース（0件以上、多選択、`cross_series_next` に ID 保存）。
+コースメタ編集ダイアログは、次の項目を提供しなければならない（SHALL）: 編集可能な受講対象者（単一行テキスト）; 編集可能な受講形態（select。未設定 / 独習 / 講義 / ハンズオンの4択、`style` に `self-study` / `lecture` / `hands-on` を保存し「未設定」ではキーを書かない）; 読取専用の同シリーズの前コース（最大1件、`i-1` の日本語表示名）; 読取専用の同シリーズの次コース（最大1件、`i+1` の日本語表示名）; 編集可能な別シリーズの前コース（0件以上、日本語名で多選択、`cross_series_prev` に ID 保存）; 編集可能な別シリーズの次コース（0件以上、多選択、`cross_series_next` に ID 保存）。
 
 #### Scenario: 同シリーズの前コースを読取表示する
 
@@ -57,6 +57,17 @@ TBD - created by archiving change course-order-and-mandala. Update Purpose after
 
 - **WHEN** ユーザーがメタダイアログで別シリーズのコースを選択して保存する
 - **THEN** `cross_series_prev` と `cross_series_next` には選択した別シリーズのコース ID のみが含まれる
+
+#### Scenario: 受講形態を選んで保存する
+
+- **WHEN** メタダイアログで受講形態に「ハンズオン」を選んで保存する
+- **THEN** コース `.meta.json` の `style` に `hands-on` が書き込まれる
+- **AND** ダイアログを開き直すと「ハンズオン」が選択されている
+
+#### Scenario: 受講形態を未設定に戻す
+
+- **WHEN** `style` が設定済みのコースで受講形態に「未設定」を選んで保存する
+- **THEN** コース `.meta.json` から `style` キーが除去される
 
 ### Requirement: ミニ曼陀羅のローカルグラフ
 

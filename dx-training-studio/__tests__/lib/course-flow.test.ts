@@ -185,6 +185,22 @@ describe("listCoursesNeedingMetaPersist", () => {
     expect(targets.map((t) => t.course.id).sort()).toEqual(["a1", "b1"]);
     expect(getCourse(after, "b1").cross_series_prev).toEqual(["a1"]);
   });
+
+  it("includes the edited course when only style changed", () => {
+    const before = [series("sa", [course("a1")])];
+    const after = [series("sa", [course("a1", { style: "hands-on" })])];
+
+    const targets = listCoursesNeedingMetaPersist(before, after, "a1");
+    expect(targets.map((t) => t.course.id)).toEqual(["a1"]);
+  });
+
+  it("includes the edited course when style is cleared", () => {
+    const before = [series("sa", [course("a1", { style: "lecture" })])];
+    const after = [series("sa", [course("a1", { style: undefined })])];
+
+    const targets = listCoursesNeedingMetaPersist(before, after, "a1");
+    expect(targets.map((t) => t.course.id)).toEqual(["a1"]);
+  });
 });
 
 describe("buildCourseNeighbors", () => {

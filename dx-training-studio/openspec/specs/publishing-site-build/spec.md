@@ -136,3 +136,17 @@
 - **THEN** 変換 → ビルド（検索インデックス生成を含む）が実行された後に開発サーバーが起動する
 - **AND** 起動した開発サーバーで検索が機能する
 
+### Requirement: 変換はコースの style を site-data.json に含める
+
+変換スクリプトは、コース `.meta.json` の `style` を読み取り、`site-data.json` のコース情報に含めなければならない（SHALL）。未設定のコースでは含めない（キー無しまたは undefined）。site 側の読み取りは Studio ローダーと同じ解釈（3値の語彙・語彙外は未設定扱い）でなければならない（SHALL）——parity テストの対象。
+
+#### Scenario: style が site-data に伝搬する
+
+- **WHEN** コース `.meta.json` に `"style": "lecture"` がある状態で変換を実行する
+- **THEN** `site-data.json` の当該コースに `style: "lecture"` が含まれる
+
+#### Scenario: 未設定コースでは伝搬しない
+
+- **WHEN** `style` の無いコースを含めて変換を実行する
+- **THEN** 変換は成功し、当該コースの `style` は `site-data.json` に含まれない
+

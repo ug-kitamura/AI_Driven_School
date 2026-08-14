@@ -105,7 +105,7 @@ npm run start   # out/ をローカル配信
 
 | # | change | 内容 |
 |---|---|---|
-| ① | 起動と検索の修理 | ポート3本 / start.bat / Pagefind 導入 / supergraphic 2箇所。**実装完了（2026-08-14・`fix-site-launch-and-search`）→ 下の「①の実施記録」** |
+| ① | 起動と検索の修理 | ポート3本 / start.bat / Pagefind 導入 / supergraphic 2箇所。**完了・archive 済み（2026-08-14）→ 下の「①の実施記録」** |
 | ② | style メタ拡張 | schema / コース編集モーダル / site への伝搬 / parity テスト |
 | ③ | サイトのナビとページ構成 | 下記 |
 | ④ | 曼陀羅リデザイン | 下記 |
@@ -130,9 +130,9 @@ npm run start   # out/ をローカル配信
 
 こちらで把握している弱点（ユーザー報告とは別）は 2.5 に列挙してある（うちホバートレースと cover の2件は上記で解消)。
 
-### 2.2.1 ①の実施記録（2026-08-14 完了・未コミット / 未 archive）
+### 2.2.1 ①の実施記録（2026-08-14 完了・archive 済み / 未コミット）
 
-change `fix-site-launch-and-search` を実装。**19タスク全完了**。
+change `fix-site-launch-and-search` を実装。**19タスク全完了**。`openspec archive -y` で spec 3本に4要件を同期し `2026-08-14-fix-site-launch-and-search` として archive 済み（`validate --specs` 60 passed）。**CLI 一発で同期まで通った**——6.1 の「次回は CLI を先に試すこと」の実測。
 
 - **検索が直った**。原因は診断どおり Pagefind 未セットアップ。`site/package.json` に `postbuild` を追加（`pagefind --site .next/server/app --output-path public/_pagefind` → `out/_pagefind` へ `fs.cpSync` でコピー）。**2箇所に出すのが要点**——`output: 'export'` では postbuild の時点で `out/` へのコピーは終わっており、`public/` だけだと配信物に入らない。`public/` 側は dev サーバー用に効く。34ページ・1419語がインデックスされ、「コミット」で12件・1位「最初のコミット」を確認
 - **basePath 配下でも検索が動くことを実機確認済み**（design のリスク欄は解消）。Nextra が `addBasePath()` でラップしているため対処不要だった。`/AI_Driven_School/` 配下に配信して UI から検索し、結果リンクも basePath 付きで生成されることを確認

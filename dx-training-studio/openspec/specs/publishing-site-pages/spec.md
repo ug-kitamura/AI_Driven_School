@@ -3,9 +3,7 @@
 ## Purpose
 
 公開サイトのページ構成（トップページ3階層・レッスンページ・パンくず・バッジ・静的 export）の要件を規定する。
-
 ## Requirements
-
 ### Requirement: サイトは静的 export で全ページを生成できる
 
 サイトは Nextra 4（Next.js）で構築し、`output: 'export'` で全ページを静的 HTML として生成できなければならない（SHALL）。サーバーランタイムを前提とする機能（Route Handlers・middleware・画像最適化）に依存してはならない（SHALL NOT）。GitHub Pages のサブパス配信（`basePath`）と Vercel のルート配信の両方でリンク・アセットが解決できなければならない（SHALL）。
@@ -74,3 +72,18 @@
 
 - **WHEN** `status: done` のレッスンを見る
 - **THEN** 状態バッジは表示されない
+
+### Requirement: supergraphic 帯
+
+サイトの全ページは、画面最上部に高さ 6px・全幅の supergraphic 帯を表示しなければならない（SHALL）。画像はツール埋め込み資産として `site/app/` 直下（ファビコンと同じ場所）に置き、静的 import で参照しなければならない（SHALL）。正本 `images/` に置いてはならない（SHALL NOT）——正本はペイン4 の画像マネージャの管理下にあり、ユーザーが UI から削除できるため。
+
+#### Scenario: 任意のページで帯が表示される
+
+- **WHEN** サイトのいずれかのページを表示する
+- **THEN** 画面最上部に高さ 6px・全幅の supergraphic 帯が表示される
+
+#### Scenario: 画面幅を変えても全幅を保つ
+
+- **WHEN** ブラウザの横幅を変更する
+- **THEN** 帯は常に全幅を占め、supergraphic の色帯の横方向の並びが保たれる
+

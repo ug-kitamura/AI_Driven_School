@@ -5,6 +5,16 @@
   --dxm-brand-soft: rgba(0, 123, 192, 0.12);
 }
 
+/* ===== supergraphic バナー ===== */
+
+/* 高さ 6px 固定・全幅。縦帯構成なので cover で中央を切り出しても色帯の横並びは保たれる */
+.dxm-supergraphic {
+  display: block;
+  width: 100%;
+  height: 6px;
+  object-fit: cover;
+}
+
 .dxm-logo {
   display: inline-flex;
   align-items: center;

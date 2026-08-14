@@ -36,6 +36,7 @@ next-env.d.ts
 # 公開サイト（site/）の生成物 — 変換スクリプトが毎ビルド作り直す
 /site/content/
 /site/public/images/
+/site/public/_pagefind/
 /site/out/
 /site/.next/
 

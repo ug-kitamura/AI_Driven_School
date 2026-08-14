@@ -1,7 +1,7 @@
 @echo off
 cd /d "%~dp0"
 
-set PORT=3001
+set PORT=3000
 set EBEX_URL=http://localhost:%PORT%/
 
 if not exist node_modules (

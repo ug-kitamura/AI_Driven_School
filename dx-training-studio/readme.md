@@ -15,7 +15,7 @@ npm install
 npm run dev
 ```
 
-ブラウザで `http://localhost:3000` を開く。
+ブラウザで `http://localhost:3001` を開く。
 
 Windows では `start.bat` を推奨（Playwright Chromium の確認後に `npm run dev` を実行）。
 

@@ -8,13 +8,31 @@ Studio（`../`）とは独立した npm プロジェクトで、正本 `../conte
 
 ```bash
 npm install
-npm run dev     # 変換 → 開発サーバー
-npm run build   # 変換 → 静的 export（out/ に出る）
-npm run start   # out/ をローカル配信して確認
+npm run dev     # 変換 → 開発サーバー（http://localhost:3002）
+npm run build   # 変換 → 静的 export（out/ に出る）＋ 検索インデックス生成
+npm run start   # out/ をローカル配信して確認（http://localhost:3002）
 npm run test    # 変換・曼陀羅グラフのテスト
 ```
 
+**`start.bat` をダブルクリックすれば「ビルド → 開発サーバー」が一発で走る。** 検索インデックスはビルドでしか作られないため、この順序で起動すると開発サーバーでも検索が使える（→ 検索）。
+
 `npm run build:content` だけを単体で実行すれば、変換（`content/` と `public/images/` の生成）のみ走る。
+
+**ポート**: このサイトは **3002**。同時に立ち上げる別アプリは EBEX が 3000、Studio が 3001。
+
+## 検索
+
+全文検索は [Pagefind](https://pagefind.app/) のインデックスを使う。インデックスは **`npm run build` の postbuild で生成される**。
+
+| 出力先              | 用途                                                   |
+| ------------------- | ------------------------------------------------------ |
+| `public/_pagefind/` | 開発サーバー（`npm run dev`）が配信する                |
+| `out/_pagefind/`    | 静的配信・デプロイ（`npm run start` / Pages / Vercel） |
+
+- **ビルドを一度も走らせていないと検索はエラーになる**。`npm run dev` だけで起動した場合はインデックスが存在しない
+- **開発サーバーの検索結果は直近ビルド時点のスナップショット**。原稿を直しても、再ビルドするまで検索結果には反映されない（本文表示のほうは dev が変換をやり直すので最新になる）
+- ショートカットは Nextra 標準の `Ctrl+K` / `Cmd+K`
+- インデックスは生成物なので git 追跡対象外
 
 ## 生成物
 

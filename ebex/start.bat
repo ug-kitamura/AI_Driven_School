@@ -8,7 +8,7 @@ rem Keep this file ASCII-only: cmd.exe reads .bat in the console codepage
 rem (CP932 on Japanese Windows), so UTF-8 Japanese here breaks parsing.
 cd /d "%~dp0"
 
-set PORT=3001
+set PORT=3000
 set EBEX_URL=http://localhost:%PORT%/
 
 if not exist node_modules (

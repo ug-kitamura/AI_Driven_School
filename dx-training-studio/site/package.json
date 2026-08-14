@@ -5,9 +5,10 @@
   "type": "module",
   "scripts": {
     "build:content": "node --experimental-strip-types scripts/build-content.mts",
-    "dev": "npm run build:content && next dev",
+    "dev": "npm run build:content && next dev -p 3002",
     "build": "npm run build:content && next build",
-    "start": "npx serve out",
+    "postbuild": "pagefind --site .next/server/app --output-path public/_pagefind && node -e \"require('fs').cpSync('public/_pagefind','out/_pagefind',{recursive:true})\"",
+    "start": "npx serve out -l 3002",
     "test": "vitest run",
     "lint": "next lint"
   },
@@ -23,6 +24,7 @@
   "devDependencies": {
     "@types/node": "^24.10.1",
     "@types/react": "^19.2.7",
+    "pagefind": "^1.5.2",
     "typescript": "^5.9.3",
     "vitest": "^3.2.4"
   },

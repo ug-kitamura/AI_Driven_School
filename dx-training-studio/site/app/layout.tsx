@@ -1,8 +1,10 @@
 import type { ReactNode } from "react";
+import Image from "next/image";
 import { Layout, Navbar, Footer } from "nextra-theme-docs";
 import { Head } from "nextra/components";
 import { getPageMap } from "nextra/page-map";
 import siteConfig from "@/site.config.json";
+import supergraphicImage from "./supergraphic.png";
 import { LanguageToggle } from "@/components/LanguageToggle";
 import { SiteFooter } from "@/components/SiteFooter";
 import "nextra-theme-docs/style.css";
@@ -40,6 +42,16 @@ export default async function RootLayout({
     <html lang="ja" dir="ltr" suppressHydrationWarning>
       <Head />
       <body>
+        {/* 装飾目的の supergraphic バナー。縦帯構成なので cover で中央を切り出しても
+            色帯の横並びは保たれる。テーマの sticky ナビより外側に置くため、
+            スクロールすると画面外へ流れる（ページ最上部の装飾という位置づけ）。 */}
+        <Image
+          src={supergraphicImage}
+          alt=""
+          aria-hidden
+          priority
+          className="dxm-supergraphic"
+        />
         <Layout
           navbar={navbar}
           pageMap={await getPageMap()}

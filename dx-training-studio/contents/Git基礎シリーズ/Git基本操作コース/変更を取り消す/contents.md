@@ -2,6 +2,8 @@
 series: Git基礎シリーズ
 course: Git基本操作コース
 lesson: 変更を取り消す
+slug: undo
+id: lsn-undo-uzwouz
 status: done
 description: コミット前の変更を restore で安全に戻し、「失敗しても戻れる」を自分の手で確かめる
 tags: [git, basics]
@@ -24,12 +26,13 @@ author: Kitamura
 <!--
 「戻したい」の2場面を左右比較のカード2枚で。左のカード「編集をなかったことにしたい」：ファイルをぐちゃぐちゃに編集してしまった状態から、直前のセーブの状態に戻る矢印、コマンドラベル git restore。右のカード「セーブに含める選択から外したい」：ステージに載ったファイルが作業ツリーに降りるだけの矢印、編集内容はそのまま、コマンドラベル git restore --staged
 -->
+
 ![git restoreの2つの使い分けを左右比較](images/git-restore-two-cases.png)
 
-| 場面 | 何をするか | コマンド |
-|---|---|---|
-| **編集をなかったことにしたい** | 直前のセーブからロードしてやり直す | `git restore` |
-| **add を取り消したい** | セーブの選択から外す（編集内容は残る） | `git restore --staged` |
+| 場面                           | 何をするか                             | コマンド               |
+| ------------------------------ | -------------------------------------- | ---------------------- |
+| **編集をなかったことにしたい** | 直前のセーブからロードしてやり直す     | `git restore`          |
+| **add を取り消したい**         | セーブの選択から外す（編集内容は残る） | `git restore --staged` |
 
 どちらも `restore` でできます。この2つだけ押さえれば十分です。
 
@@ -45,7 +48,7 @@ git restore memo.txt
 
 これでファイルの中身が、最後にコミットしたときの状態に巻き戻ります。ゲームで言えば、**プレイをやめて直前のセーブからロードし直す**操作です。（厳密には、add 済みの変更が残っている場合は「add した時点」に戻りますが、最初の理解は「直前のセーブに戻る」で十分です）
 
-*出典: [git-restore 公式ドキュメント](https://git-scm.com/docs/git-restore)（2026年8月取得）*
+_出典: [git-restore 公式ドキュメント](https://git-scm.com/docs/git-restore)（2026年8月取得）_
 
 > [!CAUTION]
 > **restore で消した編集は、元に戻せません。** 7つの操作の中で唯一、結果を取り消せないコマンドです。実行する前に `git status` で「何が消えるのか」を確認する癖をつけてください。
@@ -74,9 +77,10 @@ git restore --staged memo.txt
 VSCode のソース管理ビューの UI mock。左端のアクティビティバーに枝分かれ形のソース管理アイコン。サイドバーに「ステージされている変更」の見出しの下にファイル名 memo.txt とその右に「−」ボタン、「変更」の見出しの下に別のファイル名とその右にくるっと戻る矢印の「変更を破棄」アイコン。画面の再現のみ。実際の画面に表示されない説明ラベル・ヒント・タイトルを加えない。
 実際の画面との一致が重要な図。生成品質が悪い場合はスクリーンショットで代用すること。
 -->
+
 ![VSCodeのソース管理ビューのUIモック](images/vscode-source-control-view.png)
 
-*出典: [Visual Studio Code 公式ドキュメント「Staging and committing changes」](https://code.visualstudio.com/docs/sourcecontrol/staging-commits)（2026年8月取得）*
+_出典: [Visual Studio Code 公式ドキュメント「Staging and committing changes」](https://code.visualstudio.com/docs/sourcecontrol/staging-commits)（2026年8月取得）_
 
 ## やってみる
 

@@ -2,6 +2,8 @@
 series: Git基礎シリーズ
 course: Git基本操作コース
 lesson: 最初のコミット
+slug: first-commit
+id: lsn-first-commit-kv4ju4
 status: done
 description: 練習用リポジトリで add と commit の流れを通し、生成物を.gitignoreで除外できるようになる
 tags: [git, basics]
@@ -81,7 +83,7 @@ nothing to commit, working tree clean
 
 「セーブすべきものは何もない」——つまり**全部の変更がセーブ済み**という意味です。三大エリアのレッスンで「表示されない＝リポジトリのセーブと同じ状態」と予告しましたが、その実物がこの表示です。おめでとうございます、最初のコミットが完成しました。
 
-*出典: [Pro Git 日本語版「変更内容のリポジトリへの記録」](https://git-scm.com/book/ja/v2/Git-%E3%81%AE%E5%9F%BA%E6%9C%AC-%E5%A4%89%E6%9B%B4%E5%86%85%E5%AE%B9%E3%81%AE%E3%83%AA%E3%83%9D%E3%82%B8%E3%83%88%E3%83%AA%E3%81%B8%E3%81%AE%E8%A8%98%E9%8C%B2)（2026年8月取得）*
+_出典: [Pro Git 日本語版「変更内容のリポジトリへの記録」](https://git-scm.com/book/ja/v2/Git-%E3%81%AE%E5%9F%BA%E6%9C%AC-%E5%A4%89%E6%9B%B4%E5%86%85%E5%AE%B9%E3%81%AE%E3%83%AA%E3%83%9D%E3%82%B8%E3%83%88%E3%83%AA%E3%81%B8%E3%81%AE%E8%A8%98%E9%8C%B2)（2026年8月取得）_
 
 ## VSCode ではこう見える
 
@@ -91,6 +93,7 @@ nothing to commit, working tree clean
 VSCode の Source Control（ソース管理）ビューの UI mock。左端のアクティビティバーに枝分かれ形のソース管理アイコン。パネルには「変更」の見出しの下にファイル名 memo.txt が並び、ファイル名の右に「＋」ボタン。パネル上部にコミットメッセージの入力欄と青い「コミット」ボタン。添える注釈は「＋ ＝ git add」「コミット ボタン ＝ git commit」の2つだけで、ほかの説明ラベル・ヒント・タイトルは加えない。
 実際の画面との一致が重要な図。生成品質が悪い場合はスクリーンショットで代用すること。
 -->
+
 ![VSCodeのソース管理ビューでプラスボタンとコミットボタンがgit addとgit commitに対応することを示すUIモック](images/vscode-source-control-add-commit-4.png)
 
 左端の**枝分かれした形のアイコン**（ソース管理）を開くと、変更されたファイルの一覧が出ます。ファイル名の横の **「＋」が `git add`**、上の **「コミット」ボタンが `git commit`** に対応します。ボタンの位置よりも、**裏で動いているのはさっきと同じ add と commit** だということを覚えておいてください。実務ではこの画面を使うことが多くなりますが、仕組みはコマンドで学んだ通りです。

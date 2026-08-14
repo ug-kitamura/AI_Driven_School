@@ -2,6 +2,8 @@
 series: Git基礎シリーズ
 course: Git基本操作コース
 lesson: 履歴と差分を読む
+slug: log-and-diff
+id: lsn-log-and-diff-fymalx
 status: done
 description: status・log・diffの3つを使い分けて、いま何がどうなっているかを自分で確かめられるようになる
 tags: [git, basics]
@@ -21,11 +23,11 @@ author: Kitamura
 
 まず役割の地図から。3つのコマンドは、それぞれ**時間の向き**が違います。
 
-| コマンド | 時間の向き | 分かること |
-|---|---|---|
-| `status` | **いま** | セーブしていない変更が「あるか」 |
-| `log` | **過去** | どんなセーブが積まれてきたか |
-| `diff` | **違い** | 何が「どう」変わったのか |
+| コマンド | 時間の向き | 分かること                       |
+| -------- | ---------- | -------------------------------- |
+| `status` | **いま**   | セーブしていない変更が「あるか」 |
+| `log`    | **過去**   | どんなセーブが積まれてきたか     |
+| `diff`   | **違い**   | 何が「どう」変わったのか         |
 
 `status` は前のレッスンで口癖にしたもの。今日は残りの2つ、`log` と `diff` を足します（7つの操作のうち、これで6つ目まで到達です）。
 
@@ -88,9 +90,10 @@ VSCode では、ソース管理ビューで変更されたファイル名を**�
 VSCode の差分比較画面の UI mock。左端のアクティビティバーに枝分かれ形のソース管理アイコン、サイドバーの「変更」の下にファイル名 memo.txt。エディタ領域は memo.txt の変更前と変更後が左右2ペインで並び、消えた行が赤背景、増えた行が緑背景でハイライトされている。画面の再現のみ。実際の画面に表示されない説明ラベル・ヒント・タイトルを加えない。
 実際の画面との一致が重要な図。生成品質が悪い場合はスクリーンショットで代用すること。
 -->
+
 ![VSCodeの差分比較画面（ソース管理からmemo.txtを開いた状態）](images/vscode-diff-view-mock.png)
 
-*出典: [Visual Studio Code 公式ドキュメント「Source Control」](https://code.visualstudio.com/docs/sourcecontrol/overview)（2026年8月取得）*
+_出典: [Visual Studio Code 公式ドキュメント「Source Control」](https://code.visualstudio.com/docs/sourcecontrol/overview)（2026年8月取得）_
 
 ## やってみる
 

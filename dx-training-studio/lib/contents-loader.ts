@@ -35,14 +35,20 @@ export function readMetaJson(dir: string): Record<string, unknown> {
   const metaPath = path.join(dir, ".meta.json");
   if (!fs.existsSync(metaPath)) return {};
   try {
-    return JSON.parse(fs.readFileSync(metaPath, "utf-8")) as Record<string, unknown>;
+    return JSON.parse(fs.readFileSync(metaPath, "utf-8")) as Record<
+      string,
+      unknown
+    >;
   } catch {
     return {};
   }
 }
 
 /** `.meta.json` に data を書き込む */
-export function writeMetaJson(dir: string, data: Record<string, unknown>): void {
+export function writeMetaJson(
+  dir: string,
+  data: Record<string, unknown>,
+): void {
   fs.writeFileSync(
     path.join(dir, ".meta.json"),
     JSON.stringify(data, null, 2),
@@ -54,7 +60,10 @@ export function writeMetaJson(dir: string, data: Record<string, unknown>): void 
  * シリーズ表示名に一致するフォルダの絶対パスを返す。
  * 見つからない場合は null を返す。
  */
-export function findSeriesDir(contentsDir: string, seriesName: string): string | null {
+export function findSeriesDir(
+  contentsDir: string,
+  seriesName: string,
+): string | null {
   if (!fs.existsSync(contentsDir)) return null;
   const dir = path.join(contentsDir, seriesName);
   return fs.existsSync(dir) && fs.statSync(dir).isDirectory() ? dir : null;
@@ -64,7 +73,10 @@ export function findSeriesDir(contentsDir: string, seriesName: string): string |
  * コース表示名に一致するフォルダの絶対パスを返す。
  * 見つからない場合は null を返す。
  */
-export function findCourseDir(seriesDir: string, courseName: string): string | null {
+export function findCourseDir(
+  seriesDir: string,
+  courseName: string,
+): string | null {
   if (!fs.existsSync(seriesDir)) return null;
   const dir = path.join(seriesDir, courseName);
   return fs.existsSync(dir) && fs.statSync(dir).isDirectory() ? dir : null;
@@ -212,7 +224,9 @@ export function reconcileOrderFiles(projectRoot: string): void {
 
   const actualSeries = new Set(listContentDirNames(contentsDir));
   const contentsMeta = readMetaJson(contentsDir);
-  const seriesOrder = Array.isArray(contentsMeta.order) ? (contentsMeta.order as string[]) : [];
+  const seriesOrder = Array.isArray(contentsMeta.order)
+    ? (contentsMeta.order as string[])
+    : [];
   const reconciledSeries = reconcileOrder(seriesOrder, actualSeries);
   const effectiveSeries = reconciledSeries ?? seriesOrder;
   if (reconciledSeries !== null) {
@@ -225,7 +239,9 @@ export function reconcileOrderFiles(projectRoot: string): void {
 
     const actualCourses = new Set(listContentDirNames(seriesDir));
     const seriesMeta = readMetaJson(seriesDir);
-    const courseOrder = Array.isArray(seriesMeta.order) ? (seriesMeta.order as string[]) : [];
+    const courseOrder = Array.isArray(seriesMeta.order)
+      ? (seriesMeta.order as string[])
+      : [];
     const reconciledCourses = reconcileOrder(courseOrder, actualCourses);
     const effectiveCourses = reconciledCourses ?? courseOrder;
     if (reconciledCourses !== null) {
@@ -238,7 +254,9 @@ export function reconcileOrderFiles(projectRoot: string): void {
 
       const actualLessons = listLessonFolderNames(courseDir);
       const courseMeta = readMetaJson(courseDir);
-      const lessonOrder = Array.isArray(courseMeta.order) ? (courseMeta.order as string[]) : [];
+      const lessonOrder = Array.isArray(courseMeta.order)
+        ? (courseMeta.order as string[])
+        : [];
       const reconciledLessons = reconcileOrder(lessonOrder, actualLessons);
       if (reconciledLessons !== null) {
         writeMetaJson(courseDir, { ...courseMeta, order: reconciledLessons });
@@ -264,7 +282,9 @@ export function loadContentsFolder(projectRoot: string): Series[] {
   if (!fs.existsSync(contentsDir)) return [];
 
   const contentsMeta = readMetaJson(contentsDir);
-  const seriesOrder = Array.isArray(contentsMeta.order) ? (contentsMeta.order as string[]) : [];
+  const seriesOrder = Array.isArray(contentsMeta.order)
+    ? (contentsMeta.order as string[])
+    : [];
 
   const actualSeriesDirs = listContentDirNames(contentsDir);
 
@@ -293,7 +313,9 @@ export function loadContentsFolder(projectRoot: string): Series[] {
       usedIds.add(seriesId);
     }
 
-    const courseOrder = Array.isArray(seriesMeta.order) ? (seriesMeta.order as string[]) : [];
+    const courseOrder = Array.isArray(seriesMeta.order)
+      ? (seriesMeta.order as string[])
+      : [];
 
     const actualCourseDirs = listContentDirNames(seriesDir);
 
@@ -361,9 +383,17 @@ export function loadContentsFolder(projectRoot: string): Series[] {
           fs.writeFileSync(lessonFilePath, content, "utf-8");
         }
 
+        const {
+          slug: lessonSlug,
+          id: lessonStableId,
+          ...lessonFields
+        } = normalized;
+
         lessons.push({
           id: buildLessonId(seriesName, courseName, lessonName),
-          ...normalized,
+          ...lessonFields,
+          slug: lessonSlug,
+          stableId: lessonStableId,
           content,
         });
       }
@@ -375,13 +405,56 @@ export function loadContentsFolder(projectRoot: string): Series[] {
         cross_series_prev: courseMeta.cross_series_prev,
         cross_series_next: courseMeta.cross_series_next,
         lessons,
+        ...readPublishingMeta(courseMetaRaw),
       });
     }
 
-    result.push({ id: seriesId, name: seriesName, courses });
+    result.push({
+      id: seriesId,
+      name: seriesName,
+      courses,
+      ...readPublishingMeta(seriesMeta),
+      ...(typeof seriesMeta.cover === "string"
+        ? { cover: seriesMeta.cover }
+        : {}),
+    });
   }
 
   return result;
+}
+
+/** `.meta.json` の公開サイト向けフィールド（未設定のキーは含めない） */
+const PUBLISHING_META_KEYS = [
+  "slug",
+  "description",
+  "catch",
+  "name_en",
+  "description_en",
+  "catch_en",
+] as const;
+
+export function readPublishingMeta(
+  meta: Record<string, unknown>,
+): Partial<Record<(typeof PUBLISHING_META_KEYS)[number], string>> {
+  const result: Record<string, string> = {};
+  for (const key of PUBLISHING_META_KEYS) {
+    const value = meta[key];
+    if (typeof value === "string" && value.length > 0) result[key] = value;
+  }
+  return result;
+}
+
+/** `contents/.meta.json`（全体）の公開サイト向けメタ */
+export function loadContentsMeta(projectRoot: string): {
+  description?: string;
+  description_en?: string;
+} {
+  const meta = readMetaJson(getContentsDir(projectRoot));
+  const { description, description_en } = readPublishingMeta(meta);
+  return {
+    ...(description ? { description } : {}),
+    ...(description_en ? { description_en } : {}),
+  };
 }
 
 function loadCourseMeta(courseDir: string): {
@@ -397,9 +470,17 @@ function loadCourseMeta(courseDir: string): {
     const legacy = path.join(courseDir, "_course.json");
     if (fs.existsSync(legacy)) {
       try {
-        const raw = JSON.parse(fs.readFileSync(legacy, "utf-8")) as Record<string, unknown>;
+        const raw = JSON.parse(fs.readFileSync(legacy, "utf-8")) as Record<
+          string,
+          unknown
+        >;
         return {
-          target: typeof raw.target === "string" ? raw.target : (typeof raw.target_audience === "string" ? raw.target_audience : ""),
+          target:
+            typeof raw.target === "string"
+              ? raw.target
+              : typeof raw.target_audience === "string"
+                ? raw.target_audience
+                : "",
           cross_series_prev: Array.isArray(raw.cross_series_prev)
             ? (raw.cross_series_prev as string[])
             : Array.isArray(raw.prerequisites)
@@ -419,9 +500,18 @@ function loadCourseMeta(courseDir: string): {
   }
 
   return {
-    target: typeof meta.target === "string" ? meta.target : (typeof meta.target_audience === "string" ? meta.target_audience : ""),
-    cross_series_prev: Array.isArray(meta.cross_series_prev) ? (meta.cross_series_prev as string[]) : [],
-    cross_series_next: Array.isArray(meta.cross_series_next) ? (meta.cross_series_next as string[]) : [],
+    target:
+      typeof meta.target === "string"
+        ? meta.target
+        : typeof meta.target_audience === "string"
+          ? meta.target_audience
+          : "",
+    cross_series_prev: Array.isArray(meta.cross_series_prev)
+      ? (meta.cross_series_prev as string[])
+      : [],
+    cross_series_next: Array.isArray(meta.cross_series_next)
+      ? (meta.cross_series_next as string[])
+      : [],
     order: Array.isArray(meta.order) ? (meta.order as string[]) : [],
   };
 }
@@ -432,7 +522,11 @@ function listLessonFolderNames(courseDir: string): Set<string> {
   for (const entry of fs.readdirSync(courseDir, { withFileTypes: true })) {
     if (!entry.isDirectory()) continue;
     if (!isContentFolderName(entry.name)) continue;
-    const contentsPath = path.join(courseDir, entry.name, LESSON_CONTENTS_FILENAME);
+    const contentsPath = path.join(
+      courseDir,
+      entry.name,
+      LESSON_CONTENTS_FILENAME,
+    );
     if (fs.existsSync(contentsPath)) {
       names.add(entry.name);
     }
@@ -475,7 +569,10 @@ export function findLessonLocationById(
  * order 配列と actual Set を突き合わせる。
  * 変更がなければ null、変更があれば新しい配列を返す。
  */
-function reconcileOrder(ordered: string[], actual: Set<string>): string[] | null {
+function reconcileOrder(
+  ordered: string[],
+  actual: Set<string>,
+): string[] | null {
   const filtered = ordered.filter((name) => actual.has(name));
   const inOrder = new Set(filtered);
   const added = [...actual].filter((name) => !inOrder.has(name)).sort();

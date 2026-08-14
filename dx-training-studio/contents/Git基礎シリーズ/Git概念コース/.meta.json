@@ -1,12 +1,10 @@
 {
-  "order": [
-    "バージョン管理ってなに？",
-    "Gitの三大エリア"
-  ],
+  "order": ["バージョン管理ってなに？", "Gitの三大エリア"],
   "target": "バージョン管理を全く知らない開発者",
   "id": "crs-n-ih0z-lwbmql",
-  "cross_series_prev": [
-    "crs-n-sojhjp-2nx20n"
-  ],
-  "cross_series_next": []
+  "cross_series_prev": ["crs-n-sojhjp-2nx20n"],
+  "cross_series_next": [],
+  "slug": "concepts",
+  "description": "コマンドを打つ前に、Git が何のための道具かを掴むコース。バージョン管理が必要な理由と、変更が置かれる3つの場所を地図として持ち帰ります。",
+  "catch": "道具の前に地図を"
 }

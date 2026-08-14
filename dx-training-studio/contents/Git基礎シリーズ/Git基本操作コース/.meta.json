@@ -1,9 +1,8 @@
 {
-  "order": [
-    "最初のコミット",
-    "履歴と差分を読む",
-    "変更を取り消す"
-  ],
+  "order": ["最初のコミット", "履歴と差分を読む", "変更を取り消す"],
   "target": "Gitを入れたがコマンドを打ったことがない人",
-  "id": "crs-n-bj2gbl-52p5jz"
+  "id": "crs-n-bj2gbl-52p5jz",
+  "slug": "basics",
+  "description": "記録する・読む・戻すの3つを自分の手で通すコース。add と commit で作業を残し、status・log・diff で状態を確かめ、restore で安全に元へ戻せるようになります。",
+  "catch": "記録して、読んで、戻せる"
 }

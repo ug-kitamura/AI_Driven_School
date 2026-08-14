@@ -17,6 +17,10 @@ export type LessonMetaFields = {
   tags: string[];
   estimated_minutes: number;
   author: string;
+  /** 公開サイトの URL に使う slug。未設定なら frontmatter に書かない */
+  slug?: string;
+  /** 安定 ID（`lsn-...`）。未設定なら frontmatter に書かない */
+  id?: string;
 };
 
 const VALID_STATUSES: LessonStatus[] = ["open", "in_progress", "done"];
@@ -88,7 +92,9 @@ export function parseLessonDocument(content: string | undefined | null): {
 }
 
 /** 本文先頭の文字オフセット。フロントマターが無ければ 0 */
-export function getLessonBodyStartOffset(content: string | undefined | null): number {
+export function getLessonBodyStartOffset(
+  content: string | undefined | null,
+): number {
   return splitFrontmatterText(content)?.bodyStartOffset ?? 0;
 }
 
@@ -141,6 +147,12 @@ function parseYamlBlock(yaml: string): Partial<LessonMetaFields> {
       case "author":
         meta.author = raw;
         break;
+      case "slug":
+        if (raw) meta.slug = raw;
+        break;
+      case "id":
+        if (raw) meta.id = raw;
+        break;
       default:
         break;
     }
@@ -161,22 +173,25 @@ export function normalizeLessonMeta(
   const status = migrateLegacyStatus(
     partial.status ?? fallbacks?.status ?? "open",
   );
-  let minutes =
-    partial.estimated_minutes ??
-    fallbacks?.estimated_minutes ??
-    0;
+  let minutes = partial.estimated_minutes ?? fallbacks?.estimated_minutes ?? 0;
   if (Number.isNaN(minutes)) minutes = 0;
   minutes = Math.min(180, Math.max(0, Math.round(minutes)));
+
+  const slug = partial.slug ?? fallbacks?.slug;
+  const id = partial.id ?? fallbacks?.id;
 
   return {
     series: ctx.seriesName,
     course: ctx.courseName,
-    lesson: (partial.lesson ?? fallbacks?.lesson ?? "").trim() || "無題のレッスン",
+    lesson:
+      (partial.lesson ?? fallbacks?.lesson ?? "").trim() || "無題のレッスン",
     status,
     description: partial.description ?? fallbacks?.description ?? "",
     tags: normalizeTags(partial.tags ?? fallbacks?.tags),
     estimated_minutes: minutes,
     author: partial.author ?? fallbacks?.author ?? "",
+    ...(slug ? { slug } : {}),
+    ...(id ? { id } : {}),
   };
 }
 
@@ -255,14 +270,14 @@ export function serializeLessonDocument(
   body: string,
 ): string {
   const tagsYaml =
-    meta.tags.length === 0
-      ? "tags: []"
-      : `tags: [${meta.tags.join(", ")}]`;
+    meta.tags.length === 0 ? "tags: []" : `tags: [${meta.tags.join(", ")}]`;
   const yaml = [
     "---",
     `series: ${meta.series}`,
     `course: ${meta.course}`,
     `lesson: ${meta.lesson}`,
+    ...(meta.slug ? [`slug: ${meta.slug}`] : []),
+    ...(meta.id ? [`id: ${meta.id}`] : []),
     `status: ${meta.status}`,
     `description: ${meta.description}`,
     tagsYaml,
@@ -274,7 +289,9 @@ export function serializeLessonDocument(
   return `${yaml}\n${body}`;
 }
 
-export function metaToLessonFields(meta: LessonMetaFields): Pick<
+export function metaToLessonFields(
+  meta: LessonMetaFields,
+): Pick<
   Lesson,
   | "series"
   | "course"
@@ -284,6 +301,8 @@ export function metaToLessonFields(meta: LessonMetaFields): Pick<
   | "tags"
   | "estimated_minutes"
   | "author"
+  | "slug"
+  | "stableId"
 > {
   return {
     series: meta.series,
@@ -294,7 +313,16 @@ export function metaToLessonFields(meta: LessonMetaFields): Pick<
     tags: meta.tags,
     estimated_minutes: meta.estimated_minutes,
     author: meta.author,
+    slug: meta.slug,
+    stableId: meta.id,
   };
+}
+
+/** Lesson の公開サイト向けフィールドを frontmatter のキー名へ写す */
+export function lessonPublishingMeta(
+  lesson: Pick<Lesson, "slug" | "stableId">,
+): Pick<LessonMetaFields, "slug" | "id"> {
+  return { slug: lesson.slug, id: lesson.stableId };
 }
 
 /** :::quiz ブロックを ### 確認問題 + タスクリストへ変換 */
@@ -382,7 +410,10 @@ export function estimateDraftMinutes(body: string): number {
   const rounded = Math.round(raw / 5) * 5;
   return Math.min(
     DRAFT_ESTIMATED_MINUTES_MAX,
-    Math.max(DRAFT_ESTIMATED_MINUTES_MIN, rounded || DRAFT_ESTIMATED_MINUTES_MIN),
+    Math.max(
+      DRAFT_ESTIMATED_MINUTES_MIN,
+      rounded || DRAFT_ESTIMATED_MINUTES_MIN,
+    ),
   );
 }
 
@@ -405,7 +436,8 @@ export function normalizeDraftMarkdownForLesson(
     | "tags"
     | "estimated_minutes"
     | "author"
-  >,
+  > &
+    Partial<Pick<Lesson, "slug" | "stableId">>,
   options: NormalizeDraftOptions = {},
 ): string {
   const { meta, body } = parseLessonDocument(markdown);
@@ -451,6 +483,7 @@ export function normalizeDraftMarkdownForLesson(
       tags,
       estimated_minutes: minutes,
       author: fallbacks.author,
+      ...lessonPublishingMeta(fallbacks),
     },
   );
   return serializeLessonDocument(normalized, body);
@@ -473,6 +506,8 @@ export function reconcileLesson(
       tags: yamlMeta.tags,
       estimated_minutes: yamlMeta.estimated_minutes,
       author: yamlMeta.author,
+      slug: yamlMeta.slug,
+      id: yamlMeta.id,
     },
     ctx,
     {
@@ -484,6 +519,7 @@ export function reconcileLesson(
       tags: lesson.tags,
       estimated_minutes: lesson.estimated_minutes,
       author: lesson.author,
+      ...lessonPublishingMeta(lesson),
     },
   );
 
@@ -536,6 +572,7 @@ export function applyLessonContentEdit(
     tags: lesson.tags,
     estimated_minutes: lesson.estimated_minutes,
     author: lesson.author,
+    ...lessonPublishingMeta(lesson),
   });
   return {
     ...lesson,
@@ -561,6 +598,8 @@ export function patchLessonMeta(
       estimated_minutes:
         metaPatch.estimated_minutes ?? lesson.estimated_minutes,
       author: metaPatch.author ?? lesson.author,
+      slug: metaPatch.slug ?? lesson.slug,
+      id: metaPatch.id ?? lesson.stableId,
     },
     ctx,
   );
@@ -594,6 +633,7 @@ export function applyLessonBodyEdit(
       tags: lesson.tags,
       estimated_minutes: lesson.estimated_minutes,
       author: lesson.author,
+      ...lessonPublishingMeta(lesson),
     },
     ctx,
   );

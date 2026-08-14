@@ -2,6 +2,8 @@
 series: はじめにシリーズ
 course: DX入門コース
 lesson: トレーニングの進め方
+slug: how-to-learn
+id: lsn-how-to-learn-hjeex6
 status: in_progress
 description: トレーニングのゴールと曼陀羅の見方を手に入れ、自分が取り組む順番を自分で決められるようになる
 tags: [start, intro]

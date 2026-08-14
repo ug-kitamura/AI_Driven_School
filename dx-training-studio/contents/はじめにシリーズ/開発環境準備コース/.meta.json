@@ -1,10 +1,16 @@
 {
-  "order": ["Chocolatey のセットアップ", "VSCodeのインストールと初期設定"],
+  "order": [
+    "Chocolatey のセットアップ",
+    "VSCodeのインストールと初期設定"
+  ],
   "target": "Chocolatey / VSCode を入れていない人",
   "id": "crs-n-sojhjp-2nx20n",
   "cross_series_prev": [],
-  "cross_series_next": ["crs-n-ih0z-lwbmql"],
+  "cross_series_next": [
+    "crs-n-ih0z-lwbmql"
+  ],
   "slug": "setup",
   "description": "この先のシリーズで使う道具をそろえるコース。Chocolatey を導入し、そこから部門向けカスタマイズ版の VSCode を入れて、フォルダを開いて編集できる状態にします。",
-  "catch": "道具をそろえる"
+  "catch": "道具をそろえる",
+  "style": "self-study"
 }

@@ -125,10 +125,8 @@ function main(): void {
   );
   for (const file of lessonFiles) writeFile(outputContentDir, file);
 
-  // シリーズのヒーロー画像は本文参照に現れないので、ここで拾う
-  for (const series of data.series) {
-    if (series.cover) referencedImages.add(series.cover);
-  }
+  // `cover` は読者向けページに出さないのでコピーも実体チェックもしない
+  // （表示しない画像の欠落でビルドが落ちるのを避ける）。フィールド自体は正本に残る。
 
   for (const locale of LOCALES) {
     for (const file of emitIndexPages(data, locale))

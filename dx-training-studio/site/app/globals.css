@@ -22,33 +22,6 @@
   font-weight: 700;
 }
 
-/* ===== パンくず ===== */
-
-.dxm-breadcrumbs {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 0.4rem;
-  font-size: 0.85rem;
-  color: color-mix(in srgb, currentColor 65%, transparent);
-  margin-bottom: 1rem;
-}
-
-.dxm-breadcrumb-item {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.4rem;
-}
-
-.dxm-breadcrumbs a:hover {
-  color: var(--dxm-brand);
-  text-decoration: underline;
-}
-
-.dxm-breadcrumb-sep {
-  opacity: 0.5;
-}
-
 /* ===== フッター ===== */
 
 .dxm-footer {
@@ -81,21 +54,41 @@
   text-decoration: underline;
 }
 
+/* ===== レッスンのラベル行 ===== */
+
+/* 左にラベル群、右端に著者。狭い画面では折り返す */
 .dxm-lesson-header {
   display: flex;
-  flex-direction: column;
-  gap: 0.4rem;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
   margin-bottom: 1rem;
 }
 
-.dxm-lesson-badges {
+.dxm-lesson-labels {
   display: flex;
   flex-wrap: wrap;
+  align-items: center;
   gap: 0.4rem;
 }
 
-.dxm-lesson-badges:empty {
-  display: none;
+.dxm-label {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.05rem 0.5rem;
+  border: 1px solid color-mix(in srgb, currentColor 18%, transparent);
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  line-height: 1.7;
+  white-space: nowrap;
+}
+
+.dxm-lesson-author {
+  font-size: 0.78rem;
+  opacity: 0.65;
+  white-space: nowrap;
 }
 
 /* ===== バッジ ===== */
@@ -135,11 +128,13 @@
   margin-bottom: 2rem;
 }
 
-.dxm-hero-cover {
+/* 全体トップのヒーロー画像。差し替えは `app/hero.png` の置き換えだけでよい */
+.dxm-home-hero-image {
   width: 100%;
-  max-height: 260px;
+  height: 190px;
   object-fit: cover;
   border-radius: 0.75rem;
+  margin-bottom: 1.5rem;
 }
 
 .dxm-hero-catch {
@@ -238,31 +233,38 @@
   overflow: hidden;
 }
 
+/* カードは白地・濃いめの枠。曼陀羅の背景から浮かせて読みやすくする */
 .dxm-node {
   display: flex;
   flex-direction: column;
   gap: 0.2rem;
   padding: 0.5rem 0.7rem;
-  border: 1px solid color-mix(in srgb, currentColor 22%, transparent);
+  border: 1px solid color-mix(in srgb, currentColor 45%, transparent);
   border-radius: 0.5rem;
-  background: var(--nextra-bg, #fff);
+  background: #fff;
+  color: #1a1a1a;
   cursor: pointer;
-  transition:
-    opacity 0.15s ease,
-    border-color 0.15s ease;
+  transition: border-color 0.15s ease;
+}
+
+/* ダークでは白カードが眩しいので地の色を使い、枠線だけ濃さを保つ。
+   `--nextra-bg` は `17,17,17` 形式のトリプレットなので rgb() で包む */
+:is(html.dark, .dark) .dxm-node {
+  background: rgb(var(--nextra-bg, 17 17 17));
+  color: inherit;
 }
 
 .dxm-node-compact {
   flex-direction: row;
   align-items: center;
   gap: 0.4rem;
-  width: 190px;
-  height: 44px;
+  width: 200px;
+  height: 52px;
 }
 
 .dxm-node-card {
-  width: 230px;
-  height: 116px;
+  width: 280px;
+  height: 140px;
 }
 
 .dxm-node-collapsed {
@@ -275,6 +277,14 @@
   font-size: 0.85rem;
   font-weight: 700;
   line-height: 1.35;
+}
+
+/* compact は1行。長いコース名は省略し、style ラベルの居場所を残す */
+.dxm-node-compact .dxm-node-title {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .dxm-node-catch {
@@ -306,56 +316,49 @@
   padding: 0.05rem 0.4rem;
 }
 
-.dxm-node-dot {
-  width: 0.5rem;
-  height: 0.5rem;
-  border-radius: 999px;
-  flex: none;
-  background: currentColor;
-  opacity: 0.35;
-}
-
-.dxm-node-dot-done {
-  background: var(--dxm-brand);
-  opacity: 1;
-}
-
-.dxm-node-dot-in_progress {
-  background: #f59e0b;
-  opacity: 1;
-}
-
 .dxm-node-current {
   border-color: var(--dxm-brand);
   border-width: 2px;
 }
 
+/* シリーズ外の相手コース。透明度を下げすぎると読めないので、
+   区別は破線とシリーズ名ラベルに寄せる */
 .dxm-node-ghost {
-  opacity: 0.5;
+  opacity: 0.85;
   border-style: dashed;
 }
 
-.dxm-node-dimmed {
-  opacity: 0.2;
+/* コースの受講形態。compact では右端に寄せる */
+.dxm-node-style {
+  margin-left: auto;
+  padding: 0.02rem 0.4rem;
+  border-radius: 999px;
+  background: var(--dxm-brand-soft);
+  color: var(--dxm-brand);
+  font-size: 0.68rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+/* シリーズごとにコース群を囲う背景枠（全体曼陀羅のみ）。
+   クリックはコースノードに通す */
+.dxm-series-frame {
+  border: 1.5px dashed color-mix(in srgb, var(--dxm-brand) 45%, transparent);
+  border-radius: 0.8rem;
+  background: color-mix(in srgb, var(--dxm-brand) 4%, transparent);
+  pointer-events: none;
+}
+
+.dxm-series-frame-label {
+  display: inline-block;
+  margin: 0.3rem 0 0 0.7rem;
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: var(--dxm-brand);
 }
 
 .react-flow__edge.dxm-edge-cross .react-flow__edge-path {
   stroke-dasharray: 6 3;
-}
-
-.react-flow__edge.dxm-edge-dimmed {
-  opacity: 0.15;
-}
-
-/* ホバートレースはポインタを持つ環境だけの上乗せ。タッチでは発動させない */
-@media (hover: none) {
-  .dxm-node-dimmed {
-    opacity: 1;
-  }
-
-  .react-flow__edge.dxm-edge-dimmed {
-    opacity: 1;
-  }
 }
 
 .dxm-lang-toggle {

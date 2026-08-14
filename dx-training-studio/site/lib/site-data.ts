@@ -3,6 +3,9 @@ import type { Locale } from "./locale-path";
 
 export type LessonStatus = "open" | "in_progress" | "done";
 
+/** コースの受講形態。正本 `.meta.json` の `style` */
+export type CourseStyle = "self-study" | "lecture" | "hands-on";
+
 export type SiteLesson = {
   name: string;
   slug: string;
@@ -59,6 +62,7 @@ export type MandalaNode = {
   lessonCount: number;
   totalMinutes: number;
   status: LessonStatus;
+  style?: CourseStyle;
 };
 
 export type MandalaEdge = {
@@ -113,4 +117,28 @@ export function localizedOptional(
 
 export function formatMinutes(minutes: number, locale: Locale): string {
   return locale === "en" ? `${minutes} min` : `${minutes}分`;
+}
+
+const COURSE_STYLE_LABELS_JA: Record<CourseStyle, string> = {
+  "self-study": "独習",
+  lecture: "講義",
+  "hands-on": "ハンズオン",
+};
+
+/** 受講形態の表示ラベル。英語は値そのまま（小文字） */
+export function formatCourseStyle(
+  style: CourseStyle | undefined,
+  locale: Locale,
+): string | undefined {
+  if (!style) return undefined;
+  return locale === "en" ? style : COURSE_STYLE_LABELS_JA[style];
+}
+
+/** 未完成レッスンのラベル。`done` は表示しない */
+export function formatPreparationLabel(
+  status: LessonStatus,
+  locale: Locale,
+): string | undefined {
+  if (status === "done") return undefined;
+  return locale === "en" ? "in preparation" : "準備中";
 }

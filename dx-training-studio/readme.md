@@ -140,7 +140,6 @@ contents/                  シリーズ / コース / レッスン（フォル�
         contents.md        レッスン本文（YAML フロントマター）
 data/
   workspace.json           ワークスペース名・アイコン
-  content.json             移行用バックアップ（ランタイムでは未使用）
 images/                    git 除外（正本はローカル fs または Vercel Blob）
   <file>.png               正本
   uploaded/ ai/ web/       staging

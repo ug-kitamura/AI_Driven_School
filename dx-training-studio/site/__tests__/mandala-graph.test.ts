@@ -1,17 +1,12 @@
 import { describe, expect, it } from "vitest";
 import {
-  ancestorsOf,
   buildView,
   collapseSeries,
   courseView,
-  descendantsOf,
-  dimmedEdgeIds,
-  dimmedNodeIds,
   globalView,
   seriesView,
-  traceFrom,
 } from "../lib/mandala/graph";
-import { layoutTopDown } from "../lib/mandala/layout";
+import { layoutFlow } from "../lib/mandala/layout";
 import type { MandalaGraph } from "../lib/site-data";
 
 /**
@@ -140,99 +135,6 @@ describe("buildView", () => {
   });
 });
 
-describe("トレース", () => {
-  it("上流を跨ぎ越しに遡る", () => {
-    expect([...ancestorsOf(graph.edges, "crs-basics")].sort()).toEqual([
-      "crs-basics",
-      "crs-concepts",
-      "crs-intro",
-      "crs-setup",
-    ]);
-  });
-
-  it("下流を辿る", () => {
-    expect([...descendantsOf(graph.edges, "crs-setup")].sort()).toEqual([
-      "crs-basics",
-      "crs-concepts",
-      "crs-setup",
-    ]);
-  });
-
-  it("上流と下流の和を返す", () => {
-    expect([...traceFrom(graph.edges, "crs-concepts")].sort()).toEqual([
-      "crs-basics",
-      "crs-concepts",
-      "crs-intro",
-      "crs-setup",
-    ]);
-  });
-
-  it("循環があっても止まる", () => {
-    const cyclic: MandalaGraph = {
-      nodes: graph.nodes,
-      edges: [
-        { id: "c1", source: "a", target: "b", kind: "order" },
-        { id: "c2", source: "b", target: "a", kind: "order" },
-      ],
-    };
-    expect([...ancestorsOf(cyclic.edges, "a")].sort()).toEqual(["a", "b"]);
-  });
-});
-
-describe("ホバー時の減光", () => {
-  const disconnected: MandalaGraph = {
-    nodes: [
-      ...graph.nodes,
-      {
-        id: "crs-python",
-        label: "Python概要コース",
-        seriesSlug: "python",
-        seriesName: "Python基礎シリーズ",
-        courseSlug: "overview",
-        href: "/python/overview",
-        lessonCount: 1,
-        totalMinutes: 10,
-        status: "open",
-      },
-    ],
-    edges: graph.edges,
-  };
-
-  it("ホバーしていなければ何も減光しない", () => {
-    const ids = disconnected.nodes.map((n) => n.id);
-    expect(dimmedNodeIds(disconnected.edges, ids, null).size).toBe(0);
-    expect(dimmedEdgeIds(disconnected.edges, null).size).toBe(0);
-  });
-
-  it("経路に含まれないノードを減光する", () => {
-    const ids = disconnected.nodes.map((n) => n.id);
-    const dimmed = dimmedNodeIds(disconnected.edges, ids, "crs-concepts");
-    expect([...dimmed]).toEqual(["crs-python"]);
-  });
-
-  it("全ノードが1本に繋がっていれば減光は起きない", () => {
-    const ids = graph.nodes.map((n) => n.id);
-    expect(dimmedNodeIds(graph.edges, ids, "crs-basics").size).toBe(0);
-  });
-
-  it("両端が経路に含まれない辺だけを減光する", () => {
-    const withIsolatedEdge: MandalaGraph = {
-      nodes: disconnected.nodes,
-      edges: [
-        ...graph.edges,
-        {
-          id: "e-py",
-          source: "crs-python",
-          target: "crs-python2",
-          kind: "order",
-        },
-      ],
-    };
-    const dimmed = dimmedEdgeIds(withIsolatedEdge.edges, "crs-concepts");
-    expect([...dimmed]).toEqual(["e-py"]);
-  });
-});
-
 describe("collapseSeries", () => {
   it("畳まないときは元のビューを返す", () => {
     const view = globalView(graph);
@@ -290,9 +192,9 @@ describe("collapseSeries", () => {
   });
 });
 
-describe("layoutTopDown", () => {
+describe("layoutFlow", () => {
   it("上から下に段を作る", () => {
-    const positions = layoutTopDown(
+    const positions = layoutFlow(
       graph.nodes.map((n) => n.id),
       graph.edges,
       { size: { width: 200, height: 80 } },
@@ -304,8 +206,23 @@ describe("layoutTopDown", () => {
     expect(y.get("crs-concepts")!).toBeLessThan(y.get("crs-basics")!);
   });
 
+  it("LR では左から右に段を作る", () => {
+    const positions = layoutFlow(
+      graph.nodes.map((n) => n.id),
+      graph.edges,
+      { size: { width: 200, height: 80 }, direction: "LR" },
+    );
+    const x = new Map(positions.map((p) => [p.id, p.x]));
+    const y = new Map(positions.map((p) => [p.id, p.y]));
+    // 進む向きが x に出る
+    expect(x.get("crs-intro")!).toBeLessThan(x.get("crs-setup")!);
+    expect(x.get("crs-setup")!).toBeLessThan(x.get("crs-concepts")!);
+    // 縦には積み上がらない（TB との違い）
+    expect(y.get("crs-intro")!).toBe(y.get("crs-setup")!);
+  });
+
   it("全ノードの座標を返す", () => {
-    const positions = layoutTopDown(["crs-setup"], [], {
+    const positions = layoutFlow(["crs-setup"], [], {
       size: { width: 100, height: 50 },
     });
     expect(positions).toHaveLength(1);

@@ -1,5 +1,7 @@
 import Link from "next/link";
+import Image from "next/image";
 import { Mandala } from "@/components/mandala/Mandala";
+import heroImage from "@/app/hero.png";
 import {
   allSeries,
   data,
@@ -19,6 +21,16 @@ export function HomePage({ locale }: { locale: Locale }) {
 
   return (
     <div className="dxm-page">
+      {/* トレーニングを想起させるヒーロー画像。差し替えは `app/hero.png` を
+          同名で置き換えるだけでよい（コード変更は不要）。 */}
+      <Image
+        src={heroImage}
+        alt=""
+        aria-hidden
+        priority
+        className="dxm-home-hero-image"
+      />
+
       <div className="dxm-hero">
         <h1 className="dxm-hero-title">{siteConfig.siteName}</h1>
         {description && <p>{description}</p>}
@@ -27,7 +39,7 @@ export function HomePage({ locale }: { locale: Locale }) {
       <h2 className="dxm-section-title">
         {locale === "en" ? "All courses" : "全体の曼陀羅"}
       </h2>
-      <Mandala scope={{ kind: "global" }} locale={locale} height={520} />
+      <Mandala scope={{ kind: "global" }} locale={locale} />
 
       <h2 className="dxm-section-title">
         {locale === "en" ? "Series" : "シリーズ"}

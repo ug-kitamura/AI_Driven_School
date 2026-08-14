@@ -3,10 +3,13 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import {
+  emitIndexPages,
   emitLessonMarkdown,
   emitMetaFile,
+  emitMetaFiles,
   localeContentPrefix,
   localizedHref,
+  type EmittedFile,
 } from "../scripts/lib/emit.mts";
 import {
   BlobModeNotImplementedError,
@@ -16,6 +19,7 @@ import {
 } from "../scripts/lib/images.mts";
 import type {
   SiteCourse,
+  SiteData,
   SiteLesson,
   SiteSeries,
 } from "../scripts/lib/site-model.mts";
@@ -47,6 +51,7 @@ const lesson: SiteLesson = {
   status: "done",
   description: "説明: コロンを含む文",
   estimatedMinutes: 15,
+  author: "Kitamura",
   body: "# 本文\n",
   untranslated: true,
   href: "/git/concepts/what-is-version-control",
@@ -86,6 +91,25 @@ describe("emitLessonMarkdown", () => {
     expect(md).not.toContain("untranslated");
     expect(md).toContain('title: "What is version control?"');
   });
+
+  it("ラベル行が使う author と courseStyle を出す", () => {
+    const styledCourse = { ...course, style: "lecture" } as SiteCourse;
+    const md = emitLessonMarkdown(lesson, series, styledCourse, "ja", "# 本文\n");
+    expect(md).toContain('author: "Kitamura"');
+    expect(md).toContain("courseStyle: lecture");
+  });
+
+  it("style 未設定・author 空なら該当行を出さない", () => {
+    const md = emitLessonMarkdown(
+      { ...lesson, author: "" },
+      series,
+      course,
+      "ja",
+      "# 本文\n",
+    );
+    expect(md).not.toContain("author:");
+    expect(md).not.toContain("courseStyle:");
+  });
 });
 
 describe("emitMetaFile", () => {
@@ -97,6 +121,66 @@ describe("emitMetaFile", () => {
     expect(contents).toContain('"git": "Git基礎シリーズ"');
     // 並びは配列順（= order 順）
     expect(contents.indexOf('"git"')).toBeLessThan(contents.indexOf('"start"'));
+  });
+
+  it("theme を持つ項目はページ設定オブジェクトで出す", () => {
+    const contents = emitMetaFile([
+      { slug: "index", title: "トップ", theme: { breadcrumb: false } },
+    ]);
+    expect(contents).toContain(
+      '"index": {"title":"トップ","theme":{"breadcrumb":false}}',
+    );
+  });
+});
+
+describe("emitMetaFiles / emitIndexPages", () => {
+  const data = {
+    siteDescription: "全体の説明",
+    siteDescriptionEn: "Overall",
+    series: [
+      {
+        ...series,
+        courses: [{ ...course, lessons: [lesson] }],
+      },
+    ],
+  } as unknown as SiteData;
+
+  function fileOf(files: EmittedFile[], relativePath: string): string {
+    const found = files.find((f) => f.relativePath === relativePath);
+    if (!found) throw new Error(`not emitted: ${relativePath}`);
+    return found.contents;
+  }
+
+  it("シリーズ・コース階層に「概要」の項目を出さない", () => {
+    const files = emitMetaFiles(data, "ja");
+    expect(fileOf(files, "git/_meta.js")).not.toContain("概要");
+    expect(fileOf(files, "git/concepts/_meta.js")).not.toContain("概要");
+    // コース・レッスンの項目自体は出る
+    expect(fileOf(files, "git/_meta.js")).toContain('"concepts"');
+    expect(fileOf(files, "git/concepts/_meta.js")).toContain(
+      '"what-is-version-control"',
+    );
+  });
+
+  it("英語側も Overview を出さない", () => {
+    const files = emitMetaFiles(data, "en");
+    expect(fileOf(files, "en/git/_meta.js")).not.toContain("Overview");
+  });
+
+  it("ルートはトップ項目を残し、パンくずを無効にする", () => {
+    const contents = fileOf(emitMetaFiles(data, "ja"), "_meta.js");
+    expect(contents).toContain('"index"');
+    expect(contents).toContain('"breadcrumb":false');
+  });
+
+  it("シリーズ・コースの index はフォルダ自身のページになる", () => {
+    const files = emitIndexPages(data, "ja");
+    expect(fileOf(files, "git/index.mdx")).toContain("asIndexPage: true");
+    expect(fileOf(files, "git/concepts/index.mdx")).toContain(
+      "asIndexPage: true",
+    );
+    // 全体トップはルートなので付けない
+    expect(fileOf(files, "index.mdx")).not.toContain("asIndexPage");
   });
 });
 

@@ -10,7 +10,7 @@ DX ツールトレーニング用の **4ペイン Next.js 16 × shadcn/ui ワー
 - **画像**: 正本 `images/<file>`、staging `images/{uploaded|ai|web}/`（`lib/image-path.ts`, `lib/image-store.ts`）
 - **AI 画像**: 骨子は `<!-- プロンプト -->`、Pane4 AI タブで生成。契約は `contracts/image-slot-contract.md`
 - **設定**: `lib/workspace-settings.ts`、GlobalHeader 歯車 → `WorkspaceSettingsDialog`
-- **データ**: シリーズ/コース/レッスンの正本は `contents/` ディレクトリ（`lib/contents-loader.ts` が読む）。`data/content.json` は `lib/lesson-head-content.ts` が使う Git 差分のフォールバック源であり正本ではない。`data/workspace.json`（UI 状態）
+- **データ**: シリーズ/コース/レッスンの正本は `contents/` ディレクトリ（`lib/contents-loader.ts` が読む）。`data/workspace.json`（UI 状態）
 - **スキーマ**: `lib/schema.ts`（Zod）
 
 ## UI 編集方針

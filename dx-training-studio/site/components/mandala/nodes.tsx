@@ -1,7 +1,8 @@
 "use client";
 
 import { Handle, Position, type NodeProps } from "@xyflow/react";
-import type { LessonStatus } from "@/lib/site-data";
+import { formatCourseStyle, type CourseStyle } from "@/lib/site-data";
+import type { Locale } from "@/lib/locale-path";
 
 export type MandalaNodeData = {
   label: string;
@@ -10,19 +11,20 @@ export type MandalaNodeData = {
   catch?: string;
   lessonCount: number;
   totalMinutes: number;
-  status: LessonStatus;
+  /** コースの受講形態。未設定ならラベルを出さない */
+  style?: CourseStyle;
+  locale: Locale;
   ghost: boolean;
   current: boolean;
-  /** ホバートレースで減光する */
-  dimmed: boolean;
   /** 折りたたまれたシリーズの集約ノード */
   collapsed?: { courseCount: number };
 };
 
-const STATUS_LABEL: Record<LessonStatus, string | null> = {
-  done: null,
-  in_progress: "執筆中",
-  open: "未着手",
+/** シリーズごとにコース群を囲う背景枠（全体曼陀羅のみ） */
+export type SeriesFrameData = {
+  seriesName: string;
+  width: number;
+  height: number;
 };
 
 function classNames(...values: Array<string | false | undefined>): string {
@@ -35,11 +37,16 @@ function nodeClass(data: MandalaNodeData, variant: string): string {
     `dxm-node-${variant}`,
     data.ghost && "dxm-node-ghost",
     data.current && "dxm-node-current",
-    data.dimmed && "dxm-node-dimmed",
   );
 }
 
-/** グローバル曼陀羅用。コース名と状態だけ——数が増えても一覧できるように */
+function StyleLabel({ data }: { data: MandalaNodeData }) {
+  const label = formatCourseStyle(data.style, data.locale);
+  if (!label) return null;
+  return <span className="dxm-node-style">{label}</span>;
+}
+
+/** 全体・シリーズ曼陀羅用。コース名と受講形態だけ——数が増えても一覧できるように */
 export function CompactNode({ data }: NodeProps) {
   const d = data as MandalaNodeData;
   return (
@@ -48,34 +55,29 @@ export function CompactNode({ data }: NodeProps) {
       title={`${d.seriesName} / ${d.label}`}
     >
       <Handle type="target" position={Position.Top} isConnectable={false} />
-      <span
-        className={`dxm-node-dot dxm-node-dot-${d.status}`}
-        aria-hidden="true"
-      />
       <span className="dxm-node-title">{d.label}</span>
+      <StyleLabel data={d} />
       <Handle type="source" position={Position.Bottom} isConnectable={false} />
     </div>
   );
 }
 
-/** シリーズ曼陀羅・ミニ曼陀羅用。目次として読めるだけの情報を載せる */
+/** ミニ曼陀羅（コーストップ）用。目次として読めるだけの情報を載せる */
 export function CardNode({ data }: NodeProps) {
   const d = data as MandalaNodeData;
-  const status = STATUS_LABEL[d.status];
   return (
     <div className={nodeClass(d, "card")}>
-      <Handle type="target" position={Position.Top} isConnectable={false} />
+      {/* 横に流れるので接続点は左右 */}
+      <Handle type="target" position={Position.Left} isConnectable={false} />
       {d.current && <span className="dxm-node-pin">いまここ</span>}
       {d.ghost && <span className="dxm-node-series">{d.seriesName}</span>}
       <span className="dxm-node-title">{d.label}</span>
       {d.catch && <span className="dxm-node-catch">{d.catch}</span>}
       <span className="dxm-node-meta">
         {d.lessonCount} レッスン・約 {d.totalMinutes} 分
-        {status && (
-          <span className={`dxm-badge dxm-badge-${d.status}`}>{status}</span>
-        )}
+        <StyleLabel data={d} />
       </span>
-      <Handle type="source" position={Position.Bottom} isConnectable={false} />
+      <Handle type="source" position={Position.Right} isConnectable={false} />
     </div>
   );
 }
@@ -95,8 +97,22 @@ export function CollapsedSeriesNode({ data }: NodeProps) {
   );
 }
 
+/** コース群の背後に敷く枠。クリックを奪わない */
+export function SeriesFrameNode({ data }: NodeProps) {
+  const d = data as unknown as SeriesFrameData;
+  return (
+    <div
+      className="dxm-series-frame"
+      style={{ width: d.width, height: d.height }}
+    >
+      <span className="dxm-series-frame-label">{d.seriesName}</span>
+    </div>
+  );
+}
+
 export const mandalaNodeTypes = {
   compact: CompactNode,
   card: CardNode,
   collapsedSeries: CollapsedSeriesNode,
+  seriesFrame: SeriesFrameNode,
 };

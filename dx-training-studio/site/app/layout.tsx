@@ -1,12 +1,8 @@
 import type { ReactNode } from "react";
 import Image from "next/image";
-import { Layout, Navbar, Footer } from "nextra-theme-docs";
 import { Head } from "nextra/components";
-import { getPageMap } from "nextra/page-map";
 import siteConfig from "@/site.config.json";
 import supergraphicImage from "./supergraphic.png";
-import { LanguageToggle } from "@/components/LanguageToggle";
-import { SiteFooter } from "@/components/SiteFooter";
 import "nextra-theme-docs/style.css";
 import "./globals.css";
 
@@ -19,25 +15,12 @@ export const metadata = {
     "DX ツールを業務で使えるようになるためのトレーニング。曼陀羅で全体の道のりを見渡しながら進められます。",
 };
 
-const navbar = (
-  <Navbar
-    logo={
-      <span className="dxm-logo">
-        <span className="dxm-logo-mark" aria-hidden="true" />
-        {siteConfig.siteName}
-      </span>
-    }
-    projectLink={siteConfig.repositoryUrl}
-  >
-    <LanguageToggle />
-  </Navbar>
-);
-
-export default async function RootLayout({
-  children,
-}: {
-  children: ReactNode;
-}) {
+/**
+ * テーマの `<Layout>`（ナビバー・サイドバー・フッター）は
+ * `app/[[...mdxPath]]/layout.tsx` 側に置く——サイドバーを言語ごとに出し分けるため、
+ * ルートパスを見られる場所で pageMap を組み立てる必要がある。
+ */
+export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html lang="ja" dir="ltr" suppressHydrationWarning>
       <Head />
@@ -52,20 +35,7 @@ export default async function RootLayout({
           priority
           className="dxm-supergraphic"
         />
-        <Layout
-          navbar={navbar}
-          pageMap={await getPageMap()}
-          docsRepositoryBase={siteConfig.repositoryUrl}
-          editLink={null}
-          feedback={{ content: null }}
-          footer={
-            <Footer>
-              <SiteFooter />
-            </Footer>
-          }
-        >
-          {children}
-        </Layout>
+        {children}
       </body>
     </html>
   );

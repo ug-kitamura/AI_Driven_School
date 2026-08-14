@@ -27,6 +27,8 @@ export type SiteLesson = {
   status: LessonStatus;
   description: string;
   estimatedMinutes: number;
+  /** レッスン frontmatter の著者名（空なら表示しない） */
+  author: string;
   body: string;
   bodyEn?: string;
   titleEn?: string;
@@ -197,6 +199,7 @@ function buildCourse(seriesSlug: string, course: CourseMeta): SiteCourse {
     status: lesson.status,
     description: lesson.description,
     estimatedMinutes: lesson.estimatedMinutes,
+    author: lesson.author,
     body: lesson.body,
     bodyEn: lesson.bodyEn,
     titleEn: lesson.titleEn,

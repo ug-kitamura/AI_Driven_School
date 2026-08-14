@@ -1,5 +1,6 @@
 /**
- * dagre による自動レイアウト（上から下）。React Flow に渡す座標を計算する。
+ * dagre による自動レイアウト。React Flow に渡す座標を計算する。
+ * 全体・シリーズ曼陀羅は上から下（TB）、ミニ曼陀羅は左から右（LR）。
  */
 import dagre from "@dagrejs/dagre";
 import type { MandalaEdge } from "@/lib/site-data";
@@ -12,9 +13,13 @@ export type PositionedNode = {
   y: number;
 };
 
+export type LayoutDirection = "TB" | "LR";
+
 export type LayoutOptions = {
   /** ノードの既定サイズ。密度（compact / card）で変える */
   size: LayoutSize;
+  /** フロー方向。既定は上から下 */
+  direction?: LayoutDirection;
   /** 同じ段の間隔 */
   nodeSep?: number;
   /** 段と段の間隔 */
@@ -22,15 +27,14 @@ export type LayoutOptions = {
   sizeOf?: (id: string) => LayoutSize | undefined;
 };
 
-/** 上から下（TB）に配置する。3階層すべてでこの方向を使う */
-export function layoutTopDown(
+export function layoutFlow(
   nodeIds: readonly string[],
   edges: readonly MandalaEdge[],
   options: LayoutOptions,
 ): PositionedNode[] {
   const graph = new dagre.graphlib.Graph();
   graph.setGraph({
-    rankdir: "TB",
+    rankdir: options.direction ?? "TB",
     nodesep: options.nodeSep ?? 48,
     ranksep: options.rankSep ?? 72,
     marginx: 24,

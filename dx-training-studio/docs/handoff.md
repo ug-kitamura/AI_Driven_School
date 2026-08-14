@@ -106,10 +106,10 @@ npm run start   # out/ をローカル配信
 | # | change | 内容 |
 |---|---|---|
 | ① | 起動と検索の修理 | ポート3本 / start.bat / Pagefind 導入 / supergraphic 2箇所。**完了・archive 済み（2026-08-14）→ 下の「①の実施記録」** |
-| ② | style メタ拡張 | schema / コース編集モーダル / site への伝搬 / parity テスト。**完了（2026-08-14・`add-course-style-meta`）→ 下の「②の実施記録」。未 archive / 未コミット** |
-| ③ | サイトのナビとページ構成 | 下記 |
-| ④ | 曼陀羅リデザイン | 下記 |
-| ⑤ | `data/` の掃除（後発・9章参照） | `content.json` 撤去 / 移行スクリプト削除 / spec 2本 |
+| ② | style メタ拡張 | schema / コース編集モーダル / site への伝搬 / parity テスト。**完了・archive 済み（2026-08-14）→ 下の「②の実施記録」** |
+| ③ | サイトのナビとページ構成 | 下記。**完了・archive 済み（2026-08-14）→「③の実施記録」** |
+| ④ | 曼陀羅リデザイン | 下記。**完了・archive 済み（2026-08-14）→「④の実施記録」** |
+| ⑤ | `data/` の掃除（後発・9章参照） | `content.json` 撤去 / spec 2本。**完了（2026-08-14・`remove-content-json-fallback`）→「⑤の実施記録」。未 archive / 未コミット** |
 
 **③ の決定詳細**:
 
@@ -142,9 +142,9 @@ change `fix-site-launch-and-search` を実装。**19タスク全完了**。`open
 - **`.gitignore`**: `site/.gitignore` は存在せず Studio 側に集約されていたので、そこへ `/site/public/_pagefind/` を anchored で追記
 - **テスト**: site 57件 green / Studio 811件 green。失敗は既知の `extract-markdown-block` 1件のみ（9章）。⚠ **dev サーバーを動かしたまま Studio のテストを回すと `compileCss` が 5秒タイムアウトで落ちる**（単体なら 377ms）。テスト前に dev を止めること
 
-### 2.2.2 ②の実施記録（2026-08-14 完了・未 archive / 未コミット）
+### 2.2.2 ②の実施記録（2026-08-14 完了・archive 済み / 未コミット）
 
-change `add-course-style-meta` を実装。**14タスク全完了**。Studio 811→**821件 green**（既知の `extract-markdown-block` 1件のみ失敗）、site 57→**63件 green**。
+change `add-course-style-meta` を実装。**14タスク全完了**。`openspec archive -y` で spec 3本（+2 added / ~1 modified）を同期し `2026-08-14-add-course-style-meta` として archive 済み（`validate --specs` 60 passed）。Studio 811→**821件 green**（既知の `extract-markdown-block` 1件のみ失敗）、site 57→**63件 green**。
 
 - **データの流路**: `.meta.json` の `style` → `lib/schema.ts`（`COURSE_STYLES` / `courseStyleSchema` / `parseCourseStyle` / `COURSE_STYLE_LABELS`）→ `contents-loader` → コースメタ編集モーダル → `save-course` API → `.meta.json`。site 側は `content-source.mts` → `site-model.mts` → `site-data.json`
 - **未設定の表現は「キー無し」の1通り**に統一（API が保存のたび既存 `style` を一度落として書き直す）。語彙外の値は**読込時に未設定へ落とす**（両ローダーで同じ解釈・parity テストで担保）
@@ -154,6 +154,41 @@ change `add-course-style-meta` を実装。**14タスク全完了**。Studio 811
 - **既存コースへの値入れは人の作業**。検証で DX入門コースに `hands-on` を設定済み（そのまま残してある）。残り4コースは未設定
 
 ⚠ **検証中に事故を起こしたので記録する**: `.meta.json` を **PowerShell の `Out-File -Encoding utf8` で書いたら BOM が付き**、`JSON.parse` が失敗 → ローダーが「メタ無し」と判断して **`id` を再採番し、`slug` / `description` / `catch` / `target` を消した**。`git checkout` で復元済み（被害はこの1ファイルのみ・元の `id` も復旧）。**`contents/` の JSON を CLI から触るときは `node -e` で書く**（BOM が付かない）。7章の CRLF+BOM 注意と同根。
+
+### 2.2.3 ③の実施記録（2026-08-14 完了・archive 済み / 未コミット）
+
+change `refine-site-nav-and-pages` を実装。**15タスク全完了**。site テスト 63→**70件 green**、ビルドは 37ページ生成。`openspec archive -y` で spec 2本（+1 added / ~4 modified）を同期し archive 済み（60 passed）。
+
+- **サイドバーの「概要」廃止は `emit.mts` だけで完結**。シリーズ・コース階層の `_meta` から概要行を外し、index の frontmatter に `asIndexPage: true` を付けた。**シリーズ名・コース名自体がリンクになり、クリックで開閉＋概要表示**になっている
+- **パンくずは Nextra 内蔵の1本に統一**。自前 `components/Breadcrumbs.tsx` は削除。トップページの非表示はルート `_meta` の `index` を `{"title":"トップ","theme":{"breadcrumb":false}}` にして実現（`emitMetaFile` をオブジェクト値対応に拡張）
+- **言語別サイドバーは design D3 の第1案で動いた**（代替案は不要だった）。`<Layout>` を `app/[[...mdxPath]]/layout.tsx` へ移し、`params.mdxPath[0] === "en"` なら `getPageMap("/en")`、それ以外はルートの pageMap から `en` を除外。**ルート `app/layout.tsx` には `<html>`/`<body>`/supergraphic/`<Head>` だけが残る**
+- **レッスンのラベル行**は `LessonHeader` を作り替えて実装（`{準備中} {所要時間} {style}` ＋ 右端 `written by`）。データは変換スクリプトが frontmatter に入れる方式のまま（`author` / `courseStyle` を追加）。**`SiteLesson` に `author` が無かったので site-model に足した**
+- **全体トップのヒーロー画像**: `site/app/hero.png`（高さ190px・全幅）。**差し替えは同名ファイルを置き換えるだけ**でコード変更は不要。現在は青のグラデーションのプレースホルダ（Node で生成したもの）が入っている
+- **シリーズトップの cover 表示を削除**したのに伴い、**`build-content.mts` の「cover を参照画像に加える」処理も外した**——表示しない画像の欠落でビルドが落ちるのを避けるため（design D6）。`cover` フィールド自体は正本・型とも温存
+- 表示規約の実測: 日本語 `準備中 / 15分 / ハンズオン`、英語 `in preparation / 15 min / hands-on`（小文字）。`done` では準備中を出さず、style 未設定では style ラベルを出さない
+
+### 2.2.4 ④の実施記録（2026-08-14 完了・archive 済み / 未コミット）
+
+change `redesign-mandala-visuals` を実装。**15タスク全完了**。site テスト **63件 green**（減光テスト7件を削除・LR テスト1件を追加）、37ページビルド成功。`openspec archive -y` で `publishing-site-mandala` を同期（~3 modified / -1 removed）し archive 済み（60 passed）。
+
+- **シリーズ枠は design D1 の背景ノード方式でそのまま動いた**。dagre の結果からシリーズごとのバウンディングボックスを求め、`zIndex: -1` ＋ `pointer-events: none` の矩形を敷いている。**懸念していた枠の重なりは起きなかった**（現データではシリーズが縦に並ぶため）。折りたたむと枠が消えて集約ノード1つになることも確認済み
+- **ホバートレースは3層まとめて撤去**（state・`dimmedNodeIds`/`dimmedEdgeIds`・CSS・テスト）。ついでに**唯一の呼び出し元を失った `ancestorsOf` / `descendantsOf` / `traceFrom` も削除**した（他に参照なしを確認済み）
+- **variant の割り当て**: global=compact/TB/640、series=**compact**（card から変更）/TB/560、course=card 280×140/**LR**/440。⚠ **呼び出し側（HomePage・CoursePage）が `height` を明示していて既定値が効かなかった**ので、その指定を外した
+- **ノードは白背景＋濃い枠（45%）**。ゴーストは opacity 0.5→**0.85**（区別は破線とシリーズ名ラベルに寄せた）。status のドット・バッジは廃止し **style ラベル**（`formatCourseStyle` 再利用）に置換。「いまここ」ピンは card にだけ残るので、シリーズ曼陀羅からは自然に消えた
+- ⚠ **既存バグを1つ見つけて直した**: ノード背景の `var(--nextra-bg, #fff)` は**無効な指定**だった。Nextra 4 の `--nextra-bg` は `17,17,17` という**カンマ区切りのトリプレット**で、色として使うには `rgb(var(--nextra-bg))` と包む必要がある。従来はダークでノード背景が透明になっていた（背景も暗いので気づかれなかった）。**他所で `--nextra-*` を使うときも同じ形式に注意**
+
+⚠ **ブラウザペインでは辺（エッジ）の描画を確認できない**。React Flow はノードの実測（ResizeObserver / rAF）が完了するまでノードを `visibility: hidden` にし、辺を描かない。**ペインが非表示だと計測が完了せず、辺が0件・fitView 未適用に見える**——実装の異常ではない（メモリ `project-browser-pane-verification-limits` と同根）。**全辺アニメーション化（`animated: true`）と線種の区別は目視確認できていない**ので、次に人がサイトを開いたときに見ること。
+
+### 2.2.5 ⑤の実施記録（2026-08-14 完了・未 archive / 未コミット）
+
+change `remove-content-json-fallback` を実装。`data/content.json` を削除し、`lib/lesson-head-content.ts` から `CONTENT_JSON_REL` / `parseContentJson` / `findLessonContentInSeriesJson` と `HeadSource` の `content-json` を撤去。フォールバックは **`git show HEAD:<md>` → 空文字列** の2段になった。
+
+⚠ **実装中に前提の誤りを2つ見つけた**（どちらも explore 段階では読み切れていなかった）。
+
+1. **`scripts/migrate-content.ts` は `content.json` を読んでいなかった**。中身は「`contents/` の数値プレフィックスを廃して `.meta.json` の `order` へ移す」**別の移行**で、spec の記述（`content.json` → `contents/` 変換・プレフィックス付与）は書かれた当時の版のまま取り残されていた。完了済みの一度きり移行という点で `migrate-lesson-folders.ts` と同類なので、**削除を取りやめて残した**（spec の3要件は「実装が存在しない記述」として予定どおり REMOVED）
+2. **`resolveHeadContent()` は誰からも呼ばれていない**。差分 API（`app/api/lesson-diff/route.ts`）が使うのは `lib/lesson-git-diff.ts` の `resolveLessonGitDiff()` で、そちらは元から `content.json` を見ない。`lesson-head-content.ts` から実際に使われているのは `toRepoRelativePath` と `HeadSource` 型だけ。**`resolveHeadContent` は現状デッドコード**（今回は `lessonId` 引数だけ外して残した）——消すかどうかは別途判断
+
+**残った掃除候補**: `resolveHeadContent()`（上記2）と、完了済み移行スクリプト3本（`migrate-content.ts` / `migrate-lesson-folders.ts` / `migrate-stable-ids.ts`）。急がない。
 
 ### 2.3 触るときに知っておくこと
 
@@ -183,7 +218,7 @@ change `add-course-style-meta` を実装。**14タスク全完了**。Studio 811
 | 項目 | 状況 |
 |---|---|
 | **シリーズのカバー画像が仮** | ~~Pane4 の UP モードで本番画像を用意する~~ → **2.2 の決定でシリーズトップの画像表示を削除するため、このタスクは消滅**（`cover` フィールドは温存） |
-| **ホバートレースが見た目に効かない** | → **2.2 の決定で機能ごと削除**（ちらつき報告と合流。dimmed 計算の機構も撤去） |
+| ~~**ホバートレースが見た目に効かない**~~ | **解消済み**——④で機能ごと削除（spec の要件も REMOVED。2.2.4） |
 | **`catch` が未設定のコースがある** | シリーズは2本とも設定済み。コースは create スキルが今後自動で書く（`training-create-skill` spec 更新済み）が、既存分は手で入れた範囲 |
 | **英語は器だけ** | `/en` はビルドされるが中身は全部日本語フォールバック。`contents.en.md` と `.meta.json` の `*_en` は未記入 |
 | **`zod` を 4.3.6 に固定している** | Nextra 4.6.x が zod 4.4.x と衝突し全ページのプリレンダが落ちる（[nextra#5008](https://github.com/shuding/nextra/issues/5008)）。**上流修正後に `package.json` の `overrides` を外す** |
@@ -515,7 +550,7 @@ contents-work/
 | `training-create-skill` spec 前半5件の書きぶり | `抽出元と網羅` 等が過去の作業記録に読める。`## Purpose` も実態とずれている。**中身は生きているので消さない。** 直すなら別 change |
 | テスト側の型エラー8件 | `estimatedMinutes` の綴り違い等。**すべて古くからのもの**で、`tsc --noEmit` のアプリ側はゼロ。直すなら独立した掃除として |
 | **Studio の `tsc --noEmit` が site/ を巻き込んで73件エラーを出す**（2026-08-14 発見） | `tsconfig.json` の `include` が `**/*.ts(x)`・`exclude` が `node_modules` だけなので、**独自の tsconfig とパスエイリアスを持つ `site/` まで型検査してしまう**（`Cannot find module '@/lib/site-data'` 等）。`site/` を追加した時点からの既存問題で、実害は「アプリ側の型エラーを見つけにくい」こと（アプリ側自体はゼロ）。直すなら `exclude` に `site` を足すだけ。site の型検査は `site/` 側で別に回す |
-| **`data/` の掃除**（2026-08-14 決定済み） | **`data/content.json` は撤去する（決定・change ⑤）**——旧 JSON 形式時代の遺物で、用途の「HEAD に md が無いレッスン」の差分フォールバック（`lib/lesson-head-content.ts`）は全9レッスンの md が追跡済みの現在実質死んでいる。撤去は spec 2本（`training-studio-lesson-content` のフォールバック要件削除・`content-migration-script` capability 廃止）＋ `scripts/migrate-content.ts` 削除を伴う change。**`data/workspace.json` は現状維持で確定**（アプリ名・アイコン設定として使用中。ハードコード化も検討したが困っていないので変えない）。実施はサイト改善4本の後 |
+| ~~**`data/` の掃除**~~ | **完了（2026-08-14・`remove-content-json-fallback`）**。`data/content.json` を削除し、差分フォールバックを2段（`git show HEAD:<md>` → 空）に縮めた。`data/workspace.json` は現状維持（アプリ名・アイコン設定として使用中）。→ 実施の詳細と発見は 2.2.5 |
 | 退避機能が `contents-work/` を保護していない | `toProjectRelative` がフォーカス中の `contents/` 配下しか見ないため、額縁テンプレートが実際に置かれる `contents-work/runs/` では発火しない。必要な形は分割出力を実際に使ってからでないと決まらない |
 
 ---

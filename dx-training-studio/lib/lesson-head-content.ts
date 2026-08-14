@@ -1,11 +1,8 @@
 import { execFileSync, execSync } from "child_process";
 import path from "node:path";
-import { seriesArraySchema } from "@/lib/schema";
 import { resolveLessonMdPath } from "@/lib/lesson-md-path";
 
-export const CONTENT_JSON_REL = "data/content.json";
-
-export type HeadSource = "git-md" | "content-json" | "empty";
+export type HeadSource = "git-md" | "empty";
 
 export type ResolvedHeadContent = {
   content: string;
@@ -26,22 +23,6 @@ export function toRepoRelativePath(
   const projectRel = path.relative(repoRoot, projectRoot).replace(/\\/g, "/");
   if (projectRel === "" || projectRel === ".") return relativePath;
   return `${projectRel}/${relativePath}`;
-}
-
-export function findLessonContentInSeriesJson(
-  json: unknown,
-  lessonId: string,
-): string | null {
-  const parsed = seriesArraySchema.safeParse(json);
-  if (!parsed.success) return null;
-  for (const series of parsed.data) {
-    for (const course of series.courses) {
-      for (const lesson of course.lessons) {
-        if (lesson.id === lessonId) return lesson.content;
-      }
-    }
-  }
-  return null;
 }
 
 function getGitRepoRoot(projectRoot: string): string | null {
@@ -69,17 +50,12 @@ function gitShowHead(repoRoot: string, pathFromRepoRoot: string): string | null 
   }
 }
 
-function parseContentJson(raw: string, lessonId: string): string | null {
-  try {
-    return findLessonContentInSeriesJson(JSON.parse(raw), lessonId);
-  } catch {
-    return null;
-  }
-}
-
+/**
+ * レッスン .md の HEAD 上の正本を返す。
+ * HEAD に無ければ空文字列（新規レッスン）——中間のフォールバックは持たない。
+ */
 export function resolveHeadContent(
   projectRoot: string,
-  lessonId: string,
   series: string,
   course: string,
   lesson: string,
@@ -101,23 +77,7 @@ export function resolveHeadContent(
     };
   }
 
-  const contentJsonRepoPath = toRepoRelativePath(
-    projectRoot,
-    repoRoot,
-    CONTENT_JSON_REL,
-  );
-  const contentJsonRaw = gitShowHead(repoRoot, contentJsonRepoPath);
-  if (contentJsonRaw !== null) {
-    const fromJson = parseContentJson(contentJsonRaw, lessonId);
-    if (fromJson !== null) {
-      return {
-        content: fromJson,
-        headSource: "content-json",
-        path: mdPath,
-      };
-    }
-  }
-
+  // HEAD に md が無いのは新規レッスン。全行が追加として表示される
   return {
     content: "",
     headSource: "empty",

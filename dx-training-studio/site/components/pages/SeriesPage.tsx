@@ -1,5 +1,4 @@
 import Link from "next/link";
-import { Breadcrumbs } from "@/components/Breadcrumbs";
 import { Mandala } from "@/components/mandala/Mandala";
 import {
   formatMinutes,
@@ -8,7 +7,6 @@ import {
   type SiteSeries,
 } from "@/lib/site-data";
 import { localizedHref, type Locale } from "@/lib/locale-path";
-import { assetPath } from "@/lib/asset-path";
 
 export function SeriesPage({
   series,
@@ -22,20 +20,7 @@ export function SeriesPage({
 
   return (
     <div className="dxm-page">
-      <Breadcrumbs
-        items={[{ label: title, href: localizedHref(series.href, locale) }]}
-      />
-
       <div className="dxm-hero">
-        {series.cover && (
-          // 静的 export では next/image の最適化を使わないため img を直接置く
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
-            className="dxm-hero-cover"
-            src={assetPath(`/images/${series.cover}`)}
-            alt=""
-          />
-        )}
         {series.catch && (
           <span className="dxm-hero-catch">
             {localizedOptional(series.catch, series.catchEn, locale)}

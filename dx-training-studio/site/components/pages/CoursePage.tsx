@@ -1,5 +1,4 @@
 import Link from "next/link";
-import { Breadcrumbs } from "@/components/Breadcrumbs";
 import { Mandala } from "@/components/mandala/Mandala";
 import { StatusBadge } from "@/components/StatusBadge";
 import {
@@ -25,13 +24,6 @@ export function CoursePage({
 
   return (
     <div className="dxm-page">
-      <Breadcrumbs
-        items={[
-          { label: seriesTitle, href: localizedHref(series.href, locale) },
-          { label: courseTitle, href: localizedHref(course.href, locale) },
-        ]}
-      />
-
       <div className="dxm-hero">
         {course.catch && (
           <span className="dxm-hero-catch">
@@ -64,7 +56,6 @@ export function CoursePage({
           <Mandala
             scope={{ kind: "course", courseId: course.id }}
             locale={locale}
-            height={360}
           />
         </>
       )}

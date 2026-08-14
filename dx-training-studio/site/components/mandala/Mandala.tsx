@@ -11,41 +11,64 @@ import {
   type Node,
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
+import { buildView, collapseSeries, type MandalaScope } from "@/lib/mandala/graph";
 import {
-  buildView,
-  collapseSeries,
-  dimmedEdgeIds,
-  dimmedNodeIds,
-  type MandalaScope,
-} from "@/lib/mandala/graph";
-import { layoutTopDown } from "@/lib/mandala/layout";
-import { mandalaNodeTypes, type MandalaNodeData } from "./nodes";
+  layoutFlow,
+  type LayoutDirection,
+  type LayoutSize,
+} from "@/lib/mandala/layout";
+import {
+  mandalaNodeTypes,
+  type MandalaNodeData,
+  type SeriesFrameData,
+} from "./nodes";
 import { data as siteData } from "@/lib/site-data";
 import { localizedHref, type Locale } from "@/lib/locale-path";
 
 const SIZES = {
-  compact: { width: 190, height: 44 },
-  card: { width: 230, height: 116 },
+  compact: { width: 200, height: 52 },
+  card: { width: 280, height: 140 },
   collapsedSeries: { width: 210, height: 72 },
 } as const;
+
+/** シリーズ枠がコース群の外へどれだけはみ出すか */
+const FRAME_PADDING = { x: 22, top: 30, bottom: 18 };
+
+type ScopeStyle = {
+  variant: "compact" | "card";
+  direction: LayoutDirection;
+  height: number;
+};
+
+/** 見た目は scope で決まる。全体・シリーズは一覧性、コースは読み物としての大きさ */
+function styleOf(scope: MandalaScope): ScopeStyle {
+  switch (scope.kind) {
+    case "global":
+      return { variant: "compact", direction: "TB", height: 640 };
+    case "series":
+      return { variant: "compact", direction: "TB", height: 560 };
+    case "course":
+      return { variant: "card", direction: "LR", height: 440 };
+  }
+}
 
 export type MandalaProps = {
   scope: MandalaScope;
   locale?: Locale;
-  /** グローバル曼陀羅ではミニマップとシリーズ折りたたみを出す */
+  /** 既定の高さを上書きする（scope ごとの既定は styleOf） */
   height?: number;
 };
 
-export function Mandala({ scope, locale = "ja", height = 460 }: MandalaProps) {
+export function Mandala({ scope, locale = "ja", height }: MandalaProps) {
   const router = useRouter();
   const [collapsedSlugs, setCollapsedSlugs] = useState<ReadonlySet<string>>(
     new Set(),
   );
-  const [hoveredId, setHoveredId] = useState<string | null>(null);
   const [interactive, setInteractive] = useState(false);
 
   const isGlobal = scope.kind === "global";
-  const variant = isGlobal ? "compact" : "card";
+  const { variant, direction, height: defaultHeight } = styleOf(scope);
+  const canvasHeight = height ?? defaultHeight;
 
   const view = useMemo(() => buildView(siteData.mandala, scope), [scope]);
   const collapsible = useMemo(
@@ -56,33 +79,17 @@ export function Mandala({ scope, locale = "ja", height = 460 }: MandalaProps) {
     [view, collapsedSlugs, isGlobal],
   );
 
-  const allNodeIds = useMemo(
-    () => [
-      ...collapsible.nodes.map((n) => n.id),
-      ...collapsible.collapsed.map((s) => s.id),
-    ],
-    [collapsible],
-  );
-  const dimmedNodes = useMemo(
-    () => dimmedNodeIds(collapsible.edges, allNodeIds, hoveredId),
-    [collapsible.edges, allNodeIds, hoveredId],
-  );
-  const dimmedEdges = useMemo(
-    () => dimmedEdgeIds(collapsible.edges, hoveredId),
-    [collapsible.edges, hoveredId],
-  );
-
   const { nodes, edges } = useMemo(() => {
     const entries: Array<{
       id: string;
       type: keyof typeof SIZES;
       data: MandalaNodeData;
-      href: string;
+      seriesSlug: string;
     }> = [
       ...collapsible.nodes.map((node) => ({
         id: node.id,
         type: variant as keyof typeof SIZES,
-        href: node.href,
+        seriesSlug: node.seriesSlug,
         data: {
           label: node.label,
           href: node.href,
@@ -90,43 +97,41 @@ export function Mandala({ scope, locale = "ja", height = 460 }: MandalaProps) {
           catch: node.catch,
           lessonCount: node.lessonCount,
           totalMinutes: node.totalMinutes,
-          status: node.status,
+          style: node.style,
+          locale,
           ghost: node.ghost,
           current: node.current,
-          dimmed: dimmedNodes.has(node.id),
         } satisfies MandalaNodeData,
       })),
       ...collapsible.collapsed.map((series) => ({
         id: series.id,
         type: "collapsedSeries" as const,
-        href: series.href,
+        seriesSlug: series.seriesSlug,
         data: {
           label: series.seriesName,
           href: series.href,
           seriesName: series.seriesName,
           lessonCount: series.lessonCount,
           totalMinutes: series.totalMinutes,
-          status: "in_progress" as const,
+          locale,
           ghost: false,
           current: false,
-          dimmed: dimmedNodes.has(series.id),
           collapsed: { courseCount: series.courseCount },
         } satisfies MandalaNodeData,
       })),
     ];
 
-    const positions = layoutTopDown(
+    const sizeOf = (id: string): LayoutSize =>
+      SIZES[entries.find((e) => e.id === id)?.type ?? variant];
+
+    const positions = layoutFlow(
       entries.map((e) => e.id),
       collapsible.edges,
-      {
-        size: SIZES[variant],
-        sizeOf: (id) =>
-          SIZES[entries.find((e) => e.id === id)?.type ?? variant],
-      },
+      { size: SIZES[variant], direction, sizeOf },
     );
     const positionById = new Map(positions.map((p) => [p.id, p]));
 
-    const flowNodes: Node[] = entries.map((entry) => ({
+    const courseNodes: Node[] = entries.map((entry) => ({
       id: entry.id,
       type: entry.type,
       position: positionById.get(entry.id) ?? { x: 0, y: 0 },
@@ -135,26 +140,64 @@ export function Mandala({ scope, locale = "ja", height = 460 }: MandalaProps) {
       connectable: false,
     }));
 
-    const flowEdges: Edge[] = collapsible.edges.map((edge) => {
-      const dimmed = dimmedEdges.has(edge.id);
-      return {
-        id: edge.id,
-        source: edge.source,
-        target: edge.target,
-        // 同一シリーズ内の「次に進む」辺だけ流れを見せる
-        animated: edge.kind === "order",
-        className: [
-          "dxm-edge",
-          edge.kind === "cross" ? "dxm-edge-cross" : "dxm-edge-order",
-          dimmed && "dxm-edge-dimmed",
-        ]
-          .filter(Boolean)
-          .join(" "),
-      };
-    });
+    // 全体曼陀羅だけ、シリーズごとのコース群を背景の枠で囲う。
+    // React Flow の親子関係は使わない——dagre の絶対座標と二重管理になるため、
+    // レイアウト結果から矩形を求めて背後に敷くだけにする。
+    const frameNodes: Node[] = isGlobal
+      ? [...new Set(entries.map((e) => e.seriesSlug))].flatMap((slug) => {
+          // 折りたたみ中のシリーズは集約ノード1つなので枠を描かない
+          if (collapsedSlugs.has(slug)) return [];
+          const members = entries.filter((e) => e.seriesSlug === slug);
+          if (members.length === 0) return [];
 
-    return { nodes: flowNodes, edges: flowEdges };
-  }, [collapsible, dimmedNodes, dimmedEdges, variant]);
+          const boxes = members.map((m) => {
+            const p = positionById.get(m.id) ?? { x: 0, y: 0 };
+            const size = sizeOf(m.id);
+            return { x: p.x, y: p.y, w: size.width, h: size.height };
+          });
+          const minX = Math.min(...boxes.map((b) => b.x));
+          const minY = Math.min(...boxes.map((b) => b.y));
+          const maxX = Math.max(...boxes.map((b) => b.x + b.w));
+          const maxY = Math.max(...boxes.map((b) => b.y + b.h));
+
+          return [
+            {
+              id: `frame:${slug}`,
+              type: "seriesFrame" as const,
+              position: {
+                x: minX - FRAME_PADDING.x,
+                y: minY - FRAME_PADDING.top,
+              },
+              data: {
+                seriesName: members[0]!.data.seriesName,
+                width: maxX - minX + FRAME_PADDING.x * 2,
+                height: maxY - minY + FRAME_PADDING.top + FRAME_PADDING.bottom,
+              } satisfies SeriesFrameData as unknown as Record<string, unknown>,
+              draggable: false,
+              connectable: false,
+              selectable: false,
+              focusable: false,
+              // コースノードより後ろに敷く
+              zIndex: -1,
+            },
+          ];
+        })
+      : [];
+
+    const flowEdges: Edge[] = collapsible.edges.map((edge) => ({
+      id: edge.id,
+      source: edge.source,
+      target: edge.target,
+      // 順序辺・跨ぎ辺とも流れを見せる。区別は線種（実線 / 破線）が担う
+      animated: true,
+      className: [
+        "dxm-edge",
+        edge.kind === "cross" ? "dxm-edge-cross" : "dxm-edge-order",
+      ].join(" "),
+    }));
+
+    return { nodes: [...frameNodes, ...courseNodes], edges: flowEdges };
+  }, [collapsible, variant, direction, isGlobal, collapsedSlugs, locale]);
 
   const hrefById = useMemo(
     () =>
@@ -214,10 +257,9 @@ export function Mandala({ scope, locale = "ja", height = 460 }: MandalaProps) {
       )}
       <div
         className="dxm-mandala-canvas"
-        style={{ height }}
+        style={{ height: canvasHeight }}
         // クリックするまではページスクロールを優先する
         onClick={() => setInteractive(true)}
-        onMouseLeave={() => setHoveredId(null)}
       >
         <ReactFlow
           nodes={nodes}
@@ -234,8 +276,6 @@ export function Mandala({ scope, locale = "ja", height = 460 }: MandalaProps) {
           zoomOnDoubleClick={false}
           proOptions={{ hideAttribution: true }}
           onNodeClick={onNodeClick}
-          onNodeMouseEnter={(_e, node) => setHoveredId(node.id)}
-          onNodeMouseLeave={() => setHoveredId(null)}
         >
           <Background gap={20} />
           {isGlobal && <MiniMap pannable zoomable />}

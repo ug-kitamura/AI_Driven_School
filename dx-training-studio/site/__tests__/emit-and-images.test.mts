@@ -167,10 +167,27 @@ describe("emitMetaFiles / emitIndexPages", () => {
     expect(fileOf(files, "en/git/_meta.js")).not.toContain("Overview");
   });
 
-  it("ルートはトップ項目を残し、パンくずを無効にする", () => {
+  it("ルートは「ホーム」項目を残し、パンくずを無効にする", () => {
     const contents = fileOf(emitMetaFiles(data, "ja"), "_meta.js");
     expect(contents).toContain('"index"');
+    expect(contents).toContain("ホーム");
+    expect(contents).not.toContain("トップ");
     expect(contents).toContain('"breadcrumb":false');
+  });
+
+  it("英語ルートは Home", () => {
+    const contents = fileOf(emitMetaFiles(data, "en"), "en/_meta.js");
+    expect(contents).toContain('"Home"');
+  });
+
+  it("シリーズはパンくずを切り、コース以下で戻す", () => {
+    // `theme` は子へ継承されるので、シリーズで切ったままだと
+    // コース・レッスンのパンくずまで消える
+    const files = emitMetaFiles(data, "ja");
+    expect(fileOf(files, "_meta.js")).toContain(
+      '"git": {"title":"Git基礎シリーズ","theme":{"breadcrumb":false}}',
+    );
+    expect(fileOf(files, "git/_meta.js")).toContain('"breadcrumb":true');
   });
 
   it("シリーズ・コースの index はフォルダ自身のページになる", () => {

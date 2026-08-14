@@ -1,8 +1,7 @@
-import { UntranslatedBadge } from "@/components/StatusBadge";
+import { Label, StatusLabel, UntranslatedLabel } from "@/components/Label";
 import {
   formatCourseStyle,
   formatMinutes,
-  formatPreparationLabel,
   type CourseStyle,
   type LessonStatus,
 } from "@/lib/site-data";
@@ -32,25 +31,26 @@ export function LessonHeader({ metadata }: { metadata: LessonMetadata }) {
   if (!seriesHref) return null;
 
   const locale = localeOf(seriesHref);
-  const labels = [
-    lessonStatus && formatPreparationLabel(lessonStatus, locale),
-    estimatedMinutes ? formatMinutes(estimatedMinutes, locale) : undefined,
-    formatCourseStyle(courseStyle, locale),
-  ].filter(Boolean) as string[];
+  const styleLabel = formatCourseStyle(courseStyle, locale);
+  const hasLabels = Boolean(lessonStatus || estimatedMinutes || styleLabel);
 
-  if (labels.length === 0 && !author && !metadata.untranslated) return null;
+  if (!hasLabels && !author && !metadata.untranslated) return null;
 
   return (
     <div className="dxm-lesson-header">
       <div className="dxm-lesson-labels">
-        {labels.map((label) => (
-          <span key={label} className="dxm-label">
-            {label}
-          </span>
-        ))}
-        {metadata.untranslated && <UntranslatedBadge locale="en" />}
+        {lessonStatus && <StatusLabel status={lessonStatus} locale={locale} />}
+        {estimatedMinutes ? (
+          <Label kind="minutes">{formatMinutes(estimatedMinutes, locale)}</Label>
+        ) : null}
+        {styleLabel && <Label kind="style">{styleLabel}</Label>}
+        {metadata.untranslated && <UntranslatedLabel locale="en" />}
       </div>
-      {author && <span className="dxm-lesson-author">written by {author}</span>}
+      {author && (
+        <span className="dxm-lesson-author">
+          {locale === "en" ? "author" : "著者"}: {author}
+        </span>
+      )}
     </div>
   );
 }

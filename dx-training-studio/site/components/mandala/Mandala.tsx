@@ -5,7 +5,9 @@ import { useRouter } from "next/navigation";
 import {
   Background,
   Controls,
+  MarkerType,
   MiniMap,
+  MiniMapNode,
   ReactFlow,
   type Edge,
   type Node,
@@ -34,10 +36,34 @@ const SIZES = {
 /** シリーズ枠がコース群の外へどれだけはみ出すか */
 const FRAME_PADDING = { x: 22, top: 30, bottom: 18 };
 
+/** 枠ノードの id 接頭辞。ミニマップから外すときの判別にも使う */
+const FRAME_PREFIX = "frame:";
+
+/** ノード数が少なくてもカードを実寸より拡大しない */
+const FIT_VIEW_OPTIONS = { maxZoom: 1 } as const;
+
+/** 辺と矢印の色。SVG マーカーは CSS 変数を引けないので、両テーマで読める中間グレーを使う */
+const EDGE_COLOR = "#9aa0a6";
+
+/** ミニマップのノード。地の色に紛れないよう塗りと枠を明示する */
+const MINIMAP_NODE_COLOR = "#c7d2da";
+const MINIMAP_NODE_STROKE = "#6b7785";
+
+/**
+ * ミニマップは枠を描かない——枠はコース群と重なる大きな矩形なので、
+ * そのまま出すと全面が塗り潰されてコースの配置が読めなくなる。
+ */
+function MandalaMiniMapNode(props: React.ComponentProps<typeof MiniMapNode>) {
+  if (props.id.startsWith(FRAME_PREFIX)) return null;
+  return <MiniMapNode {...props} />;
+}
+
 type ScopeStyle = {
   variant: "compact" | "card";
   direction: LayoutDirection;
   height: number;
+  /** 段と段の間隔。既定（72）だと収まらない場合に締める */
+  rankSep?: number;
 };
 
 /** 見た目は scope で決まる。全体・シリーズは一覧性、コースは読み物としての大きさ */
@@ -46,9 +72,11 @@ function styleOf(scope: MandalaScope): ScopeStyle {
     case "global":
       return { variant: "compact", direction: "TB", height: 640 };
     case "series":
-      return { variant: "compact", direction: "TB", height: 560 };
+      return { variant: "compact", direction: "TB", height: 640 };
     case "course":
-      return { variant: "card", direction: "LR", height: 440 };
+      // 縦3段（カード 140 × 3 ＋ 段間 48 × 2 ＝ 516）が高さ 580 に
+      // ズーム1のまま収まるよう、段間を既定の 72 から締める
+      return { variant: "card", direction: "TB", height: 580, rankSep: 48 };
   }
 }
 
@@ -67,7 +95,12 @@ export function Mandala({ scope, locale = "ja", height }: MandalaProps) {
   const [interactive, setInteractive] = useState(false);
 
   const isGlobal = scope.kind === "global";
-  const { variant, direction, height: defaultHeight } = styleOf(scope);
+  const {
+    variant,
+    direction,
+    height: defaultHeight,
+    rankSep,
+  } = styleOf(scope);
   const canvasHeight = height ?? defaultHeight;
 
   const view = useMemo(() => buildView(siteData.mandala, scope), [scope]);
@@ -127,7 +160,7 @@ export function Mandala({ scope, locale = "ja", height }: MandalaProps) {
     const positions = layoutFlow(
       entries.map((e) => e.id),
       collapsible.edges,
-      { size: SIZES[variant], direction, sizeOf },
+      { size: SIZES[variant], direction, rankSep, sizeOf },
     );
     const positionById = new Map(positions.map((p) => [p.id, p]));
 
@@ -135,54 +168,66 @@ export function Mandala({ scope, locale = "ja", height }: MandalaProps) {
       id: entry.id,
       type: entry.type,
       position: positionById.get(entry.id) ?? { x: 0, y: 0 },
+      // ミニマップは実測値ではなくノードの寸法を見るので、確定している値を明示する
+      ...sizeOf(entry.id),
       data: entry.data as unknown as Record<string, unknown>,
       draggable: false,
       connectable: false,
     }));
 
-    // 全体曼陀羅だけ、シリーズごとのコース群を背景の枠で囲う。
+    // シリーズごとのコース群を背景の枠で囲う。全体曼陀羅は全シリーズ、
+    // シリーズ曼陀羅は表示中のシリーズだけ（シリーズ外のゴーストは囲わない）。
     // React Flow の親子関係は使わない——dagre の絶対座標と二重管理になるため、
     // レイアウト結果から矩形を求めて背後に敷くだけにする。
-    const frameNodes: Node[] = isGlobal
-      ? [...new Set(entries.map((e) => e.seriesSlug))].flatMap((slug) => {
-          // 折りたたみ中のシリーズは集約ノード1つなので枠を描かない
-          if (collapsedSlugs.has(slug)) return [];
-          const members = entries.filter((e) => e.seriesSlug === slug);
-          if (members.length === 0) return [];
+    const framedSlugs = isGlobal
+      ? [...new Set(entries.map((e) => e.seriesSlug))]
+      : scope.kind === "series"
+        ? [scope.seriesSlug]
+        : [];
 
-          const boxes = members.map((m) => {
-            const p = positionById.get(m.id) ?? { x: 0, y: 0 };
-            const size = sizeOf(m.id);
-            return { x: p.x, y: p.y, w: size.width, h: size.height };
-          });
-          const minX = Math.min(...boxes.map((b) => b.x));
-          const minY = Math.min(...boxes.map((b) => b.y));
-          const maxX = Math.max(...boxes.map((b) => b.x + b.w));
-          const maxY = Math.max(...boxes.map((b) => b.y + b.h));
+    const frameNodes: Node[] = framedSlugs.flatMap((slug) => {
+      // 折りたたみ中のシリーズは集約ノード1つなので枠を描かない
+      if (collapsedSlugs.has(slug)) return [];
+      const members = entries.filter((e) => e.seriesSlug === slug);
+      if (members.length === 0) return [];
 
-          return [
-            {
-              id: `frame:${slug}`,
-              type: "seriesFrame" as const,
-              position: {
-                x: minX - FRAME_PADDING.x,
-                y: minY - FRAME_PADDING.top,
-              },
-              data: {
-                seriesName: members[0]!.data.seriesName,
-                width: maxX - minX + FRAME_PADDING.x * 2,
-                height: maxY - minY + FRAME_PADDING.top + FRAME_PADDING.bottom,
-              } satisfies SeriesFrameData as unknown as Record<string, unknown>,
-              draggable: false,
-              connectable: false,
-              selectable: false,
-              focusable: false,
-              // コースノードより後ろに敷く
-              zIndex: -1,
-            },
-          ];
-        })
-      : [];
+      const boxes = members.map((m) => {
+        const p = positionById.get(m.id) ?? { x: 0, y: 0 };
+        const size = sizeOf(m.id);
+        return { x: p.x, y: p.y, w: size.width, h: size.height };
+      });
+      const minX = Math.min(...boxes.map((b) => b.x));
+      const minY = Math.min(...boxes.map((b) => b.y));
+      const maxX = Math.max(...boxes.map((b) => b.x + b.w));
+      const maxY = Math.max(...boxes.map((b) => b.y + b.h));
+
+      const width = maxX - minX + FRAME_PADDING.x * 2;
+      const height = maxY - minY + FRAME_PADDING.top + FRAME_PADDING.bottom;
+
+      return [
+        {
+          id: `${FRAME_PREFIX}${slug}`,
+          type: "seriesFrame" as const,
+          position: {
+            x: minX - FRAME_PADDING.x,
+            y: minY - FRAME_PADDING.top,
+          },
+          width,
+          height,
+          data: {
+            seriesName: members[0]!.data.seriesName,
+            width,
+            height,
+          } satisfies SeriesFrameData as unknown as Record<string, unknown>,
+          draggable: false,
+          connectable: false,
+          selectable: false,
+          focusable: false,
+          // コースノードより後ろに敷く
+          zIndex: -1,
+        },
+      ];
+    });
 
     const flowEdges: Edge[] = collapsible.edges.map((edge) => ({
       id: edge.id,
@@ -190,6 +235,14 @@ export function Mandala({ scope, locale = "ja", height }: MandalaProps) {
       target: edge.target,
       // 順序辺・跨ぎ辺とも流れを見せる。区別は線種（実線 / 破線）が担う
       animated: true,
+      // 進む方向を指す矢印。色は線に揃える（既定は薄いグレーで線から浮く）
+      markerEnd: {
+        type: MarkerType.ArrowClosed,
+        width: 18,
+        height: 18,
+        color: EDGE_COLOR,
+      },
+      style: { stroke: EDGE_COLOR },
       className: [
         "dxm-edge",
         edge.kind === "cross" ? "dxm-edge-cross" : "dxm-edge-order",
@@ -197,7 +250,16 @@ export function Mandala({ scope, locale = "ja", height }: MandalaProps) {
     }));
 
     return { nodes: [...frameNodes, ...courseNodes], edges: flowEdges };
-  }, [collapsible, variant, direction, isGlobal, collapsedSlugs, locale]);
+  }, [
+    collapsible,
+    scope,
+    variant,
+    direction,
+    rankSep,
+    isGlobal,
+    collapsedSlugs,
+    locale,
+  ]);
 
   const hrefById = useMemo(
     () =>
@@ -266,6 +328,7 @@ export function Mandala({ scope, locale = "ja", height }: MandalaProps) {
           edges={edges}
           nodeTypes={mandalaNodeTypes}
           fitView
+          fitViewOptions={FIT_VIEW_OPTIONS}
           nodesDraggable={false}
           nodesConnectable={false}
           elementsSelectable={false}
@@ -278,7 +341,16 @@ export function Mandala({ scope, locale = "ja", height }: MandalaProps) {
           onNodeClick={onNodeClick}
         >
           <Background gap={20} />
-          {isGlobal && <MiniMap pannable zoomable />}
+          {isGlobal && (
+            <MiniMap
+              pannable
+              zoomable
+              nodeComponent={MandalaMiniMapNode}
+              nodeColor={MINIMAP_NODE_COLOR}
+              nodeStrokeColor={MINIMAP_NODE_STROKE}
+              nodeStrokeWidth={2}
+            />
+          )}
           {interactive && <Controls showInteractive={false} />}
         </ReactFlow>
       </div>

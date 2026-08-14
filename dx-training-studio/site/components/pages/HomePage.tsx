@@ -1,7 +1,7 @@
 import Link from "next/link";
 import Image from "next/image";
 import { Mandala } from "@/components/mandala/Mandala";
-import heroImage from "@/app/hero.png";
+import heroImage from "@/app/hero.jpg";
 import {
   allSeries,
   data,
@@ -21,8 +21,9 @@ export function HomePage({ locale }: { locale: Locale }) {
 
   return (
     <div className="dxm-page">
-      {/* トレーニングを想起させるヒーロー画像。差し替えは `app/hero.png` を
-          同名で置き換えるだけでよい（コード変更は不要）。 */}
+      {/* トレーニングを想起させるヒーロー画像。差し替えは `app/hero.jpg` を
+          同名で置き換えるだけでよい（コード変更は不要）。
+          切り抜かず全体を出すので、縦横比は画像がそのまま決める。 */}
       <Image
         src={heroImage}
         alt=""

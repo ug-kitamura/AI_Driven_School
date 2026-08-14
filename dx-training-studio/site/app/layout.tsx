@@ -1,7 +1,10 @@
-import type { ReactNode } from "react";
+import type { CSSProperties, ReactNode } from "react";
 import Image from "next/image";
 import { Head } from "nextra/components";
+import { getPageMap } from "nextra/page-map";
 import siteConfig from "@/site.config.json";
+import { SiteShell } from "@/components/SiteShell";
+import { resolveReleaseInfo } from "@/lib/release-info";
 import supergraphicImage from "./supergraphic.png";
 import "nextra-theme-docs/style.css";
 import "./globals.css";
@@ -16,15 +19,33 @@ export const metadata = {
 };
 
 /**
- * テーマの `<Layout>`（ナビバー・サイドバー・フッター）は
- * `app/[[...mdxPath]]/layout.tsx` 側に置く——サイドバーを言語ごとに出し分けるため、
- * ルートパスを見られる場所で pageMap を組み立てる必要がある。
+ * テーマの `<Layout>` は `SiteShell` が描く。
+ *
+ * ⚠ `SiteShell` を動的セグメント配下のレイアウトへ移さないこと——
+ * クライアント遷移のたびに作り直され、console エラーの原因になる（理由は SiteShell 参照）。
+ * pageMap は言語を問わないルート全体を1回だけ組み立て、言語による絞り込みは
+ * `SiteShell` がパスから行う。
  */
-export default function RootLayout({ children }: { children: ReactNode }) {
+export default async function RootLayout({
+  children,
+}: {
+  children: ReactNode;
+}) {
+  const { release } = resolveReleaseInfo();
+
   return (
     <html lang="ja" dir="ltr" suppressHydrationWarning>
       <Head />
-      <body>
+      {/* リリース番号はサイドバー最上部に `::before` で描く（テーマに差し込み口が無いため）。
+          タグ由来でないビルドでは変数を置かない——`content` が無効になり、
+          擬似要素そのものが生成されないので、行も余白も残らない。 */}
+      <body
+        style={
+          release
+            ? ({ "--dxm-release": JSON.stringify(release) } as CSSProperties)
+            : undefined
+        }
+      >
         {/* 装飾目的の supergraphic バナー。縦帯構成なので cover で中央を切り出しても
             色帯の横並びは保たれる。テーマの sticky ナビより外側に置くため、
             スクロールすると画面外へ流れる（ページ最上部の装飾という位置づけ）。 */}
@@ -35,7 +56,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
           priority
           className="dxm-supergraphic"
         />
-        {children}
+        <SiteShell pageMap={await getPageMap()}>{children}</SiteShell>
       </body>
     </html>
   );

@@ -67,8 +67,8 @@ export function CardNode({ data }: NodeProps) {
   const d = data as MandalaNodeData;
   return (
     <div className={nodeClass(d, "card")}>
-      {/* 横に流れるので接続点は左右 */}
-      <Handle type="target" position={Position.Left} isConnectable={false} />
+      {/* 縦に流れるので接続点は上下 */}
+      <Handle type="target" position={Position.Top} isConnectable={false} />
       {d.current && <span className="dxm-node-pin">いまここ</span>}
       {d.ghost && <span className="dxm-node-series">{d.seriesName}</span>}
       <span className="dxm-node-title">{d.label}</span>
@@ -77,7 +77,7 @@ export function CardNode({ data }: NodeProps) {
         {d.lessonCount} レッスン・約 {d.totalMinutes} 分
         <StyleLabel data={d} />
       </span>
-      <Handle type="source" position={Position.Right} isConnectable={false} />
+      <Handle type="source" position={Position.Bottom} isConnectable={false} />
     </div>
   );
 }

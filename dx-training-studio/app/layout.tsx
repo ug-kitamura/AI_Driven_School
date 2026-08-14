@@ -33,13 +33,14 @@ export default function RootLayout({
     <html lang="ja" className={`${inter.variable} h-full antialiased`}>
       <body className="flex min-h-full flex-col">
         {/* 装飾目的の supergraphic バナー。縦帯構成なので cover で中央を切り出しても
-            色帯の横並びは保たれる。 */}
+            色帯の横並びは保たれる。高さは `--supergraphic-h`（globals.css）が正本——
+            ビューポート高から差し引く側と同じ値を使うため。 */}
         <Image
           src={supergraphicImage}
           alt=""
           aria-hidden
           priority
-          className="h-1.5 w-full shrink-0 object-cover"
+          className="h-(--supergraphic-h) w-full shrink-0 object-cover"
         />
         {/* shadcn/ui の Sidebar コンポーネント（SidebarMenuButton の collapsed
             時 tooltip 等）が要求するためアプリ全体をラップする。 */}

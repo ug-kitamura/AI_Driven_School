@@ -3,6 +3,26 @@
 :root {
   --dxm-brand: #007bc0;
   --dxm-brand-soft: rgba(0, 123, 192, 0.12);
+
+  /* サイドバーメニュー（light: gray-600 / dark: neutral-400）より前に出る色。
+     ダークでは「より濃く」だと沈むので、同じ関係を保つために明るい側へ振る。 */
+  --dxm-release-color: #1f2937;
+
+  /* ラベルの種別色（状態=赤系 / 所要時間=緑系 / 受講形態=青系） */
+  --dxm-label-status-bg: color-mix(in srgb, #dc2626 14%, transparent);
+  --dxm-label-status-fg: #b91c1c;
+  --dxm-label-minutes-bg: color-mix(in srgb, #16a34a 14%, transparent);
+  --dxm-label-minutes-fg: #15803d;
+  --dxm-label-style-fg: var(--dxm-brand);
+}
+
+:is(html.dark, .dark) {
+  --dxm-release-color: #e5e5e5;
+
+  /* 暗い地では濃い文字色が沈むので、前景だけ明るい側へ振る */
+  --dxm-label-status-fg: #fca5a5;
+  --dxm-label-minutes-fg: #86efac;
+  --dxm-label-style-fg: #7dd3fc;
 }
 
 /* ===== supergraphic バナー ===== */
@@ -22,36 +42,27 @@
   font-weight: 700;
 }
 
-/* ===== フッター ===== */
+/* ===== リリース番号（サイドバー最上部） ===== */
 
-.dxm-footer {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.5rem;
-  width: 100%;
-  font-size: 0.82rem;
-}
-
-.dxm-footer-meta {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.6rem;
-}
-
-.dxm-footer-release {
-  padding: 0.05rem 0.45rem;
-  border-radius: 999px;
-  background: var(--dxm-brand-soft);
-  color: var(--dxm-brand);
+/* `aside.nextra-sidebar` は flex-col なので、`::before` がそのままメニューの上の1行になる。
+   値はルートレイアウトが `--dxm-release` として body に注入する。
+   タグ由来でないビルドでは変数が無く、`content` が無効になって擬似要素ごと生成されない
+   ——「リリース番号が無ければ行も余白も出さない」がこれで成立する。
+   左端はメニュー文字の開始位置（inner の p-4 = 1rem ＋ リンクの px-2 = 0.5rem）に揃える。 */
+.nextra-sidebar::before {
+  content: var(--dxm-release);
+  padding: 1rem 1rem 0 1.5rem;
+  font-size: 0.75rem;
   font-weight: 600;
   font-variant-numeric: tabular-nums;
+  color: var(--dxm-release-color);
 }
 
-.dxm-footer-meta a:hover {
-  color: var(--dxm-brand);
-  text-decoration: underline;
+/* ===== パンくず ===== */
+
+/* テーマ既定では本文がパンくずに接するので、下に余白を入れる */
+.nextra-breadcrumb {
+  margin-bottom: 1rem;
 }
 
 /* ===== レッスンのラベル行 ===== */
@@ -73,11 +84,12 @@
   gap: 0.4rem;
 }
 
+/* 配色は種別で決まる（状態=赤系 / 所要時間=緑系 / 受講形態=青系）。
+   目次でもラベル行でも同じ部品・同じ色を使う */
 .dxm-label {
   display: inline-flex;
   align-items: center;
   padding: 0.05rem 0.5rem;
-  border: 1px solid color-mix(in srgb, currentColor 18%, transparent);
   border-radius: 999px;
   font-size: 0.75rem;
   font-weight: 600;
@@ -85,38 +97,31 @@
   white-space: nowrap;
 }
 
+.dxm-label-status {
+  background: var(--dxm-label-status-bg);
+  color: var(--dxm-label-status-fg);
+}
+
+.dxm-label-minutes {
+  background: var(--dxm-label-minutes-bg);
+  color: var(--dxm-label-minutes-fg);
+}
+
+.dxm-label-style {
+  background: var(--dxm-brand-soft);
+  color: var(--dxm-label-style-fg);
+}
+
+/* 未翻訳の断り。種別色を持たない補足なので地の色で出す */
+.dxm-label-note {
+  background: color-mix(in srgb, currentColor 10%, transparent);
+  opacity: 0.8;
+}
+
 .dxm-lesson-author {
   font-size: 0.78rem;
   opacity: 0.65;
   white-space: nowrap;
-}
-
-/* ===== バッジ ===== */
-
-.dxm-badge {
-  display: inline-flex;
-  align-items: center;
-  padding: 0.05rem 0.45rem;
-  border-radius: 999px;
-  font-size: 0.72rem;
-  font-weight: 600;
-  line-height: 1.6;
-  white-space: nowrap;
-}
-
-.dxm-badge-in_progress {
-  background: color-mix(in srgb, #f59e0b 20%, transparent);
-  color: #b45309;
-}
-
-.dxm-badge-open {
-  background: color-mix(in srgb, currentColor 12%, transparent);
-  opacity: 0.75;
-}
-
-.dxm-badge-untranslated {
-  background: var(--dxm-brand-soft);
-  color: var(--dxm-brand);
 }
 
 /* ===== トップページ ===== */
@@ -128,15 +133,16 @@
   margin-bottom: 2rem;
 }
 
-/* 全体トップのヒーロー画像。差し替えは `app/hero.png` の置き換えだけでよい */
+/* 全体トップのヒーロー画像。差し替えは `app/hero.jpg` の置き換えだけでよい。
+   切り抜かず全体を出すので高さは縦横比まかせ（3.75:1 なら本文幅 832px で約 222px） */
 .dxm-home-hero-image {
   width: 100%;
-  height: 190px;
-  object-fit: cover;
+  height: auto;
   border-radius: 0.75rem;
   margin-bottom: 1.5rem;
 }
 
+/* 見出しの右に続くキャッチコピー。サイズ・色は見出しに引きずられないよう自分で持つ */
 .dxm-hero-catch {
   font-size: 1.05rem;
   font-weight: 600;

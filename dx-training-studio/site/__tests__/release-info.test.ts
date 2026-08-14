@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { DEV_RELEASE, resolveReleaseInfo } from "../lib/release-info";
+import { resolveReleaseInfo } from "../lib/release-info";
 
 describe("resolveReleaseInfo", () => {
   it("タグ名が渡されればそれをリリース番号にする", () => {
@@ -8,16 +8,16 @@ describe("resolveReleaseInfo", () => {
     expect(info.isRelease).toBe(true);
   });
 
-  it("未設定なら dev になる", () => {
+  it("未設定ならリリース番号を持たない", () => {
     const info = resolveReleaseInfo(undefined);
-    expect(info.release).toBe(DEV_RELEASE);
+    expect(info.release).toBeUndefined();
     expect(info.isRelease).toBe(false);
   });
 
-  it("空文字・空白だけなら dev になる", () => {
+  it("空文字・空白だけならリリース番号を持たない", () => {
     // ワークフローが env を空で渡した場合に "" を表示してしまわないこと
-    expect(resolveReleaseInfo("").release).toBe(DEV_RELEASE);
-    expect(resolveReleaseInfo("   ").release).toBe(DEV_RELEASE);
+    expect(resolveReleaseInfo("").release).toBeUndefined();
+    expect(resolveReleaseInfo("   ").release).toBeUndefined();
     expect(resolveReleaseInfo("   ").isRelease).toBe(false);
   });
 

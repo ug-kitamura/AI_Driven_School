@@ -1,6 +1,6 @@
 /**
  * dagre による自動レイアウト。React Flow に渡す座標を計算する。
- * 全体・シリーズ曼陀羅は上から下（TB）、ミニ曼陀羅は左から右（LR）。
+ * 3階層とも上から下（TB）。
  */
 import dagre from "@dagrejs/dagre";
 import type { MandalaEdge } from "@/lib/site-data";

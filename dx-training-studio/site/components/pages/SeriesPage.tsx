@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { Mandala } from "@/components/mandala/Mandala";
+import { HeroTitle } from "@/components/pages/HeroTitle";
 import {
   formatMinutes,
   localized,
@@ -21,12 +22,10 @@ export function SeriesPage({
   return (
     <div className="dxm-page">
       <div className="dxm-hero">
-        {series.catch && (
-          <span className="dxm-hero-catch">
-            {localizedOptional(series.catch, series.catchEn, locale)}
-          </span>
-        )}
-        <h1 className="dxm-hero-title">{title}</h1>
+        <HeroTitle
+          title={title}
+          catchCopy={localizedOptional(series.catch, series.catchEn, locale)}
+        />
         {series.description && (
           <p>
             {localizedOptional(

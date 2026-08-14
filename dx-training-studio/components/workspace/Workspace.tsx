@@ -391,7 +391,9 @@ export function Workspace({
   return (
     <div
       ref={workspaceRootRef}
-      className="h-screen w-full overflow-hidden"
+      // ビューポート高から supergraphic 帯のぶんを引く。引かないとページ全体が
+      // 帯の高さだけスクロールしてしまう
+      className="h-[calc(100svh-var(--supergraphic-h))] w-full overflow-hidden"
     >
     <SidebarProvider
       defaultOpen

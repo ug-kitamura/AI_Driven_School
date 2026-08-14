@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { Mandala } from "@/components/mandala/Mandala";
-import { StatusBadge } from "@/components/StatusBadge";
+import { HeroTitle } from "@/components/pages/HeroTitle";
+import { StatusLabel } from "@/components/Label";
 import {
   formatMinutes,
   localized,
@@ -19,18 +20,15 @@ export function CoursePage({
   course: SiteCourse;
   locale: Locale;
 }) {
-  const seriesTitle = localized(series.name, series.nameEn, locale);
   const courseTitle = localized(course.name, course.nameEn, locale);
 
   return (
     <div className="dxm-page">
       <div className="dxm-hero">
-        {course.catch && (
-          <span className="dxm-hero-catch">
-            {localizedOptional(course.catch, course.catchEn, locale)}
-          </span>
-        )}
-        <h1 className="dxm-hero-title">{courseTitle}</h1>
+        <HeroTitle
+          title={courseTitle}
+          catchCopy={localizedOptional(course.catch, course.catchEn, locale)}
+        />
         {course.description && (
           <p>
             {localizedOptional(
@@ -72,7 +70,7 @@ export function CoursePage({
           >
             <span className="dxm-card-title">
               {locale === "en" ? (lesson.titleEn ?? lesson.name) : lesson.name}
-              <StatusBadge status={lesson.status} locale={locale} />
+              <StatusLabel status={lesson.status} locale={locale} />
             </span>
             {lesson.description && <span>{lesson.description}</span>}
             <span className="dxm-card-meta">

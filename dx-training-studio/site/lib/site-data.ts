@@ -134,11 +134,23 @@ export function formatCourseStyle(
   return locale === "en" ? style : COURSE_STYLE_LABELS_JA[style];
 }
 
-/** 未完成レッスンのラベル。`done` は表示しない */
-export function formatPreparationLabel(
+/**
+ * 執筆状況の表示ラベル。語彙は Studio（`lib/schema.ts`）に揃える——
+ * 目次でもレッスンページでも同じ言葉を出すため、対応はここ1箇所だけに置く。
+ * `done` はどちらにも表示しない。
+ */
+const LESSON_STATUS_LABELS: Record<
+  Exclude<LessonStatus, "done">,
+  { ja: string; en: string }
+> = {
+  open: { ja: "未着手", en: "open" },
+  in_progress: { ja: "作成中", en: "in progress" },
+};
+
+export function formatLessonStatus(
   status: LessonStatus,
   locale: Locale,
 ): string | undefined {
   if (status === "done") return undefined;
-  return locale === "en" ? "in preparation" : "準備中";
+  return LESSON_STATUS_LABELS[status][locale];
 }

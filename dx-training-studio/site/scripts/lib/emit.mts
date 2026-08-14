@@ -158,13 +158,15 @@ export function emitMetaFiles(data: SiteData, locale: Locale): EmittedFile[] {
     contents: emitMetaFile([
       {
         slug: "index",
-        title: locale === "en" ? "Home" : "トップ",
+        title: locale === "en" ? "Home" : "ホーム",
         // トップは階層の起点なのでパンくずを出さない
         theme: { breadcrumb: false },
       },
+      // シリーズトップもパンくずを出さない（1段だけのパンくずに意味が無いため）
       ...data.series.map((series) => ({
         slug: series.slug,
         title: seriesTitle(series, locale),
+        theme: { breadcrumb: false },
       })),
     ]),
   });
@@ -178,6 +180,9 @@ export function emitMetaFiles(data: SiteData, locale: Locale): EmittedFile[] {
         series.courses.map((course) => ({
           slug: course.slug,
           title: courseTitle(course, locale),
+          // シリーズで切ったパンくずをコース以下で戻す——`theme` は子へ継承されるため
+          // （`nextra/dist/client/normalize-pages.js` の pageThemeContext）
+          theme: { breadcrumb: true },
         })),
       ),
     });

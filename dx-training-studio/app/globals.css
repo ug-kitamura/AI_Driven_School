@@ -87,6 +87,10 @@
 }
 
 :root {
+  /* supergraphic 帯の高さ。帯そのものと、ビューポート高から差し引く側
+     （ワークスペース本体・fixed のサイドバー）で同じ値を使う */
+  --supergraphic-h: 0.375rem;
+
   /* DX Training Studio カラーパレット（custom-colors.xlsx より） */
   --background: #EFF1F2;        /* Custom_Gray_95: ページ背景 */
   --foreground: #1A1C1D;        /* Custom_Gray_10: テキスト（メイン） */
@@ -275,6 +279,21 @@
   html.dark input[type="number"] {
     color-scheme: dark;
   }
+}
+
+/* supergraphic 帯（body 先頭・高さ 6px）は全幅を占める。
+   ペイン1 の Sidebar は `fixed inset-y-0 h-svh` でビューポート最上端から始まるため、
+   そのままだと左カラムぶんの帯を覆い隠す。shadcn の部品には手を入れず、
+   位置だけをアプリ側で帯のぶん下げる。 */
+[data-slot="sidebar-container"] {
+  top: var(--supergraphic-h);
+  height: calc(100svh - var(--supergraphic-h));
+}
+
+/* SidebarProvider のラッパも `min-h-svh` で帯を勘定に入れていない。
+   ワークスペース本体が overflow-hidden で切るため、そのままだと下端 6px が欠ける */
+[data-slot="sidebar-wrapper"] {
+  min-height: calc(100svh - var(--supergraphic-h));
 }
 
 /* Pane3 Agent ビュー: 編集ビューと同じスクロールバー形状・位置、背景は極めて白に近いグレー */

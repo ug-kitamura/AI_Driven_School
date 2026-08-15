@@ -3,7 +3,6 @@
 import { useCallback, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
-  Background,
   Controls,
   MarkerType,
   MiniMap,
@@ -45,10 +44,6 @@ const FIT_VIEW_OPTIONS = { maxZoom: 1 } as const;
 /** 辺と矢印の色。SVG マーカーは CSS 変数を引けないので、両テーマで読める中間グレーを使う */
 const EDGE_COLOR = "#9aa0a6";
 
-/** ミニマップのノード。地の色に紛れないよう塗りと枠を明示する */
-const MINIMAP_NODE_COLOR = "#c7d2da";
-const MINIMAP_NODE_STROKE = "#6b7785";
-
 /**
  * ミニマップは枠を描かない——枠はコース群と重なる大きな矩形なので、
  * そのまま出すと全面が塗り潰されてコースの配置が読めなくなる。
@@ -83,11 +78,21 @@ function styleOf(scope: MandalaScope): ScopeStyle {
 export type MandalaProps = {
   scope: MandalaScope;
   locale?: Locale;
-  /** 既定の高さを上書きする（scope ごとの既定は styleOf） */
-  height?: number;
+  /** 既定の高さを上書きする（scope ごとの既定は styleOf）。モーダルは vh で渡す */
+  height?: number | string;
+  /**
+   * 「いまここ」を出すコース。モーダルがパスから解いて渡す。
+   * ViewNode の `current`（scope 内かどうか）とは別の意味なので独立して持つ。
+   */
+  currentCourseId?: string | null;
 };
 
-export function Mandala({ scope, locale = "ja", height }: MandalaProps) {
+export function Mandala({
+  scope,
+  locale = "ja",
+  height,
+  currentCourseId = null,
+}: MandalaProps) {
   const router = useRouter();
   const [collapsedSlugs, setCollapsedSlugs] = useState<ReadonlySet<string>>(
     new Set(),
@@ -134,6 +139,7 @@ export function Mandala({ scope, locale = "ja", height }: MandalaProps) {
           locale,
           ghost: node.ghost,
           current: node.current,
+          here: node.id === currentCourseId,
         } satisfies MandalaNodeData,
       })),
       ...collapsible.collapsed.map((series) => ({
@@ -149,6 +155,7 @@ export function Mandala({ scope, locale = "ja", height }: MandalaProps) {
           locale,
           ghost: false,
           current: false,
+          here: false,
           collapsed: { courseCount: series.courseCount },
         } satisfies MandalaNodeData,
       })),
@@ -259,6 +266,7 @@ export function Mandala({ scope, locale = "ja", height }: MandalaProps) {
     isGlobal,
     collapsedSlugs,
     locale,
+    currentCourseId,
   ]);
 
   const hrefById = useMemo(
@@ -340,16 +348,11 @@ export function Mandala({ scope, locale = "ja", height }: MandalaProps) {
           proOptions={{ hideAttribution: true }}
           onNodeClick={onNodeClick}
         >
-          <Background gap={20} />
+          {/* 背景の格子は敷かない——曼陀羅を本文から浮かせず地続きに見せる。
+              ミニマップ・Controls の配色は globals.css の `--xy-*` が持つ
+              （props で渡すとインラインになり、ダークから上書きできない） */}
           {isGlobal && (
-            <MiniMap
-              pannable
-              zoomable
-              nodeComponent={MandalaMiniMapNode}
-              nodeColor={MINIMAP_NODE_COLOR}
-              nodeStrokeColor={MINIMAP_NODE_STROKE}
-              nodeStrokeWidth={2}
-            />
+            <MiniMap pannable zoomable nodeComponent={MandalaMiniMapNode} />
           )}
           {interactive && <Controls showInteractive={false} />}
         </ReactFlow>

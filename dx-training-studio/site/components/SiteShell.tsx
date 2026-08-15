@@ -6,6 +6,7 @@ import { Layout, Navbar } from "nextra-theme-docs";
 import type { PageMapItem } from "nextra";
 import siteConfig from "@/site.config.json";
 import { LanguageToggle } from "@/components/LanguageToggle";
+import { MandalaModal } from "@/components/MandalaModal";
 import { localeOf } from "@/lib/locale-path";
 
 const navbar = (
@@ -18,6 +19,9 @@ const navbar = (
     }
     projectLink={siteConfig.repositoryUrl}
   >
+    {/* テーマは `[projectLink, chatLink, children]` の順に描くので、
+        children の先頭に置くと「GitHub → 曼陀羅 → 言語」の並びになる */}
+    <MandalaModal />
     <LanguageToggle />
   </Navbar>
 );

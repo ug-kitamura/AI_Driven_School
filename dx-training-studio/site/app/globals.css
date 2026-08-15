@@ -327,10 +327,41 @@
   opacity: 0.75;
 }
 
+/* 枠線も背景の格子も持たない——曼陀羅を「特別な箱」に見せず本文と地続きにする。
+   ただし完全な透明にはしない: クリック後はパン・ズームが働き、ノードは領域の縁で
+   切り落とされるので、輪郭がまったく無いと「何もない所で切れる」ように見える */
 .dxm-mandala-canvas {
-  border: 1px solid color-mix(in srgb, currentColor 12%, transparent);
+  background: color-mix(in srgb, currentColor 3%, transparent);
   border-radius: 0.6rem;
   overflow: hidden;
+}
+
+/* ミニマップと Controls の配色。React Flow の CSS 変数で与える——
+   コンポーネントの props で渡すとインラインスタイルになり、
+   ダークテーマの stylesheet から上書きできなくなる */
+.dxm-mandala-canvas .react-flow {
+  --xy-minimap-background-color: #ffffff;
+  --xy-minimap-mask-background-color: rgb(240 240 240 / 60%);
+  --xy-minimap-node-background-color: #c7d2da;
+  --xy-minimap-node-stroke-color: #6b7785;
+  --xy-minimap-node-stroke-width: 2;
+  --xy-controls-button-background-color: #ffffff;
+  --xy-controls-button-background-color-hover: #f0f0f0;
+  --xy-controls-button-color: #3c3c3c;
+  --xy-controls-button-color-hover: #000000;
+  --xy-controls-button-border-color: #eee;
+}
+
+:is(html.dark, .dark) .dxm-mandala-canvas .react-flow {
+  --xy-minimap-background-color: #2b2f33;
+  --xy-minimap-mask-background-color: rgb(20 20 20 / 60%);
+  --xy-minimap-node-background-color: #5b6670;
+  --xy-minimap-node-stroke-color: #9aa4ae;
+  --xy-controls-button-background-color: #2b2f33;
+  --xy-controls-button-background-color-hover: #3a4046;
+  --xy-controls-button-color: #d7dade;
+  --xy-controls-button-color-hover: #ffffff;
+  --xy-controls-button-border-color: #44494e;
 }
 
 /* カードは白地・濃いめの枠。曼陀羅の背景から浮かせて読みやすくする */
@@ -352,6 +383,25 @@
 :is(html.dark, .dark) .dxm-node {
   background: rgb(var(--nextra-bg, 17 17 17));
   color: inherit;
+}
+
+/* 読者がいまいるコース。枠を青く太くして、左肩にピンを重ねる。
+   ピンは絶対配置なのでノードの寸法にも文字位置にも影響しない
+   （上辺のハンドルは中央なので左肩とは重ならない） */
+.dxm-node-here {
+  position: relative;
+  border-color: var(--dxm-brand);
+  /* 太さは inset の影で出す。border-width を上げるとノードは固定寸法なので
+     内側が 1px 削れ、コース名の位置が他のノードとずれる */
+  box-shadow: inset 0 0 0 1px var(--dxm-brand);
+}
+
+.dxm-node-here-pin {
+  position: absolute;
+  top: -8px;
+  left: -8px;
+  color: var(--dxm-brand);
+  fill: color-mix(in srgb, var(--dxm-brand) 18%, #fff);
 }
 
 .dxm-node-compact {
@@ -467,6 +517,69 @@
   padding: 0.2rem 0.55rem;
   border-radius: 0.4rem;
   border: 1px solid color-mix(in srgb, currentColor 20%, transparent);
+}
+
+/* 曼陀羅モーダルの呼び出し。左隣の GitHub ロゴ（塗り・24px）と
+   視覚的な重さを揃えるため、線アイコンは少し小さめの 22px にしている */
+.dxm-mandala-button {
+  display: inline-flex;
+  align-items: center;
+  opacity: 0.9;
+}
+
+.dxm-mandala-button:hover {
+  opacity: 1;
+  color: var(--dxm-brand);
+}
+
+/* ===== 曼陀羅モーダル ===== */
+
+.dxm-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1.5rem;
+  background: rgb(0 0 0 / 45%);
+}
+
+.dxm-modal {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  width: min(1100px, 100%);
+  padding: 1rem 1.15rem 1.25rem;
+  border-radius: 0.75rem;
+  background: rgb(var(--nextra-bg, 255 255 255));
+  box-shadow: 0 12px 40px rgb(0 0 0 / 25%);
+}
+
+.dxm-modal-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.dxm-modal-title {
+  font-weight: 700;
+}
+
+.dxm-modal-close {
+  padding: 0.1rem 0.4rem;
+  border-radius: 0.35rem;
+  opacity: 0.7;
+}
+
+.dxm-modal-close:hover {
+  opacity: 1;
+  background: color-mix(in srgb, currentColor 10%, transparent);
+}
+
+/* モーダル内では曼陀羅の外側の余白を持たない（枠が余白を持っている） */
+.dxm-modal .dxm-mandala {
+  margin: 0;
 }
 
 .dxm-logo-mark {

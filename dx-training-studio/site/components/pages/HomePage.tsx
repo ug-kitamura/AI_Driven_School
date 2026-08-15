@@ -1,6 +1,6 @@
 import Link from "next/link";
 import Image from "next/image";
-import { Mandala } from "@/components/mandala/Mandala";
+import { LazyMandala } from "@/components/mandala/LazyMandala";
 import heroImage from "@/app/hero.jpg";
 import {
   allSeries,
@@ -40,7 +40,7 @@ export function HomePage({ locale }: { locale: Locale }) {
       <h2 className="dxm-section-title">
         {locale === "en" ? "All courses" : "全体の曼陀羅"}
       </h2>
-      <Mandala scope={{ kind: "global" }} locale={locale} />
+      <LazyMandala scope={{ kind: "global" }} locale={locale} />
 
       <h2 className="dxm-section-title">
         {locale === "en" ? "Series" : "シリーズ"}

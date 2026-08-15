@@ -1,6 +1,7 @@
 "use client";
 
 import { Handle, Position, type NodeProps } from "@xyflow/react";
+import { MapPin } from "lucide-react";
 import { formatCourseStyle, type CourseStyle } from "@/lib/site-data";
 import type { Locale } from "@/lib/locale-path";
 
@@ -16,6 +17,11 @@ export type MandalaNodeData = {
   locale: Locale;
   ghost: boolean;
   current: boolean;
+  /**
+   * 読者がいまいるコース。`current`（scope 内かどうか）とは別物で、
+   * モーダルがパスから解いた1件だけに立つ。
+   */
+  here: boolean;
   /** 折りたたまれたシリーズの集約ノード */
   collapsed?: { courseCount: number };
 };
@@ -37,6 +43,23 @@ function nodeClass(data: MandalaNodeData, variant: string): string {
     `dxm-node-${variant}`,
     data.ghost && "dxm-node-ghost",
     data.current && "dxm-node-current",
+    data.here && "dxm-node-here",
+  );
+}
+
+/**
+ * 「いまここ」の印。ノードの左肩へ絶対配置で重ねる——
+ * インラインで置くとコース名の幅が縮み、ellipsis の位置が他ノードとずれる。
+ */
+function HerePin({ data }: { data: MandalaNodeData }) {
+  if (!data.here) return null;
+  return (
+    <MapPin
+      className="dxm-node-here-pin"
+      size={17}
+      strokeWidth={2.5}
+      aria-label={data.locale === "en" ? "You are here" : "いまここ"}
+    />
   );
 }
 
@@ -55,6 +78,7 @@ export function CompactNode({ data }: NodeProps) {
       title={`${d.seriesName} / ${d.label}`}
     >
       <Handle type="target" position={Position.Top} isConnectable={false} />
+      <HerePin data={d} />
       <span className="dxm-node-title">{d.label}</span>
       <StyleLabel data={d} />
       <Handle type="source" position={Position.Bottom} isConnectable={false} />

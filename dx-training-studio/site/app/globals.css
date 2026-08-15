@@ -43,20 +43,46 @@
 /* ===== supergraphic バナー ===== */
 
 /* 高さ 6px 固定・全幅。縦帯構成なので cover で中央を切り出しても色帯の横並びは保たれる。
-   スクロールしても最上部に留める。`fixed` ではなく `sticky` なのは、
-   フローに残るぶんレイアウトシフトも `body` の padding での帳尻合わせも要らないため
-   ——`fixed` にすると navbar / sidebar / toc の top と height を軒並み上書きすることになる。
-   z-index はテーマの navbar（z-30）より上。navbar は帯の下へ潜って上端 6px が隠れるが、
-   中身は 64px の中で縦中央寄せなので見え方は変わらず、下辺の位置も動かないので
-   sidebar と toc の `top: var(--nextra-navbar-height)` に手を入れずに済む。 */
+   スクロールしても最上部に留める。
+
+   ⚠ `sticky` にしないこと。要点は「帯がレイアウトの高さを占有しないこと」で、
+   `sticky` はフローに残るため帯が本文フローの先頭 6px を占める。テーマの navbar も
+   `sticky top:0` なので、navbar は y=6 から始まり top:0 まで 6px ずり上がってから固定される
+   ——「固定のはずのヘッダーがスクロール開始直後だけ動く」の正体。sidebar と toc も
+   `top: var(--nextra-navbar-height)` で同じ 6px 追随する。
+
+   z-index はテーマの navbar（z-30）より上。ただし覆いかぶさることには頼らない
+   ——帯の居場所は下の `--nextra-navbar-height` で navbar 側に確保してある。 */
 .dxm-supergraphic {
   display: block;
-  position: sticky;
+  position: fixed;
   top: 0;
   z-index: 40;
   width: 100%;
   height: 6px;
   object-fit: cover;
+}
+
+/* 帯の 6px はナビバーの中身に覆いかぶせず、ナビバーの上端に居場所を作って収める。
+   覆う形（帯 6px が navbar の上端に重なる）だと、ヘッダーの中身も本文も 6px 上へ詰まって
+   見えるため——帯を足す前と同じ縦の間合いに戻す。
+
+   上書きはテーマの高さ変数 1 本で済む。sidebar / toc の `top` も、`100dvh - この変数` の
+   高さ計算も、mobile-nav の `padding-top` も、すべてこの変数を見ているので自動で追随する
+   ——個別に top や height を上書きすると 4 箇所に散る。
+   増やした 6px は帯の場所なので、ナビバーの中身は `padding-top` で下へ逃がす
+   （中身の高さもこの変数なので、border-box のまま 6 + 64 に割れる）。
+   `html:root` と1段上げる理由は `--nextra-content-width` と同じ（下のコメント参照）。
+
+   ⚠ 帯の高さ（`.dxm-supergraphic` の `height`）とこの 6px は同じ値。片方だけ変えないこと。 */
+html:root {
+  --nextra-navbar-height: 70px; /* 64px（テーマ既定）+ 帯 6px */
+}
+
+/* blur レイヤ（`.nextra-navbar-blur`）は絶対配置で navbar 全体を覆うので触らない。
+   中身の行だけ下げる */
+.nextra-navbar > :not(.nextra-navbar-blur) {
+  padding-top: 6px;
 }
 
 .dxm-logo {

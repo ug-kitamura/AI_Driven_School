@@ -1,15 +1,54 @@
 import Link from "next/link";
-import { Mandala } from "@/components/mandala/Mandala";
 import { HeroTitle } from "@/components/pages/HeroTitle";
 import { StatusLabel } from "@/components/Label";
+import { courseNeighbors } from "@/lib/mandala/graph";
 import {
+  data as siteData,
   formatMinutes,
   localized,
   localizedOptional,
+  type MandalaNode,
   type SiteCourse,
   type SiteSeries,
 } from "@/lib/site-data";
 import { localizedHref, type Locale } from "@/lib/locale-path";
+
+/**
+ * 前後のコース。レッスン一覧（カード）より軽いバレットで出す——
+ * コーストップの主役はレッスン一覧で、ここは道のりの前後を示す補助。
+ */
+function CourseLinks({
+  courses,
+  seriesSlug,
+  locale,
+}: {
+  courses: MandalaNode[];
+  seriesSlug: string;
+  locale: Locale;
+}) {
+  if (courses.length === 0) {
+    return (
+      <p className="dxm-course-links-empty">
+        {locale === "en" ? "None" : "なし"}
+      </p>
+    );
+  }
+
+  return (
+    <ul className="dxm-course-links">
+      {courses.map((course) => (
+        <li key={course.id}>
+          <Link href={localizedHref(course.href, locale)}>{course.label}</Link>
+          {/* 他シリーズの相手にだけシリーズ名を添える。リンクの外に置いて
+              リンクテキストを「コース名」だけに保つ */}
+          {course.seriesSlug !== seriesSlug && (
+            <span className="dxm-course-links-series">{course.seriesName}</span>
+          )}
+        </li>
+      ))}
+    </ul>
+  );
+}
 
 export function CoursePage({
   series,
@@ -21,6 +60,9 @@ export function CoursePage({
   locale: Locale;
 }) {
   const courseTitle = localized(course.name, course.nameEn, locale);
+  const neighbors = course.id
+    ? courseNeighbors(siteData.mandala, course.id)
+    : { prev: [], next: [] };
 
   return (
     <div className="dxm-page">
@@ -46,18 +88,6 @@ export function CoursePage({
         </span>
       </div>
 
-      {course.id && (
-        <>
-          <h2 className="dxm-section-title">
-            {locale === "en" ? "Where you are" : "前後のコース"}
-          </h2>
-          <Mandala
-            scope={{ kind: "course", courseId: course.id }}
-            locale={locale}
-          />
-        </>
-      )}
-
       <h2 className="dxm-section-title">
         {locale === "en" ? "Lessons" : "レッスン"}
       </h2>
@@ -79,6 +109,24 @@ export function CoursePage({
           </Link>
         ))}
       </div>
+
+      <h2 className="dxm-section-title">
+        {locale === "en" ? "Before this course" : "前に受けるコース"}
+      </h2>
+      <CourseLinks
+        courses={neighbors.prev}
+        seriesSlug={series.slug}
+        locale={locale}
+      />
+
+      <h2 className="dxm-section-title">
+        {locale === "en" ? "Next courses" : "次に受けるコース"}
+      </h2>
+      <CourseLinks
+        courses={neighbors.next}
+        seriesSlug={series.slug}
+        locale={locale}
+      />
     </div>
   );
 }

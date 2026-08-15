@@ -97,6 +97,53 @@ export function courseView(graph: MandalaGraph, courseId: string): MandalaView {
   return { nodes, edges };
 }
 
+/** コーストップの「前に受けるコース」「次に受けるコース」 */
+export type CourseNeighbors = {
+  prev: MandalaNode[];
+  next: MandalaNode[];
+};
+
+/**
+ * 前後のコースを辺の向きから導出する。
+ * 曼陀羅と同じデータを使うので、図とテキストの表示が食い違わない。
+ * 並びは同シリーズ（order 辺）が先、他シリーズ（cross 辺）が後。
+ */
+export function courseNeighbors(
+  graph: MandalaGraph,
+  courseId: string,
+): CourseNeighbors {
+  const byId = nodeMap(graph);
+
+  const collect = (
+    matches: (edge: MandalaEdge) => boolean,
+    otherEnd: (edge: MandalaEdge) => string,
+  ): MandalaNode[] => {
+    const seen = new Set<string>();
+    const out: MandalaNode[] = [];
+    for (const kind of ["order", "cross"] as const) {
+      for (const edge of graph.edges) {
+        if (edge.kind !== kind || !matches(edge)) continue;
+        const node = byId.get(otherEnd(edge));
+        if (!node || seen.has(node.id)) continue;
+        seen.add(node.id);
+        out.push(node);
+      }
+    }
+    return out;
+  };
+
+  return {
+    prev: collect(
+      (e) => e.target === courseId,
+      (e) => e.source,
+    ),
+    next: collect(
+      (e) => e.source === courseId,
+      (e) => e.target,
+    ),
+  };
+}
+
 export function buildView(
   graph: MandalaGraph,
   scope: MandalaScope,

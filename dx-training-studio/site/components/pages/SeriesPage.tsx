@@ -1,5 +1,4 @@
 import Link from "next/link";
-import { Mandala } from "@/components/mandala/Mandala";
 import { HeroTitle } from "@/components/pages/HeroTitle";
 import {
   formatMinutes,
@@ -17,7 +16,6 @@ export function SeriesPage({
   locale: Locale;
 }) {
   const title = localized(series.name, series.nameEn, locale);
-  const firstLesson = series.courses.flatMap((c) => c.lessons)[0];
 
   return (
     <div className="dxm-page">
@@ -35,23 +33,7 @@ export function SeriesPage({
             )}
           </p>
         )}
-        {firstLesson && (
-          <Link
-            className="dxm-hero-cta"
-            href={localizedHref(firstLesson.href, locale)}
-          >
-            {locale === "en" ? "Start the first lesson" : "最初のレッスンへ"}
-          </Link>
-        )}
       </div>
-
-      <h2 className="dxm-section-title">
-        {locale === "en" ? "Course map" : "このシリーズの曼陀羅"}
-      </h2>
-      <Mandala
-        scope={{ kind: "series", seriesSlug: series.slug }}
-        locale={locale}
-      />
 
       <h2 className="dxm-section-title">
         {locale === "en" ? "Courses" : "コース"}

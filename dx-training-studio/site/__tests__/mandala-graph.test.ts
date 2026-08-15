@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   buildView,
   collapseSeries,
+  courseNeighbors,
   courseView,
   globalView,
   seriesView,
@@ -120,6 +121,45 @@ describe("courseView", () => {
 
   it("存在しないコースには空のビューを返す", () => {
     expect(courseView(graph, "crs-unknown")).toEqual({ nodes: [], edges: [] });
+  });
+});
+
+describe("courseNeighbors", () => {
+  it("辺の向きで前後に振り分ける", () => {
+    const { prev, next } = courseNeighbors(graph, "crs-concepts");
+    expect(prev.map((n) => n.id)).toEqual(["crs-setup"]);
+    expect(next.map((n) => n.id)).toEqual(["crs-basics"]);
+  });
+
+  it("同シリーズ（order）を先、他シリーズ（cross）を後に並べる", () => {
+    const withBoth: MandalaGraph = {
+      nodes: graph.nodes,
+      edges: [
+        // cross を先に置いても order が先に来る
+        { id: "e3", source: "crs-setup", target: "crs-basics", kind: "cross" },
+        {
+          id: "e2",
+          source: "crs-concepts",
+          target: "crs-basics",
+          kind: "order",
+        },
+      ],
+    };
+    const { prev } = courseNeighbors(withBoth, "crs-basics");
+    expect(prev.map((n) => n.id)).toEqual(["crs-concepts", "crs-setup"]);
+  });
+
+  it("端のコースでは片側が空になる", () => {
+    const { prev, next } = courseNeighbors(graph, "crs-intro");
+    expect(prev).toEqual([]);
+    expect(next.map((n) => n.id)).toEqual(["crs-setup"]);
+  });
+
+  it("存在しないコースには両側とも空を返す", () => {
+    expect(courseNeighbors(graph, "crs-unknown")).toEqual({
+      prev: [],
+      next: [],
+    });
   });
 });
 

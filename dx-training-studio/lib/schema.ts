@@ -168,7 +168,3 @@ export type ImageAsset = z.infer<typeof imageAssetSchema>;
 // ===== JSON 全体用スキーマ =====
 
 export const seriesArraySchema = z.array(seriesSchema);
-export const workspaceSchema = z.object({
-  name: z.string(),
-  icon: z.string(),
-});

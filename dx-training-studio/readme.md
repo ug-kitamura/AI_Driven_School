@@ -3,6 +3,10 @@
 DX ツールトレーニングのコンテンツ計画・作成・編集・デプロイを支援する 4 ペイン統合スタジオ。  
 シリーズ → コース → レッスンの階層構造でコンテンツを管理し、マークダウン編集・画像アセット管理・進捗トラッキングを一画面で行える。
 
+> [!NOTE]
+> `contents/` の原稿を**受講者向けの公開サイト**に変換する仕組みは、独立した npm プロジェクト **`site/`**（DX Training Mandala）にあります。正本 `contents/` を読み取るだけで、Studio とは別に起動します。
+> 起動・検索・設定・デプロイ・既知の制約は **[`site/README.md`](site/README.md)** を参照してください。
+
 ## ツール画面
 
 <img width="1573" height="801" alt="image" src="https://github.com/user-attachments/assets/41a57d5b-ad59-472d-8d2d-a14a579a8959" />
@@ -119,7 +123,7 @@ Markdown の画像パスは正本形式 `images/<filename>` のみ。staging は
 
 ```
 app/
-  page.tsx                 contents/ 読み込み・workspace.json 検証
+  page.tsx                 contents/ 読み込み
   layout.tsx               レイアウト・TooltipProvider
   globals.css              カラートークン定義
   api/
@@ -138,9 +142,7 @@ contents/                  シリーズ / コース / レッスン（フォル�
       .meta.json           コースメタ
       <レッスン>/
         contents.md        レッスン本文（YAML フロントマター）
-data/
-  workspace.json           ワークスペース名・アイコン
-images/                    git 除外（正本はローカル fs または Vercel Blob）
+images/                    正本は git 追跡（staging と動画は除外）
   <file>.png               正本
   uploaded/ ai/ web/       staging
   trash/                   削除退避
@@ -150,6 +152,7 @@ lib/
   agent/                   Agent ループ・LLM・ツール・スキルローダー
   schema.ts                Zod スキーマ
   contents-loader.ts       contents/ 読み書き
+  workspace-meta.ts        ワークスペース名・アイコン（定数）
   workspace-settings.ts    設定（localStorage）
   lesson-*.ts              フロントマター・エディタ・差分など
   image-*.ts               画像パス解決・ストア・参照抽出

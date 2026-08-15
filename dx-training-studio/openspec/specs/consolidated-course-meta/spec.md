@@ -133,3 +133,31 @@
 - **WHEN** コース `.meta.json` に `"style": "seminar"`（語彙外）が記述されている
 - **THEN** 読み込みは成功し、`Course` の `style` は未設定である
 
+### Requirement: コース .meta.json は Start / Goal 宣言を持てる
+
+コースの `.meta.json` は、カリキュラムの入口・到達点の宣言として `is_start` / `is_goal`（boolean）を持てなければならない（SHALL）。省略時は false として扱う。ローダーは読み書きでこのフィールドを保持しなければならない（SHALL）。
+
+宣言に構造上の制約を課してはならない（SHALL NOT）: 前のコース（同シリーズの前・`cross_series_prev`）を持つコースも `is_start: true` にでき、次のコースを持つコースも `is_goal: true` にできる。複数のコースが同時に `is_start` / `is_goal` を宣言できる。
+
+この宣言は `cross_series_prev` / `cross_series_next` の配列に番兵値として混ぜてはならない（SHALL NOT）——配列は実在するコース ID のみを持つ（dangling リンク掃除の対象になるため）。
+
+#### Scenario: フラグを読み取る
+
+- **WHEN** コースの `.meta.json` に `"is_start": true` が記述されている
+- **THEN** ローダーはそのコースの `is_start` を true として返す
+
+#### Scenario: 省略時は false
+
+- **WHEN** コースの `.meta.json` に `is_start` / `is_goal` が存在しない
+- **THEN** ローダーはどちらも false として返し、エラーにしない
+
+#### Scenario: 前のコースがあっても Start を宣言できる
+
+- **WHEN** 同シリーズの前コースと `cross_series_prev` を持つコースの `.meta.json` に `"is_start": true` を設定する
+- **THEN** 読み込みは成功し、リンク配列と `is_start` の両方が保持される
+
+#### Scenario: フラグのみの変更が永続化される
+
+- **WHEN** ユーザーがコースメタ編集で `is_start` だけを変更して保存する
+- **THEN** コース `.meta.json` に変更が書き込まれ、開き直すと反映されている
+

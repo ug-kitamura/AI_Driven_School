@@ -190,3 +190,17 @@
 - **WHEN** `/en` 配下のページを開く
 - **THEN** サイドバーには英語ツリー（Home とシリーズ）だけが表示され、日本語ルートのシリーズ項目は表示されない
 
+### Requirement: 変換はコースの Start / Goal 宣言を site-data.json に含める
+
+変換はコース `.meta.json` の `is_start` / `is_goal` を読み取り、`site-data.json` のコースデータに含めなければならない（SHALL）。フィールドが無い場合は false として扱い、変換をエラーにしてはならない（SHALL NOT）。
+
+#### Scenario: 宣言が変換される
+
+- **WHEN** `"is_start": true` を持つコースがある状態で変換を実行する
+- **THEN** `site-data.json` の当該コースに `is_start` が true で含まれる
+
+#### Scenario: 宣言が無くても変換は通る
+
+- **WHEN** どのコースにも `is_start` / `is_goal` が無い状態で変換を実行する
+- **THEN** 変換は成功し、全コースの宣言は false として扱われる
+

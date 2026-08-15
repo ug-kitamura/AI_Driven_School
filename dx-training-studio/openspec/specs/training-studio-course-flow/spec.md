@@ -42,6 +42,19 @@ TBD - created by archiving change course-order-and-mandala. Update Purpose after
 
 コースメタ編集ダイアログは、次の項目を提供しなければならない（SHALL）: 編集可能な受講対象者（単一行テキスト）; 編集可能な受講形態（select。未設定 / 独習 / 講義 / ハンズオンの4択、`style` に `self-study` / `lecture` / `hands-on` を保存し「未設定」ではキーを書かない）; 読取専用の同シリーズの前コース（最大1件、`i-1` の日本語表示名）; 読取専用の同シリーズの次コース（最大1件、`i+1` の日本語表示名）; 編集可能な別シリーズの前コース（0件以上、日本語名で多選択、`cross_series_prev` に ID 保存）; 編集可能な別シリーズの次コース（0件以上、多選択、`cross_series_next` に ID 保存）。
 
+「前のコース（別シリーズ）」の候補リストの先頭には、シリーズ見出しを持たない特殊枠として **`Start` のチェックボックス**を表示しなければならない（SHALL）。同様に「次のコース（別シリーズ）」側には **`Goal` のチェックボックス**を表示する。チェック状態はそれぞれコース `.meta.json` の `is_start` / `is_goal` に保存し、`cross_series_prev` / `cross_series_next` の配列に混ぜてはならない（SHALL NOT）。Start / Goal のチェックは他の候補選択と独立でなければならない（SHALL）——「各シリーズ1件まで」のルールに関与せず、排他・無効化を行わない。
+
+#### Scenario: Start を宣言して保存する
+
+- **WHEN** メタダイアログで「前のコース（別シリーズ）」の特殊枠 `Start` をチェックして保存する
+- **THEN** コース `.meta.json` に `"is_start": true` が書き込まれ、`cross_series_prev` は変化しない
+- **AND** ダイアログを開き直すと `Start` がチェックされている
+
+#### Scenario: Start と前のコースが共存できる
+
+- **WHEN** 別シリーズの前コースを選択済みのコースで、さらに `Start` をチェックして保存する
+- **THEN** 両方が保存され、エラー・警告・自動解除は発生しない
+
 #### Scenario: 同シリーズの前コースを読取表示する
 
 - **WHEN** シリーズ内で先頭以外のコースについてメタダイアログを開く
@@ -94,6 +107,8 @@ TBD - created by archiving change course-order-and-mandala. Update Purpose after
 
 グローバル曼陀羅（`GlobalHeader` ダイアログ）は、各シリーズの隣接ペアごとに `courses[i-1]` から `courses[i]` へのエッジを描画しなければならない（SHALL）。別シリーズのコースに解決する `cross_series_prev` の各エントリについて `前提 → 当該` のエッジを、`cross_series_next` の各エントリについて `当該 → 次` のエッジを描画しなければならない（SHALL）。同一のコース対 `(from, to)` について、両配列から同じ向きのリンクが得られる場合はエッジを1本にまとめなければならない（SHALL）。`series` が変更されたとき（シリーズ内の並べ替えを含む）、次回描画で使う曼陀羅定義は、シリーズ内の鎖について更新後の配列順を反映しなければならない（MUST）。
 
+`is_start` を宣言したコースごとに、シリーズのサブグラフ外の文字ノード `Start` から当該コースへのエッジを描画しなければならない（SHALL）。`is_goal` を宣言したコースごとに、当該コースから文字ノード `Goal` へのエッジを描画しなければならない（SHALL）。Start / Goal ノードは宣言したコースごとに個別に置き、複数の宣言を1つのノードに集約してはならない（SHALL NOT）。
+
 #### Scenario: グローバル曼陀羅にシリーズ内の鎖がある
 
 - **WHEN** シリーズのコースが配列順で `[A, B, C]` である
@@ -118,6 +133,11 @@ TBD - created by archiving change course-order-and-mandala. Update Purpose after
 
 - **WHEN** コース X の `cross_series_next` に別シリーズのコース Y があり、ユーザーは X の属するシリーズ内のみ並べ替える
 - **THEN** グローバル曼陀羅に `X → Y` のエッジが残る
+
+#### Scenario: 複数の Start 宣言はそれぞれ描かれる
+
+- **WHEN** 2つのコースが `is_start: true` を宣言している
+- **THEN** グローバル曼陀羅に `Start` の文字ノードが2つ、それぞれの宣言コースへのエッジ付きで表示される
 
 ### Requirement: 別シリーズリンク保存時の双方向同期
 

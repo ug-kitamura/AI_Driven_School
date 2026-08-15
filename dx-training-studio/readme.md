@@ -160,11 +160,17 @@ scripts/
   render-diagram.mjs       Playwright HTML→PNG
   upload-local-images-to-blob.mjs
   check-context-db.mjs / migrate-context-db.mjs
+contents-work/             計画書・run 記録・Agent の会話（→ 「データ構造」）
+  plans/                   計画書（git 追跡）
+  runs/                    create 1実行分（git 除外）
+  sessions/                Pane4 の会話（git 除外）
+site/                      公開サイト（独立した npm プロジェクト）
+                           → 手順書は site/README.md
 docs/
-  development-plan.md      実装プランと実装済み内容
-  grill-me-*.md            仕様検討の記録
-  dx-training-studio.html  図解
-.claude/skills/            Agent 用スキル（create-draft 等）
+  handoff.md               引き継ぎ（次にやること・未決事項）
+  grill-me/                仕様検討の記録
+  report-and-presentation/ 図解・発表資料
+.claude/skills/            Agent 用スキル（dx-training-create 等）
 openspec/                  仕様・変更管理
 ```
 
@@ -183,6 +189,12 @@ AI 向けの編集ルールは [`CLAUDE.md`](CLAUDE.md) を参照。
 | `npm run format` | Prettier（整形） |
 | `npm run format:check` | Prettier（チェックのみ） |
 | `npm run upload-images-to-blob` | ローカル正本画像を Vercel Blob へアップロード（`--dry-run` 可） |
+
+**ポート**: Studio = 3001 / 公開サイト（`site/`）= 3002。
+
+> [!IMPORTANT]
+> **dev サーバーは同一プロジェクトで1台まで**（Next 16）。検証用に立てたら必ず止める（放置すると `.next` が EBUSY でロックされ起動できなくなる）。
+> **テストの前に dev サーバーを止める** — 動かしたまま `npm run test` を回すと `compileCss`（`inline-html-assets.test.ts`）がタイムアウトで落ちる（実装の異常ではなくマシン負荷）。
 | `npm run check:context-db` | Neon 接続・`context_items` テーブル確認 |
 | `npm run migrate:context-db` | 社内コンテキスト DB マイグレーション |
 
@@ -232,9 +244,11 @@ Vercel ダッシュボード → **Settings** → **Build and Deployment**
 ```
 Series（シリーズ）
   └─ Course（コース）
-       ├─ target_audience   受講対象者
-       ├─ prerequisites      別シリーズの前提コース ID
-       ├─ next_courses       別シリーズの次コース ID
+       ├─ target              受講対象者
+       ├─ style               受講形態（self-study / lecture / hands-on）
+       ├─ cross_series_prev   別シリーズの前コース ID（同シリーズ内の前後は order が表す）
+       ├─ cross_series_next   別シリーズの次コース ID
+       ├─ is_start / is_goal  カリキュラムの入口・到達点の宣言（曼陀羅に Start / Goal を出す）
        └─ Lesson（レッスン）
             ├─ status        open / in_progress / done
             ├─ content       マークダウン本文（YAML フロントマター可）
@@ -259,10 +273,11 @@ contents/
         contents.md        ← レッスン本文の正本
 ```
 
-ローカル開発ではレッスン編集・CRUD は API 経由で `contents/` に永続化される。`data/workspace.json` は UI 表示用メタのみ。
+ローカル開発ではレッスン編集・CRUD は API 経由で `contents/` に永続化される。`.meta.json` はアプリが管理するため、Pane4 の Agent は書き込めない。
 
 ## 仕様・設計の詳細
 
-- 仕様検討の記録 → [`docs/grill-me-20260614.md`](docs/grill-me-20260614.md) ほか `docs/grill-me-*.md`
-- 実装プラン・実装済み内容 → [`docs/development-plan.md`](docs/development-plan.md)
+- 引き継ぎ（次にやること・未決事項）→ [`docs/handoff.md`](docs/handoff.md)
+- 仕様検討の記録 → [`docs/grill-me/`](docs/grill-me/)
+- 公開サイトの手順書 → [`site/README.md`](site/README.md)
 - OpenSpec 正本 → [`openspec/specs/`](openspec/specs/)

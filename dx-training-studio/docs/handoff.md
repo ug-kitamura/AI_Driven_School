@@ -312,6 +312,7 @@ references/model-answer/
 - ⚠ **テストの前に dev サーバーを止める。** ただし `compileCss`（`inline-html-assets.test.ts`）は**止めても全体実行では5秒タイムアウトで落ちる**（単体なら 411ms）。実装の異常ではなくマシン負荷
 - ⚠ **`npm run build` の前にも dev サーバーを止める。** 同じ `.next` を使うため、動かしたままだとロックで「A next build still in progress」と出て**古い `out/` のまま**になる。このとき**ビルドは失敗したのに測定だけ進むと誤った結論に至る**ので、ビルド出力の成功行（`✓ Generating static pages (37/37)`）を必ず確認する
 - ⚠ **dev サーバーは `content/site-data.json` をプロセス起動時に取り込む。** 正本を書き換えて `npm run build` し直しても、稼働中の dev サーバーには反映されないことがある（2026-08-15 に「Goal が出ない」と誤診しかけた）。**表示が合わないときはサーバーを立て直してから疑う**
+- ⚠ **`_meta` ファイルの追加・拡張子変更も dev サーバーの再起動が要る**（2026-08-15 実測）。ページマップは起動時に組まれるので、`_meta.js` → `_meta.tsx` の入れ替えは HMR で拾われず、**コンポーネントの変更だけが反映されて「一部だけ効いている」状態に見える**——実装の異常と誤診しやすい。`npm run build` の出力（`out/` の HTML）で確かめるほうが速い
 - ⚠ **ブラウザペインでは React Flow の辺が描画されない。** ノードの実測（ResizeObserver / rAF）が完了するまでノードは `visibility: hidden` で辺も描かれず、**ペイン非表示だと計測が完了しない**。辺が0件・fitView 未適用（`scale(1)` のまま）に見えても実装の異常ではない。同様に **Base UI の Select はポップアップが座標を持たず操作できない**。機構はメモリ `project-browser-pane-verification-limits`
   - **ノード・ミニマップ・DOM 構造・CSS の実測値は取れる**（2026-08-15 に実証）。`javascript_tool` で `getComputedStyle` や `getBoundingClientRect` を読み、`a.click()` でクライアント遷移を起こせば console エラーの有無まで確認できる。**座標クリック（`computer`）は効かないので DOM の `.click()` を使う**
   - ⚠ **React の dev 専用の警告・エラー全文は本番ビルドでは出ない。** `Element type is invalid` の詳細メッセージなどを追うときは **`npm run dev` で確認する**（`npm run start` の静的配信では出ない）

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { findCourseIdByPath } from "../lib/current-course";
+import { findCourseIdByPath, findCurrentLocation } from "../lib/current-course";
 import type { SiteSeries } from "../lib/site-data";
 
 const series = [
@@ -66,5 +66,51 @@ describe("findCourseIdByPath", () => {
 
   it("id を持たないコースでは null", () => {
     expect(findCourseIdByPath(series, "/git/basics")).toBeNull();
+  });
+});
+
+describe("findCurrentLocation", () => {
+  it("コーストップ・レッスンページはコースを返す", () => {
+    expect(findCurrentLocation(series, "/git/concepts")).toEqual({
+      kind: "course",
+      courseId: "crs-concepts",
+    });
+    expect(findCurrentLocation(series, "/git/concepts/three-areas")).toEqual({
+      kind: "course",
+      courseId: "crs-concepts",
+    });
+  });
+
+  it("シリーズトップはシリーズを返す", () => {
+    // 折りたたみ中は集約ノードが現在地になるので、ここで拾えないと印が消える
+    expect(findCurrentLocation(series, "/git")).toEqual({
+      kind: "series",
+      seriesSlug: "git",
+    });
+  });
+
+  it("英語ツリーでも同じように解ける", () => {
+    expect(findCurrentLocation(series, "/en/git")).toEqual({
+      kind: "series",
+      seriesSlug: "git",
+    });
+    expect(findCurrentLocation(series, "/en/git/concepts")).toEqual({
+      kind: "course",
+      courseId: "crs-concepts",
+    });
+  });
+
+  it("全体トップは null（全体を表すノードが無い）", () => {
+    expect(findCurrentLocation(series, "/")).toBeNull();
+    expect(findCurrentLocation(series, "/en")).toBeNull();
+  });
+
+  it("知らない slug では null", () => {
+    expect(findCurrentLocation(series, "/python")).toBeNull();
+    expect(findCurrentLocation(series, "/git/unknown")).toBeNull();
+  });
+
+  it("id を持たないコースでは null（findCourseIdByPath と同じ扱い）", () => {
+    expect(findCurrentLocation(series, "/git/basics")).toBeNull();
   });
 });

@@ -26,3 +26,35 @@ export function findCourseIdByPath(
 
   return course?.id ?? null;
 }
+
+/**
+ * 表示中のページが「曼陀羅のどのノードに当たるか」を表す。
+ * シリーズは折りたたまれているときだけノードとして存在するので、
+ * ノード ID ではなく slug のまま返し、解決は曼陀羅側に委ねる。
+ */
+export type CurrentLocation =
+  | { kind: "course"; courseId: string }
+  | { kind: "series"; seriesSlug: string };
+
+/**
+ * `/git/concepts` `/git/concepts/three-areas` → そのコース。
+ * `/git` `/en/git` → そのシリーズ。
+ * `/` `/en` や実在しない slug → null（全体トップを表すノードは無い）。
+ */
+export function findCurrentLocation(
+  series: SiteSeries[],
+  pathname: string,
+): CurrentLocation | null {
+  const segments = stripLocale(pathname).split("/").filter(Boolean);
+  if (segments.length === 0) return null;
+
+  const [seriesSlug, courseSlug] = segments;
+  const found = series.find((s) => s.slug === seriesSlug);
+  if (!found) return null;
+  if (!courseSlug) return { kind: "series", seriesSlug: found.slug };
+
+  // `id` はローダーが採番するので、採番前のコースは現在地にできない
+  // （`findCourseIdByPath` が null を返すのと同じ扱い）
+  const course = found.courses.find((c) => c.slug === courseSlug);
+  return course?.id ? { kind: "course", courseId: course.id } : null;
+}

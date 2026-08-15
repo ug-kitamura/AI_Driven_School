@@ -2,6 +2,7 @@
  * 曼陀羅グラフの操作（純関数）。React Flow に依存しない——描画から切り離してテストできるようにする。
  */
 import type { MandalaEdge, MandalaGraph, MandalaNode } from "@/lib/site-data";
+import type { CurrentLocation } from "@/lib/current-course";
 
 export type MandalaScope =
   | { kind: "global" }
@@ -272,23 +273,30 @@ export function collapseSeries(
 }
 
 /**
- * 「いまここ」を立てるノードの ID を返す。
+ * 「いまここ」を立てるノードの ID を返す。規則は1つ——
+ * **印はいま見ているページを表すノードに付く。**
  *
- * 現在地のコースが**畳まれたシリーズ**に含まれるときは、そのシリーズの集約ノードの
- * ID を返す——折りたたみは全体を見渡すための操作なので、そこで現在地が消えては
- * 意味がない。畳まれていなければコース自身の ID をそのまま返す。
+ * - コース: 畳まれたシリーズに含まれるならその集約ノード、でなければコース自身。
+ *   折りたたみは全体を見渡すための操作なので、そこで現在地が消えては意味がない
+ * - シリーズ: **畳まれているときだけ**その集約ノード。展開中のシリーズは
+ *   ノードではなく枠なので、印を付ける先が無い（枠は押せない背景なので強調しない）
  *
  * 呼び出し側はコースノードと集約ノードの両方をこの1つの ID と突き合わせればよい。
  */
 export function resolveHereNodeId(
   view: MandalaView,
   collapsed: readonly CollapsedSeries[],
-  currentCourseId?: string | null,
+  location?: CurrentLocation | null,
 ): string | undefined {
-  if (!currentCourseId) return undefined;
+  if (!location) return undefined;
+
+  if (location.kind === "series") {
+    return collapsed.find((c) => c.seriesSlug === location.seriesSlug)?.id;
+  }
+
   // view は畳む前の一覧なので、畳まれていてもシリーズを解決できる
-  const course = view.nodes.find((node) => node.id === currentCourseId);
+  const course = view.nodes.find((node) => node.id === location.courseId);
   if (!course) return undefined;
   const aggregate = collapsed.find((c) => c.seriesSlug === course.seriesSlug);
-  return aggregate?.id ?? currentCourseId;
+  return aggregate?.id ?? location.courseId;
 }

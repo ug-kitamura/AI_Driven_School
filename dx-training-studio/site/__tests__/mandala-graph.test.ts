@@ -235,17 +235,23 @@ describe("collapseSeries", () => {
 });
 
 describe("resolveHereNodeId", () => {
+  const course = (courseId: string) => ({ kind: "course", courseId }) as const;
+  const seriesAt = (seriesSlug: string) =>
+    ({ kind: "series", seriesSlug }) as const;
+
   it("畳んでいなければコース自身の ID を返す", () => {
     const view = globalView(graph);
     const { collapsed } = collapseSeries(view, new Set());
-    expect(resolveHereNodeId(view, collapsed, "crs-intro")).toBe("crs-intro");
+    expect(resolveHereNodeId(view, collapsed, course("crs-intro"))).toBe(
+      "crs-intro",
+    );
   });
 
   it("現在地のシリーズを畳むと集約ノードの ID を返す", () => {
     const view = globalView(graph);
     const { collapsed } = collapseSeries(view, new Set(["start"]));
     // 折りたたみで現在地が消えてはいけない
-    expect(resolveHereNodeId(view, collapsed, "crs-intro")).toBe(
+    expect(resolveHereNodeId(view, collapsed, course("crs-intro"))).toBe(
       "series:start",
     );
   });
@@ -253,16 +259,34 @@ describe("resolveHereNodeId", () => {
   it("別のシリーズを畳んでも現在地は動かない", () => {
     const view = globalView(graph);
     const { collapsed } = collapseSeries(view, new Set(["start"]));
-    expect(resolveHereNodeId(view, collapsed, "crs-concepts")).toBe(
+    expect(resolveHereNodeId(view, collapsed, course("crs-concepts"))).toBe(
       "crs-concepts",
     );
+  });
+
+  it("シリーズトップは、畳まれているときだけ集約ノードを指す", () => {
+    const view = globalView(graph);
+    const collapsedView = collapseSeries(view, new Set(["start"]));
+    expect(resolveHereNodeId(view, collapsedView.collapsed, seriesAt("start"))).toBe(
+      "series:start",
+    );
+  });
+
+  it("展開中のシリーズトップは undefined（枠は強調しない）", () => {
+    const view = globalView(graph);
+    const { collapsed } = collapseSeries(view, new Set());
+    expect(
+      resolveHereNodeId(view, collapsed, seriesAt("start")),
+    ).toBeUndefined();
   });
 
   it("現在地が無い、またはビューに含まれないときは undefined", () => {
     const view = globalView(graph);
     const { collapsed } = collapseSeries(view, new Set());
-    expect(resolveHereNodeId(view, collapsed, undefined)).toBeUndefined();
-    expect(resolveHereNodeId(view, collapsed, "crs-unknown")).toBeUndefined();
+    expect(resolveHereNodeId(view, collapsed, null)).toBeUndefined();
+    expect(
+      resolveHereNodeId(view, collapsed, course("crs-unknown")),
+    ).toBeUndefined();
   });
 });
 

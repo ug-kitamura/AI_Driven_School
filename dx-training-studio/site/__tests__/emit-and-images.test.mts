@@ -168,7 +168,7 @@ describe("emitMetaFiles / emitIndexPages", () => {
   });
 
   it("ルートは「ホーム」項目を残し、パンくずを無効にする", () => {
-    const contents = fileOf(emitMetaFiles(data, "ja"), "_meta.js");
+    const contents = fileOf(emitMetaFiles(data, "ja"), "_meta.tsx");
     expect(contents).toContain('"index"');
     expect(contents).toContain("ホーム");
     expect(contents).not.toContain("トップ");
@@ -176,15 +176,31 @@ describe("emitMetaFiles / emitIndexPages", () => {
   });
 
   it("英語ルートは Home", () => {
-    const contents = fileOf(emitMetaFiles(data, "en"), "en/_meta.js");
-    expect(contents).toContain('"Home"');
+    const contents = fileOf(emitMetaFiles(data, "en"), "en/_meta.tsx");
+    expect(contents).toContain("Home");
+  });
+
+  it("ルートだけ `.tsx` で、ホーム項目に House アイコンを付ける", () => {
+    for (const [locale, path] of [
+      ["ja", "_meta.tsx"],
+      ["en", "en/_meta.tsx"],
+    ] as const) {
+      const files = emitMetaFiles(data, locale);
+      const contents = fileOf(files, path);
+      // Nextra の `_meta` は title に React 要素を認めている
+      expect(contents).toContain('import { House } from "lucide-react";');
+      expect(contents).toContain('<span className="dxm-home-item">');
+      expect(contents).toContain("<House aria-hidden />");
+      // シリーズ以下は素の文字列のまま（`.js` で出す）
+      expect(files.some((f) => f.relativePath.endsWith("_meta.js"))).toBe(true);
+    }
   });
 
   it("シリーズはパンくずを切り、コース以下で戻す", () => {
     // `theme` は子へ継承されるので、シリーズで切ったままだと
     // コース・レッスンのパンくずまで消える
     const files = emitMetaFiles(data, "ja");
-    expect(fileOf(files, "_meta.js")).toContain(
+    expect(fileOf(files, "_meta.tsx")).toContain(
       '"git": {"title":"Git基礎シリーズ","theme":{"breadcrumb":false}}',
     );
     expect(fileOf(files, "git/_meta.js")).toContain('"breadcrumb":true');

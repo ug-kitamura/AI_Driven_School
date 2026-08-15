@@ -20,6 +20,7 @@ import {
   TERMINAL_PREFIX,
   type MandalaScope,
 } from "@/lib/mandala/graph";
+import type { CurrentLocation } from "@/lib/current-course";
 import {
   layoutFlow,
   type LayoutDirection,
@@ -91,17 +92,17 @@ export type MandalaProps = {
   /** 既定の高さを上書きする（scope ごとの既定は styleOf）。モーダルは vh で渡す */
   height?: number | string;
   /**
-   * 「いまここ」を出すコース。モーダルがパスから解いて渡す。
+   * 「いまここ」を出す位置（コースまたはシリーズ）。モーダルがパスから解いて渡す。
    * ViewNode の `current`（scope 内かどうか）とは別の意味なので独立して持つ。
    */
-  currentCourseId?: string | null;
+  currentLocation?: CurrentLocation | null;
 };
 
 export function Mandala({
   scope,
   locale = "ja",
   height,
-  currentCourseId = null,
+  currentLocation = null,
 }: MandalaProps) {
   const router = useRouter();
   const [collapsedSlugs, setCollapsedSlugs] = useState<ReadonlySet<string>>(
@@ -133,7 +134,7 @@ export function Mandala({
     const hereNodeId = resolveHereNodeId(
       view,
       collapsible.collapsed,
-      currentCourseId,
+      currentLocation,
     );
 
     const entries: Array<{
@@ -318,7 +319,7 @@ export function Mandala({
     isGlobal,
     collapsedSlugs,
     locale,
-    currentCourseId,
+    currentLocation,
   ]);
 
   const hrefById = useMemo(

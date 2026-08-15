@@ -103,27 +103,49 @@ export function emitIndexMdx(
 }
 
 /**
- * `_meta.js`（slug キー → 表示名。並びはオブジェクトのキー順）。
+ * `title` に JSX を置きたい項目のための入れ物。
+ * Nextra の `_meta` スキーマは `title` に文字列と React 要素の両方を認めている
+ * （`nextra/dist/server/schemas.js` の `stringOrElement`）ので、
+ * 文字列化せずそのまま式として書き出す。
+ */
+export type RawExpression = { expression: string };
+
+function isRawExpression(value: unknown): value is RawExpression {
+  return typeof value === "object" && value !== null && "expression" in value;
+}
+
+/**
+ * `_meta` ファイル（slug キー → 表示名。並びはオブジェクトのキー順）。
  *
  * `theme` を持つ項目は Nextra のページ設定オブジェクトとして出す
  * （例: トップページのパンくずを消す）。
+ * `title` に `RawExpression` を渡すと JSX として埋め込むので、
+ * その場合は呼び出し側が `imports` と `.tsx` の拡張子を用意すること。
  */
 export function emitMetaFile(
   entries: Array<{
     slug: string;
-    title: string;
+    title: string | RawExpression;
     theme?: Record<string, unknown>;
   }>,
+  imports: string[] = [],
 ): string {
   const body = entries
     .map((entry) => {
-      const value = entry.theme
-        ? JSON.stringify({ title: entry.title, theme: entry.theme })
-        : JSON.stringify(entry.title);
+      // 文字列の title は従来どおり丸ごと JSON にする。式のときだけ組み立てる
+      // ——生成物の差分をホーム項目だけに閉じ込めるため
+      const value = isRawExpression(entry.title)
+        ? entry.theme
+          ? `{"title":${entry.title.expression},"theme":${JSON.stringify(entry.theme)}}`
+          : entry.title.expression
+        : entry.theme
+          ? JSON.stringify({ title: entry.title, theme: entry.theme })
+          : JSON.stringify(entry.title);
       return `  ${JSON.stringify(entry.slug)}: ${value},`;
     })
     .join("\n");
-  return `export default {\n${body}\n};\n`;
+  const head = imports.length > 0 ? `${imports.join("\n")}\n\n` : "";
+  return `${head}export default {\n${body}\n};\n`;
 }
 
 export function localizedHref(href: string, locale: Locale): string {
@@ -153,22 +175,33 @@ export function emitMetaFiles(data: SiteData, locale: Locale): EmittedFile[] {
   const prefix = localeContentPrefix(locale);
   const files: EmittedFile[] = [];
 
+  // ルートだけ `.tsx`。ホーム項目のアイコンを JSX で置くため
+  // （Nextra の `_meta` は `title` に React 要素を認めている）。
+  // 色は lucide の `currentColor` に任せる——リンクの通常・hover・active に自動で乗る。
+  // 空白は `.dxm-home-item` の `gap` で取る: サイドバーの `<a>` は flex なので
+  // 素の空白文字はフレックスアイテムの先頭で潰れて消える
+  const homeLabel = locale === "en" ? "Home" : "ホーム";
   files.push({
-    relativePath: `${prefix}_meta.js`,
-    contents: emitMetaFile([
-      {
-        slug: "index",
-        title: locale === "en" ? "Home" : "ホーム",
-        // トップは階層の起点なのでパンくずを出さない
-        theme: { breadcrumb: false },
-      },
-      // シリーズトップもパンくずを出さない（1段だけのパンくずに意味が無いため）
-      ...data.series.map((series) => ({
-        slug: series.slug,
-        title: seriesTitle(series, locale),
-        theme: { breadcrumb: false },
-      })),
-    ]),
+    relativePath: `${prefix}_meta.tsx`,
+    contents: emitMetaFile(
+      [
+        {
+          slug: "index",
+          title: {
+            expression: `<span className="dxm-home-item"><House aria-hidden />${homeLabel}</span>`,
+          },
+          // トップは階層の起点なのでパンくずを出さない
+          theme: { breadcrumb: false },
+        },
+        // シリーズトップもパンくずを出さない（1段だけのパンくずに意味が無いため）
+        ...data.series.map((series) => ({
+          slug: series.slug,
+          title: seriesTitle(series, locale),
+          theme: { breadcrumb: false },
+        })),
+      ],
+      [`import { House } from "lucide-react";`],
+    ),
   });
 
   // シリーズ・コース階層は「概要」の独立項目を持たない。

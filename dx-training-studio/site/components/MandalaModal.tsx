@@ -1,10 +1,10 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { usePathname } from "next/navigation";
 import { Map as MapIcon } from "lucide-react";
 import { LazyMandala } from "@/components/mandala/LazyMandala";
-import { findCourseIdByPath } from "@/lib/current-course";
+import { findCurrentLocation } from "@/lib/current-course";
 import { data as siteData } from "@/lib/site-data";
 import { localeOf } from "@/lib/locale-path";
 
@@ -20,8 +20,14 @@ export function MandalaModal() {
   const text = TEXT[locale];
 
   // 「いまここ」はパスから解く。レッスンページは素の MDX で
-  // ページ側から現在地を渡す経路が無いため、これが唯一の道
-  const currentCourseId = findCourseIdByPath(siteData.series, pathname);
+  // ページ側から現在地を渡す経路が無いため、これが唯一の道。
+  // シリーズトップも拾う——畳まれていれば集約ノードが現在地になる。
+  // useMemo なのは参照を安定させるため。毎回新しいオブジェクトを渡すと
+  // 曼陀羅側でノード一式を組み直す useMemo が効かなくなる
+  const currentLocation = useMemo(
+    () => findCurrentLocation(siteData.series, pathname),
+    [pathname],
+  );
 
   const close = useCallback(() => setOpen(false), []);
 
@@ -47,9 +53,9 @@ export function MandalaModal() {
         onClick={() => setOpen(true)}
         aria-label={text.open}
       >
-        {/* 24 なのは箱ではなく見た目を揃えるため。理由は globals.css の
+        {/* 22 なのは箱ではなく見た目を揃えるため。理由は globals.css の
             `.dxm-mandala-button` に書いてある */}
-        <MapIcon size={24} strokeWidth={2} aria-hidden="true" />
+        <MapIcon size={22} strokeWidth={2} aria-hidden="true" />
       </button>
 
       {open && (
@@ -76,7 +82,7 @@ export function MandalaModal() {
             <LazyMandala
               scope={{ kind: "global" }}
               locale={locale}
-              currentCourseId={currentCourseId}
+              currentLocation={currentLocation}
               height="min(72vh, 720px)"
             />
           </div>

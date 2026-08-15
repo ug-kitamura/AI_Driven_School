@@ -306,8 +306,7 @@ Pane3 のツールバー（高さ `h-12`）は、左に現在レッスンの日�
 HEAD 上の正本は次の順序で解決しなければならない（SHALL）:
 
 1. `contents/{series}/{course}/{lesson}.md`（`series` / `course` / `lesson` は当該 `Lesson` の日本語名フィールド。リポジトリ root からの相対パスはモノレポ時 `dx-training-studio/contents/...`）を **`git show HEAD:` で取得**する。パスに **スペースまたは日本語** が含まれる場合も正本を取得できなければならない（SHALL）。シェル文字列連結による `git show` で引数分割が起きない実装としなければならない（SHALL）。
-2. (1) が存在しない場合、`data/content.json` から同一 `lessonId` の `content` を取得
-3. (2) も存在しない場合、正本は空文字列とする（新規レッスン）
+2. (1) が存在しない場合、正本は空文字列とする（新規レッスン）
 
 差分 API はクライアントから `lessonId`・`content`（現在全文）・パス解決用の `series` / `course` / `lesson` を受け取らなければならない（SHALL）。レスポンスは unified diff 文字列を含まなければならない（SHALL）。変更が無い場合は空 diff とし、UI は「差分なし」を表示しなければならない（SHALL）。
 
@@ -338,15 +337,9 @@ HEAD 上の正本は次の順序で解決しなければならない（SHALL）:
 - **THEN** 変更のない行はコンテキスト行として表示される
 - **AND** 削除された行と追加された行がそれぞれ識別可能に色分けされる
 
-#### Scenario: HEAD に md が無い場合 content.json を正本とする
+#### Scenario: HEAD に md が無いレッスンは全行追加 diff
 
 - **WHEN** `contents/{series}/{course}/{lesson}.md` が HEAD に存在しない
-- **AND** `data/content.json` に同一 `lessonId` のレッスンがある
-- **THEN** 差分の正本は当該レッスンの `content` である
-
-#### Scenario: 新規レッスンは全行追加 diff
-
-- **WHEN** HEAD 上に md も content.json 上の当該レッスンも存在しない
 - **AND** ユーザーが差分タブを開く
 - **THEN** 現在の `content` 全文が追加行として diff に表示される
 

@@ -4,6 +4,7 @@ import { useState, useCallback, useMemo, useEffect, useRef } from "react";
 import { SidebarInset, SidebarProvider, useSidebar } from "@/components/ui/sidebar";
 import { cn } from "@/lib/utils";
 import type { WorkScope } from "@/lib/work-scope";
+import type { WorkspaceMeta } from "@/lib/workspace-meta";
 import { GlobalHeader } from "@/components/workspace/GlobalHeader";
 import { SeriesCoursePane } from "@/components/workspace/SeriesCoursePane";
 import { LessonListPane } from "@/components/workspace/LessonListPane";
@@ -70,7 +71,7 @@ function Pane1ResizeHandle({
 type WorkspaceProps = {
   initialSeries: Series[];
   contentsEmpty?: boolean;
-  workspace: { name: string; icon: string };
+  workspace: WorkspaceMeta;
 };
 
 export function Workspace({
@@ -391,7 +392,9 @@ export function Workspace({
   return (
     <div
       ref={workspaceRootRef}
-      className="h-screen w-full overflow-hidden"
+      // ビューポート高から supergraphic 帯のぶんを引く。引かないとページ全体が
+      // 帯の高さだけスクロールしてしまう
+      className="h-[calc(100svh-var(--supergraphic-h))] w-full overflow-hidden"
     >
     <SidebarProvider
       defaultOpen

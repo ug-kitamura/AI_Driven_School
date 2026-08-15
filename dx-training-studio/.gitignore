@@ -22,8 +22,23 @@ next-env.d.ts
 .env.local
 
 # local storage
-/images/
+# 正本画像（images/*.png 等）は公開サイトがローカル参照で配信するため追跡する。
+# staging と trash、動画だけを除外する。
+/images/uploaded/
+/images/ai/
+/images/web/
+/images/trash/
+/images/*.mp4
+/images/*.mov
+/images/*.webm
 /local-db/
+
+# 公開サイト（site/）の生成物 — 変換スクリプトが毎ビルド作り直す
+/site/content/
+/site/public/images/
+/site/public/_pagefind/
+/site/out/
+/site/.next/
 
 # OpenSpec
 .claude/commands/opsx/

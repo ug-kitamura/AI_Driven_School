@@ -54,3 +54,25 @@
 - **WHEN** コース A の `cross_series_next` に `"crs-python-intro-x9z2k1"` が記録されている
 - **AND** コース B の `.meta.json` の `id` が `"crs-python-intro-x9z2k1"` である
 - **THEN** ローダーはコース A の cross_series_next がコース B を参照していると解決できる
+
+### Requirement: レッスン ID は frontmatter に保存した安定した英数字 ID である
+
+各レッスンは `lsn-{slug}-{random6}` 形式の一意な ID を持たなければならない（SHALL）。この ID は `contents.md` のフロントマターの `id` フィールドに保存しなければならない（SHALL）。ID はアルファベット小文字・数字・ハイフンのみで構成されなければならない（SHALL）。
+
+シリーズ・コースと異なり、ローダーは ID が存在しない場合に**生成して書き戻してはならない**（SHALL NOT）——`contents.md` は原稿本文と同居しており、ロード時の自動書込は編集中のオートセーブと競合する。ID の付与は `dx-training-create` の生成時書込と既存分のバックフィルで行う。フォルダ名をリネームしても、frontmatter に保存された ID は変わってはならない（SHALL NOT）。
+
+#### Scenario: 既存 frontmatter に id がある場合はそれを使用する
+
+- **WHEN** レッスンの frontmatter に `id: lsn-version-control-a1b2c3` が記述されている
+- **THEN** ローダーはそのレッスンの ID を `lsn-version-control-a1b2c3` として使用する
+
+#### Scenario: レッスンフォルダのリネーム後も ID が変わらない
+
+- **WHEN** レッスンフォルダを `バージョン管理ってなに？` から `バージョン管理とは` にリネームする
+- **AND** frontmatter に既存の `id` が保存されている
+- **THEN** リネーム後も同じ `id` が使用される
+
+#### Scenario: id が無いレッスンを書き換えない
+
+- **WHEN** frontmatter に `id` が無いレッスンをロードする
+- **THEN** ローダーは `contents.md` に `id` を書き込まない

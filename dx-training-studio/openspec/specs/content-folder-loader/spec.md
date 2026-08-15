@@ -99,3 +99,18 @@
 #### Scenario: .meta.json は引き続き読み込まれる
 - **WHEN** `contents/シリーズA/コースB/.meta.json` に `order` が記載されている
 - **THEN** その順序がロード結果に反映される
+
+### Requirement: レッスン frontmatter の slug・id を解析する
+
+レッスン `contents.md` のフロントマター解析は、既存フィールド（`status`・`description`・`tags`・`estimated_minutes`・`author`）に加えて `slug` と `id` を取得しなければならない（SHALL）。`slug` / `id` が存在しない場合もエラーにせず、未設定として扱わなければならない（SHALL）。ローダーが `contents.md` へ `slug` / `id` を書き戻してはならない（SHALL NOT）——本文ファイルへの自動書込は Pane3 のオートセーブと競合するため、値の付与は生成スキルとバックフィルの責務とする。
+
+#### Scenario: slug と id を持つ frontmatter を解析する
+
+- **WHEN** frontmatter に `slug: what-is-version-control` と `id: lsn-version-control-a1b2c3` が記載された `contents.md` がある
+- **THEN** ロード結果のレッスンオブジェクトに `slug` と `id` の値が設定されている
+
+#### Scenario: slug と id が無い frontmatter でも従来どおり動く
+
+- **WHEN** `slug` / `id` を持たない既存の `contents.md` をロードする
+- **THEN** エラーにならず、レッスンオブジェクトの `slug` / `id` は未設定である
+- **AND** `contents.md` ファイルは書き換えられていない

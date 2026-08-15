@@ -8,5 +8,9 @@
   "cross_series_prev": [
     "crs-n-sojhjp-2nx20n"
   ],
-  "cross_series_next": []
+  "cross_series_next": [],
+  "slug": "concepts",
+  "description": "コマンドを打つ前に、Git が何のための道具かを掴むコース。バージョン管理が必要な理由と、変更が置かれる3つの場所を地図として持ち帰ります。",
+  "catch": "道具の前に地図を",
+  "style": "self-study"
 }

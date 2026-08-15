@@ -5,8 +5,14 @@
       "name": "dx-training-studio",
       "runtimeExecutable": "npm",
       "runtimeArgs": ["--prefix", "dx-training-studio", "run", "dev"],
-      "port": 3000,
+      "port": 3001,
       "autoPort": true
+    },
+    {
+      "name": "dx-training-mandala-dev",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["--prefix", "dx-training-studio/site", "run", "dev"],
+      "port": 3002
     }
   ]
 }

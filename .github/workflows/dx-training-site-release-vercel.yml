@@ -1,0 +1,92 @@
+name: DX Training Mandala Release (Vercel)
+
+# 公開サイトの Vercel 配信（ゲーミフィケーションを見据えた理想追求用）。main に
+# 含まれるコミットへ v* タグを打ったときだけ走る。
+#
+# GitHub Pages 向けの配信は dx-training-site-release-pages.yml が別に担う。
+# 契機（v* タグ）は共有するが、Pages と Vercel は目的が異なる（社内トライアル /
+# ゲーミフィケーションを見据えた理想追求）ためファイルを分けている。
+# タグ検証ロジックは両ファイルに重複するが、単純さを優先して意図的に共通化していない。
+
+on:
+  push:
+    tags:
+      - "v*"
+
+concurrency:
+  group: dx-training-site-release-vercel
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+env:
+  NODE_VERSION: "24"
+  SITE_DIR: dx-training-studio/site
+
+jobs:
+  build-and-deploy:
+    name: Verify tag, build and deploy
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          # タグと main の関係を調べるため全履歴が要る
+          fetch-depth: 0
+
+      # タグはブランチに紐付かないため、作業ブランチのコミットにタグを打っても発火する。
+      # main に含まれないコミットからは公開しない。
+      - name: Verify the tag is on main
+        run: |
+          git fetch origin main --quiet
+          if git merge-base --is-ancestor "${GITHUB_SHA}" origin/main; then
+            echo "タグ ${GITHUB_REF_NAME} は main に含まれるコミットを指しています"
+          else
+            echo "::error::タグ ${GITHUB_REF_NAME} が指すコミットは main に含まれていません。公開を中止します"
+            exit 1
+          fi
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: dx-training-studio/site/package-lock.json
+
+      - name: Install dependencies
+        working-directory: ${{ env.SITE_DIR }}
+        run: npm ci
+
+      # basePath を付けない（Vercel はルート配信のため）
+      - name: Build for Vercel
+        working-directory: ${{ env.SITE_DIR }}
+        env:
+          NEXT_PUBLIC_SITE_RELEASE: ${{ github.ref_name }}
+        run: npm run build
+
+      # Secrets 未登録でもジョブを失敗させない（Pages 側の配信は別ワークフローで完結する）
+      - name: Check Vercel credentials
+        id: check
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+        run: |
+          if [ -z "${VERCEL_TOKEN}" ]; then
+            echo "::notice::VERCEL_TOKEN が未登録のため Vercel へのデプロイをスキップします"
+            echo "ready=false" >> "${GITHUB_OUTPUT}"
+          else
+            echo "ready=true" >> "${GITHUB_OUTPUT}"
+          fi
+
+      # ビルド済みの静的成果物をそのまま配る（Vercel 側でビルドしない）
+      - name: Deploy
+        if: steps.check.outputs.ready == 'true'
+        working-directory: ${{ env.SITE_DIR }}
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+        run: |
+          npx --yes vercel@latest deploy out \
+            --prod \
+            --yes \
+            --token "${VERCEL_TOKEN}" \
+            --archive=tgz

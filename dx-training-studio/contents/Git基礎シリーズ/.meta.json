@@ -4,5 +4,9 @@
     "Git環境構築コース",
     "Git基本操作コース"
   ],
-  "id": "srs-git-klejoi"
+  "id": "srs-git-klejoi",
+  "slug": "git",
+  "description": "バージョン管理の考え方から、記録して読んで戻すまでの基本操作までを身につけるシリーズ。修了すると、自分の作業をいつでもセーブして安全に元へ戻せるようになります。",
+  "catch": "セーブポイントのある開発へ",
+  "cover": "git-three-areas-flow.png"
 }

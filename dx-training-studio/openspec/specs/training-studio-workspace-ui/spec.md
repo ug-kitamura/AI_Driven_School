@@ -226,3 +226,17 @@ Pane2 のミニ曼陀羅サムネイル（クリックで拡大）は、`bg-mute
 - **WHEN** 対象行の下にミニ曼陀羅が表示される
 - **THEN** 対象行と曼陀羅、曼陀羅とコース進捗の間に視認できる縦余白がある
 
+### Requirement: supergraphic バナー
+
+Studio の画面は、最上部に高さ 6px・全幅の supergraphic バナーを表示しなければならない（SHALL）。EBEX の同名要件（`ebex-workspace-ui`）と同型の表示とする。画像はツール埋め込み資産として `app/` 直下（ファビコンと同じ場所）に置き、静的 import で参照しなければならない（SHALL）。正本 `images/` に置いてはならない（SHALL NOT）——正本はペイン4 の画像マネージャの管理下にあり、ユーザーが UI から削除できるため。
+
+#### Scenario: 画面表示時にバナーが出る
+
+- **WHEN** Studio のワークスペースを表示する
+- **THEN** 画面最上部に高さ 6px・全幅の supergraphic バナーが表示される
+
+#### Scenario: 画面幅を変えても全幅を保つ
+
+- **WHEN** ブラウザの横幅を変更する
+- **THEN** バナーは常に全幅を占め、supergraphic の色帯の横方向の並びが保たれる
+

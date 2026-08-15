@@ -14,7 +14,7 @@ npm install
 npm run dev
 ```
 
-ブラウザで [http://localhost:3001](http://localhost:3001) を開きます。
+ブラウザで [http://localhost:3000](http://localhost:3000) を開きます。
 
 > 補足: workspace 内のユーザーコンテンツ（md/html 等）はどちらのモードでもリクエスト毎に読み込まれるため即時反映されます。モードの違いが影響するのは EBEX のソースコードだけです。
 

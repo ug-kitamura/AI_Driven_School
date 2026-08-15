@@ -3,6 +3,10 @@
 DX ツールトレーニングのコンテンツ計画・作成・編集・デプロイを支援する 4 ペイン統合スタジオ。  
 シリーズ → コース → レッスンの階層構造でコンテンツを管理し、マークダウン編集・画像アセット管理・進捗トラッキングを一画面で行える。
 
+> [!NOTE]
+> `contents/` の原稿を**受講者向けの公開サイト**に変換する仕組みは、独立した npm プロジェクト **`site/`**（DX Training Mandala）にあります。正本 `contents/` を読み取るだけで、Studio とは別に起動します。
+> 起動・検索・設定・デプロイ・既知の制約は **[`site/README.md`](site/README.md)** を参照してください。
+
 ## ツール画面
 
 <img width="1573" height="801" alt="image" src="https://github.com/user-attachments/assets/41a57d5b-ad59-472d-8d2d-a14a579a8959" />
@@ -15,7 +19,7 @@ npm install
 npm run dev
 ```
 
-ブラウザで `http://localhost:3000` を開く。
+ブラウザで `http://localhost:3001` を開く。
 
 Windows では `start.bat` を推奨（Playwright Chromium の確認後に `npm run dev` を実行）。
 
@@ -119,7 +123,7 @@ Markdown の画像パスは正本形式 `images/<filename>` のみ。staging は
 
 ```
 app/
-  page.tsx                 contents/ 読み込み・workspace.json 検証
+  page.tsx                 contents/ 読み込み
   layout.tsx               レイアウト・TooltipProvider
   globals.css              カラートークン定義
   api/
@@ -138,10 +142,7 @@ contents/                  シリーズ / コース / レッスン（フォル�
       .meta.json           コースメタ
       <レッスン>/
         contents.md        レッスン本文（YAML フロントマター）
-data/
-  workspace.json           ワークスペース名・アイコン
-  content.json             移行用バックアップ（ランタイムでは未使用）
-images/                    git 除外（正本はローカル fs または Vercel Blob）
+images/                    正本は git 追跡（staging と動画は除外）
   <file>.png               正本
   uploaded/ ai/ web/       staging
   trash/                   削除退避
@@ -151,6 +152,7 @@ lib/
   agent/                   Agent ループ・LLM・ツール・スキルローダー
   schema.ts                Zod スキーマ
   contents-loader.ts       contents/ 読み書き
+  workspace-meta.ts        ワークスペース名・アイコン（定数）
   workspace-settings.ts    設定（localStorage）
   lesson-*.ts              フロントマター・エディタ・差分など
   image-*.ts               画像パス解決・ストア・参照抽出
@@ -158,11 +160,17 @@ scripts/
   render-diagram.mjs       Playwright HTML→PNG
   upload-local-images-to-blob.mjs
   check-context-db.mjs / migrate-context-db.mjs
+contents-work/             計画書・run 記録・Agent の会話（→ 「データ構造」）
+  plans/                   計画書（git 追跡）
+  runs/                    create 1実行分（git 除外）
+  sessions/                Pane4 の会話（git 除外）
+site/                      公開サイト（独立した npm プロジェクト）
+                           → 手順書は site/README.md
 docs/
-  development-plan.md      実装プランと実装済み内容
-  grill-me-*.md            仕様検討の記録
-  dx-training-studio.html  図解
-.claude/skills/            Agent 用スキル（create-draft 等）
+  handoff.md               引き継ぎ（次にやること・未決事項）
+  grill-me/                仕様検討の記録
+  report-and-presentation/ 図解・発表資料
+.claude/skills/            Agent 用スキル（dx-training-create 等）
 openspec/                  仕様・変更管理
 ```
 
@@ -181,6 +189,12 @@ AI 向けの編集ルールは [`CLAUDE.md`](CLAUDE.md) を参照。
 | `npm run format` | Prettier（整形） |
 | `npm run format:check` | Prettier（チェックのみ） |
 | `npm run upload-images-to-blob` | ローカル正本画像を Vercel Blob へアップロード（`--dry-run` 可） |
+
+**ポート**: Studio = 3001 / 公開サイト（`site/`）= 3002。
+
+> [!IMPORTANT]
+> **dev サーバーは同一プロジェクトで1台まで**（Next 16）。検証用に立てたら必ず止める（放置すると `.next` が EBUSY でロックされ起動できなくなる）。
+> **テストの前に dev サーバーを止める** — 動かしたまま `npm run test` を回すと `compileCss`（`inline-html-assets.test.ts`）がタイムアウトで落ちる（実装の異常ではなくマシン負荷）。
 | `npm run check:context-db` | Neon 接続・`context_items` テーブル確認 |
 | `npm run migrate:context-db` | 社内コンテキスト DB マイグレーション |
 
@@ -230,9 +244,11 @@ Vercel ダッシュボード → **Settings** → **Build and Deployment**
 ```
 Series（シリーズ）
   └─ Course（コース）
-       ├─ target_audience   受講対象者
-       ├─ prerequisites      別シリーズの前提コース ID
-       ├─ next_courses       別シリーズの次コース ID
+       ├─ target              受講対象者
+       ├─ style               受講形態（self-study / lecture / hands-on）
+       ├─ cross_series_prev   別シリーズの前コース ID（同シリーズ内の前後は order が表す）
+       ├─ cross_series_next   別シリーズの次コース ID
+       ├─ is_start / is_goal  カリキュラムの入口・到達点の宣言（曼陀羅に Start / Goal を出す）
        └─ Lesson（レッスン）
             ├─ status        open / in_progress / done
             ├─ content       マークダウン本文（YAML フロントマター可）
@@ -257,10 +273,11 @@ contents/
         contents.md        ← レッスン本文の正本
 ```
 
-ローカル開発ではレッスン編集・CRUD は API 経由で `contents/` に永続化される。`data/workspace.json` は UI 表示用メタのみ。
+ローカル開発ではレッスン編集・CRUD は API 経由で `contents/` に永続化される。`.meta.json` はアプリが管理するため、Pane4 の Agent は書き込めない。
 
 ## 仕様・設計の詳細
 
-- 仕様検討の記録 → [`docs/grill-me-20260614.md`](docs/grill-me-20260614.md) ほか `docs/grill-me-*.md`
-- 実装プラン・実装済み内容 → [`docs/development-plan.md`](docs/development-plan.md)
+- 引き継ぎ（次にやること・未決事項）→ [`docs/handoff.md`](docs/handoff.md)
+- 仕様検討の記録 → [`docs/grill-me/`](docs/grill-me/)
+- 公開サイトの手順書 → [`site/README.md`](site/README.md)
 - OpenSpec 正本 → [`openspec/specs/`](openspec/specs/)

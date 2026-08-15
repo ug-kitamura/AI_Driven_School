@@ -16,10 +16,58 @@ export const STATUS_LABELS: Record<LessonStatus, string> = {
   done: "完成",
 };
 
+// ===== 公開サイト向けメタ（slug / 概要 / キャッチ / 英語版）=====
+
+/** 公開サイトの URL に使う slug。小文字英数とハイフンのみ */
+export const SLUG_PATTERN = /^[a-z0-9]+(-[a-z0-9]+)*$/;
+
+export const slugSchema = z
+  .string()
+  .regex(SLUG_PATTERN, "slug は小文字英数とハイフンのみで構成してください");
+
+/** 表示テキストの英語版。値の書き込みは翻訳開始後（現状は器のみ） */
+const localizedTextFields = {
+  name_en: z.string().optional(),
+  description_en: z.string().optional(),
+  catch_en: z.string().optional(),
+};
+
+/**
+ * コースの受講形態。表示ラベルは表示側が locale ごとに持つ
+ * （日本語: 独習 / 講義 / ハンズオン、英語: 値そのまま小文字）
+ */
+export const COURSE_STYLES = ["self-study", "lecture", "hands-on"] as const;
+export const courseStyleSchema = z.enum(COURSE_STYLES);
+export type CourseStyle = z.infer<typeof courseStyleSchema>;
+
+/** 語彙内なら採用し、未設定・語彙外はどちらも undefined に落とす */
+export function parseCourseStyle(value: unknown): CourseStyle | undefined {
+  return courseStyleSchema.safeParse(value).data;
+}
+
+/** Studio の編集 UI で出す日本語ラベル（公開サイトの表示は site 側が持つ） */
+export const COURSE_STYLE_LABELS: Record<CourseStyle, string> = {
+  "self-study": "独習",
+  lecture: "講義",
+  "hands-on": "ハンズオン",
+};
+
+/** シリーズ・コースが共通で持つ公開サイト向けフィールド */
+const publishingMetaFields = {
+  slug: slugSchema.optional(),
+  description: z.string().optional(),
+  catch: z.string().optional(),
+  ...localizedTextFields,
+};
+
 // ===== レッスン（葉ノード）=====
 
 export const lessonSchema = z.object({
+  /** 実行時のパス由来キー（`lesson-{series}-{course}-{lesson}`）。正本には保存しない */
   id: z.string(),
+  /** frontmatter の `id`。フォルダ名を変えても変わらない安定 ID（`lsn-...`） */
+  stableId: z.string().optional(),
+  slug: slugSchema.optional(),
   series: z.string(),
   course: z.string(),
   lesson: z.string(),
@@ -38,11 +86,18 @@ export const courseSchema = z.object({
   id: z.string(),
   name: z.string(),
   target: z.string().optional(),
+  /** 受講形態。語彙外の値は読み込み時に未設定へ落とす */
+  style: courseStyleSchema.optional().catch(undefined),
   /** 別シリーズの前コース ID のみ。同シリーズ内の前後は series.courses[] の順序で表す */
   cross_series_prev: z.array(z.string()).default([]),
   /** 別シリーズの次コース ID のみ。同シリーズ内の前後は series.courses[] の順序で表す */
   cross_series_next: z.array(z.string()).default([]),
+  /** カリキュラムの入口。前のコースを持つコースでも宣言でき、複数あってよい */
+  is_start: z.boolean().optional(),
+  /** カリキュラムの到達点。次のコースを持つコースでも宣言でき、複数あってよい */
+  is_goal: z.boolean().optional(),
   lessons: z.array(lessonSchema),
+  ...publishingMetaFields,
 });
 export type Course = z.infer<typeof courseSchema>;
 
@@ -52,8 +107,44 @@ export const seriesSchema = z.object({
   id: z.string(),
   name: z.string(),
   courses: z.array(courseSchema),
+  ...publishingMetaFields,
+  /** ヒーロー画像のファイル名（正本 `images/<file>`）。シリーズのみが持つ */
+  cover: z.string().optional(),
 });
 export type Series = z.infer<typeof seriesSchema>;
+
+// ===== `.meta.json` のスキーマ =====
+
+/** `contents/.meta.json`（全体） */
+export const contentsMetaSchema = z.object({
+  order: z.array(z.string()).default([]),
+  description: z.string().optional(),
+  description_en: z.string().optional(),
+});
+export type ContentsMeta = z.infer<typeof contentsMetaSchema>;
+
+/** `contents/<series>/.meta.json` */
+export const seriesMetaSchema = z.object({
+  id: z.string().optional(),
+  order: z.array(z.string()).default([]),
+  ...publishingMetaFields,
+  cover: z.string().optional(),
+});
+export type SeriesMeta = z.infer<typeof seriesMetaSchema>;
+
+/** `contents/<series>/<course>/.meta.json` */
+export const courseMetaSchema = z.object({
+  id: z.string().optional(),
+  order: z.array(z.string()).default([]),
+  target: z.string().optional(),
+  style: courseStyleSchema.optional().catch(undefined),
+  cross_series_prev: z.array(z.string()).default([]),
+  cross_series_next: z.array(z.string()).default([]),
+  is_start: z.boolean().optional(),
+  is_goal: z.boolean().optional(),
+  ...publishingMetaFields,
+});
+export type CourseMeta = z.infer<typeof courseMetaSchema>;
 
 // ===== 画像アセット =====
 
@@ -77,7 +168,3 @@ export type ImageAsset = z.infer<typeof imageAssetSchema>;
 // ===== JSON 全体用スキーマ =====
 
 export const seriesArraySchema = z.array(seriesSchema);
-export const workspaceSchema = z.object({
-  name: z.string(),
-  icon: z.string(),
-});

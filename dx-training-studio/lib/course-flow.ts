@@ -25,6 +25,9 @@ export type MiniMandalaGraphInput = {
   intraNext: CourseRef | null;
   crossPrereqs: CourseRef[];
   crossNexts: CourseRef[];
+  /** 当該コースがカリキュラムの入口・到達点として宣言されているか */
+  isStart: boolean;
+  isGoal: boolean;
 };
 
 /** コース ID を含むシリーズを返す */
@@ -232,6 +235,8 @@ export function buildMiniMandalaGraphInput(
     intraNext: neighbors.intraNext,
     crossPrereqs: neighbors.crossPrevs,
     crossNexts: neighbors.crossNexts,
+    isStart: course.is_start === true,
+    isGoal: course.is_goal === true,
   };
 }
 
@@ -607,6 +612,12 @@ export function listCoursesNeedingMetaPersist(
         isEdited &&
         (oldC.name !== c.name ||
           oldC.target !== c.target ||
+          oldC.style !== c.style ||
+          // ⚠ コースメタに項目を足したらここにも足すこと。
+          // 漏れると「その項目だけ変更」が保存されず消える。
+          // 未宣言はキー無し・false のどちらでも来るので真偽で比べる
+          !!oldC.is_start !== !!c.is_start ||
+          !!oldC.is_goal !== !!c.is_goal ||
           linksChanged);
       if (linksChanged || editedMetaChanged) {
         out.push({ seriesName: s.name, course: c });

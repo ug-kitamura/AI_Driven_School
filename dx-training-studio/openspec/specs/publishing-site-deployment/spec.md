@@ -6,13 +6,25 @@
 ## Requirements
 ### Requirement: push のたびに変換とビルドを検証する
 
-`site/` または `contents/` の変更を含む push・pull request では、変換スクリプトの実行・サイトのビルド・テストを実行しなければならない（SHALL）。この検証ジョブは**いかなるデプロイも行ってはならない**（MUST NOT）。検証はリポジトリが private の状態でも実行できなければならない（SHALL）。
+`site/` または `contents/` の変更を含む **`main` への push** と **pull request** では、変換スクリプトの実行・サイトのビルド・テストを実行しなければならない（SHALL）。この検証ジョブは**いかなるデプロイも行ってはならない**（MUST NOT）。検証はリポジトリが private の状態でも実行できなければならない（SHALL）。
+
+**同一の push に対して検証ジョブを2回起動してはならない**（MUST NOT）。作業ブランチへの push は pull request の契機だけで拾い、`main` への push は push の契機で拾う。⚠ ブランチを絞らない push と pull request を併用すると、pull request が開いているブランチへの push で**両方が発火する**。`concurrency` の group は `github.ref` に依存し、push（`refs/heads/<branch>`）と pull request（`refs/pull/<n>/merge`）で値が異なるため、これは相殺されない。
 
 #### Scenario: 原稿を直して push する
 
-- **WHEN** `contents/` のレッスンを変更して push する
+- **WHEN** `contents/` のレッスンを変更し、pull request を開いた作業ブランチへ push する
 - **THEN** 変換 → ビルド → テストが実行される
 - **AND** GitHub Pages にも Vercel にもデプロイされない
+
+#### Scenario: 同じ push で2回起動しない
+
+- **WHEN** pull request が開いている作業ブランチへ push する
+- **THEN** 検証ジョブの起動は1回だけである
+
+#### Scenario: main へのマージでも検証する
+
+- **WHEN** pull request を `main` にマージする
+- **THEN** `main` への push として検証ジョブが1回実行される
 
 #### Scenario: slug の欠落を検出する
 
@@ -26,30 +38,57 @@
 
 ### Requirement: 公開は main の release タグでのみ行う
 
-公開サイトのデプロイは、`v` で始まるタグの push によってのみ実行しなければならない（SHALL）。通常の push・merge でデプロイしてはならない（MUST NOT）。
+**本番公開**は、`v` で始まるタグの push によってのみ実行しなければならない（SHALL）。通常の push・merge で本番公開してはならない（MUST NOT）。
 
 タグはブランチに紐付かないため、**タグが指すコミットが `main` に含まれることを検証しなければならない**（SHALL）。含まれない場合はデプロイを実行せずに失敗させなければならない（SHALL）。
+
+**確認用の配信は手動トリガー（`workflow_dispatch`）で行えなければならない**（SHALL）。手動トリガーの目的はマージ前の動作確認なので、**手動起動ではワークフロー側の main 祖先チェックを行ってはならない**（MUST NOT）。手動起動には**リリース番号を与える入力を持たせ、既定は空**としなければならない（SHALL）。空のときリリース番号を表示してはならない（SHALL NOT）——確認用の配信に偽のバージョンを出さないため。
+
+**手動起動でどこまで到達できるかは配信先ごとに異なる。**
+
+- **Vercel は任意のブランチから確認できる。**手動起動は本番ドメインへ配信してはならず（MUST NOT）、固有の preview URL へ配り、その URL を実行結果から辿れるようにしなければならない（SHALL）。
+- **Pages は `main` とタグからしか配信できない。**GitHub Pages は 1リポジトリ 1サイトでプレビューの概念を持たないため手動起動でも本番サイトへ出る。これを踏まえ、`github-pages` environment のデプロイ可能 ref を `main` とリリースタグに限定しなければならない（SHALL）。⚠ **ワークフロー側で main 祖先チェックを飛ばしても、この environment 保護がプラットフォーム側で deploy を弾く**——作業ブランチからの手動 Pages 実行は成功しない。**この保護を解除してはならない**（MUST NOT）——作業ブランチの内容が社内トライアルサイトに出ることを防ぐ、意図した安全網である。任意ブランチの確認は Vercel preview が担う。
 
 #### Scenario: main のコミットにタグを付けて公開する
 
 - **WHEN** `main` にあるコミットへ `v0.1.0` タグを push する
-- **THEN** ビルドが実行され、Pages と Vercel へ配信される
+- **THEN** ビルドが実行され、Pages と Vercel の本番へ配信される
 
 #### Scenario: main に無いコミットのタグを拒否する
 
 - **WHEN** `main` に含まれないコミット（作業ブランチ等）へ `v0.1.1` タグを push する
 - **THEN** ジョブは失敗し、どこにもデプロイされない
 
-#### Scenario: merge ではデプロイしない
+#### Scenario: merge では本番公開しない
 
 - **WHEN** pull request を `main` にマージする
-- **THEN** 検証ジョブだけが動き、デプロイは発生しない
+- **THEN** 検証ジョブだけが動き、本番公開は発生しない
+
+#### Scenario: 作業ブランチから Vercel で確認する
+
+- **WHEN** `main` に含まれない作業ブランチを指定して Vercel の手動トリガーを実行する
+- **THEN** main 祖先チェックで止められることなくビルドと配信が行われる
+- **AND** 本番ドメインの内容は変わらない
+- **AND** 固有の preview URL が実行結果から辿れる
+
+#### Scenario: 作業ブランチからの手動 Pages 実行は弾かれる
+
+- **WHEN** `main` に含まれない作業ブランチを指定して Pages の手動トリガーを実行する
+- **THEN** ビルドは通るが deploy は environment 保護に拒否される
+- **AND** 社内トライアルサイトの内容は変わらない
+
+#### Scenario: リリース番号を空のまま確認配信する
+
+- **WHEN** リリース番号の入力を空のまま手動トリガーを実行する
+- **THEN** 配信されたサイトにリリース番号は表示されない
 
 ### Requirement: Pages と Vercel へ同じ内容を配信する
 
-リリースでは GitHub Pages と Vercel の両方へ、**同一のコミットから**ビルドした内容を配信しなければならない（SHALL）。画像の参照先は両者で同一でなければならない（SHALL）——現在は `site.config.json` の `imageSource: "local"` により、どちらもローカル画像を配信する。
+**`v*` タグによる本番公開では**、GitHub Pages と Vercel の両方へ、**同一のコミットから**ビルドした内容を配信しなければならない（SHALL）。画像の参照先は両者で同一でなければならない（SHALL）——現在は `site.config.json` の `imageSource: "local"` により、どちらもローカル画像を配信する。
 
-Pages 向けビルドにはサブパス配信のための `basePath` を与えなければならない（SHALL）。Vercel 向けビルドには `basePath` を与えてはならない（MUST NOT）——ルート配信のため。
+⚠ **この同一性の保証はタグ経路に限られる。**手動トリガーは2つのワークフローを別々に、別のブランチから起動しうるため、手動配信どうし・手動配信と本番との間で内容が一致することを期待してはならない（SHALL NOT）。
+
+Pages 向けビルドにはサブパス配信のための `basePath` を与えなければならない（SHALL）。Vercel 向けビルドには `basePath` を与えてはならない（MUST NOT）——ルート配信のため。この規則は契機によらず同じである。
 
 Vercel は Studio 本体とは**別のプロジェクト**へ配信しなければならない（SHALL）。公開サイトの Vercel プロジェクトでは git 連携による自動デプロイを使ってはならない（MUST NOT）——push のたびに公開されるのを防ぐ。
 
@@ -58,6 +97,12 @@ Vercel は Studio 本体とは**別のプロジェクト**へ配信しなけれ�
 - **WHEN** `v0.1.0` のリリースが実行される
 - **THEN** Pages には `basePath` 付き、Vercel には `basePath` 無しのビルドが配信される
 - **AND** どちらも同じコミットの `contents/` から生成されている
+
+#### Scenario: 手動配信では一致を期待しない
+
+- **WHEN** Pages と Vercel の手動トリガーを別々のブランチから実行する
+- **THEN** それぞれ指定されたブランチの内容が配信される
+- **AND** 両者の内容が一致することは保証されない
 
 #### Scenario: Studio のデプロイに影響しない
 
@@ -96,7 +141,11 @@ Pages への配り方は1つのジョブに閉じ込め、配信先に依存す�
 
 ### Requirement: 公開サイトのビルドは site/ 配下だけで完結する
 
-公開サイトのビルドは、`site/` 配下の依存と設定だけで完結しなければならない（SHALL）。`site/` の外にある `node_modules` や設定ファイル（親ディレクトリ `dx-training-studio/` の `postcss.config.mjs` 等）に依存してはならない（SHALL NOT）。
+公開サイトの**ビルドとテスト**は、`site/` 配下の依存と設定だけで完結しなければならない（SHALL）。`site/` の外にある `node_modules` や設定ファイル（親ディレクトリ `dx-training-studio/` の `postcss.config.mjs` 等）に依存してはならない（SHALL NOT）。
+
+**線引きは「依存」と「ソース」で分かれる。**`site/` の外にある**コミットされたソース**（Studio の `lib/*.ts` 等）を読むことは**許される**（SHALL be allowed）——Studio と site のずれを検出する parity テストはそれ自体が目的であり、禁じると検出手段を失う。禁じられるのは `site/` の外の `node_modules` と設定ファイルへの依存だけである。
+
+したがって、`site/` の外のソースを実行するテストは、**そのソースが必要とする npm パッケージを `site/` 側の依存として解決しなければならない**（SHALL）。解決は**許可リスト方式**とし、許可した名前だけを `site/node_modules` へ向け、それ以外の名前は解決せずに失敗させなければならない（SHALL）——新しい依存が増えたことに気づけるようにするため。許可したパッケージの版が `site/` 側と外側とで異なりうる場合、その近似を受け入れる理由をコメントで残さなければならない（SHALL）。
 
 CI・リリースの各ワークフローは `site/` でのみ `npm ci` を実行する。ビルドツールの設定探索（Next の postcss 設定探索は `find-up` で親方向へ遡る）が親ディレクトリまで届く場合、`site/` 側に**同名の設定ファイルを置いて探索を止めなければならない**（SHALL）——たとえ内容が空であっても。この種の設定ファイルには、なぜ空の設定が必要かをコメントで残さなければならない（SHALL）。
 
@@ -106,6 +155,12 @@ CI・リリースの各ワークフローは `site/` でのみ `npm ci` を実�
 
 - **WHEN** `dx-training-studio/node_modules` が存在しない状態で `site/` の `npm ci` と `npm run build` を実行する
 - **THEN** ビルドは成功する
+
+#### Scenario: 親の依存が無くてもテストが通る
+
+- **WHEN** `dx-training-studio/node_modules` が存在しない状態で `site/` のテストを実行する
+- **THEN** parity テストを含む全テストが成功する
+- **AND** parity テストはスキップされず、実際に Studio 側ローダーを実行して比較している
 
 #### Scenario: 3ワークフローすべてでビルドが通る
 
@@ -117,4 +172,10 @@ CI・リリースの各ワークフローは `site/` でのみ `npm ci` を実�
 
 - **WHEN** 親ディレクトリ `dx-training-studio/` にビルドツールの設定ファイル（`postcss.config.mjs` 等）が存在する状態で `site/` のビルドを実行する
 - **THEN** ビルドは `site/` 側の設定だけを使い、親の設定を読み込まない
+
+#### Scenario: 許可していない依存は黙って通さない
+
+- **WHEN** `site/` の外のソースが、許可リストに無い npm パッケージを import した状態でテストを実行する
+- **THEN** そのテストは解決できずに失敗する
+- **AND** 失敗は握り潰されず、どのパッケージが不足しているかが分かる
 

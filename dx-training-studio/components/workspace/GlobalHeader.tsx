@@ -39,6 +39,8 @@ function buildFullMandalaGraph(
     "flowchart TD",
     "  classDef mandalaSeriesTitle font-weight:bold",
     "  classDef mandalaCourse font-weight:bold",
+    // Start / Goal は枠を持たない文字だけのノード
+    "  classDef mandalaTerminal fill:none,stroke:none,font-weight:bold",
   ];
   const nodeMap: Record<string, string> = {};
 
@@ -106,7 +108,25 @@ function buildFullMandalaGraph(
     });
   });
 
-  // click ディレクティブ
+  // Start / Goal: 宣言したコースごとに1つずつ置く。
+  // 入口が複数あれば始まりの時点も複数あるので、1つに集約しない
+  let terminalCounter = 0;
+  series.forEach((s) => {
+    s.courses.forEach((c) => {
+      if (c.is_start) {
+        const tid = `T${terminalCounter++}`;
+        lines.push(`  ${tid}["Start"]:::mandalaTerminal`);
+        lines.push(`  ${tid} --> ${toNid(c.id)}`);
+      }
+      if (c.is_goal) {
+        const tid = `T${terminalCounter++}`;
+        lines.push(`  ${tid}["Goal"]:::mandalaTerminal`);
+        lines.push(`  ${toNid(c.id)} --> ${tid}`);
+      }
+    });
+  });
+
+  // click ディレクティブ（Start / Goal は遷移先を持たないので付けない）
   series.forEach((s) => {
     s.courses.forEach((c) => {
       lines.push(`  click ${toNid(c.id)} call mandalaNav()`);

@@ -16,6 +16,8 @@ const schema = z.object({
   style: courseStyleSchema.or(z.literal("")).optional(),
   cross_series_prev: z.array(z.string()).default([]),
   cross_series_next: z.array(z.string()).default([]),
+  is_start: z.boolean().default(false),
+  is_goal: z.boolean().default(false),
 });
 
 export async function POST(req: Request) {
@@ -34,7 +36,16 @@ export async function POST(req: Request) {
     );
   }
 
-  const { series, course, target, style, cross_series_prev, cross_series_next } = parsed.data;
+  const {
+    series,
+    course,
+    target,
+    style,
+    cross_series_prev,
+    cross_series_next,
+    is_start,
+    is_goal,
+  } = parsed.data;
   const contentsDir = getContentsDir(process.cwd());
   const seriesDir = findSeriesDir(contentsDir, series);
   if (!seriesDir) {
@@ -51,10 +62,14 @@ export async function POST(req: Request) {
     const {
       target_audience: _legacy,
       style: _existingStyle,
+      is_start: _existingStart,
+      is_goal: _existingGoal,
       ...rest
     } = existing as Record<string, unknown> & {
       target_audience?: unknown;
       style?: unknown;
+      is_start?: unknown;
+      is_goal?: unknown;
     };
     writeMetaJson(courseDir, {
       ...rest,
@@ -62,6 +77,9 @@ export async function POST(req: Request) {
       ...(style ? { style } : {}),
       cross_series_prev,
       cross_series_next,
+      // 既定（false）はキーを書かない——style と同じく「未宣言＝キー無し」に保つ
+      ...(is_start ? { is_start: true } : {}),
+      ...(is_goal ? { is_goal: true } : {}),
     });
     return Response.json({ ok: true });
   } catch (err) {

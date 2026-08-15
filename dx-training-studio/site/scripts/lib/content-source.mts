@@ -55,6 +55,9 @@ export type CourseMeta = {
   catchEn?: string;
   crossSeriesPrev: string[];
   crossSeriesNext: string[];
+  /** カリキュラムの入口・到達点の宣言。未宣言ではキーを持たない */
+  isStart?: boolean;
+  isGoal?: boolean;
   lessons: LessonMeta[];
   dir: string;
 };
@@ -252,6 +255,8 @@ function readCourse(seriesDir: string, courseName: string): CourseMeta {
     catchEn: str(meta.catch_en),
     crossSeriesPrev: strArray(meta.cross_series_prev),
     crossSeriesNext: strArray(meta.cross_series_next),
+    ...(meta.is_start === true ? { isStart: true } : {}),
+    ...(meta.is_goal === true ? { isGoal: true } : {}),
     lessons: lessonNames.map((name) => readLesson(courseDir, name)),
     dir: courseDir,
   };

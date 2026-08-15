@@ -4,6 +4,7 @@ import {
   applyCrossSeriesCourseMetaEdit,
   applySeriesDeletion,
   buildCourseNeighbors,
+  buildMiniMandalaGraphInput,
   hasCourseFlowCycle,
   listCoursesNeedingMetaPersist,
   normalizeSeriesCourseMeta,
@@ -200,6 +201,59 @@ describe("listCoursesNeedingMetaPersist", () => {
 
     const targets = listCoursesNeedingMetaPersist(before, after, "a1");
     expect(targets.map((t) => t.course.id)).toEqual(["a1"]);
+  });
+
+  it("includes the edited course when only is_start changed", () => {
+    const before = [series("sa", [course("a1")])];
+    const after = [series("sa", [course("a1", { is_start: true })])];
+
+    const targets = listCoursesNeedingMetaPersist(before, after, "a1");
+    expect(targets.map((t) => t.course.id)).toEqual(["a1"]);
+  });
+
+  it("includes the edited course when only is_goal changed", () => {
+    const before = [series("sa", [course("a1", { is_goal: true })])];
+    const after = [series("sa", [course("a1", { is_goal: false })])];
+
+    const targets = listCoursesNeedingMetaPersist(before, after, "a1");
+    expect(targets.map((t) => t.course.id)).toEqual(["a1"]);
+  });
+
+  it("treats missing flags and false as the same value", () => {
+    const before = [series("sa", [course("a1")])];
+    const after = [
+      series("sa", [course("a1", { is_start: false, is_goal: false })]),
+    ];
+
+    const targets = listCoursesNeedingMetaPersist(before, after, "a1");
+    expect(targets).toEqual([]);
+  });
+});
+
+describe("buildMiniMandalaGraphInput の Start / Goal", () => {
+  it("宣言が無ければ両方 false", () => {
+    const data = [series("sa", [course("a1")])];
+    const input = buildMiniMandalaGraphInput(data, getCourse(data, "a1"));
+    expect(input.isStart).toBe(false);
+    expect(input.isGoal).toBe(false);
+  });
+
+  it("宣言を引き継ぐ", () => {
+    const data = [
+      series("sa", [course("a1", { is_start: true, is_goal: true })]),
+    ];
+    const input = buildMiniMandalaGraphInput(data, getCourse(data, "a1"));
+    expect(input.isStart).toBe(true);
+    expect(input.isGoal).toBe(true);
+  });
+
+  it("前のコースがあっても Start を宣言できる", () => {
+    const data = [
+      series("sa", [course("a1"), course("a2", { is_start: true })]),
+    ];
+    const input = buildMiniMandalaGraphInput(data, getCourse(data, "a2"));
+    expect(input.isStart).toBe(true);
+    expect(input.intraPrev?.id).toBe("a1");
   });
 });
 

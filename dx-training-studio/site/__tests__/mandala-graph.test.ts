@@ -6,6 +6,7 @@ import {
   courseView,
   globalView,
   seriesView,
+  terminalNodes,
 } from "../lib/mandala/graph";
 import { layoutFlow } from "../lib/mandala/layout";
 import type { MandalaGraph } from "../lib/site-data";
@@ -229,6 +230,67 @@ describe("collapseSeries", () => {
       (e) => e.source === "series:start" && e.target === "crs-concepts",
     );
     expect(toCcepts).toHaveLength(1);
+  });
+});
+
+describe("terminalNodes", () => {
+  const declared: MandalaGraph = {
+    nodes: [
+      { ...graph.nodes[0]!, isStart: true },
+      graph.nodes[1]!,
+      graph.nodes[2]!,
+      { ...graph.nodes[3]!, isGoal: true },
+    ],
+    edges: graph.edges,
+  };
+
+  it("宣言が無ければ何も作らない", () => {
+    const result = terminalNodes(globalView(graph).nodes);
+    expect(result.terminals).toEqual([]);
+    expect(result.edges).toEqual([]);
+  });
+
+  it("Start は文字ノードから当該コースへ、Goal は当該コースから文字ノードへ辺を張る", () => {
+    const { terminals, edges } = terminalNodes(globalView(declared).nodes);
+    expect(terminals.map((t) => t.kind)).toEqual(["start", "goal"]);
+    expect(edges).toContainEqual(
+      expect.objectContaining({
+        source: "terminal:start:crs-setup",
+        target: "crs-setup",
+      }),
+    );
+    expect(edges).toContainEqual(
+      expect.objectContaining({
+        source: "crs-basics",
+        target: "terminal:goal:crs-basics",
+      }),
+    );
+  });
+
+  it("宣言ごとに個別のノードを置く（集約しない）", () => {
+    const multi: MandalaGraph = {
+      nodes: declared.nodes.map((n) => ({ ...n, isStart: true })),
+      edges: graph.edges,
+    };
+    const { terminals } = terminalNodes(globalView(multi).nodes);
+    expect(terminals.filter((t) => t.kind === "start")).toHaveLength(4);
+    expect(new Set(terminals.map((t) => t.id)).size).toBe(terminals.length);
+  });
+
+  it("折りたたみ時は集約ノードへ繋ぎ替える", () => {
+    const view = globalView(declared);
+    const collapsed = collapseSeries(view, new Set(["start"]));
+    const nodeIdOf = (courseId: string) =>
+      collapsed.nodes.some((n) => n.id === courseId)
+        ? courseId
+        : "series:start";
+    const { edges } = terminalNodes(view.nodes, nodeIdOf);
+    expect(edges).toContainEqual(
+      expect.objectContaining({
+        source: "terminal:start:crs-setup",
+        target: "series:start",
+      }),
+    );
   });
 });
 

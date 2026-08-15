@@ -105,7 +105,13 @@ type Props = {
     courseId: string,
     meta: Pick<
       Course,
-      "name" | "target" | "style" | "cross_series_prev" | "cross_series_next"
+      | "name"
+      | "target"
+      | "style"
+      | "cross_series_prev"
+      | "cross_series_next"
+      | "is_start"
+      | "is_goal"
     >,
   ) => void;
   onUpdateLessonStatus: (lessonId: string, status: Lesson["status"]) => void;
@@ -154,13 +160,27 @@ function addMiniNode(
 function buildMermaidDef(
   input: MiniMandalaGraphInput,
 ): { def: string; nodeMap: Record<string, string> } {
-  const lines = ["flowchart LR"];
+  const lines = [
+    "flowchart LR",
+    // Start / Goal は枠を持たない文字だけのノード
+    "  classDef mandalaTerminal fill:none,stroke:none,font-weight:bold",
+  ];
   const safeLabel = (s: string) => s.replace(/"/g, "'");
   const currentId = "CURRENT";
   const nodeMap: Record<string, string> = { [currentId]: input.current.id };
   lines.push(`  ${currentId}("${safeLabel(input.current.name)}")`);
   lines.push(mandalaCurrentCourseStyleLine(currentId, 2));
   lines.push(`  click ${currentId} call miniGraphNav()`);
+
+  // 宣言があれば入口・到達点を添える（遷移先を持たないので click は付けない）
+  if (input.isStart) {
+    lines.push(`  TSTART["Start"]:::mandalaTerminal`);
+    lines.push(`  TSTART --> ${currentId}`);
+  }
+  if (input.isGoal) {
+    lines.push(`  TGOAL["Goal"]:::mandalaTerminal`);
+    lines.push(`  ${currentId} --> TGOAL`);
+  }
 
   if (input.intraPrev) {
     const nid = addMiniNode(lines, nodeMap, input.intraPrev);
@@ -316,12 +336,17 @@ export function LessonListPane({
     style: CourseStyle | "";
     crossSeriesPrev: string[];
     crossSeriesNext: string[];
+    /** カリキュラムの入口・到達点の宣言。リンク配列とは独立 */
+    isStart: boolean;
+    isGoal: boolean;
   }>({
     name: "",
     target: "",
     style: "",
     crossSeriesPrev: [],
     crossSeriesNext: [],
+    isStart: false,
+    isGoal: false,
   });
 
   const miniGraphInput = useMemo(
@@ -604,6 +629,8 @@ export function LessonListPane({
                   course.id,
                   course.cross_series_next,
                 ),
+                isStart: course.is_start ?? false,
+                isGoal: course.is_goal ?? false,
               });
               setMetaCycleWarning(false);
               setMetaDialogOpen(true);
@@ -833,6 +860,12 @@ export function LessonListPane({
                   setMetaCycleWarning(false);
                   setEditMeta((prev) => ({ ...prev, crossSeriesPrev: ids }));
                 }}
+                marker={{
+                  label: "Start",
+                  checked: editMeta.isStart,
+                  onToggle: (checked) =>
+                    setEditMeta((prev) => ({ ...prev, isStart: checked })),
+                }}
               />
             </MetaDialogField>
             <MetaDialogField className="min-w-0">
@@ -843,6 +876,12 @@ export function LessonListPane({
                 onChange={(ids) => {
                   setMetaCycleWarning(false);
                   setEditMeta((prev) => ({ ...prev, crossSeriesNext: ids }));
+                }}
+                marker={{
+                  label: "Goal",
+                  checked: editMeta.isGoal,
+                  onToggle: (checked) =>
+                    setEditMeta((prev) => ({ ...prev, isGoal: checked })),
                 }}
               />
             </MetaDialogField>
@@ -892,6 +931,8 @@ export function LessonListPane({
                   style: editMeta.style || undefined,
                   cross_series_prev: crossSeriesPrev,
                   cross_series_next: crossSeriesNext,
+                  is_start: editMeta.isStart,
+                  is_goal: editMeta.isGoal,
                 });
                 setMetaDialogOpen(false);
               }}

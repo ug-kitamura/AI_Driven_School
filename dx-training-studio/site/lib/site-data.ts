@@ -30,6 +30,8 @@ export type SiteCourse = {
   target?: string;
   crossSeriesPrev: string[];
   crossSeriesNext: string[];
+  isStart?: boolean;
+  isGoal?: boolean;
   lessons: SiteLesson[];
   href: string;
   totalMinutes: number;
@@ -63,6 +65,9 @@ export type MandalaNode = {
   totalMinutes: number;
   status: LessonStatus;
   style?: CourseStyle;
+  /** カリキュラムの入口・到達点の宣言。未宣言ではキーを持たない */
+  isStart?: boolean;
+  isGoal?: boolean;
 };
 
 export type MandalaEdge = {

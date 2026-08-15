@@ -92,6 +92,10 @@ export const courseSchema = z.object({
   cross_series_prev: z.array(z.string()).default([]),
   /** 別シリーズの次コース ID のみ。同シリーズ内の前後は series.courses[] の順序で表す */
   cross_series_next: z.array(z.string()).default([]),
+  /** カリキュラムの入口。前のコースを持つコースでも宣言でき、複数あってよい */
+  is_start: z.boolean().optional(),
+  /** カリキュラムの到達点。次のコースを持つコースでも宣言でき、複数あってよい */
+  is_goal: z.boolean().optional(),
   lessons: z.array(lessonSchema),
   ...publishingMetaFields,
 });
@@ -136,6 +140,8 @@ export const courseMetaSchema = z.object({
   style: courseStyleSchema.optional().catch(undefined),
   cross_series_prev: z.array(z.string()).default([]),
   cross_series_next: z.array(z.string()).default([]),
+  is_start: z.boolean().optional(),
+  is_goal: z.boolean().optional(),
   ...publishingMetaFields,
 });
 export type CourseMeta = z.infer<typeof courseMetaSchema>;

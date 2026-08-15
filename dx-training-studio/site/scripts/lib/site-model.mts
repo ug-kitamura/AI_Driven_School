@@ -52,6 +52,9 @@ export type SiteCourse = {
   style?: CourseStyle;
   crossSeriesPrev: string[];
   crossSeriesNext: string[];
+  /** カリキュラムの入口・到達点の宣言。未宣言ではキーを持たない */
+  isStart?: boolean;
+  isGoal?: boolean;
   lessons: SiteLesson[];
   /** `/git/concepts` */
   href: string;
@@ -90,6 +93,9 @@ export type MandalaNode = {
   status: LessonStatus;
   /** コースの受講形態（未設定なら無し） */
   style?: CourseStyle;
+  /** カリキュラムの入口・到達点の宣言。未宣言ではキーを持たない */
+  isStart?: boolean;
+  isGoal?: boolean;
 };
 
 export type MandalaEdge = {
@@ -221,6 +227,8 @@ function buildCourse(seriesSlug: string, course: CourseMeta): SiteCourse {
     style: course.style,
     crossSeriesPrev: course.crossSeriesPrev,
     crossSeriesNext: course.crossSeriesNext,
+    ...(course.isStart ? { isStart: true } : {}),
+    ...(course.isGoal ? { isGoal: true } : {}),
     lessons,
     href,
     totalMinutes: lessons.reduce((sum, l) => sum + l.estimatedMinutes, 0),
@@ -269,6 +277,8 @@ export function buildMandalaGraph(series: SiteSeries[]): MandalaGraph {
         totalMinutes: course.totalMinutes,
         status: aggregateStatus(course.lessons.map((l) => l.status)),
         style: course.style,
+        ...(course.isStart ? { isStart: true } : {}),
+        ...(course.isGoal ? { isGoal: true } : {}),
       };
       nodes.push(node);
       if (course.id) byCourseId.set(course.id, node);

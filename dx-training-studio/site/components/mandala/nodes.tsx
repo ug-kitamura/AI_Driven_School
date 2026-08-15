@@ -134,9 +134,24 @@ export function SeriesFrameNode({ data }: NodeProps) {
   );
 }
 
+/** Start / Goal の文字ノード。枠も地色も持たず「ノードに見えない」ようにする */
+export type TerminalNodeData = { label: string };
+
+export function TerminalNode({ data }: NodeProps) {
+  const d = data as unknown as TerminalNodeData;
+  return (
+    <div className="dxm-terminal">
+      <Handle type="target" position={Position.Top} isConnectable={false} />
+      {d.label}
+      <Handle type="source" position={Position.Bottom} isConnectable={false} />
+    </div>
+  );
+}
+
 export const mandalaNodeTypes = {
   compact: CompactNode,
   card: CardNode,
   collapsedSeries: CollapsedSeriesNode,
   seriesFrame: SeriesFrameNode,
+  terminal: TerminalNode,
 };

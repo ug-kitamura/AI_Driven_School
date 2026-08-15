@@ -8,7 +8,12 @@ async function saveCourseMeta(
   courseName: string,
   meta: Pick<
     Course,
-    "target" | "style" | "cross_series_prev" | "cross_series_next"
+    | "target"
+    | "style"
+    | "cross_series_prev"
+    | "cross_series_next"
+    | "is_start"
+    | "is_goal"
   >,
 ): Promise<void> {
   const res = await fetch("/api/content/save-course", {
@@ -22,6 +27,8 @@ async function saveCourseMeta(
       style: meta.style ?? "",
       cross_series_prev: meta.cross_series_prev,
       cross_series_next: meta.cross_series_next,
+      is_start: meta.is_start ?? false,
+      is_goal: meta.is_goal ?? false,
     }),
   });
   if (!res.ok) throw new Error("コースメタ保存エラー");
@@ -37,6 +44,8 @@ async function persistCourseMetas(
         style: course.style,
         cross_series_prev: course.cross_series_prev,
         cross_series_next: course.cross_series_next,
+        is_start: course.is_start,
+        is_goal: course.is_goal,
       }),
     ),
   );
@@ -231,7 +240,13 @@ export function useSeriesMutations(options: {
       courseId: string,
       meta: Pick<
         Course,
-        "name" | "target" | "style" | "cross_series_prev" | "cross_series_next"
+        | "name"
+        | "target"
+        | "style"
+        | "cross_series_prev"
+        | "cross_series_next"
+        | "is_start"
+        | "is_goal"
       >,
     ) => {
       let oldCourseName: string | undefined;
@@ -273,6 +288,8 @@ export function useSeriesMutations(options: {
             name: newName,
             target: meta.target,
             style: meta.style,
+            is_start: meta.is_start ?? false,
+            is_goal: meta.is_goal ?? false,
             lessons: c.lessons.map((l) =>
               reconcileLesson({ ...l, course: newName }, ctx),
             ),

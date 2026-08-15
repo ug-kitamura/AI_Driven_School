@@ -9,7 +9,7 @@
   "slug": "basics",
   "description": "記録する・読む・戻すの3つを自分の手で通すコース。add と commit で作業を残し、status・log・diff で状態を確かめ、restore で安全に元へ戻せるようになります。",
   "catch": "記録して、読んで、戻せる",
-  "style": "self-study",
   "cross_series_prev": [],
-  "cross_series_next": []
+  "cross_series_next": [],
+  "style": "self-study"
 }

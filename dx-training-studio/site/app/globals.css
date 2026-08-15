@@ -492,6 +492,19 @@
 
 /* シリーズごとにコース群を囲う背景枠（全体曼陀羅のみ）。
    クリックはコースノードに通す */
+/* Start / Goal。ノードに見えないよう枠も地色も持たない文字だけの目印 */
+.dxm-terminal {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 90px;
+  height: 30px;
+  font-size: 0.9rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  opacity: 0.75;
+}
+
 .dxm-series-frame {
   border: 1.5px dashed color-mix(in srgb, var(--dxm-brand) 45%, transparent);
   border-radius: 0.8rem;

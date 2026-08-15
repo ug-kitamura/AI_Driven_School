@@ -406,6 +406,9 @@ export function loadContentsFolder(projectRoot: string): Series[] {
         ...(courseMeta.style ? { style: courseMeta.style } : {}),
         cross_series_prev: courseMeta.cross_series_prev,
         cross_series_next: courseMeta.cross_series_next,
+        // 未宣言はキーを書かない（style と同じ流儀）
+        ...(courseMeta.is_start ? { is_start: true } : {}),
+        ...(courseMeta.is_goal ? { is_goal: true } : {}),
         lessons,
         ...readPublishingMeta(courseMetaRaw),
       });
@@ -464,6 +467,8 @@ function loadCourseMeta(courseDir: string): {
   style?: CourseStyle;
   cross_series_prev: string[];
   cross_series_next: string[];
+  is_start: boolean;
+  is_goal: boolean;
   order: string[];
 } {
   const meta = readMetaJson(courseDir);
@@ -494,6 +499,8 @@ function loadCourseMeta(courseDir: string): {
             : Array.isArray(raw.next_courses)
               ? (raw.next_courses as string[])
               : [],
+          is_start: raw.is_start === true,
+          is_goal: raw.is_goal === true,
           order: [],
         };
       } catch {
@@ -516,6 +523,8 @@ function loadCourseMeta(courseDir: string): {
     cross_series_next: Array.isArray(meta.cross_series_next)
       ? (meta.cross_series_next as string[])
       : [],
+    is_start: meta.is_start === true,
+    is_goal: meta.is_goal === true,
     order: Array.isArray(meta.order) ? (meta.order as string[]) : [],
   };
 }

@@ -52,12 +52,25 @@ export function toggleCrossSeriesSelection(
   return [...withoutSeries, courseId];
 }
 
+/**
+ * シリーズを持たない特殊枠（Start / Goal）。
+ * 「このコースはカリキュラムの入口（到達点）である」という宣言で、コース間リンクではない。
+ * 保存先は `cross_series_prev` / `cross_series_next` ではなく独立フィールド。
+ */
+export type SpecialMarker = {
+  label: string;
+  checked: boolean;
+  onToggle: (checked: boolean) => void;
+};
+
 type Props = {
   candidates: readonly CrossSeriesCourseCandidate[];
   selectedIds: string[];
   onChange: (ids: string[]) => void;
   className?: string;
   emptyMessage?: string;
+  /** 候補リストの先頭に置く特殊枠。他の候補選択とは独立に切り替わる */
+  marker?: SpecialMarker;
 };
 
 export function CrossSeriesCourseTreePicker({
@@ -66,13 +79,14 @@ export function CrossSeriesCourseTreePicker({
   onChange,
   className,
   emptyMessage = "選択できる別シリーズのコースがありません",
+  marker,
 }: Props) {
   const groups = useMemo(
     () => groupBySeriesPane1Order(candidates),
     [candidates],
   );
 
-  if (candidates.length === 0) {
+  if (candidates.length === 0 && !marker) {
     return (
       <p className="text-xs text-muted-foreground">{emptyMessage}</p>
     );
@@ -85,6 +99,23 @@ export function CrossSeriesCourseTreePicker({
       </p>
       <ScrollArea className="h-80 max-h-[min(24rem,48vh)] rounded-md border border-border bg-card">
         <div className="divide-y divide-border/70">
+          {marker && (
+            <ul className="py-0.5">
+              <li>
+                <label className="flex cursor-pointer items-center gap-2.5 py-1.5 pl-5 pr-3 text-sm transition-colors hover:bg-muted">
+                  <input
+                    type="checkbox"
+                    className="size-3.5 shrink-0 accent-primary"
+                    checked={marker.checked}
+                    onChange={(e) => marker.onToggle(e.target.checked)}
+                  />
+                  <span className="min-w-0 font-semibold leading-snug">
+                    {marker.label}
+                  </span>
+                </label>
+              </li>
+            </ul>
+          )}
           {groups.map(({ seriesName, courses }) => (
             <div key={seriesName}>
               <div className="bg-muted px-3 py-2 text-xs font-semibold text-foreground">

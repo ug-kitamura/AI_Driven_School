@@ -158,6 +158,50 @@ export function buildView(
   }
 }
 
+/** Start / Goal の文字ノード。枠を持たず、クリック遷移もしない */
+export type TerminalNode = {
+  /** `terminal:start:<courseId>` / `terminal:goal:<courseId>` */
+  id: string;
+  kind: "start" | "goal";
+  /** 繋ぐ相手のコース ID（折りたたみ後は集約ノードの ID になる） */
+  courseId: string;
+};
+
+/** 文字ノードの id 接頭辞。ミニマップや枠の計算から外すときの判別に使う */
+export const TERMINAL_PREFIX = "terminal:";
+
+/**
+ * 宣言（`isStart` / `isGoal`）ごとに文字ノードと辺を作る。
+ *
+ * 宣言はコースごとに独立しているので、入口が複数あれば Start も複数置く——
+ * 入口が違えば始まりの時点も違うため、1つのノードに集約しない。
+ * `nodeIdOf` は折りたたみ後の ID 解決（畳まれたシリーズなら集約ノード）を担う。
+ */
+export function terminalNodes(
+  nodes: readonly ViewNode[],
+  nodeIdOf: (courseId: string) => string = (id) => id,
+): { terminals: TerminalNode[]; edges: MandalaEdge[] } {
+  const terminals: TerminalNode[] = [];
+  const edges: MandalaEdge[] = [];
+
+  for (const node of nodes) {
+    if (node.isStart) {
+      const id = `${TERMINAL_PREFIX}start:${node.id}`;
+      const target = nodeIdOf(node.id);
+      terminals.push({ id, kind: "start", courseId: target });
+      edges.push({ id: `${id}__${target}`, source: id, target, kind: "order" });
+    }
+    if (node.isGoal) {
+      const id = `${TERMINAL_PREFIX}goal:${node.id}`;
+      const source = nodeIdOf(node.id);
+      terminals.push({ id, kind: "goal", courseId: source });
+      edges.push({ id: `${source}__${id}`, source, target: id, kind: "order" });
+    }
+  }
+
+  return { terminals, edges };
+}
+
 export type CollapsedSeries = {
   /** 集約ノードの ID（`series:<slug>`） */
   id: string;

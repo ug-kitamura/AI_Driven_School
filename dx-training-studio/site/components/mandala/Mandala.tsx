@@ -12,7 +12,13 @@ import {
   type Node,
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
-import { buildView, collapseSeries, type MandalaScope } from "@/lib/mandala/graph";
+import {
+  buildView,
+  collapseSeries,
+  terminalNodes,
+  TERMINAL_PREFIX,
+  type MandalaScope,
+} from "@/lib/mandala/graph";
 import {
   layoutFlow,
   type LayoutDirection,
@@ -30,6 +36,7 @@ const SIZES = {
   compact: { width: 200, height: 52 },
   card: { width: 280, height: 140 },
   collapsedSeries: { width: 210, height: 72 },
+  terminal: { width: 90, height: 30 },
 } as const;
 
 /** シリーズ枠がコース群の外へどれだけはみ出すか */
@@ -50,6 +57,8 @@ const EDGE_COLOR = "#9aa0a6";
  */
 function MandalaMiniMapNode(props: React.ComponentProps<typeof MiniMapNode>) {
   if (props.id.startsWith(FRAME_PREFIX)) return null;
+  // Start / Goal も描かない——地図の目印であってコースではない
+  if (props.id.startsWith(TERMINAL_PREFIX)) return null;
   return <MiniMapNode {...props} />;
 }
 
@@ -161,15 +170,45 @@ export function Mandala({
       })),
     ];
 
+    // Start / Goal は全体曼陀羅だけに置く。畳まれたシリーズのコースが宣言している
+    // ときは、辺を集約ノードへ繋ぎ替える
+    const collapsedIdBySlug = new Map(
+      collapsible.collapsed.map((c) => [c.seriesSlug, c.id]),
+    );
+    const { terminals, edges: terminalEdges } = isGlobal
+      ? terminalNodes(view.nodes, (courseId) => {
+          const node = view.nodes.find((n) => n.id === courseId);
+          return (
+            (node && collapsedIdBySlug.get(node.seriesSlug)) ?? courseId
+          );
+        })
+      : { terminals: [], edges: [] };
+
+    const typeById = new Map<string, keyof typeof SIZES>([
+      ...entries.map((e) => [e.id, e.type] as const),
+      ...terminals.map((t) => [t.id, "terminal"] as const),
+    ]);
     const sizeOf = (id: string): LayoutSize =>
-      SIZES[entries.find((e) => e.id === id)?.type ?? variant];
+      SIZES[typeById.get(id) ?? variant];
 
     const positions = layoutFlow(
-      entries.map((e) => e.id),
-      collapsible.edges,
+      [...entries.map((e) => e.id), ...terminals.map((t) => t.id)],
+      [...collapsible.edges, ...terminalEdges],
       { size: SIZES[variant], direction, rankSep, sizeOf },
     );
     const positionById = new Map(positions.map((p) => [p.id, p]));
+
+    const terminalFlowNodes: Node[] = terminals.map((terminal) => ({
+      id: terminal.id,
+      type: "terminal" as const,
+      position: positionById.get(terminal.id) ?? { x: 0, y: 0 },
+      ...SIZES.terminal,
+      data: { label: terminal.kind === "start" ? "Start" : "Goal" },
+      draggable: false,
+      connectable: false,
+      selectable: false,
+      focusable: false,
+    }));
 
     const courseNodes: Node[] = entries.map((entry) => ({
       id: entry.id,
@@ -236,7 +275,7 @@ export function Mandala({
       ];
     });
 
-    const flowEdges: Edge[] = collapsible.edges.map((edge) => ({
+    const flowEdges: Edge[] = [...collapsible.edges, ...terminalEdges].map((edge) => ({
       id: edge.id,
       source: edge.source,
       target: edge.target,
@@ -256,8 +295,12 @@ export function Mandala({
       ].join(" "),
     }));
 
-    return { nodes: [...frameNodes, ...courseNodes], edges: flowEdges };
+    return {
+      nodes: [...frameNodes, ...courseNodes, ...terminalFlowNodes],
+      edges: flowEdges,
+    };
   }, [
+    view,
     collapsible,
     scope,
     variant,

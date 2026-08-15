@@ -4,7 +4,14 @@ name: DX Training Mandala CI
 # リポジトリが private のままでも動く（contents: read しか要らない）。
 
 on:
+  # ⚠ push はブランチを絞ること。絞らずに pull_request と併用すると、pull request が
+  # 開いているブランチへの push で**両方が発火して同じ検証が2回走る**。concurrency の
+  # group は github.ref に依存し、push は refs/heads/<branch>・pull_request は
+  # refs/pull/<n>/merge と値が違うため相殺されない。
+  # 作業ブランチは pull_request の契機で、main へのマージは push の契機で拾う。
   push:
+    branches:
+      - main
     paths:
       - "dx-training-studio/site/**"
       - "dx-training-studio/contents/**"

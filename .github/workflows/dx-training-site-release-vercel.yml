@@ -1,7 +1,8 @@
 name: DX Training Mandala Release (Vercel)
 
 # 公開サイトの Vercel 配信（ゲーミフィケーションを見据えた理想追求用）。main に
-# 含まれるコミットへ v* タグを打ったときだけ走る。
+# 含まれるコミットへ v* タグを打ったときと、動作確認のための手動実行で走る。
+# タグ起動は本番（--prod）、手動起動は preview URL へ配る。
 #
 # GitHub Pages 向けの配信は dx-training-site-release-pages.yml が別に担う。
 # 契機（v* タグ）は共有するが、Pages と Vercel は目的が異なる（社内トライアル /
@@ -12,6 +13,15 @@ on:
   push:
     tags:
       - "v*"
+  # 動作確認用。マージせずに配信経路を試すために任意のブランチから起動できる。
+  # Vercel は preview 配信ができるので、手動実行では本番ドメインを汚さない。
+  # ⚠ Pages 側は 1サイトしか持てず手動でも本番へ出る。この非対称は Pages の制約由来。
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "サイドバーに出すリリース番号（空なら番号を表示しない）"
+        required: false
+        default: ""
 
 concurrency:
   group: dx-training-site-release-vercel
@@ -36,7 +46,10 @@ jobs:
 
       # タグはブランチに紐付かないため、作業ブランチのコミットにタグを打っても発火する。
       # main に含まれないコミットからは公開しない。
+      # ⚠ 手動実行では丸ごと飛ばす——任意のブランチから確認できることが手動トリガーの
+      # 目的そのもののため。本番公開の保証はタグ経路にだけ残る。
       - name: Verify the tag is on main
+        if: github.event_name == 'push'
         run: |
           git fetch origin main --quiet
           if git merge-base --is-ancestor "${GITHUB_SHA}" origin/main; then
@@ -60,7 +73,9 @@ jobs:
       - name: Build for Vercel
         working-directory: ${{ env.SITE_DIR }}
         env:
-          NEXT_PUBLIC_SITE_RELEASE: ${{ github.ref_name }}
+          # タグ起動はタグ名、手動起動は入力値（既定は空）。空のときサイトは
+          # リリース番号を行ごと出さないので、確認用の配信に偽の番号が出ない。
+          NEXT_PUBLIC_SITE_RELEASE: ${{ github.event_name == 'push' && github.ref_name || inputs.version }}
         run: npm run build
 
       # Secrets 未登録でもジョブを失敗させない（Pages 側の配信は別ワークフローで完結する）
@@ -77,6 +92,11 @@ jobs:
           fi
 
       # ビルド済みの静的成果物をそのまま配る（Vercel 側でビルドしない）
+      #
+      # タグ起動は --prod で本番ドメインへ、手動起動は --prod なしで固有の preview URL へ。
+      # 分岐を式ではなくシェルで書いているのは、フラグの有無を1本のコマンドで扱うため。
+      # vercel CLI は deployment URL を**標準出力**に、進捗ログを標準エラーに出すので、
+      # 標準出力を捕まえればそのまま URL になる。
       - name: Deploy
         if: steps.check.outputs.ready == 'true'
         working-directory: ${{ env.SITE_DIR }}
@@ -85,8 +105,24 @@ jobs:
           VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
           VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
         run: |
-          npx --yes vercel@latest deploy out \
-            --prod \
+          if [ "${GITHUB_EVENT_NAME}" = "push" ]; then
+            target_flag="--prod"
+            target_label="本番（production）"
+          else
+            target_flag=""
+            target_label="プレビュー（preview）"
+          fi
+
+          url=$(npx --yes vercel@latest deploy out \
+            ${target_flag} \
             --yes \
             --token "${VERCEL_TOKEN}" \
-            --archive=tgz
+            --archive=tgz)
+
+          echo "配信先: ${target_label}"
+          echo "URL: ${url}"
+          {
+            echo "### Vercel ${target_label}"
+            echo ""
+            echo "${url}"
+          } >> "${GITHUB_STEP_SUMMARY}"

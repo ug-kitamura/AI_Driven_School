@@ -2,7 +2,7 @@
 
 **次の主線は「レビュー指摘の採否」**（→ 3章）。はじめにシリーズと Git基礎シリーズに未処理のレビューが1本ずつあり、どちらも判定は「リリース見送り」。⚠ **採否は人がやる。**
 
-公開サイト **DX Training Mandala**（`site/`）は 2026-08-15 の見た目の詰め（change 5本）まで完了した（→ 2章）。実コンテンツで37ページが生成でき、検索・曼陀羅・言語切替が動く。残っているのは**人の作業**（公開の外部設定）だけ。
+公開サイト **DX Training Mandala**（`site/`）は 2026-08-15 の見た目の詰めとワークフロー整備まで完了した（→ 2章）。実コンテンツで37ページが生成でき、検索・曼陀羅・言語切替が動く。リポジトリは public 化済み。残っているのは**人の作業**（公開の外部設定）だけ。
 
 **完了した作業の経緯は書かない** — 記録は `openspec/changes/archive/<日付>-<change名>/` の `design.md` と `tasks.md` が正本（⚠ ただし追跡外。→ 6.1）。本文書に残すのは**次に必要な知識と未決事項だけ**。
 
@@ -24,7 +24,8 @@
 [次] 公開の外部設定（人の作業・コード側は完成）      2.4
        Pages の Source 設定 / Vercel プロジェクト作成と
        git 連携解除 / Secrets 登録 / 初回タグ push。
-       public 化の判断とセット（2.6）
+       public 化は実施済み（2.6）
+       ⚠ Vercel は Secrets 登録まで「スキップして緑」＝未検証
        ← サイト側で人手が残っているのはこれだけ
 
 [後] connection-profiles                          会社持ち込みの直前で可。4章
@@ -37,7 +38,7 @@
 
 ### リポジトリの状態
 
-ブランチ **`dx-training-studio4`**。⚠ **コミットは「勝手コミット」で生まれる**（→ 7章）。こちらから `git commit` を叩いていないのに数分おきに発火するので、**作業の区切りで `git log` を見る運用を続けること。**
+ブランチ **`dx-training-studio5`**。⚠ **コミットは「勝手コミット」で生まれる**（→ 7章）。こちらから `git commit` を叩いていないのに数分おきに発火するので、**作業の区切りで `git log` を見る運用を続けること。**
 
 追跡の線引き: **正本画像 `images/*.png` は追跡対象**（公開サイトがローカル参照で配信するため）。staging（`uploaded/` `ai/` `web/` `trash/`）と動画は除外。`site/` の生成物（`content/` `public/images/` `public/_pagefind/` `out/` `.next/`）は除外。
 
@@ -98,21 +99,40 @@ npm run start   # out/ をローカル配信
 - **slug が1つでも欠けると変換が中断する**（URL を決められないため）。エラーメッセージに対象と理由が出る
 - **本文が参照する画像の実体が無いとビルドが失敗する**。参照切れの検出を兼ねた仕様。**`cover` は例外**（表示しないので実体チェックもしない）
 - **`site/__tests__/content-source.parity.test.mts`** が、site の読み取りロジックと Studio の `lib/contents-loader.ts` のずれを実 `contents/` で突き合わせる。**走査規則を変えるときは両方を直す**
+- ⚠ **site は親（Studio）の `node_modules` に依存してはいけない。**CI は `site/` でしか `npm ci` しないので、親に寄生した瞬間 CI だけが落ちる（ローカルは親に何でもあるので気づけない）。実際に2件踏んだ。**この2つを「不要そうだから」で消さないこと**:
+  - `site/postcss.config.mjs` — **中身が空なのが正しい**。Next の postcss 設定探索は `find-up` で親へ遡るので、置かないと親の `postcss.config.mjs`（`@tailwindcss/postcss`）を拾う。site は Tailwind を使わない
+  - `site/__tests__/helpers/studio-alias-hooks.mjs` の `ALLOWED_PACKAGES` — parity テストが Studio 側ソースを走らせるとき、**許可した名前だけ** `site/node_modules` から解決する。現在は `zod` の1件。⚠ site の zod は 4.3.6（nextra#5008 回避で固定）、Studio の実依存は 4.4.3 で**版がずれている**——検証対象は走査規則であって zod の挙動ではない、という前提で受け入れている既知の近似
+  - ⚠ 許可リストに無い依存が Studio 側に生えるとテストが落ちる。**それが仕掛けの狙い**なので、落ちたら「許可リストに足す」か「依存を持ち込まない形に直す」かを判断する
 
 ### 2.3 デプロイ（コード側は完成・外部設定は未実施）
 
 | ワークフロー | 契機 | やること |
 |---|---|---|
-| `.github/workflows/dx-training-site-ci.yml` | `site/` `contents/` `images/` を含む push / PR | 変換 → ビルド → テスト。**デプロイしない**・private でも動く |
-| `.github/workflows/dx-training-site-release-pages.yml` | `v*` タグの push | GitHub Pages へ配信（basePath 付き） |
-| `.github/workflows/dx-training-site-release-vercel.yml` | `v*` タグの push | Vercel へ配信（basePath なし） |
+| `.github/workflows/dx-training-site-ci.yml` | **`main` への push** / PR（`site/` `contents/` `images/` を含むもの）/ 手動 | 変換 → ビルド → テスト。**デプロイしない** |
+| `.github/workflows/dx-training-site-release-pages.yml` | `v*` タグの push / **手動** | GitHub Pages へ配信（basePath 付き） |
+| `.github/workflows/dx-training-site-release-vercel.yml` | `v*` タグの push / **手動** | Vercel へ配信（basePath なし） |
+
+⚠ **CI の `push` は `main` に絞ってある。外すと同じ push で2回走る**——`pull_request` と同じ paths を見ているため、PR が開いているブランチへの push で両方が発火する。`concurrency` の group は `github.ref` 依存で、push（`refs/heads/<branch>`）と PR（`refs/pull/<n>/merge`）は値が違うので相殺されない（2026-08-15 に実際に2回走って発覚）。作業ブランチは PR の契機で、`main` へのマージは push の契機で拾う。**代償として PR を作る前のブランチ push では CI が回らない。**
+
+**手動トリガー（動作確認用）**は `v*` タグを打たずに配信経路を試すためのもの。リリース番号は `version` 入力で与え、**既定は空＝番号を表示しない**（偽のバージョンを出さないため）。契機ごとの振る舞いは次のとおり。
+
+| | `v*` タグ | 手動 |
+|---|---|---|
+| main 祖先チェック | する | **しない**（任意ブランチから叩ける＝これが目的） |
+| リリース番号 | タグ名 | `version` 入力（既定 空） |
+| Vercel | `--prod` 本番 | **preview URL**（本番を汚さない。URL はジョブサマリに出る） |
+| Pages | 本番サイト | **本番サイト**（1リポジトリ1サイトでプレビューが無い） |
+
+⚠ **手動の Pages は本番（社内トライアル）サイトに出る。**しかも main 祖先チェックを飛ばすので、**作業ブランチの内容が一時的に公開されうる**。まだ何も公開していない今は次のタグ実行で上書き復旧できるが、**社内トライアルが始まったらこの前提は崩れる**——公開開始時に「そのまま許容するか `main` 限定に締めるか」を再訪すること。
+
+⚠ **Vercel は Secrets 未登録のうち、手動実行しても「スキップして緑」になる。**何も確認できていない状態が緑に見えるので、**Secrets 登録後にもう一度手動実行して preview URL がジョブサマリに出ることを確かめる**まで、Vercel 経路は未検証。
 
 ⚠ **2026-08-15 にリリースワークフローを1本から2本へ分割した**（`dx-training-site-release.yml` → `-pages.yml` / `-vercel.yml`）。Pages（社内トライアル用）と Vercel（ゲーミフィケーションを見据えた理想追求用）は**目的が異なる**ため。トリガー（`v*` タグ）は共有し続けるので「同一コミットから両方へ配信する」という前提は変わらない。タグ検証ロジックは単純さを優先して両ファイルに意図的に重複させている（DRY化しない）。spec（`publishing-site-deployment`）の要件は変わっていないため、この分割は通常作業として実施した（OpenSpec change は起こしていない）。
 
 - タグが **main に含まれないと検証で止まる**（`git merge-base --is-ancestor`）。この検証は2ファイルそれぞれに入っている
 - `VERCEL_TOKEN` 未登録なら Vercel のワークフローはスキップされ、Pages だけでリリースが完結する（失敗にはならない）
 - **残っているのは人の作業だけ**: Pages の Source を「GitHub Actions」に設定 / Vercel に公開サイト用プロジェクトを作り **git 連携を切る** / Secrets 3本を登録 / 初回タグ（`v0.1.0`）を push
-- ⚠ **Pages 配信にはリポジトリが public である必要がある**（Free プラン）。public 化は保留中（→ 2.6）
+- ✅ **リポジトリは public 化済み**（2026-08-15）。Free プランの Pages 配信は public が要る、という制約はこれで外れた（→ 2.6）
 - ⚠ **Pages は1リポジトリ1サイト。** comitora レポート（`commit-track-tool-ci.yml` / `commit-track-tool-report.yml`）を GitHub 側で Disable して競合を外している。**再有効化するなら**、comitora の手動実行時に `deploy_pages: false` を選ぶ運用に戻すこと
 
 ### 2.4 人の作業として残っているもの
@@ -140,13 +160,13 @@ npm run start   # out/ をローカル配信
 | **ローカルの `npm ci` が EPERM で落ちる** | Windows で native モジュールがプロセスに掴まれるため。**CI（ubuntu）では起きない**。ローカルは `npm install` を使う |
 | **`cover` フィールドは温存だが未使用** | シリーズトップの画像表示を廃止したため、どのページでも表示しない。将来使うなら表示側から作り直す |
 
-### 2.6 public 化の判断（保留中）
+### 2.6 public 化（実施済み・2026-08-15）
 
-2026-08-14 に**公開前スイープを実施済み**（修正はしていない）。
+**このリポジトリは public。**2026-08-14 の公開前スイープの結果を踏まえて公開に踏み切った。
 
 - **秘密情報はゼロ**。追跡ファイル・git 履歴とも実キーなし（`.env.template` 等はすべてプレースホルダ）。メールアドレスは `example.com` 系のダミーのみ
-- ⚠ **唯一の論点は勤務先が特定できること**: git 履歴に**企業メールのコミットが1件**（2026-07-30・`APAC\kau2yk <Yuji.Kitamura@jp.bosch.com>`）、`ebex/.claude/skills/meeting-minutes/SKILL.md` に Bosch の記述。**書き換えるには履歴 rewrite が必要**
-- 検討中の代替案: **専用 public リポを作り、成果物（`out/` の中身）だけを Actions が push する**。この方式なら履歴も他プロジェクトも公開されず、画像もローカル参照のまま両方で動く。**切り替えても `site/` のコードと変換処理は変更不要**（差し替え点はワークフロー冒頭の env と deploy ジョブに閉じている）
+- ⚠ **勤務先が特定できる状態のまま公開している**: git 履歴の**企業メールのコミット1件**（2026-07-30・`APAC\kau2yk <Yuji.Kitamura@jp.bosch.com>`）と `ebex/.claude/skills/meeting-minutes/SKILL.md` の Bosch の記述は、**履歴 rewrite をしていないので残っている**。承知の上での判断（再提案しない）
+- 見送った代替案: 専用 public リポを作り成果物（`out/` の中身）だけを Actions が push する方式。履歴も他プロジェクトも公開せずに済むが、本体を public にしたので不要になった。**必要になったときの差し替え点はワークフロー冒頭の env と deploy ジョブに閉じている**（`site/` のコードと変換処理は変更不要）
 
 ### 2.7 将来構想（今回スコープ外・記録として）
 
@@ -441,8 +461,9 @@ contents-work/
 
 | 項目 | 状況 |
 |---|---|
-| **public 化するか / 専用 public リポにするか** | スイープ済み・秘密情報ゼロ。論点は勤務先の特定（履歴の企業メール1件）のみ。**保留中**（2.6） |
-| **公開の外部設定** | Pages の Source / Vercel プロジェクトと git 連携解除 / Secrets 3本 / 初回タグ。**コード側は完成、人の作業が未実施**（2.3） |
+| **公開の外部設定** | Pages の Source / Vercel プロジェクトと git 連携解除 / Secrets 3本 / 初回タグ。**コード側は完成、人の作業が未実施**（2.3）。⚠ Secrets 登録までは Vercel を手動実行しても「スキップして緑」で未検証のまま |
+| **手動 Pages を公開開始後どう扱うか** | 手動実行は main 祖先チェックを飛ばすため**作業ブランチの内容が本番サイトに出る**。未公開の今は許容だが、社内トライアル開始時に「許容のままか `main` 限定に締めるか」を再訪（2.3） |
+| **main push での preview 配信（3段構成）を足すか** | feature=確認 / main=リリース確認 / タグ=本番、の3段は今回見送った。Vercel の運用が固まってから判断（2.3） |
 | **シリーズ・コース曼陀羅を復活させるか** | 2026-08-15 に「全体1つに絞る」判断で非表示にした（機能は保持）。**全体のバランスを見て再訪する**。復活は `SeriesPage` / `CoursePage` に `<LazyMandala scope={…}>` を書き戻すだけ（→ 2.1） |
 | **`zod` 4.3.6 固定を外す時期** | nextra#5008 の上流修正待ち（2.5） |
 | **site を Turbopack に戻す時期** | rehype プラグインを関数で渡している間は不可。Nextra か unified が文字列指定に対応したら `--webpack` を外す（2.5） |

@@ -28,7 +28,8 @@
     "@types/react": "^19.2.7",
     "pagefind": "^1.5.2",
     "typescript": "^5.9.3",
-    "vitest": "^3.2.4"
+    "vitest": "^3.2.4",
+    "zod": "4.3.6"
   },
   "overrides": {
     "zod": "4.3.6"

@@ -359,6 +359,37 @@
   --xy-controls-button-color: #3c3c3c;
   --xy-controls-button-color-hover: #000000;
   --xy-controls-button-border-color: #eee;
+
+  /* 接続点の丸ポチ。辺・矢印と同じ色にそろえる（既定は塗りが濃紺・枠が白で、
+     線から浮いていた）。⚠ 辺側は `Mandala.tsx` の `EDGE_COLOR` にあるので、
+     変えるときは両方直す——SVG マーカーが CSS 変数を引けず1箇所にまとめられない */
+  --xy-handle-background-color: #7a8189;
+  --xy-handle-border-color: transparent;
+}
+
+/* 見える円は 4px。箱（6×6）は React Flow が辺の接続点の計測に使うので触らず、
+   1px の枠ぶんを塗らないことで小さく見せる（`background-clip` の既定は
+   `border-box` なので、枠を透明にしただけでは塗りが枠まで届いて 6px に太る）。
+   既定の見た目もこれと同じ大きさだった——枠が白で、塗りは内側 4px しか
+   見えていなかったため */
+.dxm-mandala-canvas .react-flow__handle {
+  background-clip: padding-box;
+}
+
+/* 丸ポチは「辺が出ていく側」にだけ残す。消すのは次の2つ:
+     .target          辺が刺さる側。受け側は縁に直接触れて見えるほうが読みやすい
+     .dxm-handle-idle どこにも繋がっていない出口（Goal の下辺など）。
+                      辺の有無は CSS から判定できないので、
+                      `nodes.tsx` の SourceHandle が class を付ける
+
+   ⚠ `display: none` にはしないこと——React Flow はハンドルの矩形から辺の
+   接続点を測るので、箱（6×6）は残したまま色だけ透明にする。
+   ⚠ `--xy-handle-*` 変数で一律に消さないこと——source と target の両方に効いてしまう。
+   透明は両テーマ共通なのでダーク側では上書きしない */
+.dxm-mandala-canvas .react-flow__handle.target,
+.dxm-mandala-canvas .react-flow__handle.dxm-handle-idle {
+  background-color: transparent;
+  border-color: transparent;
 }
 
 :is(html.dark, .dark) .dxm-mandala-canvas .react-flow {

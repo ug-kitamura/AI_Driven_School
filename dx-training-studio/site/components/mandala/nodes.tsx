@@ -22,6 +22,11 @@ export type MandalaNodeData = {
    * モーダルがパスから解いた1件だけに立つ。
    */
   here: boolean;
+  /**
+   * このノードから辺が出ていくか。接続点の丸ポチは出ていく側にだけ出し、
+   * どこにも繋がっていない点は消す（判定に辺の一覧が要るので CSS では書けない）。
+   */
+  hasOutgoing: boolean;
   /** 折りたたまれたシリーズの集約ノード */
   collapsed?: { courseCount: number };
 };
@@ -35,6 +40,21 @@ export type SeriesFrameData = {
 
 function classNames(...values: Array<string | false | undefined>): string {
   return values.filter(Boolean).join(" ");
+}
+
+/**
+ * 辺が出ていく側の接続点。繋がっていないノードでは丸ポチを消す
+ * （`display: none` にはしない——React Flow は矩形から接続点を測るため）。
+ */
+function SourceHandle({ connected }: { connected: boolean }) {
+  return (
+    <Handle
+      type="source"
+      position={Position.Bottom}
+      isConnectable={false}
+      className={connected ? undefined : "dxm-handle-idle"}
+    />
+  );
 }
 
 function nodeClass(data: MandalaNodeData, variant: string): string {
@@ -83,7 +103,7 @@ export function CompactNode({ data }: NodeProps) {
       <HerePin data={d} />
       <span className="dxm-node-title">{d.label}</span>
       <StyleLabel data={d} />
-      <Handle type="source" position={Position.Bottom} isConnectable={false} />
+      <SourceHandle connected={d.hasOutgoing} />
     </div>
   );
 }
@@ -103,7 +123,7 @@ export function CardNode({ data }: NodeProps) {
         {d.lessonCount} レッスン・約 {d.totalMinutes} 分
         <StyleLabel data={d} />
       </span>
-      <Handle type="source" position={Position.Bottom} isConnectable={false} />
+      <SourceHandle connected={d.hasOutgoing} />
     </div>
   );
 }
@@ -120,7 +140,7 @@ export function CollapsedSeriesNode({ data }: NodeProps) {
       <span className="dxm-node-meta">
         {d.collapsed?.courseCount ?? 0} コース・{d.lessonCount} レッスン
       </span>
-      <Handle type="source" position={Position.Bottom} isConnectable={false} />
+      <SourceHandle connected={d.hasOutgoing} />
     </div>
   );
 }
@@ -139,7 +159,7 @@ export function SeriesFrameNode({ data }: NodeProps) {
 }
 
 /** Start / Goal の文字ノード。枠も地色も持たず「ノードに見えない」ようにする */
-export type TerminalNodeData = { label: string };
+export type TerminalNodeData = { label: string; hasOutgoing: boolean };
 
 export function TerminalNode({ data }: NodeProps) {
   const d = data as unknown as TerminalNodeData;
@@ -147,7 +167,7 @@ export function TerminalNode({ data }: NodeProps) {
     <div className="dxm-terminal">
       <Handle type="target" position={Position.Top} isConnectable={false} />
       {d.label}
-      <Handle type="source" position={Position.Bottom} isConnectable={false} />
+      <SourceHandle connected={d.hasOutgoing} />
     </div>
   );
 }

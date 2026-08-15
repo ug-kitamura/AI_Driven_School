@@ -50,8 +50,17 @@ const FRAME_PREFIX = "frame:";
 /** ノード数が少なくてもカードを実寸より拡大しない */
 const FIT_VIEW_OPTIONS = { maxZoom: 1 } as const;
 
-/** 辺と矢印の色。SVG マーカーは CSS 変数を引けないので、両テーマで読める中間グレーを使う */
-const EDGE_COLOR = "#9aa0a6";
+/**
+ * 辺・矢印・接続点の丸ポチに共通の色。
+ *
+ * SVG マーカーは CSS 変数を引けないので、辺側はここに直値で持つしかない。
+ * ⚠ **丸ポチ側は `globals.css` の `--xy-handle-*` にあるので、変えるときは両方直す。**
+ *
+ * 値は「ライトの地（≒ #f7f7f7）とダークの地（≒ #1a1a1a）に対して同じくらいの
+ * コントラストになる明度」から決めている（相対輝度 ≒ 0.21 → どちらも約 4:1）。
+ * 片方に寄せると、もう片方のテーマで沈むか浮くかする。
+ */
+const EDGE_COLOR = "#7a8189";
 
 /**
  * ミニマップは枠を描かない——枠はコース群と重なる大きな矩形なので、
@@ -137,6 +146,24 @@ export function Mandala({
       currentLocation,
     );
 
+    // Start / Goal は全体曼陀羅だけに置く。畳まれたシリーズのコースが宣言している
+    // ときは、辺を集約ノードへ繋ぎ替える
+    const collapsedIdBySlug = new Map(
+      collapsible.collapsed.map((c) => [c.seriesSlug, c.id]),
+    );
+    const { terminals, edges: terminalEdges } = isGlobal
+      ? terminalNodes(view.nodes, (courseId) => {
+          const node = view.nodes.find((n) => n.id === courseId);
+          return (node && collapsedIdBySlug.get(node.seriesSlug)) ?? courseId;
+        })
+      : { terminals: [], edges: [] };
+
+    // 接続点の丸ポチは「辺が出ていく側」にだけ出す。どこにも繋がっていない点は
+    // 意味を持たないので消す——判定に辺の一覧が要るため CSS では書けない
+    const outgoing = new Set(
+      [...collapsible.edges, ...terminalEdges].map((edge) => edge.source),
+    );
+
     const entries: Array<{
       id: string;
       type: keyof typeof SIZES;
@@ -159,6 +186,7 @@ export function Mandala({
           ghost: node.ghost,
           current: node.current,
           here: node.id === hereNodeId,
+          hasOutgoing: outgoing.has(node.id),
         } satisfies MandalaNodeData,
       })),
       ...collapsible.collapsed.map((series) => ({
@@ -175,24 +203,11 @@ export function Mandala({
           ghost: false,
           current: false,
           here: series.id === hereNodeId,
+          hasOutgoing: outgoing.has(series.id),
           collapsed: { courseCount: series.courseCount },
         } satisfies MandalaNodeData,
       })),
     ];
-
-    // Start / Goal は全体曼陀羅だけに置く。畳まれたシリーズのコースが宣言している
-    // ときは、辺を集約ノードへ繋ぎ替える
-    const collapsedIdBySlug = new Map(
-      collapsible.collapsed.map((c) => [c.seriesSlug, c.id]),
-    );
-    const { terminals, edges: terminalEdges } = isGlobal
-      ? terminalNodes(view.nodes, (courseId) => {
-          const node = view.nodes.find((n) => n.id === courseId);
-          return (
-            (node && collapsedIdBySlug.get(node.seriesSlug)) ?? courseId
-          );
-        })
-      : { terminals: [], edges: [] };
 
     const typeById = new Map<string, keyof typeof SIZES>([
       ...entries.map((e) => [e.id, e.type] as const),
@@ -213,7 +228,11 @@ export function Mandala({
       type: "terminal" as const,
       position: positionById.get(terminal.id) ?? { x: 0, y: 0 },
       ...SIZES.terminal,
-      data: { label: terminal.kind === "start" ? "Start" : "Goal" },
+      data: {
+        label: terminal.kind === "start" ? "Start" : "Goal",
+        // Goal からは辺が出ていかないので、下辺の点は出さない
+        hasOutgoing: outgoing.has(terminal.id),
+      },
       draggable: false,
       connectable: false,
       selectable: false,

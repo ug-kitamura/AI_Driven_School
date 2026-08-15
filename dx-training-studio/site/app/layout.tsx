@@ -47,8 +47,10 @@ export default async function RootLayout({
         }
       >
         {/* 装飾目的の supergraphic バナー。縦帯構成なので cover で中央を切り出しても
-            色帯の横並びは保たれる。テーマの sticky ナビより外側に置くため、
-            スクロールすると画面外へ流れる（ページ最上部の装飾という位置づけ）。 */}
+            色帯の横並びは保たれる。スクロール中も画面最上部に留まる——
+            固定は `globals.css` 側の `position: sticky` が担う。`sticky` を選ぶのは
+            フローに残るので、テーマの navbar / sidebar / toc の位置と高さに
+            一切手を入れずに済むため（詳細は `.dxm-supergraphic` のコメント）。 */}
         <Image
           src={supergraphicImage}
           alt=""

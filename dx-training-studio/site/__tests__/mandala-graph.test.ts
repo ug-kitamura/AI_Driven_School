@@ -5,6 +5,7 @@ import {
   courseNeighbors,
   courseView,
   globalView,
+  resolveHereNodeId,
   seriesView,
   terminalNodes,
 } from "../lib/mandala/graph";
@@ -230,6 +231,38 @@ describe("collapseSeries", () => {
       (e) => e.source === "series:start" && e.target === "crs-concepts",
     );
     expect(toCcepts).toHaveLength(1);
+  });
+});
+
+describe("resolveHereNodeId", () => {
+  it("畳んでいなければコース自身の ID を返す", () => {
+    const view = globalView(graph);
+    const { collapsed } = collapseSeries(view, new Set());
+    expect(resolveHereNodeId(view, collapsed, "crs-intro")).toBe("crs-intro");
+  });
+
+  it("現在地のシリーズを畳むと集約ノードの ID を返す", () => {
+    const view = globalView(graph);
+    const { collapsed } = collapseSeries(view, new Set(["start"]));
+    // 折りたたみで現在地が消えてはいけない
+    expect(resolveHereNodeId(view, collapsed, "crs-intro")).toBe(
+      "series:start",
+    );
+  });
+
+  it("別のシリーズを畳んでも現在地は動かない", () => {
+    const view = globalView(graph);
+    const { collapsed } = collapseSeries(view, new Set(["start"]));
+    expect(resolveHereNodeId(view, collapsed, "crs-concepts")).toBe(
+      "crs-concepts",
+    );
+  });
+
+  it("現在地が無い、またはビューに含まれないときは undefined", () => {
+    const view = globalView(graph);
+    const { collapsed } = collapseSeries(view, new Set());
+    expect(resolveHereNodeId(view, collapsed, undefined)).toBeUndefined();
+    expect(resolveHereNodeId(view, collapsed, "crs-unknown")).toBeUndefined();
   });
 });
 

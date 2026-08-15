@@ -15,6 +15,7 @@ import "@xyflow/react/dist/style.css";
 import {
   buildView,
   collapseSeries,
+  resolveHereNodeId,
   terminalNodes,
   TERMINAL_PREFIX,
   type MandalaScope,
@@ -127,6 +128,14 @@ export function Mandala({
   );
 
   const { nodes, edges } = useMemo(() => {
+    // 折りたたみ中は現在地のコースが消えるので、印は集約ノードへ移る。
+    // コースノードと集約ノードをこの1つの ID と突き合わせれば足りる
+    const hereNodeId = resolveHereNodeId(
+      view,
+      collapsible.collapsed,
+      currentCourseId,
+    );
+
     const entries: Array<{
       id: string;
       type: keyof typeof SIZES;
@@ -148,7 +157,7 @@ export function Mandala({
           locale,
           ghost: node.ghost,
           current: node.current,
-          here: node.id === currentCourseId,
+          here: node.id === hereNodeId,
         } satisfies MandalaNodeData,
       })),
       ...collapsible.collapsed.map((series) => ({
@@ -164,7 +173,7 @@ export function Mandala({
           locale,
           ghost: false,
           current: false,
-          here: false,
+          here: series.id === hereNodeId,
           collapsed: { courseCount: series.courseCount },
         } satisfies MandalaNodeData,
       })),

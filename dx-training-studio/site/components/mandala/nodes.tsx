@@ -48,15 +48,17 @@ function nodeClass(data: MandalaNodeData, variant: string): string {
 }
 
 /**
- * 「いまここ」の印。ノードの左肩へ絶対配置で重ねる——
+ * 「いまここ」の印。ノードの左外・高さ中央へ絶対配置で重ねる——
  * インラインで置くとコース名の幅が縮み、ellipsis の位置が他ノードとずれる。
+ * 寸法 20 はシリーズ枠線との隙間（22px）から決まる。理由は
+ * `globals.css` の `.dxm-node-here-pin` を参照。
  */
 function HerePin({ data }: { data: MandalaNodeData }) {
   if (!data.here) return null;
   return (
     <MapPin
       className="dxm-node-here-pin"
-      size={17}
+      size={20}
       strokeWidth={2.5}
       aria-label={data.locale === "en" ? "You are here" : "いまここ"}
     />
@@ -112,6 +114,8 @@ export function CollapsedSeriesNode({ data }: NodeProps) {
   return (
     <div className={nodeClass(d, "collapsed")}>
       <Handle type="target" position={Position.Top} isConnectable={false} />
+      {/* 折りたたんでも現在地を見失わないよう、コースノードと同じ印を出す */}
+      <HerePin data={d} />
       <span className="dxm-node-title">{d.label}</span>
       <span className="dxm-node-meta">
         {d.collapsed?.courseCount ?? 0} コース・{d.lessonCount} レッスン

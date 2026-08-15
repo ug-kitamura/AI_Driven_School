@@ -270,3 +270,25 @@ export function collapseSeries(
 
   return { nodes, collapsed, edges };
 }
+
+/**
+ * 「いまここ」を立てるノードの ID を返す。
+ *
+ * 現在地のコースが**畳まれたシリーズ**に含まれるときは、そのシリーズの集約ノードの
+ * ID を返す——折りたたみは全体を見渡すための操作なので、そこで現在地が消えては
+ * 意味がない。畳まれていなければコース自身の ID をそのまま返す。
+ *
+ * 呼び出し側はコースノードと集約ノードの両方をこの1つの ID と突き合わせればよい。
+ */
+export function resolveHereNodeId(
+  view: MandalaView,
+  collapsed: readonly CollapsedSeries[],
+  currentCourseId?: string | null,
+): string | undefined {
+  if (!currentCourseId) return undefined;
+  // view は畳む前の一覧なので、畳まれていてもシリーズを解決できる
+  const course = view.nodes.find((node) => node.id === currentCourseId);
+  if (!course) return undefined;
+  const aggregate = collapsed.find((c) => c.seriesSlug === course.seriesSlug);
+  return aggregate?.id ?? currentCourseId;
+}

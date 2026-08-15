@@ -42,9 +42,18 @@
 
 /* ===== supergraphic バナー ===== */
 
-/* 高さ 6px 固定・全幅。縦帯構成なので cover で中央を切り出しても色帯の横並びは保たれる */
+/* 高さ 6px 固定・全幅。縦帯構成なので cover で中央を切り出しても色帯の横並びは保たれる。
+   スクロールしても最上部に留める。`fixed` ではなく `sticky` なのは、
+   フローに残るぶんレイアウトシフトも `body` の padding での帳尻合わせも要らないため
+   ——`fixed` にすると navbar / sidebar / toc の top と height を軒並み上書きすることになる。
+   z-index はテーマの navbar（z-30）より上。navbar は帯の下へ潜って上端 6px が隠れるが、
+   中身は 64px の中で縦中央寄せなので見え方は変わらず、下辺の位置も動かないので
+   sidebar と toc の `top: var(--nextra-navbar-height)` に手を入れずに済む。 */
 .dxm-supergraphic {
   display: block;
+  position: sticky;
+  top: 0;
+  z-index: 40;
   width: 100%;
   height: 6px;
   object-fit: cover;
@@ -385,25 +394,6 @@
   color: inherit;
 }
 
-/* 読者がいまいるコース。枠を青く太くして、左肩にピンを重ねる。
-   ピンは絶対配置なのでノードの寸法にも文字位置にも影響しない
-   （上辺のハンドルは中央なので左肩とは重ならない） */
-.dxm-node-here {
-  position: relative;
-  border-color: var(--dxm-brand);
-  /* 太さは inset の影で出す。border-width を上げるとノードは固定寸法なので
-     内側が 1px 削れ、コース名の位置が他のノードとずれる */
-  box-shadow: inset 0 0 0 1px var(--dxm-brand);
-}
-
-.dxm-node-here-pin {
-  position: absolute;
-  top: -8px;
-  left: -8px;
-  color: var(--dxm-brand);
-  fill: color-mix(in srgb, var(--dxm-brand) 18%, #fff);
-}
-
 .dxm-node-compact {
   flex-direction: row;
   align-items: center;
@@ -417,10 +407,25 @@
   height: 140px;
 }
 
+/* 折りたたんだシリーズ1つ分。展開時のシリーズ枠がそのまま1ブロックに縮んだ
+   ように見せるため、枠線の色と地を `.dxm-series-frame` に揃える。
+   破線を使わないのは、曼陀羅では破線が「跨ぎの辺・ゴースト＝確定でないもの」を
+   指す語彙で、確定した1シリーズには意味が合わないため。
+   枠線の色は素のクラス1つで書く——「いまここ」の青（`.dxm-node-here`）が
+   同じ詳細度で後から上書きするのを妨げないため。 */
 .dxm-node-collapsed {
   width: 210px;
   height: 72px;
-  border-style: dashed;
+  border-color: color-mix(in srgb, var(--dxm-brand) 45%, transparent);
+}
+
+/* 地は両テーマとも同じ淡い青。セレクタを2本並べているのは詳細度の都合で、
+   ライトは `.dxm-node`(0,1,0) を、ダークは `:is(html.dark, .dark) .dxm-node`(0,2,1) を
+   それぞれ越える必要があるため。`:is()` の詳細度は引数の最大値を取るので、
+   クラス2つ(0,2,0)ではダーク側に届かない（実測で判明） */
+.dxm-node.dxm-node-collapsed,
+:is(html.dark, .dark) .dxm-node-collapsed {
+  background: color-mix(in srgb, var(--dxm-brand) 4%, transparent);
 }
 
 .dxm-node-title {
@@ -469,6 +474,38 @@
 .dxm-node-current {
   border-color: var(--dxm-brand);
   border-width: 2px;
+}
+
+/* 読者がいまいるコース、または現在地のコースを含む折りたたみ中のシリーズ。
+   枠を青く太くして、ノードの左外にピンを重ねる。
+   ピンは絶対配置なのでノードの寸法にも文字位置にも影響しない
+   （上下辺のハンドルは中央なので左外とは重ならない）。
+   ⚠ 状態の指定なので、必ず変種（`-compact` / `-collapsed` 等）より後に置く
+   ——同じ詳細度なら後勝ちで、集約ノードの枠色 45% をここが上書きする */
+.dxm-node-here {
+  position: relative;
+  border-color: var(--dxm-brand);
+  /* 太さは inset の影で出す。border-width を上げるとノードは固定寸法なので
+     内側が 1px 削れ、コース名の位置が他のノードとずれる */
+  box-shadow: inset 0 0 0 1px var(--dxm-brand);
+}
+
+/* ノード左辺とシリーズ枠線の間（22px。枠線 1.5px を除くと空き 20.5px）の
+   中央にピンの絵を落とす。`right: 100%` なのは、lucide の MapPin が
+   箱の 2/3（viewBox 24 のうち x∈[4,20]）しか使わず左右に size/6 の余白を
+   持つため、箱の右辺をノード左辺に合わせるだけで絵の中心が -size/2 に
+   決まるから——実数のオフセットで置くとノード幅・枠の余白のどれかが
+   変わったときに黙ってずれる。`margin-right` は絶対配置の基準が
+   パディングボックス（枠線 1px の内側）であるぶんを戻す。
+   折りたたみ中の集約ノード（枠を持たない）にも同じ関係で乗る。 */
+.dxm-node-here-pin {
+  position: absolute;
+  top: 50%;
+  right: 100%;
+  translate: 0 -50%;
+  margin-right: 1px;
+  color: var(--dxm-brand);
+  fill: color-mix(in srgb, var(--dxm-brand) 18%, #fff);
 }
 
 /* シリーズ外の相手コース。透明度を下げすぎると読めないので、
@@ -524,6 +561,10 @@
   stroke-dasharray: 6 3;
 }
 
+/* 言語トグル。`EN`（約 35px）と `日本語`（約 58px）で幅が変わり、右端にあるため
+   切り替えると左の2アイコンが横にずれる。これは承知のうえで受け入れている
+   ——切り替え先が文字で読めるほうが分かりやすく、`JA` の2文字コードや
+   アイコン化ではそれが弱まるため。幅を揃える目的で作り替えないこと。 */
 .dxm-lang-toggle {
   font-size: 0.8rem;
   font-weight: 600;
@@ -532,8 +573,18 @@
   border: 1px solid color-mix(in srgb, currentColor 20%, transparent);
 }
 
-/* 曼陀羅モーダルの呼び出し。左隣の GitHub ロゴ（塗り・24px）と
-   視覚的な重さを揃えるため、線アイコンは少し小さめの 22px にしている */
+/* ===== ナビバーのアイコン =====
+   3つの寸法は「箱の数字」ではなく「見た目の幅」で揃える。glyph が箱を
+   どれだけ埋めるかが出所ごとに違うため、同じ size を与えると揃わない。
+
+     .dxm-logo-mark   塗りの正方形          被覆 100%  1.1rem  → 17.6px
+     GitHubIcon       viewBox "3 3 18 18"   被覆 100%  18      → 18.0px
+     lucide Map       viewBox "0 0 24 24"   被覆  75%  24      → 18.0px
+
+   基準は左上のサイトロゴ（1.1rem）。実際に動くのは GitHub だけで、Map は
+   箱を上げてやっと同じ大きさに見える。
+   ⚠ 以前ここには「線アイコンは少し小さめの 22px にしている」と書いてあったが、
+   もともと小さかったものをさらに小さくしており補正の向きが逆だった。 */
 .dxm-mandala-button {
   display: inline-flex;
   align-items: center;
@@ -593,6 +644,37 @@
 /* モーダル内では曼陀羅の外側の余白を持たない（枠が余白を持っている） */
 .dxm-modal .dxm-mandala {
   margin: 0;
+}
+
+/* ===== 3カラムの幅 =====
+   外側の余白は残したまま、両脇のメニューだけを外へ広げる。帯（sidebar + 本文 + toc）
+   の上限を 90rem → 95rem に上げ、両脇を 16rem → 18rem にすると、本文は flex で
+   伸びるぶんだけ広がる（928 → 944px）。本文用の変数は置かない。
+
+     |←─ 余白 ─→|[ side 288 ][ 本文 944 ][ toc 288 ]|←─ 余白 ─→|
+
+   ⚠ 1280〜1519px の画面では両メニューが出たまま帯が画面幅で頭打ちになるため、
+   広げたぶんが本文から引かれる（1440px で 928 → 864）。読めなくなる幅では
+   ないので全画面共通で入れている。気になったら `@media (min-width: 1520px)` で囲う。
+   なお navbar も同じ変数を使うので、ロゴと右上アイコンも一緒に外へ動き整列は保たれる。 */
+
+/* `--nextra-content-width` はテーマの `<Head>` が `<style>` で `:root` に注入する。
+   こちらも `:root` だと同じ詳細度でソース順勝負になるので `html:root` と1段上げる */
+html:root {
+  --nextra-content-width: 95rem;
+}
+
+/* ⚠ 展開状態（`x:w-64`）だけを狙う。平坦に `.nextra-sidebar` へ書くと、
+   手動トグルで畳んだときの `x:w-20`（5rem）まで潰れて畳めなくなる。
+   テーマがサイドバー幅のクラスを変えたら当たらなくなるが、
+   そのときの壊れ方は「広がらない」だけで機能に影響しない */
+.nextra-sidebar.x\:w-64 {
+  width: 18rem;
+}
+
+/* toc は状態が1つなので素直に指定できる */
+.nextra-toc {
+  width: 18rem;
 }
 
 .dxm-logo-mark {

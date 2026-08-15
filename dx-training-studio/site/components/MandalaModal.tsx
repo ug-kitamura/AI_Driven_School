@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
-import { Compass } from "lucide-react";
+import { Map as MapIcon } from "lucide-react";
 import { LazyMandala } from "@/components/mandala/LazyMandala";
 import { findCourseIdByPath } from "@/lib/current-course";
 import { data as siteData } from "@/lib/site-data";
@@ -47,7 +47,9 @@ export function MandalaModal() {
         onClick={() => setOpen(true)}
         aria-label={text.open}
       >
-        <Compass size={22} strokeWidth={2} aria-hidden="true" />
+        {/* 24 なのは箱ではなく見た目を揃えるため。理由は globals.css の
+            `.dxm-mandala-button` に書いてある */}
+        <MapIcon size={24} strokeWidth={2} aria-hidden="true" />
       </button>
 
       {open && (

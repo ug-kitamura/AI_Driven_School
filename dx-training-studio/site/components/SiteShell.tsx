@@ -3,6 +3,7 @@
 import { useMemo, type ReactNode } from "react";
 import { usePathname } from "next/navigation";
 import { Layout, Navbar } from "nextra-theme-docs";
+import { GitHubIcon } from "nextra/icons";
 import type { PageMapItem } from "nextra";
 import siteConfig from "@/site.config.json";
 import { LanguageToggle } from "@/components/LanguageToggle";
@@ -18,6 +19,11 @@ const navbar = (
       </span>
     }
     projectLink={siteConfig.repositoryUrl}
+    /* テーマの既定は 24px だが、`GitHubIcon` は viewBox が `3 3 18 18` で
+       余白を持たないため、lucide の 24px より一回り大きく見える。
+       ここで寸法を与えて CSS での上書きを避ける（理由は globals.css の
+       `.dxm-mandala-button` を参照） */
+    projectIcon={<GitHubIcon height="18" aria-label="Project repository" />}
   >
     {/* テーマは `[projectLink, chatLink, children]` の順に描くので、
         children の先頭に置くと「GitHub → 曼陀羅 → 言語」の並びになる */}

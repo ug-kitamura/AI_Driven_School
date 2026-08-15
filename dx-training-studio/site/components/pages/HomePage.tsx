@@ -38,7 +38,7 @@ export function HomePage({ locale }: { locale: Locale }) {
       </div>
 
       <h2 className="dxm-section-title">
-        {locale === "en" ? "All courses" : "全体の曼陀羅"}
+        {locale === "en" ? "All courses" : "全体像"}
       </h2>
       <LazyMandala scope={{ kind: "global" }} locale={locale} />
 

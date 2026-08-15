@@ -9,7 +9,7 @@ import { data as siteData } from "@/lib/site-data";
 import { localeOf } from "@/lib/locale-path";
 
 const TEXT = {
-  ja: { open: "曼陀羅を開く", title: "全体曼陀羅", close: "閉じる" },
+  ja: { open: "曼陀羅を開く", title: "DXトレーニング曼陀羅", close: "閉じる" },
   en: { open: "Open the mandala", title: "Course map", close: "Close" },
 } as const;
 

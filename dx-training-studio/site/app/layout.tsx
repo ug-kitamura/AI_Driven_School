@@ -10,10 +10,9 @@ import "nextra-theme-docs/style.css";
 import "./globals.css";
 
 export const metadata = {
-  title: {
-    default: siteConfig.siteName,
-    template: `%s | ${siteConfig.siteName}`,
-  },
+  // 全ページ共通でサイト名のみを表示する（ページ別の title は使わない）。
+  // 実際の上書きは app/[[...mdxPath]]/page.jsx の generateMetadata が担う。
+  title: siteConfig.siteName,
   description:
     "DX ツールを業務で使えるようになるためのトレーニング。曼陀羅で全体の道のりを見渡しながら進められます。",
 };

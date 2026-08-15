@@ -521,14 +521,21 @@
   box-shadow: inset 0 0 0 1px var(--dxm-brand);
 }
 
-/* ノード左辺とシリーズ枠線の間（22px。枠線 1.5px を除くと空き 20.5px）の
-   中央にピンの絵を落とす。`right: 100%` なのは、lucide の MapPin が
-   箱の 2/3（viewBox 24 のうち x∈[4,20]）しか使わず左右に size/6 の余白を
-   持つため、箱の右辺をノード左辺に合わせるだけで絵の中心が -size/2 に
-   決まるから——実数のオフセットで置くとノード幅・枠の余白のどれかが
-   変わったときに黙ってずれる。`margin-right` は絶対配置の基準が
-   パディングボックス（枠線 1px の内側）であるぶんを戻す。
-   折りたたみ中の集約ノード（枠を持たない）にも同じ関係で乗る。 */
+/* ノード左辺とシリーズ枠線の間（22px。枠線 1.5px を除くと空き 20.5px）に
+   ピンの絵を落とす。`right: 100%` なのは、lucide の MapPin が箱の 2/3
+   （viewBox 24 のうち x∈[4,20]）しか使わず左右に size/6 の余白を持つため、
+   箱の右辺をノード左辺に合わせるだけで絵の中心が -size/2 に決まるから
+   ——実数のオフセットで置くとノード幅・枠の余白のどれかが変わったときに
+   黙ってずれる。`margin-right` は絶対配置の基準がパディングボックス
+   （枠線 1px の内側）であるぶんを戻す。
+   折りたたみ中の集約ノード（枠を持たない）にも同じ関係で乗る。
+
+   ⚠ 寸法は `nodes.tsx` の `HerePin` にある（size=18 → 絵は 12px）。
+   この置き方だと絵の中心が -size/2 なので、**小さくするほど中心がノード寄りに動く**
+   （18 では -9.0。空きの中点は -10.25 なので 1.25px ずれる）。
+   隙間 20.5px に対して枠線まで 5.5px・ノードまで 3.0px 空いており実害は無いが、
+   厳密に中点へ置きたくなったら `margin-right` を `size/2 - 10.25 + 1` にする
+   ——ただし寸法を変えるたび計算し直しになるので、いまは単純な側を採っている。 */
 .dxm-node-here-pin {
   position: absolute;
   top: 50%;
@@ -574,11 +581,38 @@
 }
 
 .dxm-series-frame {
+  position: relative;
   border: 1.5px dashed color-mix(in srgb, var(--dxm-brand) 45%, transparent);
   border-radius: 0.8rem;
   background: color-mix(in srgb, var(--dxm-brand) 4%, transparent);
+  /* 当たり判定は React Flow の wrapper が持つ（`onNodeClick` を渡した時点で
+     `pointer-events: all` になる）。この div を none のままにしておくと、
+     枠の上でもコースノードが優先される……のではなく、実際には z-index で
+     決まる（コース 0 / 枠 -1）。ここを none にしているのは元の意図
+     「背景として敷くものは自分では何も拾わない」を保つため */
   pointer-events: none;
 }
+
+/* 枠はクリックでシリーズトップへ飛ぶ。手がかりはカーソルだけにする
+   ——枠は 244 × 224〜348px と大きく、この面積が hover で色を変えると目障り */
+.dxm-mandala-canvas .react-flow__node-seriesFrame {
+  cursor: pointer;
+}
+
+/* 展開中のそのシリーズのトップを見ているときは、枠が現在地になる。
+   実線にして太さは影で出す——`.dxm-node-here` と同じ流儀（枠の中には
+   何もレイアウトしていないので border-width でも実害は無いが、
+   「現在地の太さはいつも影」を1つの規則にしておく） */
+.dxm-series-frame-here {
+  border-style: solid;
+  border-color: var(--dxm-brand);
+  box-shadow: inset 0 0 0 1px var(--dxm-brand);
+}
+
+/* 枠の現在地ピンは、基底の `.dxm-node-here-pin` をそのまま使う——専用の指定は要らない。
+   `right: 100%` ＋ `margin-right: 1px` が「箱の右辺を枠の左辺に合わせる」意味になり、
+   コースのピンがノードの左外に付くのとまったく同じ関係で枠の左外に付く
+   （枠線の実効値は 1px なので、ノードの枠線 1px を戻す補正がそのまま効く）。 */
 
 .dxm-series-frame-label {
   display: inline-block;
@@ -614,13 +648,14 @@
 
      .dxm-logo-mark   塗りの正方形          被覆 100%  1.1rem  → 17.6px
      GitHubIcon       viewBox "3 3 18 18"   被覆 100%  18      → 18.0px
-     lucide Map       viewBox "0 0 24 24"   被覆  75%  22      → 16.5px
+     lucide Map       viewBox "0 0 24 24"   被覆  75%  21      → 15.75px
 
    基準は左上のサイトロゴ（1.1rem）。
    ⚠ **丸い絵と矩形の絵を並べるときは、矩形側を1割ほど小さくする。** 外接箱を
    揃えるだけでは足りない——GitHub の猫はほぼ円形の塊、Map は角のある矩形の輪郭で、
    直径 d の円と一辺 d の正方形では面積が 4/π ≒ 1.27 倍違う。箱を 18 に揃えた
-   24 では目視で「まだ大きい」と出たため 22 に下げている。
+   24 では目視で「まだ大きい」と出たため 22 → 21 と下げている（見た目 15.75px。
+   GitHub の 18px より1割強ちいさい値に落ち着いた）。
    ⚠ さらに以前は「線アイコンは少し小さめの 22px にしている」と書いてあったが、
    当時の compass は被覆 83% で GitHub 24（被覆 100%）より既に小さく、補正の向きが逆だった。 */
 .dxm-mandala-button {

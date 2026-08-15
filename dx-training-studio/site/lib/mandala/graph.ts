@@ -300,3 +300,22 @@ export function resolveHereNodeId(
   const aggregate = collapsed.find((c) => c.seriesSlug === course.seriesSlug);
   return aggregate?.id ?? location.courseId;
 }
+
+/**
+ * シリーズ枠が現在地かどうか。展開中のそのシリーズのトップを見ているときに真。
+ *
+ * 判定自体は薄いが `resolveHereNodeId` と対で置く——現在地の規則は
+ * 「いま見ているページを表すものに印を付ける」の一本で、その対象が
+ * ノード（コース・集約）と枠に分かれているだけ。両方をここに揃えておかないと、
+ * 片方だけ直して食い違う。
+ *
+ * ⚠ `resolveHereNodeId` は使えない。あれは**ノードの ID** を返す関数で、
+ * 枠はグラフのノードではなく `frame:` 接頭辞の装飾だから。
+ * 折りたたみ中のシリーズには枠が作られないので、ここでは畳んだ状態を考えない。
+ */
+export function isSeriesFrameHere(
+  location: CurrentLocation | null | undefined,
+  seriesSlug: string,
+): boolean {
+  return location?.kind === "series" && location.seriesSlug === seriesSlug;
+}

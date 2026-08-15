@@ -5,6 +5,7 @@ import {
   courseNeighbors,
   courseView,
   globalView,
+  isSeriesFrameHere,
   resolveHereNodeId,
   seriesView,
   terminalNodes,
@@ -287,6 +288,40 @@ describe("resolveHereNodeId", () => {
     expect(
       resolveHereNodeId(view, collapsed, course("crs-unknown")),
     ).toBeUndefined();
+  });
+});
+
+describe("isSeriesFrameHere", () => {
+  const course = (courseId: string) => ({ kind: "course", courseId }) as const;
+  const seriesAt = (seriesSlug: string) =>
+    ({ kind: "series", seriesSlug }) as const;
+
+  it("そのシリーズのトップを見ているときだけ真", () => {
+    expect(isSeriesFrameHere(seriesAt("start"), "start")).toBe(true);
+    expect(isSeriesFrameHere(seriesAt("start"), "git")).toBe(false);
+  });
+
+  it("コースページでは枠は現在地にならない", () => {
+    // 印はコースノードに付くので、枠まで光ると二重になる
+    expect(isSeriesFrameHere(course("crs-intro"), "start")).toBe(false);
+  });
+
+  it("全体トップ（現在地なし）では真にならない", () => {
+    expect(isSeriesFrameHere(null, "start")).toBe(false);
+    expect(isSeriesFrameHere(undefined, "start")).toBe(false);
+  });
+
+  it("枠とノードの現在地は同時に立たない", () => {
+    const view = globalView(graph);
+    const { collapsed } = collapseSeries(view, new Set());
+    // シリーズトップ: 枠だけ
+    expect(isSeriesFrameHere(seriesAt("start"), "start")).toBe(true);
+    expect(resolveHereNodeId(view, collapsed, seriesAt("start"))).toBeUndefined();
+    // コースページ: ノードだけ
+    expect(isSeriesFrameHere(course("crs-intro"), "start")).toBe(false);
+    expect(resolveHereNodeId(view, collapsed, course("crs-intro"))).toBe(
+      "crs-intro",
+    );
   });
 });
 

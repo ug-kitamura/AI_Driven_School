@@ -36,6 +36,9 @@ export type SeriesFrameData = {
   seriesName: string;
   width: number;
   height: number;
+  /** 展開中のこのシリーズのトップページを見ている（＝枠が現在地） */
+  here: boolean;
+  locale: Locale;
 };
 
 function classNames(...values: Array<string | false | undefined>): string {
@@ -70,17 +73,17 @@ function nodeClass(data: MandalaNodeData, variant: string): string {
 /**
  * 「いまここ」の印。ノードの左外・高さ中央へ絶対配置で重ねる——
  * インラインで置くとコース名の幅が縮み、ellipsis の位置が他ノードとずれる。
- * 寸法 20 はシリーズ枠線との隙間（22px）から決まる。理由は
+ * 寸法の上限はシリーズ枠線との隙間（22px）から決まる。理由は
  * `globals.css` の `.dxm-node-here-pin` を参照。
  */
-function HerePin({ data }: { data: MandalaNodeData }) {
-  if (!data.here) return null;
+function HerePin({ here, locale }: { here: boolean; locale: Locale }) {
+  if (!here) return null;
   return (
     <MapPin
       className="dxm-node-here-pin"
-      size={20}
+      size={18}
       strokeWidth={2.5}
-      aria-label={data.locale === "en" ? "You are here" : "いまここ"}
+      aria-label={locale === "en" ? "You are here" : "いまここ"}
     />
   );
 }
@@ -100,7 +103,7 @@ export function CompactNode({ data }: NodeProps) {
       title={`${d.seriesName} / ${d.label}`}
     >
       <Handle type="target" position={Position.Top} isConnectable={false} />
-      <HerePin data={d} />
+      <HerePin here={d.here} locale={d.locale} />
       <span className="dxm-node-title">{d.label}</span>
       <StyleLabel data={d} />
       <SourceHandle connected={d.hasOutgoing} />
@@ -135,7 +138,7 @@ export function CollapsedSeriesNode({ data }: NodeProps) {
     <div className={nodeClass(d, "collapsed")}>
       <Handle type="target" position={Position.Top} isConnectable={false} />
       {/* 折りたたんでも現在地を見失わないよう、コースノードと同じ印を出す */}
-      <HerePin data={d} />
+      <HerePin here={d.here} locale={d.locale} />
       <span className="dxm-node-title">{d.label}</span>
       <span className="dxm-node-meta">
         {d.collapsed?.courseCount ?? 0} コース・{d.lessonCount} レッスン
@@ -145,14 +148,26 @@ export function CollapsedSeriesNode({ data }: NodeProps) {
   );
 }
 
-/** コース群の背後に敷く枠。クリックを奪わない */
+/**
+ * コース群の背後に敷く枠。クリックでシリーズトップへ遷移する（当たり判定は
+ * React Flow の wrapper が持つので、この div は `pointer-events: none` のまま
+ * ——コースノードは z-index が上なので、その上ではコースが当たる）。
+ *
+ * 展開中のそのシリーズのトップページを見ているときは、ここが現在地になる。
+ * ピンは枠の左外・高さ中央——コースのピンがノードの左外に付くのと同じ関係で、
+ * 位置は基底の `.dxm-node-here-pin` がそのまま決める（`globals.css`）。
+ */
 export function SeriesFrameNode({ data }: NodeProps) {
   const d = data as unknown as SeriesFrameData;
   return (
     <div
-      className="dxm-series-frame"
+      className={classNames(
+        "dxm-series-frame",
+        d.here && "dxm-series-frame-here",
+      )}
       style={{ width: d.width, height: d.height }}
     >
+      <HerePin here={d.here} locale={d.locale} />
       <span className="dxm-series-frame-label">{d.seriesName}</span>
     </div>
   );

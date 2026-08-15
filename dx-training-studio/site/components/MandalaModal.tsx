@@ -53,9 +53,9 @@ export function MandalaModal() {
         onClick={() => setOpen(true)}
         aria-label={text.open}
       >
-        {/* 22 なのは箱ではなく見た目を揃えるため。理由は globals.css の
+        {/* 21 なのは箱ではなく見た目を揃えるため。理由は globals.css の
             `.dxm-mandala-button` に書いてある */}
-        <MapIcon size={22} strokeWidth={2} aria-hidden="true" />
+        <MapIcon size={21} strokeWidth={2} aria-hidden="true" />
       </button>
 
       {open && (

@@ -15,6 +15,7 @@ import "@xyflow/react/dist/style.css";
 import {
   buildView,
   collapseSeries,
+  isSeriesFrameHere,
   resolveHereNodeId,
   terminalNodes,
   TERMINAL_PREFIX,
@@ -293,6 +294,9 @@ export function Mandala({
             seriesName: members[0]!.data.seriesName,
             width,
             height,
+            // 展開中のシリーズトップを見ているときは枠が現在地になる
+            here: isSeriesFrameHere(currentLocation, slug),
+            locale,
           } satisfies SeriesFrameData as unknown as Record<string, unknown>,
           draggable: false,
           connectable: false,
@@ -346,6 +350,13 @@ export function Mandala({
       new Map<string, string>([
         ...collapsible.nodes.map((n) => [n.id, n.href] as const),
         ...collapsible.collapsed.map((s) => [s.id, s.href] as const),
+        // 展開中のシリーズ枠もシリーズトップへ飛ばす。当たり判定は触らない
+        // ——枠の wrapper は `onNodeClick` を渡した時点で React Flow が
+        // `pointer-events: all` にしており、すでにクリックを受け取れる。
+        // 「コースノードの上ではコースへ」は z-index が自動でやる（コース 0 / 枠 -1）
+        ...[...new Set(collapsible.nodes.map((n) => n.seriesSlug))].map(
+          (slug) => [`${FRAME_PREFIX}${slug}`, `/${slug}`] as const,
+        ),
       ]),
     [collapsible],
   );

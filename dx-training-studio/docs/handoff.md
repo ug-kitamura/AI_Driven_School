@@ -97,13 +97,16 @@ npm run start   # out/ をローカル配信
 | ワークフロー | 契機 | やること |
 |---|---|---|
 | `.github/workflows/dx-training-site-ci.yml` | `site/` `contents/` `images/` を含む push / PR | 変換 → ビルド → テスト。**デプロイしない**・private でも動く |
-| `.github/workflows/dx-training-site-release.yml` | `v*` タグの push | Pages（basePath 付き）と Vercel（basePath なし）へ配信 |
+| `.github/workflows/dx-training-site-release-pages.yml` | `v*` タグの push | GitHub Pages へ配信（basePath 付き） |
+| `.github/workflows/dx-training-site-release-vercel.yml` | `v*` タグの push | Vercel へ配信（basePath なし） |
 
-- タグが **main に含まれないと検証で止まる**（`git merge-base --is-ancestor`）
-- `VERCEL_TOKEN` 未登録なら Vercel はスキップされ、Pages だけでリリースが完結する（失敗にはならない）
+⚠ **2026-08-15 にリリースワークフローを1本から2本へ分割した**（`dx-training-site-release.yml` → `-pages.yml` / `-vercel.yml`）。Pages（社内トライアル用）と Vercel（ゲーミフィケーションを見据えた理想追求用）は**目的が異なる**ため。トリガー（`v*` タグ）は共有し続けるので「同一コミットから両方へ配信する」という前提は変わらない。タグ検証ロジックは単純さを優先して両ファイルに意図的に重複させている（DRY化しない）。spec（`publishing-site-deployment`）の要件は変わっていないため、この分割は通常作業として実施した（OpenSpec change は起こしていない）。
+
+- タグが **main に含まれないと検証で止まる**（`git merge-base --is-ancestor`）。この検証は2ファイルそれぞれに入っている
+- `VERCEL_TOKEN` 未登録なら Vercel のワークフローはスキップされ、Pages だけでリリースが完結する（失敗にはならない）
 - **残っているのは人の作業だけ**: Pages の Source を「GitHub Actions」に設定 / Vercel に公開サイト用プロジェクトを作り **git 連携を切る** / Secrets 3本を登録 / 初回タグ（`v0.1.0`）を push
 - ⚠ **Pages 配信にはリポジトリが public である必要がある**（Free プラン）。public 化は保留中（→ 2.6）
-- ⚠ **Pages は1リポジトリ1サイト。** comitora レポート（`commit-track-tool-report.yml`）と**互いに丸ごと上書きする**。当面は comitora を手動実行する際に `deploy_pages: false` を選ぶ
+- ✅ **Pages は1リポジトリ1サイトの競合は解消済み。** comitora レポート（`commit-track-tool-ci.yml` / `commit-track-tool-report.yml`）は2026-08-15 に GitHub 側で Disable 済み。再有効化するときは、comitora を手動実行する際に `deploy_pages: false` を選ぶ運用に戻すこと
 
 ### 2.4 人の作業として残っているもの
 

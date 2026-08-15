@@ -72,34 +72,36 @@ NEXT_PUBLIC_BASE_PATH=/AI_Driven_School npm run build
 
 ## デプロイ
 
-ワークフローは2本。**契機が違う**ので混ぜない。
+ワークフローは3本。**契機が違う**ので混ぜない。Pages と Vercel は同じ v* タグで起動するが、**目的が異なる**（Pages＝社内トライアル用 / Vercel＝ゲーミフィケーションを見据えた理想追求用）ためファイルを分けている。
 
-| ワークフロー                   | 契機                                           | やること                                   |
-| ------------------------------ | ---------------------------------------------- | ------------------------------------------ |
-| `dx-training-site-ci.yml`      | `site/` `contents/` `images/` を含む push / PR | 変換 → ビルド → テスト。**デプロイしない** |
-| `dx-training-site-release.yml` | `v*` タグの push                               | Pages と Vercel へ配信                     |
+| ワークフロー                           | 契機                                            | やること                                   |
+| --------------------------------------- | ----------------------------------------------- | ------------------------------------------ |
+| `dx-training-site-ci.yml`               | `site/` `contents/` `images/` を含む push / PR | 変換 → ビルド → テスト。**デプロイしない** |
+| `dx-training-site-release-pages.yml`    | `v*` タグの push                               | GitHub Pages へ配信                        |
+| `dx-training-site-release-vercel.yml`   | `v*` タグの push                               | Vercel へ配信                              |
 
 ```bash
 git tag v0.1.0 && git push origin v0.1.0
 ```
 
 - タグは **`main` に含まれるコミット**に打つこと。作業ブランチのコミットに打つとワークフローが検証で止める（`git merge-base --is-ancestor`）
-- Pages はサブパス配信なので `NEXT_PUBLIC_BASE_PATH=/AI_Driven_School` 付きでビルドし、Vercel は付けずにビルドする。同じコミットから2回ビルドして配る
+- Pages はサブパス配信なので `NEXT_PUBLIC_BASE_PATH=/AI_Driven_School` 付きでビルドし、Vercel は付けずにビルドする。**同じタグ**から2つのワークフローが並列にビルドして配るので、常に同一コミット由来になる
+- タグ検証（main に含まれるかの確認）は2ファイルそれぞれに重複して入っている（単純さを優先し、共通化していない）
 - リリース番号（タグ名）は `NEXT_PUBLIC_SITE_RELEASE` としてビルドに渡され、**サイドバー最上部**に出る。ローカルビルドでは**何も表示されない**（行も余白も出ない）
 
 ### 事前に必要な設定（人が行う）
 
 1. **GitHub Pages**: リポジトリの Settings → Pages → Source を **GitHub Actions** にする。**Pages 配信にはリポジトリが public である必要がある**（Free プラン）。CI と Vercel は private のままでも動く
 2. **Vercel**: 公開サイト用のプロジェクトを新規作成し、**git 連携を切る**（連携したままだと push のたびに公開され、「タグでのみ配信」が崩れる）。Studio 本体のプロジェクトとは別にすること
-3. **Secrets**: `VERCEL_TOKEN` / `VERCEL_ORG_ID` / `VERCEL_PROJECT_ID` をリポジトリに登録する。**未登録なら Vercel のジョブはスキップされ、Pages だけでリリースが完結する**（失敗にはならない）
+3. **Secrets**: `VERCEL_TOKEN` / `VERCEL_ORG_ID` / `VERCEL_PROJECT_ID` をリポジトリに登録する。**未登録なら Vercel のワークフローはスキップされ、Pages だけでリリースが完結する**（失敗にはならない）
 
 ### 注意: Pages は1リポジトリ1サイト
 
-この repo の Pages は `commit-track-tool-report.yml`（comitora レポート）も使う。**両方を出すと互いに丸ごと上書きする**。当面は comitora を手動実行する際に `deploy_pages: false` を選ぶ運用で回避する。
+この repo の Pages は `commit-track-tool-report.yml`（comitora レポート）とも共有していたが、**現在は `commit-track-tool-ci.yml` / `commit-track-tool-report.yml` とも GitHub 側で Disable 済み**なので競合しない。再有効化するときは、comitora を手動実行する際に `deploy_pages: false` を選ぶ運用に戻すこと。
 
 ### 将来: 専用 public リポ方式へ切り替える場合
 
-「成果物のみを別の public リポへ push する」方式に変える場合、変更は `dx-training-site-release.yml` の冒頭 `env` と `deploy-pages` ジョブに閉じる。**`site/` のコードと `scripts/` の変換処理は変更不要**。
+「成果物のみを別の public リポへ push する」方式に変える場合、変更は `dx-training-site-release-pages.yml` の冒頭 `env` と `deploy` ジョブに閉じる。**`site/` のコードと `scripts/` の変換処理は変更不要**。
 
 ## 正本に必要なもの
 

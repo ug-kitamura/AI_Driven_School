@@ -30,5 +30,9 @@
     ".next/dev/types/**/*.ts",
     "**/*.mts"
   ],
-  "exclude": ["node_modules"]
+  // ⚠ site/ は独立した npm プロジェクトで、自前の tsconfig と node_modules を持つ。
+  // 除外しないと include の `**/*.ts(x)` が site/ まで拾い、Studio の型検査が
+  // site の依存（nextra 等）を解決できずに落ちる——ローカルでは「型エラーが多い」
+  // で済むが、Vercel では Studio のビルドが失敗する。
+  "exclude": ["node_modules", "site"]
 }

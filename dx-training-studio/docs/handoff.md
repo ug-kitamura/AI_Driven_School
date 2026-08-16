@@ -21,12 +21,11 @@
        blocking の大半は「社内の空欄を埋める」作業で、
        中身が決まれば機械的に終わる
 
-[次] Vercel の設定（人の作業・コード側は完成）        2.3
-       プロジェクト作成と git 連携解除 / Secrets 3本 /
-       登録後に手動実行して preview URL を確認。手順は
-       site/README.md
-       ⚠ Secrets 登録まで「スキップして緑」＝未検証
+[次] Studio の Vercel に Ignored Build Step        2.3
+       main 以外でビルドが走らないようにする。
+       手順は site/README.md
        ✅ Pages 配信は通った（v5.1.0・2026-08-15）
+       ✅ site の Vercel git 連携も通った（2026-08-16）
        ← サイト側で人手が残っているのはこれだけ
 
 [後] connection-profiles                          会社持ち込みの直前で可。4章
@@ -107,11 +106,22 @@ npm run start   # out/ をローカル配信
 
 ### 2.3 デプロイ（コード側は完成・外部設定は未実施）
 
+**Pages と Vercel は役割が違う。同じものを2か所へ配るのではない。**
+
+| | GitHub Pages | Vercel |
+|---|---|---|
+| 位置づけ | **リリース版**（社内トライアル） | **最新版**（理想追求・実験） |
+| 契機 | `v*` タグ（＋確認用の手動） | **`main` へのマージ** |
+| 担い手 | GitHub Actions | **Vercel の git 連携** |
+| リリース番号 | 出る | 出ない |
+
+⚠ **両者の内容は一致しない。**マージからタグを打つまでの間、Vercel は最新・Pages は前回リリースのまま。**どちらを見ているかで判断が変わる場面では URL を明示すること。**
+
 | ワークフロー | 契機 | やること |
 |---|---|---|
 | `.github/workflows/dx-training-site-ci.yml` | **`main` への push** / PR（`site/` `contents/` `images/` を含むもの）/ 手動 | 変換 → ビルド → テスト。**デプロイしない** |
 | `.github/workflows/dx-training-site-release-pages.yml` | `v*` タグの push / **手動** | GitHub Pages へ配信（basePath 付き） |
-| `.github/workflows/dx-training-site-release-vercel.yml` | `v*` タグの push / **手動** | Vercel へ配信（basePath なし） |
+| `.github/workflows/dx-training-site-release-vercel.yml` | **使っていない** | git 連携へ移行済み。逃げ道として残置（UI で disable ＋ タグ契機をコメントアウトの二重停止。使うには Enable と Secrets 登録が要る） |
 
 ⚠ **CI の `push` は `main` に絞ってある。外すと同じ push で2回走る**——`pull_request` と同じ paths を見ているため、PR が開いているブランチへの push で両方が発火する。`concurrency` の group は `github.ref` 依存で、push（`refs/heads/<branch>`）と PR（`refs/pull/<n>/merge`）は値が違うので相殺されない（2026-08-15 に実際に2回走って発覚）。作業ブランチは PR の契機で、`main` へのマージは push の契機で拾う。**代償として PR を作る前のブランチ push では CI が回らない。**
 
@@ -121,10 +131,13 @@ npm run start   # out/ をローカル配信
 |---|---|---|
 | main 祖先チェック（ワークフロー側） | する | **しない** |
 | リリース番号 | タグ名 | `version` 入力（既定 空） |
-| Vercel | `--prod` 本番 | **preview URL**（本番を汚さない。URL はジョブサマリに出る） |
-| Pages | 本番サイト | 本番サイト（プレビューの概念が無い） |
+| 配信先 | Pages の本番サイト | Pages の本番サイト（プレビューの概念が無い） |
 
-⚠ **作業ブランチからの手動 Pages 実行は成功しない。**ワークフローが main 祖先チェックを飛ばしても、`github-pages` environment の保護が `main` とタグ以外を弾く。**任意ブランチの確認は Vercel preview を使う。**この保護は「作業ブランチの内容が社内トライアルサイトに出る」のを防ぐ安全網なので、**"No restriction" にしないこと**（`publishing-site-deployment` spec に明文あり）。
+⚠ **作業ブランチからの手動 Pages 実行は成功しない。**ワークフローが main 祖先チェックを飛ばしても、`github-pages` environment の保護が `main` とタグ以外を弾く。この保護は「作業ブランチの内容が社内トライアルサイトに出る」のを防ぐ安全網なので、**"No restriction" にしないこと**（`publishing-site-deployment` spec に明文あり）。
+
+⚠ **作業ブランチの内容を「配信して」確認する手段は無い。**Pages は environment 保護で弾かれ、Vercel は Ignored Build Step で `main` 限定にしてある。確認は**ローカルビルド**（`npm run build` → `npm run start`）か**`main` へマージ**のどちらか。
+
+⚠ **Vercel の Ignored Build Step は `exit 1` = ビルドする / `exit 0` = スキップ**。向きが逆なので**両方の分岐を書く**（`if [ "$VERCEL_GIT_COMMIT_REF" = "main" ]; then exit 1; else exit 0; fi`）。片方だけ書くと `if` 文が 0 を返し、**`main` こそがキャンセルされる**（2026-08-16 に実際に踏んだ）。**同じリポジトリを見ている Vercel プロジェクト全部に要る**（公開サイト・Studio 本体）。設定手順は `site/README.md`。
 
 ⚠ **`workflow_dispatch` の Run workflow ボタンは、デフォルトブランチのワークフロー定義を見て出る。**手動トリガーを新しく足したときは**一度 `main` にマージするまでボタンが現れない**（`gh workflow run` でも同じ）。マージ後は任意ブランチを選んで起動できる。
 
@@ -132,14 +145,15 @@ npm run start   # out/ をローカル配信
 
 ⚠ **ワークフローの発火条件（`v*`）と environment の許可パターン（`v*.*.*`）が一致していない。**`v6` や `v0.2` のようなタグを打つと**ビルドは走ってから deploy だけが拒否される**（今日踏んだのと同じ分かりにくい落ち方）。いまの27タグは全て `vX.Y.Z` なので実害は出ていない。**揃えるならワークフロー側を `v*.*.*` に狭めるのが筋**（非セマンティックなタグはそもそも発火しなくなる）。未判断。
 
-⚠ **Vercel は Secrets 未登録のうち、手動実行しても「スキップして緑」になる。**何も確認できていない状態が緑に見えるので、**Secrets 登録後にもう一度手動実行して preview URL がジョブサマリに出ることを確かめる**まで、Vercel 経路は未検証。
+⚠ **Studio 本体の tsconfig は `site` を除外している**（`exclude: ["node_modules", "site"]`）。外すと Studio のビルドが `site/app/layout.tsx` の `nextra/components` を解決できず**Vercel で落ちる**（ローカルでは「型エラーが多い」で済むので気づきにくい）。2026-08-16 に Studio の Vercel デプロイが実際にこれで失敗した。
 
 ⚠ **2026-08-15 にリリースワークフローを1本から2本へ分割した**（`dx-training-site-release.yml` → `-pages.yml` / `-vercel.yml`）。Pages（社内トライアル用）と Vercel（ゲーミフィケーションを見据えた理想追求用）は**目的が異なる**ため。トリガー（`v*` タグ）は共有し続けるので「同一コミットから両方へ配信する」という前提は変わらない。タグ検証ロジックは単純さを優先して両ファイルに意図的に重複させている（DRY化しない）。spec（`publishing-site-deployment`）の要件は変わっていないため、この分割は通常作業として実施した（OpenSpec change は起こしていない）。
 
 - タグが **main に含まれないと検証で止まる**（`git merge-base --is-ancestor`）。この検証は2ファイルそれぞれに入っている
 - `VERCEL_TOKEN` 未登録なら Vercel のワークフローはスキップされ、Pages だけでリリースが完結する（失敗にはならない）
 - ✅ **Pages 配信は通った**（2026-08-15・`v5.1.0`）。public 化 → Source を GitHub Actions → environment にタグルール、まで完了（→ 2.6）
-- **残っている人の作業は Vercel だけ**: 公開サイト用プロジェクトを作り **git 連携を切る**（Studio 本体とは別プロジェクト）/ Secrets 3本を登録 / 登録後に手動実行して preview URL を確認。手順は `site/README.md`
+- ✅ **Vercel の git 連携も通った**（2026-08-16）。Secrets 3本は**不要になった**（逃げ道のワークフローを使う日にだけ要る）
+- **残っている人の作業**: Studio 本体の Vercel プロジェクトに Ignored Build Step を入れる（→ 上の ⚠）。手順は `site/README.md`
 - ⚠ **Pages は1リポジトリ1サイト。** comitora レポート（`commit-track-tool-ci.yml` / `commit-track-tool-report.yml`）を GitHub 側で Disable して競合を外している。**再有効化するなら**、comitora の手動実行時に `deploy_pages: false` を選ぶ運用に戻すこと
 
 ### 2.4 人の作業として残っているもの
@@ -490,7 +504,7 @@ contents-work/
 
 **型・設定**:
 
-- **`tsc --noEmit` が `site/` を巻き込む** — `tsconfig.json` の `exclude` が `node_modules` だけなので、独自 tsconfig を持つ `site/` まで検査して73件出る。実害は「アプリ側の型エラーを見つけにくい」こと。`exclude` に `site` を足すだけ
+- ✅ **`tsc --noEmit` が `site/` を巻き込む問題は解決済み**（2026-08-16。`exclude` に `site` を追加）。⚠ **戻さないこと**——外すと Studio の Vercel デプロイが落ちる（→ 2.3）
 - テスト側の型エラー8件（`estimatedMinutes` の綴り違い等）——**すべて古くから**。site 側は0件（クリーンを保つこと）
 
 **死んだコード・古い記述**:

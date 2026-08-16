@@ -73,18 +73,23 @@ TBD - created by archiving change pane4-ai-generation-and-settings. Update Purpo
 
 ### Requirement: ペイン既定幅を設定できる
 
-設定ダイアログは Pane1・Pane2・Pane4 の既定幅（px）を `pane-layout.ts` の min/max 内で編集でき、**3 ペイン分の数値入力を横 1 行**（レスポンシブ時は折り返し可）に配置しなければならない（SHALL）。保存時に `settings.paneDefaults` へ格納しなければならない（SHALL）。「今のレイアウトに適用」は現在値をワークスペース幅 state および `dx-training-studio-pane-widths` に書き込まなければならない（SHALL）。「既定幅に戻す」（リセット）は `paneDefaults` をコード既定に戻す操作として、`ghost` より視認しやすいスタイル（例: `outline`）で提供しなければならない（SHALL）。初回起動で `pane-widths` が無いときは `paneDefaults` を読み込まなければならない（SHALL）。コード既定の pane4 幅は **600** でなければならない（SHALL）。pane1・pane2 のコード既定は **250** でなければならない（SHALL）。
+設定ダイアログはツリーペイン・Pane4 の既定幅（px）を `pane-layout.ts` の min/max 内で編集でき、**2 ペイン分の数値入力を横 1 行**（レスポンシブ時は折り返し可）に配置しなければならない（SHALL）。保存時に `settings.paneDefaults` へ格納しなければならない（SHALL）。「今のレイアウトに適用」は現在値をワークスペース幅 state および `dx-training-studio-pane-widths` に書き込まなければならない（SHALL）。「既定幅に戻す」（リセット）は `paneDefaults` をコード既定に戻す操作として、`ghost` より視認しやすいスタイル（例: `outline`）で提供しなければならない（SHALL）。初回起動で `pane-widths` が無いときは `paneDefaults` を読み込まなければならない（SHALL）。コード既定の pane4 幅は **600** でなければならない（SHALL）。ツリーペインのコード既定は **300** でなければならない（SHALL）。旧3ペイン形式（pane1 / pane2）で保存された `paneDefaults` / `pane-widths` は読み捨ててコード既定へフォールバックしなければならない（SHALL）——エラーにしてはならない（MUST NOT）。
 
 #### Scenario: 初回起動で paneDefaults を読む
 
 - **WHEN** `dx-training-studio-pane-widths` が存在しない
-- **AND** ユーザーが以前 paneDefaults を 250/250/600 に保存している
+- **AND** ユーザーが以前 paneDefaults を 300/600 に保存している
 - **THEN** 初回 fit は保存済み paneDefaults を用いる
 
 #### Scenario: 既定幅リセットで pane4 が 600
 
 - **WHEN** ユーザーが設定ダイアログで「既定幅に戻す」を実行する
-- **THEN** pane4 の paneDefaults は 600 になる
+- **THEN** pane4 の paneDefaults は 600 になり、ツリーペインは 300 になる
+
+#### Scenario: 旧3ペイン形式は既定値へフォールバック
+
+- **WHEN** `dx-training-studio-pane-widths` に旧形式（pane1 / pane2 / pane4）が保存された状態で起動する
+- **THEN** エラーにならず、ツリーペイン 300 / pane4 600 のコード既定（または保存済みの新形式 paneDefaults）が使われる
 
 ### Requirement: 編集モードの CodeMirror はテーマに追従する
 
@@ -124,11 +129,11 @@ Web タブの検索 API 呼び出し時、クライアントは `x-pixabay-api-k
 
 ### Requirement: 環境変数テンプレートを提供する
 
-リポジトリは **`dx-training-studio/.env.example`** をコミットし、`AI_API_KEY`・`PIXABAY_API_KEY`・**`BLOB_READ_WRITE_TOKEN`** のプレースホルダを含めなければならない（SHALL）。**`.env.local`** は git 追跡対象外としなければならない（SHALL）。`BLOB_READ_WRITE_TOKEN` は設定ダイアログでは編集せず、`.env.local` のみで設定する（SHALL）。readme は `.env.example` をコピーして `.env.local` を作成する手順を記載しなければならない（SHALL）。
+リポジトリは **`dx-training-studio/studio/.env.example`** をコミットし、`AI_API_KEY`・`PIXABAY_API_KEY`・**`BLOB_READ_WRITE_TOKEN`** のプレースホルダを含めなければならない（SHALL）。**`.env.local`** は git 追跡対象外としなければならない（SHALL）。`BLOB_READ_WRITE_TOKEN` は設定ダイアログでは編集せず、`.env.local` のみで設定する（SHALL）。readme は `.env.example` をコピーして `.env.local` を作成する手順を記載しなければならない（SHALL）。
 
 #### Scenario: 新規開発者が env を設定できる
 
-- **WHEN** 開発者が `.env.example` を `.env.local` にコピーしキーを記入する
+- **WHEN** 開発者が `studio/.env.example` を `studio/.env.local` にコピーしキーを記入する
 - **AND** `npm run dev` で起動する
 - **THEN** 設定ダイアログ未入力でも AI / Web API が env キーで動作する
 

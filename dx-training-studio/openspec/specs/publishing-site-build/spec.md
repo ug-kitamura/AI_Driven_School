@@ -6,14 +6,14 @@
 ## Requirements
 ### Requirement: contents/ を走査して公開サイトの入力を生成する
 
-変換スクリプトは `contents/` を走査し、Nextra が期待する配置（`site/content/` 配下の `.md` と `_meta` ファイル）を生成しなければならない（SHALL）。`contents/` を変更・削除してはならない（SHALL NOT）——正本は読み取り専用として扱う。生成物はビルドのたびに作り直せるものとし、git の追跡対象にしてはならない（SHALL NOT）。
+変換スクリプトは `contents/` を走査し、Nextra が期待する配置（`mandala/content/` 配下の `.md` と `_meta` ファイル）を生成しなければならない（SHALL）。`contents/` を変更・削除してはならない（SHALL NOT）——正本は読み取り専用として扱う。生成物はビルドのたびに作り直せるものとし、git の追跡対象にしてはならない（SHALL NOT）。
 
-走査は `lib/contents-loader.ts` の走査規則（`_` / `.` 始まりディレクトリの除外、`.meta.json` の `order` による並び）に従わなければならない（SHALL）。
+走査は `studio/lib/contents-loader.ts` の走査規則（`_` / `.` 始まりディレクトリの除外、`.meta.json` の `order` による並び）に従わなければならない（SHALL）。
 
 #### Scenario: 正本から Nextra の入力を生成する
 
 - **WHEN** `contents/` にシリーズ・コース・レッスンが存在する状態で変換スクリプトを実行する
-- **THEN** `site/content/` 配下に各レッスンの `.md` と各階層の `_meta` が生成される
+- **THEN** `mandala/content/` 配下に各レッスンの `.md` と各階層の `_meta` が生成される
 - **AND** `contents/` 配下のファイルは変更されていない
 
 #### Scenario: 生成物が追跡対象外である
@@ -154,13 +154,19 @@
 
 ### Requirement: ビルド込みの一発起動スクリプト
 
-`site/start.bat` は、ビルド（`npm run build`）を実行してから開発サーバー（`npm run dev`）を起動しなければならない（SHALL）——検索インデックスはビルドでしか生成されないため、この順序で起動した開発サーバーでは検索が機能する。
+mandala の起動スクリプトは入れ物直下に置く（配置は project-layout の要件に従う）。`start-mandala-dev.bat` は、ビルド（`npm run build`）を実行してから開発サーバー（`npm run dev`）を起動しなければならない（SHALL）——検索インデックスはビルドでしか生成されないため、この順序で起動した開発サーバーでは検索が機能する。`start-mandala.bat` は、ビルドを実行してから `out/` を配信するサーバー（`npm run start`）を起動しなければならない（SHALL）。
 
-#### Scenario: start.bat で起動する
+#### Scenario: start-mandala-dev.bat で起動する
 
-- **WHEN** `site/start.bat` を実行する
+- **WHEN** `start-mandala-dev.bat` を実行する
 - **THEN** 変換 → ビルド（検索インデックス生成を含む）が実行された後に開発サーバーが起動する
 - **AND** 起動した開発サーバーで検索が機能する
+
+#### Scenario: start-mandala.bat で本番相当を起動する
+
+- **WHEN** `start-mandala.bat` を実行する
+- **THEN** 変換 → ビルドが実行された後に `out/` の配信サーバーが起動する
+- **AND** 配信されたサイトで検索が機能する
 
 ### Requirement: 変換はコースの style を site-data.json に含める
 

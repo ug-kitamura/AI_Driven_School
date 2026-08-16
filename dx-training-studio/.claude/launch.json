@@ -9,7 +9,7 @@
       "url": "http://localhost:3001"
     },
     {
-      "name": "dx-training-mandala",
+      "name": "dx-training-mandala-dev",
       "runtimeExecutable": "npm",
       "runtimeArgs": ["--prefix", "mandala", "run", "dev"],
       "port": 3002,

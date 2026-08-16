@@ -13,7 +13,7 @@ GitHubのコミット履歴をAIで分析し、図解レポートをSlackに自�
 
 ### 3. [DX Training Studio](dx-training-studio)
 
-DX ツールトレーニングのコンテンツ計画・作成・編集・デプロイを支援する統合スタジオ（4ペイン UI）。
+DX ツールトレーニングのコンテンツ計画・作成・編集・デプロイを支援するプロジェクト。執筆スタジオ（`studio/`・4ペイン UI）と受講者向け公開サイト DX Training Mandala（`mandala/`）が正本 `contents/` を挟んで並ぶ。
 
 ### 4. [EBEX](ebex)
 

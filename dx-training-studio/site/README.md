@@ -72,13 +72,24 @@ NEXT_PUBLIC_BASE_PATH=/AI_Driven_School npm run build
 
 ## デプロイ
 
-ワークフローは3本。**契機が違う**ので混ぜない。Pages と Vercel は同じ v* タグで起動するが、**目的が異なる**（Pages＝社内トライアル用 / Vercel＝ゲーミフィケーションを見据えた理想追求用）ためファイルを分けている。
+**Pages と Vercel は同じものを2か所へ配るのではなく、役割が違う。**
+
+| | GitHub Pages | Vercel |
+| --- | --- | --- |
+| 位置づけ | **リリース版**（社内トライアル配信） | **最新版**（理想追求・実験） |
+| 契機 | `v*` タグ（＋確認用の手動トリガー） | **`main` へのマージ** |
+| 配信の担い手 | GitHub Actions | **Vercel の git 連携** |
+| リリース番号 | 出る（タグ名） | 出ない |
+
+⚠ **両者の内容は一致しない。**`main` にマージしてタグを打つまでの間、Vercel は最新・Pages は前回リリースのままになる。**どちらを見ているかで判断が変わる場面では URL を明示すること。**
+
+GitHub Actions のワークフローは3本。**契機が違う**ので混ぜない。
 
 | ワークフロー                           | 契機                                                    | やること                                   |
 | --------------------------------------- | ------------------------------------------------------- | ------------------------------------------ |
 | `dx-training-site-ci.yml`               | **`main` への push** / PR / 手動                        | 変換 → ビルド → テスト。**デプロイしない** |
 | `dx-training-site-release-pages.yml`    | `v*` タグの push / 手動                                 | GitHub Pages へ配信                        |
-| `dx-training-site-release-vercel.yml`   | `v*` タグの push / 手動                                 | Vercel へ配信（タグ＝本番 / 手動＝preview）|
+| `dx-training-site-release-vercel.yml`   | **使っていない**（手動のみ・UI でも disable 済み）      | Vercel 配信は git 連携へ移行した。git 連携が壊れたときの逃げ道として残してある |
 
 ```bash
 git tag v0.1.0 && git push origin v0.1.0
@@ -95,14 +106,15 @@ git tag v0.1.0 && git push origin v0.1.0
 | ------------------- | -------------------- | -------------------------------------------- |
 | main 祖先チェック   | する                 | **しない**（ワークフロー側）                 |
 | リリース番号        | タグ名               | `version` 入力（既定 空）                    |
-| Vercel              | `--prod` 本番        | **preview URL**（ジョブサマリに出る）        |
-| Pages               | 本番サイト           | 本番サイト（プレビューの概念が無いため）     |
+| 配信先              | Pages の本番サイト   | Pages の本番サイト（プレビューの概念が無いため） |
 
-⚠ **作業ブランチからの手動 Pages 実行は成功しない。**ワークフローが main 祖先チェックを飛ばしても、`github-pages` environment の保護が `main` とタグ以外の ref を弾く（下記）。**任意のブランチから確認したいときは Vercel の手動実行（preview）を使う。**
+⚠ **作業ブランチからの手動 Pages 実行は成功しない。**ワークフローが main 祖先チェックを飛ばしても、`github-pages` environment の保護が `main` とタグ以外の ref を弾く（下記）。
+
+⚠ **作業ブランチの内容を「配信して」確認する手段は無い。**Pages は environment 保護で弾かれ、Vercel は `main` 限定にしてある。確認したいときは**ローカルで `npm run build` → `npm run start`** か、**`main` にマージする**かのどちらか。
 
 ⚠ `workflow_dispatch` の **Run workflow ボタンは、デフォルトブランチにあるワークフロー定義を見て出る**。手動トリガーを新しく足したときは、**一度 `main` にマージするまでボタンが現れない**。マージ後は任意のブランチを選んで起動できる。
-- Pages はサブパス配信なので `NEXT_PUBLIC_BASE_PATH=/AI_Driven_School` 付きでビルドし、Vercel は付けずにビルドする。**同じタグ**から2つのワークフローが並列にビルドして配るので、常に同一コミット由来になる
-- タグ検証（main に含まれるかの確認）は2ファイルそれぞれに重複して入っている（単純さを優先し、共通化していない）
+- Pages はサブパス配信なので `NEXT_PUBLIC_BASE_PATH=/AI_Driven_School` 付きでビルドし、Vercel は付けずにビルドする（ルート配信のため）。⚠ **この値はリポジトリ名に由来する**（`https://<owner>.github.io/<repo>/`）。**リポジトリ名を変えたら `dx-training-site-release-pages.yml` の `PAGES_BASE_PATH` も変えること**——変えないと配信されたサイトの CSS・JS・画像がすべて 404 になる
+- タグ検証（main に含まれるかの確認）は Pages のワークフローに入っている
 - リリース番号（タグ名）は `NEXT_PUBLIC_SITE_RELEASE` としてビルドに渡され、**サイドバー最上部**に出る。ローカルビルドでは**何も表示されない**（行も余白も出ない）
 
 ### 事前に必要な設定（人が行う）
@@ -124,13 +136,42 @@ git tag v0.1.0 && git push origin v0.1.0
 
 **Pages 配信にはリポジトリが public である必要がある**（Free プラン）。CI と Vercel は private のままでも動く。
 
-#### Vercel
+#### Vercel —— git 連携で配る（GitHub Actions は使わない）
 
-1. **プロジェクトを作る**: 公開サイト用のプロジェクトを新規作成し、**git 連携を切る**（連携したままだと push のたびに公開され、「タグでのみ配信」が崩れる）。Studio 本体のプロジェクトとは別にすること。`site/` で `npx vercel@latest link` を実行して新規作成するのが確実（Web UI から GitHub を import すると連携が張られるので、その場合は Project Settings → Git → Disconnect）
-2. **Secrets**: `VERCEL_TOKEN` / `VERCEL_ORG_ID` / `VERCEL_PROJECT_ID` をリポジトリに登録する。後ろ2つは `link` で作られる `site/.vercel/project.json` の `orgId` / `projectId`。トークンは vercel.com → Settings → Tokens で発行。⚠ `.vercel/` はコミットしない
-3. **未登録ならスキップされる**: Vercel のワークフローは Secrets が無いと**スキップして緑になる**。⚠ **何も確認できていない状態が緑に見える**ので、登録後にもう一度手動実行して preview URL がジョブサマリに出ることを確かめること
+公開サイト用のプロジェクトを作り、GitHub リポジトリと**連携する**。Studio 本体とは**別プロジェクト**にすること。設定は次のとおり。
 
-ビルド済みの `out/` をそのまま配る方式（`vercel deploy out`）なので、**Vercel 側のビルド設定は触らなくてよい**。
+| 設定 | 値 | 忘れると |
+| --- | --- | --- |
+| Root Directory | `dx-training-studio/site` | ビルドコマンドが見つからない |
+| **Include files outside the root directory** | **Enabled** | 変換が `../contents` を読めず「正本が見つかりません」で落ちる |
+| Framework Preset | **Next.js** | `No framework detected` になり、`out/` ではなく `public/` が配信されて**全ページ 404** |
+| Node.js Version | 22.6 以上（現在 24.x） | `build:content` の `--experimental-strip-types` が動かない |
+| Production Branch | `main` | — |
+| Ignored Build Step | 下記のコマンド | 全ブランチの push で preview ビルドが走る |
+| Skip deployments（root に変更が無ければスキップ） | **Disabled** | ⚠ `contents/` は Root Directory の**外**なので、**原稿だけ直したときに黙ってスキップされる** |
+| Build Command / Output Directory | 既定のまま（Override しない） | — |
+
+**Ignored Build Step**（Project Settings → Git）:
+
+```bash
+if [ "$VERCEL_GIT_COMMIT_REF" = "main" ]; then exit 1; else exit 0; fi
+```
+
+⚠ **`exit 1` = ビルドする / `exit 0` = スキップ**。向きが直感と逆なので、**両方の分岐を必ず書くこと**。`if [ ... != "main" ]; then exit 0; fi` と片方だけ書くと、条件が偽のとき `if` 文が 0 を返し、**`main` こそがキャンセルされる**（実際に踏んだ）。
+
+⚠ **この Ignored Build Step は、同じリポジトリを見ている Vercel プロジェクトすべてに入れる。**公開サイトと Studio 本体は別プロジェクトだが同じリポジトリを見ているので、片方だけでは他方が毎回ビルドする。
+
+⚠ **Framework Preset を後から変えても、既存の Production デプロイには遡って効かない。**Project Settings と現行デプロイがずれていると黄色い警告（`Configuration Settings in the current Production deployment differ from...`）が出る。**新しいビルドを1回走らせるまで直らない**——Redeploy（Build Cache のチェックを外す）か `main` への push で。
+
+##### 逃げ道のワークフロー
+
+`dx-training-site-release-vercel.yml` は git 連携が壊れたときのために残してあるが、**二重に止まっている**。使うには3手が要る。
+
+1. GitHub UI でワークフローを **Enable**（disable 中は `workflow_dispatch` も押せない）
+2. Secrets 3本（`VERCEL_TOKEN` / `VERCEL_ORG_ID` / `VERCEL_PROJECT_ID`）を登録
+3. Run workflow
+
+⚠ Secrets が未登録だと `Check Vercel credentials` が**スキップして緑になる**——何も配信されていないのに成功に見える。
 
 ### 注意: Pages は1リポジトリ1サイト
 

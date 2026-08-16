@@ -22,17 +22,12 @@
        中身が決まれば機械的に終わる
 
 [次] Studio デモの Vercel デプロイ修復              8.6
-       change fix-studio-vercel-demo-deploy。コード側は実装済み・
-       **preview 未検証**。残るのは人の手が要る2つだけ:
-         ・作業ブランチを push して preview を検証する
-           ⚠ 緑では不合格。開いてツリーが空でないことと
-             画像が出ることまで見る
-         ・検証後に Ignored Build Step を元へ戻す
-           （preview を通すため一時的に緩めてある）
-       ⚠ 直るまで社内デモは兄弟構成移行前のビルドを表示し続ける
+       change fix-studio-vercel-demo-deploy。✅ preview で検証済み
+       （2026-08-16）。残るのは PR → main マージだけ（⚠ 人がやる）
+       ⚠ マージするまで社内デモは兄弟構成移行前のビルドのまま
 
        ✅ Vercel 2プロジェクトの Root Directory 更新は完了（2026-08-16）
-       ✅ Studio 本体の Ignored Build Step も投入済み
+       ✅ Studio 本体の Ignored Build Step も投入済み・検証後に復旧済み
        ✅ Pages 配信は通った（v5.1.0・2026-08-15）
        ✅ site の Vercel git 連携も通った（2026-08-16）
 

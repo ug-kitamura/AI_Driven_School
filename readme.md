@@ -1,5 +1,5 @@
 # AI Driven School
-
+test
 ## ツール一覧
 
 ### 1. [Minutes Maid（ミニッツメイド）](minutes-maid)

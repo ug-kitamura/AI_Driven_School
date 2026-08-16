@@ -77,11 +77,7 @@ export function useWorkspacePaneWidths(
       setPaneWidths((prev) => {
         const dragged = { ...prev, [drag.pane]: nextWidth };
         const fitted = applyFit(dragged, drag.pane);
-        if (
-          prev.pane1 === fitted.pane1 &&
-          prev.pane2 === fitted.pane2 &&
-          prev.pane4 === fitted.pane4
-        ) {
+        if (prev.tree === fitted.tree && prev.pane4 === fitted.pane4) {
           return prev;
         }
         return fitted;

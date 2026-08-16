@@ -1,12 +1,10 @@
 export type WorkspacePaneWidths = {
-  pane1: number;
-  pane2: number;
+  tree: number;
   pane4: number;
 };
 
 export const PANE_WIDTH_DEFAULTS: WorkspacePaneWidths = {
-  pane1: 250,
-  pane2: 250,
+  tree: 300,
   pane4: 600,
 };
 
@@ -19,8 +17,7 @@ export const PANE4_COLLAPSED_WIDTH = 48;
 /** ウィンドウリサイズ等: pane3 不足時の縮小順 */
 export const PANE_SHRINK_ORDER_DEFAULT: (keyof WorkspacePaneWidths)[] = [
   "pane4",
-  "pane1",
-  "pane2",
+  "tree",
 ];
 
 /** 各ペインを広げる際に他ペインを縮める順（pane3 は常に最後＝ここには含めない） */
@@ -28,9 +25,8 @@ export const PANE_SHRINK_ORDER_WHEN_EXPAND: Record<
   keyof WorkspacePaneWidths,
   (keyof WorkspacePaneWidths)[]
 > = {
-  pane1: ["pane4", "pane2"],
-  pane2: ["pane4"],
-  pane4: ["pane1", "pane2"],
+  tree: ["pane4"],
+  pane4: ["tree"],
 };
 
 /** ImageGrid セル最小幅（px） */
@@ -43,8 +39,7 @@ export const PANE_RESIZE_HANDLE_WIDTH_PX = 8;
 export const PANE_WIDTH_STEP = 5;
 
 export const PANE_WIDTH_LIMITS = {
-  pane1: { min: 200, max: 400 },
-  pane2: { min: 200, max: 400 },
+  tree: { min: 200, max: 500 },
   pane4: { min: 400, max: 1000 },
 } as const;
 
@@ -53,8 +48,7 @@ export const PANE_RESIZE_INVERT_DELTA: Record<
   keyof WorkspacePaneWidths,
   boolean
 > = {
-  pane1: false,
-  pane2: false,
+  tree: false,
   pane4: true,
 };
 
@@ -89,10 +83,11 @@ function loadPaneDefaultsFromSettings(): WorkspacePaneWidths {
     const parsed = JSON.parse(raw) as {
       paneDefaults?: Partial<WorkspacePaneWidths>;
     };
+    // 旧3ペイン形式（pane1 / pane2）の保存値は tree キーを持たないため、
+    // ここで自然にコード既定へフォールバックする（読み捨て・エラーにしない）
     const d = parsed.paneDefaults;
     return {
-      pane1: clampPaneWidth("pane1", d?.pane1 ?? PANE_WIDTH_DEFAULTS.pane1),
-      pane2: clampPaneWidth("pane2", d?.pane2 ?? PANE_WIDTH_DEFAULTS.pane2),
+      tree: clampPaneWidth("tree", d?.tree ?? PANE_WIDTH_DEFAULTS.tree),
       pane4: clampPaneWidth("pane4", d?.pane4 ?? PANE_WIDTH_DEFAULTS.pane4),
     };
   } catch {
@@ -108,14 +103,13 @@ function clampRequestedWidths(
   requested: WorkspacePaneWidths,
 ): WorkspacePaneWidths {
   return {
-    pane1: clampPaneWidth("pane1", requested.pane1),
-    pane2: clampPaneWidth("pane2", requested.pane2),
+    tree: clampPaneWidth("tree", requested.tree),
     pane4: clampPaneWidth("pane4", requested.pane4),
   };
 }
 
 function mainRowHandleCount(pane4Open: boolean): number {
-  return pane4Open ? 2 : 1;
+  return pane4Open ? 1 : 0;
 }
 
 function pane4EffectiveWidth(
@@ -134,8 +128,7 @@ export function computePane3Width(
     mainRowHandleCount(options.pane4Open) * PANE_RESIZE_HANDLE_WIDTH_PX;
   return (
     options.totalWidth -
-    widths.pane1 -
-    widths.pane2 -
+    widths.tree -
     pane4EffectiveWidth(widths, options.pane4Open) -
     handles
   );
@@ -210,8 +203,7 @@ export function snapPaneWidth(
 
 export function snapPaneWidths(widths: WorkspacePaneWidths): WorkspacePaneWidths {
   return {
-    pane1: snapPaneWidth("pane1", widths.pane1),
-    pane2: snapPaneWidth("pane2", widths.pane2),
+    tree: snapPaneWidth("tree", widths.tree),
     pane4: snapPaneWidth("pane4", widths.pane4),
   };
 }
@@ -222,10 +214,10 @@ export function loadPaneWidths(): WorkspacePaneWidths {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return { ...defaults };
+    // 旧3ペイン形式は tree キーが無いので既定値へフォールバックする
     const parsed = JSON.parse(raw) as Partial<WorkspacePaneWidths>;
     return {
-      pane1: clampPaneWidth("pane1", parsed.pane1 ?? defaults.pane1),
-      pane2: clampPaneWidth("pane2", parsed.pane2 ?? defaults.pane2),
+      tree: clampPaneWidth("tree", parsed.tree ?? defaults.tree),
       pane4: clampPaneWidth("pane4", parsed.pane4 ?? defaults.pane4),
     };
   } catch {

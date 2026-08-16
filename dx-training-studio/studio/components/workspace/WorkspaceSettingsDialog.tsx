@@ -204,8 +204,7 @@ function SettingsForm({
   };
 
   const paneLabels = {
-    pane1: "Pane 1",
-    pane2: "Pane 2",
+    tree: "ツリー",
     pane4: "Pane 4",
   } as const;
 
@@ -281,8 +280,8 @@ function SettingsForm({
         <section className="flex flex-col gap-3">
           <h3 className="text-sm font-semibold text-foreground">横幅</h3>
           <div className="flex items-end gap-1.5">
-            <div className="grid min-w-0 flex-1 grid-cols-3 gap-2">
-              {(["pane1", "pane2", "pane4"] as const).map((pane) => {
+            <div className="grid min-w-0 flex-1 grid-cols-2 gap-2">
+              {(["tree", "pane4"] as const).map((pane) => {
                 const limits = PANE_WIDTH_LIMITS[pane];
                 return (
                   <MetaDialogField key={pane}>

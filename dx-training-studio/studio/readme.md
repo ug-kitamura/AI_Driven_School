@@ -25,14 +25,15 @@ Windows では入れ物直下の **`start-studio-dev.bat`** を推奨（Playwrig
 
 AI タブで Tailwind 図解を生成する場合は、初回のみ `npx playwright install chromium` が必要です（`start-studio-dev.bat` に含まれます）。
 
-## 4ペイン構成
+## ペイン構成
 
 | ペイン | 役割 |
 |---|---|
-| **Pane 1** | シリーズ・コース一覧（折りたたみ / DnD 並び替え / 進捗バー） |
-| **Pane 2** | コースメタ情報（受講対象・前後コース・Mermaid フロー図）＋ レッスン一覧 |
+| **ツリー** | シリーズ → コース → レッスンの3階層ツリー（右クリックメニューで CRUD・複製・エクスプローラ / DnD 並び替え / レッスン行にステータスボタン / 下部にミニ曼陀羅） |
 | **Pane 3** | マークダウンエディタ（編集 / プレビュー / Git 差分） |
 | **Pane 4** | AI Agent チャット（デフォルト）と画像アセットマネージャー（Used / Upload / AI / Web）の切替 |
+
+ツリーの操作は右クリックに集約されている: properties（メタ編集）/ add series・add course・add lesson / rename / copy・paste（複製。`id` は自動再採番・`slug` は空で作られる）/ open explorer / delete。
 
 GlobalHeader に **DXトレーニング曼陀羅** と **設定（歯車）** がある。設定では **AI モデル**、AI API キー、Pixabay API キー、**画像の管理（ローカル / ストレージ）**、**社内コンテキストの管理（ローカル / データベース）**、テーマ（ライト／ダーク／システム）、ペイン既定幅、Pane3 編集フォントサイズを変更できる。
 

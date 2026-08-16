@@ -196,11 +196,19 @@ npm run start   # out/ をローカル配信
 - ⚠ **勤務先が特定できる状態のまま公開している**: git 履歴の**企業メールのコミット1件**（2026-07-30・`APAC\kau2yk <Yuji.Kitamura@jp.bosch.com>`）と `ebex/.claude/skills/meeting-minutes/SKILL.md` の Bosch の記述は、**履歴 rewrite をしていないので残っている**。承知の上での判断（再提案しない）
 - 見送った代替案: 専用 public リポを作り成果物（`out/` の中身）だけを Actions が push する方式。履歴も他プロジェクトも公開せずに済むが、本体を public にしたので不要になった。**必要になったときの差し替え点はワークフロー冒頭の env と deploy ジョブに閉じている**（`mandala/` のコードと変換処理は変更不要）
 
-### 2.7 将来構想（今回スコープ外・記録として）
+### 2.7 ペイン統合と将来構想
 
-- ペイン1＋2を統合して EBEX 風ツリーにし、**右クリックのコンテキストメニューから4階層（全体 / シリーズ / コース / レッスン）のメタ編集 UI** を呼ぶ
-- そのメタ編集 UI に**英訳ボタン**を付け、`_en` フィールドを AI が自動翻訳する
-- **レッスンの frontmatter 廃止 → レッスン用 `.meta.json` 化**は、この UI 改修と**同一 change** で実施する（保存層を一度で正しい形にするため）
+**✅ ペイン1＋2の統合は完了した**（2026-08-16・change `unified-content-tree`）。Studio の左端は3階層ツリー1本＋下部ミニ曼陀羅になり、操作は右クリックに集約（properties / add / rename / copy・paste / open explorer / delete）。触るときに知っておくこと:
+
+- **正本は spec `unified-content-tree`**（行表示・メニュー構成・DnD・複製の要件）。ペイン幅は tree / pane4 の2ペインモデル（旧3ペイン形式の localStorage は読み捨てて既定値へフォールバック）
+- **複製は `POST /api/content/duplicate`**。`id`・`slug` を落としてコピーし、`id` はローダーの自動採番、`slug` は人が後で設定。⚠ **実装で `fs.cpSync` を使わないこと**——Node v24.14 は宛先パスに全角文字（「（コピー）」等）があると try/catch も効かず**プロセスごとクラッシュする**（exit 127。2026-08-16 に vitest ワーカー全滅として発覚）。`readdir`＋`copyFileSync` の手書き再帰でコピーする
+- メタ編集は既存ダイアログの流用（`CourseMetaDialog` / `LessonMetaDialog` / `WorkspaceMetaDialog`＝全体 description のみ）。**4階層メタ編集 UI への刷新は次 change**
+- ⚠ vitest を kill すると tinypool のワーカー（node.exe）が孤児化して以後の実行が `ERR_IPC_CHANNEL_CLOSED` で全滅する。素の node.exe を掃除してから再実行
+
+**残る将来構想**（次 change 以降）:
+
+- 4階層メタ編集 UI への刷新＋**英訳ボタン**（`_en` フィールドを AI が自動翻訳）
+- **レッスンの frontmatter 廃止 → レッスン用 `.meta.json` 化**は、この UI 刷新と**同一 change** で実施する（保存層を一度で正しい形にするため）
 - 画像ピッカー（`ImageGrid` 再利用）、セマンティックズーム、進捗リング付きノード（ゲーミフィケーション）
 
 ### 2.8 兄弟構成への移行（✅ 完了・2026-08-16）

@@ -1,21 +1,26 @@
 name: DX Training Mandala Release (Vercel)
 
-# 公開サイトの Vercel 配信（ゲーミフィケーションを見据えた理想追求用）。main に
-# 含まれるコミットへ v* タグを打ったときと、動作確認のための手動実行で走る。
-# タグ起動は本番（--prod）、手動起動は preview URL へ配る。
+# ⚠ このワークフローは現在使っていない。Vercel 配信は **Vercel 側の git 連携**へ
+# 移した（main へのマージで自動配信。契機の限定は Vercel の Ignored Build Step が担う）。
+# GitHub Actions によるデプロイと v* タグによるトリガーは **GitHub Pages のときだけ**。
 #
-# GitHub Pages 向けの配信は dx-training-site-release-pages.yml が別に担う。
-# 契機（v* タグ）は共有するが、Pages と Vercel は目的が異なる（社内トライアル /
-# ゲーミフィケーションを見据えた理想追求）ためファイルを分けている。
-# タグ検証ロジックは両ファイルに重複するが、単純さを優先して意図的に共通化していない。
+# 残してあるのは、git 連携が期待どおり動かなかったときの逃げ道として。
+# ⚠ **二重に止まっている**ので、使うには次の3手が要る:
+#   1. GitHub UI（Actions → このワークフロー → …）で **Enable** する
+#      ——UI で disable されていると workflow_dispatch も押せない
+#   2. Secrets 3本（VERCEL_TOKEN / VERCEL_ORG_ID / VERCEL_PROJECT_ID）を登録する
+#      ——未登録だと下の Check Vercel credentials が「スキップして緑」になり、
+#        何も配信されないのに成功に見える
+#   3. Run workflow から実行する
+#
+# GitHub Pages 向けの配信は dx-training-site-release-pages.yml が担う（こちらは現役）。
 
 on:
-  push:
-    tags:
-      - "v*"
-  # 動作確認用。マージせずに配信経路を試すために任意のブランチから起動できる。
-  # Vercel は preview 配信ができるので、手動実行では本番ドメインを汚さない。
-  # ⚠ Pages 側は 1サイトしか持てず手動でも本番へ出る。この非対称は Pages の制約由来。
+  # ⚠ タグ契機は git 連携へ移行したため無効化した。**削除ではなくコメントアウト**で
+  # 残してある——逃げ道としてタグ配信に戻す日は、この3行を戻す。
+  # push:
+  #   tags:
+  #     - "v*"
   workflow_dispatch:
     inputs:
       version:

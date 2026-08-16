@@ -21,16 +21,20 @@
        blocking の大半は「社内の空欄を埋める」作業で、
        中身が決まれば機械的に終わる
 
-[次] Vercel 2プロジェクトの設定更新                2.3
-       兄弟構成化（restructure-studio-mandala）のマージ直後に必要:
-         ・Root Directory を更新する
-             Studio 本体   → dx-training-studio/studio
-             公開サイト    → dx-training-studio/mandala
-         ・Studio 本体に Ignored Build Step（従来からの未実施分）
-       手順は mandala/README.md
+[次] Studio デモの Vercel デプロイ修復              8.6
+       change fix-studio-vercel-demo-deploy。コード側は実装済み・
+       **preview 未検証**。残るのは人の手が要る2つだけ:
+         ・作業ブランチを push して preview を検証する
+           ⚠ 緑では不合格。開いてツリーが空でないことと
+             画像が出ることまで見る
+         ・検証後に Ignored Build Step を元へ戻す
+           （preview を通すため一時的に緩めてある）
+       ⚠ 直るまで社内デモは兄弟構成移行前のビルドを表示し続ける
+
+       ✅ Vercel 2プロジェクトの Root Directory 更新は完了（2026-08-16）
+       ✅ Studio 本体の Ignored Build Step も投入済み
        ✅ Pages 配信は通った（v5.1.0・2026-08-15）
        ✅ site の Vercel git 連携も通った（2026-08-16）
-       ← サイト側で人手が残っているのはこれだけ
 
 [後] connection-profiles                          会社持ち込みの直前で可。4章
 
@@ -160,7 +164,7 @@ npm run start   # out/ をローカル配信
 - `VERCEL_TOKEN` 未登録なら Vercel のワークフローはスキップされ、Pages だけでリリースが完結する（失敗にはならない）
 - ✅ **Pages 配信は通った**（2026-08-15・`v5.1.0`）。public 化 → Source を GitHub Actions → environment にタグルール、まで完了（→ 2.6）
 - ✅ **Vercel の git 連携も通った**（2026-08-16）。Secrets 3本は**不要になった**（逃げ道のワークフローを使う日にだけ要る）
-- **残っている人の作業**: Vercel 2プロジェクトの Root Directory 更新（restructure マージ直後）＋ Studio 本体への Ignored Build Step（→ 上の ⚠ と 1章）。手順は `mandala/README.md`
+- ✅ **Vercel 2プロジェクトの Root Directory 更新と Studio 本体への Ignored Build Step は完了**（2026-08-16）。手順は `mandala/README.md`。⚠ ただし Studio 側は Root Directory 変更をきっかけにビルドが落ちるようになった（→ 8.6）
 - ⚠ **Pages は1リポジトリ1サイト。** comitora レポート（`commit-track-tool-ci.yml` / `commit-track-tool-report.yml`）を GitHub 側で Disable して競合を外している。**再有効化するなら**、comitora の手動実行時に `deploy_pages: false` を選ぶ運用に戻すこと
 
 ### 2.4 人の作業として残っているもの
@@ -458,6 +462,24 @@ contents-work/
 |---|---|
 | 受講コンテンツの画像 | 正本 `images/<file>`（ペイン4 の画像マネージャ管理下・git 追跡） |
 | ツール埋め込み資産（supergraphic・サイトのヒーロー画像） | **各アプリの `app/` 直下＝ファビコンと同居**。`images/` に置かない——**ユーザーが UI から削除できてしまう**ため |
+
+### 8.6 Studio の Vercel デモ配信（触るときに知っておくこと）
+
+Vercel 上の Studio は**社内に見せるための読み取り専用デモ**。要件の正本は spec `studio-demo-deployment`。
+
+**成立の仕組み。** 閲覧に必要なものはランタイムのファイルシステムを使わない。
+
+| | 供給元 |
+|---|---|
+| ツリー・レッスン本文 | **ビルド時に焼き込み**（`lessonSchema.content` → `contents-loader.ts` → `app/page.tsx` の `initialSeries` → `/` がプリレンダリング） |
+| 画像 | Vercel Blob（`lib/image-storage/resolve.ts` の既定 storage モード） |
+| 保存・追加・削除・Agent | — （read-only FS で**失敗する。許容された仕様**。編集はローカル起動が担う） |
+
+⚠ **`Include files outside the root directory` は Enabled から動かさないこと。**正本 `contents/` は Root Directory（`dx-training-studio/studio`）の**外**にあるので、無効にするとビルド時に正本が見えなくなる。ところが `loadContentsFolder` と `reconcileOrderFiles` は正本が無いと**黙って空を返す**ため、**ビルド緑・デプロイ成功・中身が空のデモ**という気づけない壊れ方をする。兄弟構成移行前はこの設定が無効でも動いていたが、それは当時 `contents/` が Root Directory の**内側**にあったからで、今は成立しない。
+
+⚠ **`next.config.ts` の `outputFileTracingRoot` を素朴に `__dirname` へ戻さないこと。**include-outside が ON だと Vercel はリポジトリ丸ごとを `/vercel/path0` に置き、`@vercel/next` は「Next アプリのルート == `path0`」と決めつけて `.next` と `.nft.json` を re-root する。ズレると `ENOENT: .../.next/routes-manifest-deterministic.json` で落ちる（Next 16 + Turbopack の噛み合わせ。上流の同一症状: resend/react-email#3557）。`turbopack.root` は逆に `studio/` のまま動かさない——リポジトリルートへ向けると `ebex/` `mandala/` `minutes-maid/` の lockfile を巻き込む。
+
+**番人がいる。** `studio/scripts/check-vercel-build-root.mjs` が `npm run build` の前段で、①正本がビルド時に見えるか ②ソースルートの前提が崩れていないか を検査して、崩れていればビルドを止める。ローカルでは何もしない（正本が空でも起動できる挙動は維持）。**上の2つの罠に落ちたら、解読しにくい `ENOENT` ではなくこの番人のメッセージが出る。**
 
 ---
 

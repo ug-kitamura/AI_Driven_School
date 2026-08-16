@@ -6,12 +6,12 @@ DX Training Studio のワークスペースペイン幅（pane1 / pane2 / pane4�
 ## Requirements
 ### Requirement: ペイン幅は clamp により範囲内に収める
 
-各ペイン（pane1 / pane2 / pane4）の幅は `PANE_WIDTH_LIMITS` で定義された min/max の範囲内に収めなければならない（SHALL）。`clampPaneWidth` はこの規則を pure function として実装しなければならない（SHALL）。pane1 の min/max は **200 / 400**、pane2 の min/max は **200 / 400**、pane4 の min/max は **400 / 1000** でなければならない（SHALL）。`PANE_WIDTH_DEFAULTS` は pane1 **250**、pane2 **250**、pane4 **600** でなければならない（SHALL）。
+各ペイン（tree / pane4）の幅は `PANE_WIDTH_LIMITS` で定義された min/max の範囲内に収めなければならない（SHALL）。`clampPaneWidth` はこの規則を pure function として実装しなければならない（SHALL）。tree の min/max は **200 / 500**、pane4 の min/max は **400 / 1000** でなければならない（SHALL）。`PANE_WIDTH_DEFAULTS` は tree **300**、pane4 **600** でなければならない（SHALL）。
 
 #### Scenario: 下限未満の値を clamp
 
-- **WHEN** `clampPaneWidth("pane1", 100)` を呼び出す
-- **THEN** 結果は pane1 の min（200）である
+- **WHEN** `clampPaneWidth("tree", 100)` を呼び出す
+- **THEN** 結果は tree の min（200）である
 
 #### Scenario: 上限超過の値を clamp
 
@@ -25,11 +25,11 @@ DX Training Studio のワークスペースペイン幅（pane1 / pane2 / pane4�
 
 ### Requirement: 設定モーダル用 snap は PANE_WIDTH_STEP 刻みに丸める
 
-`snapPaneWidth` は clamp 後に `PANE_WIDTH_STEP`（5px）刻みで丸めなければならない（SHALL）。`snapPaneWidths` は 3 ペインすべてに適用しなければならない（SHALL）。
+`snapPaneWidth` は clamp 後に `PANE_WIDTH_STEP`（5px）刻みで丸めなければならない（SHALL）。`snapPaneWidths` は全ペイン（tree / pane4）に適用しなければならない（SHALL）。
 
 #### Scenario: 刻みに snap
 
-- **WHEN** `snapPaneWidth("pane2", 213)` を呼び出す
+- **WHEN** `snapPaneWidth("tree", 213)` を呼び出す
 - **THEN** 結果は 215 である
 
 #### Scenario: snapPaneWidths が全ペインに適用される
@@ -49,16 +49,16 @@ Pane3（Markdown エディタペイン）の実幅は **400px 未満になって
 #### Scenario: 設定 UI に pane3 幅がない
 
 - **WHEN** ユーザーがワークスペース設定ダイアログの横幅セクションを開く
-- **THEN** 編集可能なペイン幅入力は pane1・pane2・pane4 の 3 つのみである
+- **THEN** 編集可能なペイン幅入力は tree・pane4 の 2 つのみである
 
 ### Requirement: fitPaneLayout は利用可能幅にペインを収める
 
-`fitPaneLayout` pure function は、要求幅（pane1 / pane2 / pane4）と利用可能幅を受け取り、Pane3 最小幅を満たすよう pane1 / pane2 / pane4 を調整した `WorkspacePaneWidths` を返さなければならない（SHALL）。各 pane は `PANE_WIDTH_LIMITS` の min/max 内に収めなければならない（SHALL）。
+`fitPaneLayout` pure function は、要求幅（tree / pane4）と利用可能幅を受け取り、Pane3 最小幅を満たすよう tree / pane4 を調整した `WorkspacePaneWidths` を返さなければならない（SHALL）。各 pane は `PANE_WIDTH_LIMITS` の min/max 内に収めなければならない（SHALL）。
 
 #### Scenario: 幅に余裕がある
 
 - **WHEN** 要求幅の合計 + pane3 min + ハンドルが利用可能幅以下である
-- **THEN** pane1 / pane2 / pane4 は要求値（clamp 後）のまま返される
+- **THEN** tree / pane4 は要求値（clamp 後）のまま返される
 
 #### Scenario: 不足時は pane4 から縮小
 
@@ -68,27 +68,27 @@ Pane3（Markdown エディタペイン）の実幅は **400px 未満になって
 #### Scenario: 不足時の縮小順
 
 - **WHEN** pane4 を min まで縮めても pane3 が 400 未満である
-- **THEN** 次に pane1 を min（200）まで、続けて pane2 を min（200）まで縮小する
+- **THEN** 次に tree を min（200）まで縮小する
 
 ### Requirement: fit はブラウザリサイズとペイン操作で実行する
 
-ワークスペースは、SidebarInset 内ペイン行の幅変化（ResizeObserver）および pane1 / pane2 / pane4 のリサイズハンドル操作、設定ダイアログからの横幅適用のたびに `fitPaneLayout` を実行し、返却値を pane 幅 state に反映しなければならない（SHALL）。横スクロールバーをレイアウト救済に用いてはならない（MUST NOT）。
+ワークスペースは、SidebarInset 内ペイン行の幅変化（ResizeObserver）および tree / pane4 のリサイズハンドル操作、設定ダイアログからの横幅適用のたびに `fitPaneLayout` を実行し、返却値を pane 幅 state に反映しなければならない（SHALL）。横スクロールバーをレイアウト救済に用いてはならない（MUST NOT）。
 
 #### Scenario: ウィンドウ幅を狭める
 
 - **WHEN** ユーザーがブラウザウィンドウ幅を狭める
-- **THEN** pane4 → pane1 → pane2 の順で各 min まで自動縮小される
+- **THEN** pane4 → tree の順で各 min まで自動縮小される
 - **AND** pane3 実幅は 400px 以上が維持される（可能な範囲で）
 
-#### Scenario: pane2 ハンドルで広げる
+#### Scenario: tree ハンドルで広げる
 
-- **WHEN** ユーザーが pane2 を広げようとドラッグする
+- **WHEN** ユーザーが tree を広げようとドラッグする
 - **AND** pane3 に譲れる幅が不足する
-- **THEN** fit により pane4 / pane1 が先に縮小され pane2 拡大が可能になる
+- **THEN** fit により pane4 が先に縮小され tree 拡大が可能になる
 
 ### Requirement: 折りたたみ状態は fit から変更しない
 
-`fitPaneLayout` は pane1 の sidebar アイコン折りたたみ状態および pane4 の開閉（`pane4Open`）を変更してはならない（MUST NOT）。pane4 閉時は pane4 有効幅を折りたたみストリップ幅（48px）として計算に用いなければならない（SHALL）。
+`fitPaneLayout` は tree ペインの sidebar アイコン折りたたみ状態および pane4 の開閉（`pane4Open`）を変更してはならない（MUST NOT）。pane4 閉時は pane4 有効幅を折りたたみストリップ幅（48px）として計算に用いなければならない（SHALL）。
 
 #### Scenario: pane4 閉時は 48px として fit
 
@@ -99,5 +99,5 @@ Pane3（Markdown エディタペイン）の実幅は **400px 未満になって
 #### Scenario: fit は sidebar 折りたたみを触らない
 
 - **WHEN** fit が実行される
-- **THEN** pane1 の sidebar collapsible 状態は変化しない
+- **THEN** tree ペインの sidebar collapsible 状態は変化しない
 

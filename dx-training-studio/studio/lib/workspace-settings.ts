@@ -67,9 +67,9 @@ export const DEFAULT_WORKSPACE_SETTINGS: WorkspaceSettings = {
 function normalizePaneDefaults(
   raw: Partial<WorkspacePaneWidths> | undefined,
 ): WorkspacePaneWidths {
+  // 旧3ペイン形式（pane1 / pane2）は tree キーを持たず、コード既定へフォールバックする
   return {
-    pane1: clampPaneWidth("pane1", raw?.pane1 ?? PANE_WIDTH_DEFAULTS.pane1),
-    pane2: clampPaneWidth("pane2", raw?.pane2 ?? PANE_WIDTH_DEFAULTS.pane2),
+    tree: clampPaneWidth("tree", raw?.tree ?? PANE_WIDTH_DEFAULTS.tree),
     pane4: clampPaneWidth("pane4", raw?.pane4 ?? PANE_WIDTH_DEFAULTS.pane4),
   };
 }

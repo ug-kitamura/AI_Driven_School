@@ -6,8 +6,7 @@ import { cn } from "@/lib/utils";
 import type { WorkScope } from "@/lib/work-scope";
 import type { WorkspaceMeta } from "@/lib/workspace-meta";
 import { GlobalHeader } from "@/components/workspace/GlobalHeader";
-import { SeriesCoursePane } from "@/components/workspace/SeriesCoursePane";
-import { LessonListPane } from "@/components/workspace/LessonListPane";
+import { ContentTreePane } from "@/components/workspace/ContentTreePane";
 import { MarkdownEditorPane } from "@/components/workspace/MarkdownEditorPane";
 import { Pane4Shell } from "@/components/workspace/Pane4Shell";
 import { Pane4Toggle } from "@/components/workspace/Pane4Toggle";
@@ -406,29 +405,39 @@ export function Workspace({
       )}
       style={
         {
-          "--sidebar-width": `${paneWidths.pane1}px`,
+          "--sidebar-width": `${paneWidths.tree}px`,
         } as React.CSSProperties
       }
     >
       <ThemeInitializer />
       <div className="relative shrink-0">
-        <SeriesCoursePane
+        <ContentTreePane
           workspaceName={workspace.name}
           series={series}
           selectedSeriesId={selectedSeriesId}
-          onSelectSeries={guardedSelectSeries}
           selectedCourseId={selectedCourseId}
+          selectedLessonId={selectedLessonId}
+          onSelectSeries={guardedSelectSeries}
           onSelectCourse={guardedSelectCourse}
+          onSelectLesson={guardedSelectLesson}
           onReorderSeries={reorderSeries}
           onReorderCourses={reorderCourses}
+          onReorderLessons={reorderLessons}
           onAddSeries={addSeries}
           onAddCourse={addCourse}
+          onAddLesson={addLesson}
           onDeleteSeries={deleteSeries}
           onDeleteCourse={deleteCourse}
+          onDeleteLesson={deleteLesson}
           onUpdateSeriesName={updateSeriesName}
+          onUpdateCourseMeta={updateCourseMeta}
+          onUpdateLessonMeta={updateLessonMeta}
+          onUpdateLessonStatus={updateLessonStatus}
+          tagSuggestions={tagSuggestions}
+          onSaveError={handleSaveError}
         />
         <Pane1ResizeHandle
-          {...resizeHandleProps("pane1")}
+          {...resizeHandleProps("tree")}
           className="absolute inset-y-0 z-30 mx-0 px-2"
           style={{ left: "calc(var(--sidebar-width) - 8px)" }}
         />
@@ -469,24 +478,6 @@ export function Workspace({
           </div>
         )}
         <div className="flex min-h-0 min-w-0 flex-1 overflow-hidden">
-          <div
-            className="flex h-full min-w-0 shrink-0 flex-col overflow-hidden"
-            style={{ width: paneWidths.pane2 }}
-          >
-            <LessonListPane
-              series={series}
-              course={selectedCourse}
-              selectedLessonId={selectedLessonId}
-              onSelectLesson={guardedSelectLesson}
-              onSelectCourse={guardedSelectCourse}
-              onAddLesson={addLesson}
-              onDeleteLesson={deleteLesson}
-              onReorderLessons={reorderLessons}
-              onUpdateCourseMeta={updateCourseMeta}
-              onUpdateLessonStatus={updateLessonStatus}
-            />
-          </div>
-          <PaneResizeHandle {...resizeHandleProps("pane2")} />
           <div
             className="flex h-full min-w-0 flex-1 flex-col overflow-hidden"
             style={{ minWidth: PANE3_MIN_WIDTH }}

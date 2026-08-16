@@ -6,7 +6,7 @@
 ## Requirements
 ### Requirement: push のたびに変換とビルドを検証する
 
-`site/` または `contents/` の変更を含む **`main` への push** と **pull request** では、変換スクリプトの実行・サイトのビルド・テストを実行しなければならない（SHALL）。この検証ジョブは**いかなるデプロイも行ってはならない**（MUST NOT）。検証はリポジトリが private の状態でも実行できなければならない（SHALL）。
+`mandala/` または `contents/` の変更を含む **`main` への push** と **pull request** では、変換スクリプトの実行・サイトのビルド・テストを実行しなければならない（SHALL）。この検証ジョブは**いかなるデプロイも行ってはならない**（MUST NOT）。検証はリポジトリが private の状態でも実行できなければならない（SHALL）。
 
 **同一の push に対して検証ジョブを2回起動してはならない**（MUST NOT）。作業ブランチへの push は pull request の契機だけで拾い、`main` への push は push の契機で拾う。⚠ ブランチを絞らない push と pull request を併用すると、pull request が開いているブランチへの push で**両方が発火する**。`concurrency` の group は `github.ref` に依存し、push（`refs/heads/<branch>`）と pull request（`refs/pull/<n>/merge`）で値が異なるため、これは相殺されない。
 
@@ -33,7 +33,7 @@
 
 #### Scenario: 無関係な変更では走らない
 
-- **WHEN** `site/` にも `contents/` にも関係しないファイルだけを変更して push する
+- **WHEN** `mandala/` にも `contents/` にも関係しないファイルだけを変更して push する
 - **THEN** 公開サイトの検証ジョブは起動しない
 
 ### Requirement: 公開は main の release タグでのみ行う
@@ -119,47 +119,7 @@ Pages への配り方は1つのジョブに閉じ込め、配信先に依存す�
 
 - **WHEN** 配信方法を「別リポジトリへの push」に変更する
 - **THEN** 変更はワークフローのデプロイジョブと冒頭の設定値に閉じる
-- **AND** `site/` 配下のコードと `scripts/` の変換処理は変更されない
-
-### Requirement: 公開サイトのビルドは site/ 配下だけで完結する
-
-公開サイトの**ビルドとテスト**は、`site/` 配下の依存と設定だけで完結しなければならない（SHALL）。`site/` の外にある `node_modules` や設定ファイル（親ディレクトリ `dx-training-studio/` の `postcss.config.mjs` 等）に依存してはならない（SHALL NOT）。
-
-**線引きは「依存」と「ソース」で分かれる。**`site/` の外にある**コミットされたソース**（Studio の `lib/*.ts` 等）を読むことは**許される**（SHALL be allowed）——Studio と site のずれを検出する parity テストはそれ自体が目的であり、禁じると検出手段を失う。禁じられるのは `site/` の外の `node_modules` と設定ファイルへの依存だけである。
-
-したがって、`site/` の外のソースを実行するテストは、**そのソースが必要とする npm パッケージを `site/` 側の依存として解決しなければならない**（SHALL）。解決は**許可リスト方式**とし、許可した名前だけを `site/node_modules` へ向け、それ以外の名前は解決せずに失敗させなければならない（SHALL）——新しい依存が増えたことに気づけるようにするため。許可したパッケージの版が `site/` 側と外側とで異なりうる場合、その近似を受け入れる理由をコメントで残さなければならない（SHALL）。
-
-CI・リリースの各ワークフローは `site/` でのみ `npm ci` を実行する。ビルドツールの設定探索（Next の postcss 設定探索は `find-up` で親方向へ遡る）が親ディレクトリまで届く場合、`site/` 側に**同名の設定ファイルを置いて探索を止めなければならない**（SHALL）——たとえ内容が空であっても。この種の設定ファイルには、なぜ空の設定が必要かをコメントで残さなければならない（SHALL）。
-
-この独立性は検証・GitHub Pages・Vercel の3ワークフローすべての前提であり、いずれか1つでも `site/` 外へ依存すると3本とも同時に失敗する。ローカル開発では親の `node_modules` に解決できてしまうため、この破綻は CI でしか露見しない。
-
-#### Scenario: 親の依存が無くてもビルドが通る
-
-- **WHEN** `dx-training-studio/node_modules` が存在しない状態で `site/` の `npm ci` と `npm run build` を実行する
-- **THEN** ビルドは成功する
-
-#### Scenario: 親の依存が無くてもテストが通る
-
-- **WHEN** `dx-training-studio/node_modules` が存在しない状態で `site/` のテストを実行する
-- **THEN** parity テストを含む全テストが成功する
-- **AND** parity テストはスキップされず、実際に Studio 側ローダーを実行して比較している
-
-#### Scenario: 3ワークフローすべてでビルドが通る
-
-- **WHEN** 検証（CI）・GitHub Pages リリース・Vercel リリースの各ワークフローが `site/` でのみ `npm ci` してビルドする
-- **THEN** どのワークフローでもビルドが成功する
-- **AND** ワークフロー側に親ディレクトリの依存をインストールする手順は含まれない
-
-#### Scenario: 親の設定が漏れない
-
-- **WHEN** 親ディレクトリ `dx-training-studio/` にビルドツールの設定ファイル（`postcss.config.mjs` 等）が存在する状態で `site/` のビルドを実行する
-- **THEN** ビルドは `site/` 側の設定だけを使い、親の設定を読み込まない
-
-#### Scenario: 許可していない依存は黙って通さない
-
-- **WHEN** `site/` の外のソースが、許可リストに無い npm パッケージを import した状態でテストを実行する
-- **THEN** そのテストは解決できずに失敗する
-- **AND** 失敗は握り潰されず、どのパッケージが不足しているかが分かる
+- **AND** `mandala/` 配下のコードと `scripts/` の変換処理は変更されない
 
 ### Requirement: Pages と Vercel は役割が異なる
 
@@ -194,4 +154,42 @@ Vercel は Studio 本体とは**別のプロジェクト**へ配信しなけれ�
 - **WHEN** 公開サイトのファイルだけを変更して `main` にマージする
 - **THEN** 公開サイトの Vercel プロジェクトが配信される
 - **AND** Studio 本体の Vercel プロジェクトは配信されない前提の設定（Root Directory と Ignored Build Step）が入っている
+
+### Requirement: 公開サイトのビルドは mandala/ 配下だけで完結する
+
+公開サイトの**ビルドとテスト**は、`mandala/` 配下の依存と設定だけで完結しなければならない（SHALL）。`mandala/` の外にある `node_modules` や設定ファイル（兄弟アプリ `studio/` の `postcss.config.mjs` 等）に依存してはならない（SHALL NOT）。
+
+**線引きは「依存」と「ソース」で分かれる。**`mandala/` の外にある**コミットされたソース**（Studio の `studio/lib/*.ts` 等）を読むことは**許される**（SHALL be allowed）——Studio と mandala のずれを検出する parity テストはそれ自体が目的であり、禁じると検出手段を失う。禁じられるのは `mandala/` の外の `node_modules` と設定ファイルへの依存だけである。
+
+したがって、`mandala/` の外のソースを実行するテストは、**そのソースが必要とする npm パッケージを `mandala/` 側の依存として解決しなければならない**（SHALL）。解決は**許可リスト方式**とし、許可した名前だけを `mandala/node_modules` へ向け、それ以外の名前は解決せずに失敗させなければならない（SHALL）——新しい依存が増えたことに気づけるようにするため。許可したパッケージの版が `mandala/` 側と外側とで異なりうる場合、その近似を受け入れる理由をコメントで残さなければならない（SHALL）。
+
+CI・リリースの各ワークフローは `mandala/` でのみ `npm ci` を実行する。ビルドツールの設定探索（Next の postcss 設定探索は `find-up` で親方向へ遡る）が親ディレクトリまで届く場合に備え、`mandala/` 側に**同名の設定ファイルを置いて探索を止めなければならない**（SHALL）——兄弟構成では親（入れ物）に設定が無いため理論上は不要だが、防御として維持する。この種の設定ファイルには、なぜ空の設定が必要かをコメントで残さなければならない（SHALL）。
+
+#### Scenario: 兄弟アプリの依存が無くてもビルドが通る
+
+- **WHEN** `studio/node_modules` が存在しない状態で `mandala/` の `npm ci` と `npm run build` を実行する
+- **THEN** ビルドは成功する
+
+#### Scenario: 兄弟アプリの依存が無くてもテストが通る
+
+- **WHEN** `studio/node_modules` が存在しない状態で `mandala/` のテストを実行する
+- **THEN** parity テストを含む全テストが成功する
+- **AND** parity テストはスキップされず、実際に Studio 側ローダーを実行して比較している
+
+#### Scenario: 3ワークフローすべてでビルドが通る
+
+- **WHEN** 検証（CI）・GitHub Pages リリース・Vercel リリースの各ワークフローが `mandala/` でのみ `npm ci` してビルドする
+- **THEN** どのワークフローでもビルドが成功する
+- **AND** ワークフロー側に `mandala/` 外の依存をインストールする手順は含まれない
+
+#### Scenario: 探索を止める空設定が維持される
+
+- **WHEN** `mandala/postcss.config.mjs` を確認する
+- **THEN** 空の設定と、なぜ必要かのコメントが存在する
+
+#### Scenario: 許可していない依存は黙って通さない
+
+- **WHEN** `mandala/` の外のソースが、許可リストに無い npm パッケージを import した状態でテストを実行する
+- **THEN** そのテストは解決できずに失敗する
+- **AND** 失敗は握り潰されず、どのパッケージが不足しているかが分かる
 

@@ -7,11 +7,27 @@ import path from "node:path";
 //   2. モノレポ内でも本ディレクトリを tracing の基準にする
 const projectRoot = path.resolve(__dirname);
 
+// Vercel 上でリポジトリが展開される場所。
+//
+// 正本 `../contents/` は Root Directory（= 本ディレクトリ）の外にあるため、Vercel の
+// `Include files outside the root directory` を Enabled にしている。すると Vercel は
+// リポジトリ丸ごとをここへ置き、`@vercel/next` は「Next アプリのルート == この場所」と
+// 決めつけて `.next` と `.nft.json` を re-root する。`outputFileTracingRoot` をそこへ
+// 合わせないと、ビルド生成物の回収先を取り違えて
+// `ENOENT: .../.next/routes-manifest-deterministic.json` で落ちる
+// （Next 16 + Turbopack + Root Directory + include-outside の噛み合わせ。
+//  上流の同一症状: https://github.com/resend/react-email/issues/3557）。
+//
+// ⚠ この前提が崩れていないかは `scripts/check-vercel-build-root.mjs` がビルド前に検査する。
+const VERCEL_SOURCE_ROOT = "/vercel/path0";
+
 const nextConfig: NextConfig = {
+  // ⚠ `turbopack.root` はリポジトリルートへ向けない。向けると ebex / mandala /
+  // minutes-maid の lockfile を巻き込んで走査し、上のコメントが防いでいる事故を自ら招く
   turbopack: {
     root: projectRoot,
   },
-  outputFileTracingRoot: projectRoot,
+  outputFileTracingRoot: process.env.VERCEL ? VERCEL_SOURCE_ROOT : projectRoot,
   serverExternalPackages: ["playwright"],
 };
 

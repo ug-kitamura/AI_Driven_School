@@ -2,7 +2,7 @@
 
 **次の主線は「レビュー指摘の採否」**（→ 3章）。はじめにシリーズと Git基礎シリーズに未処理のレビューが1本ずつあり、どちらも判定は「リリース見送り」。⚠ **採否は人がやる。**
 
-公開サイト **DX Training Mandala**（`site/`）は 2026-08-15 の見た目の詰めとワークフロー整備まで完了した（→ 2章）。実コンテンツで37ページが生成でき、検索・曼陀羅・言語切替が動く。リポジトリは public 化済み。残っているのは**人の作業**（公開の外部設定）だけ。
+公開サイト **DX Training Mandala**（`mandala/`）は 2026-08-15 の見た目の詰めとワークフロー整備まで完了した（→ 2章）。実コンテンツで37ページが生成でき、検索・曼陀羅・言語切替が動く。リポジトリは public 化済み。残っているのは**人の作業**（公開の外部設定）だけ。
 
 **完了した作業の経緯は書かない** — 記録は `openspec/changes/archive/<日付>-<change名>/` の `design.md` と `tasks.md` が正本（⚠ ただし追跡外。→ 6.1）。本文書に残すのは**次に必要な知識と未決事項だけ**。
 
@@ -21,9 +21,13 @@
        blocking の大半は「社内の空欄を埋める」作業で、
        中身が決まれば機械的に終わる
 
-[次] Studio の Vercel に Ignored Build Step        2.3
-       main 以外でビルドが走らないようにする。
-       手順は site/README.md
+[次] Vercel 2プロジェクトの設定更新                2.3
+       兄弟構成化（restructure-studio-mandala）のマージ直後に必要:
+         ・Root Directory を更新する
+             Studio 本体   → dx-training-studio/studio
+             公開サイト    → dx-training-studio/mandala
+         ・Studio 本体に Ignored Build Step（従来からの未実施分）
+       手順は mandala/README.md
        ✅ Pages 配信は通った（v5.1.0・2026-08-15）
        ✅ site の Vercel git 連携も通った（2026-08-16）
        ← サイト側で人手が残っているのはこれだけ
@@ -38,9 +42,11 @@
 
 ### リポジトリの状態
 
-ブランチ **`dx-training-studio6`**（作業の区切りで採番が上がる。⚠ **この記述はすぐ古くなるので `git branch --show-current` を信じること**）。⚠ **コミットは「勝手コミット」で生まれる**（→ 7章）。こちらから `git commit` を叩いていないのに数分おきに発火するので、**作業の区切りで `git log` を見る運用を続けること。**
+ブランチは作業の区切りで変わる（⚠ **`git branch --show-current` を信じること**）。数分おきの「勝手コミット」は**ユーザー自身が別ツールで行っていたもの**と判明した（2026-08-16）——謎の自動機構ではないが、作業の区切りで `git log` を見る運用は引き続き無害。
 
-追跡の線引き: **正本画像 `images/*.png` は追跡対象**（公開サイトがローカル参照で配信するため）。staging（`uploaded/` `ai/` `web/` `trash/`）と動画は除外。`site/` の生成物（`content/` `public/images/` `public/_pagefind/` `out/` `.next/`）は除外。
+**フォルダ構成は 2026-08-16 に兄弟構成へ移行した**（change `restructure-studio-mandala`）。`dx-training-studio/` は入れ物になり、アプリは `studio/`（旧直下）と `mandala/`（旧 `site/`）、正本（`contents/` `images/` `contents-work/` `local-db/`）と共通（`.claude/` `openspec/` `docs/` `contracts/`）は入れ物直下のまま。構造の要件は spec `project-layout` が正本。起動は入れ物直下の `start-studio(-dev).bat` / `start-mandala(-dev).bat`。
+
+追跡の線引き: **正本画像 `images/*.png` は追跡対象**（公開サイトがローカル参照で配信するため）。staging（`uploaded/` `ai/` `web/` `trash/`）と動画は除外。`mandala/` の生成物（`content/` `public/images/` `public/_pagefind/` `out/` `.next/`）は除外。
 
 ---
 
@@ -52,14 +58,15 @@
 
 | | |
 |---|---|
-| 置き場 | `site/`（Studio とは独立した npm プロジェクト。正本 `../contents` を**読み取るだけ**） |
+| 置き場 | `mandala/`（Studio と兄弟の独立した npm プロジェクト。正本 `../contents` を**読み取るだけ**） |
 | 技術 | Nextra 4（Next.js 16 / React 19）＋ React Flow ＋ dagre ＋ Pagefind。`output: 'export'` の静的サイト |
-| 手順書 | **`site/README.md` が正本**（起動・検索・設定・デプロイ・既知の制約） |
+| 手順書 | **`mandala/README.md` が正本**（起動・検索・設定・デプロイ・既知の制約） |
 | テスト | 101件（変換・emit・画像・曼陀羅グラフ・style / Start・Goal 読取・現在地のパス解決とノード解決・リリース情報・Studio ローダーとの突き合わせ）。**型エラーは0件——クリーンを保つこと** |
 
 ```bash
-cd site
-start.bat       # ビルド → 開発サーバー（検索を使うならこれ）
+start-mandala-dev.bat   # 入れ物直下。ビルド → 開発サーバー（検索を使うならこれ）
+start-mandala.bat       # 入れ物直下。ビルド → out/ をローカル配信
+cd mandala
 npm run dev     # 変換 → 開発サーバー（http://localhost:3002）
 npm run build   # 変換 → out/ に静的サイト ＋ 検索インデックス
 npm run start   # out/ をローカル配信
@@ -73,7 +80,7 @@ npm run start   # out/ をローカル配信
 
 ### 2.2 触るときに知っておくこと
 
-- **変換スクリプトが入口**（`site/scripts/build-content.mts`）。正本の走査 → slug 検証 → `content/**` と `content/site-data.json` の生成 → 画像コピー、の順。ページ側は `site-data.json` しか見ない
+- **変換スクリプトが入口**（`mandala/scripts/build-content.mts`）。正本の走査 → slug 検証 → `content/**` と `content/site-data.json` の生成 → 画像コピー、の順。ページ側は `site-data.json` しか見ない
 - **生成物は毎回作り直される**（`content/` `public/images/` `out/`）。**ここを直接編集しても次のビルドで消える**——直すのは `scripts/` か `components/` か正本
 - **トップページは `content/**/index.mdx` として生成され、MDX からコンポーネントを呼ぶ**。Next.js は同階層に `[series]` と Nextra の `[[...mdxPath]]` を同居できないため、`app/` 直下に独自ルートを作れない（この制約は動かせない）
 - ⚠ **テーマの `<Layout>` を動的セグメント配下のレイアウトに置かないこと。** いまは `components/SiteShell.tsx`（`"use client"`）がルートレイアウトから描いている。**`app/[[...mdxPath]]/layout.tsx` に戻すと console エラーが再発する**——`[[...mdxPath]]` は全ページが同じセグメントの別の値なので、クライアント遷移のたびにレイアウトごと作り直され、next-themes の `<script>` が再マウントされて `Encountered a script tag while rendering React component` と、その巻き添えの `Element type is invalid` を撒く（2026-08-15 に実測・根治）
@@ -98,10 +105,10 @@ npm run start   # out/ をローカル配信
 - ⚠ **曼陀羅の CSS は「変種 → 状態」の順に置く。** `.dxm-node-here` のような状態指定を `.dxm-node-compact` / `-collapsed` より前に書くと、同じ詳細度で後勝ちになり**変種側が状態を上書きする**（集約ノードの枠色が「いまここ」の青を潰す形で踏んだ）
 - **slug が1つでも欠けると変換が中断する**（URL を決められないため）。エラーメッセージに対象と理由が出る
 - **本文が参照する画像の実体が無いとビルドが失敗する**。参照切れの検出を兼ねた仕様。**`cover` は例外**（表示しないので実体チェックもしない）
-- **`site/__tests__/content-source.parity.test.mts`** が、site の読み取りロジックと Studio の `lib/contents-loader.ts` のずれを実 `contents/` で突き合わせる。**走査規則を変えるときは両方を直す**
-- ⚠ **site は親（Studio）の `node_modules` に依存してはいけない。**CI は `site/` でしか `npm ci` しないので、親に寄生した瞬間 CI だけが落ちる（ローカルは親に何でもあるので気づけない）。実際に2件踏んだ。**この2つを「不要そうだから」で消さないこと**:
-  - `site/postcss.config.mjs` — **中身が空なのが正しい**。Next の postcss 設定探索は `find-up` で親へ遡るので、置かないと親の `postcss.config.mjs`（`@tailwindcss/postcss`）を拾う。site は Tailwind を使わない
-  - `site/__tests__/helpers/studio-alias-hooks.mjs` の `ALLOWED_PACKAGES` — parity テストが Studio 側ソースを走らせるとき、**許可した名前だけ** `site/node_modules` から解決する。現在は `zod` の1件。⚠ site の zod は 4.3.6（nextra#5008 回避で固定）、Studio の実依存は 4.4.3 で**版がずれている**——検証対象は走査規則であって zod の挙動ではない、という前提で受け入れている既知の近似
+- **`mandala/__tests__/content-source.parity.test.mts`** が、mandala の読み取りロジックと Studio の `studio/lib/contents-loader.ts` のずれを実 `contents/` で突き合わせる。**走査規則を変えるときは両方を直す**
+- ⚠ **mandala は `mandala/` の外の `node_modules`・設定に依存してはいけない。**CI は `mandala/` でしか `npm ci` しないので、外に寄生した瞬間 CI だけが落ちる（ローカルは何でも揃っているので気づけない）。兄弟構成になって親からの設定漏れは構造的に塞がったが、**この2つを「不要そうだから」で消さないこと**（spec `publishing-site-deployment` に明文あり）:
+  - `mandala/postcss.config.mjs` — **中身が空なのが正しい**。Next の postcss 設定探索は `find-up` で親方向へ遡るため、親側に設定が生えた瞬間に黙って拾う構造へ戻さないための防御（過去に Studio の `@tailwindcss/postcss` を拾って CI だけが落ちた実績あり）
+  - `mandala/__tests__/helpers/studio-alias-hooks.mjs` の `ALLOWED_PACKAGES` — parity テストが Studio 側ソース（`../studio/lib/`）を走らせるとき、**許可した名前だけ** `mandala/node_modules` から解決する。現在は `zod` の1件。⚠ mandala の zod は 4.3.6（nextra#5008 回避で固定）、Studio の実依存は 4.4.3 で**版がずれている**——検証対象は走査規則であって zod の挙動ではない、という前提で受け入れている既知の近似
   - ⚠ 許可リストに無い依存が Studio 側に生えるとテストが落ちる。**それが仕掛けの狙い**なので、落ちたら「許可リストに足す」か「依存を持ち込まない形に直す」かを判断する
 
 ### 2.3 デプロイ（コード側は完成・外部設定は未実施）
@@ -119,7 +126,7 @@ npm run start   # out/ をローカル配信
 
 | ワークフロー | 契機 | やること |
 |---|---|---|
-| `.github/workflows/dx-training-site-ci.yml` | **`main` への push** / PR（`site/` `contents/` `images/` を含むもの）/ 手動 | 変換 → ビルド → テスト。**デプロイしない** |
+| `.github/workflows/dx-training-mandala-ci.yml` | **`main` への push** / PR（`mandala/` `contents/` `images/` を含むもの）/ 手動 | 変換 → ビルド → テスト。**デプロイしない** |
 | `.github/workflows/dx-training-site-release-pages.yml` | `v*` タグの push / **手動** | GitHub Pages へ配信（basePath 付き） |
 | `.github/workflows/dx-training-site-release-vercel.yml` | **使っていない** | git 連携へ移行済み。逃げ道として残置（UI で disable ＋ タグ契機をコメントアウトの二重停止。使うには Enable と Secrets 登録が要る） |
 
@@ -137,15 +144,15 @@ npm run start   # out/ をローカル配信
 
 ⚠ **作業ブランチの内容を「配信して」確認する手段は無い。**Pages は environment 保護で弾かれ、Vercel は Ignored Build Step で `main` 限定にしてある。確認は**ローカルビルド**（`npm run build` → `npm run start`）か**`main` へマージ**のどちらか。
 
-⚠ **Vercel の Ignored Build Step は `exit 1` = ビルドする / `exit 0` = スキップ**。向きが逆なので**両方の分岐を書く**（`if [ "$VERCEL_GIT_COMMIT_REF" = "main" ]; then exit 1; else exit 0; fi`）。片方だけ書くと `if` 文が 0 を返し、**`main` こそがキャンセルされる**（2026-08-16 に実際に踏んだ）。**同じリポジトリを見ている Vercel プロジェクト全部に要る**（公開サイト・Studio 本体）。設定手順は `site/README.md`。
+⚠ **Vercel の Ignored Build Step は `exit 1` = ビルドする / `exit 0` = スキップ**。向きが逆なので**両方の分岐を書く**（`if [ "$VERCEL_GIT_COMMIT_REF" = "main" ]; then exit 1; else exit 0; fi`）。片方だけ書くと `if` 文が 0 を返し、**`main` こそがキャンセルされる**（2026-08-16 に実際に踏んだ）。**同じリポジトリを見ている Vercel プロジェクト全部に要る**（公開サイト・Studio 本体）。設定手順は `mandala/README.md`。
 
 ⚠ **`workflow_dispatch` の Run workflow ボタンは、デフォルトブランチのワークフロー定義を見て出る。**手動トリガーを新しく足したときは**一度 `main` にマージするまでボタンが現れない**（`gh workflow run` でも同じ）。マージ後は任意ブランチを選んで起動できる。
 
-⚠ **Pages を通すには設定が2つ要り、順序がある**（Source の有効化 → environment のタグルール）。**手順と失敗時のエラー文言は `site/README.md` が正本**——ここには書かない。要点だけ言うと、**environment はワークフローが参照した時点で自動生成されるので「設定画面はあるのに Pages サイトが無い」状態が起きる**。これが誤診の元で、実際に2回続けて踏んだ（2026-08-15 に解決済み）。
+⚠ **Pages を通すには設定が2つ要り、順序がある**（Source の有効化 → environment のタグルール）。**手順と失敗時のエラー文言は `mandala/README.md` が正本**——ここには書かない。要点だけ言うと、**environment はワークフローが参照した時点で自動生成されるので「設定画面はあるのに Pages サイトが無い」状態が起きる**。これが誤診の元で、実際に2回続けて踏んだ（2026-08-15 に解決済み）。
 
 ⚠ **ワークフローの発火条件（`v*`）と environment の許可パターン（`v*.*.*`）が一致していない。**`v6` や `v0.2` のようなタグを打つと**ビルドは走ってから deploy だけが拒否される**（今日踏んだのと同じ分かりにくい落ち方）。いまの27タグは全て `vX.Y.Z` なので実害は出ていない。**揃えるならワークフロー側を `v*.*.*` に狭めるのが筋**（非セマンティックなタグはそもそも発火しなくなる）。未判断。
 
-⚠ **Studio 本体の tsconfig は `site` を除外している**（`exclude: ["node_modules", "site"]`）。外すと Studio のビルドが `site/app/layout.tsx` の `nextra/components` を解決できず**Vercel で落ちる**（ローカルでは「型エラーが多い」で済むので気づきにくい）。2026-08-16 に Studio の Vercel デプロイが実際にこれで失敗した。
+✅ **Studio tsconfig の `exclude: ["site"]` は兄弟構成化で不要になり削除した**（2026-08-16）。site が Studio の配下から出たため、型検査が巻き込む経路そのものが消えた（かつては外すと Vercel で落ちた）。
 
 ⚠ **2026-08-15 にリリースワークフローを1本から2本へ分割した**（`dx-training-site-release.yml` → `-pages.yml` / `-vercel.yml`）。Pages（社内トライアル用）と Vercel（ゲーミフィケーションを見据えた理想追求用）は**目的が異なる**ため。トリガー（`v*` タグ）は共有し続けるので「同一コミットから両方へ配信する」という前提は変わらない。タグ検証ロジックは単純さを優先して両ファイルに意図的に重複させている（DRY化しない）。spec（`publishing-site-deployment`）の要件は変わっていないため、この分割は通常作業として実施した（OpenSpec change は起こしていない）。
 
@@ -153,14 +160,14 @@ npm run start   # out/ をローカル配信
 - `VERCEL_TOKEN` 未登録なら Vercel のワークフローはスキップされ、Pages だけでリリースが完結する（失敗にはならない）
 - ✅ **Pages 配信は通った**（2026-08-15・`v5.1.0`）。public 化 → Source を GitHub Actions → environment にタグルール、まで完了（→ 2.6）
 - ✅ **Vercel の git 連携も通った**（2026-08-16）。Secrets 3本は**不要になった**（逃げ道のワークフローを使う日にだけ要る）
-- **残っている人の作業**: Studio 本体の Vercel プロジェクトに Ignored Build Step を入れる（→ 上の ⚠）。手順は `site/README.md`
+- **残っている人の作業**: Vercel 2プロジェクトの Root Directory 更新（restructure マージ直後）＋ Studio 本体への Ignored Build Step（→ 上の ⚠ と 1章）。手順は `mandala/README.md`
 - ⚠ **Pages は1リポジトリ1サイト。** comitora レポート（`commit-track-tool-ci.yml` / `commit-track-tool-report.yml`）を GitHub 側で Disable して競合を外している。**再有効化するなら**、comitora の手動実行時に `deploy_pages: false` を選ぶ運用に戻すこと
 
 ### 2.4 人の作業として残っているもの
 
 **サイト側で残っているのは Vercel の設定だけ**（→ 2.3）。Pages 配信は通った。メタの値入れ（`style` / `target` 全5コース）と見た目の目視は完了している。
 
-- `images/web-2562325-2.jpg` — ヒーロー画像の元データ。`site/app/hero.jpg` にコピー済みなので**正本 `images/` には不要**。未追跡のまま残っているので消すか判断する
+- `images/web-2562325-2.jpg` — ヒーロー画像の元データ。`mandala/app/hero.jpg` にコピー済みなので**正本 `images/` には不要**。未追跡のまま残っているので消すか判断する
 - ⚠ **見た目を変えたら毎回人が目視する。** ブラウザペインで確認できないものが3種ある（→ 7章）: **曼陀羅の辺**（矢印・アニメーション・実線/破線。そもそも描画されない）、**キャンバス基準の位置**（fitView が未適用なので実機と全く違う）、**ドラッグ操作**（枠の上でパンでき、離しても遷移しないこと）
 - **Start / Goal は DX入門コースの Start のみ**。**Goal は意図的に未宣言**——AI・Python・GitHub のシリーズが増えるので、いま到達点を確定させない
 
@@ -187,7 +194,7 @@ npm run start   # out/ をローカル配信
 
 - **秘密情報はゼロ**。追跡ファイル・git 履歴とも実キーなし（`.env.template` 等はすべてプレースホルダ）。メールアドレスは `example.com` 系のダミーのみ
 - ⚠ **勤務先が特定できる状態のまま公開している**: git 履歴の**企業メールのコミット1件**（2026-07-30・`APAC\kau2yk <Yuji.Kitamura@jp.bosch.com>`）と `ebex/.claude/skills/meeting-minutes/SKILL.md` の Bosch の記述は、**履歴 rewrite をしていないので残っている**。承知の上での判断（再提案しない）
-- 見送った代替案: 専用 public リポを作り成果物（`out/` の中身）だけを Actions が push する方式。履歴も他プロジェクトも公開せずに済むが、本体を public にしたので不要になった。**必要になったときの差し替え点はワークフロー冒頭の env と deploy ジョブに閉じている**（`site/` のコードと変換処理は変更不要）
+- 見送った代替案: 専用 public リポを作り成果物（`out/` の中身）だけを Actions が push する方式。履歴も他プロジェクトも公開せずに済むが、本体を public にしたので不要になった。**必要になったときの差し替え点はワークフロー冒頭の env と deploy ジョブに閉じている**（`mandala/` のコードと変換処理は変更不要）
 
 ### 2.7 将来構想（今回スコープ外・記録として）
 
@@ -196,40 +203,16 @@ npm run start   # out/ をローカル配信
 - **レッスンの frontmatter 廃止 → レッスン用 `.meta.json` 化**は、この UI 改修と**同一 change** で実施する（保存層を一度で正しい形にするため）
 - 画像ピッカー（`ImageGrid` 再利用）、セマンティックズーム、進捗リング付きノード（ゲーミフィケーション）
 
-### 2.8 site の置き場を「親子」から「兄弟」へ（近いうちに取り組む）
+### 2.8 兄弟構成への移行（✅ 完了・2026-08-16）
 
-**現状の `site/` は Studio の子ディレクトリで、これが構造的な事故源になっている。** 2026-08-15 の CI 失敗（`Cannot find module '@tailwindcss/postcss'`）はその1件目で、change `site-build-self-contained` で塞いだが、**塞いだのは穴1つであって構造ではない**。
+change `restructure-studio-mandala` で実施済み。`dx-training-studio/` は入れ物になり、アプリは `studio/` と `mandala/`（旧 `site/`）が兄弟、正本とプロジェクト共通は入れ物直下。**構造の要件（兄弟・正本の位置・入れ物に設定を置かない・起動スクリプト4本）は spec `project-layout` が正本**。全体像は入れ物直下の `CLAUDE.md` / `readme.md`。
 
-フロントエンドのツールは軒並み「見つからなければ親を見に行く」設計になっている——postcss（`find-up`）、eslint、prettier、`tsconfig` の `extends`、`.npmrc`、`.editorconfig`、そして **node のモジュール解決**。親子にすると**この全部が漏れ口になる**。しかも**ローカルでは親に何でも揃っているので全部うまく動いてしまい、破綻するのは依存を厳密に切った場所——つまり CI と本番だけ**。今回まさにこれだった。
+移行で知っておくこと:
 
-**目指す形**（studio と site を兄弟にし、正本をどちらの子でもなくす）:
-
-```
-AI_Driven_School/          ← 設定なし・package.json なし（今そうなっている。良い）
-└─ dx-training/            ← ただの入れ物。ここにも設定を置かない
-   ├─ studio/              ← Next.js 執筆環境（Tailwind を使う）
-   ├─ site/                ← Nextra 公開サイト（Tailwind を使わない）
-   └─ contents/            ← 原稿の正本。どちらのアプリのものでもない
-```
-
-効くポイントは3つ。
-
-1. **studio と site が兄弟**になり、互いの設定も `node_modules` も見えなくなる。今回の穴は構造的に開かなくなる
-2. **`contents/` をどちらの子でもなくす。** 今は Studio の中にあるので site から見ると `../contents` ＝「親を覗く」形になっており、**正当なデータ依存なのに寄生と見分けがつかない**。兄弟にすれば「隣の正本を読む」と明示できる
-3. ⚠ **入れ物ディレクトリに設定を置かない。** `dx-training/` に `package.json` を置いた瞬間に親子構造が復活する
-
-⚠ **「兄弟にする」と「npm workspaces を使う」は別の話で、混ぜると失敗する。** workspaces は lockfile 問題を解決するが、hoisting によって「宣言していない依存が使えてしまう」という**今回と同じ種類のバグ**を持ち込む。**アプリ2本＋正本1つの今の規模なら workspaces を使わず各自 `npm ci` が一番素直**で、CI も現行のまま通る。厳密にやるなら pnpm workspaces（hoisting しない）。
-
-| 方式 | lockfile | 設定漏れ | 依存漏れ |
-|---|---|---|---|
-| **兄弟＋各自 install**（今回の推奨） | 各アプリに1つ | 起きない | 起きない |
-| 兄弟＋npm workspaces | ルートに1つ | 起きない | **起きる**（hoisting） |
-| 兄弟＋pnpm workspaces | ルートに1つ | 起きない | 起きない |
-| 親子（現状） | 各自だが親が見える | **起きる** | **起きる** |
-
-**波及範囲**（着手前に見積もること）: `contents/` の参照パス、`site/scripts/build-content.mts`、`start.bat` 2本、ワークフロー3本の `working-directory` と `cache-dependency-path`、`CLAUDE.md`、`openspec` の planning home（→ 6.1。パスが変わる）、`.gitignore` の anchored パターン（→ 7章）。
-
-**着手のトリガー**: 「3つ目のアプリが生えたとき」か「`contents/` を Studio 以外からも書きたくなったとき」。どちらかが来る前でも、site 周りで大きく手を入れる機会があればそこに合流させるのが安い。
+- **Studio の正本参照は `studio/lib/project-root.ts` の `getProjectRoot()`（cwd の親を返す）に一元化した**。`process.cwd()` を直接パス基準に使わないこと——移行時に API route 約20本と `app/page.tsx` の直接参照を全部この関数経由に直した（⚠ 点検の grep には `.tsx` も含めること。page.tsx を見落として「シリーズが空」になった）
+- テストで cwd を偽装するときは**フィクスチャルート直下の `studio/` 相当を返す**（`getProjectRoot()` が親を見るため。save-course / save-lesson / images-file のテストが実例）
+- npm workspaces は導入しない（hoisting が「宣言していない依存が使える」穴を持ち込むため。検討経緯は archive の design.md）
+- 入れ物直下に `package.json` や `node_modules` を置かない・残さない——**残すと studio からのモジュール解決が親へフォールバックして漏れ口が復活する**（移行時に旧 node_modules を削除済み）
 
 ---
 
@@ -401,7 +384,7 @@ references/model-answer/
   - ⚠ **ただし「キャンバスに対する位置」は測ってはいけない。** fitView が未適用なので viewport の transform は単位行列のままで、グラフは本来の中央寄せではなく**左上に貼り付いた状態**にある。この状態で「枠の左辺からキャンバス左端まで」を測ると 2px と出るが、実機では fitView が中央へ寄せるので数百 px ある（2026-08-15 に誤った測定値をもとに設計判断をして、実機のスクリーンショットで発覚）。**有効なのはノード同士・ノードと子要素といった相対位置だけ**。判定に `.react-flow__viewport` の transform が単位行列でないことを先に確かめると安全
   - ⚠ **React の dev 専用の警告・エラー全文は本番ビルドでは出ない。** `Element type is invalid` の詳細メッセージなどを追うときは **`npm run dev` で確認する**（`npm run start` の静的配信では出ない）
 - **dev サーバーは同一プロジェクトで1台まで**（Next 16）。検証用に立てたら必ず止める（放置 → EBUSY ロック → 起動不能の事故あり）
-- **`.gitignore` のパターンは必ず anchored**（`/images/` `/site/out/`）。非 anchored だと任意の深さにマッチし、**Tailwind のソース走査から `components/` 配下が丸ごと落ちて UI が崩れる**。変更したら **`.next` を削除する**。機構はメモリ `project-tailwind-gitignore-trap`
+- **`.gitignore` のパターンは必ず anchored**（`/images/` `/mandala/out/`）。非 anchored だと任意の深さにマッチし、**Tailwind のソース走査から `components/` 配下が丸ごと落ちて UI が崩れる**。変更したら **`.next` を削除する**。機構はメモリ `project-tailwind-gitignore-trap`
 - **CRLF + BOM のファイルがある**（`__tests__/hooks/*.test.ts` 等）。LF 前提の文字列置換が黙って空振りするので、複数行の編集は Edit ツールを使う
 
 ---
@@ -488,7 +471,6 @@ contents-work/
 | **シリーズ・コース曼陀羅を復活させるか** | 2026-08-15 に「全体1つに絞る」判断で非表示にした（機能は保持）。**全体のバランスを見て再訪する**。復活は `SeriesPage` / `CoursePage` に `<LazyMandala scope={…}>` を書き戻すだけ（→ 2.1） |
 | **`zod` 4.3.6 固定を外す時期** | nextra#5008 の上流修正待ち（2.5） |
 | **site を Turbopack に戻す時期** | rehype プラグインを関数で渡している間は不可。Nextra か unified が文字列指定に対応したら `--webpack` を外す（2.5） |
-| **site の置き場を親子 → 兄弟へ** | **近いうちに取り組む。**2026-08-15 の CI 失敗を機に方針を決めた（→ 2.8）。実害は change `site-build-self-contained` で解消済みなので急がないが、**穴を1つ塞いだだけで構造は残っている** |
 | **アラートの見出しが英語** | `rehype-github-alerts` の既定が `Important` / `Tip` 等。Studio のプレビューと同じなので**揃ってはいる**が、受講者向けに和訳するなら両方の設定を同時に変える |
 | **Goal をいつ宣言するか** | いまは Start のみ（DX入門コース）。**シリーズが出揃うまで到達点は決めない**という判断（2026-08-15）。Goal 未宣言でも曼陀羅は成立する |
 | 昇格基準の項目2 / 模範解答2本目 | どちらも**レビューの blocking を片付けてから**（→ 3章・5章）。項目2 は社内の空欄が未記入のうちは判定できず、2本目の候補（手順型・空欄の実例）も同じレッスン群にある |
@@ -504,7 +486,7 @@ contents-work/
 
 **型・設定**:
 
-- ✅ **`tsc --noEmit` が `site/` を巻き込む問題は解決済み**（2026-08-16。`exclude` に `site` を追加）。⚠ **戻さないこと**——外すと Studio の Vercel デプロイが落ちる（→ 2.3）
+- ✅ **`tsc --noEmit` が site を巻き込む問題は構造ごと解消**（兄弟構成化で `exclude: ["site"]` 自体を削除。→ 2.3）
 - テスト側の型エラー8件（`estimatedMinutes` の綴り違い等）——**すべて古くから**。site 側は0件（クリーンを保つこと）
 
 **死んだコード・古い記述**:
@@ -531,7 +513,7 @@ contents-work/
 - **`dx-training-review` に修正機能を持たせること** — 指摘のみ・採否は人、が設計の芯
 - **計画書の再修正**（構成の作り直し。名前だけの限定更新は別）
 - **`training-create-skill` spec の要件削除**（9章の該当行を参照）
-- **「サイトをビルドして開く」ボタン（Studio）** — `site/start.bat` で足りるか見てから
+- **「サイトをビルドして開く」ボタン（Studio）** — `start-mandala-dev.bat` で足りるか見てから
 - **Start / Goal を構造から推測すること** — 入次数0 / 出次数0 からの導出は**採らないと決めた**（途中入口・複数入口が正当にありうるため危険）。著者の宣言（`is_start` / `is_goal`）が正本。再提案しないこと
 - **Start / Goal をスキル（plan / create）に組み込むこと** — 設定は Studio のモーダルで人が行う（`style` と同じ運用）
 
@@ -541,7 +523,7 @@ contents-work/
 
 | 何 | どこ |
 |---|---|
-| **公開サイトの手順書**（起動・検索・設定・デプロイ・制約） | **`site/README.md`** |
+| **公開サイトの手順書**（起動・検索・設定・デプロイ・制約） | **`mandala/README.md`** |
 | **公開サイトの設計判断の経緯** | `docs/grill-me/grill-me-20260814.md` |
 | 要件の正本（**唯一コミットされる**） | `openspec/specs/` |
 | 完了した change の判断と経緯 | `openspec/changes/archive/<日付>-<change名>/`（⚠ 追跡外・このマシンのみ） |

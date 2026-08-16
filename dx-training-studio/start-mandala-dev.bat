@@ -1,5 +1,5 @@
 @echo off
-cd /d "%~dp0"
+cd /d "%~dp0mandala"
 
 if not exist node_modules (
   echo [DX Training Mandala] node_modules not found. Running npm install...

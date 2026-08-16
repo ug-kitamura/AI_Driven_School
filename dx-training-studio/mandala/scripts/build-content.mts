@@ -31,9 +31,10 @@ const siteRoot = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),
   "..",
 );
-const studioRoot = path.resolve(siteRoot, "..");
-const contentsDir = path.join(studioRoot, "contents");
-const canonicalImagesDir = path.join(studioRoot, "images");
+// siteRoot（mandala/）の親は入れ物 dx-training-studio/ で、正本はその直下にある（兄弟構成）
+const containerRoot = path.resolve(siteRoot, "..");
+const contentsDir = path.join(containerRoot, "contents");
+const canonicalImagesDir = path.join(containerRoot, "images");
 const outputContentDir = path.join(siteRoot, "content");
 const publicImagesDir = path.join(siteRoot, "public", "images");
 

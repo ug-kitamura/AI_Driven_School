@@ -1,16 +1,18 @@
-# dx-training-studio
+# dx-training-studio / studio
 
 DX ツールトレーニング用の **4ペイン Next.js 16 × shadcn/ui ワークスペース**。
 起動方法・画面構成は [`readme.md`](readme.md) を参照。
+
+アプリは入れ物 `dx-training-studio/` 直下の `studio/` にあり、公開サイト `../mandala/` と兄弟。正本データ（`../contents/` `../images/` `../contents-work/` `../local-db/`）は入れ物直下にあり、`lib/project-root.ts` の `getProjectRoot()`（cwd の親を返す）を**必ず経由して**解決する——`process.cwd()` を直接パス基準に使わない。
 
 ## アーキテクチャ
 
 - **状態の SSoT**: `components/workspace/Workspace.tsx`
 - **Pane 1–4**: `SeriesCoursePane`, `LessonListPane`, `MarkdownEditorPane`, `Pane4Shell`（Agent + `ImageManagerPane`）
-- **画像**: 正本 `images/<file>`、staging `images/{uploaded|ai|web}/`（`lib/image-path.ts`, `lib/image-store.ts`）
-- **AI 画像**: 骨子は `<!-- プロンプト -->`、Pane4 AI タブで生成。契約は `contracts/image-slot-contract.md`
+- **画像**: 正本 `../images/<file>`、staging `../images/{uploaded|ai|web}/`（`lib/image-path.ts`, `lib/image-store.ts`）
+- **AI 画像**: 骨子は `<!-- プロンプト -->`、Pane4 AI タブで生成。契約は `../contracts/image-slot-contract.md`
 - **設定**: `lib/workspace-settings.ts`、GlobalHeader 歯車 → `WorkspaceSettingsDialog`
-- **データ**: シリーズ/コース/レッスンの正本は `contents/` ディレクトリ（`lib/contents-loader.ts` が読む）。ワークスペース名・アイコンは `lib/workspace-meta.ts` の定数
+- **データ**: シリーズ/コース/レッスンの正本は入れ物直下の `../contents/` ディレクトリ（`lib/contents-loader.ts` が読む）。ワークスペース名・アイコンは `lib/workspace-meta.ts` の定数
 - **スキーマ**: `lib/schema.ts`（Zod）
 
 ## UI 編集方針

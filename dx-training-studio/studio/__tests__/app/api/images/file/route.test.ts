@@ -22,7 +22,10 @@ describe("GET /api/images/file", () => {
     const filePath = path.join(stagingDir, "test.png");
     await fs.writeFile(filePath, Buffer.from("png-bytes"));
 
-    process.chdir(tmpDir);
+    // getProjectRoot() は cwd の親を返すため、アプリ相当の studio/ サブディレクトリへ入る
+    const appDir = path.join(tmpDir, "studio");
+    await fs.mkdir(appDir, { recursive: true });
+    process.chdir(appDir);
 
     const logicalPath = "images/ai/test.png";
     const stat = await fs.stat(filePath);

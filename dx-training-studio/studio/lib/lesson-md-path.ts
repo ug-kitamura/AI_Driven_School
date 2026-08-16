@@ -1,6 +1,7 @@
 import { resolveLessonFilePath, CONTENTS_DIR_NAME } from "@/lib/contents-loader";
 import { LESSON_CONTENTS_FILENAME } from "@/lib/lesson-paths";
 import path from "node:path";
+import { getProjectRoot } from "@/lib/project-root";
 
 /**
  * git HEAD 参照用のレッスン contents.md 相対パス（`/` 区切り）。
@@ -10,7 +11,7 @@ export function resolveLessonMdPath(
   course: string,
   lesson: string,
 ): string {
-  const projectRoot = process.cwd();
+  const projectRoot = getProjectRoot();
   const absolutePath = resolveLessonFilePath(projectRoot, series, course, lesson);
   if (absolutePath) {
     return path.relative(projectRoot, absolutePath).replace(/\\/g, "/");

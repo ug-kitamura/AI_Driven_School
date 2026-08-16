@@ -6,6 +6,7 @@ import {
   readMetaJson,
   writeMetaJson,
 } from "@/lib/contents-loader";
+import { getProjectRoot } from "@/lib/project-root";
 
 const schema = z.discriminatedUnion("type", [
   z.object({
@@ -39,7 +40,7 @@ export async function POST(req: Request) {
     );
   }
 
-  const contentsDir = getContentsDir(process.cwd());
+  const contentsDir = getContentsDir(getProjectRoot());
 
   if (parsed.data.type === "course") {
     const seriesDir = findSeriesDir(contentsDir, parsed.data.series);

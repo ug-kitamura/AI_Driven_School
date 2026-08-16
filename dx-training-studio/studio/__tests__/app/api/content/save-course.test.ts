@@ -20,7 +20,7 @@ describe("POST /api/content/save-course", () => {
   function setupCourse(meta: Record<string, unknown>): string {
     const root = fs.mkdtempSync(path.join(os.tmpdir(), "save-course-"));
     roots.push(root);
-    cwdSpy = vi.spyOn(process, "cwd").mockReturnValue(root);
+    cwdSpy = vi.spyOn(process, "cwd").mockReturnValue(path.join(root, "studio"));
     const courseDir = path.join(root, "contents", "Series", "Course");
     fs.mkdirSync(courseDir, { recursive: true });
     const metaPath = path.join(courseDir, ".meta.json");

@@ -14,6 +14,7 @@ import {
   serializeLessonDocument,
   normalizeLessonMeta,
 } from "@/lib/lesson-frontmatter";
+import { getProjectRoot } from "@/lib/project-root";
 
 const schema = z.discriminatedUnion("type", [
   z.object({
@@ -52,7 +53,7 @@ export async function POST(req: Request) {
     );
   }
 
-  const contentsDir = getContentsDir(process.cwd());
+  const contentsDir = getContentsDir(getProjectRoot());
 
   if (parsed.data.type === "series") {
     const oldDir = path.join(contentsDir, parsed.data.oldName);

@@ -33,12 +33,12 @@ next-env.d.ts
 /images/*.webm
 /local-db/
 
-# 公開サイト（site/）の生成物 — 変換スクリプトが毎ビルド作り直す
-/site/content/
-/site/public/images/
-/site/public/_pagefind/
-/site/out/
-/site/.next/
+# 公開サイト（mandala/）の生成物 — 変換スクリプトが毎ビルド作り直す
+/mandala/content/
+/mandala/public/images/
+/mandala/public/_pagefind/
+/mandala/out/
+/mandala/.next/
 
 # OpenSpec
 .claude/commands/opsx/

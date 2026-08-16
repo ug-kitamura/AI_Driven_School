@@ -4,8 +4,8 @@ DX ツールトレーニングのコンテンツ計画・作成・編集・デ�
 シリーズ → コース → レッスンの階層構造でコンテンツを管理し、マークダウン編集・画像アセット管理・進捗トラッキングを一画面で行える。
 
 > [!NOTE]
-> `contents/` の原稿を**受講者向けの公開サイト**に変換する仕組みは、独立した npm プロジェクト **`site/`**（DX Training Mandala）にあります。正本 `contents/` を読み取るだけで、Studio とは別に起動します。
-> 起動・検索・設定・デプロイ・既知の制約は **[`site/README.md`](site/README.md)** を参照してください。
+> 本アプリは入れ物 `dx-training-studio/` 直下の **`studio/`** にあります。正本 `../contents/` の原稿を**受講者向けの公開サイト**に変換する仕組みは、兄弟の独立した npm プロジェクト **`../mandala/`**（DX Training Mandala）にあります。どちらも正本を読み取るだけで、互いに独立して起動します。
+> 起動・検索・設定・デプロイ・既知の制約は **[`../mandala/README.md`](../mandala/README.md)** を参照してください。
 
 ## ツール画面
 
@@ -14,16 +14,16 @@ DX ツールトレーニングのコンテンツ計画・作成・編集・デ�
 ## 起動する
 
 ```bash
-cd dx-training-studio
+cd dx-training-studio/studio
 npm install
 npm run dev
 ```
 
 ブラウザで `http://localhost:3001` を開く。
 
-Windows では `start.bat` を推奨（Playwright Chromium の確認後に `npm run dev` を実行）。
+Windows では入れ物直下の **`start-studio-dev.bat`** を推奨（Playwright Chromium の確認後に `npm run dev` を実行）。本番相当の起動は `start-studio.bat`（ビルド → `npm run start`）。
 
-AI タブで Tailwind 図解を生成する場合は、初回のみ `npx playwright install chromium` が必要です（`start.bat` に含まれます）。
+AI タブで Tailwind 図解を生成する場合は、初回のみ `npx playwright install chromium` が必要です（`start-studio-dev.bat` に含まれます）。
 
 ## 4ペイン構成
 
@@ -107,7 +107,7 @@ Pane 3 の編集と **Pane 4 の Agent チャット**は横並びで表示でき
 
 削除は staging を `images/trash/` へ move（ローカル）。**ローカルモード**の正本削除も trash へ move。**ストレージモード**の正本削除は Blob から物理削除。
 
-Markdown の画像パスは正本形式 `images/<filename>` のみ。staging は `images/{uploaded|ai|web}/` に保存する。詳細は [`contracts/image-slot-contract.md`](contracts/image-slot-contract.md)。
+Markdown の画像パスは正本形式 `images/<filename>` のみ。staging は `images/{uploaded|ai|web}/` に保存する。詳細は [`../contracts/image-slot-contract.md`](../contracts/image-slot-contract.md)。
 
 ## 技術スタック
 
@@ -120,6 +120,41 @@ Markdown の画像パスは正本形式 `images/<filename>` のみ。staging は
 - **Zod**（スキーマ検証）
 
 ## ディレクトリ構成
+
+**入れ物 `dx-training-studio/` 直下**（アプリの外。正本とプロジェクト共通）:
+
+```
+dx-training-studio/
+  start-studio.bat / start-studio-dev.bat      Studio 起動（本番相当 / 開発）
+  start-mandala.bat / start-mandala-dev.bat    公開サイト起動（本番相当 / 開発）
+  studio/                  本アプリ（この readme のある場所）
+  mandala/                 公開サイト（独立した npm プロジェクト）
+                           → 手順書は mandala/README.md
+  contents/                シリーズ / コース / レッスンの正本（フォルダ階層 + contents.md）
+    <シリーズ>/
+      .meta.json           シリーズメタ・並び順
+      <コース>/
+        .meta.json         コースメタ
+        <レッスン>/
+          contents.md      レッスン本文（YAML フロントマター）
+  images/                  正本は git 追跡（staging と動画は除外）
+    <file>.png             正本
+    uploaded/ ai/ web/     staging
+    trash/                 削除退避
+  contents-work/           計画書・run 記録・Agent の会話（→ 「データ構造」）
+    plans/                 計画書（git 追跡）
+    runs/                  create 1実行分（git 除外）
+    sessions/              Pane4 の会話（git 除外）
+  local-db/                社内コンテキスト（ローカルモード、git 除外）
+  contracts/               画像スロット・コンテキスト整形の契約
+  docs/
+    handoff.md             引き継ぎ（次にやること・未決事項）
+    grill-me/              仕様検討の記録
+  .claude/skills/          Agent 用スキル（dx-training-create 等）
+  openspec/                仕様・変更管理
+```
+
+**`studio/` 内**（本アプリ）:
 
 ```
 app/
@@ -135,21 +170,9 @@ app/
 components/
   workspace/               4 ペイン UI（Workspace.tsx が状態 SSoT）
   ui/                      shadcn 部品（components.json で管理）
-contents/                  シリーズ / コース / レッスン（フォルダ階層 + contents.md）
-  <シリーズ>/
-    .meta.json             シリーズメタ・並び順
-    <コース>/
-      .meta.json           コースメタ
-      <レッスン>/
-        contents.md        レッスン本文（YAML フロントマター）
-images/                    正本は git 追跡（staging と動画は除外）
-  <file>.png               正本
-  uploaded/ ai/ web/       staging
-  trash/                   削除退避
-local-db/                  社内コンテキスト（ローカルモード、git 除外）
-contracts/                 画像スロット・コンテキスト整形の契約
 lib/
   agent/                   Agent ループ・LLM・ツール・スキルローダー
+  project-root.ts          正本の基準ルート解決（cwd の親＝入れ物。一点変更ポイント）
   schema.ts                Zod スキーマ
   contents-loader.ts       contents/ 読み書き
   workspace-meta.ts        ワークスペース名・アイコン（定数）
@@ -160,18 +183,6 @@ scripts/
   render-diagram.mjs       Playwright HTML→PNG
   upload-local-images-to-blob.mjs
   check-context-db.mjs / migrate-context-db.mjs
-contents-work/             計画書・run 記録・Agent の会話（→ 「データ構造」）
-  plans/                   計画書（git 追跡）
-  runs/                    create 1実行分（git 除外）
-  sessions/                Pane4 の会話（git 除外）
-site/                      公開サイト（独立した npm プロジェクト）
-                           → 手順書は site/README.md
-docs/
-  handoff.md               引き継ぎ（次にやること・未決事項）
-  grill-me/                仕様検討の記録
-  report-and-presentation/ 図解・発表資料
-.claude/skills/            Agent 用スキル（dx-training-create 等）
-openspec/                  仕様・変更管理
 ```
 
 AI 向けの編集ルールは [`CLAUDE.md`](CLAUDE.md) を参照。
@@ -189,14 +200,14 @@ AI 向けの編集ルールは [`CLAUDE.md`](CLAUDE.md) を参照。
 | `npm run format` | Prettier（整形） |
 | `npm run format:check` | Prettier（チェックのみ） |
 | `npm run upload-images-to-blob` | ローカル正本画像を Vercel Blob へアップロード（`--dry-run` 可） |
+| `npm run check:context-db` | Neon 接続・`context_items` テーブル確認 |
+| `npm run migrate:context-db` | 社内コンテキスト DB マイグレーション |
 
-**ポート**: Studio = 3001 / 公開サイト（`site/`）= 3002。
+**ポート**: Studio = 3001 / 公開サイト（`../mandala/`）= 3002。
 
 > [!IMPORTANT]
 > **dev サーバーは同一プロジェクトで1台まで**（Next 16）。検証用に立てたら必ず止める（放置すると `.next` が EBUSY でロックされ起動できなくなる）。
 > **テストの前に dev サーバーを止める** — 動かしたまま `npm run test` を回すと `compileCss`（`inline-html-assets.test.ts`）がタイムアウトで落ちる（実装の異常ではなくマシン負荷）。
-| `npm run check:context-db` | Neon 接続・`context_items` テーブル確認 |
-| `npm run migrate:context-db` | 社内コンテキスト DB マイグレーション |
 
 shadcn 部品の追加: `npx shadcn@latest add <name> --diff`（設定は `components.json`）
 
@@ -210,7 +221,7 @@ Vercel ダッシュボード → **Settings** → **Build and Deployment**
 
 | 項目 | 値 |
 |---|---|
-| Root Directory | `dx-training-studio` |
+| Root Directory | `dx-training-studio/studio` |
 | Framework Preset | Next.js |
 | Build Command | `npm run build` |
 | Output Directory | デフォルト（Override しない） |
@@ -277,7 +288,7 @@ contents/
 
 ## 仕様・設計の詳細
 
-- 引き継ぎ（次にやること・未決事項）→ [`docs/handoff.md`](docs/handoff.md)
-- 仕様検討の記録 → [`docs/grill-me/`](docs/grill-me/)
-- 公開サイトの手順書 → [`site/README.md`](site/README.md)
-- OpenSpec 正本 → [`openspec/specs/`](openspec/specs/)
+- 引き継ぎ（次にやること・未決事項）→ [`../docs/handoff.md`](../docs/handoff.md)
+- 仕様検討の記録 → [`../docs/grill-me/`](../docs/grill-me/)
+- 公開サイトの手順書 → [`../mandala/README.md`](../mandala/README.md)
+- OpenSpec 正本 → [`../openspec/specs/`](../openspec/specs/)

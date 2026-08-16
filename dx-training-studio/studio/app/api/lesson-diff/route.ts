@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { resolveLessonGitDiff } from "@/lib/lesson-git-diff";
+import { getProjectRoot } from "@/lib/project-root";
 
 const requestSchema = z.object({
   series: z.string().min(1),
@@ -24,7 +25,7 @@ export async function POST(req: Request) {
   }
 
   const { series, course, lesson } = parsed.data;
-  const result = resolveLessonGitDiff(process.cwd(), series, course, lesson);
+  const result = resolveLessonGitDiff(getProjectRoot(), series, course, lesson);
 
   if ("error" in result) {
     return Response.json(

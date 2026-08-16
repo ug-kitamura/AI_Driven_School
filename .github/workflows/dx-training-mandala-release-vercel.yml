@@ -13,7 +13,7 @@ name: DX Training Mandala Release (Vercel)
 #        何も配信されないのに成功に見える
 #   3. Run workflow から実行する
 #
-# GitHub Pages 向けの配信は dx-training-site-release-pages.yml が担う（こちらは現役）。
+# GitHub Pages 向けの配信は dx-training-mandala-release-pages.yml が担う（こちらは現役）。
 
 on:
   # ⚠ タグ契機は git 連携へ移行したため無効化した。**削除ではなくコメントアウト**で
@@ -29,7 +29,7 @@ on:
         default: ""
 
 concurrency:
-  group: dx-training-site-release-vercel
+  group: dx-training-mandala-release-vercel
   cancel-in-progress: false
 
 permissions:
@@ -37,7 +37,7 @@ permissions:
 
 env:
   NODE_VERSION: "24"
-  SITE_DIR: dx-training-studio/site
+  SITE_DIR: dx-training-studio/mandala
 
 jobs:
   build-and-deploy:
@@ -68,7 +68,7 @@ jobs:
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: npm
-          cache-dependency-path: dx-training-studio/site/package-lock.json
+          cache-dependency-path: dx-training-studio/mandala/package-lock.json
 
       - name: Install dependencies
         working-directory: ${{ env.SITE_DIR }}

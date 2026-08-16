@@ -2,6 +2,7 @@ import { contextStorageModeSchema, type ContextStorageMode } from "@/lib/schema"
 import { createContextDbRepository } from "@/lib/context-db/repository";
 import { createContextLocalRepository } from "@/lib/context-local/repository";
 import type { ContextRepository } from "@/lib/context-db/repository";
+import { getProjectRoot } from "@/lib/project-root";
 
 export function parseContextMode(
   raw: string | null | undefined,
@@ -19,7 +20,7 @@ const repositoryCache = new Map<ContextStorageMode, ContextRepository>();
 
 export function getContextRepository(
   mode: ContextStorageMode = "database",
-  projectRoot: string = process.cwd(),
+  projectRoot: string = getProjectRoot(),
 ): ContextRepository {
   const cached = repositoryCache.get(mode);
   if (cached) return cached;

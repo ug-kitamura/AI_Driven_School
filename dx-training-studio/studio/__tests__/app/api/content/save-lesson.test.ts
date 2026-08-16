@@ -34,7 +34,7 @@ describe("POST /api/content/save-lesson", () => {
   it("updates an existing lesson file", async () => {
     const root = fs.mkdtempSync(path.join(os.tmpdir(), "save-lesson-"));
     roots.push(root);
-    cwdSpy = vi.spyOn(process, "cwd").mockReturnValue(root);
+    cwdSpy = vi.spyOn(process, "cwd").mockReturnValue(path.join(root, "studio"));
     const file = setupLesson(root, "# before\n");
 
     const res = await POST(
@@ -57,7 +57,7 @@ describe("POST /api/content/save-lesson", () => {
   it("returns 404 when the lesson folder does not exist", async () => {
     const root = fs.mkdtempSync(path.join(os.tmpdir(), "save-lesson-"));
     roots.push(root);
-    cwdSpy = vi.spyOn(process, "cwd").mockReturnValue(root);
+    cwdSpy = vi.spyOn(process, "cwd").mockReturnValue(path.join(root, "studio"));
     fs.mkdirSync(path.join(root, "contents"), { recursive: true });
 
     const res = await POST(

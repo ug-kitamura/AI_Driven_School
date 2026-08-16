@@ -6,6 +6,7 @@ import {
   storageErrorResponse,
 } from "@/lib/image-storage/resolve";
 import { imageStorageModeSchema } from "@/lib/schema";
+import { getProjectRoot } from "@/lib/project-root";
 
 const requestSchema = z.object({
   stagingPath: z.string().min(1),
@@ -30,9 +31,9 @@ export async function POST(req: Request) {
 
   try {
     const storageMode = parseImageStorageMode(parsed.data.storageMode);
-    const backend = resolveCanonicalBackend(process.cwd(), storageMode);
+    const backend = resolveCanonicalBackend(getProjectRoot(), storageMode);
     const file = await promoteStagingToCanonical(
-      process.cwd(),
+      getProjectRoot(),
       parsed.data.stagingPath,
       backend,
     );

@@ -12,6 +12,7 @@ import {
 } from "@/lib/render-diagram-capture.mjs";
 import { resolveAiModel } from "@/lib/resolve-ai-model";
 import { lessonSchema } from "@/lib/schema";
+import { getProjectRoot } from "@/lib/project-root";
 
 const bodySchema = z.object({
   lesson: lessonSchema,
@@ -107,7 +108,7 @@ export async function POST(req: Request) {
     return Response.json({ error: message }, { status: 502 });
   }
 
-  const projectRoot = process.cwd();
+  const projectRoot = getProjectRoot();
   const fileName = await resolveUniquePngFileName(projectRoot, generation.slug);
 
   try {

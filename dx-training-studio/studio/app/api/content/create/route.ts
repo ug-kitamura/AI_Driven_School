@@ -12,6 +12,7 @@ import { sanitizeFilename } from "@/lib/content-filename";
 import { generateCourseId, generateSeriesId, readStoredId } from "@/lib/content-ids";
 import { createLessonContentTemplate, normalizeLessonMeta } from "@/lib/lesson-frontmatter";
 import { LESSON_CONTENTS_FILENAME } from "@/lib/lesson-paths";
+import { getProjectRoot } from "@/lib/project-root";
 
 const schema = z.discriminatedUnion("type", [
   z.object({
@@ -49,7 +50,7 @@ export async function POST(req: Request) {
     );
   }
 
-  const contentsDir = getContentsDir(process.cwd());
+  const contentsDir = getContentsDir(getProjectRoot());
 
   if (parsed.data.type === "series") {
     fs.mkdirSync(contentsDir, { recursive: true });

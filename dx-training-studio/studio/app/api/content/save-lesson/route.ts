@@ -5,6 +5,7 @@ import {
   lessonFileTextEquals,
   normalizeLessonFileNewlines,
 } from "@/lib/lesson-file-text";
+import { getProjectRoot } from "@/lib/project-root";
 
 const schema = z.object({
   series: z.string().min(1),
@@ -30,7 +31,7 @@ export async function POST(req: Request) {
   }
 
   const { series, course, lesson, content } = parsed.data;
-  const filePath = resolveLessonFilePath(process.cwd(), series, course, lesson);
+  const filePath = resolveLessonFilePath(getProjectRoot(), series, course, lesson);
 
   if (!filePath) {
     return Response.json(

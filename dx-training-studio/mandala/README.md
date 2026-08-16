@@ -2,7 +2,7 @@
 
 `contents/` の原稿を受講者向けの静的サイトに変換して公開する。Nextra 4（Next.js 16 / React 19）＋ React Flow。
 
-Studio（`../`）とは独立した npm プロジェクトで、正本 `../contents` と `../images` を**読み取るだけ**。
+Studio（`../studio/`）とは独立した npm プロジェクトで、兄弟に置かれた正本 `../contents` と `../images` を**読み取るだけ**。
 
 ## 使い方
 
@@ -14,7 +14,7 @@ npm run start   # out/ をローカル配信して確認（http://localhost:3002
 npm run test    # 変換・曼陀羅グラフのテスト
 ```
 
-**`start.bat` をダブルクリックすれば「ビルド → 開発サーバー」が一発で走る。** 検索インデックスはビルドでしか作られないため、この順序で起動すると開発サーバーでも検索が使える（→ 検索）。
+**入れ物直下（`../`）の `start-mandala-dev.bat` をダブルクリックすれば「ビルド → 開発サーバー」が一発で走る。** 検索インデックスはビルドでしか作られないため、この順序で起動すると開発サーバーでも検索が使える（→ 検索）。本番相当の確認は `start-mandala.bat`（ビルド → `out/` 配信）。
 
 `npm run build:content` だけを単体で実行すれば、変換（`content/` と `public/images/` の生成）のみ走る。
 
@@ -87,9 +87,9 @@ GitHub Actions のワークフローは3本。**契機が違う**ので混ぜな
 
 | ワークフロー                           | 契機                                                    | やること                                   |
 | --------------------------------------- | ------------------------------------------------------- | ------------------------------------------ |
-| `dx-training-site-ci.yml`               | **`main` への push** / PR / 手動                        | 変換 → ビルド → テスト。**デプロイしない** |
-| `dx-training-site-release-pages.yml`    | `v*` タグの push / 手動                                 | GitHub Pages へ配信                        |
-| `dx-training-site-release-vercel.yml`   | **使っていない**（手動のみ・UI でも disable 済み）      | Vercel 配信は git 連携へ移行した。git 連携が壊れたときの逃げ道として残してある |
+| `dx-training-mandala-ci.yml`               | **`main` への push** / PR / 手動                        | 変換 → ビルド → テスト。**デプロイしない** |
+| `dx-training-mandala-release-pages.yml`    | `v*` タグの push / 手動                                 | GitHub Pages へ配信                        |
+| `dx-training-mandala-release-vercel.yml`   | **使っていない**（手動のみ・UI でも disable 済み）      | Vercel 配信は git 連携へ移行した。git 連携が壊れたときの逃げ道として残してある |
 
 ```bash
 git tag v0.1.0 && git push origin v0.1.0
@@ -113,7 +113,7 @@ git tag v0.1.0 && git push origin v0.1.0
 ⚠ **作業ブランチの内容を「配信して」確認する手段は無い。**Pages は environment 保護で弾かれ、Vercel は `main` 限定にしてある。確認したいときは**ローカルで `npm run build` → `npm run start`** か、**`main` にマージする**かのどちらか。
 
 ⚠ `workflow_dispatch` の **Run workflow ボタンは、デフォルトブランチにあるワークフロー定義を見て出る**。手動トリガーを新しく足したときは、**一度 `main` にマージするまでボタンが現れない**。マージ後は任意のブランチを選んで起動できる。
-- Pages はサブパス配信なので `NEXT_PUBLIC_BASE_PATH=/AI_Driven_School` 付きでビルドし、Vercel は付けずにビルドする（ルート配信のため）。⚠ **この値はリポジトリ名に由来する**（`https://<owner>.github.io/<repo>/`）。**リポジトリ名を変えたら `dx-training-site-release-pages.yml` の `PAGES_BASE_PATH` も変えること**——変えないと配信されたサイトの CSS・JS・画像がすべて 404 になる
+- Pages はサブパス配信なので `NEXT_PUBLIC_BASE_PATH=/AI_Driven_School` 付きでビルドし、Vercel は付けずにビルドする（ルート配信のため）。⚠ **この値はリポジトリ名に由来する**（`https://<owner>.github.io/<repo>/`）。**リポジトリ名を変えたら `dx-training-mandala-release-pages.yml` の `PAGES_BASE_PATH` も変えること**——変えないと配信されたサイトの CSS・JS・画像がすべて 404 になる
 - タグ検証（main に含まれるかの確認）は Pages のワークフローに入っている
 - リリース番号（タグ名）は `NEXT_PUBLIC_SITE_RELEASE` としてビルドに渡され、**サイドバー最上部**に出る。ローカルビルドでは**何も表示されない**（行も余白も出ない）
 
@@ -142,7 +142,7 @@ git tag v0.1.0 && git push origin v0.1.0
 
 | 設定 | 値 | 忘れると |
 | --- | --- | --- |
-| Root Directory | `dx-training-studio/site` | ビルドコマンドが見つからない |
+| Root Directory | `dx-training-studio/mandala` | ビルドコマンドが見つからない |
 | **Include files outside the root directory** | **Enabled** | 変換が `../contents` を読めず「正本が見つかりません」で落ちる |
 | Framework Preset | **Next.js** | `No framework detected` になり、`out/` ではなく `public/` が配信されて**全ページ 404** |
 | Node.js Version | 22.6 以上（現在 24.x） | `build:content` の `--experimental-strip-types` が動かない |
@@ -165,7 +165,7 @@ if [ "$VERCEL_GIT_COMMIT_REF" = "main" ]; then exit 1; else exit 0; fi
 
 ##### 逃げ道のワークフロー
 
-`dx-training-site-release-vercel.yml` は git 連携が壊れたときのために残してあるが、**二重に止まっている**。使うには3手が要る。
+`dx-training-mandala-release-vercel.yml` は git 連携が壊れたときのために残してあるが、**二重に止まっている**。使うには3手が要る。
 
 1. GitHub UI でワークフローを **Enable**（disable 中は `workflow_dispatch` も押せない）
 2. Secrets 3本（`VERCEL_TOKEN` / `VERCEL_ORG_ID` / `VERCEL_PROJECT_ID`）を登録
@@ -179,7 +179,7 @@ if [ "$VERCEL_GIT_COMMIT_REF" = "main" ]; then exit 1; else exit 0; fi
 
 ### 将来: 専用 public リポ方式へ切り替える場合
 
-「成果物のみを別の public リポへ push する」方式に変える場合、変更は `dx-training-site-release-pages.yml` の冒頭 `env` と `deploy` ジョブに閉じる。**`site/` のコードと `scripts/` の変換処理は変更不要**。
+「成果物のみを別の public リポへ push する」方式に変える場合、変更は `dx-training-mandala-release-pages.yml` の冒頭 `env` と `deploy` ジョブに閉じる。**`mandala/` のコードと `scripts/` の変換処理は変更不要**。
 
 ## 正本に必要なもの
 
@@ -211,7 +211,7 @@ if [ "$VERCEL_GIT_COMMIT_REF" = "main" ]; then exit 1; else exit 0; fi
 ## 構成
 
 ```
-site/
+mandala/
 ├─ scripts/build-content.mts   変換の入口
 │  └─ lib/                     content-source（正本読み取り）/ site-model / emit / images
 ├─ app/                        ルートレイアウト・グローバル CSS・supergraphic / hero・アイコン
@@ -220,4 +220,4 @@ site/
 └─ __tests__/                  変換・曼陀羅グラフ・Studio ローダーとの突き合わせ
 ```
 
-`__tests__/content-source.parity.test.mts` は、**site の読み取りロジックが Studio の `lib/contents-loader.ts` とずれていないか**を実際の `contents/` を両方で読んで検証する。走査規則を変えるときは両方を直す。
+`__tests__/content-source.parity.test.mts` は、**mandala の読み取りロジックが Studio の `../studio/lib/contents-loader.ts` とずれていないか**を実際の `contents/` を両方で読んで検証する。走査規則を変えるときは両方を直す。

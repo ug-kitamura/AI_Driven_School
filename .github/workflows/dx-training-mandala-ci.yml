@@ -13,16 +13,16 @@ on:
     branches:
       - main
     paths:
-      - "dx-training-studio/site/**"
+      - "dx-training-studio/mandala/**"
       - "dx-training-studio/contents/**"
       - "dx-training-studio/images/**"
-      - ".github/workflows/dx-training-site-ci.yml"
+      - ".github/workflows/dx-training-mandala-ci.yml"
   pull_request:
     paths:
-      - "dx-training-studio/site/**"
+      - "dx-training-studio/mandala/**"
       - "dx-training-studio/contents/**"
       - "dx-training-studio/images/**"
-      - ".github/workflows/dx-training-site-ci.yml"
+      - ".github/workflows/dx-training-mandala-ci.yml"
   workflow_dispatch:
 
 concurrency:
@@ -38,7 +38,7 @@ jobs:
     runs-on: ubuntu-latest
     defaults:
       run:
-        working-directory: dx-training-studio/site
+        working-directory: dx-training-studio/mandala
     steps:
       - uses: actions/checkout@v5
 
@@ -46,7 +46,7 @@ jobs:
         with:
           node-version: 24
           cache: npm
-          cache-dependency-path: dx-training-studio/site/package-lock.json
+          cache-dependency-path: dx-training-studio/mandala/package-lock.json
 
       - name: Install dependencies
         run: npm ci

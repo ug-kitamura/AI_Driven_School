@@ -2,10 +2,11 @@ import {
   resolveCanonicalBackend,
   storageErrorResponse,
 } from "@/lib/image-storage/resolve";
+import { getProjectRoot } from "@/lib/project-root";
 
 export async function GET() {
   try {
-    const backend = resolveCanonicalBackend(process.cwd(), "storage");
+    const backend = resolveCanonicalBackend(getProjectRoot(), "storage");
     await backend.listCanonical();
     return Response.json({ ok: true });
   } catch (error) {

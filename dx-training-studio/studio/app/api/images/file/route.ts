@@ -22,6 +22,7 @@ import {
   isSafeImageLogicalPath,
   isStagingPath,
 } from "@/lib/image-path";
+import { getProjectRoot } from "@/lib/project-root";
 
 async function respondLocalImageFile(
   req: Request,
@@ -46,7 +47,7 @@ export async function GET(req: Request) {
   }
 
   if (isStagingPath(pathParam)) {
-    const absolute = resolveAbsoluteImagePath(process.cwd(), pathParam);
+    const absolute = resolveAbsoluteImagePath(getProjectRoot(), pathParam);
     if (!absolute) {
       return Response.json({ error: "path が不正です" }, { status: 400 });
     }
@@ -65,7 +66,7 @@ export async function GET(req: Request) {
 
   try {
     if (storageMode === "local") {
-      const absolute = resolveAbsoluteImagePath(process.cwd(), pathParam);
+      const absolute = resolveAbsoluteImagePath(getProjectRoot(), pathParam);
       if (!absolute) {
         return Response.json({ error: "path が不正です" }, { status: 400 });
       }
@@ -99,7 +100,7 @@ export async function GET(req: Request) {
       return imageFileNotModifiedResponse(etag, lastModified);
     }
 
-    const backend = resolveCanonicalBackend(process.cwd(), storageMode);
+    const backend = resolveCanonicalBackend(getProjectRoot(), storageMode);
     const data = await backend.readCanonical(pathParam);
     if (!data) {
       return Response.json({ error: "ファイルが見つかりません" }, { status: 404 });
@@ -133,7 +134,7 @@ export async function DELETE(req: Request) {
 
   if (isStagingPath(pathParam)) {
     try {
-      await moveImageToTrash(process.cwd(), pathParam);
+      await moveImageToTrash(getProjectRoot(), pathParam);
       return Response.json({ ok: true });
     } catch (error) {
       const message = error instanceof Error ? error.message : "削除に失敗しました";
@@ -156,7 +157,7 @@ export async function DELETE(req: Request) {
   const storageMode = parseImageStorageMode(url.searchParams.get("storageMode"));
 
   try {
-    const backend = resolveCanonicalBackend(process.cwd(), storageMode);
+    const backend = resolveCanonicalBackend(getProjectRoot(), storageMode);
     await backend.deleteCanonical(pathParam);
     return Response.json({ ok: true });
   } catch (error) {

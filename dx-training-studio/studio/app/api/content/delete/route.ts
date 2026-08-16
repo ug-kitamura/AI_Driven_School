@@ -10,6 +10,7 @@ import {
   resolveLessonFilePath,
 } from "@/lib/contents-loader";
 import { sanitizeFilename } from "@/lib/content-filename";
+import { getProjectRoot } from "@/lib/project-root";
 
 const schema = z.discriminatedUnion("type", [
   z.object({
@@ -45,7 +46,7 @@ export async function POST(req: Request) {
     );
   }
 
-  const contentsDir = getContentsDir(process.cwd());
+  const contentsDir = getContentsDir(getProjectRoot());
 
   if (parsed.data.type === "series") {
     const seriesDir = findSeriesDir(contentsDir, parsed.data.name);
@@ -95,7 +96,7 @@ export async function POST(req: Request) {
 
   const lessonDirName = sanitizeFilename(parsed.data.name);
   const filePath = resolveLessonFilePath(
-    process.cwd(),
+    getProjectRoot(),
     parsed.data.series,
     parsed.data.course,
     parsed.data.name,

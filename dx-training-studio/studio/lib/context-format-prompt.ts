@@ -1,8 +1,9 @@
 import fs from "node:fs";
 import path from "node:path";
 import { isValidTag, normalizeTagToken } from "@/lib/lesson-tags";
+import { getProjectRoot } from "@/lib/project-root";
 
-const CONTRACT_PATH = path.join(process.cwd(), "contracts", "context-format-contract.md");
+const CONTRACT_PATH = path.join(getProjectRoot(), "contracts", "context-format-contract.md");
 
 export function loadContextFormatContract(): string {
   return fs.readFileSync(CONTRACT_PATH, "utf-8");

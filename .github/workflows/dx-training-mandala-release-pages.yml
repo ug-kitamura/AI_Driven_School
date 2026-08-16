@@ -3,7 +3,7 @@ name: DX Training Mandala Release (GitHub Pages)
 # 公開サイトの GitHub Pages 配信（社内トライアル用）。main に含まれるコミットへ
 # v* タグを打ったときと、動作確認のための手動実行で走る。
 #
-# Vercel 向けの配信は dx-training-site-release-vercel.yml が別に担う。
+# Vercel 向けの配信は dx-training-mandala-release-vercel.yml が別に担う。
 # 契機（v* タグ）は共有するが、Pages と Vercel は目的が異なる（社内トライアル /
 # ゲーミフィケーションを見据えた理想追求）ためファイルを分けている。
 # タグ検証ロジックは両ファイルに重複するが、単純さを優先して意図的に共通化していない。
@@ -24,7 +24,7 @@ on:
         default: ""
 
 concurrency:
-  group: dx-training-site-release-pages
+  group: dx-training-mandala-release-pages
   cancel-in-progress: false
 
 permissions:
@@ -34,7 +34,7 @@ permissions:
 
 env:
   NODE_VERSION: "24"
-  SITE_DIR: dx-training-studio/site
+  SITE_DIR: dx-training-studio/mandala
   # GitHub Pages はプロジェクトページ配信なのでサブパスになる
   PAGES_BASE_PATH: /AI_Driven_School
   PAGES_ARTIFACT_DIR: _pages_out
@@ -68,7 +68,7 @@ jobs:
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: npm
-          cache-dependency-path: dx-training-studio/site/package-lock.json
+          cache-dependency-path: dx-training-studio/mandala/package-lock.json
 
       - name: Install dependencies
         working-directory: ${{ env.SITE_DIR }}

@@ -7,6 +7,7 @@ import {
   buildWebSearchPlanMessages,
   parseWebSearchPlanResponse,
 } from "@/lib/web-image-search-plan";
+import { getProjectRoot } from "@/lib/project-root";
 
 const bodySchema = z.object({
   lesson: lessonSchema,
@@ -101,7 +102,7 @@ export async function POST(req: Request) {
   }
 
   try {
-    const results = await executeWebImageSearch(process.cwd(), pixabayKey, plan);
+    const results = await executeWebImageSearch(getProjectRoot(), pixabayKey, plan);
     if (results.length === 0) {
       return Response.json(
         { error: "条件に合う画像が見つかりませんでした。プロンプトを変えて再試行してください。" },

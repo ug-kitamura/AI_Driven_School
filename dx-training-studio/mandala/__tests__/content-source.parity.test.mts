@@ -15,8 +15,10 @@ const siteRoot = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),
   "..",
 );
-const studioRoot = path.resolve(siteRoot, "..");
-const contentsDir = path.join(studioRoot, "contents");
+// siteRoot（mandala/）の親は入れ物 dx-training-studio/。正本はその直下、Studio アプリは studio/
+const containerRoot = path.resolve(siteRoot, "..");
+const studioRoot = path.join(containerRoot, "studio");
+const contentsDir = path.join(containerRoot, "contents");
 
 type Shape = {
   series: Array<{
@@ -35,7 +37,8 @@ type Shape = {
 function loadViaStudio(): { shape: Shape } | { error: string } {
   const script = `
     import { loadContentsFolder } from "@/lib/contents-loader";
-    const series = loadContentsFolder(process.cwd()).map((s) => ({
+    import { getProjectRoot } from "@/lib/project-root";
+    const series = loadContentsFolder(getProjectRoot()).map((s) => ({
       name: s.name,
       slug: s.slug,
       courses: s.courses.map((c) => ({

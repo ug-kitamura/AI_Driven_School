@@ -5,6 +5,7 @@ import {
   isMp4FileName,
   MAX_MP4_BYTES,
 } from "@/lib/image-path";
+import { getProjectRoot } from "@/lib/project-root";
 
 const MP4_SIZE_ERROR =
   "MP4 は 3 MB 以下にしてください（10 秒以内の録画を推奨）";
@@ -42,7 +43,7 @@ export async function POST(req: Request) {
       return Response.json({ error: MP4_SIZE_ERROR }, { status: 413 });
     }
     const entry = await saveStagingImage(
-      process.cwd(),
+      getProjectRoot(),
       sourceRaw,
       file.name,
       buffer,

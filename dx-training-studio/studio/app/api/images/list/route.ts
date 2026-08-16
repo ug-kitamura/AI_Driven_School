@@ -5,6 +5,7 @@ import {
   storageErrorResponse,
 } from "@/lib/image-storage/resolve";
 import { isImageSource } from "@/lib/image-path";
+import { getProjectRoot } from "@/lib/project-root";
 
 export async function GET(req: Request) {
   const url = new URL(req.url);
@@ -17,12 +18,12 @@ export async function GET(req: Request) {
       if (!isImageSource(sourceRaw)) {
         return Response.json({ error: "source が不正です" }, { status: 400 });
       }
-      const files = await listStagingImages(process.cwd(), sourceRaw);
+      const files = await listStagingImages(getProjectRoot(), sourceRaw);
       return Response.json({ files });
     }
 
     if (scope === "used") {
-      const backend = resolveCanonicalBackend(process.cwd(), storageMode);
+      const backend = resolveCanonicalBackend(getProjectRoot(), storageMode);
       const files = await backend.listCanonical();
       return Response.json({ files });
     }

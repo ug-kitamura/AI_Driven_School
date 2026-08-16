@@ -7,6 +7,7 @@ import {
   writeMetaJson,
 } from "@/lib/contents-loader";
 import { courseStyleSchema } from "@/lib/schema";
+import { getProjectRoot } from "@/lib/project-root";
 
 const schema = z.object({
   series: z.string().min(1),
@@ -46,7 +47,7 @@ export async function POST(req: Request) {
     is_start,
     is_goal,
   } = parsed.data;
-  const contentsDir = getContentsDir(process.cwd());
+  const contentsDir = getContentsDir(getProjectRoot());
   const seriesDir = findSeriesDir(contentsDir, series);
   if (!seriesDir) {
     return Response.json({ error: `シリーズフォルダが見つかりません: ${series}` }, { status: 404 });

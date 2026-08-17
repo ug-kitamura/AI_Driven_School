@@ -98,8 +98,11 @@ export function Pane4Shell({
   // AgentChatPane はスコープ切替でリマウントされるため、ここで保持する。
   const [skills, setSkills] = useState<SkillSummary[]>([]);
   const [skillsError, setSkillsError] = useState<string | null>(null);
+  const skillsFetchingRef = useRef(false);
 
-  useEffect(() => {
+  const fetchSkills = useCallback(() => {
+    if (skillsFetchingRef.current) return;
+    skillsFetchingRef.current = true;
     void fetch("/api/agent/skills")
       .then((res) => res.json())
       .then((data: { skills?: SkillSummary[] }) => {
@@ -108,8 +111,20 @@ export function Pane4Shell({
       })
       .catch(() => {
         setSkillsError("スキル一覧の取得に失敗しました");
+      })
+      .finally(() => {
+        skillsFetchingRef.current = false;
       });
   }, []);
+
+  useEffect(() => {
+    fetchSkills();
+  }, [fetchSkills]);
+
+  // スラッシュ候補を開いたとき一覧が空なら再取得する（初回失敗からの回復）
+  const ensureSkills = useCallback(() => {
+    if (skills.length === 0) fetchSkills();
+  }, [skills.length, fetchSkills]);
 
   const sessionChrome = useAgentSessionChrome(
     agentChatControllerRef,
@@ -180,6 +195,7 @@ export function Pane4Shell({
               richMarkdown={pane4View === "agent"}
               skills={skills}
               skillsError={skillsError}
+              onEnsureSkills={ensureSkills}
             />
           </div>
         </div>

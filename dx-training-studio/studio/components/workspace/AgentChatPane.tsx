@@ -150,6 +150,8 @@ type Props = {
   /** スキルカタログ。フォルダ非依存なので親が保持する。 */
   skills?: SkillSummary[];
   skillsError?: string | null;
+  /** スラッシュ候補を開いたとき一覧が空なら再取得を要求する */
+  onEnsureSkills?: () => void;
 };
 
 function computeSessionFingerprint(
@@ -237,6 +239,7 @@ export function AgentChatPane({
   richMarkdown = true,
   skills = [],
   skillsError = null,
+  onEnsureSkills,
 }: Props) {
   // フォーカスが変わると scopeId も変わる（リマウントはしない）。会話の保存先には
   // 使わず、invoke の送信値・`@` 参照候補・相対パスの基準としてだけ使う。
@@ -1679,6 +1682,7 @@ export function AgentChatPane({
           isLoading={isStreaming}
           modelLabel={modelLabel}
           skills={skills}
+          onEnsureSkills={onEnsureSkills}
           activeSkillId={activeSkillId}
           activeSkillName={activeSkill?.name ?? null}
           onActiveSkillChange={setActiveSkillId}

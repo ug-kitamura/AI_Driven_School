@@ -9,6 +9,7 @@ import { cn } from "@/lib/utils";
 import { getLessonBody, type LessonMetaFields } from "@/lib/lesson-frontmatter";
 import { stripHtmlComments } from "@/lib/html-comment-at-cursor";
 import { LessonMetaDialog } from "@/components/workspace/LessonMetaDialog";
+import { LessonPreviewMetaRow } from "@/components/workspace/LessonPreviewMetaRow";
 import { LessonDiffView } from "@/components/workspace/LessonDiffView";
 import { PaneWheelRoot } from "@/components/workspace/PaneWheelRoot";
 import {
@@ -257,6 +258,7 @@ export function MarkdownEditorPane({
             }}
             className="absolute inset-0 workspace-scrollbar overflow-y-auto overscroll-y-contain px-6 py-5"
           >
+            <LessonPreviewMetaRow lesson={lesson} course={course} />
             <div className={LESSON_PREVIEW_CLASS}>
               <ReactMarkdown
                 key={`${lesson.id}-${imageAssetsRevision}`}

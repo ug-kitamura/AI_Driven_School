@@ -6,7 +6,7 @@ import {
   readMetaJson,
   writeMetaJson,
 } from "@/lib/contents-loader";
-import { courseStyleSchema } from "@/lib/schema";
+import { courseStyleSchema, slugSchema } from "@/lib/schema";
 import { getProjectRoot } from "@/lib/project-root";
 
 const schema = z.object({
@@ -15,6 +15,9 @@ const schema = z.object({
   target: z.string().default(""),
   // 未設定は「キーを書かない」で表すため、空文字と欠落の両方を受ける
   style: courseStyleSchema.or(z.literal("")).optional(),
+  slug: slugSchema.or(z.literal("")).optional(),
+  catch: z.string().optional(),
+  description: z.string().optional(),
   cross_series_prev: z.array(z.string()).default([]),
   cross_series_next: z.array(z.string()).default([]),
   is_start: z.boolean().default(false),
@@ -42,6 +45,9 @@ export async function POST(req: Request) {
     course,
     target,
     style,
+    slug,
+    catch: catchCopy,
+    description,
     cross_series_prev,
     cross_series_next,
     is_start,
@@ -72,7 +78,8 @@ export async function POST(req: Request) {
       is_start?: unknown;
       is_goal?: unknown;
     };
-    writeMetaJson(courseDir, {
+    // 公開サイト向けフィールドは「省略＝保全 / 空文字＝削除 / 値＝設定」
+    const next: Record<string, unknown> = {
       ...rest,
       target,
       ...(style ? { style } : {}),
@@ -81,7 +88,20 @@ export async function POST(req: Request) {
       // 既定（false）はキーを書かない——style と同じく「未宣言＝キー無し」に保つ
       ...(is_start ? { is_start: true } : {}),
       ...(is_goal ? { is_goal: true } : {}),
-    });
+    };
+    if (slug !== undefined) {
+      delete next.slug;
+      if (slug) next.slug = slug;
+    }
+    if (catchCopy !== undefined) {
+      delete next.catch;
+      if (catchCopy.trim()) next.catch = catchCopy.trim();
+    }
+    if (description !== undefined) {
+      delete next.description;
+      if (description.trim()) next.description = description.trim();
+    }
+    writeMetaJson(courseDir, next);
     return Response.json({ ok: true });
   } catch (err) {
     return Response.json({ error: String(err) }, { status: 500 });

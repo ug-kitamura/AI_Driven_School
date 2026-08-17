@@ -2,8 +2,8 @@ import type { CSSProperties, ReactNode } from "react";
 import Image from "next/image";
 import { Head } from "nextra/components";
 import { getPageMap } from "nextra/page-map";
-import siteConfig from "@/site.config.json";
 import { SiteShell } from "@/components/SiteShell";
+import { siteChrome } from "@/lib/site-data";
 import { resolveReleaseInfo } from "@/lib/release-info";
 import supergraphicImage from "./supergraphic.png";
 import "nextra-theme-docs/style.css";
@@ -12,7 +12,7 @@ import "./globals.css";
 export const metadata = {
   // 全ページ共通でサイト名のみを表示する（ページ別の title は使わない）。
   // 実際の上書きは app/[[...mdxPath]]/page.jsx の generateMetadata が担う。
-  title: siteConfig.siteName,
+  title: siteChrome().name,
   description:
     "DX ツールを業務で使えるようになるためのトレーニング。曼陀羅で全体の道のりを見渡しながら進められます。",
 };

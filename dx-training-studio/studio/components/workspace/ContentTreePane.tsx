@@ -1,14 +1,23 @@
 "use client";
 
-import { useCallback, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import {
   GraduationCap,
   ChevronDown,
   ChevronRight,
+  ChevronsDownUp,
   CircleCheck,
+  FileText,
+  House,
   Loader,
   CircleDashed,
-  Settings2,
+  Search,
   Pencil,
   Copy,
   ClipboardPaste,
@@ -16,11 +25,11 @@ import {
   FolderPlus,
   FilePlus,
   Trash2,
+  X,
 } from "lucide-react";
 import {
   DndContext,
   closestCenter,
-  KeyboardSensor,
   PointerSensor,
   useSensor,
   useSensors,
@@ -28,11 +37,10 @@ import {
 } from "@dnd-kit/core";
 import {
   SortableContext,
-  sortableKeyboardCoordinates,
   useSortable,
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
-import { CSS } from "@dnd-kit/utilities";
+import { CSS as DndCss } from "@dnd-kit/utilities";
 import {
   Sidebar,
   SidebarContent,
@@ -54,21 +62,30 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { MiniMandalaSection } from "@/components/workspace/MiniMandalaSection";
+import { Input } from "@/components/ui/input";
 import { Pane1Toggle } from "@/components/workspace/Pane1Toggle";
 import { PaneWheelRoot } from "@/components/workspace/PaneWheelRoot";
 import { WorkspaceTooltip } from "@/components/workspace/WorkspaceTooltip";
 import { NameDialog } from "@/components/workspace/NameDialog";
-import { CourseMetaDialog } from "@/components/workspace/CourseMetaDialog";
-import { LessonMetaDialog } from "@/components/workspace/LessonMetaDialog";
-import { WorkspaceMetaDialog } from "@/components/workspace/WorkspaceMetaDialog";
 import {
-  LIST_ROW_SELECTED_CLASS,
-  LIST_ROW_UNSELECTED_CLASS,
   LIST_ROW_X_INSET_CLASS,
   PANE_LIST_CONTENT_X_INSET_CLASS,
   SORTABLE_POINTER_ACTIVATION,
 } from "@/components/workspace/constants";
+import {
+  buildVisibleContentRows,
+  filterSeriesByContentMatches,
+  filterSeriesByName,
+  HOME_ROW_ID,
+  lessonRowId,
+  courseRowId,
+  resolveHomeEndNavigation,
+  resolveLeftNavigation,
+  selectionRowId,
+  seriesRowId,
+  type ContentSearchMatch,
+  type ContentTreeRow,
+} from "@/lib/content-tree-flatten";
 import { cn } from "@/lib/utils";
 import type { LessonMetaFields } from "@/lib/lesson-frontmatter";
 import type { Series, Course, Lesson } from "@/lib/schema";
@@ -89,6 +106,8 @@ const STATUS_CYCLE: Record<Lesson["status"], Lesson["status"]> = {
   done: "open",
 };
 
+const CONTENT_SEARCH_DEBOUNCE_MS = 300;
+
 /** クリップボード（クライアント内 state）。名前で保持し API へそのまま渡す */
 type ClipboardItem =
   | { type: "series"; series: string }
@@ -100,12 +119,22 @@ type DeleteTarget =
   | { kind: "course"; seriesItem: Series; course: Course }
   | { kind: "lesson"; course: Course; lesson: Lesson };
 
+type NameDialogState = {
+  title: string;
+  label: string;
+  placeholder?: string;
+  initialValue?: string;
+  submitLabel?: string;
+  onSubmit: (name: string) => void;
+};
+
 type Props = {
   workspaceName: string;
   series: Series[];
   selectedSeriesId: string;
   selectedCourseId: string;
   selectedLessonId: string;
+  onSelectHome: () => void;
   onSelectSeries: (seriesId: string) => void;
   onSelectCourse: (courseId: string) => void;
   onSelectLesson: (lessonId: string) => void;
@@ -134,7 +163,6 @@ type Props = {
   ) => void;
   onUpdateLessonMeta: (lessonId: string, meta: Partial<LessonMetaFields>) => void;
   onUpdateLessonStatus: (lessonId: string, status: Lesson["status"]) => void;
-  tagSuggestions: readonly string[];
   onSaveError?: (message: string) => void;
 };
 
@@ -162,12 +190,25 @@ function courseRenamePatch(
   };
 }
 
+/** レッスン行の file-text アイコン（EBEX の markdown ファイルと同じ色クラス） */
+function LessonRowIcon() {
+  return (
+    <span
+      className="flex size-5 shrink-0 items-center justify-center text-chart-1/60 dark:text-chart-1"
+      aria-hidden="true"
+    >
+      <FileText className="size-3.5" />
+    </span>
+  );
+}
+
 export function ContentTreePane({
   workspaceName,
   series,
   selectedSeriesId,
   selectedCourseId,
   selectedLessonId,
+  onSelectHome,
   onSelectSeries,
   onSelectCourse,
   onSelectLesson,
@@ -184,7 +225,6 @@ export function ContentTreePane({
   onUpdateCourseMeta,
   onUpdateLessonMeta,
   onUpdateLessonStatus,
-  tagSuggestions,
   onSaveError,
 }: Props) {
   const { state: sidebarState } = useSidebar();
@@ -198,6 +238,20 @@ export function ContentTreePane({
   const [collapsedCourseIds, setCollapsedCourseIds] = useState<Set<string>>(
     () => new Set(),
   );
+
+  // キーボードカーソル。選択とは独立の UI state（EBEX FileTreePane と同じ機構）
+  const [focusedRowId, setFocusedRowId] = useState<string | null>(null);
+  const [contextMenuRowId, setContextMenuRowId] = useState<string | null>(null);
+
+  // 検索
+  const [filter, setFilter] = useState("");
+  const [contentMatches, setContentMatches] = useState<ContentSearchMatch[]>([]);
+  const [contentSearching, setContentSearching] = useState(false);
+  const [contentTruncated, setContentTruncated] = useState(false);
+
+  const isContentSearchMode = filter.startsWith("?");
+  const contentQuery = isContentSearchMode ? filter.slice(1).trim() : "";
+  const nameFilter = isContentSearchMode ? "" : filter;
 
   // コンテキストメニュー操作直後のポインター操作（貫通クリック等）を無視するガード
   // （EBEX FileTreePane と同じ機構）
@@ -213,45 +267,55 @@ export function ContentTreePane({
   const [clipboard, setClipboard] = useState<ClipboardItem | null>(null);
 
   // ダイアログ state
-  const [nameDialog, setNameDialog] = useState<{
-    title: string;
-    label: string;
-    placeholder?: string;
-    initialValue?: string;
-    submitLabel?: string;
-    onSubmit: (name: string) => void;
-  } | null>(null);
-  const [coursePropsId, setCoursePropsId] = useState<string | null>(null);
-  const [lessonPropsId, setLessonPropsId] = useState<string | null>(null);
-  const [workspacePropsOpen, setWorkspacePropsOpen] = useState(false);
+  const [nameDialog, setNameDialog] = useState<NameDialogState | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<DeleteTarget | null>(null);
+
+  const anyDialogOpen = nameDialog !== null || deleteTarget !== null;
+  const anyDialogOpenRef = useRef(anyDialogOpen);
+  useEffect(() => {
+    anyDialogOpenRef.current = anyDialogOpen;
+  }, [anyDialogOpen]);
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
       activationConstraint: SORTABLE_POINTER_ACTIVATION,
     }),
-    useSensor(KeyboardSensor, {
-      coordinateGetter: sortableKeyboardCoordinates,
-    }),
   );
 
-  const toggleSeries = (id: string) => {
+  const toggleSeries = useCallback((id: string) => {
     setCollapsedSeriesIds((prev) => {
       const next = new Set(prev);
       if (next.has(id)) next.delete(id);
       else next.add(id);
       return next;
     });
-  };
+  }, []);
 
-  const toggleCourse = (id: string) => {
+  const toggleCourse = useCallback((id: string) => {
     setCollapsedCourseIds((prev) => {
       const next = new Set(prev);
       if (next.has(id)) next.delete(id);
       else next.add(id);
       return next;
     });
-  };
+  }, []);
+
+  /** collapse all: 選択への道（祖先）だけ開いたまま全ノードを畳む */
+  const collapseAll = useCallback(() => {
+    setCollapsedSeriesIds(
+      new Set(
+        series.filter((s) => s.id !== selectedSeriesId).map((s) => s.id),
+      ),
+    );
+    setCollapsedCourseIds(
+      new Set(
+        series
+          .flatMap((s) => s.courses)
+          .filter((c) => c.id !== selectedCourseId)
+          .map((c) => c.id),
+      ),
+    );
+  }, [series, selectedSeriesId, selectedCourseId]);
 
   const handleSeriesDragEnd = (event: DragEndEvent) => {
     const { active, over } = event;
@@ -297,6 +361,12 @@ export function ContentTreePane({
     [onSaveError],
   );
 
+  const findSeries = useCallback(
+    (seriesId: string): Series | null =>
+      series.find((s) => s.id === seriesId) ?? null,
+    [series],
+  );
+
   const findCourse = useCallback(
     (courseId: string): { seriesItem: Series; course: Course } | null => {
       for (const s of series) {
@@ -323,8 +393,446 @@ export function ContentTreePane({
     [series],
   );
 
-  const propsCourse = coursePropsId ? findCourse(coursePropsId)?.course : undefined;
-  const propsLesson = lessonPropsId ? findLesson(lessonPropsId)?.lesson : undefined;
+  // -------------------------------------------------------------------------
+  // 検索: 名前フィルタはクライアント、`?` はコンテンツ検索 API
+  // -------------------------------------------------------------------------
+
+  useEffect(() => {
+    if (!isContentSearchMode || !contentQuery) {
+      return;
+    }
+    const timer = window.setTimeout(() => {
+      void (async () => {
+        try {
+          const params = new URLSearchParams({ q: contentQuery });
+          const res = await fetch(`/api/content/search?${params.toString()}`);
+          if (!res.ok) {
+            setContentMatches([]);
+            setContentTruncated(false);
+            return;
+          }
+          const data = (await res.json()) as {
+            matches?: ContentSearchMatch[];
+            truncated?: boolean;
+          };
+          setContentMatches(data.matches ?? []);
+          setContentTruncated(Boolean(data.truncated));
+        } catch {
+          setContentMatches([]);
+          setContentTruncated(false);
+        } finally {
+          setContentSearching(false);
+        }
+      })();
+    }, CONTENT_SEARCH_DEBOUNCE_MS);
+    return () => window.clearTimeout(timer);
+  }, [contentQuery, isContentSearchMode]);
+
+  const clearSearchFilter = useCallback(() => {
+    setFilter("");
+    setContentMatches([]);
+    setContentSearching(false);
+    setContentTruncated(false);
+  }, []);
+
+  const handleFilterChange = useCallback((value: string) => {
+    if (!value.startsWith("?") || !value.slice(1).trim()) {
+      setContentMatches([]);
+      setContentSearching(false);
+      setContentTruncated(false);
+    } else {
+      setContentSearching(true);
+    }
+    setFilter(value);
+  }, []);
+
+  const filteredSeries = useMemo(() => {
+    if (isContentSearchMode) {
+      if (!contentQuery) return series;
+      return filterSeriesByContentMatches(series, contentMatches);
+    }
+    return filterSeriesByName(series, nameFilter);
+  }, [series, isContentSearchMode, contentQuery, contentMatches, nameFilter]);
+
+  const isFiltering = filter.trim().length > 0;
+  const emptyCollapsed = useMemo(() => new Set<string>(), []);
+
+  // -------------------------------------------------------------------------
+  // 平坦化とキーボードカーソル
+  // -------------------------------------------------------------------------
+
+  const visibleRows = useMemo(
+    () =>
+      buildVisibleContentRows(
+        filteredSeries,
+        // フィルタ中は全展開で一致を見せる
+        isFiltering ? emptyCollapsed : collapsedSeriesIds,
+        isFiltering ? emptyCollapsed : collapsedCourseIds,
+      ),
+    [
+      filteredSeries,
+      isFiltering,
+      emptyCollapsed,
+      collapsedSeriesIds,
+      collapsedCourseIds,
+    ],
+  );
+
+  const selectedRowId = selectionRowId({
+    seriesId: selectedSeriesId,
+    courseId: selectedCourseId,
+    lessonId: selectedLessonId,
+  });
+
+  const focusRow = useCallback((rowId: string | null) => {
+    setFocusedRowId(rowId);
+  }, []);
+
+  useEffect(() => {
+    if (!focusedRowId || !scrollRef.current) return;
+    const escaped = CSS.escape(focusedRowId);
+    const element = scrollRef.current.querySelector<HTMLElement>(
+      `[data-row-id="${escaped}"]`,
+    );
+    element?.scrollIntoView({ block: "nearest" });
+  }, [focusedRowId]);
+
+  /** 行の共通クラス。背景＝カーソル行・メニュー対象行・ホバーのみ、太字＝選択行のみ */
+  const rowClass = useCallback(
+    (rowId: string) => {
+      const showBg = focusedRowId === rowId || contextMenuRowId === rowId;
+      return cn(
+        "flex w-full cursor-pointer items-center gap-0.5 rounded-md py-1 text-xs text-foreground outline-none transition-colors [&_svg]:text-current",
+        LIST_ROW_X_INSET_CLASS,
+        rowId === selectedRowId && "font-semibold",
+        showBg ? "bg-workspace-tree-row" : "hover:bg-workspace-tree-row",
+      );
+    },
+    [focusedRowId, contextMenuRowId, selectedRowId],
+  );
+
+  const handleContextMenuChange = useCallback(
+    (rowId: string | null) => {
+      setContextMenuRowId(rowId);
+      armMenuGuard();
+      if (rowId) focusRow(rowId);
+    },
+    [armMenuGuard, focusRow],
+  );
+
+  const isSeriesExpanded = useCallback(
+    (id: string) => !collapsedSeriesIds.has(id),
+    [collapsedSeriesIds],
+  );
+  const isCourseExpanded = useCallback(
+    (id: string) => !collapsedCourseIds.has(id),
+    [collapsedCourseIds],
+  );
+
+  const openRenameDialogForRow = useCallback(
+    (row: ContentTreeRow) => {
+      if (row.kind === "series") {
+        const s = findSeries(row.seriesId);
+        if (!s) return;
+        setNameDialog({
+          title: "シリーズ名を変更",
+          label: "シリーズ名",
+          initialValue: s.name,
+          onSubmit: (name) => onUpdateSeriesName(s.id, name),
+        });
+        return;
+      }
+      if (row.kind === "course") {
+        const found = findCourse(row.courseId);
+        if (!found) return;
+        setNameDialog({
+          title: "コース名を変更",
+          label: "コース名",
+          initialValue: found.course.name,
+          onSubmit: (name) =>
+            onUpdateCourseMeta(
+              found.course.id,
+              courseRenamePatch(found.course, name),
+            ),
+        });
+        return;
+      }
+      if (row.kind === "lesson") {
+        const found = findLesson(row.lessonId);
+        if (!found) return;
+        setNameDialog({
+          title: "レッスン名を変更",
+          label: "レッスン名",
+          initialValue: found.lesson.lesson,
+          onSubmit: (name) =>
+            onUpdateLessonMeta(found.lesson.id, { lesson: name }),
+        });
+      }
+    },
+    [
+      findSeries,
+      findCourse,
+      findLesson,
+      onUpdateSeriesName,
+      onUpdateCourseMeta,
+      onUpdateLessonMeta,
+    ],
+  );
+
+  const openDeleteDialogForRow = useCallback(
+    (row: ContentTreeRow) => {
+      if (row.kind === "series") {
+        const s = findSeries(row.seriesId);
+        if (s) setDeleteTarget({ kind: "series", seriesItem: s });
+        return;
+      }
+      if (row.kind === "course") {
+        const found = findCourse(row.courseId);
+        if (found) {
+          setDeleteTarget({
+            kind: "course",
+            seriesItem: found.seriesItem,
+            course: found.course,
+          });
+        }
+        return;
+      }
+      if (row.kind === "lesson") {
+        const found = findLesson(row.lessonId);
+        if (found) {
+          setDeleteTarget({
+            kind: "lesson",
+            course: found.course,
+            lesson: found.lesson,
+          });
+        }
+      }
+    },
+    [findSeries, findCourse, findLesson],
+  );
+
+  const copyRow = useCallback(
+    (row: ContentTreeRow) => {
+      if (row.kind === "series") {
+        const s = findSeries(row.seriesId);
+        if (s) setClipboard({ type: "series", series: s.name });
+        return;
+      }
+      if (row.kind === "course") {
+        const found = findCourse(row.courseId);
+        if (found) {
+          setClipboard({
+            type: "course",
+            series: found.seriesItem.name,
+            course: found.course.name,
+          });
+        }
+        return;
+      }
+      if (row.kind === "lesson") {
+        const found = findLesson(row.lessonId);
+        if (found) {
+          setClipboard({
+            type: "lesson",
+            series: found.seriesItem.name,
+            course: found.course.name,
+            lesson: found.lesson.lesson,
+          });
+        }
+      }
+    },
+    [findSeries, findCourse, findLesson],
+  );
+
+  /** paste の受け入れ規則は右クリックメニューと同じ（series 行=course / course 行=lesson / home=series） */
+  const pasteToRow = useCallback(
+    (row: ContentTreeRow) => {
+      if (!clipboard) return;
+      if (row.kind === "home" && clipboard.type === "series") {
+        duplicateTo({ type: "series", series: clipboard.series });
+        return;
+      }
+      if (row.kind === "series" && clipboard.type === "course") {
+        const s = findSeries(row.seriesId);
+        if (!s) return;
+        duplicateTo({
+          type: "course",
+          series: clipboard.series,
+          course: clipboard.course,
+          targetSeries: s.name,
+        });
+        return;
+      }
+      if (row.kind === "course" && clipboard.type === "lesson") {
+        const found = findCourse(row.courseId);
+        if (!found) return;
+        duplicateTo({
+          type: "lesson",
+          series: clipboard.series,
+          course: clipboard.course,
+          lesson: clipboard.lesson,
+          targetSeries: found.seriesItem.name,
+          targetCourse: found.course.name,
+        });
+      }
+    },
+    [clipboard, duplicateTo, findSeries, findCourse],
+  );
+
+  /** 行クリック相当の動作（Enter キーからも呼ぶ） */
+  const activateRow = useCallback(
+    (row: ContentTreeRow) => {
+      focusRow(row.id);
+      if (row.kind === "home") {
+        onSelectHome();
+        return;
+      }
+      if (row.kind === "series") {
+        onSelectSeries(row.seriesId);
+        toggleSeries(row.seriesId);
+        return;
+      }
+      if (row.kind === "course") {
+        onSelectCourse(row.courseId);
+        toggleCourse(row.courseId);
+        return;
+      }
+      onSelectLesson(row.lessonId);
+    },
+    [
+      focusRow,
+      onSelectHome,
+      onSelectSeries,
+      onSelectCourse,
+      onSelectLesson,
+      toggleSeries,
+      toggleCourse,
+    ],
+  );
+
+  const handleTreeKeyDown = useCallback(
+    (event: React.KeyboardEvent<HTMLDivElement>) => {
+      if (anyDialogOpenRef.current) return;
+      if (visibleRows.length === 0) return;
+
+      const resolvedIndex = focusedRowId
+        ? visibleRows.findIndex((r) => r.id === focusedRowId)
+        : -1;
+      const fallbackIndex = visibleRows.findIndex(
+        (r) => r.id === selectedRowId,
+      );
+      const index = resolvedIndex >= 0 ? resolvedIndex : fallbackIndex;
+      const row = index >= 0 ? visibleRows[index] : null;
+
+      if (event.ctrlKey && event.key.toLowerCase() === "c") {
+        if (!row || row.kind === "home") return;
+        event.preventDefault();
+        copyRow(row);
+        return;
+      }
+
+      if (event.ctrlKey && event.key.toLowerCase() === "v") {
+        if (!row || !clipboard) return;
+        event.preventDefault();
+        pasteToRow(row);
+        return;
+      }
+
+      if (event.key === "F2") {
+        if (!row || row.kind === "home") return;
+        event.preventDefault();
+        openRenameDialogForRow(row);
+        return;
+      }
+
+      if (event.key === "Delete") {
+        if (!row || row.kind === "home") return;
+        event.preventDefault();
+        openDeleteDialogForRow(row);
+        return;
+      }
+
+      if (event.key === "Home" || event.key === "End") {
+        event.preventDefault();
+        const navigation = resolveHomeEndNavigation(
+          visibleRows,
+          index < 0 ? 0 : index,
+          event.key,
+          event.ctrlKey,
+        );
+        if (navigation.focusRowId) focusRow(navigation.focusRowId);
+        return;
+      }
+
+      if (event.key === "ArrowDown") {
+        event.preventDefault();
+        const next = Math.min(index < 0 ? 0 : index + 1, visibleRows.length - 1);
+        focusRow(visibleRows[next]?.id ?? null);
+        return;
+      }
+
+      if (event.key === "ArrowUp") {
+        event.preventDefault();
+        const next = Math.max(index < 0 ? 0 : index - 1, 0);
+        focusRow(visibleRows[next]?.id ?? null);
+        return;
+      }
+
+      if (!row) return;
+
+      if (event.key === "Enter") {
+        event.preventDefault();
+        activateRow(row);
+        return;
+      }
+
+      if (event.key === "ArrowRight") {
+        if (row.kind === "series" && !isSeriesExpanded(row.seriesId)) {
+          event.preventDefault();
+          toggleSeries(row.seriesId);
+          focusRow(row.id);
+        } else if (row.kind === "course" && !isCourseExpanded(row.courseId)) {
+          event.preventDefault();
+          toggleCourse(row.courseId);
+          focusRow(row.id);
+        }
+        return;
+      }
+
+      if (event.key === "ArrowLeft" || event.key === "Backspace") {
+        event.preventDefault();
+        const navigation = resolveLeftNavigation(row, {
+          isSeriesExpanded,
+          isCourseExpanded,
+        });
+        if (!navigation) return;
+        if (navigation.collapse) {
+          if (navigation.collapse.kind === "series") {
+            toggleSeries(navigation.collapse.id);
+          } else {
+            toggleCourse(navigation.collapse.id);
+          }
+        }
+        if (navigation.focusRowId) focusRow(navigation.focusRowId);
+      }
+    },
+    [
+      visibleRows,
+      focusedRowId,
+      selectedRowId,
+      clipboard,
+      copyRow,
+      pasteToRow,
+      openRenameDialogForRow,
+      openDeleteDialogForRow,
+      focusRow,
+      activateRow,
+      isSeriesExpanded,
+      isCourseExpanded,
+      toggleSeries,
+      toggleCourse,
+    ],
+  );
 
   const openAddSeriesDialog = () => {
     setNameDialog({
@@ -358,10 +866,61 @@ export function ContentTreePane({
     else onDeleteLesson(t.course.id, t.lesson.id);
   };
 
+  // 空きスペース・ホーム行で共通のメニュー項目
+  const areaContextMenuItems = (
+    <>
+      <ContextMenuItem
+        variant="muted"
+        onClick={() => {
+          armMenuGuard();
+          openAddSeriesDialog();
+        }}
+      >
+        <FolderPlus className="size-4" />
+        add series
+      </ContextMenuItem>
+      <ContextMenuItem
+        variant="muted"
+        onClick={() => {
+          armMenuGuard();
+          collapseAll();
+        }}
+      >
+        <ChevronsDownUp className="size-4" />
+        collapse all
+      </ContextMenuItem>
+      <ContextMenuItem
+        variant="muted"
+        disabled={clipboard?.type !== "series"}
+        onClick={() => {
+          armMenuGuard();
+          if (clipboard?.type !== "series") return;
+          duplicateTo({ type: "series", series: clipboard.series });
+        }}
+      >
+        <ClipboardPaste className="size-4" />
+        paste
+      </ContextMenuItem>
+      <ContextMenuItem
+        variant="muted"
+        onClick={() => {
+          armMenuGuard();
+          revealInOs({});
+        }}
+      >
+        <FolderOpen className="size-4" />
+        open explorer
+      </ContextMenuItem>
+    </>
+  );
+
+  const isHomeSelected = selectedRowId === HOME_ROW_ID;
+
   return (
     <Sidebar collapsible="icon" className="border-r-0">
       <PaneWheelRoot scrollRef={scrollRef} className="min-h-0 flex-1">
-        <SidebarHeader className="flex h-12 shrink-0 flex-row items-center gap-0 border-b border-border px-3 py-0">
+        {/* ヘッダーはページ背景（グレー）——EBEX ペイン1 と同じ見え方 */}
+        <SidebarHeader className="flex h-12 shrink-0 flex-row items-center gap-0 border-b border-border bg-background px-3 py-0">
           <div className="flex w-full items-center justify-between">
             <div className="flex items-center gap-2 overflow-hidden">
               <GraduationCap className="h-5 w-5 flex-shrink-0 text-primary" />
@@ -373,16 +932,98 @@ export function ContentTreePane({
           </div>
         </SidebarHeader>
 
+        {!isCollapsed && (
+          <div className="flex shrink-0 items-center gap-2 px-3 py-2">
+            <Search className="size-4 shrink-0 text-muted-foreground" />
+            <div className="relative min-w-0 flex-1">
+              <Input
+                value={filter}
+                onChange={(e) => handleFilterChange(e.target.value)}
+                placeholder="Filter... (? to search contents)"
+                className="h-8 pr-8"
+              />
+              {filter ? (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon-sm"
+                  className="absolute inset-y-0 right-0.5 my-auto"
+                  aria-label="検索をクリア"
+                  onMouseDown={(e) => {
+                    e.preventDefault();
+                    clearSearchFilter();
+                  }}
+                  onClick={clearSearchFilter}
+                >
+                  <X className="size-3.5" />
+                </Button>
+              ) : null}
+            </div>
+          </div>
+        )}
+
+        {!isCollapsed && contentSearching ? (
+          <p className="px-3 pb-2 text-xs text-muted-foreground">検索中…</p>
+        ) : null}
+        {!isCollapsed && !contentSearching && contentTruncated ? (
+          <p className="px-3 pb-2 text-xs text-muted-foreground">
+            200 件を超える一致がありました。検索を絞り込んでください
+          </p>
+        ) : null}
+
         <SidebarContent
           ref={scrollRef}
+          tabIndex={0}
+          onKeyDown={handleTreeKeyDown}
+          onMouseDown={() => {
+            if (anyDialogOpenRef.current) return;
+            scrollRef.current?.focus();
+          }}
           className={cn(
-            "overflow-y-auto overscroll-y-contain py-2",
+            "overflow-y-auto overscroll-y-contain py-2 outline-none",
             PANE_LIST_CONTENT_X_INSET_CLASS,
           )}
         >
           {isCollapsed ? null : (
             <div className="flex min-h-full flex-col">
-              {series.length > 0 && (
+              {/* ホーム行（インデント・ガイド線の外） */}
+              <ContextMenu
+                onOpenChange={(open) =>
+                  handleContextMenuChange(open ? HOME_ROW_ID : null)
+                }
+              >
+                <ContextMenuTrigger
+                  render={
+                    <div
+                      data-row-id={HOME_ROW_ID}
+                      className={rowClass(HOME_ROW_ID)}
+                      onClick={() => {
+                        if (isMenuGuarded()) return;
+                        focusRow(HOME_ROW_ID);
+                        onSelectHome();
+                      }}
+                    >
+                      <span
+                        className="flex size-5 shrink-0 items-center justify-center"
+                        aria-hidden="true"
+                      >
+                        <House className="size-3.5" />
+                      </span>
+                      <span
+                        className={cn(
+                          "min-w-0 flex-1 truncate text-left sidebar-label",
+                          isHomeSelected && "font-semibold",
+                        )}
+                      >
+                        ホーム
+                      </span>
+                    </div>
+                  }
+                />
+                <ContextMenuContent>{areaContextMenuItems}</ContextMenuContent>
+              </ContextMenu>
+
+              {filteredSeries.length > 0 && (
                 <DndContext
                   id="tree-series-dnd"
                   sensors={sensors}
@@ -390,24 +1031,25 @@ export function ContentTreePane({
                   onDragEnd={handleSeriesDragEnd}
                 >
                   <SortableContext
-                    items={series.map((s) => s.id)}
+                    items={filteredSeries.map((s) => s.id)}
                     strategy={verticalListSortingStrategy}
                   >
                     <div className="flex flex-col gap-0.5">
-                      {series.map((s) => (
+                      {filteredSeries.map((s) => (
                         <SeriesNode
                           key={s.id}
                           seriesItem={s}
-                          isExpanded={!collapsedSeriesIds.has(s.id)}
+                          isExpanded={
+                            isFiltering || !collapsedSeriesIds.has(s.id)
+                          }
                           onToggle={() => toggleSeries(s.id)}
+                          isFiltering={isFiltering}
                           collapsedCourseIds={collapsedCourseIds}
                           onToggleCourse={toggleCourse}
                           selectedSeriesId={selectedSeriesId}
-                          selectedCourseId={selectedCourseId}
-                          selectedLessonId={selectedLessonId}
-                          onSelectSeries={onSelectSeries}
-                          onSelectCourse={onSelectCourse}
-                          onSelectLesson={onSelectLesson}
+                          rowClass={rowClass}
+                          onActivateRow={activateRow}
+                          onContextMenuChange={handleContextMenuChange}
                           onReorderCourses={onReorderCourses}
                           onReorderLessons={onReorderLessons}
                           onUpdateLessonStatus={onUpdateLessonStatus}
@@ -419,8 +1061,6 @@ export function ContentTreePane({
                           armMenuGuard={armMenuGuard}
                           isMenuGuarded={isMenuGuarded}
                           setNameDialog={setNameDialog}
-                          setCoursePropsId={setCoursePropsId}
-                          setLessonPropsId={setLessonPropsId}
                           setDeleteTarget={setDeleteTarget}
                           onAddCourse={onAddCourse}
                           onAddLesson={onAddLesson}
@@ -436,7 +1076,11 @@ export function ContentTreePane({
               )}
 
               {/* 空きスペース: ツリーの残り全域。右クリックで全体メニュー */}
-              <ContextMenu>
+              <ContextMenu
+                onOpenChange={(open) =>
+                  handleContextMenuChange(open ? "area" : null)
+                }
+              >
                 <ContextMenuTrigger
                   render={
                     <div className="min-h-10 flex-1">
@@ -447,69 +1091,24 @@ export function ContentTreePane({
                           右クリックからシリーズを追加できます。
                         </p>
                       )}
+                      {series.length > 0 &&
+                        filteredSeries.length === 0 &&
+                        isFiltering && (
+                          <p className="px-2 py-6 text-center text-xs text-muted-foreground">
+                            {contentSearching
+                              ? "検索中…"
+                              : "一致するコンテンツがありません"}
+                          </p>
+                        )}
                     </div>
                   }
                 />
-                <ContextMenuContent>
-                  <ContextMenuItem
-                    variant="muted"
-                    onClick={() => {
-                      armMenuGuard();
-                      openAddSeriesDialog();
-                    }}
-                  >
-                    <FolderPlus className="size-4" />
-                    add series
-                  </ContextMenuItem>
-                  <ContextMenuItem
-                    variant="muted"
-                    onClick={() => {
-                      armMenuGuard();
-                      setWorkspacePropsOpen(true);
-                    }}
-                  >
-                    <Settings2 className="size-4" />
-                    properties
-                  </ContextMenuItem>
-                  <ContextMenuItem
-                    variant="muted"
-                    disabled={clipboard?.type !== "series"}
-                    onClick={() => {
-                      armMenuGuard();
-                      if (clipboard?.type !== "series") return;
-                      duplicateTo({ type: "series", series: clipboard.series });
-                    }}
-                  >
-                    <ClipboardPaste className="size-4" />
-                    paste
-                  </ContextMenuItem>
-                  <ContextMenuItem
-                    variant="muted"
-                    onClick={() => {
-                      armMenuGuard();
-                      revealInOs({});
-                    }}
-                  >
-                    <FolderOpen className="size-4" />
-                    open explorer
-                  </ContextMenuItem>
-                </ContextMenuContent>
+                <ContextMenuContent>{areaContextMenuItems}</ContextMenuContent>
               </ContextMenu>
             </div>
           )}
         </SidebarContent>
       </PaneWheelRoot>
-
-      {/* ミニ曼陀羅の下部固定領域（コース未選択時は畳む）。ツリーのスクロールと独立 */}
-      {!isCollapsed && (
-        <MiniMandalaSection
-          series={series}
-          course={
-            selectedCourseId ? findCourse(selectedCourseId)?.course : undefined
-          }
-          onSelectCourse={onSelectCourse}
-        />
-      )}
 
       {/* ダイアログ群 */}
       {nameDialog && (
@@ -526,32 +1125,6 @@ export function ContentTreePane({
           onSubmit={nameDialog.onSubmit}
         />
       )}
-
-      <CourseMetaDialog
-        open={coursePropsId != null}
-        onOpenChange={(open) => {
-          if (!open) setCoursePropsId(null);
-        }}
-        series={series}
-        course={propsCourse}
-        onSave={onUpdateCourseMeta}
-      />
-
-      <LessonMetaDialog
-        open={lessonPropsId != null}
-        onOpenChange={(open) => {
-          if (!open) setLessonPropsId(null);
-        }}
-        lesson={propsLesson}
-        onSave={onUpdateLessonMeta}
-        tagSuggestions={tagSuggestions}
-      />
-
-      <WorkspaceMetaDialog
-        open={workspacePropsOpen}
-        onOpenChange={setWorkspacePropsOpen}
-        onSaveError={onSaveError}
-      />
 
       {/* 削除確認 / 削除不可 */}
       <Dialog
@@ -635,33 +1208,25 @@ type NodeSharedProps = {
   }) => void;
   armMenuGuard: () => void;
   isMenuGuarded: () => boolean;
-  setNameDialog: (
-    dialog: {
-      title: string;
-      label: string;
-      placeholder?: string;
-      initialValue?: string;
-      submitLabel?: string;
-      onSubmit: (name: string) => void;
-    } | null,
-  ) => void;
-  setCoursePropsId: (id: string | null) => void;
-  setLessonPropsId: (id: string | null) => void;
+  setNameDialog: (dialog: NameDialogState | null) => void;
   setDeleteTarget: (target: DeleteTarget | null) => void;
+  rowClass: (rowId: string) => string;
+  onActivateRow: (row: ContentTreeRow) => void;
+  onContextMenuChange: (rowId: string | null) => void;
 };
+
+/** 子コンテナのガイド線付きインデント（EBEX と同じ手法） */
+const CHILDREN_GUIDE_CLASS =
+  "ml-[9px] flex flex-col gap-0.5 border-l border-border pl-[7px]";
 
 function SeriesNode({
   seriesItem,
   isExpanded,
   onToggle,
+  isFiltering,
   collapsedCourseIds,
   onToggleCourse,
   selectedSeriesId,
-  selectedCourseId,
-  selectedLessonId,
-  onSelectSeries,
-  onSelectCourse,
-  onSelectLesson,
   onReorderCourses,
   onReorderLessons,
   onUpdateLessonStatus,
@@ -677,14 +1242,10 @@ function SeriesNode({
   seriesItem: Series;
   isExpanded: boolean;
   onToggle: () => void;
+  isFiltering: boolean;
   collapsedCourseIds: Set<string>;
   onToggleCourse: (id: string) => void;
   selectedSeriesId: string;
-  selectedCourseId: string;
-  selectedLessonId: string;
-  onSelectSeries: (id: string) => void;
-  onSelectCourse: (id: string) => void;
-  onSelectLesson: (id: string) => void;
   onReorderCourses: (seriesId: string, from: number, to: number) => void;
   onReorderLessons: (courseId: string, from: number, to: number) => void;
   onUpdateLessonStatus: (lessonId: string, status: Lesson["status"]) => void;
@@ -702,7 +1263,7 @@ function SeriesNode({
     useSortable({ id: seriesItem.id });
 
   const style = {
-    transform: CSS.Transform.toString(transform),
+    transform: DndCss.Transform.toString(transform),
     transition,
     opacity: isDragging ? 0.5 : 1,
   };
@@ -710,7 +1271,17 @@ function SeriesNode({
   const allLessons = seriesItem.courses.flatMap((c) => c.lessons);
   const doneLessons = allLessons.filter((l) => l.status === "done").length;
 
-  const isSeriesFocused = selectedSeriesId === seriesItem.id && !selectedCourseId;
+  const rowId = seriesRowId(seriesItem.id);
+  // 現在の選択（ホーム以外）を含むシリーズブロックに青い縦レールを出す。
+  // ドラッグ中はレールを出さない（DnD の視覚が主役）
+  const hasSelection = selectedSeriesId === seriesItem.id;
+
+  const row: ContentTreeRow = {
+    id: rowId,
+    kind: "series",
+    seriesId: seriesItem.id,
+    depth: 0,
+  };
 
   const handleCourseDragEnd = (event: DragEndEvent) => {
     const { active, over } = event;
@@ -723,21 +1294,27 @@ function SeriesNode({
   };
 
   return (
-    <div ref={setNodeRef} style={style}>
-      <ContextMenu>
+    <div
+      ref={setNodeRef}
+      style={style}
+      className={cn(
+        "relative flex flex-col",
+        hasSelection &&
+          !isDragging &&
+          "before:absolute before:inset-y-0 before:-left-0.5 before:w-[3px] before:rounded-full before:bg-primary before:content-['']",
+      )}
+    >
+      <ContextMenu
+        onOpenChange={(open) => shared.onContextMenuChange(open ? rowId : null)}
+      >
         <ContextMenuTrigger
           render={
             <div
-              className={cn(
-                "group/tree-series flex w-full cursor-pointer items-center gap-0.5 rounded-md py-1 transition-colors",
-                LIST_ROW_X_INSET_CLASS,
-                isSeriesFocused
-                  ? LIST_ROW_SELECTED_CLASS
-                  : LIST_ROW_UNSELECTED_CLASS,
-              )}
+              data-row-id={rowId}
+              className={cn("group/tree-series", shared.rowClass(rowId))}
               onClick={() => {
                 if (shared.isMenuGuarded()) return;
-                onSelectSeries(seriesItem.id);
+                shared.onActivateRow(row);
               }}
             >
               <button
@@ -760,7 +1337,7 @@ function SeriesNode({
               <span
                 {...attributes}
                 {...listeners}
-                className="min-w-0 flex-1 truncate text-left text-xs font-bold group-hover/tree-series:cursor-grab active:cursor-grabbing sidebar-label"
+                className="min-w-0 flex-1 truncate text-left group-hover/tree-series:cursor-grab active:cursor-grabbing sidebar-label"
               >
                 {seriesItem.name}
               </span>
@@ -772,22 +1349,6 @@ function SeriesNode({
           }
         />
         <ContextMenuContent>
-          <ContextMenuItem
-            variant="muted"
-            onClick={() => {
-              shared.armMenuGuard();
-              // シリーズの properties は現状シリーズ名のみ（4階層メタ編集 UI は次 change）
-              shared.setNameDialog({
-                title: "シリーズ名を編集",
-                label: "シリーズ名",
-                initialValue: seriesItem.name,
-                onSubmit: (name) => onUpdateSeriesName(seriesItem.id, name),
-              });
-            }}
-          >
-            <Settings2 className="size-4" />
-            properties
-          </ContextMenuItem>
           <ContextMenuItem
             variant="muted"
             onClick={() => {
@@ -871,7 +1432,7 @@ function SeriesNode({
       </ContextMenu>
 
       {isExpanded && seriesItem.courses.length > 0 && (
-        <div className="flex flex-col gap-0.5 pl-4">
+        <div className={CHILDREN_GUIDE_CLASS}>
           <DndContext
             id={`tree-course-dnd-${seriesItem.id}`}
             sensors={sensors}
@@ -887,12 +1448,8 @@ function SeriesNode({
                   key={c.id}
                   seriesItem={seriesItem}
                   course={c}
-                  isExpanded={!collapsedCourseIds.has(c.id)}
+                  isExpanded={isFiltering || !collapsedCourseIds.has(c.id)}
                   onToggle={() => onToggleCourse(c.id)}
-                  isSelected={c.id === selectedCourseId}
-                  selectedLessonId={selectedLessonId}
-                  onSelectCourse={onSelectCourse}
-                  onSelectLesson={onSelectLesson}
                   onReorderLessons={onReorderLessons}
                   onUpdateLessonStatus={onUpdateLessonStatus}
                   sensors={sensors}
@@ -916,10 +1473,6 @@ function CourseNode({
   course,
   isExpanded,
   onToggle,
-  isSelected,
-  selectedLessonId,
-  onSelectCourse,
-  onSelectLesson,
   onReorderLessons,
   onUpdateLessonStatus,
   sensors,
@@ -933,10 +1486,6 @@ function CourseNode({
   course: Course;
   isExpanded: boolean;
   onToggle: () => void;
-  isSelected: boolean;
-  selectedLessonId: string;
-  onSelectCourse: (id: string) => void;
-  onSelectLesson: (id: string) => void;
   onReorderLessons: (courseId: string, from: number, to: number) => void;
   onUpdateLessonStatus: (lessonId: string, status: Lesson["status"]) => void;
   sensors: ReturnType<typeof useSensors>;
@@ -951,9 +1500,18 @@ function CourseNode({
     useSortable({ id: course.id });
 
   const style = {
-    transform: CSS.Transform.toString(transform),
+    transform: DndCss.Transform.toString(transform),
     transition,
     opacity: isDragging ? 0.5 : 1,
+  };
+
+  const rowId = courseRowId(course.id);
+  const row: ContentTreeRow = {
+    id: rowId,
+    kind: "course",
+    seriesId: seriesItem.id,
+    courseId: course.id,
+    depth: 1,
   };
 
   const handleLessonDragEnd = (event: DragEndEvent) => {
@@ -968,18 +1526,17 @@ function CourseNode({
 
   return (
     <div ref={setNodeRef} style={style}>
-      <ContextMenu>
+      <ContextMenu
+        onOpenChange={(open) => shared.onContextMenuChange(open ? rowId : null)}
+      >
         <ContextMenuTrigger
           render={
             <div
-              className={cn(
-                "group/tree-course flex w-full cursor-pointer items-center gap-0.5 rounded-md py-1 text-xs transition-colors",
-                LIST_ROW_X_INSET_CLASS,
-                isSelected ? LIST_ROW_SELECTED_CLASS : LIST_ROW_UNSELECTED_CLASS,
-              )}
+              data-row-id={rowId}
+              className={cn("group/tree-course", shared.rowClass(rowId))}
               onClick={() => {
                 if (shared.isMenuGuarded()) return;
-                onSelectCourse(course.id);
+                shared.onActivateRow(row);
               }}
             >
               <button
@@ -1010,16 +1567,6 @@ function CourseNode({
           }
         />
         <ContextMenuContent>
-          <ContextMenuItem
-            variant="muted"
-            onClick={() => {
-              shared.armMenuGuard();
-              shared.setCoursePropsId(course.id);
-            }}
-          >
-            <Settings2 className="size-4" />
-            properties
-          </ContextMenuItem>
           <ContextMenuItem
             variant="muted"
             onClick={() => {
@@ -1119,7 +1666,7 @@ function CourseNode({
       </ContextMenu>
 
       {isExpanded && course.lessons.length > 0 && (
-        <div className="flex flex-col gap-0.5 pl-4">
+        <div className={CHILDREN_GUIDE_CLASS}>
           <DndContext
             id={`tree-lesson-dnd-${course.id}`}
             sensors={sensors}
@@ -1136,8 +1683,6 @@ function CourseNode({
                   seriesItem={seriesItem}
                   course={course}
                   lesson={lesson}
-                  isSelected={lesson.id === selectedLessonId}
-                  onSelectLesson={onSelectLesson}
                   onUpdateLessonStatus={onUpdateLessonStatus}
                   onUpdateLessonMeta={onUpdateLessonMeta}
                   {...shared}
@@ -1155,8 +1700,6 @@ function LessonRow({
   seriesItem,
   course,
   lesson,
-  isSelected,
-  onSelectLesson,
   onUpdateLessonStatus,
   onUpdateLessonMeta,
   ...shared
@@ -1164,8 +1707,6 @@ function LessonRow({
   seriesItem: Series;
   course: Course;
   lesson: Lesson;
-  isSelected: boolean;
-  onSelectLesson: (id: string) => void;
   onUpdateLessonStatus: (lessonId: string, status: Lesson["status"]) => void;
   onUpdateLessonMeta: Props["onUpdateLessonMeta"];
 }) {
@@ -1173,27 +1714,37 @@ function LessonRow({
     useSortable({ id: lesson.id });
 
   const style = {
-    transform: CSS.Transform.toString(transform),
+    transform: DndCss.Transform.toString(transform),
     transition,
     opacity: isDragging ? 0.5 : 1,
   };
 
+  const rowId = lessonRowId(lesson.id);
+  const row: ContentTreeRow = {
+    id: rowId,
+    kind: "lesson",
+    seriesId: seriesItem.id,
+    courseId: course.id,
+    lessonId: lesson.id,
+    depth: 2,
+  };
+
   return (
     <div ref={setNodeRef} style={style}>
-      <ContextMenu>
+      <ContextMenu
+        onOpenChange={(open) => shared.onContextMenuChange(open ? rowId : null)}
+      >
         <ContextMenuTrigger
           render={
             <div
-              className={cn(
-                "group/tree-lesson flex w-full cursor-pointer items-center gap-1 rounded-md py-1 text-xs transition-colors",
-                LIST_ROW_X_INSET_CLASS,
-                isSelected ? LIST_ROW_SELECTED_CLASS : LIST_ROW_UNSELECTED_CLASS,
-              )}
+              data-row-id={rowId}
+              className={cn("group/tree-lesson", shared.rowClass(rowId))}
               onClick={() => {
                 if (shared.isMenuGuarded()) return;
-                onSelectLesson(lesson.id);
+                shared.onActivateRow(row);
               }}
             >
+              <LessonRowIcon />
               <span
                 {...attributes}
                 {...listeners}
@@ -1223,16 +1774,6 @@ function LessonRow({
           }
         />
         <ContextMenuContent>
-          <ContextMenuItem
-            variant="muted"
-            onClick={() => {
-              shared.armMenuGuard();
-              shared.setLessonPropsId(lesson.id);
-            }}
-          >
-            <Settings2 className="size-4" />
-            properties
-          </ContextMenuItem>
           <ContextMenuItem
             variant="muted"
             onClick={() => {

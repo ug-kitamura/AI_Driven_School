@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { Course, Lesson, Series } from "@/lib/schema";
 import {
   focusCourse,
+  focusHome,
   focusLesson,
   focusSeries,
   resolveInitialSelection,
@@ -76,7 +77,6 @@ export function useWorkspaceSelection(options: {
 
   useEffect(() => {
     if (skipPersistRef.current) return;
-    if (!selectedSeriesId && !selectedCourseId) return;
     saveStoredSelection({
       seriesId: selectedSeriesId,
       courseId: selectedCourseId,
@@ -113,7 +113,12 @@ export function useWorkspaceSelection(options: {
 
   const setSelection = applySelection;
 
-  // 以下 3 つは「下の階層があれば先頭へ降り、無ければその階層で止まる」規則に従う
+  // 以下は「クリックした階層で止まり、下位はクリアする」規則に従う
+  const selectHome = useCallback(
+    () => applySelection(focusHome()),
+    [applySelection],
+  );
+
   const selectSeries = useCallback(
     (seriesId: string) => applySelection(focusSeries(series, seriesId)),
     [series, applySelection],
@@ -137,6 +142,7 @@ export function useWorkspaceSelection(options: {
     selectedLesson,
     selectedSeriesName,
     focusLevel,
+    selectHome,
     selectSeries,
     selectCourse,
     selectLesson,

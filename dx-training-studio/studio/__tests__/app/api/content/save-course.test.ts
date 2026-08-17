@@ -72,6 +72,43 @@ describe("POST /api/content/save-course", () => {
     expect(readMeta(metaPath)).not.toHaveProperty("style");
   });
 
+  it("slug / catch / description を書き込み、省略時は保全する", async () => {
+    const metaPath = setupCourse({ order: ["L"], slug: "keep-me" });
+
+    // 省略 → 保全
+    const res1 = await post({ target: "初心者" });
+    expect(res1.status).toBe(200);
+    expect(readMeta(metaPath).slug).toBe("keep-me");
+
+    // 値 → 設定
+    const res2 = await post({
+      target: "初心者",
+      slug: "intro",
+      catch: "地図を手に入れる",
+      description: "説明",
+    });
+    expect(res2.status).toBe(200);
+    const meta = readMeta(metaPath);
+    expect(meta.slug).toBe("intro");
+    expect(meta.catch).toBe("地図を手に入れる");
+    expect(meta.description).toBe("説明");
+
+    // 空文字 → 削除
+    const res3 = await post({ target: "初心者", slug: "", catch: "" });
+    expect(res3.status).toBe(200);
+    const meta3 = readMeta(metaPath);
+    expect(meta3).not.toHaveProperty("slug");
+    expect(meta3).not.toHaveProperty("catch");
+    expect(meta3.description).toBe("説明");
+  });
+
+  it("不正な slug は 400 で拒否する", async () => {
+    const metaPath = setupCourse({ order: ["L"], slug: "old" });
+    const res = await post({ target: "初心者", slug: "Git基礎" });
+    expect(res.status).toBe(400);
+    expect(readMeta(metaPath).slug).toBe("old");
+  });
+
   it("語彙外の style は 400 で拒否する", async () => {
     const metaPath = setupCourse({ order: ["L"], style: "lecture" });
 

@@ -114,11 +114,55 @@ export function loadWorkspaceSettings(): WorkspaceSettings {
   }
 }
 
+/** 設定変更イベントの detail。変更されたトップレベルキーの一覧を運ぶ */
+export type WorkspaceSettingsChangedDetail = {
+  changedKeys: Array<keyof WorkspaceSettings>;
+};
+
+/** ストレージ解決に影響するキー。画像系の再取得はこの変更に限定する */
+export const STORAGE_AFFECTING_SETTING_KEYS: ReadonlyArray<
+  keyof WorkspaceSettings
+> = ["imageStorage", "contextStorage"];
+
+/**
+ * イベントからストレージ関連の変更かを判定する。
+ * detail を持たない発火（手動 dispatch 等）は安全側に倒して true。
+ */
+export function settingsEventAffectsStorage(event: Event): boolean {
+  const detail = (event as CustomEvent<WorkspaceSettingsChangedDetail>).detail;
+  if (!detail || !Array.isArray(detail.changedKeys)) return true;
+  return detail.changedKeys.some((key) =>
+    STORAGE_AFFECTING_SETTING_KEYS.includes(key),
+  );
+}
+
+function diffSettingsKeys(
+  prev: WorkspaceSettings,
+  next: WorkspaceSettings,
+): Array<keyof WorkspaceSettings> {
+  const keys = Object.keys(next) as Array<keyof WorkspaceSettings>;
+  return keys.filter((key) => {
+    if (key === "paneDefaults") {
+      return (
+        prev.paneDefaults.tree !== next.paneDefaults.tree ||
+        prev.paneDefaults.pane4 !== next.paneDefaults.pane4
+      );
+    }
+    return prev[key] !== next[key];
+  });
+}
+
 export function saveWorkspaceSettings(settings: WorkspaceSettings): void {
   if (typeof window === "undefined") return;
   try {
+    const prev = loadWorkspaceSettings();
     localStorage.setItem(STORAGE_KEY, JSON.stringify(settings));
-    window.dispatchEvent(new CustomEvent(WORKSPACE_SETTINGS_CHANGED_EVENT));
+    const detail: WorkspaceSettingsChangedDetail = {
+      changedKeys: diffSettingsKeys(prev, settings),
+    };
+    window.dispatchEvent(
+      new CustomEvent(WORKSPACE_SETTINGS_CHANGED_EVENT, { detail }),
+    );
   } catch {
     // ignore quota
   }

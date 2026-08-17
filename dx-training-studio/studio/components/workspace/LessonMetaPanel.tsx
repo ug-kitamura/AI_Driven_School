@@ -23,7 +23,12 @@ import {
 import { LessonTagsInput } from "@/components/workspace/LessonTagsInput";
 import { isValidTag } from "@/lib/lesson-tags";
 import { normalizeTags, type LessonMetaFields } from "@/lib/lesson-frontmatter";
-import { STATUS_LABELS, type Lesson, type LessonStatus } from "@/lib/schema";
+import {
+  SLUG_PATTERN,
+  STATUS_LABELS,
+  type Lesson,
+  type LessonStatus,
+} from "@/lib/schema";
 
 const STATUS_ICONS: Record<LessonStatus, React.ReactNode> = {
   open: <CircleDashed className="size-3.5 text-status-draft" />,
@@ -66,6 +71,7 @@ function minutesToSelectValue(minutes: number): string {
 
 export type LessonMetaDraft = {
   lesson: string;
+  slug: string;
   status: LessonStatus;
   description: string;
   tags: string[];
@@ -76,6 +82,7 @@ export type LessonMetaDraft = {
 export function lessonToMetaDraft(lesson: Lesson): LessonMetaDraft {
   return {
     lesson: lesson.lesson,
+    slug: lesson.slug ?? "",
     status: lesson.status,
     description: lesson.description,
     tags: [...lesson.tags],
@@ -87,12 +94,25 @@ export function lessonToMetaDraft(lesson: Lesson): LessonMetaDraft {
 export function draftToMetaPatch(
   draft: LessonMetaDraft,
   fallbackLesson: Lesson,
-): { patch: Partial<LessonMetaFields>; tagError: string | null } {
+): {
+  patch: Partial<LessonMetaFields>;
+  tagError: string | null;
+  slugError: string | null;
+} {
   const invalid = draft.tags.filter((t) => !isValidTag(t));
   if (invalid.length > 0) {
     return {
       patch: {},
       tagError: `タグは小文字英字・数字・ハイフンのみ: ${invalid.join(", ")}`,
+      slugError: null,
+    };
+  }
+  const trimmedSlug = draft.slug.trim();
+  if (trimmedSlug && !SLUG_PATTERN.test(trimmedSlug)) {
+    return {
+      patch: {},
+      tagError: null,
+      slugError: "slug は小文字英数とハイフンのみで構成してください",
     };
   }
   const rawTags = draft.tags;
@@ -103,6 +123,8 @@ export function draftToMetaPatch(
   return {
     patch: {
       lesson: draft.lesson.trim() || fallbackLesson.lesson,
+      // 空文字は「未設定」= frontmatter からキーを外す（patchLessonMeta が空文字を落とす）
+      slug: trimmedSlug,
       status: draft.status,
       description: draft.description,
       tags: normalizeTags(rawTags),
@@ -110,6 +132,7 @@ export function draftToMetaPatch(
       author: draft.author,
     },
     tagError: null,
+    slugError: null,
   };
 }
 
@@ -118,6 +141,7 @@ type Props = {
   onDraftChange: (draft: LessonMetaDraft) => void;
   className?: string;
   tagError?: string | null;
+  slugError?: string | null;
   tagSuggestions?: readonly string[];
   onFlushTagsReady?: (flush: () => string[]) => void;
 };
@@ -127,6 +151,7 @@ export function LessonMetaPanel({
   draft,
   onDraftChange,
   tagError,
+  slugError,
   tagSuggestions = [],
   onFlushTagsReady,
 }: Props) {
@@ -144,6 +169,23 @@ export function LessonMetaPanel({
           onChange={(e) => patchDraft({ lesson: e.target.value })}
           className={META_DIALOG_CONTROL}
         />
+      </MetaDialogField>
+
+      <MetaDialogField className="col-span-2">
+        <Label htmlFor="lesson-meta-slug">スラッグ（公開 URL 用）</Label>
+        <Input
+          id="lesson-meta-slug"
+          value={draft.slug}
+          onChange={(e) => patchDraft({ slug: e.target.value })}
+          placeholder="例: how-to-learn"
+          aria-invalid={Boolean(slugError)}
+          className={META_DIALOG_CONTROL}
+        />
+        {slugError ? (
+          <p className="text-xs text-destructive" role="alert">
+            {slugError}
+          </p>
+        ) : null}
       </MetaDialogField>
 
       <MetaDialogField className="col-span-2">

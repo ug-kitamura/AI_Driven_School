@@ -2,11 +2,11 @@ import type { Series } from "@/lib/schema";
 import { parseLessonDocument } from "@/lib/lesson-frontmatter";
 
 /**
- * ペイン1〜3 のフォーカス。末尾から空になる。
+ * ワークスペースのフォーカス。末尾から空になる。
  *
- * フォーカス階層は「下の階層があれば先頭へ降り、無ければその階層で止まる」規則で決まるため、
- * 下位が埋まっているのに上位で止まる状態は存在しない。したがって階層を表す判別フィールドは
- * 持たず、`selectionLevel` で最深の非空フィールドから導出する。
+ * 選択はクリックした階層で止まり、下位フィールドは空になる。3 フィールドすべてが
+ * 空の状態は「ホーム（全体）」選択を表す。階層を表す判別フィールドは持たず、
+ * `selectionLevel` で最深の非空フィールドから導出する。
  */
 export type WorkspaceSelection = {
   seriesId: string;
@@ -29,23 +29,22 @@ const EMPTY_SELECTION: WorkspaceSelection = {
   lessonId: "",
 };
 
-/** シリーズを起点に、下の階層があれば先頭へ降りる。 */
+/** ホーム（全体）選択。 */
+export function focusHome(): WorkspaceSelection {
+  return EMPTY_SELECTION;
+}
+
+/** シリーズを選択する。下位階層へは降りない。 */
 export function focusSeries(
   series: Series[],
   seriesId: string,
 ): WorkspaceSelection {
   const s = series.find((item) => item.id === seriesId);
   if (!s) return EMPTY_SELECTION;
-  const course = s.courses[0];
-  if (!course) return { seriesId, courseId: "", lessonId: "" };
-  return {
-    seriesId,
-    courseId: course.id,
-    lessonId: course.lessons[0]?.id ?? "",
-  };
+  return { seriesId, courseId: "", lessonId: "" };
 }
 
-/** コースを起点に、レッスンがあれば先頭へ降りる。 */
+/** コースを選択する（所属シリーズを補完）。下位階層へは降りない。 */
 export function focusCourse(
   series: Series[],
   courseId: string,
@@ -53,11 +52,7 @@ export function focusCourse(
   for (const s of series) {
     const c = s.courses.find((course) => course.id === courseId);
     if (c) {
-      return {
-        seriesId: s.id,
-        courseId,
-        lessonId: c.lessons[0]?.id ?? "",
-      };
+      return { seriesId: s.id, courseId, lessonId: "" };
     }
   }
   return EMPTY_SELECTION;
@@ -85,6 +80,7 @@ const SELECTION_STORAGE_KEY = STORAGE_KEYS.selection;
 /**
  * 保存済みの選択を読む。`seriesId` を持たない旧形式（`{ courseId, lessonId }`）でも
  * 失敗させない——所属シリーズは `resolveInitialSelection` が `courseId` から逆引きする。
+ * 3 フィールドが揃って空文字の保存値はホーム選択として有効（保存値なしとは区別する）。
  */
 export function loadStoredSelection(): WorkspaceSelection | null {
   if (typeof window === "undefined") return null;
@@ -98,8 +94,12 @@ export function loadStoredSelection(): WorkspaceSelection | null {
     };
     const seriesId = typeof parsed.seriesId === "string" ? parsed.seriesId : "";
     const courseId = typeof parsed.courseId === "string" ? parsed.courseId : "";
-    // どちらも無い保存値は復元の手がかりが無いので捨てる
-    if (!seriesId && !courseId) return null;
+    // 明示的な全空（ホーム選択の保存）だけは有効。それ以外で手がかりが無い値は捨てる
+    if (!seriesId && !courseId) {
+      const isExplicitHome =
+        parsed.seriesId === "" && parsed.courseId === "" && parsed.lessonId === "";
+      return isExplicitHome ? { ...EMPTY_SELECTION } : null;
+    }
     return {
       seriesId,
       courseId,
@@ -112,7 +112,6 @@ export function loadStoredSelection(): WorkspaceSelection | null {
 
 export function saveStoredSelection(selection: WorkspaceSelection): void {
   if (typeof window === "undefined") return;
-  if (!selection.seriesId && !selection.courseId) return;
   try {
     localStorage.setItem(SELECTION_STORAGE_KEY, JSON.stringify(selection));
   } catch {
@@ -128,17 +127,22 @@ export function resolveInitialSelection(
   const stored = loadStoredSelection();
   if (!stored) return fallback;
 
+  // ホーム選択（全空）はそのまま復元する
+  if (!stored.seriesId && !stored.courseId && !stored.lessonId) {
+    return focusHome();
+  }
+
   // レッスンが実在すればそこを起点にする（seriesId は逆引きで補完される）
   if (stored.lessonId && findLessonById(series, stored.lessonId)) {
     return focusLesson(series, stored.lessonId);
   }
 
-  // コースが実在すれば降下規則を当てる。旧形式（seriesId 無し）はここで補完される
+  // コースが実在すればコースで止める。旧形式（seriesId 無し）はここで補完される
   if (stored.courseId && findCourseById(series, stored.courseId)) {
     return focusCourse(series, stored.courseId);
   }
 
-  // コースを持たないシリーズにフォーカスしていた場合
+  // シリーズにフォーカスしていた場合
   if (stored.seriesId && series.some((s) => s.id === stored.seriesId)) {
     return focusSeries(series, stored.seriesId);
   }
@@ -164,15 +168,6 @@ function findLessonById(series: Series[], lessonId: string) {
       for (const l of c.lessons) {
         if (l.id === lessonId) return l;
       }
-    }
-  }
-  return undefined;
-}
-
-function findCourseContainingLesson(series: Series[], lessonId: string) {
-  for (const s of series) {
-    for (const c of s.courses) {
-      if (c.lessons.some((l) => l.id === lessonId)) return c;
     }
   }
   return undefined;
@@ -212,7 +207,7 @@ export function resolveSelectionAfterContentReload(
   }
 
   if (courseId && findCourseById(freshSeries, courseId)) {
-    // レッスンが消えた場合はコースに止まる（降下規則で先頭へ降りると別レッスンへ飛ぶ）
+    // レッスンが消えた場合はコースに止まる
     const found = findSeriesContainingCourse(freshSeries, courseId);
     return { seriesId: found?.id ?? seriesId, courseId, lessonId: "" };
   }
@@ -227,7 +222,7 @@ export function resolveSelectionAfterContentReload(
     }
   }
 
-  // コースを持たないシリーズにフォーカスしていた場合
+  // シリーズにフォーカスしていた場合
   if (seriesId && freshSeries.some((s) => s.id === seriesId)) {
     return focusSeries(freshSeries, seriesId);
   }
@@ -237,13 +232,6 @@ export function resolveSelectionAfterContentReload(
 
 function findSeriesContainingCourse(series: Series[], courseId: string) {
   return series.find((s) => s.courses.some((c) => c.id === courseId));
-}
-
-/** 残った先頭シリーズを起点に降下規則を当てる（フォールバック）。 */
-function firstSelection(nextSeries: Series[]): WorkspaceSelection {
-  const firstSeries = nextSeries[0];
-  if (!firstSeries) return EMPTY_SELECTION;
-  return focusSeries(nextSeries, firstSeries.id);
 }
 
 export function resolveSelectionAfterDelete(params: {
@@ -269,25 +257,26 @@ export function resolveSelectionAfterDelete(params: {
   };
 
   if (deleted.kind === "series") {
-    // フォーカス中のシリーズそのものが消えた場合も含めて判定する
+    // フォーカス中のシリーズそのものが消えた場合も含めて判定する。
+    // 削除された階層の親＝全体（ホーム）へフォーカスする
     if (deleted.seriesId === selectedSeriesId) {
-      return firstSelection(nextSeries);
+      return focusHome();
     }
     const removed = prevSeries.find((s) => s.id === deleted.seriesId);
     const hadSelectedCourse =
       removed?.courses.some((c) => c.id === selectedCourseId) ?? false;
     if (hadSelectedCourse) {
-      return firstSelection(nextSeries);
+      return focusHome();
     }
     return current;
   }
 
   if (selectedCourseId === deleted.courseId) {
-    // 同じシリーズに残る。残コースがあれば先頭へ降り、無ければシリーズで止まる
+    // 削除された階層の親＝所属シリーズで止まる
     if (selectedSeriesId && nextSeries.some((s) => s.id === selectedSeriesId)) {
       return focusSeries(nextSeries, selectedSeriesId);
     }
-    return firstSelection(nextSeries);
+    return focusHome();
   }
   return current;
 }

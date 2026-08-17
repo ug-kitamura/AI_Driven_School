@@ -21,15 +21,24 @@
        blocking の大半は「社内の空欄を埋める」作業で、
        中身が決まれば機械的に終わる
 
-[次] Studio デモの Vercel デプロイ修復              8.6
-       change fix-studio-vercel-demo-deploy。✅ preview で検証済み
-       （2026-08-16）。残るのは PR → main マージだけ（⚠ 人がやる）
-       ⚠ マージするまで社内デモは兄弟構成移行前のビルドのまま
+[次] Studio 改善3部作（2026-08-17 の explore で全決着）
+       ✅ 実装・archive とも完了（2026-08-18・spec 同期済み・validate 64/64）。
+       残るは**コミット・PR・マージ（人）**と下の目視項目だけ。
+       archive: `openspec/changes/archive/2026-08-17-{tree-ebex-parity,
+       pane2-meta-views,studio-fixes}/`（⚠ 追跡外・このマシンのみ）
+       ⚠ 人の目視・確認項目:
+         ・ツリー: ドラッグ並べ替えの操作感 / 太字だけの選択表示の見え方 /
+           グレーヘッダー・青レール・ガイド線の質感（ブラウザペインでは検証不能）
+         ・ペイン2: メタフォームの見た目 / プレビューのラベル配色 /
+           ヒーロー画像差し替え後の公開サイトの見た目（縦横比は 3.75:1 前後）
+         ・編集ビューで実際に Ctrl+ホイール連打してペイン3 が
+           「読み込み中…」にならないこと（機構は実機 E2E 済み。合成ホイールが
+           CodeMirror に届かず実操作のみ未確認）
+         ・次の Vercel デプロイ後にスラッシュ候補へスキルが出ること
+           （焼き込みカタログ lib/agent/skill-catalog.generated.json は
+           build script が毎回再生成。リポジトリの生成物はフォールバック用）
 
-       ✅ Vercel 2プロジェクトの Root Directory 更新は完了（2026-08-16）
-       ✅ Studio 本体の Ignored Build Step も投入済み・検証後に復旧済み
-       ✅ Pages 配信は通った（v5.1.0・2026-08-15）
-       ✅ site の Vercel git 連携も通った（2026-08-16）
+✅ Studio デモの Vercel デプロイ修復は完了（PR #151 マージ済み・2026-08-17 確認）
 
 [後] connection-profiles                          会社持ち込みの直前で可。4章
 
@@ -199,7 +208,9 @@ npm run start   # out/ をローカル配信
 
 **✅ ペイン1＋2の統合は完了した**（2026-08-16・change `unified-content-tree`）。Studio の左端は3階層ツリー1本＋下部ミニ曼陀羅になり、操作は右クリックに集約（properties / add / rename / copy・paste / open explorer / delete）。触るときに知っておくこと:
 
-- **正本は spec `unified-content-tree`**（行表示・メニュー構成・DnD・複製の要件）。ペイン幅は tree / pane4 の2ペインモデル（旧3ペイン形式の localStorage は読み捨てて既定値へフォールバック）
+- **正本は spec `unified-content-tree`**（行表示・メニュー構成・DnD・複製・キーボード・検索・ホーム行の要件）。ペイン幅は tree / pane4 の2ペインモデル（旧3ペイン形式の localStorage は読み捨てて既定値へフォールバック）
+- **選択は「クリックした階層で止まる」**（change `tree-ebex-parity`・2026-08-18）。フォーカス降下規則は廃止済みで、全空＝ホーム（全体）選択。正本は spec `workspace-state-hooks`。ツリーの可視行・キーボード解決は `lib/content-tree-flatten.ts`（pure・テスト済み）
+- ⚠ ツリーのキーボード操作を触るときは dnd-kit の `KeyboardSensor` を戻さないこと（Enter/Space を奪い合う。撤去済み）
 - **複製は `POST /api/content/duplicate`**。`id`・`slug` を落としてコピーし、`id` はローダーの自動採番、`slug` は人が後で設定。⚠ **実装で `fs.cpSync` を使わないこと**——Node v24.14 は宛先パスに全角文字（「（コピー）」等）があると try/catch も効かず**プロセスごとクラッシュする**（exit 127。2026-08-16 に vitest ワーカー全滅として発覚）。`readdir`＋`copyFileSync` の手書き再帰でコピーする
 - メタ編集は既存ダイアログの流用（`CourseMetaDialog` / `LessonMetaDialog` / `WorkspaceMetaDialog`＝全体 description のみ）。**4階層メタ編集 UI への刷新は次 change**
 - ⚠ vitest を kill すると tinypool のワーカー（node.exe）が孤児化して以後の実行が `ERR_IPC_CHANNEL_CLOSED` で全滅する。素の node.exe を掃除してから再実行

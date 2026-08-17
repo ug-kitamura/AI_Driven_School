@@ -1,5 +1,11 @@
 import { describe, expect, it, afterEach, beforeAll, vi } from "vitest";
-import { render, screen, cleanup, fireEvent } from "@testing-library/react";
+import {
+  render,
+  screen,
+  cleanup,
+  fireEvent,
+  waitFor,
+} from "@testing-library/react";
 
 // SidebarProvider（use-mobile）が参照する matchMedia は jsdom に無い
 beforeAll(() => {
@@ -18,6 +24,11 @@ import { SidebarProvider } from "@/components/ui/sidebar";
 import { ContentTreePane } from "@/components/workspace/ContentTreePane";
 import type { Series } from "@/lib/schema";
 
+// ミニ曼陀羅（mermaid）はこのテストの対象外。jsdom での描画副作用を避ける
+vi.mock("@/components/workspace/MiniMandalaSection", () => ({
+  MiniMandalaSection: () => null,
+}));
+
 const series: Series[] = [
   {
     id: "srs-1",
@@ -26,6 +37,9 @@ const series: Series[] = [
       {
         id: "crs-1",
         name: "Git概念コース",
+        target: "",
+        cross_series_prev: [],
+        cross_series_next: [],
         lessons: [
           {
             id: "lsn-1",
@@ -61,6 +75,7 @@ function noop() {}
 
 function renderTree(overrides: Partial<Parameters<typeof ContentTreePane>[0]> = {}) {
   const handlers = {
+    onSelectHome: vi.fn(),
     onSelectSeries: vi.fn(),
     onSelectCourse: vi.fn(),
     onSelectLesson: vi.fn(),
@@ -74,6 +89,7 @@ function renderTree(overrides: Partial<Parameters<typeof ContentTreePane>[0]> = 
         selectedSeriesId="srs-1"
         selectedCourseId=""
         selectedLessonId=""
+        onSelectHome={handlers.onSelectHome}
         onSelectSeries={handlers.onSelectSeries}
         onSelectCourse={handlers.onSelectCourse}
         onSelectLesson={handlers.onSelectLesson}
@@ -90,7 +106,6 @@ function renderTree(overrides: Partial<Parameters<typeof ContentTreePane>[0]> = 
         onUpdateCourseMeta={noop}
         onUpdateLessonMeta={noop}
         onUpdateLessonStatus={handlers.onUpdateLessonStatus}
-        tagSuggestions={[]}
         {...overrides}
       />
     </SidebarProvider>,
@@ -98,11 +113,27 @@ function renderTree(overrides: Partial<Parameters<typeof ContentTreePane>[0]> = 
   return handlers;
 }
 
-afterEach(cleanup);
+function treeContainer(): HTMLElement {
+  const el = document.querySelector<HTMLElement>('[data-slot="sidebar-content"]');
+  if (!el) throw new Error("sidebar-content not found");
+  return el;
+}
+
+function rowById(rowId: string): HTMLElement {
+  const el = document.querySelector<HTMLElement>(`[data-row-id="${rowId}"]`);
+  if (!el) throw new Error(`row not found: ${rowId}`);
+  return el;
+}
+
+afterEach(() => {
+  cleanup();
+  vi.unstubAllGlobals();
+});
 
 describe("ContentTreePane", () => {
-  it("3階層と、シリーズ行右端の完了/総レッスン数を表示する", () => {
+  it("ホーム行と3階層、シリーズ行右端の完了/総レッスン数を表示する", () => {
     renderTree();
+    expect(screen.getByText("ホーム")).toBeDefined();
     expect(screen.getByText("Git基礎シリーズ")).toBeDefined();
     expect(screen.getByText("Git概念コース")).toBeDefined();
     expect(screen.getByText("Gitの三大エリア")).toBeDefined();
@@ -110,10 +141,36 @@ describe("ContentTreePane", () => {
     expect(screen.getByText("1/2")).toBeDefined();
   });
 
+  it("ホーム行クリックで onSelectHome が呼ばれる", () => {
+    const handlers = renderTree();
+    fireEvent.click(screen.getByText("ホーム"));
+    expect(handlers.onSelectHome).toHaveBeenCalled();
+  });
+
   it("レッスン行クリックで onSelectLesson が呼ばれる", () => {
     const handlers = renderTree();
     fireEvent.click(screen.getByText("Gitの三大エリア"));
     expect(handlers.onSelectLesson).toHaveBeenCalledWith("lsn-2");
+  });
+
+  it("シリーズ行クリックは選択と開閉トグルを同時に行う", () => {
+    const handlers = renderTree();
+    fireEvent.click(screen.getByText("Git基礎シリーズ"));
+    expect(handlers.onSelectSeries).toHaveBeenCalledWith("srs-1");
+    // 開いていたシリーズが畳まれてコースが消える
+    expect(screen.queryByText("Git概念コース")).toBeNull();
+  });
+
+  it("選択行だけが太字になる（シリーズ常時太字は廃止）", () => {
+    renderTree({ selectedSeriesId: "srs-1", selectedCourseId: "crs-1" });
+    expect(rowById("course:crs-1").className).toContain("font-semibold");
+    expect(rowById("series:srs-1").className).not.toContain("font-semibold");
+  });
+
+  it("選択を含むシリーズブロックに青レールが付く", () => {
+    renderTree();
+    const block = rowById("series:srs-1").parentElement;
+    expect(block?.className).toContain("before:bg-primary");
   });
 
   it("ステータスボタンは循環値で onUpdateLessonStatus を呼び、行選択を発生させない", () => {
@@ -137,6 +194,143 @@ describe("ContentTreePane", () => {
     expect(handlers.onSelectSeries).not.toHaveBeenCalled();
   });
 
+  it("矢印キーで移動し Enter で選択できる", () => {
+    const handlers = renderTree();
+    const container = treeContainer();
+    // カーソルの初期位置は選択行（シリーズ行）。コース行 → レッスン行へ降りる
+    fireEvent.keyDown(container, { key: "ArrowDown" });
+    fireEvent.keyDown(container, { key: "ArrowDown" });
+    fireEvent.keyDown(container, { key: "Enter" });
+    expect(handlers.onSelectLesson).toHaveBeenCalledWith("lsn-1");
+  });
+
+  it("F2 でリネームダイアログが開く", async () => {
+    renderTree();
+    fireEvent.click(screen.getByText("Gitの三大エリア"));
+    fireEvent.keyDown(treeContainer(), { key: "F2" });
+    await waitFor(() => {
+      expect(screen.getByText("レッスン名を変更")).toBeDefined();
+    });
+  });
+
+  it("Delete で削除確認ダイアログが開く", async () => {
+    renderTree();
+    fireEvent.click(screen.getByText("Gitの三大エリア"));
+    fireEvent.keyDown(treeContainer(), { key: "Delete" });
+    await waitFor(() => {
+      expect(screen.getByText("レッスンを削除しますか？")).toBeDefined();
+    });
+  });
+
+  it("Ctrl+C → Ctrl+V でレッスンの複製 API を呼ぶ", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(JSON.stringify({}), { status: 200 }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+    renderTree();
+    const container = treeContainer();
+    fireEvent.click(screen.getByText("Gitの三大エリア"));
+    fireEvent.keyDown(container, { key: "c", ctrlKey: true });
+    // コース行へカーソルを移して paste（lsn-2 → lsn-1 → コース行）
+    fireEvent.keyDown(container, { key: "ArrowUp" });
+    fireEvent.keyDown(container, { key: "ArrowUp" });
+    fireEvent.keyDown(container, { key: "v", ctrlKey: true });
+    await waitFor(() => {
+      expect(fetchMock).toHaveBeenCalledWith(
+        "/api/content/duplicate",
+        expect.objectContaining({ method: "POST" }),
+      );
+    });
+    const body = JSON.parse(
+      (fetchMock.mock.calls.find(
+        (c) => c[0] === "/api/content/duplicate",
+      )?.[1] as RequestInit).body as string,
+    ) as Record<string, string>;
+    expect(body).toMatchObject({
+      type: "lesson",
+      lesson: "Gitの三大エリア",
+      targetCourse: "Git概念コース",
+    });
+  });
+
+  it("名前フィルタで一致レッスンと祖先だけが残る", () => {
+    renderTree();
+    const input = screen.getByPlaceholderText(
+      "Filter... (? to search contents)",
+    );
+    fireEvent.change(input, { target: { value: "三大" } });
+    expect(screen.getByText("Gitの三大エリア")).toBeDefined();
+    expect(screen.queryByText("バージョン管理ってなに？")).toBeNull();
+    // クリアで全件へ戻る
+    fireEvent.click(screen.getByLabelText("検索をクリア"));
+    expect(screen.getByText("バージョン管理ってなに？")).toBeDefined();
+  });
+
+  it("? 入力でコンテンツ検索 API を呼び、一致でツリーを絞る", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          matches: [
+            {
+              series: "Git基礎シリーズ",
+              course: "Git概念コース",
+              lesson: "Gitの三大エリア",
+            },
+          ],
+          truncated: false,
+        }),
+        { status: 200 },
+      ),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+    renderTree();
+    const input = screen.getByPlaceholderText(
+      "Filter... (? to search contents)",
+    );
+    fireEvent.change(input, { target: { value: "?ステージ" } });
+    await waitFor(
+      () => {
+        expect(fetchMock).toHaveBeenCalled();
+        expect(screen.queryByText("バージョン管理ってなに？")).toBeNull();
+        expect(screen.getByText("Gitの三大エリア")).toBeDefined();
+      },
+      { timeout: 2000 },
+    );
+    const url = String(fetchMock.mock.calls[0][0]);
+    expect(url).toContain("/api/content/search?q=");
+  });
+
+  it("右クリックメニューに properties が無い", async () => {
+    renderTree();
+    fireEvent.contextMenu(screen.getByText("Git概念コース"));
+    await screen.findByText("add lesson");
+    expect(screen.queryByText("properties")).toBeNull();
+  });
+
+  it("collapse all は選択への道だけ残して畳む", async () => {
+    // レッスン lsn-1 を選択 → 祖先（srs-1 / crs-1）は開いたまま残る
+    renderTree({
+      selectedSeriesId: "srs-1",
+      selectedCourseId: "crs-1",
+      selectedLessonId: "lsn-1",
+    });
+    fireEvent.contextMenu(screen.getByText("ホーム"));
+    const item = await screen.findByText("collapse all");
+    fireEvent.click(item);
+    // 選択の祖先は畳まれないので、レッスンは見えたまま
+    expect(screen.getByText("バージョン管理ってなに？")).toBeDefined();
+  });
+
+  it("collapse all は選択外のコースを畳む", async () => {
+    // シリーズだけ選択 → コース crs-1 は畳まれ、レッスンが消える
+    renderTree();
+    fireEvent.contextMenu(screen.getByText("ホーム"));
+    const item = await screen.findByText("collapse all");
+    fireEvent.click(item);
+    expect(screen.queryByText("Gitの三大エリア")).toBeNull();
+    expect(screen.getByText("Git概念コース")).toBeDefined();
+  });
+
   it("シリーズ 0 件では右クリック案内の空状態を表示する", () => {
     render(
       <SidebarProvider defaultOpen>
@@ -146,6 +340,7 @@ describe("ContentTreePane", () => {
           selectedSeriesId=""
           selectedCourseId=""
           selectedLessonId=""
+          onSelectHome={noop}
           onSelectSeries={noop}
           onSelectCourse={noop}
           onSelectLesson={noop}
@@ -162,7 +357,6 @@ describe("ContentTreePane", () => {
           onUpdateCourseMeta={noop}
           onUpdateLessonMeta={noop}
           onUpdateLessonStatus={noop}
-          tagSuggestions={[]}
         />
       </SidebarProvider>,
     );

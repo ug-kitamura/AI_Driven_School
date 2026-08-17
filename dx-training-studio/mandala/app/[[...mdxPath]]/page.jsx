@@ -1,6 +1,6 @@
 import { generateStaticParamsFor, importPage } from "nextra/pages";
 import { useMDXComponents } from "../../mdx-components.js";
-import siteConfig from "../../site.config.json";
+import { siteChrome } from "../../lib/site-data";
 
 export const generateStaticParams = generateStaticParamsFor("mdxPath");
 
@@ -9,7 +9,7 @@ export async function generateMetadata(props) {
   const { metadata } = await importPage(params.mdxPath);
   // タブタイトルはページ内容に関わらずサイト名固定にする
   // （ページ別の frontmatter title は無視する）。
-  return { ...metadata, title: siteConfig.siteName };
+  return { ...metadata, title: siteChrome().name };
 }
 
 const Wrapper = useMDXComponents().wrapper;

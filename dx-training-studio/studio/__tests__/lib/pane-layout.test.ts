@@ -35,15 +35,15 @@ describe("clampPaneWidth", () => {
 });
 
 describe("PANE_WIDTH_DEFAULTS", () => {
-  it("tree 300 / pane4 600", () => {
-    expect(PANE_WIDTH_DEFAULTS).toEqual({ tree: 300, pane4: 600 });
+  it("tree 350 / pane4 500", () => {
+    expect(PANE_WIDTH_DEFAULTS).toEqual({ tree: 350, pane4: 500 });
   });
 });
 
 describe("snapPaneWidth", () => {
   it("snaps to nearest 5px step within limits", () => {
-    expect(snapPaneWidth("tree", 213)).toBe(215);
-    expect(snapPaneWidth("tree", 212)).toBe(210);
+    expect(snapPaneWidth("tree", 313)).toBe(315);
+    expect(snapPaneWidth("tree", 312)).toBe(310);
   });
 
   it("clamps before snapping at boundaries", () => {
@@ -94,14 +94,14 @@ describe("fitPaneLayout", () => {
 
   it("shrinks pane4 first when pane3 is below min", () => {
     const result = fitPaneLayout({
-      requested: { tree: 300, pane4: 1000 },
-      // tree 300 + pane4 1000 + handle 8 + pane3 400 = 1708 が必要。
-      // 1500 では pane4 が 208 譲る
+      requested: { tree: 300, pane4: 700 },
+      // tree 300 + pane4 700 + handle 8 + pane3 500 = 1508 が必要。
+      // 1500 では pane4 が 8 譲る
       totalWidth: 1500,
       pane4Open: true,
     });
     expect(result.tree).toBe(300);
-    expect(result.pane4).toBe(1000 - 208);
+    expect(result.pane4).toBe(700 - 8);
     expect(
       computePane3Width(result, { totalWidth: 1500, pane4Open: true }),
     ).toBe(PANE3_MIN_WIDTH);
@@ -140,26 +140,26 @@ describe("fitPaneLayout", () => {
 
   it("when expanding tree shrinks pane4 but not tree", () => {
     const result = fitPaneLayout({
-      requested: { tree: 500, pane4: 1000 },
+      requested: { tree: 450, pane4: 700 },
       totalWidth: 1500,
       pane4Open: true,
       expandPane: "tree",
     });
-    expect(result.tree).toBe(500);
-    expect(result.pane4).toBeLessThan(1000);
+    expect(result.tree).toBe(450);
+    expect(result.pane4).toBeLessThan(700);
   });
 
   it("when expanding pane4 shrinks tree but not pane4", () => {
-    // 必要幅 = tree 500 + pane4 900 + handle 8 + pane3 min 400 = 1808。
-    // 1608 では不足 200 を tree が吸収する（500 → 300）
+    // 必要幅 = tree 450 + pane4 700 + handle 8 + pane3 min 500 = 1658。
+    // 1608 では不足 50 を tree が吸収する（450 → 400）
     const result = fitPaneLayout({
-      requested: { tree: 500, pane4: 900 },
+      requested: { tree: 450, pane4: 700 },
       totalWidth: 1608,
       pane4Open: true,
       expandPane: "pane4",
     });
-    expect(result.pane4).toBe(900);
-    expect(result.tree).toBe(300);
+    expect(result.pane4).toBe(700);
+    expect(result.tree).toBe(400);
   });
 
   it("when expanding pane4 caps width once tree is at min", () => {

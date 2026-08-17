@@ -5,7 +5,7 @@ import { usePathname } from "next/navigation";
 import { Layout, Navbar } from "nextra-theme-docs";
 import { GitHubIcon } from "nextra/icons";
 import type { PageMapItem } from "nextra";
-import siteConfig from "@/site.config.json";
+import { siteChrome } from "@/lib/site-data";
 import { LanguageToggle } from "@/components/LanguageToggle";
 import { MandalaModal } from "@/components/MandalaModal";
 import { localeOf } from "@/lib/locale-path";
@@ -15,10 +15,10 @@ const navbar = (
     logo={
       <span className="dxm-logo">
         <span className="dxm-logo-mark" aria-hidden="true" />
-        {siteConfig.siteName}
+        {siteChrome().name}
       </span>
     }
-    projectLink={siteConfig.repositoryUrl}
+    projectLink={siteChrome().githubUrl}
     /* テーマの既定は 24px だが、`GitHubIcon` は viewBox が `3 3 18 18` で
        余白を持たないため、lucide の 24px より一回り大きく見える。
        ここで寸法を与えて CSS での上書きを避ける（理由は globals.css の
@@ -76,7 +76,7 @@ export function SiteShell({
     <Layout
       navbar={navbar}
       pageMap={localizedPageMap}
-      docsRepositoryBase={siteConfig.repositoryUrl}
+      docsRepositoryBase={siteChrome().githubUrl}
       editLink={null}
       feedback={{ content: null }}
     >

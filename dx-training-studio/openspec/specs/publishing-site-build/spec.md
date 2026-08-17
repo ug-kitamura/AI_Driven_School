@@ -210,3 +210,24 @@ mandala の起動スクリプトは入れ物直下に置く（配置は project-
 - **WHEN** どのコースにも `is_start` / `is_goal` が無い状態で変換を実行する
 - **THEN** 変換は成功し、全コースの宣言は false として扱われる
 
+### Requirement: 変換は全体メタのサイト表示フィールドを反映する
+
+変換（`build-content.mts`）は全体（`contents/.meta.json`）の `name` / `github_url` / `hero` を読み取り、`site-data.json` に含めなければならない（SHALL）。ページ側（navbar のサイト名・GitHub リンク・トップのヒーロー画像）はこの値を使う（SHALL）。未設定のフィールドは現行の既定へフォールバックしなければならない（SHALL）: `name` → `site.config.json` の `siteName`、`github_url` → `site.config.json` の `repositoryUrl`、`hero` → 同梱の `app/hero.jpg`。
+
+`hero` が設定されているときは、変換が正本 `images/<hero>` を配信用（`public/`）へコピーしなければならない（SHALL）。参照先の実体が無い場合はビルドを失敗させる（SHALL）——本文画像の参照切れ検出と同じ扱い。
+
+#### Scenario: 全体メタのサイト名が navbar に出る
+
+- **WHEN** 全体 `.meta.json` に `name` を設定してビルドする
+- **THEN** `site-data.json` にその値が含まれ、navbar のサイト名に使われる
+
+#### Scenario: 未設定なら現行の既定で動く
+
+- **WHEN** `name` / `hero` / `github_url` を持たない正本でビルドする
+- **THEN** ビルドは成功し、サイト名・GitHub リンク・ヒーローは従来の値になる
+
+#### Scenario: hero の実体が無いとビルドが失敗する
+
+- **WHEN** `hero` に存在しないファイル名を設定してビルドする
+- **THEN** ビルドは対象と理由がわかるエラーで中断する
+

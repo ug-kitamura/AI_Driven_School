@@ -36,23 +36,27 @@ export function LessonMetaDialog({
 }: Props) {
   const [draft, setDraft] = useState<LessonMetaDraft | null>(null);
   const [tagError, setTagError] = useState<string | null>(null);
+  const [slugError, setSlugError] = useState<string | null>(null);
   const flushTagsRef = useRef<(() => string[]) | null>(null);
 
   useEffect(() => {
     if (!open || !lesson) return;
     setDraft(lessonToMetaDraft(lesson));
     setTagError(null);
+    setSlugError(null);
   }, [open, lesson]);
 
   const handleSave = () => {
     if (!lesson || !draft) return;
     const tags = flushTagsRef.current?.() ?? draft.tags;
-    const { patch, tagError: err } = draftToMetaPatch(
-      { ...draft, tags },
-      lesson,
-    );
-    if (err) {
+    const {
+      patch,
+      tagError: err,
+      slugError: slugErr,
+    } = draftToMetaPatch({ ...draft, tags }, lesson);
+    if (err || slugErr) {
       setTagError(err);
+      setSlugError(slugErr);
       return;
     }
     onSave(lesson.id, patch);
@@ -72,8 +76,10 @@ export function LessonMetaDialog({
           onDraftChange={(next) => {
             setDraft(next);
             if (tagError) setTagError(null);
+            if (slugError) setSlugError(null);
           }}
           tagError={tagError}
+          slugError={slugError}
           tagSuggestions={tagSuggestions}
           onFlushTagsReady={(flush) => {
             flushTagsRef.current = flush;

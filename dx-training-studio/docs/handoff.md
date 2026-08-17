@@ -21,12 +21,13 @@
        blocking の大半は「社内の空欄を埋める」作業で、
        中身が決まれば機械的に終わる
 
-[次] Studio 改善3部作（2026-08-17 の explore で全決着）
-       ✅ 実装・archive とも完了（2026-08-18・spec 同期済み・validate 64/64）。
-       残るは**コミット・PR・マージ（人）**と下の目視項目だけ。
-       archive: `openspec/changes/archive/2026-08-17-{tree-ebex-parity,
-       pane2-meta-views,studio-fixes}/`（⚠ 追跡外・このマシンのみ）
-       ⚠ 人の目視・確認項目:
+[次] Studio 改善3部作の PR 作成 → マージ            ⚠ 人がやる
+       実装・archive・コミット・push まで完了（2026-08-18）。
+       ブランチ `dx-studio-tree-parity`（commit 50ed30d・73ファイル）は
+       push 済みで、**PR だけ未作成**——このマシンに `gh` CLI が無いため
+       ブラウザから作る:
+         https://github.com/ug-kitamura/AI_Driven_School/pull/new/dx-studio-tree-parity
+       ⚠ 人の目視・確認項目（マージ前後）:
          ・ツリー: ドラッグ並べ替えの操作感 / 太字だけの選択表示の見え方 /
            グレーヘッダー・青レール・ガイド線の質感（ブラウザペインでは検証不能）
          ・ペイン2: メタフォームの見た目 / プレビューのラベル配色 /
@@ -34,9 +35,13 @@
          ・編集ビューで実際に Ctrl+ホイール連打してペイン3 が
            「読み込み中…」にならないこと（機構は実機 E2E 済み。合成ホイールが
            CodeMirror に届かず実操作のみ未確認）
-         ・次の Vercel デプロイ後にスラッシュ候補へスキルが出ること
+         ・マージ後の Vercel デプロイでスラッシュ候補へスキルが出ること
            （焼き込みカタログ lib/agent/skill-catalog.generated.json は
            build script が毎回再生成。リポジトリの生成物はフォールバック用）
+       ⚠ **コミットに含めていない差分が1件ある**:
+       `contents/Git基礎シリーズ/.meta.json` の `cover` 削除は
+       このセッション開始時点で既にあった変更（作業と無関係）なので
+       作業ツリーに残してある。要否を判断すること
 
 ✅ Studio デモの Vercel デプロイ修復は完了（PR #151 マージ済み・2026-08-17 確認）
 
@@ -215,10 +220,12 @@ npm run start   # out/ をローカル配信
 - メタ編集は既存ダイアログの流用（`CourseMetaDialog` / `LessonMetaDialog` / `WorkspaceMetaDialog`＝全体 description のみ）。**4階層メタ編集 UI への刷新は次 change**
 - ⚠ vitest を kill すると tinypool のワーカー（node.exe）が孤児化して以後の実行が `ERR_IPC_CHANNEL_CLOSED` で全滅する。素の node.exe を掃除してから再実行
 
+**✅ 4階層メタ編集 UI は完了した**（2026-08-18・change `pane2-meta-views`）。メタ編集はツリーの右クリックではなく**選択に応じたペイン2 のビュー**が担う（全体／シリーズ／コース）。レッスンだけはペイン2 ヘッダーの鉛筆からモーダル。正本は spec `workspace-meta-views`。
+
 **残る将来構想**（次 change 以降）:
 
-- 4階層メタ編集 UI への刷新＋**英訳ボタン**（`_en` フィールドを AI が自動翻訳）
-- **レッスンの frontmatter 廃止 → レッスン用 `.meta.json` 化**は、この UI 刷新と**同一 change** で実施する（保存層を一度で正しい形にするため）
+- **レッスンの frontmatter 廃止 → レッスン用 `.meta.json` 化**。⚠ 「メタ編集 UI 刷新と同一 change で」という当初の決定は**保留にした**（2026-08-18・UI 側を先に出した）。保存層だけの独立 change として起こす
+- **英訳ボタン**（`_en` フィールドを AI が自動翻訳）。器はスキーマにあるが編集 UI は未実装
 - 画像ピッカー（`ImageGrid` 再利用）、セマンティックズーム、進捗リング付きノード（ゲーミフィケーション）
 
 ### 2.8 兄弟構成への移行（✅ 完了・2026-08-16）
@@ -515,15 +522,16 @@ Vercel 上の Studio は**社内に見せるための読み取り専用デモ**�
 
 ### 掃除の候補（急がない・実害なし）
 
-**Studio の既知の失敗2件**（これ以外は green。2026-08-15 時点で **829 passed** / site は別途 **101 passed**）:
+**Studio の既知の失敗**（これ以外は green。2026-08-18 時点で **911 passed** / mandala は別途 **105 passed**）:
 
 - `extract-markdown-block` — 全廃済みの `session.json` を読むため復活しない。**フィクスチャ化が要る**
-- `compileCss` — 全体実行では5秒タイムアウトで落ちる（**dev を止めても落ちる**。単体なら 411ms ＝純粋にマシン負荷）
+- `compileCss` — 全体実行で5秒タイムアウトになることがある（**dev を止めても落ちる**。単体なら 411ms ＝純粋にマシン負荷）。2026-08-18 の実行では通った——**負荷次第で出たり出なかったりする**
 
 **型・設定**:
 
 - ✅ **`tsc --noEmit` が site を巻き込む問題は構造ごと解消**（兄弟構成化で `exclude: ["site"]` 自体を削除。→ 2.3）
 - テスト側の型エラー8件（`estimatedMinutes` の綴り違い等）——**すべて古くから**。site 側は0件（クリーンを保つこと）
+- ⚠ **`npm run lint`（Studio）は全体で 19 errors 出るが、すべて既存分**。大半は React の新ルール `react-hooks/set-state-in-effect`（effect 内の同期 setState）で、`CourseMetaDialog` 等を触っていないファイルから出る。**自分の変更が増やしていないかは「変更したファイルだけに `npx eslint` をかける」で確かめる**——全体の件数で判断すると既存分に埋もれる
 
 **死んだコード・古い記述**:
 

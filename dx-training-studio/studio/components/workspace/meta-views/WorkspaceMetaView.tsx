@@ -85,13 +85,25 @@ export function WorkspaceMetaView({ workspaceName, onSaveError }: Props) {
     };
   }, []);
 
-  const heroItems = useMemo(
-    () => [
+  /**
+   * 「未設定 → 選択中 → 残りをファイル名順」の並び。
+   * API の返却順（mtime の新しい順）は画像マネージャが使うので変えず、ここで組み替える。
+   * ⚠ 選択中は候補一覧に無くても項目に入れる——shadcn base の Select は
+   * トリガーのラベルを Root の `items` から解決するため、項目が無いと
+   * 保存済みの値がトリガー上で空表示になる（実体を消した画像で起きる）。
+   */
+  const heroItems = useMemo(() => {
+    const selected = values.hero;
+    const rest = heroCandidates
+      .map((f) => f.name)
+      .filter((name) => name !== selected)
+      .sort((a, b) => a.localeCompare(b));
+    return [
       { value: HERO_UNSET, label: "未設定" },
-      ...heroCandidates.map((f) => ({ value: f.name, label: f.name })),
-    ],
-    [heroCandidates],
-  );
+      ...(selected ? [{ value: selected, label: selected }] : []),
+      ...rest.map((name) => ({ value: name, label: name })),
+    ];
+  }, [heroCandidates, values.hero]);
 
   const heroPreviewUrl = useMemo(() => {
     if (!values.hero) return null;

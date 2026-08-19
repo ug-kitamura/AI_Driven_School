@@ -2,6 +2,7 @@
 
 import type { ReactNode } from "react";
 import { Button } from "@/components/ui/button";
+import { PaneKindBadge } from "@/components/workspace/metaDialogLayout";
 
 type Props = {
   /** ヘッダーに出す階層名（例: シリーズ名） */
@@ -27,9 +28,7 @@ export function MetaViewShell({
   return (
     <div className="flex h-full min-w-0 flex-1 flex-col bg-card">
       <div className="flex h-12 shrink-0 items-center gap-2 border-b border-border px-3 py-0">
-        <span className="shrink-0 rounded border border-border px-1.5 py-0.5 text-[10px] text-muted-foreground">
-          {kindLabel}
-        </span>
+        <PaneKindBadge>{kindLabel}</PaneKindBadge>
         <h2 className="min-w-0 truncate text-sm font-semibold text-foreground">
           {title}
         </h2>

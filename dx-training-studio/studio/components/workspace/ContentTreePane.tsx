@@ -79,6 +79,7 @@ import {
   HOME_ROW_ID,
   lessonRowId,
   courseRowId,
+  resolveFocusFallbackRowId,
   resolveHomeEndNavigation,
   resolveLeftNavigation,
   selectionRowId,
@@ -484,8 +485,33 @@ export function ContentTreePane({
     lessonId: selectedLessonId,
   });
 
+  // 直近のカーソル移動が「外部要因（曼陀羅ナビ等）による追随」なら、その行 ID。
+  // ⚠ ref ではなく state で持つ——レンダー中に ref を触るのは React の規則違反。
+  // ⚠ ワンショットの boolean にもしないこと——StrictMode で effect が2回走り、
+  // 1回目がフラグを消費して2回目が DOM フォーカスを奪ってしまう
+  const [externalSyncRowId, setExternalSyncRowId] = useState<string | null>(
+    null,
+  );
+
   const focusRow = useCallback((rowId: string | null) => {
+    // ツリー内の操作によるカーソル移動。外部同期の印は消す
+    setExternalSyncRowId(null);
     setFocusedRowId(rowId);
+  }, []);
+
+  /**
+   * カーソル行に実 DOM フォーカスを与える（EBEX FileTreePane と同じ機構）。
+   * Shift+F10・メニューキーはブラウザがフォーカス要素に `contextmenu` を
+   * 発火させるため、行が実フォーカスを持っていないと行のメニューが出ない。
+   */
+  const focusRowElement = useCallback((rowId: string | null): boolean => {
+    if (!rowId || !scrollRef.current) return false;
+    const element = scrollRef.current.querySelector<HTMLElement>(
+      `[data-row-id="${CSS.escape(rowId)}"]`,
+    );
+    if (!element) return false;
+    element.focus({ preventScroll: true });
+    return true;
   }, []);
 
   useEffect(() => {
@@ -494,8 +520,46 @@ export function ContentTreePane({
     const element = scrollRef.current.querySelector<HTMLElement>(
       `[data-row-id="${escaped}"]`,
     );
-    element?.scrollIntoView({ block: "nearest" });
-  }, [focusedRowId]);
+    if (!element) return;
+    element.scrollIntoView({ block: "nearest" });
+    // 外部要因（曼陀羅ナビ等）の追随では DOM フォーカスを動かさない——
+    // 曼陀羅モーダルの再マウント中はフォーカスが一時的に body に落ちるので、
+    // 下の「body なら拾う」の規則だとツリーが横取りしてしまう
+    if (externalSyncRowId === focusedRowId) return;
+    // DOM フォーカスを移すのは、フォーカスが既にツリー内にあるか宙に浮いた
+    // （body）ときだけ。モーダルやエディタからフォーカスを奪わないため
+    const active = document.activeElement;
+    if (active === document.body || scrollRef.current.contains(active)) {
+      element.focus({ preventScroll: true });
+    }
+  }, [focusedRowId, externalSyncRowId]);
+
+  // 選択がツリー外の操作（ミニ曼陀羅・全体曼陀羅のノードクリック等）で
+  // 変わったときも、カーソル（背景ハイライト）を選択行へ追随させる。
+  // レンダー中の state 調整——ツリー内の操作は focusRow 済みなので no-op
+  const [prevSelectedRowId, setPrevSelectedRowId] = useState(selectedRowId);
+  if (prevSelectedRowId !== selectedRowId) {
+    setPrevSelectedRowId(selectedRowId);
+    if (focusedRowId !== selectedRowId) {
+      setExternalSyncRowId(selectedRowId);
+      setFocusedRowId(selectedRowId);
+    }
+  }
+
+  // カーソル行が折りたたみ・絞り込み・削除で消えたら生きている行へ付け替える。
+  // 付け替えないと DOM フォーカスの持ち主が消えてキーボード操作が死ぬ。
+  // レンダー中の state 調整（React 公式パターン）——Effect にすると
+  // 1フレーム古いカーソルで描画される
+  const [rowsSnapshot, setRowsSnapshot] = useState(visibleRows);
+  if (rowsSnapshot !== visibleRows) {
+    const fallbackRowId = resolveFocusFallbackRowId(
+      rowsSnapshot,
+      visibleRows,
+      focusedRowId,
+    );
+    setRowsSnapshot(visibleRows);
+    if (fallbackRowId) setFocusedRowId(fallbackRowId);
+  }
 
   /** 行の共通クラス。背景＝カーソル行・メニュー対象行・ホバーのみ、太字＝選択行のみ */
   const rowClass = useCallback(
@@ -687,14 +751,25 @@ export function ContentTreePane({
         onSelectHome();
         return;
       }
+      // 行本体のクリックは2段構え（EBEX の常時トグルとの意図的な差分）:
+      // 未選択の行 → 選択し、閉じているときだけ展開（選択目的のクリックで畳まない）
+      // 選択済みの行 → 開閉をトグル（もう一度押せば畳める）
       if (row.kind === "series") {
-        onSelectSeries(row.seriesId);
-        toggleSeries(row.seriesId);
+        if (selectedRowId === row.id) {
+          toggleSeries(row.seriesId);
+        } else {
+          onSelectSeries(row.seriesId);
+          if (collapsedSeriesIds.has(row.seriesId)) toggleSeries(row.seriesId);
+        }
         return;
       }
       if (row.kind === "course") {
-        onSelectCourse(row.courseId);
-        toggleCourse(row.courseId);
+        if (selectedRowId === row.id) {
+          toggleCourse(row.courseId);
+        } else {
+          onSelectCourse(row.courseId);
+          if (collapsedCourseIds.has(row.courseId)) toggleCourse(row.courseId);
+        }
         return;
       }
       onSelectLesson(row.lessonId);
@@ -707,6 +782,9 @@ export function ContentTreePane({
       onSelectLesson,
       toggleSeries,
       toggleCourse,
+      collapsedSeriesIds,
+      collapsedCourseIds,
+      selectedRowId,
     ],
   );
 
@@ -787,12 +865,13 @@ export function ContentTreePane({
       }
 
       if (event.key === "ArrowRight") {
+        // 展開済み・レッスン・ホームでも既定動作は必ず止める。素通しさせると
+        // ブラウザのフォーカス移動が走り、行内ボタンにリングが出る
+        event.preventDefault();
         if (row.kind === "series" && !isSeriesExpanded(row.seriesId)) {
-          event.preventDefault();
           toggleSeries(row.seriesId);
           focusRow(row.id);
         } else if (row.kind === "course" && !isCourseExpanded(row.courseId)) {
-          event.preventDefault();
           toggleCourse(row.courseId);
           focusRow(row.id);
         }
@@ -921,21 +1000,35 @@ export function ContentTreePane({
       <PaneWheelRoot scrollRef={scrollRef} className="min-h-0 flex-1">
         {/* ヘッダーはページ背景（グレー）——EBEX ペイン1 と同じ見え方 */}
         <SidebarHeader className="flex h-12 shrink-0 flex-row items-center gap-0 border-b border-border bg-background px-3 py-0">
-          <div className="flex w-full items-center justify-between">
-            <div className="flex items-center gap-2 overflow-hidden">
-              <GraduationCap className="h-5 w-5 flex-shrink-0 text-primary" />
+          {/* 折りたたみ時はロゴだけ。展開ボタンは本文の最上部が持つ */}
+          <div className="flex w-full items-center gap-2 overflow-hidden">
+            <GraduationCap className="h-5 w-5 flex-shrink-0 text-primary" />
+            {!isCollapsed && (
               <span className="truncate text-sm font-bold text-foreground sidebar-label">
                 {workspaceName}
               </span>
-            </div>
-            <Pane1Toggle />
+            )}
           </div>
         </SidebarHeader>
 
         {!isCollapsed && (
-          <div className="flex shrink-0 items-center gap-2 px-3 py-2">
-            <Search className="size-4 shrink-0 text-muted-foreground" />
-            <div className="relative min-w-0 flex-1">
+          <div className="relative flex shrink-0 items-center gap-2 px-3 py-2">
+            {/* 検索行の余白の右クリック。入力欄をトリガの subtree に入れないことで
+                ブラウザ標準のテキストメニュー（貼り付け等）を残す——Base UI の
+                トリガは capture 段で native メニューを打ち消すため、子からの
+                stopPropagation では止められない（EBEX FileTreePane と同じ手法） */}
+            <ContextMenu
+              onOpenChange={(open) =>
+                handleContextMenuChange(open ? "area" : null)
+              }
+            >
+              <ContextMenuTrigger
+                render={<div className="absolute inset-0" aria-hidden="true" />}
+              />
+              <ContextMenuContent>{areaContextMenuItems}</ContextMenuContent>
+            </ContextMenu>
+            <Search className="pointer-events-none relative z-10 size-4 shrink-0 text-muted-foreground" />
+            <div className="relative z-10 min-w-0 flex-1">
               <Input
                 value={filter}
                 onChange={(e) => handleFilterChange(e.target.value)}
@@ -959,6 +1052,7 @@ export function ContentTreePane({
                 </Button>
               ) : null}
             </div>
+            <Pane1Toggle className="relative z-10" />
           </div>
         )}
 
@@ -977,14 +1071,20 @@ export function ContentTreePane({
           onKeyDown={handleTreeKeyDown}
           onMouseDown={() => {
             if (anyDialogOpenRef.current) return;
-            scrollRef.current?.focus();
+            // DOM フォーカスの持ち主はカーソル行。行が無いときだけコンテナが受ける
+            if (!focusRowElement(focusedRowId)) scrollRef.current?.focus();
           }}
           className={cn(
             "overflow-y-auto overscroll-y-contain py-2 outline-none",
-            PANE_LIST_CONTENT_X_INSET_CLASS,
+            isCollapsed ? "px-0" : PANE_LIST_CONTENT_X_INSET_CLASS,
           )}
         >
-          {isCollapsed ? null : (
+          {isCollapsed ? (
+            /* 折りたたみ時の展開ボタン。ヘッダーはロゴだけなので本文の最上部が持つ */
+            <div className="flex justify-center">
+              <Pane1Toggle />
+            </div>
+          ) : (
             <div className="flex min-h-full flex-col">
               {/* ホーム行（インデント・ガイド線の外） */}
               <ContextMenu
@@ -996,6 +1096,7 @@ export function ContentTreePane({
                   render={
                     <div
                       data-row-id={HOME_ROW_ID}
+                      tabIndex={-1}
                       className={rowClass(HOME_ROW_ID)}
                       onClick={() => {
                         if (isMenuGuarded()) return;
@@ -1215,9 +1316,16 @@ type NodeSharedProps = {
   onContextMenuChange: (rowId: string | null) => void;
 };
 
-/** 子コンテナのガイド線付きインデント（EBEX と同じ手法） */
+/**
+ * 子コンテナのガイド線付きインデント（EBEX と同じ `border-l` 方式）。
+ * ⚠ 数値は EBEX（`ml-[9px] pl-[7px]`）と揃えない——EBEX の行インセットは
+ * `px-1`（4px）だがこちらは `px-2.5`（10px）で、同じ `ml` だと線が親行の
+ * アイコン中心から 6px ぶん左へ寄って見える。合わせるのは数値ではなく
+ * 「線とアイコン中心の距離」で、EBEX と同じ **−5px**（実測で確認）。
+ * 1階層あたりのインデント総量は 14 + 1 + 7 = 22px。
+ */
 const CHILDREN_GUIDE_CLASS =
-  "ml-[9px] flex flex-col gap-0.5 border-l border-border pl-[7px]";
+  "ml-[14px] flex flex-col gap-0.5 border-l border-border pl-[7px]";
 
 function SeriesNode({
   seriesItem,
@@ -1311,6 +1419,7 @@ function SeriesNode({
           render={
             <div
               data-row-id={rowId}
+              tabIndex={-1}
               className={cn("group/tree-series", shared.rowClass(rowId))}
               onClick={() => {
                 if (shared.isMenuGuarded()) return;
@@ -1324,7 +1433,7 @@ function SeriesNode({
                   if (shared.isMenuGuarded()) return;
                   onToggle();
                 }}
-                className="flex-shrink-0 rounded p-0.5 text-muted-foreground hover:bg-muted/80"
+                className="flex-shrink-0 rounded p-0.5 text-muted-foreground outline-none hover:bg-muted/80 focus-visible:outline-none"
                 aria-label={isExpanded ? "シリーズを折りたたむ" : "シリーズを展開"}
                 aria-expanded={isExpanded}
               >
@@ -1533,6 +1642,7 @@ function CourseNode({
           render={
             <div
               data-row-id={rowId}
+              tabIndex={-1}
               className={cn("group/tree-course", shared.rowClass(rowId))}
               onClick={() => {
                 if (shared.isMenuGuarded()) return;
@@ -1546,7 +1656,7 @@ function CourseNode({
                   if (shared.isMenuGuarded()) return;
                   onToggle();
                 }}
-                className="flex-shrink-0 rounded p-0.5 text-muted-foreground hover:bg-muted/80"
+                className="flex-shrink-0 rounded p-0.5 text-muted-foreground outline-none hover:bg-muted/80 focus-visible:outline-none"
                 aria-label={isExpanded ? "コースを折りたたむ" : "コースを展開"}
                 aria-expanded={isExpanded}
               >
@@ -1738,6 +1848,7 @@ function LessonRow({
           render={
             <div
               data-row-id={rowId}
+              tabIndex={-1}
               className={cn("group/tree-lesson", shared.rowClass(rowId))}
               onClick={() => {
                 if (shared.isMenuGuarded()) return;
@@ -1763,7 +1874,7 @@ function LessonRow({
                       if (shared.isMenuGuarded()) return;
                       onUpdateLessonStatus(lesson.id, STATUS_CYCLE[lesson.status]);
                     }}
-                    className="ml-auto flex-shrink-0 pr-1 transition-opacity hover:opacity-70 sidebar-label"
+                    className="ml-auto flex-shrink-0 pr-1 outline-none transition-opacity hover:opacity-70 focus-visible:outline-none sidebar-label"
                     aria-label={`${STATUS_ICON[lesson.status].label}、クリックで変更`}
                   >
                     {STATUS_ICON[lesson.status].icon}

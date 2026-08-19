@@ -153,12 +153,118 @@ describe("ContentTreePane", () => {
     expect(handlers.onSelectLesson).toHaveBeenCalledWith("lsn-2");
   });
 
-  it("シリーズ行クリックは選択と開閉トグルを同時に行う", () => {
-    const handlers = renderTree();
+  it("未選択の開いているシリーズ行のクリックは選択するが畳まない", () => {
+    // 選択はコース階層に置き、シリーズ行を「未選択の行」にする
+    const handlers = renderTree({ selectedCourseId: "crs-1" });
     fireEvent.click(screen.getByText("Git基礎シリーズ"));
     expect(handlers.onSelectSeries).toHaveBeenCalledWith("srs-1");
-    // 開いていたシリーズが畳まれてコースが消える
+    // 開いたままなのでコースは見えている
+    expect(screen.getByText("Git概念コース")).toBeDefined();
+  });
+
+  it("選択済みのシリーズ行の再クリックは開閉をトグルする", () => {
+    // 既定 props はシリーズ srs-1 が選択済み
+    renderTree();
+    fireEvent.click(screen.getByText("Git基礎シリーズ"));
     expect(screen.queryByText("Git概念コース")).toBeNull();
+    fireEvent.click(screen.getByText("Git基礎シリーズ"));
+    expect(screen.getByText("Git概念コース")).toBeDefined();
+  });
+
+  it("未選択の閉じているシリーズ行のクリックは選択して展開する", () => {
+    const handlers = renderTree({ selectedCourseId: "crs-1" });
+    // chevron で畳んでからクリック
+    fireEvent.click(screen.getByLabelText("シリーズを折りたたむ"));
+    expect(screen.queryByText("Git概念コース")).toBeNull();
+    fireEvent.click(screen.getByText("Git基礎シリーズ"));
+    expect(handlers.onSelectSeries).toHaveBeenCalledWith("srs-1");
+    expect(screen.getByText("Git概念コース")).toBeDefined();
+  });
+
+  it("シリーズを開き直しても配下コースの開閉状態は保たれる", () => {
+    renderTree();
+    // コースを畳む → シリーズを畳む → シリーズ行クリックで開き直す
+    fireEvent.click(screen.getByLabelText("コースを折りたたむ"));
+    fireEvent.click(screen.getByLabelText("シリーズを折りたたむ"));
+    fireEvent.click(screen.getByText("Git基礎シリーズ"));
+    // シリーズは開くが、コースは畳んだままなのでレッスンは出ない
+    expect(screen.getByText("Git概念コース")).toBeDefined();
+    expect(screen.queryByText("Gitの三大エリア")).toBeNull();
+  });
+
+  it("Enter は未選択の開いている行を畳まない", () => {
+    // 選択＝コース階層。カーソル初期位置は選択行（コース行）→ ↑ でシリーズ行へ
+    renderTree({ selectedCourseId: "crs-1" });
+    const container = treeContainer();
+    fireEvent.keyDown(container, { key: "ArrowUp" });
+    fireEvent.keyDown(container, { key: "Enter" });
+    expect(screen.getByText("Git概念コース")).toBeDefined();
+  });
+
+  it("Enter は選択済みの行では開閉をトグルする", () => {
+    renderTree();
+    const container = treeContainer();
+    // カーソル初期位置は選択行（シリーズ行）
+    fireEvent.keyDown(container, { key: "Enter" });
+    expect(screen.queryByText("Git概念コース")).toBeNull();
+  });
+
+  it("外部要因で選択が変わるとカーソル背景も追随する", () => {
+    // 曼陀羅ナビゲーション等、ツリー外から選択が変わるケースを props の
+    // 差し替えで再現する
+    const props = {
+      workspaceName: "DX Training Studio",
+      series,
+      selectedSeriesId: "srs-1",
+      selectedCourseId: "",
+      selectedLessonId: "",
+      onSelectHome: noop,
+      onSelectSeries: noop,
+      onSelectCourse: noop,
+      onSelectLesson: noop,
+      onReorderSeries: noop,
+      onReorderCourses: noop,
+      onReorderLessons: noop,
+      onAddSeries: () => "srs-new",
+      onAddCourse: noop,
+      onAddLesson: noop,
+      onDeleteSeries: noop,
+      onDeleteCourse: noop,
+      onDeleteLesson: noop,
+      onUpdateSeriesName: noop,
+      onUpdateCourseMeta: noop,
+      onUpdateLessonMeta: noop,
+      onUpdateLessonStatus: noop,
+    };
+    const { rerender } = render(
+      <SidebarProvider defaultOpen>
+        <ContentTreePane {...props} />
+      </SidebarProvider>,
+    );
+    rerender(
+      <SidebarProvider defaultOpen>
+        <ContentTreePane
+          {...props}
+          selectedCourseId="crs-1"
+          selectedLessonId="lsn-2"
+        />
+      </SidebarProvider>,
+    );
+    expect(rowById("lesson:lsn-2").className).toContain(
+      "bg-workspace-tree-row",
+    );
+  });
+
+  it("カーソル行が折りたたみで消えたら祖先へ付け替わる", () => {
+    const handlers = renderTree();
+    // レッスン行へカーソルを移す（シリーズ → コース → レッスン）
+    const container = treeContainer();
+    fireEvent.keyDown(container, { key: "ArrowDown" });
+    fireEvent.keyDown(container, { key: "ArrowDown" });
+    // コースを畳むとカーソル行（レッスン）が消える → コース行へ付け替わる
+    fireEvent.click(screen.getByLabelText("コースを折りたたむ"));
+    fireEvent.keyDown(container, { key: "Enter" });
+    expect(handlers.onSelectCourse).toHaveBeenCalledWith("crs-1");
   });
 
   it("選択行だけが太字になる（シリーズ常時太字は廃止）", () => {

@@ -12,6 +12,7 @@ import { LessonMetaDialog } from "@/components/workspace/LessonMetaDialog";
 import { LessonPreviewMetaRow } from "@/components/workspace/LessonPreviewMetaRow";
 import { LessonDiffView } from "@/components/workspace/LessonDiffView";
 import { PaneWheelRoot } from "@/components/workspace/PaneWheelRoot";
+import { PaneKindBadge } from "@/components/workspace/metaDialogLayout";
 import {
   PaneSegmentControl,
   type PaneSegmentOption,
@@ -212,6 +213,8 @@ export function MarkdownEditorPane({
   return (
     <PaneWheelRoot scrollRef={paneScrollRef} className="min-w-0 flex-1 bg-card">
       <div className="flex h-12 shrink-0 items-center gap-2 border-b border-border px-3 py-0">
+        {/* 階層種別ラベル。体裁はメタビューのヘッダーと共有部品で揃える */}
+        <PaneKindBadge>レッスン</PaneKindBadge>
         <h2 className="min-w-0 truncate text-sm font-semibold text-foreground">
           {lesson.lesson}
         </h2>

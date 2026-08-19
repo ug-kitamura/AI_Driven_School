@@ -111,6 +111,90 @@ describe("WorkspaceMetaView", () => {
     });
   });
 
+  it("ヒーロー画像は 未設定 → 選択中 → 残りをアルファベット順で並べる", async () => {
+    const fetchMock = vi.fn((input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url.startsWith("/api/content/workspace-meta")) {
+        return Promise.resolve(
+          new Response(JSON.stringify({ hero: "zebra.png" }), { status: 200 }),
+        );
+      }
+      if (url.startsWith("/api/images/list")) {
+        // 返却順は mtime 降順（アルファベット順ではない）
+        return Promise.resolve(
+          new Response(
+            JSON.stringify({
+              files: ["cherry.png", "apple.png", "zebra.png", "banana.png"].map(
+                (name) => ({
+                  path: `images/${name}`,
+                  name,
+                  source: "uploaded",
+                  uploadedAt: "",
+                }),
+              ),
+            }),
+            { status: 200 },
+          ),
+        );
+      }
+      return Promise.resolve(new Response("{}", { status: 200 }));
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    render(<WorkspaceMetaView workspaceName="DX Training Studio" />);
+
+    const trigger = await screen.findByLabelText("ヒーロー画像");
+    await waitFor(() => expect(trigger.textContent).toContain("zebra.png"));
+    fireEvent.click(trigger);
+
+    await waitFor(() => {
+      const options = screen
+        .getAllByRole("option")
+        .map((o) => o.textContent?.trim());
+      expect(options).toEqual([
+        "未設定",
+        "zebra.png",
+        "apple.png",
+        "banana.png",
+        "cherry.png",
+      ]);
+    });
+  });
+
+  it("保存済み画像が候補一覧に無くても選択肢に出る", async () => {
+    const fetchMock = vi.fn((input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url.startsWith("/api/content/workspace-meta")) {
+        return Promise.resolve(
+          new Response(JSON.stringify({ hero: "deleted.png" }), { status: 200 }),
+        );
+      }
+      if (url.startsWith("/api/images/list")) {
+        return Promise.resolve(
+          new Response(
+            JSON.stringify({
+              files: [
+                {
+                  path: "images/apple.png",
+                  name: "apple.png",
+                  source: "uploaded",
+                  uploadedAt: "",
+                },
+              ],
+            }),
+            { status: 200 },
+          ),
+        );
+      }
+      return Promise.resolve(new Response("{}", { status: 200 }));
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    render(<WorkspaceMetaView workspaceName="DX Training Studio" />);
+
+    // 実体が消えていてもトリガーに保存済みの値が出る（空表示にならない）
+    const trigger = await screen.findByLabelText("ヒーロー画像");
+    await waitFor(() => expect(trigger.textContent).toContain("deleted.png"));
+  });
+
   it("不正な GitHub URL では保存せずエラーを出す", async () => {
     const fetchMock = stubFetch();
     render(<WorkspaceMetaView workspaceName="DX Training Studio" />);
@@ -192,6 +276,8 @@ describe("CourseMetaView", () => {
         course={sampleSeries[0].courses[0]}
         onSave={onSave}
         onSelectCourse={vi.fn()}
+        mandalaModalOpen={false}
+        onMandalaModalOpenChange={vi.fn()}
       />,
     );
 
@@ -213,5 +299,58 @@ describe("CourseMetaView", () => {
         catch: "地図を手に入れる",
       }),
     );
+  });
+
+  it("フォームは コース名 → 左列4項目 → 説明 → コースフロー の順に並ぶ", () => {
+    render(
+      <CourseMetaView
+        series={sampleSeries}
+        course={sampleSeries[0].courses[0]}
+        onSave={vi.fn()}
+        onSelectCourse={vi.fn()}
+        mandalaModalOpen={false}
+        onMandalaModalOpenChange={vi.fn()}
+      />,
+    );
+
+    const labels = screen
+      .getAllByText(
+        /^(コース名|スラッグ（公開 URL 用）|キャッチ|受講対象者|受講形態|説明|ミニ曼陀羅|前のコース（同シリーズ）)$/,
+      )
+      .map((el) => el.textContent);
+
+    expect(labels).toEqual([
+      "コース名",
+      "スラッグ（公開 URL 用）",
+      "キャッチ",
+      "受講対象者",
+      "受講形態",
+      "説明",
+      "ミニ曼陀羅",
+      "前のコース（同シリーズ）",
+    ]);
+  });
+
+  it("ミニ曼陀羅は右列に配置され、外側に追加の枠を持たない", () => {
+    render(
+      <CourseMetaView
+        series={sampleSeries}
+        course={sampleSeries[0].courses[0]}
+        onSave={vi.fn()}
+        onSelectCourse={vi.fn()}
+        mandalaModalOpen={false}
+        onMandalaModalOpenChange={vi.fn()}
+      />,
+    );
+
+    const field = screen
+      .getByTestId("mini-mandala")
+      .closest('[class*="row-span-4"]')!;
+    expect(field.className).toContain("col-start-2");
+    // 枠はサムネイル側が持つ。フィールドで囲わない
+    expect(field.className).not.toContain("border");
+    // 中身は absolute で行の高さ計算から外す（左列の行間を引き伸ばさない）
+    const inner = screen.getByTestId("mini-mandala").closest(".absolute");
+    expect(inner).not.toBeNull();
   });
 });

@@ -5,6 +5,7 @@ import {
   filterSeriesByName,
   getRowParentKey,
   HOME_ROW_ID,
+  resolveFocusFallbackRowId,
   resolveHomeEndNavigation,
   resolveLeftNavigation,
   selectionRowId,
@@ -85,6 +86,63 @@ describe("buildVisibleContentRows", () => {
       lessonRowId("l3"),
       seriesRowId("s2"),
     ]);
+  });
+});
+
+describe("resolveFocusFallbackRowId", () => {
+  const allRows = buildVisibleContentRows(sample, noCollapse, noCollapse);
+
+  it("カーソル行が可視のままなら付け替えない", () => {
+    expect(
+      resolveFocusFallbackRowId(allRows, allRows, lessonRowId("l1")),
+    ).toBeNull();
+  });
+
+  it("祖先の折りたたみで消えたら祖先へ付け替える", () => {
+    // c1 を畳むと配下の l1 / l2 が消える
+    const next = buildVisibleContentRows(sample, noCollapse, new Set(["c1"]));
+    expect(resolveFocusFallbackRowId(allRows, next, lessonRowId("l1"))).toBe(
+      courseRowId("c1"),
+    );
+  });
+
+  it("祖先がまとめて消えたら近い祖先を優先する", () => {
+    // s1 を畳むと c1 も l1 も消える。より近い c1 は不可視なので s1 へ
+    const next = buildVisibleContentRows(sample, new Set(["s1"]), noCollapse);
+    expect(resolveFocusFallbackRowId(allRows, next, lessonRowId("l1"))).toBe(
+      seriesRowId("s1"),
+    );
+  });
+
+  it("削除で消えたら親の行へ付け替える", () => {
+    const deleted: Series[] = [
+      makeSeries("s1", [course("c1", [lesson("l2")]), course("c2", [lesson("l3")])]),
+      makeSeries("s2", [course("c3", [])]),
+    ];
+    const next = buildVisibleContentRows(deleted, noCollapse, noCollapse);
+    expect(resolveFocusFallbackRowId(allRows, next, lessonRowId("l1"))).toBe(
+      courseRowId("c1"),
+    );
+  });
+
+  it("絞り込みで祖先ごと消えたら直前の可視行へ付け替える", () => {
+    // s2 だけが残る絞り込み。l1 の祖先（c1・s1）はどちらも消える
+    const filtered = buildVisibleContentRows(
+      [makeSeries("s2", [course("c3", [])])],
+      noCollapse,
+      noCollapse,
+    );
+    expect(
+      resolveFocusFallbackRowId(allRows, filtered, lessonRowId("l1")),
+    ).toBe(HOME_ROW_ID);
+  });
+
+  it("可視行が無ければ null", () => {
+    expect(resolveFocusFallbackRowId(allRows, [], lessonRowId("l1"))).toBeNull();
+  });
+
+  it("カーソルが無ければ null", () => {
+    expect(resolveFocusFallbackRowId(allRows, allRows, null)).toBeNull();
   });
 });
 

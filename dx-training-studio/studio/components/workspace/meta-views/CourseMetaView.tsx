@@ -74,10 +74,24 @@ type Props = {
   ) => void;
   /** ミニ曼陀羅のノードクリックでコースを切り替える */
   onSelectCourse: (courseId: string) => void;
+  /**
+   * ミニ曼陀羅モーダルの開閉（Workspace が持つ）。
+   * このビューは `key={course.id}` で遷移のたび再マウントされるため、
+   * ここより下に state を置くとモーダルが遷移で閉じてしまう
+   */
+  mandalaModalOpen: boolean;
+  onMandalaModalOpenChange: (open: boolean) => void;
 };
 
 /** コース選択時のペイン2: コースメタの編集ビュー＋ミニ曼陀羅 */
-export function CourseMetaView({ series, course, onSave, onSelectCourse }: Props) {
+export function CourseMetaView({
+  series,
+  course,
+  onSave,
+  onSelectCourse,
+  mandalaModalOpen,
+  onMandalaModalOpenChange,
+}: Props) {
   const [cycleWarning, setCycleWarning] = useState(false);
   const [slugError, setSlugError] = useState(false);
   const [editMeta, setEditMeta] = useState<EditMeta>(() => ({
@@ -198,19 +212,6 @@ export function CourseMetaView({ series, course, onSave, onSelectCourse }: Props
             className={META_DIALOG_CONTROL}
           />
         </MetaDialogField>
-        <MetaDialogField className="col-span-2">
-          <Label htmlFor="course-meta-description">説明</Label>
-          <textarea
-            id="course-meta-description"
-            value={editMeta.description}
-            onChange={(e) =>
-              setEditMeta((prev) => ({ ...prev, description: e.target.value }))
-            }
-            rows={3}
-            className="w-full rounded-md border border-input bg-white px-3 py-2 text-sm shadow-xs outline-none focus-visible:ring-2 focus-visible:ring-ring/50 dark:bg-input/30"
-            placeholder="コースの説明（公開サイトのコーストップに表示）"
-          />
-        </MetaDialogField>
         <MetaDialogField>
           <Label>受講対象者</Label>
           <Input
@@ -249,6 +250,39 @@ export function CourseMetaView({ series, course, onSave, onSelectCourse }: Props
               ))}
             </SelectContent>
           </Select>
+        </MetaDialogField>
+        <MetaDialogField className="col-span-2">
+          <Label htmlFor="course-meta-description">説明</Label>
+          <textarea
+            id="course-meta-description"
+            value={editMeta.description}
+            onChange={(e) =>
+              setEditMeta((prev) => ({ ...prev, description: e.target.value }))
+            }
+            rows={3}
+            className="w-full rounded-md border border-input bg-white px-3 py-2 text-sm shadow-xs outline-none focus-visible:ring-2 focus-visible:ring-ring/50 dark:bg-input/30"
+            placeholder="コースの説明（公開サイトのコーストップに表示）"
+          />
+        </MetaDialogField>
+        {/* ミニ曼陀羅は右列に固定配置（2行目から4行分＝左列のスラッグ〜受講形態の隣）。
+            DOM 順は最後に置いてタブ順を自然に保ち、位置はグリッド座標で与える。
+            枠はサムネイル自身の1枚だけ——ここで囲うと二重になる。
+            ⚠ 中身は absolute で行の高さ計算から外す——グラフの実寸が行の
+            高さに参加すると、左列4行が引き伸ばされて間延びする。
+            セルの高さは左列だけで決まり、曼陀羅はそこへ縮んで収まる */}
+        <MetaDialogField className="relative col-start-2 row-span-4 row-start-2">
+          <div className="absolute inset-0 flex min-h-0 flex-col gap-1.5">
+            <Label>ミニ曼陀羅</Label>
+            <div className="min-h-0 flex-1">
+              <MiniMandalaSection
+                series={series}
+                course={course}
+                onSelectCourse={onSelectCourse}
+                modalOpen={mandalaModalOpen}
+                onModalOpenChange={onMandalaModalOpenChange}
+              />
+            </div>
+          </div>
         </MetaDialogField>
         <MetaDialogField>
           <Label>前のコース（同シリーズ）</Label>
@@ -308,16 +342,6 @@ export function CourseMetaView({ series, course, onSave, onSelectCourse }: Props
           </p>
         </div>
       )}
-      <MetaDialogField>
-        <Label>ミニ曼陀羅</Label>
-        <div className="max-w-md rounded-md border border-border">
-          <MiniMandalaSection
-            series={series}
-            course={course}
-            onSelectCourse={onSelectCourse}
-          />
-        </div>
-      </MetaDialogField>
     </MetaViewShell>
   );
 }

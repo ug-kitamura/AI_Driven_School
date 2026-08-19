@@ -187,10 +187,14 @@
   --alert-warning: oklch(0.62 0.14 80);
   --alert-caution: oklch(0.55 0.2 25);
   --alert-tint: 8%;
-  /* ツリー行のフォーカス・ホバー背景（EBEX FileTreePane と同値） */
+  /* ツリー行のフォーカス・ホバー背景。
+     ⚠ EBEX（ライト 7% / ダーク 10%）より意図的に薄い——EBEX はペイン1 全体が
+     グレー地でその上に置く前提だが、Studio のペイン1 は白地なので同じ比率だと
+     濃く出る。4.5% で出したところ「もう少し薄く」の指摘を受けて 4% に確定
+     （2026-08-18 目視）。これ以上薄くするとカーソル行を見失う——下限 */
   --workspace-tree-row: color-mix(
     in oklab,
-    var(--foreground) 7%,
+    var(--foreground) 4%,
     var(--background)
   );
   color-scheme: light;
@@ -224,9 +228,11 @@
   --chart-3: oklch(0.719 0.1077 74.6093);
   --chart-4: oklch(0.7107 0.0351 256.7878);
   --chart-5: oklch(0.7118 0.0129 286.0665);
+  /* ライトと同じ理由で EBEX（ダーク 10%）より薄い。暗い地では同じ比率でも
+     明るく見えるため、ライトの 4% に対してこちらは 6.5%（2026-08-18 目視で確定） */
   --workspace-tree-row: color-mix(
     in oklab,
-    var(--foreground) 10%,
+    var(--foreground) 6.5%,
     var(--background)
   );
   --sidebar: oklch(0.1989 0.0051 248.0841);
@@ -682,12 +688,11 @@
     font-weight: 700 !important;
   }
 
-  /* Pane2 サムネイル: ペイン幅に合わせて拡大縮小（実寸固定は .mini-mandala-graph のみ） */
+  /* Pane2 サムネイル: 寸法の正本は scaleMiniMandalaThumbnailSvg（TS）の
+     インライン style（width:100%; height:100%; meet でセルに収める）。
+     ⚠ ここに width / height を書き戻さないこと——`!important` がインラインに
+     勝ち、縦向きグラフがセルを押し広げて左列の行間が引き伸ばされる */
   .mini-mandala-thumbnail svg {
-    display: block !important;
-    width: 100% !important;
-    max-width: 100% !important;
-    height: auto !important;
     margin-inline: auto;
   }
 

@@ -39,7 +39,9 @@ function buildMermaidDef(input: MiniMandalaGraphInput): {
   nodeMap: Record<string, string>;
 } {
   const lines = [
-    "flowchart LR",
+    // 縦向き。ペイン2 の右列（幅より高さのあるセル）に収めるため——横向きだと
+    // 幅に合わせて縮小されノード名が読めなくなる
+    "flowchart TB",
     // Start / Goal は枠を持たない文字だけのノード
     "  classDef mandalaTerminal fill:none,stroke:none,font-weight:bold",
   ];
@@ -85,10 +87,24 @@ type Props = {
   /** 選択中コース。未選択（undefined）なら領域ごと畳む */
   course: Course | undefined;
   onSelectCourse: (courseId: string) => void;
+  /**
+   * モーダルの開閉は親（Workspace）が持つ制御プロップ。
+   * ⚠ 内部 state に戻さないこと——CourseMetaView は `key={course.id}` で
+   * コース遷移のたび再マウントされるため、内部 state だと
+   * 「モーダルからノードをクリックして遷移 → モーダルが消える」に戻る
+   */
+  modalOpen: boolean;
+  onModalOpenChange: (open: boolean) => void;
 };
 
-/** 統合ツリーペイン下部のミニ曼陀羅固定領域（サムネイル＋拡大モーダル） */
-export function MiniMandalaSection({ series, course, onSelectCourse }: Props) {
+/** コースメタビュー右列のミニ曼陀羅（サムネイル＋拡大モーダル） */
+export function MiniMandalaSection({
+  series,
+  course,
+  onSelectCourse,
+  modalOpen,
+  onModalOpenChange,
+}: Props) {
   const miniGraphInput = useMemo(
     () => (course ? buildMiniMandalaGraphInput(series, course) : null),
     [series, course],
@@ -143,7 +159,7 @@ export function MiniMandalaSection({ series, course, onSelectCourse }: Props) {
   }, [course, miniGraphInput, mermaidIsDark]);
 
   // --- Mermaid: モーダル用（開いたときにレンダリング・GlobalHeader と同じパターン）---
-  const [mermaidModalOpen, setMermaidModalOpen] = useState(false);
+  const mermaidModalOpen = modalOpen;
   const [modalSvg, setModalSvg] = useState<string>("");
   const modalSvgRef = useRef<HTMLDivElement>(null);
   const modalBndRef = useRef<((el: Element) => void) | null>(null);
@@ -160,9 +176,9 @@ export function MiniMandalaSection({ series, course, onSelectCourse }: Props) {
         eventDetails?.cancel?.();
         return;
       }
-      setMermaidModalOpen(open);
+      onModalOpenChange(open);
     },
-    [],
+    [onModalOpenChange],
   );
 
   // グローバルコールバック登録（ミニグラフ専用）
@@ -281,24 +297,27 @@ export function MiniMandalaSection({ series, course, onSelectCourse }: Props) {
 
   return (
     <>
-      <div className="shrink-0 border-t border-border px-2 py-2 sidebar-label">
+      {/* 枠はサムネイルのボタン自身が持つ1枚だけ。⚠ ここに border や余白を
+          足さないこと——呼び出し側（ペイン2 のフィールド）と二重・三重になる。
+          高さは親のセルに追随（h-full）——グラフ側が大きくても親を押し広げない */}
+      <div className="h-full min-w-0">
         {thumbnailSvg ? (
           <button
             type="button"
-            className="block w-full min-w-0 cursor-zoom-in overflow-hidden rounded border border-border/50 bg-muted/30 p-1 text-left transition-colors hover:bg-muted/50"
-            onClick={() => setMermaidModalOpen(true)}
+            className="block h-full w-full min-w-0 cursor-zoom-in overflow-hidden rounded border border-border/50 bg-muted/30 p-1 text-left transition-colors hover:bg-muted/50"
+            onClick={() => onModalOpenChange(true)}
             aria-label="ミニ曼陀羅を拡大表示"
           >
             <div
-              className="mini-mandala-thumbnail w-full min-w-0"
+              className="mini-mandala-thumbnail h-full w-full min-w-0"
               dangerouslySetInnerHTML={{ __html: thumbnailSvg }}
             />
           </button>
         ) : (
           <button
             type="button"
-            className="flex min-h-[72px] w-full items-center justify-center rounded border border-border/50 bg-muted/30 px-2 text-[10px] text-muted-foreground transition-colors hover:bg-muted/50"
-            onClick={() => setMermaidModalOpen(true)}
+            className="flex h-full min-h-[72px] w-full items-center justify-center rounded border border-border/50 bg-muted/30 px-2 text-[10px] text-muted-foreground transition-colors hover:bg-muted/50"
+            onClick={() => onModalOpenChange(true)}
             aria-label="ミニ曼陀羅を拡大表示"
           >
             {thumbnailError

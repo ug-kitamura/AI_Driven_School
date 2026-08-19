@@ -88,6 +88,9 @@ export function Workspace({
   const [pane3Mode, setPane3Mode] = useState<Pane3Mode>("raw");
   const [pane4View, setPane4View] = useState<Pane4View>("agent");
   const [settingsOpen, setSettingsOpen] = useState(false);
+  // ミニ曼陀羅モーダルの開閉。CourseMetaView は key リマウントされるので、
+  // ここで持たないと「モーダルからコース遷移 → モーダルが消える」になる
+  const [courseMandalaModalOpen, setCourseMandalaModalOpen] = useState(false);
   const [companyContextOpen, setCompanyContextOpen] = useState(false);
   const [saveErrorMsg, setSaveErrorMsg] = useState<string | null>(null);
   const saveErrorTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -520,6 +523,8 @@ export function Workspace({
                 course={selectedCourse}
                 onSave={updateCourseMeta}
                 onSelectCourse={guardedSelectCourse}
+                mandalaModalOpen={courseMandalaModalOpen}
+                onMandalaModalOpenChange={setCourseMandalaModalOpen}
               />
             ) : focusLevel === "series" && selectedSeriesItem ? (
               <SeriesMetaView

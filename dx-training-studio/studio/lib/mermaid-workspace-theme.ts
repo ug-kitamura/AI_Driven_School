@@ -86,14 +86,19 @@ export function mandalaCurrentCourseStyleLine(
   return `  style ${nodeId} stroke:${MANDALA_CURRENT_COURSE_STROKE},stroke-width:${strokeWidthPx}px,font-weight:bold`;
 }
 
-/** Pane2 サムネイル: 固定 width 属性を外し、親幅に CSS で追従させる */
+/**
+ * Pane2 サムネイル: 固定 width/height 属性を外し、親の箱に収める。
+ * 高さも 100% にするのが要点——ペイン2 右列のセルは左列4行分で高さが
+ * 固定されており、`height:auto` だと縦向きグラフがセルを押し広げて
+ * 左列の行間が引き伸ばされる。`meet` なので縦横比は保たれ、余白は中央寄せ。
+ */
 export function scaleMiniMandalaThumbnailSvg(svg: string): string {
   return svg.replace(/^<svg\b([^>]*)>/i, (_, attrs: string) => {
     const cleaned = attrs
       .replace(/\s+width="[^"]*"/gi, "")
       .replace(/\s+height="[^"]*"/gi, "")
       .replace(/\s+style="[^"]*"/gi, "");
-    return `<svg${cleaned} preserveAspectRatio="xMidYMid meet" style="width:100%;max-width:100%;height:auto;display:block">`;
+    return `<svg${cleaned} preserveAspectRatio="xMidYMid meet" style="width:100%;max-width:100%;height:100%;display:block">`;
   });
 }
 

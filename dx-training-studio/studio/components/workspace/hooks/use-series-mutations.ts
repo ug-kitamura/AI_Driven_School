@@ -10,6 +10,9 @@ async function saveCourseMeta(
     Course,
     | "target"
     | "style"
+    | "slug"
+    | "catch"
+    | "description"
     | "cross_series_prev"
     | "cross_series_next"
     | "is_start"
@@ -23,8 +26,12 @@ async function saveCourseMeta(
       series: seriesName,
       course: courseName,
       target: meta.target ?? "",
-      // 未設定は空文字で送る（API 側が既存キーを除去する）
+      // 未設定は空文字で送る（API 側が既存キーを除去する）。
+      // state（ローダー由来）が正なので、公開フィールドも常に明示送信する
       style: meta.style ?? "",
+      slug: meta.slug ?? "",
+      catch: meta.catch ?? "",
+      description: meta.description ?? "",
       cross_series_prev: meta.cross_series_prev,
       cross_series_next: meta.cross_series_next,
       is_start: meta.is_start ?? false,
@@ -42,6 +49,9 @@ async function persistCourseMetas(
       saveCourseMeta(seriesName, course.name, {
         target: course.target,
         style: course.style,
+        slug: course.slug,
+        catch: course.catch,
+        description: course.description,
         cross_series_prev: course.cross_series_prev,
         cross_series_next: course.cross_series_next,
         is_start: course.is_start,
@@ -247,7 +257,9 @@ export function useSeriesMutations(options: {
         | "cross_series_next"
         | "is_start"
         | "is_goal"
-      >,
+      > &
+        // 公開フィールドは「undefined＝変更しない / 空文字＝削除 / 値＝設定」
+        Partial<Pick<Course, "slug" | "catch" | "description">>,
     ) => {
       let oldCourseName: string | undefined;
       let seriesName: string | undefined;
@@ -288,6 +300,17 @@ export function useSeriesMutations(options: {
             name: newName,
             target: meta.target,
             style: meta.style,
+            // undefined は「変更しない」、空文字は「削除」
+            slug:
+              meta.slug !== undefined ? meta.slug.trim() || undefined : c.slug,
+            catch:
+              meta.catch !== undefined
+                ? meta.catch.trim() || undefined
+                : c.catch,
+            description:
+              meta.description !== undefined
+                ? meta.description.trim() || undefined
+                : c.description,
             is_start: meta.is_start ?? false,
             is_goal: meta.is_goal ?? false,
             lessons: c.lessons.map((l) =>
@@ -356,6 +379,46 @@ export function useSeriesMutations(options: {
     [series, selectedSeriesId, selectedCourseId, selectedLessonId, setSeries, setSelection, onSaveError],
   );
 
+  /** シリーズの公開フィールド（slug / catch / description）を保存する。空文字はキー削除 */
+  const updateSeriesMeta = useCallback(
+    (
+      seriesId: string,
+      meta: { slug?: string; catch?: string; description?: string },
+    ) => {
+      const target = series.find((s) => s.id === seriesId);
+      if (!target) return;
+      setSeries((prev) =>
+        prev.map((s) => {
+          if (s.id !== seriesId) return s;
+          return {
+            ...s,
+            slug:
+              meta.slug !== undefined ? meta.slug.trim() || undefined : s.slug,
+            catch:
+              meta.catch !== undefined
+                ? meta.catch.trim() || undefined
+                : s.catch,
+            description:
+              meta.description !== undefined
+                ? meta.description.trim() || undefined
+                : s.description,
+          };
+        }),
+      );
+      callContentApi("save-series", {
+        series: target.name,
+        ...(meta.slug !== undefined ? { slug: meta.slug.trim() } : {}),
+        ...(meta.catch !== undefined ? { catch: meta.catch } : {}),
+        ...(meta.description !== undefined
+          ? { description: meta.description }
+          : {}),
+      }).catch((err: unknown) =>
+        onSaveError?.(`シリーズメタ保存エラー: ${String(err)}`),
+      );
+    },
+    [series, setSeries, onSaveError],
+  );
+
   const updateSeriesName = useCallback(
     (seriesId: string, name: string) => {
       const target = series.find((s) => s.id === seriesId);
@@ -391,6 +454,7 @@ export function useSeriesMutations(options: {
     reorderSeries,
     reorderCourses,
     updateCourseMeta,
+    updateSeriesMeta,
     updateSeriesName,
   };
 }

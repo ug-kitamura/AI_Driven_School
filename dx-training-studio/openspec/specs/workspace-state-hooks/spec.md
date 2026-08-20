@@ -3,24 +3,20 @@
 ## Purpose
 
 DX Training Studio の `Workspace.tsx` 状態管理における hook 責務境界を定義する。`useWorkspaceSelection`・`useSeriesMutations`・`useLessonMutations` による関心分離、および `lib/workspace-selection.ts` による削除後選択ルールを規定する。ユーザー向け挙動は `training-studio-workspace-ui`・`training-studio-course-flow` に従い、本 spec は実装構造の要件を扱う。
-
 ## Requirements
-
 ### Requirement: 削除後の選択状態は pure function で決定する
 
-シリーズまたはコース削除後の `selectedSeriesId` / `selectedCourseId` / `selectedLessonId` は、`lib/workspace-selection.ts` の pure function（`resolveSelectionAfterDelete`）で決定しなければならない（SHALL）。`setSeries` の updater 内から別の `setState` を呼んではならない（MUST NOT）。決定結果はフォーカス降下規則（下の階層があれば先頭へ降り、無ければその階層で止まる）に従わなければならない（SHALL）。
+シリーズまたはコース削除後の `selectedSeriesId` / `selectedCourseId` / `selectedLessonId` は、`lib/workspace-selection.ts` の pure function（`resolveSelectionAfterDelete`）で決定しなければならない（SHALL）。`setSeries` の updater 内から別の `setState` を呼んではならない（MUST NOT）。決定結果は**削除された階層の親へフォーカス**しなければならない（SHALL）: 選択中レッスンの削除→親コース、選択中コースの削除→親シリーズ、選択中シリーズの削除→ホーム（全空）。下位階層へ自動で降りてはならない（MUST NOT）。
 
-#### Scenario: 選択中シリーズ削除後に先頭コースへフォールバック
+#### Scenario: 選択中シリーズ削除後はホームになる
 
 - **WHEN** ユーザーが選択中コースを含むシリーズを削除する
-- **THEN** 残存 series から最初のコースが選択される
-- **AND** 当該コースの最初のレッスンが選択される（存在する場合）
+- **THEN** 選択は全空（ホーム）になる
 
-#### Scenario: 選択中コース削除後に先頭コースへフォールバック
+#### Scenario: 選択中コース削除後は親シリーズにフォーカスが残る
 
 - **WHEN** ユーザーが現在選択中のコースを削除する
-- **THEN** 残存 series から最初のコースが選択される
-- **AND** 当該コースの最初のレッスンが選択される（存在する場合）
+- **THEN** `selectedSeriesId` は親シリーズのまま、`selectedCourseId` / `selectedLessonId` は空文字になる
 
 #### Scenario: 非選択コース削除では選択を維持
 
@@ -42,30 +38,31 @@ DX Training Studio の `Workspace.tsx` 状態管理における hook 責務境�
 
 `selectedSeriesId`・`selectedCourseId`・`selectedLessonId`・派生 `selectedSeries` / `selectedCourse` / `selectedLesson`・`selectSeries` / `selectCourse` / `selectLesson` は `useWorkspaceSelection` hook に集約しなければならない（SHALL）。
 
-選択操作は**フォーカス降下規則**に従わなければならない（SHALL）: 下の階層が存在すればその先頭へ降り、存在しなければその階層で止まる。`selectSeries` は当該シリーズの最初のコース（さらにその最初のレッスン）を自動選択しなければならない（SHALL）。`selectCourse` は当該コースの最初のレッスンを自動選択しなければならない（SHALL）。
+選択操作は**クリックした階層で止まらなければならない**（SHALL）: `selectSeries` は当該シリーズを選択し `selectedCourseId` / `selectedLessonId` を空にする（SHALL）。`selectCourse` は当該コース（と所属シリーズ）を選択し `selectedLessonId` を空にする（SHALL）。下位階層を自動選択してはならない（MUST NOT）。
 
-フォーカス階層は `selectedSeriesId` / `selectedCourseId` / `selectedLessonId` の**最深の非空フィールドから導出**しなければならない（SHALL）。フォーカス階層を表す判別フィールドを別に保持してはならない（MUST NOT）——下の階層が空でないのに上で止まる状態は降下規則により存在しないため、判別フィールドは状態との不整合を生むだけになる。
+**3 フィールドすべてが空の状態はホーム（全体）選択**を表す（SHALL）。フォーカス階層は `selectedSeriesId` / `selectedCourseId` / `selectedLessonId` の**最深の非空フィールドから導出**しなければならない（SHALL）。フォーカス階層を表す判別フィールドを別に保持してはならない（MUST NOT）。
 
-#### Scenario: コース選択で先頭レッスンが選ばれる
+選択の永続化はホーム選択（全空）も対象としなければならない（SHALL）——保存値が全空なら復元時もホーム選択になる。保存値が存在しない初回起動は、従来どおり先頭のシリーズ・コース・レッスンへのフォールバックを使う（SHALL）。
+
+#### Scenario: コース選択はコースで止まる
 
 - **WHEN** ユーザーがレッスンを含むコースを選択する
-- **THEN** 当該コースの最初のレッスン ID が `selectedLessonId` になる
+- **THEN** `selectedCourseId` は当該コース ID になり、`selectedLessonId` は空文字になる
 
-#### Scenario: レッスンなしコース選択
-
-- **WHEN** ユーザーがレッスン 0 件のコースを選択する
-- **THEN** `selectedLessonId` は空文字になり、フォーカスはコースになる
-
-#### Scenario: シリーズ選択で先頭コースの先頭レッスンまで降りる
+#### Scenario: シリーズ選択はシリーズで止まる
 
 - **WHEN** ユーザーがコースとレッスンを含むシリーズを選択する
-- **THEN** 当該シリーズの最初のコース ID が `selectedCourseId` になる
-- **AND** そのコースの最初のレッスン ID が `selectedLessonId` になる
+- **THEN** `selectedSeriesId` は当該シリーズ ID になり、`selectedCourseId` / `selectedLessonId` は空文字になる
 
-#### Scenario: コースなしシリーズ選択
+#### Scenario: ホーム選択
 
-- **WHEN** ユーザーがコース 0 件のシリーズを選択する
-- **THEN** `selectedCourseId` と `selectedLessonId` は空文字になり、フォーカスはシリーズになる
+- **WHEN** ユーザーがホーム（全体）を選択する
+- **THEN** 3 フィールドすべてが空文字になり、フォーカス階層は「なし（全体）」になる
+
+#### Scenario: ホーム選択が復元される
+
+- **WHEN** ホーム選択の状態で保存された選択を次回起動時に読み込む
+- **THEN** ホーム選択（全空）が復元される
 
 ### Requirement: シリーズ/コース CRUD は useSeriesMutations hook に集約する
 
@@ -113,3 +110,4 @@ DX Training Studio の `Workspace.tsx` 状態管理における hook 責務境�
 
 - **WHEN** 保存された `courseId` が現在の `contents/` に存在しない
 - **THEN** フォールバックの選択が使われる
+

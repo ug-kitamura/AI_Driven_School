@@ -615,6 +615,10 @@ export function listCoursesNeedingMetaPersist(
           oldC.style !== c.style ||
           // ⚠ コースメタに項目を足したらここにも足すこと。
           // 漏れると「その項目だけ変更」が保存されず消える。
+          // 未設定はキー無し・空文字のどちらでも来るので正規化して比べる
+          (oldC.slug ?? "") !== (c.slug ?? "") ||
+          (oldC.catch ?? "") !== (c.catch ?? "") ||
+          (oldC.description ?? "") !== (c.description ?? "") ||
           // 未宣言はキー無し・false のどちらでも来るので真偽で比べる
           !!oldC.is_start !== !!c.is_start ||
           !!oldC.is_goal !== !!c.is_goal ||

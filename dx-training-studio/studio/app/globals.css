@@ -47,6 +47,7 @@
   --color-card-foreground: var(--card-foreground);
   --color-card: var(--card);
   --color-canvas: var(--canvas);
+  --color-workspace-tree-row: var(--workspace-tree-row);
   --radius-sm: calc(var(--radius) * 0.6);
   --radius-md: calc(var(--radius) * 0.8);
   --radius-lg: var(--radius);
@@ -186,6 +187,17 @@
   --alert-warning: oklch(0.62 0.14 80);
   --alert-caution: oklch(0.55 0.2 25);
   --alert-tint: 8%;
+  /* ツリー行のフォーカス・ホバー背景。
+     ⚠ EBEX（ライト 7% / ダーク 10%）より意図的に薄い——EBEX はペイン1 全体が
+     グレー地でその上に置く前提だが、Studio のペイン1 は白地なので同じ比率だと
+     濃く出る。前景 4% で確定した時期があるが（2026-08-18）、ペイン2 編集ビューの
+     カーソル行と並べると濃さが揃わないため、**編集行と同じ算出**へ統一した
+     （2026-08-19）。値を動かすときは `.lesson-active-line` と一対で動かすこと */
+  --workspace-tree-row: color-mix(
+    in oklab,
+    var(--muted) 50%,
+    var(--background)
+  );
   color-scheme: light;
 }
 
@@ -217,6 +229,13 @@
   --chart-3: oklch(0.719 0.1077 74.6093);
   --chart-4: oklch(0.7107 0.0351 256.7878);
   --chart-5: oklch(0.7118 0.0129 286.0665);
+  /* ライトと同じ理由で EBEX（ダーク 10%）より薄い。暗い地では同じ比率でも
+     明るく見えるため、ライトの 4% に対してこちらは 6.5%（2026-08-18 目視で確定） */
+  --workspace-tree-row: color-mix(
+    in oklab,
+    var(--foreground) 6.5%,
+    var(--background)
+  );
   --sidebar: oklch(0.1989 0.0051 248.0841);
   --sidebar-foreground: oklch(0.9168 0.0035 67.7802);
   --sidebar-primary: oklch(0.7441 0.1311 264.2789);
@@ -372,6 +391,69 @@
 .workspace-scrollbar::-webkit-scrollbar-thumb:hover,
 .lesson-content-editor .cm-scroller::-webkit-scrollbar-thumb:hover {
   background-color: var(--workspace-scrollbar-thumb-hover);
+}
+
+/* Pane3 プレビュー: 本文上のメタラベル行。
+   配色・形状は公開サイト（mandala の .dxm-label 系）と同一に保つ——
+   状態=赤系 / 所要時間=緑系 / 受講形態=青系、右端に著者 */
+.lesson-preview-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+.lesson-preview-meta-labels {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.lesson-preview-meta-label {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.05rem 0.5rem;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  line-height: 1.7;
+  white-space: nowrap;
+}
+
+.lesson-preview-meta-status {
+  background: color-mix(in srgb, #dc2626 14%, transparent);
+  color: #b91c1c;
+}
+
+.lesson-preview-meta-minutes {
+  background: color-mix(in srgb, #16a34a 14%, transparent);
+  color: #15803d;
+}
+
+.lesson-preview-meta-style {
+  background: rgba(0, 123, 192, 0.12);
+  color: #007bc0;
+}
+
+.dark .lesson-preview-meta-status {
+  color: #fca5a5;
+}
+
+.dark .lesson-preview-meta-minutes {
+  color: #86efac;
+}
+
+.dark .lesson-preview-meta-style {
+  color: #7dd3fc;
+}
+
+.lesson-preview-meta-author {
+  font-size: 0.78rem;
+  opacity: 0.65;
+  white-space: nowrap;
 }
 
 /* Pane3 プレビュー: preflight で flat になる見出し・リストを復元（typography プラグイン非依存） */
@@ -607,12 +689,11 @@
     font-weight: 700 !important;
   }
 
-  /* Pane2 サムネイル: ペイン幅に合わせて拡大縮小（実寸固定は .mini-mandala-graph のみ） */
+  /* Pane2 サムネイル: 寸法の正本は scaleMiniMandalaThumbnailSvg（TS）の
+     インライン style（width:100%; height:100%; meet でセルに収める）。
+     ⚠ ここに width / height を書き戻さないこと——`!important` がインラインに
+     勝ち、縦向きグラフがセルを押し広げて左列の行間が引き伸ばされる */
   .mini-mandala-thumbnail svg {
-    display: block !important;
-    width: 100% !important;
-    max-width: 100% !important;
-    height: auto !important;
     margin-inline: auto;
   }
 

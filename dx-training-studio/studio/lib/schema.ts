@@ -118,8 +118,15 @@ export type Series = z.infer<typeof seriesSchema>;
 /** `contents/.meta.json`（全体） */
 export const contentsMetaSchema = z.object({
   order: z.array(z.string()).default([]),
+  /** サイト名（公開サイトの navbar・メタデータに使う） */
+  name: z.string().optional(),
+  name_en: z.string().optional(),
   description: z.string().optional(),
   description_en: z.string().optional(),
+  /** トップのヒーロー画像。正本 `images/<file>` のファイル名 */
+  hero: z.string().optional(),
+  /** リポジトリへのリンク URL */
+  github_url: z.string().optional(),
 });
 export type ContentsMeta = z.infer<typeof contentsMetaSchema>;
 

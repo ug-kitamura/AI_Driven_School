@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { usePathname } from "next/navigation";
-import { Map as MapIcon } from "lucide-react";
+import { Network as NetworkIcon } from "lucide-react";
 import { LazyMandala } from "@/components/mandala/LazyMandala";
 import { findCurrentLocation } from "@/lib/current-course";
 import { data as siteData } from "@/lib/site-data";
@@ -53,9 +53,9 @@ export function MandalaModal() {
         onClick={() => setOpen(true)}
         aria-label={text.open}
       >
-        {/* 21 なのは箱ではなく見た目を揃えるため。理由は globals.css の
+        {/* 箱ではなく見た目を揃えた寸法。理由は globals.css の
             `.dxm-mandala-button` に書いてある */}
-        <MapIcon size={21} strokeWidth={2} aria-hidden="true" />
+        <NetworkIcon size={16} strokeWidth={2} aria-hidden="true" />
       </button>
 
       {open && (

@@ -3,9 +3,7 @@
 ## Purpose
 
 公開サイト（DX Training Mandala）向けの正本メタフィールド（`slug` / `description` / `catch` / `cover` / `_en`）の定義と制約を規定する。
-
 ## Requirements
-
 ### Requirement: slug の形式と一意性
 
 公開サイトの URL に使う `slug` は、アルファベット小文字・数字・ハイフンのみで構成されなければならない（SHALL）。`slug` は同じ親に属する兄弟エンティティ間（同一階層のシリーズ同士・同一シリーズ内のコース同士・同一コース内のレッスン同士）で一意でなければならない（SHALL）。`slug` は人が正本に書く値であり、ツールが日本語名から自動ローマ字変換で生成してはならない（SHALL NOT）。
@@ -58,3 +56,25 @@
 
 - **WHEN** シリーズ `.meta.json` に `"cover": "cover-git-basics.png"` が記述されている
 - **THEN** ローダーが返すシリーズ情報から `cover` の値を取得できる
+
+### Requirement: 全体メタのサイト表示フィールド
+
+全体（`contents/.meta.json`）は、公開サイトの表示に使う次の任意フィールドを持てる（MAY）: **`name`**（サイト名）・**`github_url`**（リポジトリへのリンク URL）・**`hero`**（トップのヒーロー画像参照）。英語版の器として `name_en` も持てる（MAY）。`hero` の値は正本画像置き場（`images/<file>`）のファイル名でなければならない（SHALL）。`hero` は全体のみが持ち、シリーズ・コース・レッスンのスキーマに定義してはならない（SHALL NOT）——シリーズのヒーローは既存の `cover` が担う。
+
+これらのフィールドはすべて後方互換の任意フィールドであり、存在しない正本に対して Studio のロード・保存・編集は従来どおり動作しなければならない（SHALL）。Studio が全体 `.meta.json` を書き戻す際、既に書かれているこれらのフィールドを削除・欠落させてはならない（SHALL NOT）。
+
+#### Scenario: 全体メタのサイト名を読み込める
+
+- **WHEN** `contents/.meta.json` に `"name": "DX Training Mandala"` が記述されている
+- **THEN** ローダー・API がその値を返す
+
+#### Scenario: フィールドが無い既存正本がそのまま動く
+
+- **WHEN** `name` / `hero` / `github_url` を持たない全体 `.meta.json` をロードする
+- **THEN** エラーにならず、未設定として扱われる
+
+#### Scenario: 他の書込でフィールドが消えない
+
+- **WHEN** `hero` を持つ全体 `.meta.json` に対して description だけを更新する
+- **THEN** 更新後も `hero` が残っている
+

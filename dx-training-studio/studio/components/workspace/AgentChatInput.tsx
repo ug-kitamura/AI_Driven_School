@@ -47,6 +47,8 @@ type Props = {
   isLoading?: boolean;
   modelLabel?: string | null;
   skills: SkillSummary[];
+  /** スラッシュ候補を開いたとき一覧が空なら再取得を要求する */
+  onEnsureSkills?: () => void;
   activeSkillId: string | null;
   activeSkillName: string | null;
   onActiveSkillChange: (skillId: string | null) => void;
@@ -125,6 +127,7 @@ export function AgentChatInput({
   isLoading = false,
   modelLabel = null,
   skills,
+  onEnsureSkills,
   activeSkillId,
   activeSkillName,
   onActiveSkillChange,
@@ -280,6 +283,10 @@ export function AgentChatInput({
     onChange(next);
     if (detected?.kind === "file") {
       loadContentFilesForSuggestion();
+    }
+    if (detected?.kind === "skill" && skills.length === 0) {
+      // 初回取得の失敗・未取得から回復する（多重発火は親側でガード）
+      onEnsureSkills?.();
     }
     setSuggestion(detected);
     setHighlightIndex(0);

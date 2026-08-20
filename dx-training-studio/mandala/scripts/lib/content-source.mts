@@ -77,8 +77,15 @@ export type SeriesMeta = {
 };
 
 export type ContentsRoot = {
+  /** サイト名（未設定は site.config.json の siteName にフォールバック） */
+  name?: string;
+  nameEn?: string;
   description?: string;
   descriptionEn?: string;
+  /** トップのヒーロー画像。正本 `images/<file>` のファイル名 */
+  hero?: string;
+  /** リポジトリへのリンク URL */
+  githubUrl?: string;
   series: SeriesMeta[];
 };
 
@@ -297,8 +304,12 @@ export function loadContents(contentsDir: string): ContentsRoot {
   );
 
   return {
+    name: str(rootMeta.name),
+    nameEn: str(rootMeta.name_en),
     description: str(rootMeta.description),
     descriptionEn: str(rootMeta.description_en),
+    hero: str(rootMeta.hero),
+    githubUrl: str(rootMeta.github_url),
     series: seriesNames.map((name) => readSeries(contentsDir, name)),
   };
 }

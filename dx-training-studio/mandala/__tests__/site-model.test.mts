@@ -3,6 +3,7 @@ import {
   buildMandalaGraph,
   buildSiteData,
   formatSlugIssues,
+  resolveSiteChrome,
   validateSlugs,
 } from "../scripts/lib/site-model.mts";
 import type { ContentsRoot } from "../scripts/lib/content-source.mts";
@@ -241,5 +242,39 @@ describe("buildMandalaGraph", () => {
     );
     const graph = buildMandalaGraph(buildSiteData(r).series);
     expect(graph.nodes[0]!.status).toBe("in_progress");
+  });
+});
+
+describe("resolveSiteChrome", () => {
+  const config = {
+    siteName: "DX Training Mandala",
+    repositoryUrl: "https://github.com/ug-kitamura/AI_Driven_School",
+  };
+
+  it("全体メタの値が優先される", () => {
+    expect(
+      resolveSiteChrome(
+        {
+          name: "上書き名",
+          nameEn: "Override",
+          hero: "hero-2.png",
+          githubUrl: "https://github.com/x/y",
+        },
+        config,
+      ),
+    ).toEqual({
+      name: "上書き名",
+      nameEn: "Override",
+      githubUrl: "https://github.com/x/y",
+      hero: "hero-2.png",
+    });
+  });
+
+  it("未設定は site.config.json / 同梱 hero（null）へフォールバックする", () => {
+    expect(resolveSiteChrome({}, config)).toEqual({
+      name: "DX Training Mandala",
+      githubUrl: "https://github.com/ug-kitamura/AI_Driven_School",
+      hero: null,
+    });
   });
 });

@@ -22,6 +22,10 @@
   --dxm-label-minutes-bg: color-mix(in srgb, #16a34a 14%, transparent);
   --dxm-label-minutes-fg: #15803d;
   --dxm-label-style-fg: var(--dxm-brand);
+
+  /* ナビバー右上の操作色（下の「ナビバー右上の3ボタン」を参照）。
+     サイドバーメニューと同じ gray-600 相当に置き、本文より一段引いて見せる */
+  --dxm-navbar-action: #4b5563;
 }
 
 :is(html.dark, .dark) {
@@ -33,6 +37,9 @@
   --alert-warning: oklch(0.8 0.14 85);
   --alert-caution: oklch(0.72 0.16 25);
   --alert-tint: 16%;
+
+  /* 暗い地ではグレーが沈むので明るい側へ振る（neutral-400 相当） */
+  --dxm-navbar-action: #a3a3a3;
 
   /* 暗い地では濃い文字色が沈むので、前景だけ明るい側へ振る */
   --dxm-label-status-fg: #fca5a5;
@@ -668,31 +675,53 @@ html:root {
   border: 1px solid color-mix(in srgb, currentColor 20%, transparent);
 }
 
+/* ===== ナビバー右上の3ボタン（GitHub / 曼陀羅 / 言語）=====
+   通常はグレー（`--dxm-navbar-action`）、ホバーでブランド色。**3つとも同じ挙動**に
+   揃える——以前は GitHub が色そのまま・曼陀羅だけ opacity と色・言語は無反応で、
+   同じ列に並ぶ操作なのに反応がばらばらだった。Studio の GlobalHeader 右側
+   （サブテキスト色 → ホバーで primary）と同じ言葉遣いにしてある。
+   ⚠ GitHub リンクの `<a>` はテーマが描くので掴めるクラスが無い。こちらが渡す
+   `projectIcon` にだけクラスを付け、`:has()` で親の `<a>` を選ぶ——テーマ側の
+   クラス名に依存しないぶん、テーマ更新で外れにくい。`<a>` 側に当てるのは、
+   アイコンだけに当てると padding の上でホバーしても色が変わらないため。 */
+a:has(> .dxm-navbar-icon),
+.dxm-mandala-button,
+.dxm-lang-toggle {
+  color: var(--dxm-navbar-action);
+  transition: color 0.15s ease;
+}
+
+a:has(> .dxm-navbar-icon):hover,
+.dxm-mandala-button:hover,
+.dxm-lang-toggle:hover {
+  color: var(--dxm-brand);
+}
+
 /* ===== ナビバーのアイコン =====
    寸法は「箱の数字」ではなく「見た目」で揃える。glyph が箱をどれだけ埋めるかが
    出所ごとに違うため、同じ size を与えても揃わない。
 
-     .dxm-logo-mark   塗りの正方形          被覆 100%  1.1rem  → 17.6px
-     GitHubIcon       viewBox "3 3 18 18"   被覆 100%  18      → 18.0px
-     lucide Map       viewBox "0 0 24 24"   被覆  75%  21      → 15.75px
+     .dxm-logo-mark    塗りの正方形          被覆 100%  1.1rem  → 17.6px
+     GitHubIcon        viewBox "3 3 18 18"   被覆 100%  16      → 16.0px
+     lucide Network    viewBox "0 0 24 24"   被覆  92%  16      → 14.7px
 
-   基準は左上のサイトロゴ（1.1rem）。
+   基準は左上のサイトロゴ（1.1rem）。曼陀羅アイコンは Studio の全体曼陀羅ボタンと
+   同じ lucide `Network`（2026-08-19 に `Map` から変更・機能が同じなら絵も揃える）。
    ⚠ **丸い絵と矩形の絵を並べるときは、矩形側を1割ほど小さくする。** 外接箱を
-   揃えるだけでは足りない——GitHub の猫はほぼ円形の塊、Map は角のある矩形の輪郭で、
-   直径 d の円と一辺 d の正方形では面積が 4/π ≒ 1.27 倍違う。箱を 18 に揃えた
-   24 では目視で「まだ大きい」と出たため 22 → 21 と下げている（見た目 15.75px。
-   GitHub の 18px より1割強ちいさい値に落ち着いた）。
-   ⚠ さらに以前は「線アイコンは少し小さめの 22px にしている」と書いてあったが、
-   当時の compass は被覆 83% で GitHub 24（被覆 100%）より既に小さく、補正の向きが逆だった。 */
+   揃えるだけでは足りない——GitHub の猫はほぼ円形の塊、Network は角のある矩形の
+   組み合わせで、直径 d の円と一辺 d の正方形では面積が 4/π ≒ 1.27 倍違う。
+   ⚠ **被覆率は stroke を含めて数える。** `getBoundingClientRect()` は
+   stroke を含まない幾何ボックスを返すので、実測すると Network は 83% に見えるが、
+   `strokeWidth:2` が両側 1 単位ずつ張り出すので視覚上は 22/24 ≒ 92%。
+   ここから 16 × 0.92 ≒ 14.7px で、GitHub の 16px より約 8% 小さい。
+   ⚠ 以前は「線アイコンは少し小さめに」と書きつつ補正の向きが逆だった時期がある。
+   数値を動かすときは必ず**見た目の幅**（size × 被覆率）で比べること。 */
+/* 色とホバーは上の「ナビバー右上の3ボタン」で3つまとめて与える。
+   かつてここで opacity 0.9 → 1 も足していたが、透明度は隣の文字（言語トグル）と
+   見え方が揃わないので色指定に一本化した（2026-08-19） */
 .dxm-mandala-button {
   display: inline-flex;
   align-items: center;
-  opacity: 0.9;
-}
-
-.dxm-mandala-button:hover {
-  opacity: 1;
-  color: var(--dxm-brand);
 }
 
 /* ===== 曼陀羅モーダル ===== */
@@ -774,7 +803,11 @@ html:root {
    の上限を 90rem → 95rem に上げ、両脇を 16rem → 18rem にすると、本文は flex で
    伸びるぶんだけ広がる（928 → 944px）。本文用の変数は置かない。
 
-     |←─ 余白 ─→|[ side 288 ][ 本文 944 ][ toc 288 ]|←─ 余白 ─→|
+   その後、日本語のシリーズ名が窮屈だったので**サイドバーだけ**さらに全角2文字分
+   （18rem → 20rem）広げた（2026-08-19）。帯も同じ 2rem を足して 97rem にすることで、
+   広げたぶんは余白から取り、本文は 944px のまま動かない。toc は 18rem のまま。
+
+     |←─ 余白 ─→|[ side 320 ][ 本文 944 ][ toc 288 ]|←─ 余白 ─→|
 
    ⚠ 1280〜1519px の画面では両メニューが出たまま帯が画面幅で頭打ちになるため、
    広げたぶんが本文から引かれる（1440px で 928 → 864）。読めなくなる幅では
@@ -784,7 +817,7 @@ html:root {
 /* `--nextra-content-width` はテーマの `<Head>` が `<style>` で `:root` に注入する。
    こちらも `:root` だと同じ詳細度でソース順勝負になるので `html:root` と1段上げる */
 html:root {
-  --nextra-content-width: 95rem;
+  --nextra-content-width: 97rem;
 }
 
 /* ⚠ 展開状態（`x:w-64`）だけを狙う。平坦に `.nextra-sidebar` へ書くと、
@@ -792,10 +825,11 @@ html:root {
    テーマがサイドバー幅のクラスを変えたら当たらなくなるが、
    そのときの壊れ方は「広がらない」だけで機能に影響しない */
 .nextra-sidebar.x\:w-64 {
-  width: 18rem;
+  width: 20rem;
 }
 
-/* toc は状態が1つなので素直に指定できる */
+/* toc は状態が1つなので素直に指定できる。こちらは 18rem のまま
+   ——広げたのは日本語のシリーズ名が窮屈だった左メニューだけ */
 .nextra-toc {
   width: 18rem;
 }

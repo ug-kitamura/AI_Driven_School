@@ -8,11 +8,13 @@ import {
   formatMinutes,
   localized,
   localizedOptional,
+  siteChrome,
 } from "@/lib/site-data";
 import { localizedHref, type Locale } from "@/lib/locale-path";
-import siteConfig from "@/site.config.json";
+import { assetPath } from "@/lib/asset-path";
 
 export function HomePage({ locale }: { locale: Locale }) {
+  const chrome = siteChrome();
   const description = localizedOptional(
     data.siteDescription,
     data.siteDescriptionEn,
@@ -21,19 +23,31 @@ export function HomePage({ locale }: { locale: Locale }) {
 
   return (
     <div className="dxm-page">
-      {/* トレーニングを想起させるヒーロー画像。差し替えは `app/hero.jpg` を
-          同名で置き換えるだけでよい（コード変更は不要）。
+      {/* トレーニングを想起させるヒーロー画像。全体メタ（contents/.meta.json の
+          hero）があれば正本 images/ の画像、無ければ同梱 `app/hero.jpg` を使う。
           切り抜かず全体を出すので、縦横比は画像がそのまま決める。 */}
-      <Image
-        src={heroImage}
-        alt=""
-        aria-hidden
-        priority
-        className="dxm-home-hero-image"
-      />
+      {chrome.hero ? (
+        /* eslint-disable-next-line @next/next/no-img-element -- 変換がコピーした public/images を参照するため静的 import できない */
+        <img
+          src={assetPath(`/images/${chrome.hero}`)}
+          alt=""
+          aria-hidden
+          className="dxm-home-hero-image"
+        />
+      ) : (
+        <Image
+          src={heroImage}
+          alt=""
+          aria-hidden
+          priority
+          className="dxm-home-hero-image"
+        />
+      )}
 
       <div className="dxm-hero">
-        <h1 className="dxm-hero-title">{siteConfig.siteName}</h1>
+        <h1 className="dxm-hero-title">
+          {localized(chrome.name, chrome.nameEn, locale)}
+        </h1>
         {description && <p>{description}</p>}
       </div>
 

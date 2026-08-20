@@ -4,12 +4,12 @@ export type WorkspacePaneWidths = {
 };
 
 export const PANE_WIDTH_DEFAULTS: WorkspacePaneWidths = {
-  tree: 300,
-  pane4: 600,
+  tree: 350,
+  pane4: 500,
 };
 
 /** Pane3（エディタ）の最小幅 — 派生幅のため設定 UI には含めない */
-export const PANE3_MIN_WIDTH = 400;
+export const PANE3_MIN_WIDTH = 500;
 
 /** Pane4 折りたたみ時ストリップ幅（w-12） */
 export const PANE4_COLLAPSED_WIDTH = 48;
@@ -39,8 +39,10 @@ export const PANE_RESIZE_HANDLE_WIDTH_PX = 8;
 export const PANE_WIDTH_STEP = 5;
 
 export const PANE_WIDTH_LIMITS = {
-  tree: { min: 200, max: 500 },
-  pane4: { min: 400, max: 1000 },
+  tree: { min: 250, max: 450 },
+  // pane4（画面上のペイン3＝エージェント／画像）の下限は 300 では実用に足りず
+  // 400 へ引き上げた（2026-08-19）。保存済みの 300〜399 は起動時の clamp で丸まる
+  pane4: { min: 400, max: 700 },
 } as const;
 
 /** 左端の区切り線: 右ドラッグでペイン幅が狭くなる */

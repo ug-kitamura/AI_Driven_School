@@ -73,27 +73,29 @@ TBD - created by archiving change pane4-ai-generation-and-settings. Update Purpo
 
 ### Requirement: ペイン既定幅を設定できる
 
-設定ダイアログはツリーペイン・Pane4 の既定幅（px）を `pane-layout.ts` の min/max 内で編集でき、**2 ペイン分の数値入力を横 1 行**（レスポンシブ時は折り返し可）に配置しなければならない（SHALL）。保存時に `settings.paneDefaults` へ格納しなければならない（SHALL）。「今のレイアウトに適用」は現在値をワークスペース幅 state および `dx-training-studio-pane-widths` に書き込まなければならない（SHALL）。「既定幅に戻す」（リセット）は `paneDefaults` をコード既定に戻す操作として、`ghost` より視認しやすいスタイル（例: `outline`）で提供しなければならない（SHALL）。初回起動で `pane-widths` が無いときは `paneDefaults` を読み込まなければならない（SHALL）。コード既定の pane4 幅は **600** でなければならない（SHALL）。ツリーペインのコード既定は **300** でなければならない（SHALL）。旧3ペイン形式（pane1 / pane2）で保存された `paneDefaults` / `pane-widths` は読み捨ててコード既定へフォールバックしなければならない（SHALL）——エラーにしてはならない（MUST NOT）。
+設定ダイアログはツリーペイン・Pane4 の既定幅（px）を `pane-layout.ts` の min/max 内で編集でき、**2 ペイン分の数値入力を横 1 行**（レスポンシブ時は折り返し可）に配置しなければならない（SHALL）。保存時に `settings.paneDefaults` へ格納しなければならない（SHALL）。「今のレイアウトに適用」は現在値をワークスペース幅 state および `dx-training-studio-pane-widths` に書き込まなければならない（SHALL）。「既定幅に戻す」（リセット）は `paneDefaults` をコード既定に戻す操作として、`ghost` より視認しやすいスタイル（例: `outline`）で提供しなければならない（SHALL）。初回起動で `pane-widths` が無いときは `paneDefaults` を読み込まなければならない（SHALL）。コード既定の pane4 幅は **500** でなければならない（SHALL）。ツリーペインのコード既定は **350** でなければならない（SHALL）。旧3ペイン形式（pane1 / pane2）で保存された `paneDefaults` / `pane-widths` は読み捨ててコード既定へフォールバックしなければならない（SHALL）——エラーにしてはならない（MUST NOT）。旧範囲で保存された値（例: pane4 = 600 超）は min/max へ clamp して扱わなければならない（SHALL）。
 
 #### Scenario: 初回起動で paneDefaults を読む
 
 - **WHEN** `dx-training-studio-pane-widths` が存在しない
-- **AND** ユーザーが以前 paneDefaults を 300/600 に保存している
+- **AND** ユーザーが以前 paneDefaults を 350/500 に保存している
 - **THEN** 初回 fit は保存済み paneDefaults を用いる
 
-#### Scenario: 既定幅リセットで pane4 が 600
+#### Scenario: 既定幅リセットで pane4 が 500
 
 - **WHEN** ユーザーが設定ダイアログで「既定幅に戻す」を実行する
-- **THEN** pane4 の paneDefaults は 600 になり、ツリーペインは 300 になる
+- **THEN** pane4 の paneDefaults は 500 になり、ツリーペインは 350 になる
 
 #### Scenario: 旧3ペイン形式は既定値へフォールバック
 
 - **WHEN** `dx-training-studio-pane-widths` に旧形式（pane1 / pane2 / pane4）が保存された状態で起動する
-- **THEN** エラーにならず、ツリーペイン 300 / pane4 600 のコード既定（または保存済みの新形式 paneDefaults）が使われる
+- **THEN** エラーにならず、ツリーペイン 350 / pane4 500 のコード既定（または保存済みの新形式 paneDefaults）が使われる
 
 ### Requirement: 編集モードの CodeMirror はテーマに追従する
 
 テーマが `dark` または `system` かつ OS がダークのとき、レッスン編集 CodeMirror は **Cursor 現在のエディタに近い**ダーク向け Markdown 配色で表示しなければならない（SHALL）。ライトテーマ時は現行のライト配色を用いなければならない（SHALL）。詳細な色要件は `training-studio-workspace-dark-mode` を参照する（SHALL）。
+
+レッスン切替でキャッシュ済み EditorState を復元したときも、復元直後に**現在のテーマ**を反映しなければならない（SHALL）——キャッシュした時点のテーマ配色（例: ライト表示中にダーク配色の本文）を表示してはならない（MUST NOT）。
 
 #### Scenario: ダークテーマでエディタ背景が暗色
 
@@ -101,6 +103,11 @@ TBD - created by archiving change pane4-ai-generation-and-settings. Update Purpo
 - **AND** ユーザーが編集モードを開く
 - **THEN** CodeMirror の背景がダーク配色である
 - **AND** Markdown 要素が識別可能なコントラストである
+
+#### Scenario: レッスン切替のキャッシュ復元でテーマが追従する
+
+- **WHEN** ダークテーマでレッスン A の編集ビューを開いた後、ライトテーマへ切り替え、レッスン B を経由して再びレッスン A（キャッシュ復元）に戻る
+- **THEN** レッスン A の本文はライト配色で表示される
 
 ### Requirement: Pixabay API キーをマスク入力で保存する
 
@@ -191,10 +198,10 @@ Web タブの検索 API 呼び出し時、クライアントは `x-pixabay-api-k
 | `gpt-5-nano` | GPT 5 nano | 不可（未対応） |
 | `claude-haiku-4-5` | Claude Haiku 4.5 | 可 |
 | `claude-sonnet-5` | Claude Sonnet 5 | 可（デフォルト） |
-| `claude-opus-4-8` | Claude Opus 4.8 | 可 |
+| `claude-opus-5` | Claude Opus 5 | 可 |
 | `claude-fable-5` | Claude Fable 5 | 可 |
 
-各 slug は Anthropic API の model ID と一致しなければならない（SHALL）。未設定時の既定値は `claude-sonnet-5` でなければならない（SHALL）。保存操作で **`aiModel`** を `dx-training-studio-settings` に格納しなければならない（SHALL）。クライアントは AI 系 API 呼び出し時 **`x-ai-model`** ヘッダーで slug を渡さなければならない（SHALL）。サーバーは **`x-ai-model` ヘッダーを優先**し、ヘッダーが無いときのみ **`process.env.AI_MODEL`** を参照し、それも無いときは **`claude-sonnet-5`** を用いなければならない（SHALL）。一覧に存在しない slug（削除済みの `claude-sonnet-4-6` や `claude-opus-4-7` を含む）が渡された場合、既定値 `claude-sonnet-5` にフォールバックしなければならない（SHALL）。
+各 slug は Anthropic API の model ID と一致しなければならない（SHALL）。未設定時の既定値は `claude-sonnet-5` でなければならない（SHALL）。保存操作で **`aiModel`** を `dx-training-studio-settings` に格納しなければならない（SHALL）。クライアントは AI 系 API 呼び出し時 **`x-ai-model`** ヘッダーで slug を渡さなければならない（SHALL）。サーバーは **`x-ai-model` ヘッダーを優先**し、ヘッダーが無いときのみ **`process.env.AI_MODEL`** を参照し、それも無いときは **`claude-sonnet-5`** を用いなければならない（SHALL）。一覧に存在しない slug（削除済みの `claude-sonnet-4-6` / `claude-opus-4-7` / `claude-opus-4-8` を含む）が渡された場合、既定値 `claude-sonnet-5` にフォールバックしなければならない（SHALL）。
 
 #### Scenario: デフォルトは Claude Sonnet 5
 
@@ -223,21 +230,26 @@ Web タブの検索 API 呼び出し時、クライアントは `x-pixabay-api-k
 
 #### Scenario: 保存済みモデルが AI API に渡される
 
-- **WHEN** ユーザーが Claude Opus 4.8 を保存している
+- **WHEN** ユーザーが Claude Opus 5 を保存している
 - **AND** AI タブで生成を実行する
-- **THEN** リクエストに `x-ai-model: claude-opus-4-8` が含まれる
+- **THEN** リクエストに `x-ai-model: claude-opus-5` が含まれる
 
 #### Scenario: 削除済みモデルの保存値はデフォルトにフォールバックする
 
-- **WHEN** ユーザーが過去に `claude-sonnet-4-6` を `aiModel` として保存している
-- **AND** モデル一覧から `claude-sonnet-4-6` が削除された状態でアプリを開く
+- **WHEN** ユーザーが過去に `claude-opus-4-8` を `aiModel` として保存している
+- **AND** モデル一覧から `claude-opus-4-8` が削除された状態でアプリを開く
 - **THEN** 設定ダイアログには既定値の Claude Sonnet 5 が選択されている
 
 ### Requirement: 社内コンテキストの管理モードを設定できる
 
-設定ダイアログは **ストレージ** セクション内に **画像の管理** および **社内コンテキストの管理** の 2 サブセクションを配置しなければならない（SHALL）。**社内コンテキストの管理** は **ローカル** / **データベース** の 2 択を提供し、選択値を `dx-training-studio-settings` の **`contextStorage`**（`local` | `database`）として永続化しなければならない（SHALL）。未設定時の既定値は **データベース**（`database`）としなければならない（SHALL）。
+設定ダイアログは **ストレージ** セクション内に **画像の管理** および **社内コンテキストの管理** の 2 サブセクションを **1行2列（横並び）** で配置しなければならない（SHALL）——左に画像の管理、右に社内コンテキストの管理。接続エラーメッセージは各列の下に表示する。**社内コンテキストの管理** は **ローカル** / **データベース** の 2 択を提供し、選択値を `dx-training-studio-settings` の **`contextStorage`**（`local` | `database`）として永続化しなければならない（SHALL）。未設定時の既定値は **データベース**（`database`）としなければならない（SHALL）。
 
 **データベース** 選択時、保存前に `GET /api/context/db-check` で接続を検証し、失敗時は **「データベースに接続できません」** を表示して保存を拒否しなければならない（SHALL）。**ローカル** 選択時は `DATABASE_URL` の接続チェックを行ってはならない（MUST NOT）。
+
+#### Scenario: ストレージ2サブセクションが横に並ぶ
+
+- **WHEN** 設定ダイアログを開いてストレージセクションを表示する
+- **THEN** 「画像の管理」と「社内コンテキストの管理」が同じ行に左右で並ぶ
 
 #### Scenario: 既定はデータベース
 

@@ -79,7 +79,17 @@ export type MandalaEdge = {
 
 export type MandalaGraph = { nodes: MandalaNode[]; edges: MandalaEdge[] };
 
+/** サイト表示フィールド（変換が全体メタ＋ site.config.json から解決した値） */
+export type SiteChrome = {
+  name: string;
+  nameEn?: string;
+  githubUrl: string;
+  /** 全体メタ由来のヒーロー画像ファイル名。未設定（同梱 hero.jpg）なら null */
+  hero: string | null;
+};
+
 export type SiteData = {
+  site?: SiteChrome;
   siteDescription?: string;
   siteDescriptionEn?: string;
   series: SiteSeries[];
@@ -87,6 +97,17 @@ export type SiteData = {
 };
 
 export const data = siteData as SiteData;
+
+/** 旧形式の site-data.json（site 無し）でも落とさないためのフォールバック */
+const FALLBACK_CHROME: SiteChrome = {
+  name: "DX Training Mandala",
+  githubUrl: "https://github.com/ug-kitamura/AI_Driven_School",
+  hero: null,
+};
+
+export function siteChrome(): SiteChrome {
+  return data.site ?? FALLBACK_CHROME;
+}
 
 export function allSeries(): SiteSeries[] {
   return data.series;

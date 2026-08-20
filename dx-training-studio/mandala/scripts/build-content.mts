@@ -10,6 +10,7 @@ import { loadContents } from "./lib/content-source.mts";
 import {
   buildSiteData,
   formatSlugIssues,
+  resolveSiteChrome,
   validateSlugs,
   type SiteData,
 } from "./lib/site-model.mts";
@@ -117,6 +118,10 @@ function main(): void {
 
   const data = buildSiteData(root);
 
+  // サイト表示フィールドは全体メタ（contents/.meta.json）が優先、
+  // 未設定は site.config.json / 同梱 hero.jpg へフォールバックする
+  data.site = resolveSiteChrome(root, config);
+
   resetDir(outputContentDir);
   resetDir(publicImagesDir);
 
@@ -134,6 +139,23 @@ function main(): void {
       writeFile(outputContentDir, file);
     for (const file of emitMetaFiles(data, locale))
       writeFile(outputContentDir, file);
+  }
+
+  // 全体メタのヒーロー画像は表示に使うので、実体が無ければビルドを止める
+  // （本文画像の参照切れ検出と同じ扱い）
+  if (data.site.hero) {
+    const heroSource = path.join(canonicalImagesDir, data.site.hero);
+    if (!fs.existsSync(heroSource)) {
+      console.error(
+        [
+          `全体メタ（contents/.meta.json）の hero が見つかりません: images/${data.site.hero}`,
+          `正本の画像置き場: ${canonicalImagesDir}`,
+        ].join("\n"),
+      );
+      process.exit(1);
+    }
+    fs.mkdirSync(publicImagesDir, { recursive: true });
+    fs.copyFileSync(heroSource, path.join(publicImagesDir, data.site.hero));
   }
 
   if (config.imageSource === "local") {

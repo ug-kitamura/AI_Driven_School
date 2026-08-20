@@ -45,17 +45,30 @@ DX Training Studio のワークスペース UI（Pane1/Pane2）における進�
 
 ### Requirement: GlobalHeader に曼陀羅と設定を並置する
 
-`GlobalHeader` はパンくずを左、右側に DX トレーニング曼陀羅ボタン・社内コンテキストボタン・設定ボタンをこの順で配置しなければならない（SHALL）。社内コンテキストの詳細は `company-context-dialog` に従う。設定の詳細は `training-studio-workspace-settings` に従う。
+`GlobalHeader` はパンくずを左、右側に DX トレーニング曼陀羅ボタン・社内コンテキストボタン・GitHub リンク・設定ボタンをこの順で配置しなければならない（SHALL）。社内コンテキストの詳細は `company-context-dialog` に従う。設定の詳細は `training-studio-workspace-settings` に従う。
+
+GitHub リンクは全体メタ（`contents/.meta.json`）の `github_url` を新しいタブで開くアイコンボタンとしなければならない（SHALL）。`github_url` が未設定（空）のときはボタンを表示してはならない（MUST NOT）。アイコンは GitHub のマーク（インライン SVG）とし、通常時はサブテキスト色・ホバーで primary 色という隣接ボタンと同じ振る舞いに揃える（SHALL）。塗りつぶしのマークは同じ外接箱の線アイコンより大きく見えるため、寸法は隣の設定アイコンと視覚的に釣り合う値へ目視で確定する。
 
 #### Scenario: 右端に設定が表示される
 
 - **WHEN** ワークスペースを表示する
-- **THEN** GlobalHeader 右側に設定アイコンが曼陀羅の右隣にある
+- **THEN** GlobalHeader 右側に設定アイコンが右端にある
 
 #### Scenario: 社内コンテキストが曼陀羅と設定の間にある
 
 - **WHEN** ワークスペースを表示する
-- **THEN** GlobalHeader 右側に社内コンテキストボタンが曼陀羅と設定の間に表示される
+- **THEN** GlobalHeader 右側に社内コンテキストボタンが曼陀羅と GitHub リンクの間に表示される
+
+#### Scenario: GitHub リンクが設定の左にある
+
+- **WHEN** `github_url` が設定されたワークスペースを表示する
+- **THEN** GitHub アイコンが社内コンテキストボタンと設定アイコンの間に表示される
+- **AND** クリックすると `github_url` が新しいタブで開く
+
+#### Scenario: github_url 未設定ならアイコンが出ない
+
+- **WHEN** `contents/.meta.json` に `github_url` が無いワークスペースを表示する
+- **THEN** GlobalHeader に GitHub アイコンは表示されない
 
 ### Requirement: ダイアログ内ボタンはホバー時に識別できる
 

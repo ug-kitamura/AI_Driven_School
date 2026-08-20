@@ -48,8 +48,8 @@ describe("model-profiles", () => {
     });
   });
 
-  it("resolves claude-opus-4-8 to a defined profile (new model = profile addition)", () => {
-    const opus = resolveModelProfile("claude-opus-4-8");
+  it("resolves claude-opus-5 to a defined profile (new model = profile addition)", () => {
+    const opus = resolveModelProfile("claude-opus-5");
     // プロファイル追加のみで解決でき、UNKNOWN 既定に落ちない
     expect(opus).not.toEqual(UNKNOWN_MODEL_PROFILE);
     expect(opus.maxOutputTokens).toBe(64000);

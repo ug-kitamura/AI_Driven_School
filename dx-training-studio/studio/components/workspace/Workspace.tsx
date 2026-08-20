@@ -8,6 +8,9 @@ import type { WorkspaceMeta } from "@/lib/workspace-meta";
 import { GlobalHeader } from "@/components/workspace/GlobalHeader";
 import { ContentTreePane } from "@/components/workspace/ContentTreePane";
 import { MarkdownEditorPane } from "@/components/workspace/MarkdownEditorPane";
+import { WorkspaceMetaView } from "@/components/workspace/meta-views/WorkspaceMetaView";
+import { SeriesMetaView } from "@/components/workspace/meta-views/SeriesMetaView";
+import { CourseMetaView } from "@/components/workspace/meta-views/CourseMetaView";
 import { Pane4Shell } from "@/components/workspace/Pane4Shell";
 import { Pane4Toggle } from "@/components/workspace/Pane4Toggle";
 import { PaneResizeHandle } from "@/components/workspace/PaneResizeHandle";
@@ -71,13 +74,17 @@ type WorkspaceProps = {
   initialSeries: Series[];
   contentsEmpty?: boolean;
   workspace: WorkspaceMeta;
+  /** 全体メタの github_url（サーバーで読んだ初期値。全体メタ保存で更新する） */
+  initialGithubUrl?: string;
 };
 
 export function Workspace({
   initialSeries,
   contentsEmpty = false,
   workspace,
+  initialGithubUrl = "",
 }: WorkspaceProps) {
+  const [githubUrl, setGithubUrl] = useState(initialGithubUrl);
   const [series, setSeries] = useState<Series[]>(() =>
     normalizeAllLessonsInSeries(normalizeSeriesCourseMeta(initialSeries)),
   );
@@ -85,6 +92,9 @@ export function Workspace({
   const [pane3Mode, setPane3Mode] = useState<Pane3Mode>("raw");
   const [pane4View, setPane4View] = useState<Pane4View>("agent");
   const [settingsOpen, setSettingsOpen] = useState(false);
+  // ミニ曼陀羅モーダルの開閉。CourseMetaView は key リマウントされるので、
+  // ここで持たないと「モーダルからコース遷移 → モーダルが消える」になる
+  const [courseMandalaModalOpen, setCourseMandalaModalOpen] = useState(false);
   const [companyContextOpen, setCompanyContextOpen] = useState(false);
   const [saveErrorMsg, setSaveErrorMsg] = useState<string | null>(null);
   const saveErrorTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -158,6 +168,8 @@ export function Workspace({
     selectedCourse,
     selectedLesson,
     selectedSeriesName,
+    focusLevel,
+    selectHome,
     selectSeries,
     selectCourse,
     selectLesson,
@@ -168,6 +180,11 @@ export function Workspace({
     initialCourseId: firstCourseId,
     initialLessonId: firstLessonId,
   });
+
+  const selectedSeriesItem = useMemo(
+    () => series.find((s) => s.id === selectedSeriesId),
+    [series, selectedSeriesId],
+  );
 
   // 作業スコープ。会話の保存先と、相対パスの基準を兼ねる。
   // フォーカス階層（最深の非空）と 1 対 1 で対応する。
@@ -214,6 +231,10 @@ export function Workspace({
     [requestSelectionChange, selectSeries],
   );
 
+  const guardedSelectHome = useCallback(() => {
+    requestSelectionChange(() => selectHome());
+  }, [requestSelectionChange, selectHome]);
+
   const handleConfirmStreamingSwitch = useCallback(async () => {
     const action = pendingSwitchRef.current;
     pendingSwitchRef.current = null;
@@ -230,6 +251,7 @@ export function Workspace({
     reorderSeries,
     reorderCourses,
     updateCourseMeta,
+    updateSeriesMeta,
     updateSeriesName,
   } = useSeriesMutations({
     series,
@@ -417,6 +439,7 @@ export function Workspace({
           selectedSeriesId={selectedSeriesId}
           selectedCourseId={selectedCourseId}
           selectedLessonId={selectedLessonId}
+          onSelectHome={guardedSelectHome}
           onSelectSeries={guardedSelectSeries}
           onSelectCourse={guardedSelectCourse}
           onSelectLesson={guardedSelectLesson}
@@ -433,7 +456,6 @@ export function Workspace({
           onUpdateCourseMeta={updateCourseMeta}
           onUpdateLessonMeta={updateLessonMeta}
           onUpdateLessonStatus={updateLessonStatus}
-          tagSuggestions={tagSuggestions}
           onSaveError={handleSaveError}
         />
         <Pane1ResizeHandle
@@ -449,6 +471,7 @@ export function Workspace({
           lessonName={selectedLesson?.lesson ?? ""}
           series={series}
           selectedCourseId={selectedCourseId}
+          githubUrl={githubUrl}
           onSelectCourse={guardedSelectCourse}
           onOpenSettings={() => setSettingsOpen(true)}
           onOpenCompanyContext={() => setCompanyContextOpen(true)}
@@ -482,20 +505,46 @@ export function Workspace({
             className="flex h-full min-w-0 flex-1 flex-col overflow-hidden"
             style={{ minWidth: PANE3_MIN_WIDTH }}
           >
-            <MarkdownEditorPane
-              lesson={selectedLesson}
-              series={series}
-              course={selectedCourse}
-              mode={pane3Mode}
-              onModeChange={setPane3Mode}
-              onUpdateContent={updateLessonContent}
-              onUpdateLessonMeta={updateLessonMeta}
-              onRegisterInsertCallback={registerInsertCallback}
-              onEditorCursorChange={handleEditorCursorChange}
-              tagSuggestions={tagSuggestions}
-              availableImagePaths={availableImagePaths}
-              imageAssetsRevision={imageAssetsRevision}
-            />
+            {/* ペイン2 は選択階層に応じて切り替える（レッスン＝エディタ / それ以外＝メタビュー） */}
+            {focusLevel === "lesson" ? (
+              <MarkdownEditorPane
+                lesson={selectedLesson}
+                series={series}
+                course={selectedCourse}
+                mode={pane3Mode}
+                onModeChange={setPane3Mode}
+                onUpdateContent={updateLessonContent}
+                onUpdateLessonMeta={updateLessonMeta}
+                onRegisterInsertCallback={registerInsertCallback}
+                onEditorCursorChange={handleEditorCursorChange}
+                tagSuggestions={tagSuggestions}
+                availableImagePaths={availableImagePaths}
+                imageAssetsRevision={imageAssetsRevision}
+              />
+            ) : focusLevel === "course" && selectedCourse ? (
+              <CourseMetaView
+                key={selectedCourse.id}
+                series={series}
+                course={selectedCourse}
+                onSave={updateCourseMeta}
+                onSelectCourse={guardedSelectCourse}
+                mandalaModalOpen={courseMandalaModalOpen}
+                onMandalaModalOpenChange={setCourseMandalaModalOpen}
+              />
+            ) : focusLevel === "series" && selectedSeriesItem ? (
+              <SeriesMetaView
+                key={selectedSeriesItem.id}
+                seriesItem={selectedSeriesItem}
+                onRenameSeries={updateSeriesName}
+                onSaveMeta={updateSeriesMeta}
+              />
+            ) : (
+              <WorkspaceMetaView
+                workspaceName={workspace.name}
+                onSaveError={handleSaveError}
+                onGithubUrlSaved={setGithubUrl}
+              />
+            )}
           </div>
           {pane4Open ? (
             <>

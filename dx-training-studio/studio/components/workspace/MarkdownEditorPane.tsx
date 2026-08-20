@@ -9,8 +9,10 @@ import { cn } from "@/lib/utils";
 import { getLessonBody, type LessonMetaFields } from "@/lib/lesson-frontmatter";
 import { stripHtmlComments } from "@/lib/html-comment-at-cursor";
 import { LessonMetaDialog } from "@/components/workspace/LessonMetaDialog";
+import { LessonPreviewMetaRow } from "@/components/workspace/LessonPreviewMetaRow";
 import { LessonDiffView } from "@/components/workspace/LessonDiffView";
 import { PaneWheelRoot } from "@/components/workspace/PaneWheelRoot";
+import { PaneKindBadge } from "@/components/workspace/metaDialogLayout";
 import {
   PaneSegmentControl,
   type PaneSegmentOption,
@@ -211,6 +213,8 @@ export function MarkdownEditorPane({
   return (
     <PaneWheelRoot scrollRef={paneScrollRef} className="min-w-0 flex-1 bg-card">
       <div className="flex h-12 shrink-0 items-center gap-2 border-b border-border px-3 py-0">
+        {/* 階層種別ラベル。体裁はメタビューのヘッダーと共有部品で揃える */}
+        <PaneKindBadge>レッスン</PaneKindBadge>
         <h2 className="min-w-0 truncate text-sm font-semibold text-foreground">
           {lesson.lesson}
         </h2>
@@ -257,6 +261,7 @@ export function MarkdownEditorPane({
             }}
             className="absolute inset-0 workspace-scrollbar overflow-y-auto overscroll-y-contain px-6 py-5"
           >
+            <LessonPreviewMetaRow lesson={lesson} course={course} />
             <div className={LESSON_PREVIEW_CLASS}>
               <ReactMarkdown
                 key={`${lesson.id}-${imageAssetsRevision}`}

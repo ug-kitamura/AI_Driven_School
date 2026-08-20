@@ -111,12 +111,39 @@ export type MandalaGraph = {
   edges: MandalaEdge[];
 };
 
+/** サイト表示フィールド（全体メタ＋ site.config.json フォールバックの解決済み値） */
+export type SiteChrome = {
+  name: string;
+  nameEn?: string;
+  githubUrl: string;
+  /** 全体メタ由来のヒーロー画像ファイル名。未設定（同梱 hero.jpg を使う）なら null */
+  hero: string | null;
+};
+
 export type SiteData = {
+  /** build-content が解決して埋める。ページ側はこの値だけを見る */
+  site?: SiteChrome;
   siteDescription?: string;
   siteDescriptionEn?: string;
   series: SiteSeries[];
   mandala: MandalaGraph;
 };
+
+/**
+ * サイト表示フィールドの解決。全体メタ（contents/.meta.json）が優先、
+ * 未設定は site.config.json（hero は同梱 hero.jpg = null）へフォールバックする。
+ */
+export function resolveSiteChrome(
+  root: { name?: string; nameEn?: string; hero?: string; githubUrl?: string },
+  config: { siteName: string; repositoryUrl: string },
+): SiteChrome {
+  return {
+    name: root.name ?? config.siteName,
+    ...(root.nameEn ? { nameEn: root.nameEn } : {}),
+    githubUrl: root.githubUrl ?? config.repositoryUrl,
+    hero: root.hero ?? null,
+  };
+}
 
 /** コース内レッスンの status を1つに畳む（全 done なら done、1つでも着手済みなら in_progress） */
 function aggregateStatus(statuses: LessonStatus[]): LessonStatus {

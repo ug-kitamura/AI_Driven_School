@@ -76,7 +76,7 @@ const CLAUDE_SMALL: ModelProfile = {
  */
 const BASE_MODEL_PROFILES: Record<string, ModelProfile> = {
   "claude-sonnet-5": CLAUDE_LARGE,
-  "claude-opus-4-8": CLAUDE_LARGE,
+  "claude-opus-5": CLAUDE_LARGE,
   "claude-fable-5": CLAUDE_LARGE,
   "claude-haiku-4-5": CLAUDE_SMALL,
   "gpt-5-nano": {

@@ -2,7 +2,10 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { fetchImageList, type ImageListScope } from "@/lib/image-list-client";
-import { WORKSPACE_SETTINGS_CHANGED_EVENT } from "@/lib/workspace-settings";
+import {
+  settingsEventAffectsStorage,
+  WORKSPACE_SETTINGS_CHANGED_EVENT,
+} from "@/lib/workspace-settings";
 import type { ImageAsset } from "@/lib/schema";
 import { tabToScope } from "@/components/workspace/image-manager/image-manager-utils";
 import type { ImageManagerTab } from "@/components/workspace/image-manager/types";
@@ -87,7 +90,10 @@ export function useImageLists(options: {
   }, [pane4Open, activeTab, refreshScope]);
 
   useEffect(() => {
-    const onSettingsChanged = () => {
+    const onSettingsChanged = (event: Event) => {
+      // ストレージ解決に影響する変更のみ再取得する
+      // （エディタのフォント拡縮等で「読み込み中…」を繰り返さない）
+      if (!settingsEventAffectsStorage(event)) return;
       if (pane4Open) void refreshScope(tabToScope(activeTab));
     };
     window.addEventListener(WORKSPACE_SETTINGS_CHANGED_EVENT, onSettingsChanged);

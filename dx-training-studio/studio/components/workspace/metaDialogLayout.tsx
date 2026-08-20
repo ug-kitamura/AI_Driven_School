@@ -34,3 +34,16 @@ type MetaDialogFieldProps = {
 export function MetaDialogField({ children, className }: MetaDialogFieldProps) {
   return <div className={cn(META_DIALOG_FIELD, className)}>{children}</div>;
 }
+
+/**
+ * ペイン2 ヘッダー左端の階層種別ラベル（全体 / シリーズ / コース / レッスン）。
+ * メタビュー（MetaViewShell）とレッスンのエディタビューで**同じ見た目**にする
+ * 要件があるので、クラスを書き写さずこの部品を共有する。
+ */
+export function PaneKindBadge({ children }: { children: ReactNode }) {
+  return (
+    <span className="shrink-0 rounded border border-border px-1.5 py-0.5 text-[10px] text-muted-foreground">
+      {children}
+    </span>
+  );
+}

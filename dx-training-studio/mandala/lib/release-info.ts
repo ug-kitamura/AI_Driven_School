@@ -1,4 +1,4 @@
-import siteConfig from "@/site.config.json";
+import { siteChrome } from "@/lib/site-data";
 
 export type ReleaseInfo = {
   /** リリース番号（タグ名）。タグ由来のビルドでなければ undefined */
@@ -24,6 +24,6 @@ export function resolveReleaseInfo(
   return {
     release: trimmed || undefined,
     isRelease: Boolean(trimmed),
-    repositoryUrl: siteConfig.repositoryUrl,
+    repositoryUrl: siteChrome().githubUrl,
   };
 }

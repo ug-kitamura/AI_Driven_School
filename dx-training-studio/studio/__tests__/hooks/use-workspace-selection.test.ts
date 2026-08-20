@@ -58,7 +58,7 @@ describe("useWorkspaceSelection", () => {
     localStorage.clear();
   });
 
-  it("selectCourse picks first lesson in course", () => {
+  it("selectCourse stops at the course (no descent into lessons)", () => {
     const { result } = renderHook(() =>
       useWorkspaceSelection({
         series,
@@ -73,11 +73,10 @@ describe("useWorkspaceSelection", () => {
     });
 
     expect(result.current.selectedCourseId).toBe("c1");
-    expect(result.current.selectedLessonId).toBe("l1");
-    expect(result.current.selectedLesson?.lesson).toBe("Lesson 1");
+    expect(result.current.selectedLessonId).toBe("");
   });
 
-  it("selectCourse clears lesson when course has no lessons", () => {
+  it("selectSeries stops at the series and clears deeper levels", () => {
     const { result } = renderHook(() =>
       useWorkspaceSelection({
         series,
@@ -88,11 +87,34 @@ describe("useWorkspaceSelection", () => {
     );
 
     act(() => {
-      result.current.selectCourse("c2");
+      result.current.selectSeries("s1");
     });
 
-    expect(result.current.selectedCourseId).toBe("c2");
+    expect(result.current.selectedSeriesId).toBe("s1");
+    expect(result.current.selectedCourseId).toBe("");
     expect(result.current.selectedLessonId).toBe("");
+  });
+
+  it("selectHome clears the whole selection and persists it", () => {
+    const { result } = renderHook(() =>
+      useWorkspaceSelection({
+        series,
+        initialSeriesId: "s1",
+        initialCourseId: "c1",
+        initialLessonId: "l1",
+      }),
+    );
+
+    act(() => {
+      result.current.selectHome();
+    });
+
+    expect(result.current.selectedSeriesId).toBe("");
+    expect(result.current.selectedCourseId).toBe("");
+    expect(result.current.selectedLessonId).toBe("");
+    expect(
+      JSON.parse(localStorage.getItem("dx-training-studio-selection") ?? "{}"),
+    ).toEqual({ seriesId: "", courseId: "", lessonId: "" });
   });
 
   it("selectLesson updates selected lesson only", () => {

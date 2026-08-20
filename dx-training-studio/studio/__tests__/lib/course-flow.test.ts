@@ -228,6 +228,36 @@ describe("listCoursesNeedingMetaPersist", () => {
     const targets = listCoursesNeedingMetaPersist(before, after, "a1");
     expect(targets).toEqual([]);
   });
+
+  it("includes the edited course when only slug changed", () => {
+    const before = [series("sa", [course("a1")])];
+    const after = [series("sa", [course("a1", { slug: "intro" })])];
+
+    const targets = listCoursesNeedingMetaPersist(before, after, "a1");
+    expect(targets.map((t) => t.course.id)).toEqual(["a1"]);
+  });
+
+  it("includes the edited course when catch / description changed", () => {
+    const before = [
+      series("sa", [course("a1", { catch: "旧", description: "旧説明" })]),
+    ];
+    const after = [
+      series("sa", [course("a1", { catch: "新", description: "旧説明" })]),
+    ];
+
+    const targets = listCoursesNeedingMetaPersist(before, after, "a1");
+    expect(targets.map((t) => t.course.id)).toEqual(["a1"]);
+  });
+
+  it("treats missing publishing fields and empty as the same value", () => {
+    const before = [series("sa", [course("a1")])];
+    const after = [
+      series("sa", [course("a1", { slug: undefined, catch: undefined })]),
+    ];
+
+    const targets = listCoursesNeedingMetaPersist(before, after, "a1");
+    expect(targets).toEqual([]);
+  });
 });
 
 describe("buildMiniMandalaGraphInput の Start / Goal", () => {

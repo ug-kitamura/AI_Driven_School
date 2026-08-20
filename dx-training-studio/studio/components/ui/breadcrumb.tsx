@@ -39,16 +39,32 @@ function BreadcrumbItem({ className, ...props }: React.ComponentProps<"li">) {
   )
 }
 
+/**
+ * `quiet`: ホバーで色を変えず、押せることをカーソルだけで示す。
+ * 見出し帯（GlobalHeader のパンくず）のように、静けさを保ったまま
+ * 戻り道を置きたい場所で使う。既定は従来どおりホバーで前景色になる。
+ */
+type BreadcrumbLinkVariant = "default" | "quiet"
+
 function BreadcrumbLink({
   className,
   render,
+  variant = "default",
   ...props
-}: useRender.ComponentProps<"a">) {
+}: useRender.ComponentProps<"a"> & { variant?: BreadcrumbLinkVariant }) {
   return useRender({
     defaultTagName: "a",
     props: mergeProps<"a">(
       {
-        className: cn("transition-colors hover:text-foreground", className),
+        className: cn(
+          "transition-colors",
+          variant === "quiet"
+            ? // 既定の <a href> はブラウザがポインタにするが、`render` で
+              // <button> に差し替えると Tailwind の preflight が default に戻す
+              "cursor-pointer"
+            : "hover:text-foreground",
+          className
+        ),
       },
       props
     ),

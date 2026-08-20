@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef, useCallback } from "react";
+import { Fragment, useState, useEffect, useMemo, useRef, useCallback } from "react";
 import { BookOpen, Network, Settings } from "lucide-react";
 import {
   Breadcrumb,
@@ -165,25 +165,109 @@ type GlobalHeaderProps = {
   courseName: string;
   lessonName: string;
   series?: Series[];
+  selectedSeriesId?: string;
   selectedCourseId?: string;
   /** 全体メタの github_url。未設定ならリンクを出さない */
   githubUrl?: string;
+  onSelectSeries?: (seriesId: string) => void;
   onSelectCourse?: (courseId: string) => void;
   onOpenSettings?: () => void;
   onOpenCompanyContext?: () => void;
 };
+
+/**
+ * パンくずの1段。`onNavigate` を持つ段はリンク（上位階層）、持たない段が現在地。
+ */
+type Crumb = { label: string; onNavigate?: () => void };
+
+/**
+ * 選択階層から段の配列を作る。
+ *
+ * ⚠ **段を先に組んでから描くこと。** 以前は「各段が自分の後ろに区切りを足す」
+ * 形だったため、コース選択時（レッスン名が空）に行き先の無い区切りが末尾へ残った。
+ * 配列にしておけば「区切りは段と段の間だけ」が構造で保証される。
+ *
+ * 段が1つ以下（ホーム選択・シリーズ選択）のときは空を返す——1段だけのパンくずは
+ * 現在地の情報を足しておらず、公開サイトもシリーズトップには出さない。
+ */
+function buildCrumbs({
+  seriesName,
+  courseName,
+  lessonName,
+  selectedSeriesId,
+  selectedCourseId,
+  onSelectSeries,
+  onSelectCourse,
+}: {
+  seriesName: string;
+  courseName: string;
+  lessonName: string;
+  selectedSeriesId: string;
+  selectedCourseId: string;
+  onSelectSeries?: (seriesId: string) => void;
+  onSelectCourse?: (courseId: string) => void;
+}): Crumb[] {
+  const crumbs: Crumb[] = [];
+  if (seriesName) {
+    crumbs.push({
+      label: seriesName,
+      onNavigate:
+        selectedSeriesId && onSelectSeries
+          ? () => onSelectSeries(selectedSeriesId)
+          : undefined,
+    });
+  }
+  if (courseName) {
+    crumbs.push({
+      label: courseName,
+      onNavigate:
+        selectedCourseId && onSelectCourse
+          ? () => onSelectCourse(selectedCourseId)
+          : undefined,
+    });
+  }
+  if (lessonName) crumbs.push({ label: lessonName });
+
+  // 最後の段は現在地なので、自分自身への移動は持たせない
+  if (crumbs.length > 0) crumbs[crumbs.length - 1].onNavigate = undefined;
+  return crumbs.length < 2 ? [] : crumbs;
+}
 
 export function GlobalHeader({
   seriesName,
   courseName,
   lessonName,
   series = [],
+  selectedSeriesId = "",
   selectedCourseId = "",
   githubUrl = "",
+  onSelectSeries,
   onSelectCourse,
   onOpenSettings,
   onOpenCompanyContext,
 }: GlobalHeaderProps) {
+  const crumbs = useMemo(
+    () =>
+      buildCrumbs({
+        seriesName,
+        courseName,
+        lessonName,
+        selectedSeriesId,
+        selectedCourseId,
+        onSelectSeries,
+        onSelectCourse,
+      }),
+    [
+      seriesName,
+      courseName,
+      lessonName,
+      selectedSeriesId,
+      selectedCourseId,
+      onSelectSeries,
+      onSelectCourse,
+    ],
+  );
+
   const [mandalaOpen, setMandalaOpen] = useState(false);
   const [mandalaSvg, setMandalaSvg] = useState("");
   const [mandalaDebug, setMandalaDebug] = useState("");
@@ -332,39 +416,50 @@ export function GlobalHeader({
 
   return (
     <header className="flex h-12 shrink-0 items-center gap-2 border-b border-border bg-background px-3">
-      <Breadcrumb
-        className="min-w-0 flex-1 overflow-hidden"
-        aria-label="パンくず"
-      >
-        <BreadcrumbList className="flex-nowrap text-[11px]">
-          {seriesName && (
-            <>
-              <BreadcrumbItem className="shrink-0">
-                <BreadcrumbLink>{seriesName}</BreadcrumbLink>
-              </BreadcrumbItem>
-              <BreadcrumbSeparator />
-            </>
-          )}
-          {courseName && (
-            <>
-              <BreadcrumbItem className="shrink-0">
-                <BreadcrumbLink>{courseName}</BreadcrumbLink>
-              </BreadcrumbItem>
-              <BreadcrumbSeparator />
-            </>
-          )}
-          <BreadcrumbItem className="min-w-0">
-            <BreadcrumbPage className="truncate font-medium">
-              {lessonName}
-            </BreadcrumbPage>
-          </BreadcrumbItem>
-        </BreadcrumbList>
-      </Breadcrumb>
+      {crumbs.length > 0 ? (
+        <Breadcrumb
+          className="min-w-0 flex-1 overflow-hidden"
+          aria-label="パンくず"
+        >
+          <BreadcrumbList className="flex-nowrap text-[11px]">
+            {crumbs.map((crumb, index) => {
+              const isCurrent = index === crumbs.length - 1;
+              return (
+                <Fragment key={`${index}-${crumb.label}`}>
+                  {/* 区切りは段と段の間だけ。末尾には出さない */}
+                  {index > 0 && <BreadcrumbSeparator />}
+                  <BreadcrumbItem
+                    className={isCurrent ? "min-w-0" : "shrink-0"}
+                  >
+                    {isCurrent ? (
+                      <BreadcrumbPage className="truncate font-bold">
+                        {crumb.label}
+                      </BreadcrumbPage>
+                    ) : (
+                      <BreadcrumbLink
+                        variant="quiet"
+                        render={
+                          <button type="button" onClick={crumb.onNavigate} />
+                        }
+                      >
+                        {crumb.label}
+                      </BreadcrumbLink>
+                    )}
+                  </BreadcrumbItem>
+                </Fragment>
+              );
+            })}
+          </BreadcrumbList>
+        </Breadcrumb>
+      ) : (
+        // パンくずが無いときも右側ボタンの位置を動かさないための余白
+        <div className="min-w-0 flex-1" />
+      )}
 
       <Button
         variant="ghost"
         size="sm"
-        className="flex-shrink-0 gap-1.5 text-xs text-muted-foreground hover:text-primary"
+        className="flex-shrink-0 gap-1.5 text-xs text-header-action"
         onClick={() => setMandalaOpen(true)}
       >
         <Network className="h-4 w-4" />
@@ -374,7 +469,7 @@ export function GlobalHeader({
       <Button
         variant="ghost"
         size="sm"
-        className="flex-shrink-0 gap-1.5 text-xs text-muted-foreground hover:text-primary"
+        className="flex-shrink-0 gap-1.5 text-xs text-header-action"
         onClick={() => onOpenCompanyContext?.()}
       >
         <BookOpen className="h-4 w-4" />
@@ -385,7 +480,7 @@ export function GlobalHeader({
         <Button
           variant="ghost"
           size="icon"
-          className="size-8 shrink-0 text-muted-foreground hover:text-primary"
+          className="size-8 shrink-0 text-header-action"
           aria-label="GitHub リポジトリを開く"
           // 中身が <a> なので native button のセマンティクスを外す（Base UI の要求）
           nativeButton={false}
@@ -400,7 +495,7 @@ export function GlobalHeader({
       <Button
         variant="ghost"
         size="icon"
-        className="size-8 shrink-0 text-muted-foreground hover:text-primary"
+        className="size-8 shrink-0 text-header-action"
         onClick={() => onOpenSettings?.()}
         aria-label="設定"
       >

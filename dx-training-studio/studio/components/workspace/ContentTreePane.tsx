@@ -1005,8 +1005,16 @@ export function ContentTreePane({
               （カーソルも動かす）ので、行が画面外まで送られていても戻れる */}
           <button
             type="button"
-            /* ホバーでは何も変えない（見出しとしての佇まいを保つ・2026-08-19 指定） */
-            className="flex w-full items-center gap-2 overflow-hidden text-left text-foreground outline-none focus-visible:outline-none"
+            /* ホバーは不透明度をわずかに下げるだけ——公開サイトの左上ロゴ
+               （Nextra テーマが当てている `hover:opacity-75`）と同じ言葉遣いにして、
+               両アプリの左上を同じ触り心地にする。
+               ⚠ 色・背景は変えない。変えると右上のボタン群と同じ語彙になり、
+               「見出し」と「操作」の区別が消える（2026-08-19 の「何も変えない」
+               からの変更・2026-08-20）。
+               ⚠ `cursor-pointer` は素の `<button>` だから要る。Tailwind v4 の
+               preflight が `button` を `cursor: default` にするため、共有 Button を
+               経由しない操作要素は自分で指定する */
+            className="flex w-full cursor-pointer items-center gap-2 overflow-hidden text-left text-foreground outline-none transition-opacity hover:opacity-75 focus-visible:outline-none"
             aria-label="ホームを表示"
             onClick={() => {
               focusRow(HOME_ROW_ID);

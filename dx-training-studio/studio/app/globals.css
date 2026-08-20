@@ -35,6 +35,7 @@
   --color-accent-foreground: var(--accent-foreground);
   --color-accent: var(--accent);
   --color-muted-foreground: var(--muted-foreground);
+  --color-header-action: var(--header-action);
   --color-muted: var(--muted);
   --color-secondary-foreground: var(--secondary-foreground);
   --color-secondary: var(--secondary);
@@ -108,6 +109,13 @@
   --secondary-foreground: #007BC0;
   --muted: #EFF1F2;
   --muted-foreground: #71767C;  /* Custom_Gray_50: テキスト（サブ） */
+  /* ヘッダー右上ボタン群の通常色。サブテキスト（--muted-foreground）より一段濃く、
+     本文（--foreground）よりは引いた「操作の色」。
+     ⚠ --muted-foreground を直接使わないのは、あちらが説明文・補助ラベル全般に
+     効いているため——ヘッダーだけ濃くしたいのに関係ない場所まで巻き込む。
+     値は公開サイトの --dxm-navbar-action と同値（gray-600）。両アプリのライト側が
+     これで一致する。⚠ ダーク側だけは揃っていない（.dark 側のコメントを参照） */
+  --header-action: #4B5563;
   --accent: #D1E4FF;
   --accent-foreground: #007BC0;
   --destructive: oklch(0.5624 0.0956 20.5303);
@@ -218,6 +226,13 @@
   --secondary-foreground: oklch(0.9168 0.0035 67.7802);
   --muted: oklch(0.2972 0 0);
   --muted-foreground: oklch(0.709 0 0);
+  /* 暗い地では「濃く」＝地との差を広げる＝明るい側へ振る（ライトと逆向き）。
+     ⚠ 公開サイトのダーク値（#a3a3a3 ≒ oklch(0.72)）は Studio の
+     --muted-foreground とほぼ同値で、そのままだとダークでは「一段濃くした」が
+     体感できない。そのため Studio 側だけ 0.80 へ上げてある——**ダークだけ
+     両アプリで約 0.09 の明度差が残る**。揃えるならサイトの --dxm-navbar-action
+     （ダーク）も同じだけ上げること（2026-08-20・目視で最終判断する値） */
+  --header-action: oklch(0.80 0 0);
   --accent: oklch(0.2972 0 0);
   --accent-foreground: oklch(0.9168 0.0035 67.7802);
   --destructive: oklch(0.6338 0.1208 21.0422);

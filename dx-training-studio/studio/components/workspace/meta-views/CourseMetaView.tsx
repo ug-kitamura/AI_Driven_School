@@ -170,6 +170,9 @@ export function CourseMetaView({
 
   return (
     <MetaViewShell title={course.name} kindLabel="コース" onSave={handleSave}>
+      {/* ⚠ 左列は行を明示指定する（`col-start-1 row-start-N`）。ミニ曼陀羅が右列の
+          3行目から4行分を占めるので、auto 配置だと左列の項目がその手前で
+          右列へ回り込む。行を固定して左列4行と曼陀羅を確実に噛み合わせる。 */}
       <div className={META_DIALOG_GRID}>
         <MetaDialogField className="col-span-2">
           <Label htmlFor="course-meta-name">コース名</Label>
@@ -182,7 +185,7 @@ export function CourseMetaView({
             className={META_DIALOG_CONTROL}
           />
         </MetaDialogField>
-        <MetaDialogField>
+        <MetaDialogField className="col-span-2 row-start-2">
           <Label htmlFor="course-meta-description">説明</Label>
           <textarea
             id="course-meta-description"
@@ -195,7 +198,7 @@ export function CourseMetaView({
             placeholder="コースの説明（公開サイトのコーストップに表示）"
           />
         </MetaDialogField>
-        <MetaDialogField>
+        <MetaDialogField className="col-start-1 row-start-3">
           <Label htmlFor="course-meta-catch">キャッチ</Label>
           <Input
             id="course-meta-catch"
@@ -207,7 +210,7 @@ export function CourseMetaView({
             className={META_DIALOG_CONTROL}
           />
         </MetaDialogField>
-        <MetaDialogField>
+        <MetaDialogField className="col-start-1 row-start-4">
           <Label htmlFor="course-meta-slug">スラッグ（公開 URL 用）</Label>
           <Input
             id="course-meta-slug"
@@ -225,7 +228,7 @@ export function CourseMetaView({
             </p>
           ) : null}
         </MetaDialogField>
-        <MetaDialogField>
+        <MetaDialogField className="col-start-1 row-start-5">
           <Label>受講対象者</Label>
           <Input
             value={editMeta.target}
@@ -236,7 +239,7 @@ export function CourseMetaView({
             className={META_DIALOG_CONTROL}
           />
         </MetaDialogField>
-        <MetaDialogField>
+        <MetaDialogField className="col-start-1 row-start-6">
           <Label htmlFor="course-meta-style">受講形態</Label>
           <Select
             items={COURSE_STYLE_SELECT_ITEMS}
@@ -285,6 +288,8 @@ export function CourseMetaView({
             </div>
           </div>
         </MetaDialogField>
+        {/* 曼陀羅フローは 7行目から。ここまでで1〜6行目が埋まっているので
+            auto 配置がそのまま続きに流れる（穴が無いので吸い込まれ先も無い） */}
         <MetaDialogField>
           <Label>前のコース（同シリーズ）</Label>
           <p className="rounded-md border border-border bg-muted/50 px-2 py-1.5 text-sm">

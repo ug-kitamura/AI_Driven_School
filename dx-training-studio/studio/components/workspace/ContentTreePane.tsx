@@ -1000,15 +1000,26 @@ export function ContentTreePane({
       <PaneWheelRoot scrollRef={scrollRef} className="min-h-0 flex-1">
         {/* ヘッダーはページ背景（グレー）——EBEX ペイン1 と同じ見え方 */}
         <SidebarHeader className="flex h-12 shrink-0 flex-row items-center gap-0 border-b border-border bg-background px-3 py-0">
-          {/* 折りたたみ時はロゴだけ。展開ボタンは本文の最上部が持つ */}
-          <div className="flex w-full items-center gap-2 overflow-hidden">
+          {/* 折りたたみ時はロゴだけ。展開ボタンは本文の最上部が持つ。
+              ロゴと名前はホームへの入口——ツリー最上部のホーム行と同じ
+              （カーソルも動かす）ので、行が画面外まで送られていても戻れる */}
+          <button
+            type="button"
+            /* ホバーでは何も変えない（見出しとしての佇まいを保つ・2026-08-19 指定） */
+            className="flex w-full items-center gap-2 overflow-hidden text-left text-foreground outline-none focus-visible:outline-none"
+            aria-label="ホームを表示"
+            onClick={() => {
+              focusRow(HOME_ROW_ID);
+              onSelectHome();
+            }}
+          >
             <GraduationCap className="h-5 w-5 flex-shrink-0 text-primary" />
             {!isCollapsed && (
-              <span className="truncate text-sm font-bold text-foreground sidebar-label">
+              <span className="truncate text-sm font-bold sidebar-label">
                 {workspaceName}
               </span>
             )}
-          </div>
+          </button>
         </SidebarHeader>
 
         {!isCollapsed && (

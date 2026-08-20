@@ -352,6 +352,24 @@ describe("CourseMetaView", () => {
     ]);
   });
 
+  it("説明はコース名と同じ全幅で表示する", () => {
+    render(
+      <CourseMetaView
+        series={sampleSeries}
+        course={sampleSeries[0].courses[0]}
+        onSave={vi.fn()}
+        onSelectCourse={vi.fn()}
+        mandalaModalOpen={false}
+        onMandalaModalOpenChange={vi.fn()}
+      />,
+    );
+
+    const field = document
+      .querySelector("#course-meta-description")!
+      .closest("div[class]")!;
+    expect(field.className).toContain("col-span-2");
+  });
+
   it("ミニ曼陀羅は右列に配置され、外側に追加の枠を持たない", () => {
     render(
       <CourseMetaView
@@ -368,7 +386,7 @@ describe("CourseMetaView", () => {
       .getByTestId("mini-mandala")
       .closest('[class*="row-span-4"]')!;
     expect(field.className).toContain("col-start-2");
-    // 説明が2行目の左列を占めるので、曼陀羅は3行目から4行分
+    // 説明が2行目を全幅で占めるので、曼陀羅は3行目から4行分
     expect(field.className).toContain("row-start-3");
     // 枠はサムネイル側が持つ。フィールドで囲わない
     expect(field.className).not.toContain("border");

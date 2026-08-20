@@ -187,6 +187,19 @@ export const LessonContentEditor = forwardRef<
     const cached = getLessonEditorStateCache(lessonId);
     if (cached) {
       view.setState(cached);
+      // ⚠ 復元した state は**キャッシュした時点の compartment 設定を丸ごと持つ**。
+      // そのまま使うと (1) 当時のテーマ配色（ライト表示中にダークの本文が出る）
+      // (2) 当時のインスタンスを掴んだ Ctrl+ホイールのハンドラ（今の setState を
+      // 呼ばないのでズームが無反応）が生き残る。マウント時と同じ再構成をここでも
+      // 通して現行インスタンスへ差し替える——「たまに壊れる」の正体がこれ。
+      view.dispatch({
+        effects: lessonEditorThemeCompartment.reconfigure(
+          buildLessonEditorExtensions(isDarkRef.current, fontSizeRef.current, {
+            getFontSize: () => fontSizeRef.current,
+            onFontSizeChange: handleFontSizeChange,
+          }),
+        ),
+      });
     } else {
       const nextState = EditorState.create({
         doc: value,
@@ -198,7 +211,7 @@ export const LessonContentEditor = forwardRef<
 
     lessonIdRef.current = lessonId;
     onCursorChangeRef.current?.(view.state.selection.main.head);
-  }, [lessonId, value, buildExtensions]);
+  }, [lessonId, value, buildExtensions, handleFontSizeChange]);
 
   useEffect(() => {
     const view = viewRef.current;

@@ -21,6 +21,7 @@ import {
 } from "@/components/ui/select";
 import {
   META_DIALOG_CONTROL,
+  META_DIALOG_GRID,
   META_DIALOG_STACK,
   MetaDialogField,
 } from "@/components/workspace/metaDialogLayout";
@@ -362,7 +363,7 @@ function SettingsForm({
 
         <section className="flex flex-col gap-3">
           <h3 className="text-sm font-semibold text-foreground">ストレージ</h3>
-          <div className="flex flex-col gap-4">
+          <div className={META_DIALOG_GRID}>
             <MetaDialogField>
               <Label className="text-xs text-muted-foreground">画像の管理</Label>
               <div className="flex flex-wrap gap-2">

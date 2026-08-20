@@ -91,7 +91,7 @@ import { cn } from "@/lib/utils";
 import type { LessonMetaFields } from "@/lib/lesson-frontmatter";
 import type { Series, Course, Lesson } from "@/lib/schema";
 
-/** ステータス種別はラベルで区別。色は行の text-* を currentColor として継承する */
+/** ステータス種別はラベルとアイコンの形で区別する（色は付けない・下のボタン側で指定） */
 const STATUS_ICON: Record<
   Lesson["status"],
   { icon: React.ReactNode; label: string }
@@ -1874,7 +1874,7 @@ function LessonRow({
                       if (shared.isMenuGuarded()) return;
                       onUpdateLessonStatus(lesson.id, STATUS_CYCLE[lesson.status]);
                     }}
-                    className="ml-auto flex-shrink-0 pr-1 outline-none transition-opacity hover:opacity-70 focus-visible:outline-none sidebar-label"
+                    className="ml-auto flex-shrink-0 pr-1 text-muted-foreground outline-none transition-opacity hover:opacity-70 focus-visible:outline-none sidebar-label"
                     aria-label={`${STATUS_ICON[lesson.status].label}、クリックで変更`}
                   >
                     {STATUS_ICON[lesson.status].icon}

@@ -35,10 +35,16 @@ type WorkspaceMetaValues = {
 type Props = {
   workspaceName: string;
   onSaveError?: (message: string) => void;
+  /** 保存成功時に GitHub リンクを通知する（ヘッダーのアイコン表示が追随する） */
+  onGithubUrlSaved?: (url: string) => void;
 };
 
 /** ホーム選択時のペイン2: 全体メタ（contents/.meta.json）の編集ビュー */
-export function WorkspaceMetaView({ workspaceName, onSaveError }: Props) {
+export function WorkspaceMetaView({
+  workspaceName,
+  onSaveError,
+  onGithubUrlSaved,
+}: Props) {
   const [values, setValues] = useState<WorkspaceMetaValues>({
     name: "",
     description: "",
@@ -138,6 +144,7 @@ export function WorkspaceMetaView({ workspaceName, onSaveError }: Props) {
     })
       .then((res) => {
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        onGithubUrlSaved?.(values.github_url.trim());
       })
       .catch((err: unknown) => {
         onSaveError?.(`全体メタ保存エラー: ${String(err)}`);

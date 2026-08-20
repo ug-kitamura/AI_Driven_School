@@ -183,6 +183,31 @@ export function CourseMetaView({
           />
         </MetaDialogField>
         <MetaDialogField>
+          <Label htmlFor="course-meta-description">説明</Label>
+          <textarea
+            id="course-meta-description"
+            value={editMeta.description}
+            onChange={(e) =>
+              setEditMeta((prev) => ({ ...prev, description: e.target.value }))
+            }
+            rows={3}
+            className="w-full rounded-md border border-input bg-white px-3 py-2 text-sm shadow-xs outline-none focus-visible:ring-2 focus-visible:ring-ring/50 dark:bg-input/30"
+            placeholder="コースの説明（公開サイトのコーストップに表示）"
+          />
+        </MetaDialogField>
+        <MetaDialogField>
+          <Label htmlFor="course-meta-catch">キャッチ</Label>
+          <Input
+            id="course-meta-catch"
+            value={editMeta.catchCopy}
+            onChange={(e) =>
+              setEditMeta((prev) => ({ ...prev, catchCopy: e.target.value }))
+            }
+            placeholder="例: 地図を手に入れる"
+            className={META_DIALOG_CONTROL}
+          />
+        </MetaDialogField>
+        <MetaDialogField>
           <Label htmlFor="course-meta-slug">スラッグ（公開 URL 用）</Label>
           <Input
             id="course-meta-slug"
@@ -199,18 +224,6 @@ export function CourseMetaView({
               slug は小文字英数とハイフンのみで構成してください
             </p>
           ) : null}
-        </MetaDialogField>
-        <MetaDialogField>
-          <Label htmlFor="course-meta-catch">キャッチ</Label>
-          <Input
-            id="course-meta-catch"
-            value={editMeta.catchCopy}
-            onChange={(e) =>
-              setEditMeta((prev) => ({ ...prev, catchCopy: e.target.value }))
-            }
-            placeholder="例: 地図を手に入れる"
-            className={META_DIALOG_CONTROL}
-          />
         </MetaDialogField>
         <MetaDialogField>
           <Label>受講対象者</Label>
@@ -251,26 +264,14 @@ export function CourseMetaView({
             </SelectContent>
           </Select>
         </MetaDialogField>
-        <MetaDialogField className="col-span-2">
-          <Label htmlFor="course-meta-description">説明</Label>
-          <textarea
-            id="course-meta-description"
-            value={editMeta.description}
-            onChange={(e) =>
-              setEditMeta((prev) => ({ ...prev, description: e.target.value }))
-            }
-            rows={3}
-            className="w-full rounded-md border border-input bg-white px-3 py-2 text-sm shadow-xs outline-none focus-visible:ring-2 focus-visible:ring-ring/50 dark:bg-input/30"
-            placeholder="コースの説明（公開サイトのコーストップに表示）"
-          />
-        </MetaDialogField>
-        {/* ミニ曼陀羅は右列に固定配置（2行目から4行分＝左列のスラッグ〜受講形態の隣）。
+        {/* ミニ曼陀羅は右列に固定配置（3行目から4行分＝左列のキャッチ〜受講形態の隣。
+            2行目は説明が左列1マスで占めるので、そのぶん1行下から始まる）。
             DOM 順は最後に置いてタブ順を自然に保ち、位置はグリッド座標で与える。
             枠はサムネイル自身の1枚だけ——ここで囲うと二重になる。
             ⚠ 中身は absolute で行の高さ計算から外す——グラフの実寸が行の
             高さに参加すると、左列4行が引き伸ばされて間延びする。
             セルの高さは左列だけで決まり、曼陀羅はそこへ縮んで収まる */}
-        <MetaDialogField className="relative col-start-2 row-span-4 row-start-2">
+        <MetaDialogField className="relative col-start-2 row-span-4 row-start-3">
           <div className="absolute inset-0 flex min-h-0 flex-col gap-1.5">
             <Label>ミニ曼陀羅</Label>
             <div className="min-h-0 flex-1">

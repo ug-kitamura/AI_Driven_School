@@ -40,7 +40,9 @@ export const PANE_WIDTH_STEP = 5;
 
 export const PANE_WIDTH_LIMITS = {
   tree: { min: 250, max: 450 },
-  pane4: { min: 300, max: 700 },
+  // pane4（画面上のペイン3＝エージェント／画像）の下限は 300 では実用に足りず
+  // 400 へ引き上げた（2026-08-19）。保存済みの 300〜399 は起動時の clamp で丸まる
+  pane4: { min: 400, max: 700 },
 } as const;
 
 /** 左端の区切り線: 右ドラッグでペイン幅が狭くなる */

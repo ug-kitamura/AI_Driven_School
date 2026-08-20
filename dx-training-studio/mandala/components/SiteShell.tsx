@@ -23,7 +23,15 @@ const navbar = (
        余白を持たないため、lucide の 24px より一回り大きく見える。
        ここで寸法を与えて CSS での上書きを避ける（理由は globals.css の
        `.dxm-mandala-button` を参照） */
-    projectIcon={<GitHubIcon height="16" aria-label="Project repository" />}
+    projectIcon={
+      <GitHubIcon
+        height="16"
+        aria-label="Project repository"
+        /* 色は globals.css の「ナビバー右上の3ボタン」が `:has()` で親の
+           `<a>` を掴んで与える。ここはその掴みどころ */
+        className="dxm-navbar-icon"
+      />
+    }
   >
     {/* テーマは `[projectLink, chatLink, children]` の順に描くので、
         children の先頭に置くと「GitHub → 曼陀羅 → 言語」の並びになる */}

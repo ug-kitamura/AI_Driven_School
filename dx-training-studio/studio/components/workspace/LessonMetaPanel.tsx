@@ -30,10 +30,11 @@ import {
   type LessonStatus,
 } from "@/lib/schema";
 
+/** 状態はアイコンの形で区別する。色はペイン1 のステータスボタンと同じグレーに揃える */
 const STATUS_ICONS: Record<LessonStatus, React.ReactNode> = {
-  open: <CircleDashed className="size-3.5 text-status-draft" />,
-  in_progress: <Loader className="size-3.5 text-status-wip" />,
-  done: <CircleCheck className="size-3.5 text-status-done" />,
+  open: <CircleDashed className="size-3.5 text-muted-foreground" />,
+  in_progress: <Loader className="size-3.5 text-muted-foreground" />,
+  done: <CircleCheck className="size-3.5 text-muted-foreground" />,
 };
 
 /** 未設定 */
@@ -172,6 +173,17 @@ export function LessonMetaPanel({
       </MetaDialogField>
 
       <MetaDialogField className="col-span-2">
+        <Label htmlFor="lesson-meta-description">講義内容</Label>
+        <textarea
+          id="lesson-meta-description"
+          value={draft.description}
+          onChange={(e) => patchDraft({ description: e.target.value })}
+          rows={3}
+          className="w-full rounded-md border border-input bg-white px-3 py-2 text-sm shadow-xs outline-none focus-visible:ring-2 focus-visible:ring-ring/50 dark:bg-input/30"
+        />
+      </MetaDialogField>
+
+      <MetaDialogField className="col-span-2">
         <Label htmlFor="lesson-meta-slug">スラッグ（公開 URL 用）</Label>
         <Input
           id="lesson-meta-slug"
@@ -186,16 +198,6 @@ export function LessonMetaPanel({
             {slugError}
           </p>
         ) : null}
-      </MetaDialogField>
-
-      <MetaDialogField className="col-span-2">
-        <Label htmlFor="lesson-meta-description">講義内容</Label>
-        <Input
-          id="lesson-meta-description"
-          value={draft.description}
-          onChange={(e) => patchDraft({ description: e.target.value })}
-          className={META_DIALOG_CONTROL}
-        />
       </MetaDialogField>
 
       <MetaDialogField className="col-span-2">

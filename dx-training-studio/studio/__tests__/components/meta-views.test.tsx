@@ -216,6 +216,27 @@ describe("WorkspaceMetaView", () => {
 });
 
 describe("SeriesMetaView", () => {
+  it("フォームは シリーズ名 → 説明 → キャッチ → スラッグ の順に並ぶ", () => {
+    render(
+      <SeriesMetaView
+        seriesItem={sampleSeries[0]}
+        onRenameSeries={vi.fn()}
+        onSaveMeta={vi.fn()}
+      />,
+    );
+
+    const labels = screen
+      .getAllByText(/^(シリーズ名|説明|キャッチ|スラッグ（公開 URL 用）)$/)
+      .map((el) => el.textContent);
+
+    expect(labels).toEqual([
+      "シリーズ名",
+      "説明",
+      "キャッチ",
+      "スラッグ（公開 URL 用）",
+    ]);
+  });
+
   it("メタを保存し、名前が変わっていればリネームも呼ぶ", () => {
     const onRenameSeries = vi.fn();
     const onSaveMeta = vi.fn();
@@ -301,7 +322,7 @@ describe("CourseMetaView", () => {
     );
   });
 
-  it("フォームは コース名 → 左列4項目 → 説明 → コースフロー の順に並ぶ", () => {
+  it("フォームは コース名 → 説明 → 左列4項目 → コースフロー の順に並ぶ", () => {
     render(
       <CourseMetaView
         series={sampleSeries}
@@ -321,11 +342,11 @@ describe("CourseMetaView", () => {
 
     expect(labels).toEqual([
       "コース名",
-      "スラッグ（公開 URL 用）",
+      "説明",
       "キャッチ",
+      "スラッグ（公開 URL 用）",
       "受講対象者",
       "受講形態",
-      "説明",
       "ミニ曼陀羅",
       "前のコース（同シリーズ）",
     ]);
@@ -347,6 +368,8 @@ describe("CourseMetaView", () => {
       .getByTestId("mini-mandala")
       .closest('[class*="row-span-4"]')!;
     expect(field.className).toContain("col-start-2");
+    // 説明が2行目の左列を占めるので、曼陀羅は3行目から4行分
+    expect(field.className).toContain("row-start-3");
     // 枠はサムネイル側が持つ。フィールドで囲わない
     expect(field.className).not.toContain("border");
     // 中身は absolute で行の高さ計算から外す（左列の行間を引き伸ばさない）

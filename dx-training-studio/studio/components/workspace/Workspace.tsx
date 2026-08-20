@@ -74,13 +74,17 @@ type WorkspaceProps = {
   initialSeries: Series[];
   contentsEmpty?: boolean;
   workspace: WorkspaceMeta;
+  /** 全体メタの github_url（サーバーで読んだ初期値。全体メタ保存で更新する） */
+  initialGithubUrl?: string;
 };
 
 export function Workspace({
   initialSeries,
   contentsEmpty = false,
   workspace,
+  initialGithubUrl = "",
 }: WorkspaceProps) {
+  const [githubUrl, setGithubUrl] = useState(initialGithubUrl);
   const [series, setSeries] = useState<Series[]>(() =>
     normalizeAllLessonsInSeries(normalizeSeriesCourseMeta(initialSeries)),
   );
@@ -467,6 +471,7 @@ export function Workspace({
           lessonName={selectedLesson?.lesson ?? ""}
           series={series}
           selectedCourseId={selectedCourseId}
+          githubUrl={githubUrl}
           onSelectCourse={guardedSelectCourse}
           onOpenSettings={() => setSettingsOpen(true)}
           onOpenCompanyContext={() => setCompanyContextOpen(true)}
@@ -537,6 +542,7 @@ export function Workspace({
               <WorkspaceMetaView
                 workspaceName={workspace.name}
                 onSaveError={handleSaveError}
+                onGithubUrlSaved={setGithubUrl}
               />
             )}
           </div>

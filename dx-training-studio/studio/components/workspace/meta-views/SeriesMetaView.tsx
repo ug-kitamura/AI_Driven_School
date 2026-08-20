@@ -65,6 +65,27 @@ export function SeriesMetaView({ seriesItem, onRenameSeries, onSaveMeta }: Props
           />
         </MetaDialogField>
         <MetaDialogField>
+          <Label htmlFor="series-meta-description">説明</Label>
+          <textarea
+            id="series-meta-description"
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+            rows={4}
+            className="w-full rounded-md border border-input bg-white px-3 py-2 text-sm shadow-xs outline-none focus-visible:ring-2 focus-visible:ring-ring/50 dark:bg-input/30"
+            placeholder="シリーズの説明（公開サイトのシリーズトップに表示）"
+          />
+        </MetaDialogField>
+        <MetaDialogField>
+          <Label htmlFor="series-meta-catch">キャッチ</Label>
+          <Input
+            id="series-meta-catch"
+            value={catchCopy}
+            onChange={(e) => setCatchCopy(e.target.value)}
+            placeholder="例: ここから旅がはじまる"
+            className={META_DIALOG_CONTROL}
+          />
+        </MetaDialogField>
+        <MetaDialogField>
           <Label htmlFor="series-meta-slug">スラッグ（公開 URL 用）</Label>
           <Input
             id="series-meta-slug"
@@ -81,27 +102,6 @@ export function SeriesMetaView({ seriesItem, onRenameSeries, onSaveMeta }: Props
               slug は小文字英数とハイフンのみで構成してください
             </p>
           ) : null}
-        </MetaDialogField>
-        <MetaDialogField>
-          <Label htmlFor="series-meta-catch">キャッチ</Label>
-          <Input
-            id="series-meta-catch"
-            value={catchCopy}
-            onChange={(e) => setCatchCopy(e.target.value)}
-            placeholder="例: ここから旅がはじまる"
-            className={META_DIALOG_CONTROL}
-          />
-        </MetaDialogField>
-        <MetaDialogField>
-          <Label htmlFor="series-meta-description">説明</Label>
-          <textarea
-            id="series-meta-description"
-            value={description}
-            onChange={(e) => setDescription(e.target.value)}
-            rows={4}
-            className="w-full rounded-md border border-input bg-white px-3 py-2 text-sm shadow-xs outline-none focus-visible:ring-2 focus-visible:ring-ring/50 dark:bg-input/30"
-            placeholder="シリーズの説明（公開サイトのシリーズトップに表示）"
-          />
         </MetaDialogField>
       </div>
     </MetaViewShell>

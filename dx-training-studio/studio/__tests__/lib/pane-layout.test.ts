@@ -32,6 +32,16 @@ describe("clampPaneWidth", () => {
     expect(clampPaneWidth("tree", 300)).toBe(300);
     expect(clampPaneWidth("pane4", 600)).toBe(600);
   });
+
+  it("uses 400 as the pane4 lower bound", () => {
+    expect(PANE_WIDTH_LIMITS.pane4.min).toBe(400);
+  });
+
+  // 下限を 300 → 400 に上げた（2026-08-19）。それ以前に保存された幅は
+  // 起動時の読み込みで clamp され、エラーにはならない
+  it.each([300, 320, 399])("rounds the old saved width %i up to 400", (old) => {
+    expect(clampPaneWidth("pane4", old)).toBe(400);
+  });
 });
 
 describe("PANE_WIDTH_DEFAULTS", () => {

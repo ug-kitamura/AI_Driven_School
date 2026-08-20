@@ -6,7 +6,7 @@ DX Training Studio のワークスペースペイン幅（pane1 / pane2 / pane4�
 ## Requirements
 ### Requirement: ペイン幅は clamp により範囲内に収める
 
-各ペイン（tree / pane4）の幅は `PANE_WIDTH_LIMITS` で定義された min/max の範囲内に収めなければならない（SHALL）。`clampPaneWidth` はこの規則を pure function として実装しなければならない（SHALL）。tree の min/max は **250 / 450**、pane4 の min/max は **300 / 700** でなければならない（SHALL）。`PANE_WIDTH_DEFAULTS` は tree **350**、pane4 **500** でなければならない（SHALL）。
+各ペイン（tree / pane4）の幅は `PANE_WIDTH_LIMITS` で定義された min/max の範囲内に収めなければならない（SHALL）。`clampPaneWidth` はこの規則を pure function として実装しなければならない（SHALL）。tree の min/max は **250 / 450**、pane4 の min/max は **400 / 700** でなければならない（SHALL）。`PANE_WIDTH_DEFAULTS` は tree **350**、pane4 **500** でなければならない（SHALL）。
 
 #### Scenario: 下限未満の値を clamp
 
@@ -21,7 +21,12 @@ DX Training Studio のワークスペースペイン幅（pane1 / pane2 / pane4�
 #### Scenario: pane4 下限 clamp
 
 - **WHEN** `clampPaneWidth("pane4", 200)` を呼び出す
-- **THEN** 結果は pane4 の min（300）である
+- **THEN** 結果は pane4 の min（400）である
+
+#### Scenario: 旧下限で保存された幅が丸まる
+
+- **WHEN** `localStorage` に旧下限の pane4 幅（例: 300）が保存された状態で起動する
+- **THEN** 読み込み時に 400 へ clamp され、エラーにならない
 
 #### Scenario: 旧上限で保存された幅が丸まる
 
@@ -54,7 +59,7 @@ DX Training Studio のワークスペースペイン幅（pane1 / pane2 / pane4�
 #### Scenario: 不足時は pane4 から縮小
 
 - **WHEN** 要求幅の合計が利用可能幅を超え、pane4 が開いている
-- **THEN** まず pane4 幅を min（300）まで減らす
+- **THEN** まず pane4 幅を min（400）まで減らす
 
 #### Scenario: 不足時の縮小順
 

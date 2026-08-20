@@ -95,12 +95,19 @@ TBD - created by archiving change pane4-ai-generation-and-settings. Update Purpo
 
 テーマが `dark` または `system` かつ OS がダークのとき、レッスン編集 CodeMirror は **Cursor 現在のエディタに近い**ダーク向け Markdown 配色で表示しなければならない（SHALL）。ライトテーマ時は現行のライト配色を用いなければならない（SHALL）。詳細な色要件は `training-studio-workspace-dark-mode` を参照する（SHALL）。
 
+レッスン切替でキャッシュ済み EditorState を復元したときも、復元直後に**現在のテーマ**を反映しなければならない（SHALL）——キャッシュした時点のテーマ配色（例: ライト表示中にダーク配色の本文）を表示してはならない（MUST NOT）。
+
 #### Scenario: ダークテーマでエディタ背景が暗色
 
 - **WHEN** テーマが `dark` である
 - **AND** ユーザーが編集モードを開く
 - **THEN** CodeMirror の背景がダーク配色である
 - **AND** Markdown 要素が識別可能なコントラストである
+
+#### Scenario: レッスン切替のキャッシュ復元でテーマが追従する
+
+- **WHEN** ダークテーマでレッスン A の編集ビューを開いた後、ライトテーマへ切り替え、レッスン B を経由して再びレッスン A（キャッシュ復元）に戻る
+- **THEN** レッスン A の本文はライト配色で表示される
 
 ### Requirement: Pixabay API キーをマスク入力で保存する
 
@@ -191,10 +198,10 @@ Web タブの検索 API 呼び出し時、クライアントは `x-pixabay-api-k
 | `gpt-5-nano` | GPT 5 nano | 不可（未対応） |
 | `claude-haiku-4-5` | Claude Haiku 4.5 | 可 |
 | `claude-sonnet-5` | Claude Sonnet 5 | 可（デフォルト） |
-| `claude-opus-4-8` | Claude Opus 4.8 | 可 |
+| `claude-opus-5` | Claude Opus 5 | 可 |
 | `claude-fable-5` | Claude Fable 5 | 可 |
 
-各 slug は Anthropic API の model ID と一致しなければならない（SHALL）。未設定時の既定値は `claude-sonnet-5` でなければならない（SHALL）。保存操作で **`aiModel`** を `dx-training-studio-settings` に格納しなければならない（SHALL）。クライアントは AI 系 API 呼び出し時 **`x-ai-model`** ヘッダーで slug を渡さなければならない（SHALL）。サーバーは **`x-ai-model` ヘッダーを優先**し、ヘッダーが無いときのみ **`process.env.AI_MODEL`** を参照し、それも無いときは **`claude-sonnet-5`** を用いなければならない（SHALL）。一覧に存在しない slug（削除済みの `claude-sonnet-4-6` や `claude-opus-4-7` を含む）が渡された場合、既定値 `claude-sonnet-5` にフォールバックしなければならない（SHALL）。
+各 slug は Anthropic API の model ID と一致しなければならない（SHALL）。未設定時の既定値は `claude-sonnet-5` でなければならない（SHALL）。保存操作で **`aiModel`** を `dx-training-studio-settings` に格納しなければならない（SHALL）。クライアントは AI 系 API 呼び出し時 **`x-ai-model`** ヘッダーで slug を渡さなければならない（SHALL）。サーバーは **`x-ai-model` ヘッダーを優先**し、ヘッダーが無いときのみ **`process.env.AI_MODEL`** を参照し、それも無いときは **`claude-sonnet-5`** を用いなければならない（SHALL）。一覧に存在しない slug（削除済みの `claude-sonnet-4-6` / `claude-opus-4-7` / `claude-opus-4-8` を含む）が渡された場合、既定値 `claude-sonnet-5` にフォールバックしなければならない（SHALL）。
 
 #### Scenario: デフォルトは Claude Sonnet 5
 
@@ -223,21 +230,26 @@ Web タブの検索 API 呼び出し時、クライアントは `x-pixabay-api-k
 
 #### Scenario: 保存済みモデルが AI API に渡される
 
-- **WHEN** ユーザーが Claude Opus 4.8 を保存している
+- **WHEN** ユーザーが Claude Opus 5 を保存している
 - **AND** AI タブで生成を実行する
-- **THEN** リクエストに `x-ai-model: claude-opus-4-8` が含まれる
+- **THEN** リクエストに `x-ai-model: claude-opus-5` が含まれる
 
 #### Scenario: 削除済みモデルの保存値はデフォルトにフォールバックする
 
-- **WHEN** ユーザーが過去に `claude-sonnet-4-6` を `aiModel` として保存している
-- **AND** モデル一覧から `claude-sonnet-4-6` が削除された状態でアプリを開く
+- **WHEN** ユーザーが過去に `claude-opus-4-8` を `aiModel` として保存している
+- **AND** モデル一覧から `claude-opus-4-8` が削除された状態でアプリを開く
 - **THEN** 設定ダイアログには既定値の Claude Sonnet 5 が選択されている
 
 ### Requirement: 社内コンテキストの管理モードを設定できる
 
-設定ダイアログは **ストレージ** セクション内に **画像の管理** および **社内コンテキストの管理** の 2 サブセクションを配置しなければならない（SHALL）。**社内コンテキストの管理** は **ローカル** / **データベース** の 2 択を提供し、選択値を `dx-training-studio-settings` の **`contextStorage`**（`local` | `database`）として永続化しなければならない（SHALL）。未設定時の既定値は **データベース**（`database`）としなければならない（SHALL）。
+設定ダイアログは **ストレージ** セクション内に **画像の管理** および **社内コンテキストの管理** の 2 サブセクションを **1行2列（横並び）** で配置しなければならない（SHALL）——左に画像の管理、右に社内コンテキストの管理。接続エラーメッセージは各列の下に表示する。**社内コンテキストの管理** は **ローカル** / **データベース** の 2 択を提供し、選択値を `dx-training-studio-settings` の **`contextStorage`**（`local` | `database`）として永続化しなければならない（SHALL）。未設定時の既定値は **データベース**（`database`）としなければならない（SHALL）。
 
 **データベース** 選択時、保存前に `GET /api/context/db-check` で接続を検証し、失敗時は **「データベースに接続できません」** を表示して保存を拒否しなければならない（SHALL）。**ローカル** 選択時は `DATABASE_URL` の接続チェックを行ってはならない（MUST NOT）。
+
+#### Scenario: ストレージ2サブセクションが横に並ぶ
+
+- **WHEN** 設定ダイアログを開いてストレージセクションを表示する
+- **THEN** 「画像の管理」と「社内コンテキストの管理」が同じ行に左右で並ぶ
 
 #### Scenario: 既定はデータベース
 

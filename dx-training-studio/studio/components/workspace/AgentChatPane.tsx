@@ -85,9 +85,9 @@ import type {
 } from "@/lib/agent-chat-controller";
 import { resolveModelLabel } from "@/lib/agent/model-labels";
 import {
-  getLessonBody,
-  normalizeDraftMarkdownForLesson,
-} from "@/lib/lesson-frontmatter";
+  normalizeDraftForLesson,
+  type LessonMetaFields,
+} from "@/lib/lesson-meta";
 import { collectAllLessonTags } from "@/lib/lesson-tags";
 import {
   loadWorkspaceSettings,
@@ -142,7 +142,10 @@ type Props = {
   /** @deprecated use currentFilePath */
   currentLessonPath?: string | null;
   onOpenSettings: () => void;
-  onOverwriteEditor?: (markdown: string) => void;
+  onOverwriteEditor?: (
+    markdown: string,
+    metaPatch?: Partial<LessonMetaFields>,
+  ) => void;
   agentChatControllerRef?: React.MutableRefObject<AgentChatController | null>;
   onControllerReady?: () => void;
   className?: string;
@@ -590,7 +593,7 @@ export function AgentChatPane({
         }
         return buildCreateDraftVariables({
           lesson,
-          lessonBody: getLessonBody(lesson),
+          lessonBody: lesson.content,
           courseMeta: {
             name: course?.name ?? lesson.course,
             target: course?.target ?? "",
@@ -1269,16 +1272,12 @@ export function AgentChatPane({
     if (!overwriteTarget || !onOverwriteEditor || !lesson) return;
     const extracted = extractMarkdownBlock(overwriteTarget.content);
     const contextItemTags = collectContextTagsFromMessages(messages);
-    const markdown = normalizeDraftMarkdownForLesson(
-      extracted,
-      { seriesName: lesson.series, courseName: lesson.course },
-      lesson,
-      {
-        availableTags: collectAllLessonTags(series),
-        contextItemTags,
-      },
-    );
-    onOverwriteEditor(markdown);
+    // 草稿は本文のみ。tags / estimated_minutes の補完はアプリが `.meta.json` へ書く
+    const { body, metaPatch } = normalizeDraftForLesson(extracted, lesson, {
+      availableTags: collectAllLessonTags(series),
+      contextItemTags,
+    });
+    onOverwriteEditor(body, metaPatch);
     setOverwriteTarget(null);
   }, [lesson, messages, onOverwriteEditor, overwriteTarget, series]);
 

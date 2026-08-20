@@ -37,11 +37,11 @@ tools:
 
 - `contents-work/plans/` — 入力。**どれを使うかはユーザーに選ばせる**（→ 入力の把握）
 - `references/design-principles.md` — **質**の判断材料と、書いてはいけないもの
-- `references/lesson-template.md` — **形式**（frontmatter・章立て・空欄の記法・出典）
+- `references/lesson-template.md` — **形式**（レッスン `.meta.json`・章立て・空欄の記法・出典）
 - `references/model-answer/` — 模範解答。**無くてよい**（後述）
 - `contracts/image-slot-contract.md` — 画像コメントの書式。**変更しない**
 - `local-db/context-items.json` / `.env.local` の `DATABASE_URL` — 社内コンテキストの検索元（→ フェーズ3の梯子）。**どちらも無くてよい**（段2へ降格する）
-- `lib/schema.ts` / `lib/contents-loader.ts` / `lib/lesson-frontmatter.ts` — 出力先のデータ構造
+- `lib/schema.ts` / `lib/contents-loader.ts` / `lib/lesson-meta.ts` — 出力先のデータ構造
 
 ---
 
@@ -92,10 +92,10 @@ tools:
 - **範囲内だけを出す。** 計画書の全体構造を貼らない
 - **一括で1回。** シリーズ・コース・レッスンに取り掛かるたびに聞き直さない——ディレクトリを1つも作っていないいまが、止まっても何も捨てずに済む唯一の場所
 - slug は公開サイトの URL になる。名前と同じく**ディレクトリを切る前に確定させる器**なので、同じ問いに乗せる
-- **計画書に slug が無い階層は、この場で案を出して確定させる。** 小文字英数とハイフンのみ（正本は `lib/schema.ts` の `SLUG_PATTERN`）、兄弟間で重複しないこと。「slug が無いので名前だけ出す」で済ませない——slug は `.meta.json` と frontmatter に書く値であり、後から足すと URL が変わる
+- **計画書に slug が無い階層は、この場で案を出して確定させる。** 小文字英数とハイフンのみ（正本は `lib/schema.ts` の `SLUG_PATTERN`）、兄弟間で重複しないこと。「slug が無いので名前だけ出す」で済ませない——slug は各階層（シリーズ・コース・レッスン）の `.meta.json` に書く値であり、後から足すと URL が変わる
 - **否認されたら実行を止め、計画書の修正案を提案する。** 名前を自分で直さない（→ 制約）
 
-名前の確認が済んだら、**この run の執筆者（frontmatter の `author`）を1回だけ聞く。** 聞いた値はこの run の全レッスンに使う。レッスンごとに聞き直さない。
+名前の確認が済んだら、**この run の執筆者（レッスン `.meta.json` の `author`）を1回だけ聞く。** 聞いた値はこの run の全レッスンに使う。レッスンごとに聞き直さない。
 
 ここでの対話は最小限にする。**必ず1問ずつ**聞き、まとめて質問しない。聞くのは、計画書から読み取れないもの——たとえ話に使える現場の場面、受講者がつまずいた実例、扱ってよい社内固有の範囲。計画書に書いてあることは聞かない。
 
@@ -227,9 +227,9 @@ CJK 幅で枠が多少ずれても構わない。**接続の向きと、確定�
 
 - 計画書の全体構造ツリーにある「〜シリーズ」「〜コース」という表記は**使わない**。コース仕様表の短い名前が正
 - `L01` のような ID、`【撮】` `【録】` の印、`☆` は名前に含めない
-- **レッスン名に `/` が含まれるものがある。** ディレクトリ名では置換される（正本は `lib/content-filename.ts` の `sanitizeFilename`）。frontmatter の `lesson` は**ディレクトリ名のほう**に合わせる。本文の見出しは元の名前でよい
+- **レッスン名に `/` が含まれるものがある。** ディレクトリ名では置換される（正本は `lib/content-filename.ts` の `sanitizeFilename`）。本文の見出しは元の名前でよい
 
-`.meta.json` には **`order` `target` `slug` `description` `catch` を書く**。新しいシリーズを作る run では、シリーズの `.meta.json` にも `slug` `description` `catch` を書く。
+コースの `.meta.json` には **`order` `target` `slug` `description` `catch` を書く**。新しいシリーズを作る run では、シリーズの `.meta.json` にも `slug` `description` `catch` を書く。レッスンのメタ（`slug` `status` `description` `tags` `estimated_minutes` `author`）は**レッスンフォルダの `.meta.json`** に書く——`contents.md` は本文のみで、frontmatter を書かない（形式は `references/lesson-template.md`）。
 
 - `target` は計画書のコース仕様表の受講対象
 - **`slug` は計画書の slug（`git/concepts` のような表記の該当階層）をそのまま転記する。** 自分で考えない。計画書に無ければフェーズ1の名前確認ゲートで確定させた値を使う
@@ -251,7 +251,7 @@ CJK 幅で枠が多少ずれても構わない。**接続の向きと、確定�
 - **`contracts/` を変更しない**
 - **`references/design-principles.md` を変更しない**
 - 出力は日本語
-- **品質が最大になるのは理想環境**（Claude Code・強いモデル）。Studio の Pane4 でも動くが、ホストが機能を落とす箇所がある（→ [`contracts/agent-write-contract.md`](../../../contracts/agent-write-contract.md)）。**Pane4 では `.meta.json` を書けない**ので、`order` と `target` は人がペイン1・2 で直す
+- **品質が最大になるのは理想環境**（Claude Code・強いモデル）。Studio の Pane4 でも動くが、ホストが機能を落とす箇所がある（→ [`contracts/agent-write-contract.md`](../../../contracts/agent-write-contract.md)）。**Pane4 で書ける `.meta.json` はレッスン階層だけ**（検査つき。id は保護される）。コース・シリーズの `order` と `target` は人がペイン1・2 で直す
 
 ## references
 

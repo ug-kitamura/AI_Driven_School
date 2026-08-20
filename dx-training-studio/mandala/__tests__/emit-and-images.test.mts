@@ -110,6 +110,29 @@ describe("emitLessonMarkdown", () => {
     expect(md).not.toContain("author:");
     expect(md).not.toContain("courseStyle:");
   });
+
+  it("著者は双方向フォールバックで解決する", () => {
+    // 表記を書き分けた著者: ja は author、en は author_en
+    const both = { ...lesson, author: "北村", authorEn: "Kitamura" };
+    expect(emitLessonMarkdown(both, series, course, "ja", "# 本文\n")).toContain(
+      'author: "北村"',
+    );
+    expect(emitLessonMarkdown(both, series, course, "en", "# body\n")).toContain(
+      'author: "Kitamura"',
+    );
+
+    // author_en だけが書かれている: 日本語ページでも author_en が出る
+    const enOnly = { ...lesson, author: "", authorEn: "Kitamura" };
+    expect(
+      emitLessonMarkdown(enOnly, series, course, "ja", "# 本文\n"),
+    ).toContain('author: "Kitamura"');
+
+    // 英語名のみの著者: author だけで両ページに出る
+    const jaOnly = { ...lesson, author: "John Smith", authorEn: undefined };
+    expect(
+      emitLessonMarkdown(jaOnly, series, course, "en", "# body\n"),
+    ).toContain('author: "John Smith"');
+  });
 });
 
 describe("emitMetaFile", () => {

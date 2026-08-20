@@ -1,16 +1,3 @@
----
-series: Git基礎シリーズ
-course: Git基本操作コース
-lesson: 変更を取り消す
-slug: undo
-id: lsn-undo-uzwouz
-status: done
-description: コミット前の変更を restore で安全に戻し、「失敗しても戻れる」を自分の手で確かめる
-tags: [git, basics]
-estimated_minutes: 10
-author: Kitamura
----
-
 # 変更を取り消す
 
 ## 学習目標

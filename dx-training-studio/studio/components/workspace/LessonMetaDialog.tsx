@@ -16,7 +16,7 @@ import {
   lessonToMetaDraft,
   type LessonMetaDraft,
 } from "@/components/workspace/LessonMetaPanel";
-import type { LessonMetaFields } from "@/lib/lesson-frontmatter";
+import type { LessonMetaFields } from "@/lib/lesson-meta";
 import type { Lesson } from "@/lib/schema";
 
 type Props = {

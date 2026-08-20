@@ -11,16 +11,10 @@ import {
   courseMetaSchema,
   seriesMetaSchema,
   contentsMetaSchema,
+  lessonMetaFileSchema,
   slugSchema,
 } from "@/lib/schema";
-import {
-  parseLessonDocument,
-  normalizeLessonMeta,
-  serializeLessonDocument,
-  patchLessonMeta,
-  applyLessonBodyEdit,
-  reconcileLesson,
-} from "@/lib/lesson-frontmatter";
+import { applyLessonMetaPatch } from "@/lib/lesson-meta";
 import { LESSON_CONTENTS_FILENAME } from "@/lib/lesson-paths";
 
 function writeFile(filePath: string, content: string) {
@@ -32,35 +26,15 @@ function writeJson(filePath: string, data: unknown) {
   writeFile(filePath, JSON.stringify(data, null, 2));
 }
 
-const LESSON_WITH_PUBLISHING_META = `---
-series: シリーズA
-course: コースB
-lesson: レッスンC
-slug: lesson-c
-id: lsn-lesson-c-a1b2c3
-status: done
-description: 概要
-tags: [git]
-estimated_minutes: 15
-author: Kitamura
----
-
-# レッスンC
-`;
-
-const LESSON_WITHOUT_PUBLISHING_META = `---
-series: シリーズA
-course: コースB
-lesson: レッスンC
-status: done
-description: 概要
-tags: [git]
-estimated_minutes: 15
-author: Kitamura
----
-
-# レッスンC
-`;
+const LESSON_META_WITH_PUBLISHING = {
+  id: "lsn-lesson-c-a1b2c3",
+  slug: "lesson-c",
+  status: "done",
+  description: "概要",
+  tags: ["git"],
+  estimated_minutes: 15,
+  author: "Kitamura",
+};
 
 describe("slug スキーマ", () => {
   it("小文字英数とハイフンの slug を受理する", () => {
@@ -129,39 +103,30 @@ describe(".meta.json スキーマの公開サイト向けフィールド", () =>
   });
 });
 
-describe("レッスン frontmatter の slug / id", () => {
-  it("slug と id を解析する", () => {
-    const { meta } = parseLessonDocument(LESSON_WITH_PUBLISHING_META);
-    expect(meta.slug).toBe("lesson-c");
-    expect(meta.id).toBe("lsn-lesson-c-a1b2c3");
-  });
-
-  it("slug / id が無くてもエラーにならない", () => {
-    const { meta } = parseLessonDocument(LESSON_WITHOUT_PUBLISHING_META);
-    expect(meta.slug).toBeUndefined();
-    expect(meta.id).toBeUndefined();
-  });
-
-  it("再シリアライズで slug / id が保持される", () => {
-    const { meta, body } = parseLessonDocument(LESSON_WITH_PUBLISHING_META);
-    const normalized = normalizeLessonMeta(meta, {
-      seriesName: "シリーズA",
-      courseName: "コースB",
+describe("レッスン .meta.json スキーマ", () => {
+  it("slug / id / author_en を受理する", () => {
+    const parsed = lessonMetaFileSchema.parse({
+      ...LESSON_META_WITH_PUBLISHING,
+      author_en: "Kitamura",
     });
-    const serialized = serializeLessonDocument(normalized, body);
-    expect(serialized).toContain("slug: lesson-c");
-    expect(serialized).toContain("id: lsn-lesson-c-a1b2c3");
+    expect(parsed.slug).toBe("lesson-c");
+    expect(parsed.id).toBe("lsn-lesson-c-a1b2c3");
+    expect(parsed.author_en).toBe("Kitamura");
   });
 
-  it("slug / id が無いレッスンの出力に空の行を足さない", () => {
-    const { meta, body } = parseLessonDocument(LESSON_WITHOUT_PUBLISHING_META);
-    const normalized = normalizeLessonMeta(meta, {
-      seriesName: "シリーズA",
-      courseName: "コースB",
-    });
-    const serialized = serializeLessonDocument(normalized, body);
-    expect(serialized).not.toContain("slug:");
-    expect(serialized).not.toContain("id:");
+  it("名前フィールド（series / course / lesson）を拒否する", () => {
+    expect(
+      lessonMetaFileSchema.safeParse({ lesson: "レッスンC" }).success,
+    ).toBe(false);
+    expect(lessonMetaFileSchema.safeParse({ series: "S" }).success).toBe(false);
+  });
+
+  it("未知キー（order 等）を拒否する", () => {
+    expect(lessonMetaFileSchema.safeParse({ order: [] }).success).toBe(false);
+  });
+
+  it("空オブジェクトを受理する（全フィールド任意）", () => {
+    expect(lessonMetaFileSchema.safeParse({}).success).toBe(true);
   });
 });
 
@@ -178,28 +143,14 @@ describe("レッスン編集経路で slug / id が消えない", () => {
     tags: ["git"],
     estimated_minutes: 15,
     author: "Kitamura",
-    content: LESSON_WITH_PUBLISHING_META,
+    content: "# レッスンC\n",
   };
-  const ctx = { seriesName: "シリーズA", courseName: "コースB" };
 
-  it("メタ編集（patchLessonMeta）で保持される", () => {
-    const patched = patchLessonMeta(baseLesson, ctx, { status: "in_progress" });
+  it("メタ編集（applyLessonMetaPatch）で保持される", () => {
+    const patched = applyLessonMetaPatch(baseLesson, { status: "in_progress" });
     expect(patched.slug).toBe("lesson-c");
     expect(patched.stableId).toBe("lsn-lesson-c-a1b2c3");
-    expect(patched.content).toContain("slug: lesson-c");
-    expect(patched.content).toContain("id: lsn-lesson-c-a1b2c3");
-  });
-
-  it("本文編集（applyLessonBodyEdit）で保持される", () => {
-    const edited = applyLessonBodyEdit(baseLesson, ctx, "# 新しい本文\n");
-    expect(edited.content).toContain("slug: lesson-c");
-    expect(edited.content).toContain("id: lsn-lesson-c-a1b2c3");
-  });
-
-  it("整合（reconcileLesson）で保持される", () => {
-    const reconciled = reconcileLesson(baseLesson, ctx);
-    expect(reconciled.slug).toBe("lesson-c");
-    expect(reconciled.stableId).toBe("lsn-lesson-c-a1b2c3");
+    expect(patched.content).toBe("# レッスンC\n");
   });
 });
 
@@ -214,7 +165,7 @@ describe("loadContentsFolder の公開サイト向けフィールド", () => {
     fs.rmSync(tmpDir, { recursive: true, force: true });
   });
 
-  function setupContents(lessonContent: string) {
+  function setupContents(lessonMeta: Record<string, unknown> | null) {
     const contentsDir = path.join(tmpDir, "contents");
     writeJson(path.join(contentsDir, ".meta.json"), {
       order: ["シリーズA"],
@@ -244,13 +195,19 @@ describe("loadContentsFolder の公開サイト向けフィールド", () => {
         "レッスンC",
         LESSON_CONTENTS_FILENAME,
       ),
-      lessonContent,
+      "# レッスンC\n",
     );
+    if (lessonMeta) {
+      writeJson(
+        path.join(contentsDir, "シリーズA", "コースB", "レッスンC", ".meta.json"),
+        lessonMeta,
+      );
+    }
     return contentsDir;
   }
 
   it("シリーズ・コース・レッスンのフィールドを読み込む", () => {
-    setupContents(LESSON_WITH_PUBLISHING_META);
+    setupContents(LESSON_META_WITH_PUBLISHING);
     const [series] = loadContentsFolder(tmpDir);
 
     expect(series.slug).toBe("series-a");
@@ -271,29 +228,34 @@ describe("loadContentsFolder の公開サイト向けフィールド", () => {
   });
 
   it("全体メタの description を読み込む", () => {
-    setupContents(LESSON_WITH_PUBLISHING_META);
+    setupContents(LESSON_META_WITH_PUBLISHING);
     expect(loadContentsMeta(tmpDir).description).toBe("全体の説明");
   });
 
-  it("slug / id の無いレッスンでも壊れず、contents.md を書き換えない", () => {
-    const contentsDir = setupContents(LESSON_WITHOUT_PUBLISHING_META);
-    const lessonPath = path.join(
-      contentsDir,
-      "シリーズA",
-      "コースB",
-      "レッスンC",
-      LESSON_CONTENTS_FILENAME,
-    );
-    const before = fs.readFileSync(lessonPath, "utf-8");
+  it("id 自動採番の書き戻しでレッスンの公開サイト向けフィールドが消えない", () => {
+    const contentsDir = setupContents({
+      slug: "lesson-c",
+      status: "done",
+      description: "概要",
+      tags: ["git"],
+      estimated_minutes: 15,
+      author: "Kitamura",
+    });
 
     const lesson = loadContentsFolder(tmpDir)[0].courses[0].lessons[0];
-    expect(lesson.slug).toBeUndefined();
-    expect(lesson.stableId).toBeUndefined();
-    expect(fs.readFileSync(lessonPath, "utf-8")).toBe(before);
+    expect(lesson.stableId).toMatch(/^lsn-/);
+
+    const meta = readMetaJson(
+      path.join(contentsDir, "シリーズA", "コースB", "レッスンC"),
+    );
+    expect(meta.id).toBe(lesson.stableId);
+    expect(meta.slug).toBe("lesson-c");
+    expect(meta.description).toBe("概要");
+    expect(meta.author).toBe("Kitamura");
   });
 
-  it("id 自動採番の書き戻しで公開サイト向けフィールドが消えない", () => {
-    const contentsDir = setupContents(LESSON_WITH_PUBLISHING_META);
+  it("id 自動採番の書き戻しでシリーズの公開サイト向けフィールドが消えない", () => {
+    const contentsDir = setupContents(LESSON_META_WITH_PUBLISHING);
     // id を持たないシリーズ meta にして loader の自動採番を通す
     writeJson(path.join(contentsDir, "シリーズA", ".meta.json"), {
       order: ["コースB"],

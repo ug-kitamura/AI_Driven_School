@@ -1,6 +1,9 @@
 import fs from "node:fs";
 import path from "node:path";
-import { resolveToolTargetPath } from "@/lib/agent/tools/fs-guard";
+import {
+  isLessonMetaWritePath,
+  resolveToolTargetPath,
+} from "@/lib/agent/tools/fs-guard";
 import {
   framedWriteDivertOutcome,
   resolveDivertTarget,
@@ -429,6 +432,13 @@ export async function executeGenerateAndWrite(
   if (targetResolved.insideSkill) {
     return errorOutcome(
       `スキルディレクトリへの書込はできません: ${targetResolved.relativePath}`,
+    );
+  }
+  // レッスン `.meta.json` は検査つき書込（write_file）だけを通す。
+  // 生成書込は創作長文向けで、厳密 JSON のメタに使う理由が無い
+  if (isLessonMetaWritePath(targetResolved)) {
+    return errorOutcome(
+      `.meta.json は generate_and_write では書けません。write_file で全体を書いてください: ${targetResolved.relativePath}`,
     );
   }
 

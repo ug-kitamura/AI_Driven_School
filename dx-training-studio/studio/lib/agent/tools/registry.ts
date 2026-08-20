@@ -19,8 +19,10 @@ import {
 import {
   CONTENTS_DIR_NAME,
   CONTENTS_PLAN_DIR_NAME,
+  isLessonMetaWritePath,
   resolveToolTargetPath,
 } from "@/lib/agent/tools/fs-guard";
+import { prepareLessonMetaWrite } from "@/lib/agent/tools/lesson-meta-write-guard";
 import {
   framedWriteDivertOutcome,
   resolveFramedWriteTarget,
@@ -1077,6 +1079,26 @@ function executeWriteFile(
     );
   }
 
+  // レッスン `.meta.json` は検査つき書込（スキーマ適合・id の既存値保護）
+  if (isLessonMetaWritePath(resolved)) {
+    const prepared = prepareLessonMetaWrite(
+      resolved.absolutePath,
+      resolved.relativePath,
+      content,
+    );
+    if (!prepared.ok) return errorOutcome(prepared.error);
+    fs.mkdirSync(path.dirname(resolved.absolutePath), { recursive: true });
+    fs.writeFileSync(resolved.absolutePath, prepared.content, "utf-8");
+    const metaBytes = Buffer.byteLength(prepared.content, "utf-8");
+    return {
+      result: { path: resolved.relativePath, bytes: metaBytes },
+      display: display(
+        `${metaBytes} bytes`,
+        `💾 書込: ${resolved.relativePath}（${metaBytes} bytes・検査済み）`,
+      ),
+    };
+  }
+
   // 額縁テンプレートを丸ごと上書きしそうな場合は中間ファイル置き場へ退避する
   const decision = resolveFramedWriteTarget({
     absolutePath: resolved.absolutePath,
@@ -1227,6 +1249,31 @@ function executeCopyFile(
     return errorOutcome(`ファイルではありません: ${fromResolved.relativePath}`);
   }
 
+  // レッスン `.meta.json` へのコピーも検査を通す（コピー元の内容がスキーマ適合であること）
+  if (isLessonMetaWritePath(toResolved)) {
+    const prepared = prepareLessonMetaWrite(
+      toResolved.absolutePath,
+      toResolved.relativePath,
+      fs.readFileSync(fromResolved.absolutePath, "utf-8"),
+    );
+    if (!prepared.ok) return errorOutcome(prepared.error);
+    fs.mkdirSync(path.dirname(toResolved.absolutePath), { recursive: true });
+    fs.writeFileSync(toResolved.absolutePath, prepared.content, "utf-8");
+    const metaBytes = Buffer.byteLength(prepared.content, "utf-8");
+    return {
+      result: {
+        from: fromResolved.relativePath,
+        to: toResolved.relativePath,
+        path: toResolved.relativePath,
+        bytes: metaBytes,
+      },
+      display: display(
+        `${metaBytes} bytes`,
+        `📋 コピー: ${fromResolved.relativePath} → ${toResolved.relativePath}（${metaBytes} bytes・検査済み）`,
+      ),
+    };
+  }
+
   fs.mkdirSync(path.dirname(toResolved.absolutePath), { recursive: true });
   fs.copyFileSync(fromResolved.absolutePath, toResolved.absolutePath);
   const bytes = fromStat.size;
@@ -1338,6 +1385,17 @@ function executeReplaceInFile(
     return errorOutcome("置換対象が見つかりません（0 件）");
   }
 
+  // レッスン `.meta.json` は置換結果にもスキーマ検査を通す
+  if (isLessonMetaWritePath(resolved)) {
+    const prepared = prepareLessonMetaWrite(
+      resolved.absolutePath,
+      resolved.relativePath,
+      content,
+    );
+    if (!prepared.ok) return errorOutcome(prepared.error);
+    content = prepared.content;
+  }
+
   fs.writeFileSync(resolved.absolutePath, content, "utf-8");
 
   return withResidualFillWarning(content, {
@@ -1443,8 +1501,18 @@ function executeReplaceBetween(
     );
   }
 
-  const next =
+  let next =
     original.slice(0, afterStart) + insertContent + original.slice(endIndex);
+  // レッスン `.meta.json` は置換結果にもスキーマ検査を通す
+  if (isLessonMetaWritePath(resolved)) {
+    const prepared = prepareLessonMetaWrite(
+      resolved.absolutePath,
+      resolved.relativePath,
+      next,
+    );
+    if (!prepared.ok) return errorOutcome(prepared.error);
+    next = prepared.content;
+  }
   fs.writeFileSync(resolved.absolutePath, next, "utf-8");
   const replacedChars = endIndex - afterStart;
   const insertedChars = insertContent.length;
@@ -1487,6 +1555,13 @@ function executeAppendFile(
   const exists = fs.existsSync(resolved.absolutePath);
   if (exists && !fs.statSync(resolved.absolutePath).isFile()) {
     return errorOutcome(`ファイルではありません: ${resolved.relativePath}`);
+  }
+
+  // 追記では JSON の妥当性を保てないため、レッスン `.meta.json` は write_file で書く
+  if (isLessonMetaWritePath(resolved)) {
+    return errorOutcome(
+      `.meta.json への追記はできません。write_file で全体を書いてください: ${resolved.relativePath}`,
+    );
   }
 
   fs.mkdirSync(path.dirname(resolved.absolutePath), { recursive: true });

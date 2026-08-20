@@ -1,5 +1,4 @@
 import { buildLessonId } from "@/lib/content-ids";
-import { reconcileLesson } from "@/lib/lesson-frontmatter";
 import type { Series } from "@/lib/schema";
 import type { WorkspaceSelection } from "@/lib/workspace-selection";
 
@@ -20,7 +19,7 @@ export function remapSelection(
   };
 }
 
-/** シリーズ名変更: 安定 ID は維持し、表示名とレッスンフロントマターのみ更新 */
+/** シリーズ名変更: 安定 ID は維持し、表示名とレッスン ID のみ更新 */
 export function applySeriesRename(
   allSeries: Series[],
   seriesId: string,
@@ -33,20 +32,14 @@ export function applySeriesRename(
     return {
       ...s,
       name: newSeriesName,
-      courses: s.courses.map((c) => {
-        const ctx = { seriesName: newSeriesName, courseName: c.name };
-        return {
-          ...c,
-          lessons: c.lessons.map((l) => {
-            const newLessonId = buildLessonId(newSeriesName, c.name, l.lesson);
-            lessonIds.set(l.id, newLessonId);
-            return {
-              ...reconcileLesson({ ...l, series: newSeriesName }, ctx),
-              id: newLessonId,
-            };
-          }),
-        };
-      }),
+      courses: s.courses.map((c) => ({
+        ...c,
+        lessons: c.lessons.map((l) => {
+          const newLessonId = buildLessonId(newSeriesName, c.name, l.lesson);
+          lessonIds.set(l.id, newLessonId);
+          return { ...l, series: newSeriesName, id: newLessonId };
+        }),
+      })),
     };
   });
 

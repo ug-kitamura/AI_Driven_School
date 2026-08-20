@@ -2,10 +2,8 @@
 
 ## Purpose
 
-シリーズ・コースに安定した英数字 ID を付与し、フォルダ名変更後も曼陀羅リンクが解決できるようにする。
-
+シリーズ・コース・レッスンに安定した英数字 ID を付与し、フォルダ名変更後も曼陀羅リンクや進捗記録が解決できるようにする。
 ## Requirements
-
 ### Requirement: シリーズ ID は `.meta.json` に保存した安定した英数字 ID である
 
 各シリーズは `srs-{slug}-{random6}` 形式の一意な ID を持たなければならない（SHALL）。この ID は `contents/<series>/.meta.json` の `id` フィールドに保存しなければならない（SHALL）。ローダーは `.meta.json` に `id` が存在する場合はそれを使用し、存在しない場合は新たに生成して即座に書き込まなければならない（SHALL）。ID はアルファベット小文字・数字・ハイフンのみで構成されなければならない（SHALL）。
@@ -55,24 +53,26 @@
 - **AND** コース B の `.meta.json` の `id` が `"crs-python-intro-x9z2k1"` である
 - **THEN** ローダーはコース A の cross_series_next がコース B を参照していると解決できる
 
-### Requirement: レッスン ID は frontmatter に保存した安定した英数字 ID である
+### Requirement: レッスン ID は `.meta.json` に保存した安定した英数字 ID である
 
-各レッスンは `lsn-{slug}-{random6}` 形式の一意な ID を持たなければならない（SHALL）。この ID は `contents.md` のフロントマターの `id` フィールドに保存しなければならない（SHALL）。ID はアルファベット小文字・数字・ハイフンのみで構成されなければならない（SHALL）。
+各レッスンは `lsn-{slug}-{random6}` 形式の一意な ID を持たなければならない（SHALL）。この ID はレッスンフォルダの `.meta.json` の `id` フィールドに保存しなければならない（SHALL）。ID はアルファベット小文字・数字・ハイフンのみで構成されなければならない（SHALL）。
 
-シリーズ・コースと異なり、ローダーは ID が存在しない場合に**生成して書き戻してはならない**（SHALL NOT）——`contents.md` は原稿本文と同居しており、ロード時の自動書込は編集中のオートセーブと競合する。ID の付与は `dx-training-create` の生成時書込と既存分のバックフィルで行う。フォルダ名をリネームしても、frontmatter に保存された ID は変わってはならない（SHALL NOT）。
+ローダーは `.meta.json` に `id` が存在する場合はそれを使用し、存在しない場合は新たに生成して即座に書き込まなければならない（SHALL）——シリーズ・コースと同じ流儀。`contents.md` へ書き込んではならない（SHALL NOT）。フォルダ名をリネームしても、`.meta.json` に保存された ID は変わってはならない（SHALL NOT）。
 
-#### Scenario: 既存 frontmatter に id がある場合はそれを使用する
+#### Scenario: 既存 `.meta.json` に id がある場合はそれを使用する
 
-- **WHEN** レッスンの frontmatter に `id: lsn-version-control-a1b2c3` が記述されている
+- **WHEN** レッスンの `.meta.json` に `"id": "lsn-version-control-a1b2c3"` が記述されている
 - **THEN** ローダーはそのレッスンの ID を `lsn-version-control-a1b2c3` として使用する
+
+#### Scenario: id が無い場合は生成して `.meta.json` に書き込む
+
+- **WHEN** レッスンの `.meta.json` に `id` フィールドが存在しない
+- **THEN** ローダーは `lsn-` で始まる ID を生成して `.meta.json` に書き込む
+- **AND** `contents.md` は書き換えられない
 
 #### Scenario: レッスンフォルダのリネーム後も ID が変わらない
 
 - **WHEN** レッスンフォルダを `バージョン管理ってなに？` から `バージョン管理とは` にリネームする
-- **AND** frontmatter に既存の `id` が保存されている
+- **AND** `.meta.json` に既存の `id` が保存されている
 - **THEN** リネーム後も同じ `id` が使用される
 
-#### Scenario: id が無いレッスンを書き換えない
-
-- **WHEN** frontmatter に `id` が無いレッスンをロードする
-- **THEN** ローダーは `contents.md` に `id` を書き込まない

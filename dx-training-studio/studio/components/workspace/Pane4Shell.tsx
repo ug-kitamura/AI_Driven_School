@@ -15,6 +15,7 @@ import { ImageManagerPane } from "@/components/workspace/ImageManagerPane";
 import { useAgentSessionChrome } from "@/components/workspace/use-agent-session-chrome";
 import type { ImageManagerTab } from "@/components/workspace/image-manager/types";
 import type { AgentChatController } from "@/lib/agent-chat-controller";
+import type { LessonMetaFields } from "@/lib/lesson-meta";
 import type { SkillSummary } from "@/lib/agent/skill-loader";
 import type { Pane4View } from "@/lib/pane4-view-storage";
 import { savePane4View } from "@/lib/pane4-view-storage";
@@ -65,7 +66,10 @@ export type Pane4ShellProps = {
   onOpenSettings: () => void;
   currentLessonPath: string | null;
   agentChatControllerRef: React.MutableRefObject<AgentChatController | null>;
-  onOverwriteEditor: (markdown: string) => void;
+  onOverwriteEditor: (
+    markdown: string,
+    metaPatch?: Partial<LessonMetaFields>,
+  ) => void;
   onImageAssetsChanged?: (removedPaths?: string | string[]) => void;
 };
 

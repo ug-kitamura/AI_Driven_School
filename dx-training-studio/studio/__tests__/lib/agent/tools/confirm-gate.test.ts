@@ -296,13 +296,30 @@ describe("resolveConfirmRequirement", () => {
   it("does not confirm app-owned files the path guard rejects", () => {
     const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "ebex-confirm-"));
     makeScope(tmpDir);
+    // コース階層の .meta.json は path guard が拒否する（確認ダイアログに回さない）
+    const req = resolveConfirmRequirement(tmpDir, SCOPE, {
+      id: "t1",
+      name: "write_file",
+      input: { path: "contents/シリーズA/コースB/.meta.json", content: "{}" },
+    });
+    expect(req).toBeNull();
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+  });
+
+  it("confirms overwrite for the lesson-level .meta.json (guarded write)", () => {
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "ebex-confirm-"));
+    makeScope(tmpDir);
     makeScopeFile(tmpDir, ".meta.json", "{}");
     const req = resolveConfirmRequirement(tmpDir, SCOPE, {
       id: "t1",
       name: "write_file",
       input: { path: ".meta.json", content: "{}" },
     });
-    expect(req).toBeNull();
+    expect(req).toEqual({
+      kind: "overwrite",
+      path: scopeDisplayPath(".meta.json"),
+      isNew: false,
+    });
     fs.rmSync(tmpDir, { recursive: true, force: true });
   });
 

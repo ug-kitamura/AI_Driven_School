@@ -7,6 +7,7 @@ import {
   contentsExists,
   getContentsFingerprint,
   reconcileOrderFiles,
+  MetaJsonParseError,
 } from "@/lib/contents-loader";
 import { LESSON_CONTENTS_FILENAME, LESSON_SESSION_FILENAME } from "@/lib/lesson-paths";
 
@@ -56,8 +57,11 @@ describe("loadContentsFolder", () => {
 
   it("loads series, course and lessons from folder structure", () => {
     const contentsDir = path.join(tmpDir, "contents");
-    const lessonContent = `---\nseries: テストシリーズ\ncourse: テストコース\nlesson: テストレッスン\nstatus: done\ndescription: テスト\ntags: [git]\nestimated_minutes: 10\nauthor: 田中\n---\n\n本文\n`;
-    writeLesson(contentsDir, "テストシリーズ", "テストコース", "テストレッスン", lessonContent);
+    writeLesson(contentsDir, "テストシリーズ", "テストコース", "テストレッスン", "本文\n");
+    writeJson(
+      path.join(contentsDir, "テストシリーズ", "テストコース", "テストレッスン", ".meta.json"),
+      { status: "done", description: "テスト", tags: ["git"], estimated_minutes: 10, author: "田中" },
+    );
     writeJson(
       path.join(contentsDir, "テストシリーズ", "テストコース", ".meta.json"),
       { order: ["テストレッスン"], target: "初心者", cross_series_prev: [], cross_series_next: [] },
@@ -80,8 +84,7 @@ describe("loadContentsFolder", () => {
   describe("コースの受講形態 style", () => {
     function loadCourseWithStyle(meta: Record<string, unknown>) {
       const contentsDir = path.join(tmpDir, "contents");
-      const lessonContent = `---\nseries: S\ncourse: C\nlesson: L\nstatus: done\ndescription: d\ntags: []\nestimated_minutes: 10\nauthor: a\n---\n\n本文\n`;
-      writeLesson(contentsDir, "S", "C", "L", lessonContent);
+      writeLesson(contentsDir, "S", "C", "L", "本文\n");
       writeJson(path.join(contentsDir, "S", "C", ".meta.json"), {
         order: ["L"],
         ...meta,
@@ -104,14 +107,31 @@ describe("loadContentsFolder", () => {
     });
   });
 
-  it("falls back to folder path when frontmatter is broken", () => {
+  it("`.meta.json` が無いレッスンは既定値で読み込まれ、id が採番される", () => {
     const contentsDir = path.join(tmpDir, "contents");
-    writeLesson(contentsDir, "シリーズA", "コースA", "レッスンA", "フロントマターなし\n\n本文\n");
+    writeLesson(contentsDir, "シリーズA", "コースA", "レッスンA", "本文\n");
     writeJson(path.join(contentsDir, "シリーズA", "コースA", ".meta.json"), { order: ["レッスンA"] });
 
     const result = loadContentsFolder(tmpDir);
-    expect(result[0].courses[0].lessons[0].lesson).toBe("レッスンA");
-    expect(result[0].courses[0].lessons[0].status).toBe("open");
+    const lesson = result[0].courses[0].lessons[0];
+    expect(lesson.lesson).toBe("レッスンA");
+    expect(lesson.status).toBe("open");
+    expect(lesson.stableId).toMatch(/^lsn-/);
+
+    // 採番された id は `.meta.json` へ書き戻される（contents.md は書き換えない）
+    const lessonMeta = JSON.parse(
+      fs.readFileSync(
+        path.join(contentsDir, "シリーズA", "コースA", "レッスンA", ".meta.json"),
+        "utf-8",
+      ),
+    ) as { id: string };
+    expect(lessonMeta.id).toBe(lesson.stableId);
+    expect(
+      fs.readFileSync(
+        path.join(contentsDir, "シリーズA", "コースA", "レッスンA", LESSON_CONTENTS_FILENAME),
+        "utf-8",
+      ),
+    ).toBe("本文\n");
   });
 
   it("writes template to disk when lesson file is empty", () => {
@@ -125,21 +145,70 @@ describe("loadContentsFolder", () => {
       path.join(contentsDir, "シリーズA", "コースA", "空", LESSON_CONTENTS_FILENAME),
       "utf-8",
     );
-    expect(onDisk.trimStart().startsWith("---")).toBe(true);
+    expect(onDisk.trimStart().startsWith("---")).toBe(false);
     expect(onDisk).toContain("# 空");
   });
 
-  it("prefers folder name over stale frontmatter lesson name", () => {
+  it("frontmatter らしき区切りは本文として扱われる（解析しない）", () => {
     const contentsDir = path.join(tmpDir, "contents");
-    const lessonContent = `---\nseries: シリーズA\ncourse: コースA\nlesson: 古い名前\nstatus: open\ndescription: ""\ntags: []\nestimated_minutes: 0\nauthor: ""\n---\n\n本文\n`;
-    writeLesson(contentsDir, "シリーズA", "コースA", "新しい名前", lessonContent);
+    const legacyContent = `---\nlesson: 古い名前\nstatus: done\n---\n\n本文\n`;
+    writeLesson(contentsDir, "シリーズA", "コースA", "新しい名前", legacyContent);
     writeJson(path.join(contentsDir, "シリーズA", "コースA", ".meta.json"), { order: ["新しい名前"] });
 
     const result = loadContentsFolder(tmpDir);
-    expect(result[0].courses[0].lessons[0].lesson).toBe("新しい名前");
-    expect(result[0].courses[0].lessons[0].id).toBe(
-      "lesson-シリーズA-コースA-新しい名前",
-    );
+    const lesson = result[0].courses[0].lessons[0];
+    expect(lesson.lesson).toBe("新しい名前");
+    // メタは `.meta.json`（無い→既定値）から。frontmatter の status は読まれない
+    expect(lesson.status).toBe("open");
+    expect(lesson.content).toContain("lesson: 古い名前");
+    expect(lesson.id).toBe("lesson-シリーズA-コースA-新しい名前");
+  });
+
+  it("レッスン `.meta.json` からメタと安定 id を読む", () => {
+    const contentsDir = path.join(tmpDir, "contents");
+    writeLesson(contentsDir, "S", "C", "L", "本文\n");
+    writeJson(path.join(contentsDir, "S", "C", "L", ".meta.json"), {
+      id: "lsn-sample-abc123",
+      slug: "sample",
+      status: "in_progress",
+      description: "説明",
+      tags: ["git"],
+      estimated_minutes: 15,
+      author: "北村",
+      author_en: "Kitamura",
+    });
+    writeJson(path.join(contentsDir, "S", "C", ".meta.json"), { order: ["L"] });
+
+    const lesson = loadContentsFolder(tmpDir)[0].courses[0].lessons[0];
+    expect(lesson.stableId).toBe("lsn-sample-abc123");
+    expect(lesson.slug).toBe("sample");
+    expect(lesson.status).toBe("in_progress");
+    expect(lesson.description).toBe("説明");
+    expect(lesson.tags).toEqual(["git"]);
+    expect(lesson.estimated_minutes).toBe(15);
+    expect(lesson.author).toBe("北村");
+    expect(lesson.author_en).toBe("Kitamura");
+  });
+
+  it("旧ステータス draft は open へ読み替える", () => {
+    const contentsDir = path.join(tmpDir, "contents");
+    writeLesson(contentsDir, "S", "C", "L", "本文\n");
+    writeJson(path.join(contentsDir, "S", "C", "L", ".meta.json"), { status: "draft" });
+
+    const lesson = loadContentsFolder(tmpDir)[0].courses[0].lessons[0];
+    expect(lesson.status).toBe("open");
+  });
+
+  it("壊れた `.meta.json` は MetaJsonParseError になる（静かに再採番しない）", () => {
+    const contentsDir = path.join(tmpDir, "contents");
+    writeLesson(contentsDir, "S", "C", "L", "本文\n");
+    const metaPath = path.join(contentsDir, "S", "C", "L", ".meta.json");
+    // BOM 付き JSON（2026-08-14 の実事故と同型）
+    writeFile(metaPath, "﻿" + JSON.stringify({ id: "lsn-keep-me" }));
+
+    expect(() => loadContentsFolder(tmpDir)).toThrow(MetaJsonParseError);
+    // ファイルは書き換えられていない（id は失われない）
+    expect(fs.readFileSync(metaPath, "utf-8")).toContain("lsn-keep-me");
   });
 
   it("reads stable ids from .meta.json when present", () => {

@@ -1,0 +1,12 @@
+{
+  "id": "lsn-undo-uzwouz",
+  "slug": "undo",
+  "status": "done",
+  "description": "コミット前の変更を restore で安全に戻し、「失敗しても戻れる」を自分の手で確かめる",
+  "tags": [
+    "git",
+    "basics"
+  ],
+  "estimated_minutes": 10,
+  "author": "Kitamura"
+}

@@ -1,4 +1,3 @@
-import { getLessonBody, parseLessonDocument } from "@/lib/lesson-frontmatter";
 import type { Lesson } from "@/lib/schema";
 
 export type WebImageMediaType = "photo" | "illustration";
@@ -30,8 +29,6 @@ export function buildWebSearchPlanMessages(
   lesson: Lesson,
   prompt: string,
 ): { system: string; user: string } {
-  const { meta } = parseLessonDocument(lesson.content);
-  const body = getLessonBody(lesson);
 
   const user = [
     "## Task",
@@ -41,12 +38,12 @@ export function buildWebSearchPlanMessages(
     prompt,
     "",
     "## Lesson metadata",
-    `lesson: ${meta.lesson}`,
-    `description: ${meta.description}`,
-    `tags: ${(meta.tags ?? []).join(", ")}`,
+    `lesson: ${lesson.lesson}`,
+    `description: ${lesson.description}`,
+    `tags: ${lesson.tags.join(", ")}`,
     "",
     "## Full lesson markdown body",
-    body,
+    lesson.content,
     "",
     "Output JSON only.",
   ].join("\n");

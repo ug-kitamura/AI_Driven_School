@@ -190,7 +190,7 @@ if [ "$VERCEL_GIT_COMMIT_REF" = "main" ]; then exit 1; else exit 0; fi
 | 全体     | `contents/.meta.json`                  | —      | `description` / `description_en`                      |
 | シリーズ | `contents/<series>/.meta.json`         | `slug` | `description` / `catch` / `cover` / `*_en`            |
 | コース   | `.../<course>/.meta.json`              | `slug` | `description` / `catch` / `target` / `*_en`           |
-| レッスン | `.../<lesson>/contents.md` frontmatter | `slug` | `id` / `status` / `description` / `estimated_minutes` |
+| レッスン | `.../<lesson>/.meta.json` | `slug` | `id` / `status` / `description` / `estimated_minutes` / `author` / `author_en` |
 
 - **画像**: 本文の `images/<file>` とシリーズの `cover` は、**正本 `../images/<file>` に実体が必要**。無いとビルドが失敗する（参照切れの検出を兼ねる）
 - **英語版**: レッスンは同フォルダの `contents.en.md`、メタは同じ `.meta.json` の `*_en` フィールド。無ければ日本語へフォールバックし、未翻訳バッジが出る

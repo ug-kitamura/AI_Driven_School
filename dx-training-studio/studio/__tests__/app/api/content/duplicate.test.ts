@@ -15,22 +15,20 @@ afterEach(() => {
   roots.length = 0;
 });
 
-const LESSON_MD = `---
-series: Series
-course: Course
-lesson: Lesson A
-slug: lesson-a
-id: lsn-aaa
-status: done
-description: 説明
-tags: []
-estimated_minutes: 10
-author: Kitamura
----
-# 本文
+const LESSON_MD = `# 本文
 
 これは本文です。
 `;
+
+const LESSON_META = {
+  id: "lsn-aaa",
+  slug: "lesson-a",
+  status: "done",
+  description: "説明",
+  tags: [],
+  estimated_minutes: 10,
+  author: "Kitamura",
+};
 
 /** contents/Series/Course/Lesson A を持つフィクスチャを作る */
 function setup(): string {
@@ -62,6 +60,11 @@ function setup(): string {
     "utf-8",
   );
   fs.writeFileSync(path.join(lessonDir, "contents.md"), LESSON_MD, "utf-8");
+  fs.writeFileSync(
+    path.join(lessonDir, ".meta.json"),
+    JSON.stringify(LESSON_META, null, 2),
+    "utf-8",
+  );
   return root;
 }
 
@@ -88,22 +91,23 @@ describe("POST /api/content/duplicate", () => {
     });
     expect(res.status).toBe(200);
 
-    const copied = fs.readFileSync(
-      path.join(
-        root,
-        "contents",
-        "Series",
-        "Course",
-        "Lesson A（コピー）",
-        "contents.md",
-      ),
-      "utf-8",
+    const copiedDir = path.join(
+      root,
+      "contents",
+      "Series",
+      "Course",
+      "Lesson A（コピー）",
     );
-    expect(copied).not.toContain("id:");
-    expect(copied).not.toContain("slug:");
-    expect(copied).toContain("lesson: Lesson A（コピー）");
-    expect(copied).toContain("これは本文です。");
-    expect(copied).toContain("status: done");
+    const copied = fs.readFileSync(path.join(copiedDir, "contents.md"), "utf-8");
+    expect(copied).toBe(LESSON_MD);
+
+    const copiedMeta = JSON.parse(
+      fs.readFileSync(path.join(copiedDir, ".meta.json"), "utf-8"),
+    ) as Record<string, unknown>;
+    expect(copiedMeta.id).toBeUndefined();
+    expect(copiedMeta.slug).toBeUndefined();
+    expect(copiedMeta.status).toBe("done");
+    expect(copiedMeta.author).toBe("Kitamura");
   });
 
   it("受け入れ先 order の末尾に追加される", async () => {
@@ -173,9 +177,13 @@ describe("POST /api/content/duplicate", () => {
       path.join(copiedDir, "Lesson A", "contents.md"),
       "utf-8",
     );
-    expect(copiedLesson).not.toContain("id:");
-    expect(copiedLesson).not.toContain("slug:");
-    expect(copiedLesson).toContain("course: Course（コピー）");
+    expect(copiedLesson).toBe(LESSON_MD);
+    const copiedLessonMeta = JSON.parse(
+      fs.readFileSync(path.join(copiedDir, "Lesson A", ".meta.json"), "utf-8"),
+    ) as Record<string, unknown>;
+    expect(copiedLessonMeta.id).toBeUndefined();
+    expect(copiedLessonMeta.slug).toBeUndefined();
+    expect(copiedLessonMeta.status).toBe("done");
   });
 
   it("元のエンティティは変化しない", async () => {
@@ -191,6 +199,13 @@ describe("POST /api/content/duplicate", () => {
       "utf-8",
     );
     expect(original).toBe(LESSON_MD);
+    const originalLessonMeta = JSON.parse(
+      fs.readFileSync(
+        path.join(root, "contents", "Series", "Course", "Lesson A", ".meta.json"),
+        "utf-8",
+      ),
+    ) as Record<string, unknown>;
+    expect(originalLessonMeta.id).toBe("lsn-aaa");
     const originalMeta = JSON.parse(
       fs.readFileSync(
         path.join(root, "contents", "Series", "Course", ".meta.json"),
@@ -219,18 +234,20 @@ describe("POST /api/content/duplicate", () => {
     expect(seriesMeta.id).toBeUndefined();
     expect(seriesMeta.slug).toBeUndefined();
 
-    const copiedLesson = fs.readFileSync(
-      path.join(
-        root,
-        "contents",
-        "Series（コピー）",
-        "Course",
-        "Lesson A",
-        "contents.md",
+    const copiedLessonMeta = JSON.parse(
+      fs.readFileSync(
+        path.join(
+          root,
+          "contents",
+          "Series（コピー）",
+          "Course",
+          "Lesson A",
+          ".meta.json",
+        ),
+        "utf-8",
       ),
-      "utf-8",
-    );
-    expect(copiedLesson).not.toContain("id:");
-    expect(copiedLesson).toContain("series: Series（コピー）");
+    ) as Record<string, unknown>;
+    expect(copiedLessonMeta.id).toBeUndefined();
+    expect(copiedLessonMeta.slug).toBeUndefined();
   });
 });

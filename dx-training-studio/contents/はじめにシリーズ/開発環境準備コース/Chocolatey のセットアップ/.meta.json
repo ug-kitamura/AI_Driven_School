@@ -1,0 +1,12 @@
+{
+  "id": "lsn-chocolatey-iiwwkb",
+  "slug": "chocolatey",
+  "status": "in_progress",
+  "description": "社内の IT Service Portal から Chocolatey を申請・導入し、VSCode と uv の供給元を準備する",
+  "tags": [
+    "start",
+    "setup"
+  ],
+  "estimated_minutes": 10,
+  "author": "Kitamura"
+}

@@ -1,16 +1,3 @@
----
-series: はじめにシリーズ
-course: 開発環境準備コース
-lesson: Chocolatey のセットアップ
-slug: chocolatey
-id: lsn-chocolatey-iiwwkb
-status: in_progress
-description: 社内の IT Service Portal から Chocolatey を申請・導入し、VSCode と uv の供給元を準備する
-tags: [start, setup]
-estimated_minutes: 10
-author: Kitamura
----
-
 # Chocolatey のセットアップ
 
 ## 学習目標

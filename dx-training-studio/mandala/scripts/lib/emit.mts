@@ -32,6 +32,11 @@ export function emitLessonMarkdown(
 ): string {
   const title = locale === "en" ? (lesson.titleEn ?? lesson.name) : lesson.name;
   const untranslated = locale === "en" && lesson.untranslated;
+  // 著者は双方向フォールバック: ja = author → author_en / en = author_en → author
+  const author =
+    locale === "en"
+      ? lesson.authorEn || lesson.author
+      : lesson.author || (lesson.authorEn ?? "");
 
   const frontmatter = [
     "---",
@@ -40,7 +45,7 @@ export function emitLessonMarkdown(
     `lessonStatus: ${lesson.status}`,
     `estimatedMinutes: ${lesson.estimatedMinutes}`,
     // ラベル行が使う。コースの受講形態は未設定なら出さない
-    ...(lesson.author ? [`author: ${yamlString(lesson.author)}`] : []),
+    ...(author ? [`author: ${yamlString(author)}`] : []),
     ...(course.style ? [`courseStyle: ${course.style}`] : []),
     `seriesName: ${yamlString(locale === "en" ? (series.nameEn ?? series.name) : series.name)}`,
     `seriesHref: ${yamlString(localizedHref(series.href, locale))}`,

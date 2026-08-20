@@ -183,15 +183,21 @@ describe("checkContentsWritePath（正本ツリーの書込規約）", () => {
     }
   });
 
-  it(".meta.json はどの階層でも拒否される（アプリ管理）", () => {
+  it(".meta.json はレッスン階層以外で拒否される（アプリ管理）", () => {
     for (const p of [
       "contents/.meta.json",
       "contents/シリーズA/.meta.json",
       "contents/シリーズA/コースB/.meta.json",
-      "contents/シリーズA/コースB/レッスンC/.meta.json",
+      "contents/シリーズA/コースB/レッスンC/assets/.meta.json",
     ]) {
       expect(writeTarget(p)).toHaveProperty("error");
     }
+  });
+
+  it("レッスン階層の .meta.json はパス規約では許可される（検査は書込ツール側）", () => {
+    expect(
+      writeTarget("contents/シリーズA/コースB/レッスンC/.meta.json"),
+    ).not.toHaveProperty("error");
   });
 
   it("session.json はどの階層でも拒否される（アプリ管理）", () => {

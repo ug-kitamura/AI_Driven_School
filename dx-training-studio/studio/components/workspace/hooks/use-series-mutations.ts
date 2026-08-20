@@ -99,7 +99,6 @@ import {
   filterCrossSeriesIds,
   listCoursesNeedingMetaPersist,
 } from "@/lib/course-flow";
-import { reconcileLesson } from "@/lib/lesson-frontmatter";
 import {
   resolveSelectionAfterDelete,
   type WorkspaceSelection,
@@ -294,7 +293,6 @@ export function useSeriesMutations(options: {
         courses: s.courses.map((c) => {
           if (c.id !== courseId) return c;
           const newName = meta.name?.trim() || c.name;
-          const ctx = { seriesName: s.name, courseName: newName };
           return {
             ...c,
             name: newName,
@@ -313,9 +311,7 @@ export function useSeriesMutations(options: {
                 : c.description,
             is_start: meta.is_start ?? false,
             is_goal: meta.is_goal ?? false,
-            lessons: c.lessons.map((l) =>
-              reconcileLesson({ ...l, course: newName }, ctx),
-            ),
+            lessons: c.lessons.map((l) => ({ ...l, course: newName })),
           };
         }),
       }));

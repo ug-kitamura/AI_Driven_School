@@ -15,7 +15,7 @@ TBD - created by archiving change add-dx-training-review-skill. Update Purpose a
 - **THEN** その場でユーザに質問せず、指摘ファイルに advisory として記録して続行する
 
 ### Requirement: 整合チェックの検査項目
-整合チェックは次を実行しなければならない（MUST）: (1) 機械検証 — 名前整合（frontmatter ⇔ ディレクトリ名 ⇔ 計画書、旧名残存）、frontmatter 機械検査（author 記入・status・tags 形式）、画像スロット未消化（プロンプトコメントのみで画像未挿入の節）、社内データの空欄記法残存と `context-outbox.json` の未処理、出典の形式（斜体1行・リンク埋め込み）、リンク生存確認。(2) 次・前参照の整合。(3) 受講者ペルソナによる心の声ウォークスルー。レッスン本文の品質精査を含んではならない（MUST NOT）。
+整合チェックは次を実行しなければならない（MUST）: (1) 機械検証 — 名前整合（ディレクトリ名 ⇔ 計画書、旧名残存）、レッスン `.meta.json` の機械検査（author 記入・status・tags 形式）、画像スロット未消化（プロンプトコメントのみで画像未挿入の節）、社内データの空欄記法残存と `context-outbox.json` の未処理、出典の形式（斜体1行・リンク埋め込み）、リンク生存確認。(2) 次・前参照の整合。(3) 受講者ペルソナによる心の声ウォークスルー。レッスン本文の品質精査を含んではならない（MUST NOT）。
 
 #### Scenario: 改名後の旧名残存を検出する
 - **WHEN** シリーズ名が改名された後の原稿に旧シリーズ名への言及が残っている
@@ -33,7 +33,7 @@ TBD - created by archiving change add-dx-training-review-skill. Update Purpose a
 - **THEN** 該当文と実際の前レッスン名を並べた指摘が blocking として出力される
 
 ### Requirement: 心の声ウォークスルーは本文を読まない
-心の声ウォークスルーはサブエージェントで実行し、入力はシリーズ→コース→レッスンのタイトル階層・各レッスンの frontmatter（description・target・estimated_minutes）・`.meta.json` の受講順のみとしなければならない（MUST）。レッスン本文を入力に含めてはならない（MUST NOT）。出力は受講者ペルソナが受講順に歩いたときの心の声の時系列であり、順序の不自然さとストーリーの断絶を表面化させる。
+心の声ウォークスルーはサブエージェントで実行し、入力はシリーズ→コース→レッスンのタイトル階層・各レッスンの `.meta.json` のメタ（description・estimated_minutes）とコースの `target`・`.meta.json` の受講順のみとしなければならない（MUST）。レッスン本文を入力に含めてはならない（MUST NOT）。出力は受講者ペルソナが受講順に歩いたときの心の声の時系列であり、順序の不自然さとストーリーの断絶を表面化させる。
 
 #### Scenario: 供給前の要求が心の声として現れる
 - **WHEN** 未導入の概念を前提とするタイトル・description のレッスンが先に並んでいる

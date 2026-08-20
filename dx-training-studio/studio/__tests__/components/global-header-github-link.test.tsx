@@ -2,10 +2,10 @@ import { describe, expect, it, afterEach, vi } from "vitest";
 import { render, screen, cleanup } from "@testing-library/react";
 import { GlobalHeader } from "@/components/workspace/GlobalHeader";
 
-// 曼陀羅モーダルは開かないので mermaid の描画経路には入らないが、
+// 曼陀羅モーダルは開かないので React Flow の描画経路には入らないが、
 // import 時点の副作用を避けるためスタブしておく
-vi.mock("@/lib/mermaid-render", () => ({
-  renderMermaidDiagram: vi.fn(async () => ({ svg: "", bindFunctions: null })),
+vi.mock("@/components/workspace/mandala/LazyMandala", () => ({
+  LazyMandala: () => null,
 }));
 
 const baseProps = {

@@ -4,8 +4,8 @@ import { GlobalHeader } from "@/components/workspace/GlobalHeader";
 import { BreadcrumbLink } from "@/components/ui/breadcrumb";
 
 // 曼陀羅モーダルは開かないが、import 時点の副作用を避けるためスタブしておく
-vi.mock("@/lib/mermaid-render", () => ({
-  renderMermaidDiagram: vi.fn(async () => ({ svg: "", bindFunctions: null })),
+vi.mock("@/components/workspace/mandala/LazyMandala", () => ({
+  LazyMandala: () => null,
 }));
 
 const names = {

@@ -16,21 +16,27 @@ function tree(...children: Root["children"]): Root {
 }
 
 /** 木を「タグ<内容>」の簡易表記へ落として比較しやすくする */
-function serialize(node: Root | Element["children"][number]): string {
-  if (node.type === "text") return node.value;
+function serialize(node: { type: string; [key: string]: unknown }): string {
+  if (node.type === "text") return String(node.value);
   if (node.type === "root" || node.type === "element") {
-    const inner = (node.children ?? []).map(serialize).join("");
+    const children = (node.children ?? []) as Array<{ type: string }>;
+    const inner = children
+      .map((child) => serialize(child as { type: string }))
+      .join("");
     if (node.type === "root") return inner;
-    const cls = node.properties?.className;
+    const properties = node.properties as
+      | { className?: unknown }
+      | undefined;
+    const cls = properties?.className;
     const marker = Array.isArray(cls) && cls.length ? `.${cls.join(".")}` : "";
-    return `<${node.tagName}${marker}>${inner}</${node.tagName}>`;
+    return `<${String(node.tagName)}${marker}>${inner}</${String(node.tagName)}>`;
   }
   return "";
 }
 
 function run(root: Root, query?: string): string {
   rehypeSearchHighlight({ query })(root);
-  return serialize(root);
+  return serialize(root as unknown as { type: string });
 }
 
 describe("rehypeSearchHighlight", () => {

@@ -1,13 +1,10 @@
 import { describe, expect, it } from "vitest";
 import {
-  buildView,
   collapseSeries,
   courseNeighbors,
-  courseView,
   globalView,
   isSeriesFrameHere,
   resolveHereNodeId,
-  seriesView,
   terminalNodes,
 } from "../lib/mandala/graph";
 import { layoutFlow } from "../lib/mandala/layout";
@@ -80,52 +77,7 @@ describe("globalView", () => {
   });
 });
 
-describe("seriesView", () => {
-  it("シリーズ内のコースを現在地として返す", () => {
-    const view = seriesView(graph, "git");
-    const own = view.nodes.filter((n) => !n.ghost);
-    expect(own.map((n) => n.id)).toEqual(["crs-concepts", "crs-basics"]);
-    expect(own.every((n) => n.current)).toBe(true);
-  });
 
-  it("跨ぎの相手をゴーストノードとして含める", () => {
-    const view = seriesView(graph, "git");
-    const ghosts = view.nodes.filter((n) => n.ghost);
-    expect(ghosts).toHaveLength(1);
-    expect(ghosts[0]).toMatchObject({
-      id: "crs-setup",
-      seriesName: "はじめにシリーズ",
-    });
-  });
-
-  it("無関係なシリーズ内部の辺を持ち込まない", () => {
-    const view = seriesView(graph, "git");
-    // e1（start 内部の辺）は含まれない
-    expect(view.edges.map((e) => e.id).sort()).toEqual(["e2", "e3"]);
-  });
-});
-
-describe("courseView", () => {
-  it("中央のコースと直接の前後だけを返す", () => {
-    const view = courseView(graph, "crs-concepts");
-    expect(view.nodes.map((n) => n.id).sort()).toEqual([
-      "crs-basics",
-      "crs-concepts",
-      "crs-setup",
-    ]);
-    expect(view.nodes.find((n) => n.id === "crs-concepts")!.current).toBe(true);
-  });
-
-  it("別シリーズの隣接をゴーストにする", () => {
-    const view = courseView(graph, "crs-concepts");
-    expect(view.nodes.find((n) => n.id === "crs-setup")!.ghost).toBe(true);
-    expect(view.nodes.find((n) => n.id === "crs-basics")!.ghost).toBe(false);
-  });
-
-  it("存在しないコースには空のビューを返す", () => {
-    expect(courseView(graph, "crs-unknown")).toEqual({ nodes: [], edges: [] });
-  });
-});
 
 describe("courseNeighbors", () => {
   it("辺の向きで前後に振り分ける", () => {
@@ -166,17 +118,6 @@ describe("courseNeighbors", () => {
   });
 });
 
-describe("buildView", () => {
-  it("scope に応じたビューを返す", () => {
-    expect(buildView(graph, { kind: "global" }).nodes).toHaveLength(4);
-    expect(
-      buildView(graph, { kind: "series", seriesSlug: "git" }).nodes,
-    ).toHaveLength(3);
-    expect(
-      buildView(graph, { kind: "course", courseId: "crs-basics" }).nodes,
-    ).toHaveLength(2);
-  });
-});
 
 describe("collapseSeries", () => {
   it("畳まないときは元のビューを返す", () => {

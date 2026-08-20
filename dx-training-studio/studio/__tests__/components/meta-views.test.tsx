@@ -11,7 +11,7 @@ import { SeriesMetaView } from "@/components/workspace/meta-views/SeriesMetaView
 import { CourseMetaView } from "@/components/workspace/meta-views/CourseMetaView";
 import type { Course, Series } from "@/lib/schema";
 
-// ミニ曼陀羅（mermaid）はこのテストの対象外。jsdom での描画副作用を避ける
+// ミニ曼陀羅（React Flow）はこのテストの対象外。jsdom での描画副作用を避ける
 vi.mock("@/components/workspace/MiniMandalaSection", () => ({
   MiniMandalaSection: () => <div data-testid="mini-mandala" />,
 }));

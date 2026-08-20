@@ -660,10 +660,6 @@ html:root {
   color: var(--dxm-brand);
 }
 
-.react-flow__edge.dxm-edge-cross .react-flow__edge-path {
-  stroke-dasharray: 6 3;
-}
-
 /* 言語トグル。`EN`（約 35px）と `日本語`（約 58px）で幅が変わり、右端にあるため
    切り替えると左の2アイコンが横にずれる。これは承知のうえで受け入れている
    ——切り替え先が文字で読めるほうが分かりやすく、`JA` の2文字コードや

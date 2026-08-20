@@ -4,15 +4,10 @@
 import type { MandalaEdge, MandalaGraph, MandalaNode } from "@/lib/site-data";
 import type { CurrentLocation } from "@/lib/current-course";
 
-export type MandalaScope =
-  | { kind: "global" }
-  | { kind: "series"; seriesSlug: string }
-  | { kind: "course"; courseId: string };
-
 export type ViewNode = MandalaNode & {
-  /** 表示中のシリーズ / コース外のノード（半透明で描く） */
+  /** 表示範囲の外のノード（半透明で描く）。全体曼陀羅では常に false */
   ghost: boolean;
-  /** 現在地（シリーズ曼陀羅ではシリーズ内、ミニ曼陀羅では当該コース） */
+  /** 表示範囲の中心。全体曼陀羅では常に false */
   current: boolean;
 };
 
@@ -31,71 +26,6 @@ export function globalView(graph: MandalaGraph): MandalaView {
     nodes: graph.nodes.map((n) => ({ ...n, ghost: false, current: false })),
     edges: graph.edges,
   };
-}
-
-/**
- * シリーズ曼陀羅: そのシリーズのコース＋跨ぎで繋がる相手コース（ゴースト）。
- * ゴースト同士だけを結ぶ辺は含めない——当該シリーズと関係のない線を描かない。
- */
-export function seriesView(
-  graph: MandalaGraph,
-  seriesSlug: string,
-): MandalaView {
-  const byId = nodeMap(graph);
-  const inSeries = new Set(
-    graph.nodes.filter((n) => n.seriesSlug === seriesSlug).map((n) => n.id),
-  );
-
-  const edges = graph.edges.filter(
-    (e) => inSeries.has(e.source) || inSeries.has(e.target),
-  );
-
-  const ghostIds = new Set<string>();
-  for (const edge of edges) {
-    if (!inSeries.has(edge.source)) ghostIds.add(edge.source);
-    if (!inSeries.has(edge.target)) ghostIds.add(edge.target);
-  }
-
-  const nodes: ViewNode[] = [
-    ...graph.nodes
-      .filter((n) => inSeries.has(n.id))
-      .map((n) => ({ ...n, ghost: false, current: true })),
-    ...[...ghostIds]
-      .map((id) => byId.get(id))
-      .filter((n): n is MandalaNode => Boolean(n))
-      .map((n) => ({ ...n, ghost: true, current: false })),
-  ];
-
-  return { nodes, edges };
-}
-
-/** ミニ曼陀羅: 中央のコースと、その直前・直後だけ（跨ぎを含む） */
-export function courseView(graph: MandalaGraph, courseId: string): MandalaView {
-  const byId = nodeMap(graph);
-  const center = byId.get(courseId);
-  if (!center) return { nodes: [], edges: [] };
-
-  const edges = graph.edges.filter(
-    (e) => e.source === courseId || e.target === courseId,
-  );
-  const neighborIds = new Set<string>();
-  for (const edge of edges) {
-    neighborIds.add(edge.source === courseId ? edge.target : edge.source);
-  }
-
-  const nodes: ViewNode[] = [
-    { ...center, ghost: false, current: true },
-    ...[...neighborIds]
-      .map((id) => byId.get(id))
-      .filter((n): n is MandalaNode => Boolean(n))
-      .map((n) => ({
-        ...n,
-        ghost: n.seriesSlug !== center.seriesSlug,
-        current: false,
-      })),
-  ];
-
-  return { nodes, edges };
 }
 
 /** コーストップの「前に受けるコース」「次に受けるコース」 */
@@ -143,20 +73,6 @@ export function courseNeighbors(
       (e) => e.target,
     ),
   };
-}
-
-export function buildView(
-  graph: MandalaGraph,
-  scope: MandalaScope,
-): MandalaView {
-  switch (scope.kind) {
-    case "global":
-      return globalView(graph);
-    case "series":
-      return seriesView(graph, scope.seriesSlug);
-    case "course":
-      return courseView(graph, scope.courseId);
-  }
 }
 
 /** Start / Goal の文字ノード。枠を持たず、クリック遷移もしない */

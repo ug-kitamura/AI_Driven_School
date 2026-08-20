@@ -13,13 +13,12 @@ import {
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 import {
-  buildView,
+  globalView,
   collapseSeries,
   isSeriesFrameHere,
   resolveHereNodeId,
   terminalNodes,
   TERMINAL_PREFIX,
-  type MandalaScope,
 } from "@/lib/mandala/graph";
 import type { CurrentLocation } from "@/lib/current-course";
 import {
@@ -74,32 +73,14 @@ function MandalaMiniMapNode(props: React.ComponentProps<typeof MiniMapNode>) {
   return <MiniMapNode {...props} />;
 }
 
-type ScopeStyle = {
-  variant: "compact" | "card";
-  direction: LayoutDirection;
-  height: number;
-  /** 段と段の間隔。既定（72）だと収まらない場合に締める */
-  rankSep?: number;
-};
-
-/** 見た目は scope で決まる。全体・シリーズは一覧性、コースは読み物としての大きさ */
-function styleOf(scope: MandalaScope): ScopeStyle {
-  switch (scope.kind) {
-    case "global":
-      return { variant: "compact", direction: "TB", height: 640 };
-    case "series":
-      return { variant: "compact", direction: "TB", height: 640 };
-    case "course":
-      // 縦3段（カード 140 × 3 ＋ 段間 48 × 2 ＝ 516）が高さ 580 に
-      // ズーム1のまま収まるよう、段間を既定の 72 から締める
-      return { variant: "card", direction: "TB", height: 580, rankSep: 48 };
-  }
-}
+/** 全体曼陀羅は一覧性を優先して compact ノードで描く */
+const VARIANT = "compact" as const;
+const DEFAULT_HEIGHT = 640;
 
 export type MandalaProps = {
-  scope: MandalaScope;
+  scope: { kind: "global" };
   locale?: Locale;
-  /** 既定の高さを上書きする（scope ごとの既定は styleOf）。モーダルは vh で渡す */
+  /** 既定の高さを上書きする。モーダルは vh で渡す */
   height?: number | string;
   /**
    * 「いまここ」を出す位置（コースまたはシリーズ）。モーダルがパスから解いて渡す。
@@ -120,22 +101,13 @@ export function Mandala({
   );
   const [interactive, setInteractive] = useState(false);
 
-  const isGlobal = scope.kind === "global";
-  const {
-    variant,
-    direction,
-    height: defaultHeight,
-    rankSep,
-  } = styleOf(scope);
-  const canvasHeight = height ?? defaultHeight;
+  const variant = VARIANT;
+  const canvasHeight = height ?? DEFAULT_HEIGHT;
 
-  const view = useMemo(() => buildView(siteData.mandala, scope), [scope]);
+  const view = useMemo(() => globalView(siteData.mandala), []);
   const collapsible = useMemo(
-    () =>
-      isGlobal
-        ? collapseSeries(view, collapsedSlugs)
-        : { ...view, collapsed: [] },
-    [view, collapsedSlugs, isGlobal],
+    () => collapseSeries(view, collapsedSlugs),
+    [view, collapsedSlugs],
   );
 
   const { nodes, edges } = useMemo(() => {
@@ -152,12 +124,13 @@ export function Mandala({
     const collapsedIdBySlug = new Map(
       collapsible.collapsed.map((c) => [c.seriesSlug, c.id]),
     );
-    const { terminals, edges: terminalEdges } = isGlobal
-      ? terminalNodes(view.nodes, (courseId) => {
-          const node = view.nodes.find((n) => n.id === courseId);
-          return (node && collapsedIdBySlug.get(node.seriesSlug)) ?? courseId;
-        })
-      : { terminals: [], edges: [] };
+    const { terminals, edges: terminalEdges } = terminalNodes(
+      view.nodes,
+      (courseId) => {
+        const node = view.nodes.find((n) => n.id === courseId);
+        return (node && collapsedIdBySlug.get(node.seriesSlug)) ?? courseId;
+      },
+    );
 
     // 接続点の丸ポチは「辺が出ていく側」にだけ出す。どこにも繋がっていない点は
     // 意味を持たないので消す——判定に辺の一覧が要るため CSS では書けない
@@ -220,7 +193,7 @@ export function Mandala({
     const positions = layoutFlow(
       [...entries.map((e) => e.id), ...terminals.map((t) => t.id)],
       [...collapsible.edges, ...terminalEdges],
-      { size: SIZES[variant], direction, rankSep, sizeOf },
+      { size: SIZES[variant], sizeOf },
     );
     const positionById = new Map(positions.map((p) => [p.id, p]));
 
@@ -255,11 +228,7 @@ export function Mandala({
     // シリーズ曼陀羅は表示中のシリーズだけ（シリーズ外のゴーストは囲わない）。
     // React Flow の親子関係は使わない——dagre の絶対座標と二重管理になるため、
     // レイアウト結果から矩形を求めて背後に敷くだけにする。
-    const framedSlugs = isGlobal
-      ? [...new Set(entries.map((e) => e.seriesSlug))]
-      : scope.kind === "series"
-        ? [scope.seriesSlug]
-        : [];
+    const framedSlugs = [...new Set(entries.map((e) => e.seriesSlug))];
 
     const frameNodes: Node[] = framedSlugs.flatMap((slug) => {
       // 折りたたみ中のシリーズは集約ノード1つなので枠を描かない
@@ -312,7 +281,10 @@ export function Mandala({
       id: edge.id,
       source: edge.source,
       target: edge.target,
-      // 順序辺・跨ぎ辺とも流れを見せる。区別は線種（実線 / 破線）が担う
+      // 順序辺・跨ぎ辺とも流れを見せる。
+      // ⚠ 線種で区別しないこと——animated な辺はそれ自体が流れる破線として
+      // 描かれるため、跨ぎだけ dasharray を変えても目視できず、区別を主張する
+      // コードとコメントが実態と食い違うだけになる
       animated: true,
       // 進む方向を指す矢印。色は線に揃える（既定は薄いグレーで線から浮く）
       markerEnd: {
@@ -322,10 +294,7 @@ export function Mandala({
         color: EDGE_COLOR,
       },
       style: { stroke: EDGE_COLOR },
-      className: [
-        "dxm-edge",
-        edge.kind === "cross" ? "dxm-edge-cross" : "dxm-edge-order",
-      ].join(" "),
+      className: "dxm-edge",
     }));
 
     return {
@@ -335,11 +304,7 @@ export function Mandala({
   }, [
     view,
     collapsible,
-    scope,
     variant,
-    direction,
-    rankSep,
-    isGlobal,
     collapsedSlugs,
     locale,
     currentLocation,
@@ -387,8 +352,7 @@ export function Mandala({
 
   return (
     <div className="dxm-mandala">
-      {isGlobal && (
-        <div className="dxm-mandala-toolbar">
+      <div className="dxm-mandala-toolbar">
           {seriesSlugs.map((slug) => {
             const collapsed = collapsedSlugs.has(slug);
             const name =
@@ -406,8 +370,7 @@ export function Mandala({
               </button>
             );
           })}
-        </div>
-      )}
+      </div>
       <div
         className="dxm-mandala-canvas"
         style={{ height: canvasHeight }}
@@ -434,7 +397,7 @@ export function Mandala({
           {/* 背景の格子は敷かない——曼陀羅を本文から浮かせず地続きに見せる。
               ミニマップ・Controls の配色は globals.css の `--xy-*` が持つ
               （props で渡すとインラインになり、ダークから上書きできない） */}
-          {isGlobal && (
+          {(
             <MiniMap pannable zoomable nodeComponent={MandalaMiniMapNode} />
           )}
           {interactive && <Controls showInteractive={false} />}

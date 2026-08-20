@@ -6,7 +6,6 @@ import { MediaPlayOverlay } from "@/components/workspace/MediaPlayOverlay";
 import { IMAGE_GRID_CELL_MIN } from "@/components/workspace/pane-layout";
 import { isMp4Path, isCanonicalImagePath, toImageApiUrl } from "@/lib/image-path";
 import { getImageStorageMode } from "@/lib/image-api-client";
-import { MANDALA_CURRENT_COURSE_STROKE } from "@/lib/mermaid-workspace-theme";
 
 function mediaSrc(path: string): string {
   const storageMode = isCanonicalImagePath(path) ? getImageStorageMode() : undefined;
@@ -66,14 +65,11 @@ export function ImageGrid({
             key={item.path}
             className={cn(
               "flex flex-col overflow-hidden rounded border bg-card",
-              item.highlighted ? "border-2" : "border border-border",
+              item.highlighted
+                ? "border-2 border-primary"
+                : "border border-border",
               item.missing && "border-destructive/40 bg-destructive/5",
             )}
-            style={
-              item.highlighted && !item.missing
-                ? { borderColor: MANDALA_CURRENT_COURSE_STROKE }
-                : undefined
-            }
           >
             <button
               type="button"

@@ -52,7 +52,9 @@ TBD - created by archiving change pane4-ai-generation-and-settings. Update Purpo
 
 ### Requirement: テーマをライト・ダーク・システムで切り替える
 
-設定ダイアログはテーマとして `light`・`dark`・`system` のいずれかを選択でき、保存時に `<html>` へ `dark` class を適用または除去しなければならない（SHALL）。`system` は `prefers-color-scheme` に従わなければならない（SHALL）。設定は `dx-training-studio-settings` に永続化し、起動時に復元しなければならない（SHALL）。`dx-training-studio-settings` が未保存の初回起動時、コード既定のテーマは `system` でなければならない（SHALL）。
+設定ダイアログはテーマとして `light`・`dark`・`pink`・`system` のいずれかを選択でき、保存時に `<html>` へ `dark` class または `pink` class を適用または除去しなければならない（SHALL）。`dark` と `pink` を同時に適用してはならない（MUST NOT）。`system` は `prefers-color-scheme` に従わなければならない（SHALL）。`pink` は `prefers-color-scheme` を参照してはならない（MUST NOT）。設定は `dx-training-studio-settings` に永続化し、起動時に復元しなければならない（SHALL）。`dx-training-studio-settings` が未保存の初回起動時、コード既定のテーマは `system` でなければならない（SHALL）。
+
+テーマ選択肢の並びは「ライト」「ダーク」「ピンク」「システム」でなければならない（SHALL）。localStorage から読み込むとき、`pink` を有効値として正規化しなければならない（SHALL）。
 
 #### Scenario: ダーク選択で UI が暗色になる
 
@@ -70,6 +72,22 @@ TBD - created by archiving change pane4-ai-generation-and-settings. Update Purpo
 - **WHEN** `dx-training-studio-settings` が存在しない
 - **THEN** `DEFAULT_WORKSPACE_SETTINGS.theme` は `system` である
 - **AND** ワークスペースは OS の明暗設定に従って描画される
+
+#### Scenario: ピンク選択で UI が桜色になる
+
+- **WHEN** ユーザーがテーマを `pink` に保存する
+- **THEN** ワークスペース UI がピンクトークンで描画される
+- **AND** `<html>` に `dark` class は付与されない
+
+#### Scenario: 保存済みのピンクが復元される
+
+- **WHEN** `dx-training-studio-settings` の `theme` が `pink` である状態で起動する
+- **THEN** テーマは `pink` として復元され、既定値へ戻されない
+
+#### Scenario: テーマ選択肢はダークとシステムの間にピンクを置く
+
+- **WHEN** ユーザーが設定ダイアログのテーマ選択肢を表示する
+- **THEN** 選択肢は「ライト」「ダーク」「ピンク」「システム」の順で並ぶ
 
 ### Requirement: ペイン既定幅を設定できる
 

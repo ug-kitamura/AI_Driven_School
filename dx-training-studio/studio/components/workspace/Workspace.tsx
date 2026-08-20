@@ -470,8 +470,10 @@ export function Workspace({
           courseName={selectedCourse?.name ?? ""}
           lessonName={selectedLesson?.lesson ?? ""}
           series={series}
+          selectedSeriesId={selectedSeriesId}
           selectedCourseId={selectedCourseId}
           githubUrl={githubUrl}
+          onSelectSeries={guardedSelectSeries}
           onSelectCourse={guardedSelectCourse}
           onOpenSettings={() => setSettingsOpen(true)}
           onOpenCompanyContext={() => setCompanyContextOpen(true)}

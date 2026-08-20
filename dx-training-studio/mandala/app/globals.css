@@ -24,8 +24,12 @@
   --dxm-label-style-fg: var(--dxm-brand);
 
   /* ナビバー右上の操作色（下の「ナビバー右上の3ボタン」を参照）。
-     サイドバーメニューと同じ gray-600 相当に置き、本文より一段引いて見せる */
+     サイドバーメニューと同じ gray-600 相当に置き、本文より一段引いて見せる。
+     Studio の --header-action と同値（両アプリのライト側を揃えてある） */
   --dxm-navbar-action: #4b5563;
+  /* ホバーで向かう先。--dxm-release-color と同じライト/ダークの対を借りる
+     ——サイト内で既に「本文より前に出る色」として使っている関係をそのまま使う */
+  --dxm-navbar-action-hover: #1f2937;
 }
 
 :is(html.dark, .dark) {
@@ -40,6 +44,7 @@
 
   /* 暗い地ではグレーが沈むので明るい側へ振る（neutral-400 相当） */
   --dxm-navbar-action: #a3a3a3;
+  --dxm-navbar-action-hover: #e5e5e5;
 
   /* 暗い地では濃い文字色が沈むので、前景だけ明るい側へ振る */
   --dxm-label-status-fg: #fca5a5;
@@ -676,10 +681,16 @@ html:root {
 }
 
 /* ===== ナビバー右上の3ボタン（GitHub / 曼陀羅 / 言語）=====
-   通常はグレー（`--dxm-navbar-action`）、ホバーでブランド色。**3つとも同じ挙動**に
-   揃える——以前は GitHub が色そのまま・曼陀羅だけ opacity と色・言語は無反応で、
-   同じ列に並ぶ操作なのに反応がばらばらだった。Studio の GlobalHeader 右側
-   （サブテキスト色 → ホバーで primary）と同じ言葉遣いにしてある。
+   通常はグレー（`--dxm-navbar-action`）、ホバーで前景寄りのグレー
+   （`--dxm-navbar-action-hover`）。**3つとも同じ挙動**に揃える——以前は GitHub が
+   色そのまま・曼陀羅だけ opacity と色・言語は無反応で、同じ列に並ぶ操作なのに
+   反応がばらばらだった。Studio の GlobalHeader 右側（操作色 → ホバーで前景色）と
+   同じ言葉遣いにしてある。
+   ⚠ **ホバーをブランド色（青）に戻さないこと。** 青は本文リンクの語彙で、
+   ヘッダーは「移動」ではなく「操作」を担う。同じ青を使うと役割の差が消える
+   （2026-08-20 に `--dxm-brand` から変更）。
+   ⚠ カーソルは3つとも明示する。曼陀羅だけが `<button>` で、ブラウザ既定が
+   `default` になり `<a>` の2つと揃わないため（Studio の共有 Button と同じ話）。
    ⚠ GitHub リンクの `<a>` はテーマが描くので掴めるクラスが無い。こちらが渡す
    `projectIcon` にだけクラスを付け、`:has()` で親の `<a>` を選ぶ——テーマ側の
    クラス名に依存しないぶん、テーマ更新で外れにくい。`<a>` 側に当てるのは、
@@ -688,13 +699,14 @@ a:has(> .dxm-navbar-icon),
 .dxm-mandala-button,
 .dxm-lang-toggle {
   color: var(--dxm-navbar-action);
+  cursor: pointer;
   transition: color 0.15s ease;
 }
 
 a:has(> .dxm-navbar-icon):hover,
 .dxm-mandala-button:hover,
 .dxm-lang-toggle:hover {
-  color: var(--dxm-brand);
+  color: var(--dxm-navbar-action-hover);
 }
 
 /* ===== ナビバーのアイコン =====

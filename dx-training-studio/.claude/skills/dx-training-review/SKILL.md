@@ -24,11 +24,11 @@ description: |
 - `contents/` — 検査対象。レッスン本文と各階層の `.meta.json`
 - `contents-work/plans/` — 計画書。曼陀羅の**意図**の参考であって正ではない（→ 受講順の正本）
 - `dx-training-create/references/design-principles.md` — 内容品質と、書いてはいけないものの基準
-- `dx-training-create/references/lesson-template.md` — frontmatter・空欄・画像・出典の**形式**の基準
+- `dx-training-create/references/lesson-template.md` — レッスン `.meta.json`・空欄・画像・出典の**形式**の基準
 - `dx-training-create/references/model-answer/` — トンマナの基準。**無くてよい**（→ `references/quality-checks.md`）
 - `contracts/image-slot-contract.md` — 画像コメントの書式
 - `contracts/agent-write-contract.md` — run ディレクトリの作法
-- `lib/schema.ts` / `lib/lesson-frontmatter.ts` / `lib/lesson-tags.ts` — frontmatter と meta の正本
+- `lib/schema.ts` / `lib/lesson-meta.ts` / `lib/lesson-tags.ts` — レッスンメタ（`.meta.json`）の正本
 
 ---
 

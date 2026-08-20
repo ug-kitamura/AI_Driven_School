@@ -3,18 +3,21 @@ import path from "node:path";
 import { sanitizeFilename } from "@/lib/content-filename";
 import {
   generateCourseId,
+  generateLessonStableId,
   generateSeriesId,
   readStoredId,
   buildLessonId,
 } from "@/lib/content-ids";
 import {
-  parseLessonDocument,
-  normalizeLessonMeta,
-  createLessonContentTemplate,
-} from "@/lib/lesson-frontmatter";
+  defaultLessonBody,
+  metaToLessonFields,
+  migrateQuizBlocksInBody,
+  parseLessonMetaFile,
+} from "@/lib/lesson-meta";
 import type { Course, CourseStyle, Lesson, Series } from "@/lib/schema";
 import { parseCourseStyle } from "@/lib/schema";
 import {
+  CONTENT_META_FILENAME,
   LESSON_CONTENTS_FILENAME,
   LESSON_SESSION_FILENAME,
 } from "@/lib/lesson-paths";
@@ -31,17 +34,40 @@ export function contentsExists(projectRoot: string): boolean {
   return fs.existsSync(getContentsDir(projectRoot));
 }
 
-/** `.meta.json` を読み込んで返す。存在しない・パース失敗時は空オブジェクトを返す */
+/**
+ * `.meta.json` が存在するのにパースできない（構文エラー・BOM 等）ことを表すエラー。
+ * 「存在しない」と同一視して静かに再採番すると id / slug が失われるため、
+ * ローダーは読み進めず、このエラーを表へ出す（2026-08-14 の BOM 事故の再発防止）。
+ */
+export class MetaJsonParseError extends Error {
+  readonly metaPath: string;
+
+  constructor(metaPath: string, cause: unknown) {
+    super(
+      `.meta.json を読み取れません（JSON として不正です）: ${metaPath}\n` +
+        `原因: ${cause instanceof Error ? cause.message : String(cause)}\n` +
+        `修復するまでロードを中断します（このファイルの id / slug を守るため上書きしません）。` +
+        `BOM 付きで保存されていないか確認してください。`,
+    );
+    this.name = "MetaJsonParseError";
+    this.metaPath = metaPath;
+  }
+}
+
+/**
+ * `.meta.json` を読み込んで返す。存在しない場合は空オブジェクト（自己修復に委ねる）。
+ * 存在するのにパースできない場合は {@link MetaJsonParseError} を投げる。
+ */
 export function readMetaJson(dir: string): Record<string, unknown> {
-  const metaPath = path.join(dir, ".meta.json");
+  const metaPath = path.join(dir, CONTENT_META_FILENAME);
   if (!fs.existsSync(metaPath)) return {};
   try {
     return JSON.parse(fs.readFileSync(metaPath, "utf-8")) as Record<
       string,
       unknown
     >;
-  } catch {
-    return {};
+  } catch (cause) {
+    throw new MetaJsonParseError(metaPath, cause);
   }
 }
 
@@ -51,7 +77,7 @@ export function writeMetaJson(
   data: Record<string, unknown>,
 ): void {
   fs.writeFileSync(
-    path.join(dir, ".meta.json"),
+    path.join(dir, CONTENT_META_FILENAME),
     JSON.stringify(data, null, 2),
     "utf-8",
   );
@@ -354,48 +380,43 @@ export function loadContentsFolder(projectRoot: string): Series[] {
       const lessons: Lesson[] = [];
 
       for (const lessonName of effectiveLessons) {
-        const lessonFilePath = path.join(
-          courseDir,
-          lessonName,
-          LESSON_CONTENTS_FILENAME,
-        );
+        const lessonDir = path.join(courseDir, lessonName);
+        const lessonFilePath = path.join(lessonDir, LESSON_CONTENTS_FILENAME);
         let content = fs.readFileSync(lessonFilePath, "utf-8");
 
-        const { meta } = parseLessonDocument(content);
-        const metaWithoutLesson = { ...meta };
-        delete metaWithoutLesson.lesson;
-        const normalized = normalizeLessonMeta(
-          metaWithoutLesson,
-          { seriesName, courseName },
-          {
-            lesson: lessonName,
-            series: seriesName,
-            course: courseName,
-            status: "open",
-            description: "",
-            tags: [],
-            estimated_minutes: 0,
-            author: "",
-          },
-        );
+        const lessonMetaRaw = readMetaJson(lessonDir);
+        const normalized = parseLessonMetaFile(lessonMetaRaw, lessonName);
 
-        if (!content.trim()) {
-          content = createLessonContentTemplate(normalized);
-          fs.writeFileSync(lessonFilePath, content, "utf-8");
+        // 安定 ID はシリーズ・コースと同じ流儀で自己修復する
+        // （`.meta.json` はアプリ管理ファイルなので、本文のオートセーブと競合しない）
+        if (!normalized.id) {
+          normalized.id = generateLessonStableId(
+            lessonName,
+            normalized.slug,
+            usedIds,
+          );
+          writeMetaJson(lessonDir, { ...lessonMetaRaw, id: normalized.id });
+        } else {
+          usedIds.add(normalized.id);
         }
 
-        const {
-          slug: lessonSlug,
-          id: lessonStableId,
-          ...lessonFields
-        } = normalized;
+        if (!content.trim()) {
+          content = defaultLessonBody(lessonName);
+          fs.writeFileSync(lessonFilePath, content, "utf-8");
+        } else if (/^-{3,}\s*$/.test(content.split(/\r?\n/, 1)[0] ?? "")) {
+          // frontmatter は廃止済み。検出しても本文として扱う（自動修復はしない）
+          console.warn(
+            `[contents-loader] frontmatter らしき区切りを検出しました（本文として扱います）: ${lessonFilePath}`,
+          );
+        }
 
         lessons.push({
           id: buildLessonId(seriesName, courseName, lessonName),
-          ...lessonFields,
-          slug: lessonSlug,
-          stableId: lessonStableId,
-          content,
+          series: seriesName,
+          course: courseName,
+          ...metaToLessonFields(normalized),
+          lesson: lessonName,
+          content: migrateQuizBlocksInBody(content),
         });
       }
 

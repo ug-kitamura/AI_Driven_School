@@ -137,7 +137,8 @@ dx-training-studio/
       <コース>/
         .meta.json         コースメタ
         <レッスン>/
-          contents.md      レッスン本文（YAML フロントマター）
+          .meta.json       レッスンメタ（slug / status / 著者 など）
+          contents.md      レッスン本文（Markdown のみ）
   images/                  正本は git 追跡（staging と動画は除外）
     <file>.png             正本
     uploaded/ ai/ web/     staging
@@ -282,10 +283,11 @@ contents/
     <コース名>/
       .meta.json
       <レッスン名>/
-        contents.md        ← レッスン本文の正本
+        .meta.json         ← レッスンメタの正本
+        contents.md        ← レッスン本文の正本（frontmatter なし）
 ```
 
-ローカル開発ではレッスン編集・CRUD は API 経由で `contents/` に永続化される。`.meta.json` はアプリが管理するため、Pane4 の Agent は書き込めない。
+ローカル開発ではレッスン編集・CRUD は API 経由で `contents/` に永続化される。`.meta.json` はアプリが管理するため、Pane4 の Agent は原則書き込めない（例外はレッスン階層の `.meta.json` のみ・検査つき）。
 
 ## 仕様・設計の詳細
 

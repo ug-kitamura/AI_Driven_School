@@ -1,5 +1,4 @@
 import type { Series } from "@/lib/schema";
-import { parseLessonDocument } from "@/lib/lesson-frontmatter";
 
 /**
  * ワークスペースのフォーカス。末尾から空になる。
@@ -174,7 +173,8 @@ function findLessonById(series: Series[], lessonId: string) {
 }
 
 function lessonBody(content: string): string {
-  return parseLessonDocument(content).body;
+  // content は本文のみ（frontmatter は廃止済み）
+  return content;
 }
 
 /**

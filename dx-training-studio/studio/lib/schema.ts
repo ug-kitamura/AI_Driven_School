@@ -65,7 +65,7 @@ const publishingMetaFields = {
 export const lessonSchema = z.object({
   /** 実行時のパス由来キー（`lesson-{series}-{course}-{lesson}`）。正本には保存しない */
   id: z.string(),
-  /** frontmatter の `id`。フォルダ名を変えても変わらない安定 ID（`lsn-...`） */
+  /** レッスン `.meta.json` の `id`。フォルダ名を変えても変わらない安定 ID（`lsn-...`） */
   stableId: z.string().optional(),
   slug: slugSchema.optional(),
   series: z.string(),
@@ -76,9 +76,33 @@ export const lessonSchema = z.object({
   tags: z.array(z.string()).default([]),
   estimated_minutes: z.number().default(0),
   author: z.string().default(""),
+  /** 著者名の英語表記（表記が2つあるときだけ）。表示は双方向フォールバック */
+  author_en: z.string().optional(),
+  /** Markdown 本文（frontmatter を含まない） */
   content: z.string().default(""),
 });
 export type Lesson = z.infer<typeof lessonSchema>;
+
+/**
+ * `contents/<series>/<course>/<lesson>/.meta.json` の厳密スキーマ。
+ * agent の検査つき書込・save-lesson-meta API の検証に使う（未知キーは拒否）。
+ * 名前3つ（series / course / lesson）は持たない——フォルダ名が正本。
+ */
+export const lessonMetaFileSchema = z
+  .object({
+    id: z.string().optional(),
+    slug: slugSchema.optional(),
+    status: lessonStatusSchema.optional(),
+    description: z.string().optional(),
+    tags: z.array(z.string()).optional(),
+    estimated_minutes: z.number().int().min(0).max(180).optional(),
+    author: z.string().optional(),
+    author_en: z.string().optional(),
+    name_en: z.string().optional(),
+    description_en: z.string().optional(),
+  })
+  .strict();
+export type LessonMetaFile = z.infer<typeof lessonMetaFileSchema>;
 
 // ===== コース → レッスン（曼陀羅メタ情報を含む）=====
 

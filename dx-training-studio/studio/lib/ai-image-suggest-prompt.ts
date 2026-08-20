@@ -1,4 +1,3 @@
-import { getLessonBody, parseLessonDocument } from "@/lib/lesson-frontmatter";
 import type { Lesson } from "@/lib/schema";
 
 const SYSTEM_PROMPT = `You write image diagram instructions for a Japanese DX training lesson editor.
@@ -32,8 +31,6 @@ export function buildSuggestPromptMessages(
   cursorOffset: number,
   seedPrompt?: string,
 ): { system: string; user: string } {
-  const { meta } = parseLessonDocument(lesson.content);
-  const body = getLessonBody(lesson);
   const cursorContext = snippetAroundOffset(lesson.content, cursorOffset);
 
   const lines = [
@@ -41,9 +38,9 @@ export function buildSuggestPromptMessages(
     "Write an image generation prompt suitable for inserting at the author's cursor position in this lesson.",
     "",
     "## Lesson metadata",
-    `lesson: ${meta.lesson}`,
-    `description: ${meta.description}`,
-    `tags: ${(meta.tags ?? []).join(", ")}`,
+    `lesson: ${lesson.lesson}`,
+    `description: ${lesson.description}`,
+    `tags: ${lesson.tags.join(", ")}`,
     "",
     "## Text around cursor (insertion point)",
     cursorContext,
@@ -61,7 +58,7 @@ export function buildSuggestPromptMessages(
   lines.push(
     "",
     "## Full lesson markdown body",
-    body,
+    lesson.content,
     "",
     "Output the prompt text only.",
   );

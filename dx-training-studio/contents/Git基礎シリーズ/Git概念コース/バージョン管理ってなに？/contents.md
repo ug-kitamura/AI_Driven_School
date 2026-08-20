@@ -1,16 +1,3 @@
----
-series: Git基礎シリーズ
-course: Git概念コース
-lesson: バージョン管理ってなに？
-slug: what-is-version-control
-id: lsn-what-is-version-control-eghku6
-status: done
-description: 「最終版2」が並ぶフォルダを入口に、バージョン管理が必要な理由を3つ挙げられるようになる
-tags: [git, concepts]
-estimated_minutes: 15
-author: Kitamura
----
-
 # バージョン管理ってなに？
 
 ## 学習目標

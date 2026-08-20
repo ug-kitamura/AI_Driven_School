@@ -2,9 +2,6 @@
 
 import { useEffect, useRef, useCallback } from "react";
 import type { Series } from "@/lib/schema";
-import {
-  normalizeAllLessonsInSeries,
-} from "@/lib/lesson-frontmatter";
 import { normalizeSeriesCourseMeta } from "@/lib/course-flow";
 import {
   resolveSelectionAfterContentReload,
@@ -84,9 +81,7 @@ export function useContentSync(options: {
         if (!dataRes.ok || cancelled) return;
         const freshSeries = (await dataRes.json()) as Series[];
 
-        const normalized = normalizeAllLessonsInSeries(
-          normalizeSeriesCourseMeta(freshSeries),
-        );
+        const normalized = normalizeSeriesCourseMeta(freshSeries);
 
         const currentSelection: WorkspaceSelection = {
           seriesId: selectedSeriesIdRef.current,

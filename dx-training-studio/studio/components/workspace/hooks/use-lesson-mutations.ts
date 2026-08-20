@@ -5,15 +5,14 @@ import type { Lesson, Series } from "@/lib/schema";
 import { buildLessonId } from "@/lib/content-ids";
 import { remapSelection } from "@/lib/content-rename";
 import { deleteLessonEditorStateCache } from "@/lib/lesson-editor-state-cache";
+import { lessonFileTextEquals } from "@/lib/lesson-file-text";
 import {
-  applyLessonContentEdit,
-  alignLessonContentToDiskPath,
-  createLessonContentTemplate,
-  lessonFileContentEquals,
+  applyLessonMetaPatch,
+  defaultLessonBody,
   normalizeLessonMeta,
-  patchLessonMeta,
+  metaToLessonFields,
   type LessonMetaFields,
-} from "@/lib/lesson-frontmatter";
+} from "@/lib/lesson-meta";
 import type { WorkspaceSelection } from "@/lib/workspace-selection";
 
 const AUTOSAVE_DEBOUNCE_MS = 800;
@@ -45,6 +44,46 @@ async function saveLessonToFs(
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ series, course, lesson, content }),
+  });
+  if (!res.ok) {
+    const { error } = (await res.json().catch(() => ({ error: "保存エラー" }))) as {
+      error: string;
+    };
+    throw new Error(error);
+  }
+}
+
+/** レッスンメタを `.meta.json` へ保存する（本文の保存経路とは独立） */
+async function saveLessonMetaToFs(lesson: Lesson): Promise<void> {
+  const fields = metaToLessonFields(
+    normalizeLessonMeta({}, {
+      lesson: lesson.lesson,
+      status: lesson.status,
+      description: lesson.description,
+      tags: lesson.tags,
+      estimated_minutes: lesson.estimated_minutes,
+      author: lesson.author,
+      author_en: lesson.author_en,
+      slug: lesson.slug,
+    }),
+  );
+  const res = await fetch("/api/content/save-lesson-meta", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      series: lesson.series,
+      course: lesson.course,
+      lesson: lesson.lesson,
+      meta: {
+        status: fields.status,
+        description: fields.description,
+        tags: fields.tags,
+        estimated_minutes: fields.estimated_minutes,
+        author: fields.author,
+        author_en: fields.author_en ?? "",
+        slug: fields.slug ?? "",
+      },
+    }),
   });
   if (!res.ok) {
     const { error } = (await res.json().catch(() => ({ error: "保存エラー" }))) as {
@@ -176,15 +215,14 @@ export function useLessonMutations(options: {
       if (!diskLesson) return;
 
       const diskLessonName = diskLesson.lesson;
-      const ctx = { seriesName, courseName };
 
-      if (lessonFileContentEquals(content, diskLesson.content)) {
+      if (lessonFileTextEquals(content, diskLesson.content)) {
         return;
       }
 
-      mapLessonById(lessonId, (lesson, mapCtx) =>
-        applyLessonContentEdit(lesson, mapCtx, content),
-      );
+      // 本文はそのまま保存する。メタの書き戻し・正規化・保存拒否は無い
+      //（メタの正本は `.meta.json`。本文の保存経路から独立している）
+      mapLessonById(lessonId, (lesson) => ({ ...lesson, content }));
 
       const existing = debounceTimers.current.get(lessonId);
       if (existing) clearTimeout(existing);
@@ -193,28 +231,8 @@ export function useLessonMutations(options: {
         debounceTimers.current.delete(lessonId);
         if (!isLessonPersistable(lessonId)) return;
 
-        const aligned = alignLessonContentToDiskPath(
-          content,
-          ctx,
-          diskLessonName,
-        );
-        if (!aligned.ok) {
-          onSaveError?.(
-            `保存をスキップしました: ${aligned.reason}。別レッスンの内容が混ざっている可能性があります。`,
-          );
-          return;
-        }
-        const toSave = aligned.content;
         setPendingSave?.(true);
-        saveLessonToFs(seriesName, courseName, diskLessonName, toSave)
-          .then(() => {
-            if (!isLessonPersistable(lessonId)) return;
-            if (!lessonFileContentEquals(toSave, content)) {
-              mapLessonById(lessonId, (lesson, mapCtx) =>
-                applyLessonContentEdit(lesson, mapCtx, toSave),
-              );
-            }
-          })
+        saveLessonToFs(seriesName, courseName, diskLessonName, content)
           .catch((err: unknown) => {
             if (!isLessonPersistable(lessonId)) return;
             onSaveError?.(`レッスン保存エラー: ${String(err)}`);
@@ -248,8 +266,7 @@ export function useLessonMutations(options: {
           ...c,
           lessons: c.lessons.map((l) => {
             if (l.id !== lessonId) return l;
-            const ctx = { seriesName: s.name, courseName: c.name };
-            const updated = patchLessonMeta(l, ctx, meta);
+            const updated = applyLessonMetaPatch(l, meta);
             if (meta.lesson !== undefined && l.lesson !== updated.lesson) {
               const newId = buildLessonId(
                 updated.series,
@@ -279,14 +296,9 @@ export function useLessonMutations(options: {
       const persistMeta = () => {
         const target = updatedLesson!;
         if (!isLessonPersistable(rename ? rename.newId : lessonId)) return;
-        return saveLessonToFs(
-          target.series,
-          target.course,
-          target.lesson,
-          target.content,
-        ).catch((err: unknown) => {
+        return saveLessonMetaToFs(target).catch((err: unknown) => {
           if (!isLessonPersistable(rename ? rename.newId : lessonId)) return;
-          onSaveError?.(`レッスン保存エラー: ${String(err)}`);
+          onSaveError?.(`レッスンメタ保存エラー: ${String(err)}`);
         });
       };
 
@@ -338,21 +350,20 @@ export function useLessonMutations(options: {
       }
       if (!seriesName || !courseName) return;
 
-      const meta = normalizeLessonMeta(
-        {
-          lesson: lessonName,
-          status: "open",
-          description: "",
-          tags: [],
-          estimated_minutes: 0,
-          author: "",
-        },
-        { seriesName, courseName },
-      );
+      const meta = normalizeLessonMeta({
+        lesson: lessonName,
+        status: "open",
+        description: "",
+        tags: [],
+        estimated_minutes: 0,
+        author: "",
+      });
       const newLesson: Lesson = {
         id: buildLessonId(seriesName, courseName, lessonName),
-        ...meta,
-        content: createLessonContentTemplate(meta),
+        series: seriesName,
+        course: courseName,
+        ...metaToLessonFields(meta),
+        content: defaultLessonBody(lessonName),
       };
 
       setSeries((prev) =>

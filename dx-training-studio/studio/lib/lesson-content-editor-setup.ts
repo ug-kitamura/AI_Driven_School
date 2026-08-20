@@ -16,10 +16,6 @@ import {
   LESSON_LINE_NUMBER_LIGHT,
 } from "@/lib/lesson-active-line-number";
 import { getFoldRangeAtLine } from "@/lib/markdown-fold-ranges";
-import {
-  frontmatterEditorTheme,
-  frontmatterHighlight,
-} from "@/lib/lesson-frontmatter-highlight";
 import { clampEditorFontSizePx } from "@/lib/workspace-settings";
 
 /** テーマ・フォントサイズを setState なしで差し替える Compartment（モジュール共有） */
@@ -296,8 +292,6 @@ export function buildLessonEditorExtensions(
     }),
     keymap.of(markdownKeymap),
     EditorView.lineWrapping,
-    frontmatterHighlight,
-    frontmatterEditorTheme,
     ...activeLineRowHighlight(),
     createLessonEditorLayout(size, lineNumberColor, isDark),
     lessonEditorSelectionTheme,

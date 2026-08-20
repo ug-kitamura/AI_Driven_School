@@ -2,7 +2,7 @@
 
 ## Purpose
 
-`contents/` フォルダ走査による初期ロード API、表示順決定、メタデータ取得、レッスン frontmatter 解析の要件を規定する。
+`contents/` フォルダ走査による初期ロード API、表示順決定、メタデータ取得（各階層の `.meta.json`。レッスン含む）の要件を規定する。
 ## Requirements
 ### Requirement: contents/ フォルダ走査による初期ロード
 
@@ -42,20 +42,6 @@
 #### Scenario: _course.json が存在する
 - **WHEN** `01_コース名/_course.json` に `target_audience`, `prerequisites`, `next_courses` が記載されている
 - **THEN** ロード結果のコースオブジェクトにそれらの値が反映されている
-
-### Requirement: レッスン `.md` ファイルのフロントマター解析
-
-レッスン `contents.md` のフロントマターを解析し、`status`・`description`・`tags`・`estimated_minutes`・`author` を取得しなければならない（SHALL）。フロントマターが壊れていてもフォルダパスから `series`・`course`・`lesson` 名を補完しなければならない（SHALL）。
-
-#### Scenario: 有効なフロントマターを持つ contents.md
-
-- **WHEN** フロントマターに `status: in_progress`, `tags: [git, tutorial]` が記載された `contents.md` がある
-- **THEN** ロード結果のレッスンオブジェクトに `status: "in_progress"`, `tags: ["git", "tutorial"]` が設定されている
-
-#### Scenario: フロントマターが壊れている contents.md
-
-- **WHEN** フロントマターが存在しない `contents.md` がある
-- **THEN** フォルダパスからシリーズ名・コース名・レッスン名が補完され、`status: "open"` でレッスンオブジェクトが生成される
 
 ### Requirement: contents 指紋から session.json を除外
 
@@ -100,17 +86,40 @@
 - **WHEN** `contents/シリーズA/コースB/.meta.json` に `order` が記載されている
 - **THEN** その順序がロード結果に反映される
 
-### Requirement: レッスン frontmatter の slug・id を解析する
+### Requirement: レッスン `.meta.json` の読取と id 採番
 
-レッスン `contents.md` のフロントマター解析は、既存フィールド（`status`・`description`・`tags`・`estimated_minutes`・`author`）に加えて `slug` と `id` を取得しなければならない（SHALL）。`slug` / `id` が存在しない場合もエラーにせず、未設定として扱わなければならない（SHALL）。ローダーが `contents.md` へ `slug` / `id` を書き戻してはならない（SHALL NOT）——本文ファイルへの自動書込は Pane3 のオートセーブと競合するため、値の付与は生成スキルとバックフィルの責務とする。
+ローダーはレッスンメタ（`slug` / `id` / `status` / `description` / `tags` / `estimated_minutes` / `author` / `author_en`）をレッスンフォルダの `.meta.json` から取得しなければならない（SHALL）。`contents.md` の frontmatter を解析してはならない（SHALL NOT）——`contents.md` は本文としてそのまま読む。`.meta.json` が存在しないレッスンは既定値（`status: "open"`・空文字・空配列・0）で扱い、エラーにしてはならない（SHALL NOT）。
 
-#### Scenario: slug と id を持つ frontmatter を解析する
+レッスン `id` が存在しない場合、ローダーは `lsn-{slug}-{random6}` 形式（slug が無い場合は名前からの導出形式）の ID を生成し、`.meta.json` に書き込まなければならない（SHALL）——シリーズ・コースと同じ自己修復の流儀。`contents.md` へ書き込んではならない（SHALL NOT）。
 
-- **WHEN** frontmatter に `slug: what-is-version-control` と `id: lsn-version-control-a1b2c3` が記載された `contents.md` がある
-- **THEN** ロード結果のレッスンオブジェクトに `slug` と `id` の値が設定されている
+#### Scenario: `.meta.json` からレッスンメタを読む
 
-#### Scenario: slug と id が無い frontmatter でも従来どおり動く
+- **WHEN** レッスンフォルダの `.meta.json` に `status: "in_progress"`・`tags: ["git", "tutorial"]` が記述されている
+- **THEN** ロード結果のレッスンオブジェクトに `status: "in_progress"`・`tags: ["git", "tutorial"]` が設定される
 
-- **WHEN** `slug` / `id` を持たない既存の `contents.md` をロードする
-- **THEN** エラーにならず、レッスンオブジェクトの `slug` / `id` は未設定である
-- **AND** `contents.md` ファイルは書き換えられていない
+#### Scenario: `.meta.json` が無いレッスン
+
+- **WHEN** `.meta.json` を持たないレッスンフォルダ（`contents.md` のみ）をロードする
+- **THEN** エラーにならず、既定値のメタと新規採番された `id` を持つレッスンが返される
+- **AND** レッスンフォルダに `id` を含む `.meta.json` が生成される
+
+#### Scenario: frontmatter は解析されない
+
+- **WHEN** `contents.md` の本文先頭に `---` で始まる行があるレッスンをロードする
+- **THEN** その行はメタとして解釈されず、本文の一部として `content` に含まれる
+
+### Requirement: 壊れた `.meta.json` はエラーとして報告する
+
+全階層（全体・シリーズ・コース・レッスン）の `.meta.json` について、ファイルが存在するのにパースできない場合（構文エラー・BOM 等）、「存在しない」と同一視してはならない（SHALL NOT）。ローダーはエラーとして報告し、当該 `.meta.json` の id 再採番・既定値での上書きを行ってはならない（SHALL NOT）。エラーには対象ファイルのパスを含めなければならない（SHALL）。ファイルが存在しない場合は従来どおり自己修復（自動生成・採番）してよい（MAY）。
+
+#### Scenario: BOM 付き `.meta.json` で止まる
+
+- **WHEN** コースの `.meta.json` が BOM 付きで保存されていて `JSON.parse` が失敗する状態で `/api/content/load` を呼ぶ
+- **THEN** 対象ファイルのパスを含むエラーが返される
+- **AND** 当該 `.meta.json` は書き換えられず、`id` / `slug` は失われない
+
+#### Scenario: 存在しない `.meta.json` は従来どおり自己修復される
+
+- **WHEN** `.meta.json` を持たないコースをロードする
+- **THEN** エラーにならず、`id` と `order` を持つ `.meta.json` が生成される
+

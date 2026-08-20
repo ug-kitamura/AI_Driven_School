@@ -22,21 +22,22 @@
 
 ### Requirement: 草稿の markdown 形式
 
-生成される草稿は YAML frontmatter（`series`, `course`, `lesson`, `status`, `description`, `tags`, `estimated_minutes`, `author`）と markdown 本文を含まなければならない（SHALL）。`status` は `lessonMeta` の値（`open` | `in_progress` | `done` のいずれか）をそのまま用いなければならない（SHALL）。`tags` は `lessonMeta.tags` をそのまま用い、`draft` や日本語等 `[a-z0-9-]+` 外の tag を invent してはならない（MUST NOT）。`description` のみ草稿内容に合わせて更新してよい（MAY）。
+生成される草稿は markdown 本文のみでなければならない（SHALL）。YAML frontmatter を含めてはならない（SHALL NOT）。草稿受領時、アプリはレッスン `.meta.json` のメタを次のとおり更新しなければならない（SHALL）: `description` は草稿内容に合わせて更新してよい（MAY）; `tags` は既存値を優先し、無ければ利用可能タグからの推定で補完する（`[a-z0-9-]+` 外の tag を invent してはならない（MUST NOT））; `estimated_minutes` は既存値が 0 の場合のみ本文からの推定で補完する; `status` は既存値を維持する。
 
-#### Scenario: フロントマター付き草稿が返される
+#### Scenario: 本文のみの草稿が返される
 
 - **WHEN** create-draft スキルが草稿を生成する
+- **THEN** 応答は markdown 本文のみで、`---` で囲まれた YAML frontmatter を含まない
 
-- **THEN** 応答に `---` で囲まれた YAML frontmatter と markdown 本文が含まれる
+#### Scenario: 草稿受領で status が変わらない
 
-#### Scenario: lessonMeta の status を維持する
+- **WHEN** `.meta.json` に `"status": "open"` を持つレッスンへ草稿を受領する
+- **THEN** 受領後も `.meta.json` の status は `open` である
 
-- **WHEN** `lessonMeta` に `"status": "open"` が含まれる
+#### Scenario: 草稿受領で minutes が補完される
 
-- **AND** create-draft が草稿を生成する
-
-- **THEN** 草稿 frontmatter の status は `open` である
+- **WHEN** `estimated_minutes` が 0 のレッスンへ草稿を受領する
+- **THEN** 本文から推定された `estimated_minutes` が `.meta.json` に書き込まれる
 
 ### Requirement: create-draft Phase 2 対話フロー
 

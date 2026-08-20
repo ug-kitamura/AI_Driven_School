@@ -9,11 +9,6 @@ import {
   writeMetaJson,
 } from "@/lib/contents-loader";
 import { sanitizeFilename } from "@/lib/content-filename";
-import {
-  parseLessonDocument,
-  serializeLessonDocument,
-  normalizeLessonMeta,
-} from "@/lib/lesson-frontmatter";
 import { getProjectRoot } from "@/lib/project-root";
 
 const schema = z.discriminatedUnion("type", [
@@ -118,17 +113,8 @@ export async function POST(req: Request) {
     return Response.json({ error: "レッスンフォルダが見つかりません" }, { status: 404 });
   }
 
-  const content = fs.readFileSync(oldContentsPath, "utf-8");
-  const { meta, body: lessonBody } = parseLessonDocument(content);
-  const normalized = normalizeLessonMeta(
-    { ...meta, lesson: parsed.data.newName },
-    { seriesName: parsed.data.series, courseName: parsed.data.course },
-  );
-  fs.writeFileSync(
-    oldContentsPath,
-    serializeLessonDocument(normalized, lessonBody),
-    "utf-8",
-  );
+  // メタ（`.meta.json`）はフォルダごと移動する。名前はフォルダ名が正本なので
+  // ファイル側の書き換えは無い
   fs.renameSync(oldLessonDir, newLessonDir);
 
   // course/.meta.json の order を in-place 更新

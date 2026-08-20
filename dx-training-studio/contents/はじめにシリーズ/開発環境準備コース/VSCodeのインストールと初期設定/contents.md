@@ -1,16 +1,3 @@
----
-series: はじめにシリーズ
-course: 開発環境準備コース
-lesson: VSCodeのインストールと初期設定
-slug: vscode
-id: lsn-vscode-4ght2s
-status: in_progress
-description: Chocolatey から部門向けカスタマイズ版の VSCode を導入し、フォルダを開いてファイルを編集できるようになる
-tags: [start, setup]
-estimated_minutes: 15
-author: Kitamura
----
-
 # VSCodeのインストールと初期設定
 
 ## 学習目標

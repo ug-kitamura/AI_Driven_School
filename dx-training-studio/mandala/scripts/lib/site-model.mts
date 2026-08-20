@@ -27,8 +27,10 @@ export type SiteLesson = {
   status: LessonStatus;
   description: string;
   estimatedMinutes: number;
-  /** レッスン frontmatter の著者名（空なら表示しない） */
+  /** レッスン `.meta.json` の著者名（空なら表示しない） */
   author: string;
+  /** 著者の英語表記（表記が2つあるときだけ）。表示は双方向フォールバック */
+  authorEn?: string;
   body: string;
   bodyEn?: string;
   titleEn?: string;
@@ -218,7 +220,7 @@ export function formatSlugIssues(issues: SlugIssue[]): string {
     `公開サイトの URL を決められないため変換を中止しました（${issues.length} 件）:`,
     ...lines,
     "",
-    "シリーズ・コースは .meta.json の slug、レッスンは contents.md の frontmatter の slug を修正してください。",
+    "各階層（シリーズ・コース・レッスン）の .meta.json の slug を修正してください。",
   ].join("\n");
 }
 
@@ -233,6 +235,7 @@ function buildCourse(seriesSlug: string, course: CourseMeta): SiteCourse {
     description: lesson.description,
     estimatedMinutes: lesson.estimatedMinutes,
     author: lesson.author,
+    authorEn: lesson.authorEn,
     body: lesson.body,
     bodyEn: lesson.bodyEn,
     titleEn: lesson.titleEn,

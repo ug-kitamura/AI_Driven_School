@@ -88,7 +88,7 @@ import {
   type ContentTreeRow,
 } from "@/lib/content-tree-flatten";
 import { cn } from "@/lib/utils";
-import type { LessonMetaFields } from "@/lib/lesson-frontmatter";
+import type { LessonMetaFields } from "@/lib/lesson-meta";
 import type { Series, Course, Lesson } from "@/lib/schema";
 
 /** ステータス種別はラベルとアイコンの形で区別する（色は付けない・下のボタン側で指定） */

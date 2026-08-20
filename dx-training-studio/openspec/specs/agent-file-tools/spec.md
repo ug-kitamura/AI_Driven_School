@@ -23,20 +23,21 @@ TBD - created by archiving change port-ebex-agent-core. Update Purpose after arc
 
 `contents-work/` への書込は明示プレフィックス（`contents-work/...`）で行わなければならない（SHALL）——相対パスの基準ではない。
 
-**正本ツリーでは、予約された名前のファイルだけを拒否する。** それ以外のファイルは階層を問わず書込を許可しなければならない（SHALL）。判定は**書込先パスのみ**で行い、ファイル内容を参照してはならない（MUST NOT）。
+**正本ツリーでは、予約された名前のファイルだけを拒否する。** それ以外のファイルは階層を問わず書込を許可しなければならない（SHALL）。判定は原則として**書込先パスのみ**で行う（レッスン `.meta.json` の内容検査のみ例外）。
 
 拒否しなければならない名前（SHALL）:
 
-- `session.json` および `.meta.json` — アプリが管理する。agent が書くと安定 id や表示順が壊れる
-- `contents.md` のうち、レッスン階層（`contents/<シリーズ>/<コース>/<レッスン>/`）**以外**に置かれるもの — 偽のレッスン本文になるため
+- `session.json` — アプリが管理する
+- `.meta.json` のうち、レッスン階層（`contents/<シリーズ>/<コース>/<レッスン>/`）**以外**に置かれるもの — 全体・シリーズ・コースの `.meta.json` は安定 id と表示順（`order`）を持ち、agent が書くと壊れるため
+- `contents.md` のうち、レッスン階層**以外**に置かれるもの — 偽のレッスン本文になるため
+
+**レッスン階層の `.meta.json` への書込は検査つきで許可しなければならない（SHALL）。** 検査は次を満たす: (1) JSON としてパースできること (2) レッスンメタスキーマ（`lesson-meta-file` capability）に適合し、未知キーを含まないこと (3) `id` フィールドは agent の値を無視し、既存 `.meta.json` の `id` を保持すること（既存が無ければ `id` キーを書かない）。検査に落ちた書込はエラー結果を返し、ファイルを変更してはならない（SHALL NOT）。
 
 **作業ファイルのルートでは、`contents-work/sessions/` 配下への書込を拒否しなければならない（SHALL）。** ここは agent 自身の会話履歴の保存先であり、agent が書くと実行中の会話が壊れる。判定は**ディレクトリ単位**で行わなければならない（SHALL）——ファイル名で判定すると、保存形式が変わったときに保護が漏れる。`contents-work/` のそれ以外の配下（`plans/` `runs/`）への書込は許可しなければならない（SHALL）。
 
 ディレクトリ作成の深さによって書込を拒否してはならない（MUST NOT）——新しいシリーズ・コース・レッスンのフォルダを伴う書込は正当である。フォルダが新しく生まれる場合の実行前確認は `agent-confirm-gate` が規定する。
 
 拒否時のエラーメッセージは、拒否の理由・代替（別名にするか `contents-work/` 配下へ書く）・拒否された実際のパスを含まなければならない（SHALL）。
-
-frontmatter のスキーマ検査は本要件の範囲外である——アプリが読込時に lesson frontmatter を正規化するため、書込時に重ねて検査しない。
 
 #### Scenario: レッスン本文への書込は許可される
 - **WHEN** `write_file` が `contents/シリーズA/コースB/レッスンC/contents.md` を対象に実行される
@@ -67,9 +68,21 @@ frontmatter のスキーマ検査は本要件の範囲外である——アプ�
 - **THEN** エラー結果が返り、置ける場所の案内が含まれる
 - **AND** ファイルは作られない
 
-#### Scenario: .meta.json への書込は拒否される
+#### Scenario: コース .meta.json への書込は拒否される
 - **WHEN** `write_file` が `contents/シリーズA/コースB/.meta.json` を対象に実行される
 - **THEN** エラー結果が返り、ファイルは書き換えられない
+
+#### Scenario: レッスン .meta.json への適合する書込は許可される
+- **WHEN** `write_file` が `contents/シリーズA/コースB/レッスンC/.meta.json` を対象に、スキーマに適合する JSON（`slug` / `status` / `description` 等）で実行される
+- **THEN** 書込が実行される
+
+#### Scenario: レッスン .meta.json の id は agent が変更できない
+- **WHEN** 既存の `.meta.json` に `"id": "lsn-abc-123456"` があるレッスンへ、agent が `"id": "lsn-evil-999999"` を含む JSON で `write_file` を実行する
+- **THEN** 書き込まれた `.meta.json` の `id` は `lsn-abc-123456` のままである
+
+#### Scenario: レッスン .meta.json への不正な JSON は拒否される
+- **WHEN** `write_file` が レッスン階層の `.meta.json` を対象に、JSON としてパースできない内容または未知キーを含む内容で実行される
+- **THEN** エラー結果が返り、ファイルは変更されない
 
 #### Scenario: session.json への書込は拒否される
 - **WHEN** `write_file` が `contents/シリーズA/コースB/レッスンC/session.json` を対象に実行される

@@ -23,7 +23,7 @@
 
 ### Requirement: URL は正本の slug から決まる
 
-公開サイトの URL は `/{シリーズslug}/{コースslug}/{レッスンslug}` でなければならない（SHALL）。slug の出所はシリーズ・コースの `.meta.json` とレッスンの frontmatter とし、ディレクトリ名から自動生成してはならない（SHALL NOT）。
+公開サイトの URL は `/{シリーズslug}/{コースslug}/{レッスンslug}` でなければならない（SHALL）。slug の出所は各階層の `.meta.json`（シリーズ・コース・レッスンとも）とし、ディレクトリ名から自動生成してはならない（SHALL NOT）。レッスンの slug を `contents.md` の frontmatter から読んではならない（SHALL NOT）——`contents.md` は本文のみである。
 
 **slug が欠落しているエンティティ、形式（`lib/schema.ts` の `SLUG_PATTERN`）に反する slug、同じ親の中で重複する slug が1つでもある場合、変換を中断してエラーで終了しなければならない**（SHALL）。エラーメッセージには対象のパスと理由を含めなければならない（SHALL）。
 
@@ -37,6 +37,11 @@
 - **WHEN** slug を持たないコースが `contents/` に存在する状態で変換を実行する
 - **THEN** 変換は中断し、対象のパスと欠落の理由を含むエラーで終了する
 - **AND** 生成物は出力されない
+
+#### Scenario: レッスンの slug 欠落で変換を止める
+
+- **WHEN** レッスンの `.meta.json` に `slug` が無い状態で変換を実行する
+- **THEN** 変換は中断し、対象レッスンのパスと理由を含むエラーで終了する
 
 #### Scenario: 兄弟間で重複する slug を検出する
 

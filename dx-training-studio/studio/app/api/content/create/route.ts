@@ -10,7 +10,7 @@ import {
 } from "@/lib/contents-loader";
 import { sanitizeFilename } from "@/lib/content-filename";
 import { generateCourseId, generateSeriesId, readStoredId } from "@/lib/content-ids";
-import { createLessonContentTemplate, normalizeLessonMeta } from "@/lib/lesson-frontmatter";
+import { defaultLessonBody } from "@/lib/lesson-meta";
 import { LESSON_CONTENTS_FILENAME } from "@/lib/lesson-paths";
 import { getProjectRoot } from "@/lib/project-root";
 
@@ -109,13 +109,11 @@ export async function POST(req: Request) {
   const lessonDirName = sanitizeFilename(parsed.data.name);
   const lessonDir = path.join(courseDir, lessonDirName);
   fs.mkdirSync(lessonDir, { recursive: true });
-  const meta = normalizeLessonMeta(
-    { lesson: parsed.data.name, status: "open" },
-    { seriesName: parsed.data.series, courseName: parsed.data.course },
-  );
+  // 本文は frontmatter なしのテンプレート。`.meta.json` はローダーの自己修復
+  //（既定値＋id 採番）に委ねる
   fs.writeFileSync(
     path.join(lessonDir, LESSON_CONTENTS_FILENAME),
-    createLessonContentTemplate(meta),
+    defaultLessonBody(parsed.data.name),
     "utf-8",
   );
 

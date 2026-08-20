@@ -1,0 +1,12 @@
+{
+  "id": "lsn-vscode-4ght2s",
+  "slug": "vscode",
+  "status": "in_progress",
+  "description": "Chocolatey から部門向けカスタマイズ版の VSCode を導入し、フォルダを開いてファイルを編集できるようになる",
+  "tags": [
+    "start",
+    "setup"
+  ],
+  "estimated_minutes": 15,
+  "author": "Kitamura"
+}

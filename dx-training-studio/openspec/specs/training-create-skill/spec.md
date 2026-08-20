@@ -151,48 +151,6 @@
 - **THEN** 衝突する対象を一覧で提示する
 - **AND** ユーザーの確認を得るまで書き込まない
 
-### Requirement: frontmatter と .meta.json の書き分け
-
-`contents.md` の frontmatter には `series` / `course` / `lesson` / `status` / `description` / `tags` / `estimated_minutes` / `author` に加えて、`slug` と `id` を書かなければならない（SHALL）。`slug` は計画書（第5章・第6章）で定義されたレッスン slug を転記しなければならない（SHALL）。計画書から slug が読み取れない場合は、フェーズ1の確認ゲートでユーザーに slug を確認しなければならない（SHALL）。`id` は `lsn-{slug}-{random6}` 形式でスキルが生成して書かなければならない（SHALL）——レッスンの ID はローダーが書き戻さないため（`stable-entity-ids` を参照）、生成時書込が唯一の付与経路である。
-
-`status` には **`in_progress`** を書かなければならない（SHALL）——本文を書いた時点で未着手ではない。`author` は**フェーズ1でユーザーに確認した値**を書かなければならない（SHALL）。`author` を空のまま出力してはならない（SHALL NOT）。
-
-`.meta.json` には `order` と `target` に加えて、`slug`（計画書のコース slug）・`description`（コースの概要文）・`catch`（キャッチコピー）を書かなければならない（SHALL）。シリーズを新規に作成する run では、シリーズ `.meta.json` にも `slug` / `description` / `catch` を書かなければならない（SHALL）。`description` と `catch` は計画書のコース仕様（学習目標・受講対象）から生成し、設計メモの承認ゲートで確認できるようにしなければならない（SHALL）。`.meta.json` に `id` を書いてはならない（SHALL NOT）——シリーズ・コースの ID は loader が自動採番して書き戻す。`cross_series_prev` および `cross_series_next` を書いてはならない（SHALL NOT）——曼陀羅の辺は計画側の責任。
-
-#### Scenario: コースの .meta.json を書く
-
-- **WHEN** コース単位で生成する
-- **THEN** そのコースの `.meta.json` に `order`（レッスン名の配列）と `target`（計画書の受講対象）と `slug` / `description` / `catch` が書かれる
-- **AND** `id` と `cross_series_prev` と `cross_series_next` は書かれていない
-
-#### Scenario: 順序が計画書どおりになる
-
-- **WHEN** 計画書のレッスン順が名前の昇順と一致しない
-- **THEN** `.meta.json` の `order` によって計画書どおりの順序が保たれる
-
-#### Scenario: 執筆したレッスンのステータス
-
-- **WHEN** スキルがレッスンの `contents.md` を出力する
-- **THEN** frontmatter の `status` は `in_progress` である
-
-#### Scenario: author が埋まっている
-
-- **WHEN** フェーズ1でユーザーが執筆者名を答えている
-- **AND** その run で3レッスンを出力する
-- **THEN** 3本とも frontmatter の `author` に同じ値が書かれている
-
-#### Scenario: レッスンの slug と id が書かれている
-
-- **WHEN** 計画書にレッスン slug `what-is-version-control` が定義されたレッスンを生成する
-- **THEN** frontmatter に `slug: what-is-version-control` が書かれる
-- **AND** frontmatter に `lsn-` で始まる `id` が書かれる
-
-#### Scenario: 計画書に slug が無い場合は確認ゲートで補完する
-
-- **WHEN** 選んだ計画書にレッスン slug の定義が無い
-- **THEN** フェーズ1の名前確認ゲートで slug の案が提示され、ユーザーの確認を経て確定する
-- **AND** 確定した slug が frontmatter に書かれる
-
 ### Requirement: 計画書の入力とユーザーによる選択
 
 スキルは計画書を `contents-work/plans/` 配下から読み込まなければならない（SHALL）。複数の計画書が存在する場合、**どれを使うかをユーザーに選ばせなければならない**（SHALL）。最新の 1 本を自動的に選んではならない（SHALL NOT）。
@@ -731,4 +689,48 @@ VSCode・GitHub のような**実在するアプリの画面**を求める画像
 
 - **WHEN** 同一画面内の入力だけが続くステップ群を書く
 - **THEN** ステップごとの画像スロットは要求されない
+
+### Requirement: レッスンメタは `.meta.json` に書く
+
+スキルはレッスンの `contents.md` を markdown 本文のみで出力しなければならない（SHALL）——frontmatter を書いてはならない（SHALL NOT）。レッスンメタはレッスンフォルダの `.meta.json` に書かなければならない（SHALL）: `slug`（計画書第6章のレッスン slug を転記。読み取れない場合はフェーズ1の確認ゲートでユーザーに確認する）・`status`（**`in_progress`**——本文を書いた時点で未着手ではない）・`description`・`tags`・`estimated_minutes`・`author`（**フェーズ1でユーザーに確認した値**。空のまま出力してはならない（SHALL NOT））。
+
+レッスン `.meta.json` に `id` を書いてはならない（SHALL NOT）——ID はシリーズ・コースと同様、loader が自動採番して書き戻す（`stable-entity-ids` を参照）。
+
+#### Scenario: レッスン本文に frontmatter が無い
+
+- **WHEN** スキルがレッスンの `contents.md` を出力する
+- **THEN** ファイルは Markdown 本文のみで、`---` で始まる frontmatter を含まない
+
+#### Scenario: レッスンの `.meta.json` を書く
+
+- **WHEN** 計画書にレッスン slug `what-is-version-control` が定義されたレッスンを生成する
+- **THEN** レッスンフォルダの `.meta.json` に `slug: "what-is-version-control"`・`status: "in_progress"`・`description`・`tags`・`estimated_minutes`・`author` が書かれる
+- **AND** `id` は書かれていない
+
+#### Scenario: author が埋まっている
+
+- **WHEN** フェーズ1でユーザーが執筆者名を答えている
+- **AND** その run で3レッスンを出力する
+- **THEN** 3本ともレッスン `.meta.json` の `author` に同じ値が書かれている
+
+#### Scenario: 計画書に slug が無い場合は確認ゲートで補完する
+
+- **WHEN** 選んだ計画書にレッスン slug の定義が無い
+- **THEN** フェーズ1の名前確認ゲートで slug の案が提示され、ユーザーの確認を経て確定する
+- **AND** 確定した slug がレッスン `.meta.json` に書かれる
+
+### Requirement: コース・シリーズの `.meta.json` を書く
+
+コースの `.meta.json` には `order` と `target` に加えて、`slug`（計画書のコース slug）・`description`（コースの概要文）・`catch`（キャッチコピー）を書かなければならない（SHALL）。シリーズを新規に作成する run では、シリーズ `.meta.json` にも `slug` / `description` / `catch` を書かなければならない（SHALL）。`description` と `catch` は計画書のコース仕様（学習目標・受講対象）から生成し、設計メモの承認ゲートで確認できるようにしなければならない（SHALL）。`.meta.json` に `id` を書いてはならない（SHALL NOT）——シリーズ・コースの ID は loader が自動採番して書き戻す。`cross_series_prev` および `cross_series_next` を書いてはならない（SHALL NOT）——曼陀羅の辺は計画側の責任。
+
+#### Scenario: コースの .meta.json を書く
+
+- **WHEN** コース単位で生成する
+- **THEN** そのコースの `.meta.json` に `order`（レッスン名の配列）と `target`（計画書の受講対象）と `slug` / `description` / `catch` が書かれる
+- **AND** `id` と `cross_series_prev` と `cross_series_next` は書かれていない
+
+#### Scenario: 順序が計画書どおりになる
+
+- **WHEN** 計画書のレッスン順が名前の昇順と一致しない
+- **THEN** `.meta.json` の `order` によって計画書どおりの順序が保たれる
 

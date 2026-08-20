@@ -36,12 +36,17 @@
 
 ### Requirement: 英語フィールドは `_en` サフィックスで同一ファイルに持つ
 
-表示テキストの英語版は、日本語フィールドに `_en` サフィックスを付けたフィールド（`name_en` / `description_en` / `catch_en`）として**同一の `.meta.json` 内**に持たなければならない（SHALL）。別ファイル（`.meta.en.json` 等）に分離してはならない（SHALL NOT）。本 change の範囲はスキーマとローダーの対応（器）までとし、値の書込と公開サイトでの日本語フォールバック表示は範囲外とする。
+表示テキストの英語版は、日本語フィールドに `_en` サフィックスを付けたフィールド（`name_en` / `description_en` / `catch_en`、レッスンでは `author_en` を含む）として**同一の `.meta.json` 内**に持たなければならない（SHALL）。レッスンの英語フィールドもレッスンフォルダの `.meta.json` に持つ（SHALL）——本文の英語版だけが `contents.en.md` に分かれる。別ファイル（`.meta.en.json` 等）に分離してはならない（SHALL NOT）。値の記入（翻訳）と記入用 UI は本要件の範囲外とする。
 
 #### Scenario: _en フィールドを読み込める
 
 - **WHEN** シリーズ `.meta.json` に `"name_en": "Git Basics"` が記述されている
 - **THEN** ローダーが返すシリーズ情報から `name_en` の値を取得できる
+
+#### Scenario: レッスンの author_en を読み込める
+
+- **WHEN** レッスン `.meta.json` に `"author_en": "Kitamura"` が記述されている
+- **THEN** ローダーが返すレッスン情報から `author_en` の値を取得できる
 
 #### Scenario: _en フィールドが無くてもエラーにならない
 

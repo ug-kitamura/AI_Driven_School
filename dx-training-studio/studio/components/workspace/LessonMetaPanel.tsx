@@ -22,7 +22,7 @@ import {
 } from "@/components/workspace/metaDialogLayout";
 import { LessonTagsInput } from "@/components/workspace/LessonTagsInput";
 import { isValidTag } from "@/lib/lesson-tags";
-import { normalizeTags, type LessonMetaFields } from "@/lib/lesson-frontmatter";
+import { normalizeTags, type LessonMetaFields } from "@/lib/lesson-meta";
 import {
   SLUG_PATTERN,
   STATUS_LABELS,
@@ -124,7 +124,7 @@ export function draftToMetaPatch(
   return {
     patch: {
       lesson: draft.lesson.trim() || fallbackLesson.lesson,
-      // 空文字は「未設定」= frontmatter からキーを外す（patchLessonMeta が空文字を落とす）
+      // 空文字は「未設定」= .meta.json からキーを外す（applyLessonMetaPatch が空文字を落とす）
       slug: trimmedSlug,
       status: draft.status,
       description: draft.description,

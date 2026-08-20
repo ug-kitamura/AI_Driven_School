@@ -14,18 +14,20 @@ export type LessonMeta = {
   /** ディレクトリ名（表示名） */
   name: string;
   slug?: string;
-  /** frontmatter の安定 ID（`lsn-...`） */
+  /** レッスン `.meta.json` の安定 ID（`lsn-...`） */
   id?: string;
   status: LessonStatus;
   description: string;
   tags: string[];
   estimatedMinutes: number;
   author: string;
-  /** frontmatter を除いた本文 */
+  /** 著者の英語表記（表記が2つあるときだけ）。表示は双方向フォールバック */
+  authorEn?: string;
+  /** `contents.md` の本文（frontmatter は廃止済み・全文が本文） */
   body: string;
   /** 英語版本文（`contents.en.md`）。無ければ undefined */
   bodyEn?: string;
-  /** 英語版 frontmatter の title */
+  /** 英語版タイトル（`.meta.json` の `name_en`） */
   titleEn?: string;
   dir: string;
 };
@@ -154,48 +156,6 @@ function listLessonFolderNames(courseDir: string): string[] {
     .map((e) => e.name);
 }
 
-export type ParsedFrontmatter = {
-  meta: Record<string, string | string[]>;
-  body: string;
-};
-
-/** 先頭の `---` 区切りフロントマターを分離する（Studio の `splitFrontmatterText` と同じ判定） */
-export function parseFrontmatter(content: string): ParsedFrontmatter {
-  const lines = content.split(/\r?\n/);
-  const isDelimiter = (line: string) => /^-{3,}\s*$/.test(line.trim());
-  if (lines.length < 2 || !isDelimiter(lines[0] ?? "")) {
-    return { meta: {}, body: content };
-  }
-  let closeIndex = -1;
-  for (let i = 1; i < lines.length; i++) {
-    if (isDelimiter(lines[i] ?? "")) {
-      closeIndex = i;
-      break;
-    }
-  }
-  if (closeIndex === -1) return { meta: {}, body: content };
-
-  const meta: Record<string, string | string[]> = {};
-  for (const line of lines.slice(1, closeIndex)) {
-    const trimmed = line.trim();
-    if (!trimmed || trimmed.startsWith("#")) continue;
-    if (trimmed.startsWith("tags:")) {
-      const value = trimmed.slice("tags:".length).trim();
-      const inner = value.replace(/^\[/, "").replace(/\]$/, "");
-      meta.tags = inner
-        .split(",")
-        .map((t) => t.trim())
-        .filter(Boolean);
-      continue;
-    }
-    const colon = trimmed.indexOf(":");
-    if (colon === -1) continue;
-    meta[trimmed.slice(0, colon).trim()] = trimmed.slice(colon + 1).trim();
-  }
-
-  return { meta, body: lines.slice(closeIndex + 1).join("\n") };
-}
-
 function migrateStatus(value: unknown): LessonStatus {
   if (value === "draft") return "open";
   if (value === "open" || value === "in_progress" || value === "done")
@@ -205,38 +165,37 @@ function migrateStatus(value: unknown): LessonStatus {
 
 function readLesson(courseDir: string, lessonName: string): LessonMeta {
   const lessonDir = path.join(courseDir, lessonName);
-  const raw = fs.readFileSync(
+  // `contents.md` は本文のみ（frontmatter は廃止済み）。メタは `.meta.json` から読む
+  const body = fs.readFileSync(
     path.join(lessonDir, LESSON_CONTENTS_FILENAME),
     "utf-8",
   );
-  const { meta, body } = parseFrontmatter(raw);
+  const meta = readMetaJson(lessonDir);
 
-  const minutes = Number.parseInt(String(meta.estimated_minutes ?? ""), 10);
+  const minutes =
+    typeof meta.estimated_minutes === "number"
+      ? meta.estimated_minutes
+      : Number.parseInt(String(meta.estimated_minutes ?? ""), 10);
 
   let bodyEn: string | undefined;
-  let titleEn: string | undefined;
   const enPath = path.join(lessonDir, LESSON_CONTENTS_EN_FILENAME);
   if (fs.existsSync(enPath)) {
-    const parsedEn = parseFrontmatter(fs.readFileSync(enPath, "utf-8"));
-    bodyEn = parsedEn.body;
-    titleEn =
-      typeof parsedEn.meta.lesson === "string"
-        ? parsedEn.meta.lesson
-        : undefined;
+    bodyEn = fs.readFileSync(enPath, "utf-8");
   }
 
   return {
     name: lessonName,
-    slug: typeof meta.slug === "string" ? meta.slug : undefined,
-    id: typeof meta.id === "string" ? meta.id : undefined,
+    slug: str(meta.slug),
+    id: str(meta.id),
     status: migrateStatus(meta.status),
     description: typeof meta.description === "string" ? meta.description : "",
-    tags: Array.isArray(meta.tags) ? meta.tags : [],
+    tags: strArray(meta.tags),
     estimatedMinutes: Number.isNaN(minutes) ? 0 : minutes,
     author: typeof meta.author === "string" ? meta.author : "",
+    authorEn: str(meta.author_en),
     body,
     bodyEn,
-    titleEn,
+    titleEn: str(meta.name_en),
     dir: lessonDir,
   };
 }

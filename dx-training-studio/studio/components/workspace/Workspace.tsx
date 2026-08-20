@@ -27,9 +27,7 @@ import { useWorkspaceSelection } from "@/components/workspace/hooks/use-workspac
 import { useContentSync } from "@/components/workspace/hooks/use-content-sync";
 import type { Series } from "@/lib/schema";
 import { normalizeSeriesCourseMeta } from "@/lib/course-flow";
-import {
-  normalizeAllLessonsInSeries,
-} from "@/lib/lesson-frontmatter";
+import type { LessonMetaFields } from "@/lib/lesson-meta";
 import { collectAllLessonTags } from "@/lib/lesson-tags";
 import { htmlCommentInnerTextAtOffset } from "@/lib/html-comment-at-cursor";
 import { matchLessonContentPath } from "@/lib/agent/invoke-context";
@@ -86,7 +84,7 @@ export function Workspace({
 }: WorkspaceProps) {
   const [githubUrl, setGithubUrl] = useState(initialGithubUrl);
   const [series, setSeries] = useState<Series[]>(() =>
-    normalizeAllLessonsInSeries(normalizeSeriesCourseMeta(initialSeries)),
+    normalizeSeriesCourseMeta(initialSeries),
   );
   const [pane4ManuallyClosed, setPane4ManuallyClosed] = useState(false);
   const [pane3Mode, setPane3Mode] = useState<Pane3Mode>("raw");
@@ -336,12 +334,15 @@ export function Workspace({
   );
 
   const handleOverwriteEditor = useCallback(
-    (markdown: string) => {
+    (markdown: string, metaPatch?: Partial<LessonMetaFields>) => {
       if (!selectedLesson) return;
       updateLessonContent(selectedLesson.id, markdown);
+      if (metaPatch && Object.keys(metaPatch).length > 0) {
+        updateLessonMeta(selectedLesson.id, metaPatch);
+      }
       setPane3Mode("raw");
     },
-    [selectedLesson, updateLessonContent],
+    [selectedLesson, updateLessonContent, updateLessonMeta],
   );
 
   const handleEditorCursorChange = useCallback(

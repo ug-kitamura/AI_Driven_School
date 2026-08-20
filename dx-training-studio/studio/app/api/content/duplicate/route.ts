@@ -9,12 +9,6 @@ import {
   writeMetaJson,
 } from "@/lib/contents-loader";
 import { sanitizeFilename } from "@/lib/content-filename";
-import {
-  parseLessonDocument,
-  normalizeLessonMeta,
-  serializeLessonDocument,
-} from "@/lib/lesson-frontmatter";
-import { LESSON_CONTENTS_FILENAME } from "@/lib/lesson-paths";
 import { getProjectRoot } from "@/lib/project-root";
 
 const schema = z.discriminatedUnion("type", [
@@ -57,26 +51,6 @@ function stripIdAndSlug(dir: string) {
   delete meta.id;
   delete meta.slug;
   writeMetaJson(dir, meta);
-}
-
-/** レッスン contents.md の frontmatter から id / slug を除き、位置情報を新配置に合わせる */
-function rewriteLessonFile(
-  lessonDir: string,
-  seriesName: string,
-  courseName: string,
-  lessonName: string,
-) {
-  const filePath = path.join(lessonDir, LESSON_CONTENTS_FILENAME);
-  if (!fs.existsSync(filePath)) return;
-  const raw = fs.readFileSync(filePath, "utf-8");
-  const { meta, body } = parseLessonDocument(raw);
-  delete meta.id;
-  delete meta.slug;
-  const normalized = normalizeLessonMeta(
-    { ...meta, lesson: lessonName },
-    { seriesName, courseName },
-  );
-  fs.writeFileSync(filePath, serializeLessonDocument(normalized, body), "utf-8");
 }
 
 /**
@@ -147,12 +121,7 @@ export async function POST(req: Request) {
           withFileTypes: true,
         })) {
           if (!lessonEntry.isDirectory()) continue;
-          rewriteLessonFile(
-            path.join(courseDir, lessonEntry.name),
-            copyName,
-            courseEntry.name,
-            lessonEntry.name,
-          );
+          stripIdAndSlug(path.join(courseDir, lessonEntry.name));
         }
       }
       appendToOrder(contentsDir, copyName);
@@ -172,12 +141,7 @@ export async function POST(req: Request) {
       stripIdAndSlug(destDir);
       for (const lessonEntry of fs.readdirSync(destDir, { withFileTypes: true })) {
         if (!lessonEntry.isDirectory()) continue;
-        rewriteLessonFile(
-          path.join(destDir, lessonEntry.name),
-          data.targetSeries,
-          copyName,
-          lessonEntry.name,
-        );
+        stripIdAndSlug(path.join(destDir, lessonEntry.name));
       }
       appendToOrder(targetSeriesDir, copyName);
       return Response.json({ ok: true, name: copyName });
@@ -196,7 +160,7 @@ export async function POST(req: Request) {
     const copyName = dedupeCopyName(targetCourseDir, data.lesson);
     const destDir = path.join(targetCourseDir, sanitizeFilename(copyName));
     copyDirRecursive(srcDir, destDir);
-    rewriteLessonFile(destDir, data.targetSeries, data.targetCourse, copyName);
+    stripIdAndSlug(destDir);
     appendToOrder(targetCourseDir, copyName);
     return Response.json({ ok: true, name: copyName });
   } catch (err) {

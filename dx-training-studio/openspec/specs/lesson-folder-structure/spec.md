@@ -5,17 +5,22 @@ TBD - created by archiving change lesson-folder-agent-sessions. Update Purpose a
 ## Requirements
 ### Requirement: レッスンフォルダ構成
 
-各レッスンは `contents/{series}/{course}/{lessonName}/` フォルダとして存在しなければならない（SHALL）。フォルダ名はレッスン表示名（`sanitizeFilename()` 適用済み）と一致しなければならない（SHALL）。フォルダ内の本文ファイルは `contents.md` でなければならない（SHALL）。Phase 1 では `contents.md` に YAML フロントマターと Markdown 本文の両方を含めなければならない（SHALL）。
+各レッスンは `contents/{series}/{course}/{lessonName}/` フォルダとして存在しなければならない（SHALL）。フォルダ名はレッスン表示名（`sanitizeFilename()` 適用済み）と一致しなければならない（SHALL）。フォルダ内の本文ファイルは `contents.md` でなければならない（SHALL）。`contents.md` は Markdown 本文のみで構成し、frontmatter を含めてはならない（SHALL NOT）。レッスンメタはフォルダ直下の `.meta.json` に保存する（`lesson-meta-file` capability を参照）。
 
 #### Scenario: レッスンフォルダから本文を読み込む
 
 - **WHEN** `contents/はじめにシリーズ/DX piyopiyo コース/トレーニングの進め方/contents.md` が存在する
-- **THEN** `loadContentsFolder()` は当該レッスンの `content` にファイル全文を設定する
+- **THEN** `loadContentsFolder()` は当該レッスンの `content` にファイル全文（本文）を設定する
 
 #### Scenario: レッスンフォルダが存在しない場合
 
 - **WHEN** コース `.meta.json` の `order` にレッスン名が含まれるが対応フォルダが存在しない
 - **THEN** 当該レッスンはロード結果から除外される
+
+#### Scenario: レッスンフォルダに `.meta.json` を持てる
+
+- **WHEN** レッスンフォルダに `contents.md` と `.meta.json` が存在する
+- **THEN** 本文は `contents.md`、メタは `.meta.json` から読み込まれる
 
 ### Requirement: session.json の配置
 

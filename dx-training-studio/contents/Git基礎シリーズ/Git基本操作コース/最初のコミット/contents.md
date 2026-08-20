@@ -1,16 +1,3 @@
----
-series: Git基礎シリーズ
-course: Git基本操作コース
-lesson: 最初のコミット
-slug: first-commit
-id: lsn-first-commit-kv4ju4
-status: done
-description: 練習用リポジトリで add と commit の流れを通し、生成物を.gitignoreで除外できるようになる
-tags: [git, basics]
-estimated_minutes: 15
-author: Kitamura
----
-
 # 最初のコミット
 
 ## 学習目標

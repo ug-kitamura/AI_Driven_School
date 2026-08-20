@@ -44,27 +44,22 @@ export const AGENT_SESSION_PREFIX = `${CONTENTS_PLAN_PREFIX}${AGENT_SESSION_DIR_
 /** レッスン本文が置かれる階層の深さ（`contents/<シリーズ>/<コース>/<レッスン>/`） */
 export const LESSON_FOLDER_DEPTH = 3;
 
-/** アプリが管理するファイル。agent は書き換えられない */
-const APP_OWNED_FILENAMES: readonly string[] = [
-  LESSON_SESSION_FILENAME,
-  CONTENT_META_FILENAME,
-];
-
 /**
  * 正本ツリー（`contents/`）への書込を検査する。
  *
  * **ファイルは階層を問わず自由に置いてよい。** 予約された名前だけを拒否する。
  *
- * - `session.json` / `.meta.json` — アプリが管理する。agent が書くと id や表示順が壊れる
- * - `contents.md` — レッスン本文の予約名。レッスン階層
- *   （`contents/<シリーズ>/<コース>/<レッスン>/`）以外に置くと偽のレッスン本文になる
+ * - `session.json` — アプリが管理する。agent が書くと会話・id が壊れる
+ * - `.meta.json` — レッスン階層（`contents/<シリーズ>/<コース>/<レッスン>/`）**のみ**
+ *   検査つきで許可する（検査は書込ツール側の `lesson-meta-write-guard` が行う）。
+ *   全体・シリーズ・コースの `.meta.json` は安定 id と表示順（order）を持つため拒否する
+ * - `contents.md` — レッスン本文の予約名。レッスン階層以外に置くと偽のレッスン本文になる
  *
  * ディレクトリの新設はここでは拒否しない。シリーズ・コース・レッスンと誤解される
  * 階層のフォルダが生まれるときは、確認ゲート（`confirm-gate.ts`）が実行前に承認を取る。
  *
- * 判定は**書込先パスだけ**で行う。ファイル内容は見ない——アプリが読込・同期のたびに
- * lesson frontmatter を正規化する（`normalizeAllLessonsInSeries`）ため、書込時に
- * スキーマを重ねて検査しない。
+ * 判定は**書込先パスだけ**で行う。唯一の例外がレッスン `.meta.json` の内容検査で、
+ * これは書込ツールが書込直前に行う（スキーマ適合・`id` の既存値保護）。
  *
  * 呼ぶのは書込系ツールのみ。読取は制限しない。
  */
@@ -78,11 +73,25 @@ export function checkContentsWritePath(
   const fileName = segments[segments.length - 1];
   if (!fileName) return null;
 
-  if (APP_OWNED_FILENAMES.includes(fileName)) {
+  if (fileName === LESSON_SESSION_FILENAME) {
     return {
       error: [
         `${fileName} はアプリが管理するファイルです。agent からは変更できません。`,
-        "レッスンの並び順はペイン1・2 のドラッグで変更してください。",
+        `書こうとしたパス: ${resolved.relativePath}`,
+      ].join("\n"),
+    };
+  }
+
+  // `.meta.json` はレッスン階層のみ検査つきで許可。親階層は id・表示順が壊れるため拒否
+  if (
+    fileName === CONTENT_META_FILENAME &&
+    segments.length - 1 !== LESSON_FOLDER_DEPTH
+  ) {
+    return {
+      error: [
+        `${CONTENT_META_FILENAME} はアプリが管理するファイルです。この階層では agent から変更できません。`,
+        `書けるのはレッスン階層（${CONTENTS_PREFIX}<シリーズ>/<コース>/<レッスン>/）の ${CONTENT_META_FILENAME} だけです。`,
+        "並び順（order）はペイン1・2 のドラッグで変更してください。",
         `書こうとしたパス: ${resolved.relativePath}`,
       ].join("\n"),
     };
@@ -104,6 +113,16 @@ export function checkContentsWritePath(
   }
 
   return null;
+}
+
+/** 書込先がレッスン階層の `.meta.json` かどうか（検査つき書込の対象判定） */
+export function isLessonMetaWritePath(resolved: ResolvedToolPath): boolean {
+  if (resolved.zone !== "contents") return false;
+  const segments = resolved.relativePath.split("/").slice(1).filter(Boolean);
+  return (
+    segments[segments.length - 1] === CONTENT_META_FILENAME &&
+    segments.length - 1 === LESSON_FOLDER_DEPTH
+  );
 }
 
 /**

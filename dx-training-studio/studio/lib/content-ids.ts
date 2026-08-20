@@ -47,6 +47,18 @@ export function generateCourseId(name: string, usedIds?: Set<string>): string {
   return uniqueId("crs", nameToSlug(name), usedIds);
 }
 
+/**
+ * レッスンの安定 ID（`lsn-{slug}-{random6}`）。slug 未設定なら表示名から導出する。
+ * シリーズ・コースと同じく、無ければローダーが採番して `.meta.json` に書き戻す。
+ */
+export function generateLessonStableId(
+  name: string,
+  slug: string | undefined,
+  usedIds?: Set<string>,
+): string {
+  return uniqueId("lsn", slug || nameToSlug(name), usedIds);
+}
+
 /** `.meta.json` から保存済み ID を読む */
 export function readStoredId(meta: Record<string, unknown>): string | undefined {
   const id = meta.id;

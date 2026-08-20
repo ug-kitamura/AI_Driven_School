@@ -1,4 +1,3 @@
-import { getLessonBody, parseLessonDocument } from "@/lib/lesson-frontmatter";
 import type { Lesson } from "@/lib/schema";
 import { sanitizeImageSlug } from "@/lib/image-slug";
 
@@ -62,20 +61,18 @@ export function buildImageGenerationMessages(
   lesson: Lesson,
   prompt: string,
 ): { system: string; user: string } {
-  const { meta } = parseLessonDocument(lesson.content);
-  const body = getLessonBody(lesson);
 
   const user = [
     "## Author prompt (primary instruction)",
     prompt.trim(),
     "",
     "## Lesson context (reference only — do not duplicate as outer prose in html)",
-    `lesson: ${meta.lesson}`,
-    `description: ${meta.description}`,
-    `tags: ${(meta.tags ?? []).join(", ")}`,
+    `lesson: ${lesson.lesson}`,
+    `description: ${lesson.description}`,
+    `tags: ${lesson.tags.join(", ")}`,
     "",
     "## Full lesson markdown body",
-    body,
+    lesson.content,
     "",
     "Generate JSON with slug, alt, and html for the author prompt.",
   ].join("\n");

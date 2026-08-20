@@ -206,6 +206,11 @@
     var(--muted) 50%,
     var(--background)
   );
+  /* ペイン1 の中身検索でヒットした語の地色。値の出どころは @codemirror/search の
+     baseTheme——Ctrl+F の一致色と同一にしないと、同じ「検索の一致」なのに
+     2 種類の色が混在してどちらが何なのか分からなくなる。
+     下の文字が透けるようアルファ付きのまま使う（塗りつぶすと文字が読めない） */
+  --search-highlight: #ffff0054;
   color-scheme: light;
 }
 
@@ -294,6 +299,8 @@
   --alert-warning: oklch(0.8 0.14 85);
   --alert-caution: oklch(0.72 0.16 25);
   --alert-tint: 16%;
+  /* ダークは黄ではなくシアン。@codemirror/search のダーク既定と同値 */
+  --search-highlight: #00ffff8a;
 }
 
 /*
@@ -830,15 +837,27 @@ html.dark .lesson-content-editor .cm-foldGutter.lesson-fold-gutter span.lesson-f
   transition: opacity 0.12s ease;
 }
 
-.lesson-content-editor
-  .lesson-fold-gutter.lesson-fold-gutter-column-hovered
-  span.lesson-fold-open {
+/* 展開中の ▼ は「ガターのどこかにマウスがある間」出す。行番号列と折りたたみ列の
+   共通の親が .cm-gutters なので、これ 1 本で両方を覆える——手はまず行番号の上を
+   通るため、折りたたみ列だけを条件にすると畳めること自体が見えない。
+   ⚠ 見えるのはガター全体だが、畳めるのは折りたたみ列の上だけ（▼ は
+   pointer-events: none で、クリックは gutter() 側のハンドラが受ける）。
+   行番号列のクリックには別の意味があるため、この非対称は意図的 */
+.lesson-content-editor .cm-gutters:hover span.lesson-fold-open {
   opacity: 1 !important;
-  pointer-events: none;
 }
 
 .lesson-content-editor .lesson-fold-gutter span.lesson-fold-closed {
   opacity: 1 !important;
+}
+
+/* ペイン1 の中身検索の一致箇所。編集ビュー（CodeMirror の装飾）とプレビュー
+   （rehype が挿す <mark>）の両方がこの 1 本を見る */
+.lesson-content-editor .lesson-search-highlight,
+.lesson-preview mark.lesson-search-highlight {
+  background-color: var(--search-highlight);
+  color: inherit;
+  border-radius: 2px;
 }
 
 /* 折りたたみプレースホルダー: 「…」テキストのみ背景付き・クリック可能 */

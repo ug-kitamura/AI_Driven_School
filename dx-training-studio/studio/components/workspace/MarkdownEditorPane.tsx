@@ -22,7 +22,7 @@ import type { Course, Lesson, Series } from "@/lib/schema";
 import type { Pane3Mode } from "@/components/workspace/Workspace";
 import {
   createLessonPreviewMarkdownComponents,
-  lessonPreviewRehypePlugins,
+  buildLessonPreviewRehypePlugins,
   lessonPreviewRemarkPlugins,
 } from "@/lib/lesson-preview-markdown";
 import "@/styles/hljs/lesson-preview-hljs.css";
@@ -58,6 +58,8 @@ type Props = {
   tagSuggestions?: readonly string[];
   availableImagePaths?: ReadonlySet<string> | null;
   imageAssetsRevision?: number;
+  /** ペイン1 の中身検索の語。編集ビューとプレビューの一致箇所を塗る */
+  searchHighlightQuery?: string;
 };
 
 const MODE_TABS: ReadonlyArray<PaneSegmentOption<Pane3Mode>> = [
@@ -90,6 +92,7 @@ export function MarkdownEditorPane({
   tagSuggestions = [],
   availableImagePaths = null,
   imageAssetsRevision = 0,
+  searchHighlightQuery,
 }: Props) {
   const editorRef = useRef<LessonContentEditorHandle>(null);
   const paneScrollRef = useRef<HTMLElement | null>(null);
@@ -109,6 +112,11 @@ export function MarkdownEditorPane({
         imageAssetsRevision,
       }),
     [availableImagePaths, imageAssetsRevision],
+  );
+
+  const previewRehypePlugins = useMemo(
+    () => buildLessonPreviewRehypePlugins(searchHighlightQuery),
+    [searchHighlightQuery],
   );
 
   const editContent = lesson?.content ?? "";
@@ -251,6 +259,7 @@ export function MarkdownEditorPane({
             onChange={(content) => onUpdateContent(lesson.id, content)}
             onScrollElementReady={handleScrollElementReady}
             onCursorChange={handleLocalCursorChange}
+            searchHighlightQuery={searchHighlightQuery}
           />
         </div>
 
@@ -266,7 +275,7 @@ export function MarkdownEditorPane({
               <ReactMarkdown
                 key={`${lesson.id}-${imageAssetsRevision}`}
                 remarkPlugins={lessonPreviewRemarkPlugins}
-                rehypePlugins={lessonPreviewRehypePlugins}
+                rehypePlugins={previewRehypePlugins}
                 components={previewMarkdownComponents}
               >
                 {previewBody}

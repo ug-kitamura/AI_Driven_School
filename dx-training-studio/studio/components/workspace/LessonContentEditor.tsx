@@ -17,6 +17,10 @@ import {
   lessonEditorThemeCompartment,
 } from "@/lib/lesson-content-editor-setup";
 import {
+  lessonSearchHighlight,
+  lessonSearchHighlightCompartment,
+} from "@/lib/lesson-search-highlight";
+import {
   getLessonEditorStateCache,
   setLessonEditorStateCache,
 } from "@/lib/lesson-editor-state-cache";
@@ -40,6 +44,8 @@ type Props = {
   onChange: (value: string) => void;
   onScrollElementReady?: (element: HTMLElement | null) => void;
   onCursorChange?: (offset: number) => void;
+  /** ペイン1 の中身検索の語。一致箇所の地色を塗る */
+  searchHighlightQuery?: string;
   className?: string;
 };
 
@@ -53,6 +59,7 @@ export const LessonContentEditor = forwardRef<
     onChange,
     onScrollElementReady,
     onCursorChange,
+    searchHighlightQuery,
     className,
   },
   ref,
@@ -70,6 +77,9 @@ export const LessonContentEditor = forwardRef<
   const isDark = useResolvedDarkMode();
   const isDarkRef = useRef(isDark);
   isDarkRef.current = isDark;
+
+  const searchQueryRef = useRef(searchHighlightQuery);
+  searchQueryRef.current = searchHighlightQuery;
 
   const [fontSizePx, setFontSizePx] = useState(() =>
     clampEditorFontSizePx(loadWorkspaceSettings().editorFontSizePx),
@@ -124,6 +134,7 @@ export const LessonContentEditor = forwardRef<
         {
           getFontSize: () => fontSizeRef.current,
           onFontSizeChange: handleFontSizeChange,
+          searchHighlightQuery: searchQueryRef.current,
         },
         [updateListenerExtension],
       ),
@@ -147,14 +158,20 @@ export const LessonContentEditor = forwardRef<
     viewRef.current = view;
     onScrollElementReadyRef.current?.(view.scrollDOM);
 
-    // キャッシュ復元時も現在のテーマを即反映（ダークテーマが残るのを防ぐ）
+    // キャッシュ復元時も現在のテーマと検索語を即反映
+    // （ダークテーマや古い検索語が残るのを防ぐ）
     view.dispatch({
-      effects: lessonEditorThemeCompartment.reconfigure(
-        buildLessonEditorExtensions(isDarkRef.current, fontSizeRef.current, {
-          getFontSize: () => fontSizeRef.current,
-          onFontSizeChange: handleFontSizeChange,
-        }),
-      ),
+      effects: [
+        lessonEditorThemeCompartment.reconfigure(
+          buildLessonEditorExtensions(isDarkRef.current, fontSizeRef.current, {
+            getFontSize: () => fontSizeRef.current,
+            onFontSizeChange: handleFontSizeChange,
+          }),
+        ),
+        lessonSearchHighlightCompartment.reconfigure(
+          lessonSearchHighlight(searchQueryRef.current),
+        ),
+      ],
     });
 
     if (!cached) {
@@ -191,13 +208,20 @@ export const LessonContentEditor = forwardRef<
       // (2) 当時のインスタンスを掴んだ Ctrl+ホイールのハンドラ（今の setState を
       // 呼ばないのでズームが無反応）が生き残る。マウント時と同じ再構成をここでも
       // 通して現行インスタンスへ差し替える——「たまに壊れる」の正体がこれ。
+      // (3) 検索ハイライトも同じ理由で差し替える。漏らすとキャッシュした時点の
+      // 検索語のまま塗られる／塗られないという再現しにくい不具合になる。
       view.dispatch({
-        effects: lessonEditorThemeCompartment.reconfigure(
-          buildLessonEditorExtensions(isDarkRef.current, fontSizeRef.current, {
-            getFontSize: () => fontSizeRef.current,
-            onFontSizeChange: handleFontSizeChange,
-          }),
-        ),
+        effects: [
+          lessonEditorThemeCompartment.reconfigure(
+            buildLessonEditorExtensions(isDarkRef.current, fontSizeRef.current, {
+              getFontSize: () => fontSizeRef.current,
+              onFontSizeChange: handleFontSizeChange,
+            }),
+          ),
+          lessonSearchHighlightCompartment.reconfigure(
+            lessonSearchHighlight(searchQueryRef.current),
+          ),
+        ],
       });
     } else {
       const nextState = EditorState.create({
@@ -225,6 +249,17 @@ export const LessonContentEditor = forwardRef<
       ),
     });
   }, [isDark, fontSizePx, handleFontSizeChange]);
+
+  useEffect(() => {
+    const view = viewRef.current;
+    if (!view) return;
+
+    view.dispatch({
+      effects: lessonSearchHighlightCompartment.reconfigure(
+        lessonSearchHighlight(searchHighlightQuery),
+      ),
+    });
+  }, [searchHighlightQuery]);
 
   useEffect(() => {
     const view = viewRef.current;

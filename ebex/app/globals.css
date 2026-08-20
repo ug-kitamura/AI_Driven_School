@@ -33,6 +33,7 @@
   --color-border: var(--border);
   --color-destructive: var(--destructive);
   --color-success: var(--success);
+  --color-favorite: var(--favorite);
   --color-accent-foreground: var(--accent-foreground);
   --color-accent: var(--accent);
   --color-muted-foreground: var(--muted-foreground);
@@ -173,6 +174,15 @@
     var(--foreground) 7%,
     var(--background)
   );
+  /* お気に入りの色。⚠ 直書きの `fill-yellow-500` に戻さないこと——ピンクテーマで
+     桜色の面に黄色いハートが乗るという最悪の組み合わせになる。
+     値は Tailwind の yellow-500 と同色（本トークン化の前と見た目が変わらない） */
+  --favorite: #eab308;
+  /* Pane 1 の内容検索でヒットした語の地色。値の出どころは @codemirror/search の
+     baseTheme——Ctrl+F の一致色と同一にしないと、同じ「検索の一致」なのに
+     2 種類の色が混在してどちらが何なのか分からなくなる。
+     下の文字が透けるようアルファ付きのまま使う（塗りつぶすと文字が読めない） */
+  --search-highlight: #ffff0054;
   color-scheme: light;
 }
 
@@ -252,6 +262,67 @@
     var(--foreground) 10%,
     var(--background)
   );
+  /* ライトと同じ黄色。暗地でも沈まないので値は変えない */
+  --favorite: #eab308;
+  /* ダークは黄ではなくシアン。@codemirror/search のダーク既定と同値 */
+  --search-highlight: #00ffff8a;
+}
+
+/*
+ * ピンクテーマ。`.dark` とは排他で、OS の明暗設定とは合成しない。
+ *
+ * 配分は「面は桜色・差し色はショッキングピンク」——高彩度のピンクは塗り役
+ * （--primary / --ring）だけに閉じ込め、広い面は低彩度の桜色にする。逆にすると
+ * UI 全体が眠くなり本文のコントラストが落ちる。--card を純白のまま残すのも
+ * 同じ理由で、桜色の面が額縁として働く。
+ *
+ * ⚠ 導出トークン（--primary-hover / --button-outline-hover /
+ * --workspace-tree-row / --workspace-scrollbar-*）はここに書かない。:root 側の
+ * color-mix() が var() 経由でこのブロックの値へ解決されるため自動で追従する。
+ *
+ * ⚠ --destructive / --success もここに書かない。「赤＝危険」「緑＝肯定」は
+ * テーマをまたいで一定であるべきなので :root の値を継承する。destructive
+ * （彩度 0.096 のくすんだ煉瓦色）と --primary（彩度 0.2 台のショッキングピンク）
+ * は、色相と同じくらい彩度で隔たっていて識別できる。
+ */
+.pink {
+  color-scheme: light;
+  --background: #fdf2f5; /* 桜（極低彩度）: ページ背景 */
+  --foreground: #2a1a20; /* 暖かい黒: テキスト（メイン） */
+  --card: #ffffff;
+  --card-foreground: #2a1a20;
+  --canvas: #ffffff;
+  --popover: #ffffff;
+  --popover-foreground: #2a1a20;
+  --primary: #d6006e; /* ショッキングピンク: 塗り */
+  --primary-foreground: #ffffff;
+  --secondary: #fad4e0; /* 桜: 淡いアクセント */
+  --secondary-foreground: #a8003f; /* 深いローズ */
+  --muted: #fbe9ef;
+  /* 面のうち最も明るい --muted の上でも AA（4.5:1）を満たす暖かいグレー。
+     候補だった #8A7078 は --muted 上で 3.86 しか出ず落選した */
+  --muted-foreground: #7d646c;
+  --accent: #fad4e0;
+  --accent-foreground: #a8003f;
+  --border: #f0d0dc;
+  --input: #f0d0dc;
+  --ring: #d6006e;
+  /* 系列の判別性を保つため、単一のピンクへ寄せずローズ〜サーモン〜藤色に散らす */
+  --chart-1: #d6006e;
+  --chart-2: #f2789a;
+  --chart-3: #9b4dca;
+  --chart-4: #c97b94;
+  --chart-5: #fad4e0;
+  --sidebar: #ffffff;
+  --sidebar-foreground: #2a1a20;
+  --sidebar-primary: #d6006e;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #fad4e0;
+  --sidebar-accent-foreground: #a8003f;
+  --sidebar-border: #f0d0dc;
+  --sidebar-ring: #d6006e;
+  /* 桜色の面から識別できる濃いローズ。黄色にすると面と喧嘩する */
+  --favorite: #d6006e;
 }
 
 @layer base {
@@ -604,15 +675,27 @@ html.dark
   transition: opacity 0.12s ease;
 }
 
-.lesson-content-editor
-  .lesson-fold-gutter.lesson-fold-gutter-column-hovered
-  span.lesson-fold-open {
+/* 展開中の ▼ は「ガターのどこかにマウスがある間」出す。行番号列と折りたたみ列の
+   共通の親が .cm-gutters なので、これ 1 本で両方を覆える——手はまず行番号の上を
+   通るため、折りたたみ列だけを条件にすると畳めること自体が見えない。
+   ⚠ 見えるのはガター全体だが、畳めるのは折りたたみ列の上だけ（▼ は
+   pointer-events: none で、クリックは gutter() 側のハンドラが受ける）。
+   行番号列のクリックには別の意味があるため、この非対称は意図的 */
+.lesson-content-editor .cm-gutters:hover span.lesson-fold-open {
   opacity: 1 !important;
-  pointer-events: none;
 }
 
 .lesson-content-editor .lesson-fold-gutter span.lesson-fold-closed {
   opacity: 1 !important;
+}
+
+/* Pane 1 の内容検索の一致箇所。編集ビュー（CodeMirror の装飾）とプレビュー
+   （rehype が挿す <mark>）の両方がこの 1 本を見る */
+.lesson-content-editor .lesson-search-highlight,
+.lesson-preview mark.lesson-search-highlight {
+  background-color: var(--search-highlight);
+  color: inherit;
+  border-radius: 2px;
 }
 
 /* 折りたたみプレースホルダー: 「…」テキストのみ背景付き・クリック可能 */

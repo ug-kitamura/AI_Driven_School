@@ -7,7 +7,6 @@ import {
   Copy,
   FilePen,
   History,
-  Loader2,
   Pencil,
   Plus,
   RotateCcw,
@@ -39,6 +38,7 @@ import {
 } from "@/components/workspace/AgentChatInput";
 import { AgentChatMessageContent } from "@/components/workspace/AgentChatMessageContent";
 import { AgentToolCallBlock } from "@/components/workspace/AgentToolCallBlock";
+import { BusySpinner } from "@/components/workspace/ThemeIcons";
 import { aiRequestHeaders, AI_KEY_ERROR } from "@/lib/agent-request-headers";
 import {
   buildCreateDraftVariables,
@@ -1611,8 +1611,8 @@ export function AgentChatPane({
                           <span className="text-muted-foreground">...</span>
                         )}
                         {isStreamingMessage ? (
-                          <Loader2
-                            className="size-4 shrink-0 animate-spin text-muted-foreground"
+                          <BusySpinner
+                            className="size-4 shrink-0 text-muted-foreground"
                             aria-label="応答生成中"
                           />
                         ) : null}

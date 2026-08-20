@@ -57,6 +57,8 @@ type Props = {
   onRegisterOverwriteCallback: (cb: (markdown: string) => void) => void;
   /** MD プレビュー内のプロジェクト内リンクでファイルを開く */
   onOpenFile?: (folderPath: string, fileName: string) => void;
+  /** Pane 1 の内容検索の語。編集ビューとプレビューの一致箇所を塗る */
+  searchHighlightQuery?: string;
 };
 
 const SAVE_DEBOUNCE_MS = 800;
@@ -99,6 +101,7 @@ function EditorPaneActive({
   onRegisterInsertCallback,
   onRegisterOverwriteCallback,
   onOpenFile,
+  searchHighlightQuery,
 }: Props) {
   // ファイル切替は key リマウントのため、初期モードは拡張子ごとにここで決まる
   const [mode, setMode] = useState<EditorViewMode>(() =>
@@ -184,6 +187,7 @@ function EditorPaneActive({
         isResizing={isResizing}
         folderPath={folderPath}
         onOpenFile={onOpenFile}
+        searchHighlightQuery={searchHighlightQuery}
       />
     );
   } else {
@@ -196,6 +200,7 @@ function EditorPaneActive({
         value={content}
         onChange={handleChange}
         enableFolding={enableFolding}
+        searchHighlightQuery={searchHighlightQuery}
         className="h-full"
       />
     );

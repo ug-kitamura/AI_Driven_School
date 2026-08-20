@@ -19,6 +19,10 @@ import {
   LESSON_LINE_NUMBER_LIGHT,
 } from "@/lib/lesson-active-line-number";
 import { lessonFoldGutter } from "@/lib/lesson-fold-gutter";
+import {
+  lessonSearchHighlight,
+  lessonSearchHighlightCompartment,
+} from "@/lib/lesson-search-highlight";
 import { getFoldRangeAtLine } from "@/lib/markdown-fold-ranges";
 import { clampEditorFontSizePx } from "@/lib/workspace-settings";
 import { fileExtension } from "@/lib/file-preview";
@@ -202,11 +206,12 @@ function createLessonEditorLayout(
         opacity: "0",
         pointerEvents: "none",
       },
-      ".lesson-fold-gutter.lesson-fold-gutter-column-hovered span.lesson-fold-open":
-        {
-          opacity: "1",
-          pointerEvents: "none",
-        },
+      // 行番号列を含むガター全体をホバー領域にする（正本は globals.css の
+      // 同名ルール。こちらは !important 無しのフォールバック）
+      ".cm-gutters:hover span.lesson-fold-open": {
+        opacity: "1",
+        pointerEvents: "none",
+      },
       ".lesson-fold-gutter span.lesson-fold-closed": {
         opacity: "1",
         pointerEvents: "auto",
@@ -271,6 +276,8 @@ export type LessonEditorExtensionOptions = {
   enableFolding?: boolean;
   /** 言語解決用のファイル名（拡張子マッチ） */
   fileName?: string;
+  /** Pane 1 の内容検索の語。一致箇所の地色を塗る */
+  searchHighlightQuery?: string;
 };
 
 /** 拡張子から LanguageDescription を解決（.bat は Shell にフォールバック） */
@@ -369,6 +376,9 @@ export function buildLessonEditorStateExtensions(
   return [
     lessonEditorThemeCompartment.of(
       buildLessonEditorExtensions(isDark, fontSizePx, options),
+    ),
+    lessonSearchHighlightCompartment.of(
+      lessonSearchHighlight(options?.searchHighlightQuery),
     ),
     lessonEditorLanguageCompartment.of(languageExtension),
     history(),

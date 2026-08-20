@@ -223,6 +223,7 @@ function SettingsForm({
                 [
                   ["light", "ライト"],
                   ["dark", "ダーク"],
+                  ["pink", "ピンク"],
                   ["system", "システム"],
                 ] as const
               ).map(([value, label]) => (

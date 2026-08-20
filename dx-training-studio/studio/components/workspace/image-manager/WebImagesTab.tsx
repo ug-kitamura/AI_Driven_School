@@ -1,8 +1,9 @@
 "use client";
 
 import { useEffect } from "react";
-import { Loader2, Pen, RotateCcw, Search } from "lucide-react";
+import { Pen, RotateCcw, Search } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { BusySpinner } from "@/components/workspace/BusySpinner";
 import { ImageGrid, type ImageGridItem } from "@/components/workspace/ImageGrid";
 import { Button } from "@/components/ui/button";
 import {
@@ -104,7 +105,7 @@ export function WebImagesTab({
                 >
                   {searching ? (
                     <>
-                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                      <BusySpinner className="size-3.5" />
                       検索中...
                     </>
                   ) : (
@@ -123,7 +124,7 @@ export function WebImagesTab({
                   onClick={() => void handleAutoFill()}
                 >
                   {suggesting ? (
-                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    <BusySpinner className="size-3.5" />
                   ) : (
                     <Pen className="h-3.5 w-3.5" />
                   )}

@@ -1,6 +1,6 @@
 # 引き継ぎ: dx-training-studio
 
-**次のセッションの入口は「英語翻訳対応」**（ユーザー宣言・2026-08-21）。4大課題ロードマップの最後の1つ（④）で、**器はすべて実装済み・中身が全部未記入**という状態から始める。決定済み事項・器の現状・explore で決めることは **1.5 節にまとめた**。標準サイクル（explore → propose → apply）で入ること。
+**英語翻訳対応（4大課題④）は 2026-08-21 に実装完了した**——change 3本（`en-translation-foundation` / `studio-translation-ui` / `translate-skill`）を propose → apply → archive まで通し、ブランチ `dx-english-translation` にコミット・プッシュ済み（ユーザーの明示指示による。PR とマージは人）。**次はパイロット: `/dx-training-translate` で「Gitの三大エリア」（Git概念コースのレッスン・create スキルの模範解答）を翻訳し、mandala をビルドして `/en` を実確認する**（→ 1.5 節）。これで4大課題ロードマップは全消化。
 
 積み残しの実機確認が1件ある: **曼陀羅モーダルを閉じて開き直したとき中心が合うか**（→ 1章。ペインでは原理的に判定できない）。英語対応の探索を始める前か合間に、ユーザーへひと言確認すると片付く。
 
@@ -19,8 +19,15 @@
 ## 1. 残っている仕事
 
 ```
-[次] 英語翻訳対応（4大課題の④・最後の1つ）      ← 次セッションの入口
-       決定済み・器の現状・未決事項は 1.5 節。explore から入る
+[次] 英訳パイロット（英語翻訳対応④の仕上げ）      ← 次セッションの入口
+       /dx-training-translate で「Gitの三大エリア」（レッスン指定か
+       Git概念コースごと・人の判断）を翻訳 → mandala をビルドして /en を
+       実確認（バッジ消滅・曼陀羅の name_en・検索の言語分離）。
+       実装済みの器と作法は 1.5 節
+
+[次] dx-english-translation ブランチの PR → マージ    ⚠ 人がやる
+       英語翻訳対応の change 3本（器/Studio UI/スキル）＋spec 同期＋
+       翻訳契約＋dx-training-translate スキル一式（push 済み）
 
 [次] モーダル構成変更の実機確認（ユーザーに聞くだけ）
        ラウンド10 → 実機フィードバック 3 巡で以下まで到達（2026-08-21・push 済み）:
@@ -93,42 +100,39 @@
      画像ピッカー（2.7）
 ```
 
-### 1.5 英語翻訳対応に必要な知識（次セッションの主戦）
+### 1.5 英語翻訳対応（✅ 実装完了・2026-08-21）——パイロットに必要な知識
 
-**位置づけ**: 4大課題ロードマップ（2026-08-16 プラン承認・正本は memory `project-dx-4tasks-roadmap`）の④。①リストラクチャ・②③ペイン統合+meta.json は完了済みで、これが最後。
+**位置づけ**: 4大課題ロードマップ④。explore で全決定（正本は memory `project-dx-english-translation`）→ change 3本を同日に propose → apply → archive まで完了:
 
-**決定済み（覆すなら explore で明示的に）**:
+| change | 中身 |
+|---|---|
+| `en-translation-foundation` | `target_en`・`en_source_hash`・鮮度判定 lib（`studio/lib/translation/freshness.ts` が正本・mandala は parity 検証つきミラー）・`/en` の2種バッジ（未翻訳/翻訳が古い）・Pagefind の言語分離 |
+| `studio-translation-ui` | 4ヘッダーの言語切替＋鮮度チップ・英語ビュー（原文併記・翻訳ボタン）・en 本文編集（自動保存）・ホーム統合翻訳（メタ＋changelog）・翻訳 API（Sonnet 5 固定）・「最新として扱う」 |
+| `translate-skill` | `/dx-training-translate` スキル（範囲指定・鮮度レポート→未翻訳/古いだけ差分翻訳・`references/scan-freshness.mts` が正本 lib を import） |
 
-- **事前一括英訳はしない**。日本語で一通り書く → 必要になったレッスンから英訳する運用
-- 流れ: **英訳の実行 → `dx-training-translate` スキル → `contents.en.md` 生成 ＋ `.meta.json` の `*_en` 記入**
-- **create スキルには載せない**（翻訳は独立工程。原稿作成と混ぜない）
-- **用語集は `references/` 案**（模範解答の置き場として既存のディレクトリ）
-- ⚠ **翻訳スキルは `author` / `author_en` に触らない**——人名のローマ字表記は本人の流儀。表示は双方向フォールバック（ja: author→author_en / en: author_en→author）なので、埋めなくても表示は破綻しない
+**パイロットの手順**（次セッション or 人）:
 
-**器の現状（すべて実装済み・値が未記入なだけ）**:
+1. `/dx-training-translate` を起動し「Gitの三大エリア」を指定（レッスン単位で小さく始めるか、Git概念コースごとかは人の判断）
+2. 生成された差分（`contents.en.md`・`.meta.json` の `*_en`/`en_source_hash`）を人がレビュー
+3. `start-mandala-dev.bat` でビルド → `/en` で: 当該ページのバッジ消滅・曼陀羅/サイドバーの `name_en` 表示・検索が英語索引を引くこと
+4. Studio でも: 当該ユニットのチップが消える・英語ビューに訳が入っていること
 
-- サイト: `/en` ツリーがビルドされる。`contents.en.md` が無ければ**日本語フォールバック＋未翻訳バッジ**。言語別サイドバーは `usePathname()` で解決（→ 2章）。正本は spec `publishing-site-build`
-- メタ: `*_en`（`name_en` / `description_en` / `catch_en`、レッスンは `author_en` も）は**同一 `.meta.json` 内**。spec `publishing-meta-fields` が「値の記入（翻訳）と記入用 UI は範囲外」と明言しており、**今回がまさにその範囲外を埋める仕事**
-- ⚠ **レッスンの英語タイトルの正本は `.meta.json` の `name_en`**。2026-08-14 の「contents.en.md の frontmatter に置く」という決定は、frontmatter 廃止（2026-08-20 `lesson-meta-json`）で**転換済み**。サイトも `name_en` を読む実装になっている（`mandala/scripts/lib/content-source.mts` の `titleEn`）——古い記録を見て frontmatter を復活させないこと
-- レッスン `.meta.json` のスキーマ正本は `studio/lib/schema.ts` の `lessonMetaFileSchema`（`name_en` / `description_en` / `author_en` あり・**未知キー拒否**）
-- 両アプリのローダーのファイル・ホワイトリストに `contents.en.md` は最初から入っている（`isContentFolderName` の走査規則。→ 10章の `.meta.json` 改名見送りの項）
-- `changelog.en.md` も同じフォールバック作法が実装済み（`content-source.mts` / `emit.mts`）
+**作法の要点（触るときに知っておくこと）**:
 
-**explore で決めること（未決）**:
+- **鮮度はハッシュ方式**（spec `translation-freshness` が正本）: 本文は `contents.en.md` 1行目の `<!-- source: sha256:… -->`、メタは `.meta.json` の `en_source_hash`、changelog は日英の先頭エントリ日付比較。**ハッシュを書くのは翻訳の実行主体だけ**（手動保存は触らない。手直し後は Studio チップの「最新として扱う」で解消）
+- **翻訳規則の SSoT は `contracts/translation-contract.md`**（英訳する/変えない・訳注 `<!-- 訳注: … -->`・用語集）。Studio の翻訳 API とスキルの両方が読む——**規則をどちらかに複製しないこと**
+- ⚠ **`author` / `author_en` は翻訳が触らない**（英語ビューで手編集のみ）。構造キー（id/order/slug/cross_series/is_start/is_goal）も不可侵。agent 書込ガードは `en_source_hash` を `id` と同じ既存値保護にしてある（鮮度偽装防止）
+- **モデルの使い分け**: Studio ボタン＝常に Sonnet 5（`lib/translation/llm.ts` で固定。ワークスペース設定を見ない）／一括・品質勝負＝スキル（Claude Code）
+- ⚠ **英語ビューの保存は専用経路 `PUT /api/content/meta-en`**。既存 save-course は target/cross 系を常時明示送信する規約なので流用すると日本語側を壊す（design 追記に経緯）
+- ⚠ **`/en` の `<html lang>` は postbuild（`mandala/scripts/set-en-lang.mts`）が書き換える**。Pagefind はこれで言語別索引を分離するので、**postbuild の順序（lang 書き換え → Pagefind）を崩さないこと**。検索 UI の索引言語は「最初に検索を開いた時点の lang」で決まる既知の限界あり（README）
+- **状態は日英共有**（status に `_en` は無い）——未完成レッスンの英語版は自動で「作成中」表示。未完成も翻訳対象（スキルは status で絞らない）
 
-- **スキルの入口**: Claude Code のスキルとして人が回すのか、Studio に「英訳ボタン」を付けてペイン4 agent 経由で回すのか（2026-08-14 の将来構想は「4階層メタ編集 UI ＋ AI 英訳ボタン」だった）。ペイン4 agent は**レッスン階層の `.meta.json` だけ検査つきで書ける**ので、agent 経路なら書込ガードをそのまま使える
-- **`.meta.json` への書込経路**: スキルが直接書くか、検査つき書込を通すか。直接書くなら `lessonMetaFileSchema` 適合と id 保護を自前で守る必要がある
-- **対象範囲と順序**: 実コンテンツは37ページぶん。どのシリーズから埋めるか、全部やるのか
-- **用語集の形式**: references 案の具体化（訳語の一貫性をどう担保するか）
-- **翻訳モデル**: 原稿は Fable 5 を使う流儀がある（memory `project-dx-training-improvement-round3`: 原稿=Fable5/画像=Sonnet5）。翻訳をどちらに寄せるか
-- **検証方法**: `mandala/` をビルドして `/en` で未翻訳バッジが消えることの実確認まで含めるか
-
-**参照すべき正本**: spec `publishing-site-build`（フォールバック＋バッジ）・`publishing-meta-fields`（`*_en` の置き場）・`lesson-meta-file`（レッスンメタ）・`agent-write-contract` / `agent-generated-write`（agent の書込ガード）。サイト側の読み取り実装は `mandala/scripts/lib/content-source.mts` と `emit.mts`。
+**参照すべき正本**: spec `translation-freshness` / `studio-translation` / `training-translate-skill`・`publishing-site-build`（バッジ2種・検索言語分離）・`publishing-meta-fields`（`target_en` / `en_source_hash`）。実装の経緯は archive の `2026-08-21-en-translation-foundation` / `-studio-translation-ui` / `-translate-skill` の design.md。
 
 
 ### リポジトリの状態
 
-ブランチは作業の区切りで変わる（⚠ **`git branch --show-current` を信じること**）。2026-08-21 時点は **`dx-ebex-pink-search-mandala`**（ラウンド9・10 に加え、2026-08-21 の画像ビュー2本・ミニ曼陀羅遷移・テスト/lint 修正まで push 済み・PR は未作成）。⚠ **コミットするならブランチを切ってから**。コミットの作法は 6.3、横から入るコミットの話は7章。
+ブランチは作業の区切りで変わる（⚠ **`git branch --show-current` を信じること**）。2026-08-21 時点は **`dx-english-translation`**（main から分岐。英語翻訳対応の change 3本一式を push 済み・PR は人）。前ブランチ `dx-ebex-pink-search-mandala` は PR #156 で main へマージ済み。⚠ **コミットするならブランチを切ってから**。コミットの作法は 6.3、横から入るコミットの話は7章。
 
 **フォルダ構成は 2026-08-16 に兄弟構成へ移行した**（change `restructure-studio-mandala`）。`dx-training-studio/` は入れ物になり、アプリは `studio/`（旧直下）と `mandala/`（旧 `site/`）、正本（`contents/` `images/` `contents-work/` `local-db/`）と共通（`.claude/` `openspec/` `docs/` `contracts/`）は入れ物直下のまま。構造の要件は spec `project-layout` が正本。起動は入れ物直下の `start-studio(-dev).bat` / `start-mandala(-dev).bat`。
 
@@ -262,7 +266,7 @@ npm run start   # out/ をローカル配信
 
 | 項目 | 状況 |
 |---|---|
-| **英語は器だけ** | `/en` はビルドされるが中身は全部日本語フォールバック。`contents.en.md` と `.meta.json` の `*_en` は未記入。**次セッションで埋めに行く（→ 1.5 節）** |
+| **英語は器＋道具まで完成・値が未記入** | `/en` のバッジは2種（未翻訳/翻訳が古い）に拡張済み。翻訳の道具（Studio 英語ビュー・翻訳 API・translate スキル）は揃ったが `contents.en.md` は 0 件。**パイロットから埋める（→ 1.5 節）** |
 | **`zod` を 4.3.6 に固定している** | Nextra 4.6.x が zod 4.4.x と衝突し全ページのプリレンダが落ちる（[nextra#5008](https://github.com/shuding/nextra/issues/5008)）。**上流修正後に `package.json` の `overrides` を外す** |
 | **ビルドを webpack に固定している** | Turbopack はローダー options に関数を渡せず、rehype プラグイン（GitHub アラート）が乗らない。**Nextra か unified が文字列でのプラグイン指定に対応したら `--webpack` を外せる** |
 | **テーマ内部の class 名に依存している** | リリース番号は `.nextra-sidebar::before`、**サイドバー幅は `.nextra-sidebar.x\:w-64`**（展開状態だけを狙う。平坦に書くと手動トグルの `x:w-20` まで潰れて畳めなくなる）、Studio の帯は `[data-slot="sidebar-*"]`。テーマ・shadcn の更新で変わりうる。壊れ方は「番号が出ない」「幅が広がらない」「帯が覆われる」で機能影響は無い |
@@ -320,7 +324,7 @@ npm run start   # out/ をローカル配信
 
 **残る将来構想**（次 change 以降）:
 
-- **英訳スキル dx-training-translate** → **次セッションの主戦になった。必要な知識は 1.5 節に集約**
+- ✅ 英訳スキル dx-training-translate と Studio の英訳 UI は完成した（→ 1.5 節）
 - 画像ピッカー（`ImageGrid` 再利用）、セマンティックズーム、進捗リング付きノード（ゲーミフィケーション）
 
 ### 2.8 兄弟構成への移行（✅ 完了・2026-08-16）

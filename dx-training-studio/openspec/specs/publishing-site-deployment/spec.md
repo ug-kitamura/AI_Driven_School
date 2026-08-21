@@ -90,7 +90,7 @@ if [ "$VERCEL_GIT_COMMIT_REF" = "main" ]; then exit 1; else exit 0; fi
 
 サイトはリポジトリへのリンクをナビバーに表示しなければならない（SHALL）。
 
-**すべてのビルド**（ローカル・CI・Vercel・Pages）で、サイドバー最上部（メニューの上・左寄せ）に更新日時の行を表示しなければならない（SHALL）。日時は **HEAD の commit date** をタイムゾーン `Asia/Tokyo` で `YYYY.MM.DD HH:mm 更新` に整形した値とする（SHALL）。ビルド時刻を使ってはならない（MUST NOT）——再デプロイやキャッシュ切れのたびに日時が動き、「更新」の意味が失われるため。
+**すべてのビルド**（ローカル・CI・Vercel・Pages）で、サイドバー最上部（メニューの上・左寄せ）に更新日時の行を表示しなければならない（SHALL）。日付は **HEAD の commit date** をタイムゾーン `Asia/Tokyo` で `YYYY.MM.DD 更新` に整形した値とする（SHALL）。時・分を表示してはならない（SHALL NOT）——受講者には日付で足り、changelog フォールバック（日付のみ）とも表示が揃うため。⚠ 時刻を出さなくてもタイムゾーンの明示は必要である——UTC のビルドマシンでは**日付そのものが前日にズレる**。ビルド時刻を使ってはならない（MUST NOT）——再デプロイやキャッシュ切れのたびに日時が動き、「更新」の意味が失われるため。
 
 タグから作られたビルドでは、同じ行の末尾にリリース番号を ` (vX.Y.Z)` の形式で併記しなければならない（SHALL）。タグ由来でないビルドは日時のみとし、`dev` 等の代替文字列を出してはならない（SHALL NOT）。
 
@@ -103,29 +103,29 @@ if [ "$VERCEL_GIT_COMMIT_REF" = "main" ]; then exit 1; else exit 0; fi
 #### Scenario: リリースされたサイトを見る
 
 - **WHEN** `v1.2.3` タグから配信された Pages のサイトを開く
-- **THEN** サイドバー最上部に `YYYY.MM.DD HH:mm 更新 (v1.2.3)`（日時はタグが指すコミットの commit date）が表示される
+- **THEN** サイドバー最上部に `YYYY.MM.DD 更新 (v1.2.3)`（日付はタグが指すコミットの commit date）が表示される
 - **AND** ナビバーにリポジトリへのリンクがある
 
 #### Scenario: Vercel の配信を見る
 
 - **WHEN** `main` へのマージで配信された Vercel のサイトを開く
-- **THEN** サイドバー最上部に `YYYY.MM.DD HH:mm 更新`（HEAD の commit date）が表示される
+- **THEN** サイドバー最上部に `YYYY.MM.DD 更新`（HEAD の commit date）が表示される
 - **AND** リリース番号は併記されない
 
 #### Scenario: ローカルビルドを見る
 
 - **WHEN** ローカルで `npm run build` したサイトを開く
-- **THEN** 日時のみが表示され、リリース番号は出ない
+- **THEN** 日付のみが表示され、リリース番号は出ない
 
 #### Scenario: 手動 Pages 配信でも偽の番号を出さない
 
 - **WHEN** リリース番号の入力を空のまま Pages の手動トリガーで配信する
 - **THEN** 日時のみが表示され、リリース番号は出ない
 
-#### Scenario: UTC のビルドマシンでも JST で表示する
+#### Scenario: UTC のビルドマシンでも JST の日付で表示する
 
 - **WHEN** タイムゾーンが UTC の CI 環境でビルドする
-- **THEN** 表示される日時は `Asia/Tokyo` に換算した値である
+- **THEN** 表示される日付は `Asia/Tokyo` に換算した値である（UTC のままなら前日になる時間帯でも正しい）
 
 #### Scenario: フッターが無い
 

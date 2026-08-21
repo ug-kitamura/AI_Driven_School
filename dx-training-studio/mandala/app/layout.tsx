@@ -35,8 +35,8 @@ export default async function RootLayout({
   return (
     <html lang="ja" dir="ltr" suppressHydrationWarning>
       <Head />
-      {/* 更新日時の行はサイドバー最上部に `::before` で描く（テーマに差し込み口が無いため）。
-          全ビルドで出す（Vercel=日時のみ / Pages=日時＋タグ番号）。日時もタグも
+      {/* 更新日の行はサイドバー最上部に `::before` で描く（テーマに差し込み口が無いため）。
+          全ビルドで出す（Vercel=日付のみ / Pages=日付＋タグ番号）。日付もタグも
           解決できなかったビルドでは変数を置かない——`content` が無効になり、
           擬似要素そのものが生成されないので、行も余白も残らない。 */}
       <body

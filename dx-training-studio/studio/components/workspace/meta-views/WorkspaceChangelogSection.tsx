@@ -47,7 +47,8 @@ const TEXTAREA_CLASS =
  *   差分を見て人が採否するまで正本は変わらない
  */
 export function WorkspaceChangelogSection() {
-  const [open, setOpen] = useState(true);
+  // 既定は折りたたみ。全体メタの編集を主役に保ち、履歴は必要なときだけ開く
+  const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   const [content, setContent] = useState("");
   const [baseMtimeMs, setBaseMtimeMs] = useState<number | null>(null);

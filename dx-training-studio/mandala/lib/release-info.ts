@@ -1,7 +1,7 @@
 import { siteChrome } from "@/lib/site-data";
 
 export type ReleaseInfo = {
-  /** サイドバー最上部に出す1行（例: `2026.08.21 12:34 更新 (v1.2.3)`）。出せなければ undefined */
+  /** サイドバー最上部に出す1行（例: `2026.08.21 更新 (v1.2.3)`）。出せなければ undefined */
   line?: string;
   /** リリース番号（タグ名）。タグ由来のビルドでなければ undefined */
   release?: string;
@@ -9,14 +9,16 @@ export type ReleaseInfo = {
 };
 
 /**
- * 日時文字列を `Asia/Tokyo` で `YYYY.MM.DD HH:mm` に整形する。
+ * 日時文字列を `Asia/Tokyo` の日付 `YYYY.MM.DD` に整形する。
  *
- * ⚠ 素の `Date` のローカル書式に頼らないこと——ビルドマシン（CI / Vercel）は
- * UTC なので、そのまま出すと前日の日時になる。`Intl.DateTimeFormat` に
- * timeZone を明示すれば、どの TZ の環境でも同じ結果になる（テストで担保）。
+ * 時・分は出さない（2026-08-21 決定）——受講者には日付で十分で、
+ * 行が短くなるうえ、changelog フォールバック（日付のみ）とも表示が揃う。
  *
- * 日付だけの値（`YYYY-MM-DD`。changelog フォールバック）は時刻を持たないので
- * `YYYY.MM.DD` を返す——`00:00` をでっち上げない。
+ * ⚠ 時刻を出さなくても TZ 処理は消せない。素の `Date` のローカル書式に
+ * 頼ると、UTC のビルドマシン（CI / Vercel）では**日付そのものが前日にズレる**。
+ * `Intl.DateTimeFormat` に timeZone を明示すれば、どの TZ の環境でも
+ * 同じ結果になる（テストで担保）。
+ *
  * 解釈できない値は undefined（呼び出し側が行ごと消す）。
  */
 export function formatUpdateDate(raw: string): string | undefined {
@@ -30,15 +32,12 @@ export function formatUpdateDate(raw: string): string | undefined {
   const date = new Date(trimmed);
   if (Number.isNaN(date.getTime())) return undefined;
 
-  // ja-JP の 2-digit 書式は `2026/08/21 12:34`。区切りだけ `.` に揃える
+  // ja-JP の 2-digit 書式は `2026/08/21`。区切りだけ `.` に揃える
   const formatted = new Intl.DateTimeFormat("ja-JP", {
     timeZone: "Asia/Tokyo",
     year: "numeric",
     month: "2-digit",
     day: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit",
-    hour12: false,
   }).format(date);
   return formatted.replaceAll("/", ".");
 }
@@ -46,7 +45,7 @@ export function formatUpdateDate(raw: string): string | undefined {
 /**
  * サイドバー最上部の1行を組み立てる。
  *
- * - 全ビルドで出す: `YYYY.MM.DD HH:mm 更新`
+ * - 全ビルドで出す: `YYYY.MM.DD 更新`
  * - タグ由来のビルド（Pages）は ` (vX.Y.Z)` を併記
  * - 日時が無い（git も changelog フォールバックも取れなかった）ときは、
  *   タグ名があっても行ごと出さない——偽の日時をでっち上げず、

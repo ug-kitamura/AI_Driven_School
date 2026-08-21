@@ -14,6 +14,7 @@ DX ツールトレーニング用の **4ペイン Next.js 16 × shadcn/ui ワー
 - **AI 画像**: 骨子は `<!-- プロンプト -->`、Pane4 AI タブで生成。契約は `../contracts/image-slot-contract.md`
 - **設定**: `lib/workspace-settings.ts`、GlobalHeader 歯車 → `WorkspaceSettingsDialog`
 - **データ**: シリーズ/コース/レッスンの正本は入れ物直下の `../contents/` ディレクトリ（`lib/contents-loader.ts` が読む）。ワークスペース名・アイコンは `lib/workspace-meta.ts` の定数
+- **変更履歴**: 正本は `../contents/changelog.md`（⚠ 公開サイトの生成物 `../mandala/content/changelog.md` と 1 文字違い）。編集入口はホーム選択時のペイン2（`WorkspaceChangelogSection`、GitHub リンクの下）。手動編集が一次手段で、AI 下書き（`/api/content/changelog/draft`）は**新規エントリだけ**を返しクライアントが先頭へ挿入する——既存行に触れない担保は構造で。書式の検証・整形はどこでもしない（人の作法）。規約の SSoT は `lib/changelog-entry.ts` の `CHANGELOG_PROMISE_TEXT`
 - **スキーマ**: `lib/schema.ts`（Zod）
 
 ## UI 編集方針

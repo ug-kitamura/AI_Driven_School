@@ -4,9 +4,12 @@
   --dxm-brand: #007bc0;
   --dxm-brand-soft: rgba(0, 123, 192, 0.12);
 
-  /* サイドバーメニュー（light: gray-600 / dark: neutral-400）より前に出る色。
-     ダークでは「より濃く」だと沈むので、同じ関係を保つために明るい側へ振る。 */
-  --dxm-release-color: #1f2937;
+  /* サイドバーメニュー（light: gray-600 / dark: neutral-400）より一段引いた色。
+     短い番号だけだった頃は「前に出る色」だったが、更新日時の長い1行になったため
+     役割を反転した——目立たせず、必要なときに読めればよい。
+     ⚠ ダークを #737373 まで落とすと暗地でコントラスト比 3.5:1 になり AA を割る。
+     light #6b7280 (gray-500) は白地で 4.8:1、dark #8f8f8f は暗地で 5.7:1。 */
+  --dxm-release-color: #6b7280;
 
   /* GitHub アラートの種別色。Studio のプレビューと同じ値を使う */
   --alert-note: oklch(0.55 0.17 255);
@@ -27,13 +30,12 @@
      サイドバーメニューと同じ gray-600 相当に置き、本文より一段引いて見せる。
      Studio の --header-action と同値（両アプリのライト側を揃えてある） */
   --dxm-navbar-action: #4b5563;
-  /* ホバーで向かう先。--dxm-release-color と同じライト/ダークの対を借りる
-     ——サイト内で既に「本文より前に出る色」として使っている関係をそのまま使う */
+  /* ホバーで向かう先（本文より前に出る濃さ。light gray-800 / dark neutral-200） */
   --dxm-navbar-action-hover: #1f2937;
 }
 
 :is(html.dark, .dark) {
-  --dxm-release-color: #e5e5e5;
+  --dxm-release-color: #8f8f8f;
 
   --alert-note: oklch(0.72 0.13 250);
   --alert-tip: oklch(0.74 0.15 150);
@@ -104,12 +106,13 @@ html:root {
   font-weight: 700;
 }
 
-/* ===== リリース番号（サイドバー最上部） ===== */
+/* ===== 更新日時＋リリース番号（サイドバー最上部） ===== */
 
 /* `aside.nextra-sidebar` は flex-col なので、`::before` がそのままメニューの上の1行になる。
-   値はルートレイアウトが `--dxm-release` として body に注入する。
-   タグ由来でないビルドでは変数が無く、`content` が無効になって擬似要素ごと生成されない
-   ——「リリース番号が無ければ行も余白も出さない」がこれで成立する。
+   値（`2026.08.21 12:34 更新` ／ Pages は ` (v1.2.3)` 併記）はルートレイアウトが
+   `--dxm-release` として body に注入する。
+   日時もタグも解決できないビルドでは変数が無く、`content` が無効になって擬似要素ごと
+   生成されない——「出せる情報が無ければ行も余白も出さない」がこれで成立する。
    左端はメニュー文字の開始位置（inner の p-4 = 1rem ＋ リンクの px-2 = 0.5rem）に揃える。 */
 .nextra-sidebar::before {
   content: var(--dxm-release);

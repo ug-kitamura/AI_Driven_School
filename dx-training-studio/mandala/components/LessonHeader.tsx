@@ -18,6 +18,8 @@ export type LessonMetadata = {
   courseStyle?: CourseStyle;
   author?: string;
   untranslated?: boolean;
+  /** seriesHref を持たないページ（変更履歴）が明示するロケール */
+  locale?: string;
 };
 
 /**
@@ -28,9 +30,16 @@ export type LessonMetadata = {
 export function LessonHeader({ metadata }: { metadata: LessonMetadata }) {
   const { seriesHref, lessonStatus, estimatedMinutes, courseStyle, author } =
     metadata;
-  if (!seriesHref) return null;
+  // seriesHref を持たないページ（トップ3階層・変更履歴）では、未翻訳バッジが
+  // 要るときだけ描く。ロケールは frontmatter の `locale` を使う（変更履歴の
+  // 英語フォールバックが `locale: "en"` を明示する）
+  if (!seriesHref && !metadata.untranslated) return null;
 
-  const locale = localeOf(seriesHref);
+  const locale = seriesHref
+    ? localeOf(seriesHref)
+    : metadata.locale === "en"
+      ? "en"
+      : "ja";
   const styleLabel = formatCourseStyle(courseStyle, locale);
   const hasLabels = Boolean(lessonStatus || estimatedMinutes || styleLabel);
 

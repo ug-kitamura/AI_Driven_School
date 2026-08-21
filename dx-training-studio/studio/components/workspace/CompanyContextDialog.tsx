@@ -110,9 +110,9 @@ export function CompanyContextDialog({ open, onOpenChange, onOpenSettings }: Pro
   useEffect(() => {
     if (open) {
       // 親 state から open だけ更新された場合も一覧を再取得する
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- 非同期取得の結果を state に入れる正当な用途
       void loadData();
     }
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- ダイアログ表示時のデータ取得
   }, [open, loadData]);
 
   const resetFormState = useCallback(() => {

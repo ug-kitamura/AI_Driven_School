@@ -159,6 +159,7 @@ export function MarkdownEditorPane({
 
   useEffect(() => {
     if (mode !== "diff" || !lesson) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- 差分取得ライフサイクルを持つ effect の「対象外」側。取得中の結果が後から届いても idle に戻す
       setDiffState({ status: "idle" });
       return;
     }

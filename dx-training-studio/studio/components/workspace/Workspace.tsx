@@ -133,6 +133,7 @@ export function Workspace({
     pane4UiInitialized.current = true;
     const migration = loadPane4ViewMigration();
     if (migration) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- localStorage からの初回復元。ref ガードでマウント時 1 回に限定している
       setPane4View(migration.pane4View);
       if (migration.openPane4) {
         setPane4ManuallyClosed(false);

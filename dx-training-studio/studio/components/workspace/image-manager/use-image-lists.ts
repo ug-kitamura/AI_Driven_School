@@ -88,6 +88,7 @@ export function useImageLists(options: {
 
   useEffect(() => {
     if (pane4Open) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- list API の非同期取得。結果を state に入れるのが目的で、派生 state の複製ではない
       void refreshScope(tabToScope(activeTab));
     }
   }, [pane4Open, activeTab, refreshScope]);

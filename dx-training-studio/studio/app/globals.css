@@ -879,6 +879,21 @@ html.dark .lesson-content-editor .cm-foldGutter.lesson-fold-gutter span.lesson-f
      環境でキャンバスが潰れない、の両方を満たす。下限に当たったぶんのはみ出しは
      親（ダイアログ・セル）側が処理する */
   min-height: 8rem;
+  /* 直下の React Flow を絶対配置で埋めるための基準（下の規則を参照） */
+  position: relative;
+}
+
+/* ⚠ React Flow のルートは既定で `height: 100%` を持つ。キャンバスの高さが
+   `min-height` や `flex` の伸長だけで立っている（`height` は auto の）とき、
+   このパーセントは解決できず**ルートが 0px になり error #004 が出る**
+   （2026-08-21 に実機で発生）。絶対配置で埋めればパーセントに依存しない。
+   ⚠ 親の高さが確定しているかどうかは呼び出し側の都合で変わるので、
+   ここを外して「呼び出し側が必ず確定させる」に頼らないこと。 */
+.dxm-mandala-fill .dxm-mandala-canvas > .react-flow {
+  position: absolute;
+  inset: 0;
+  width: auto;
+  height: auto;
 }
 
 .dxm-mandala-toolbar {

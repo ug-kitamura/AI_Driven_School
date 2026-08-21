@@ -69,8 +69,11 @@ export function MiniMandalaSection({
       {/* 跨ぎ先が 3 つ以上あるコースでも横に収まる幅。カード自体は広げない。
           ⚠ 高さの主張はここ 1 箇所に集める——ダイアログの上限とキャンバスの高さを
           別々に指定すると、収まらないときにフレックスがキャンバスを縮め、
-          フィット済みの表示がそのぶんずれる */}
-      <DialogContent className="flex max-h-[85vh] min-h-[20rem] max-w-5xl flex-col">
+          フィット済みの表示がそのぶんずれる。
+          ⚠ **`h-*` で確定させること。`max-h-*` ＋ `min-h-*` では高さが確定せず**、
+          曼陀羅側の `height: 100%` が「auto に対する %」となって解決できず、
+          React Flow のルートが 0px になる（error #004・2026-08-21 に実機で発生）*/}
+      <DialogContent className="flex h-[min(72vh,640px)] max-w-5xl flex-col">
         <DialogHeader>
           <DialogTitle>ミニ曼陀羅</DialogTitle>
         </DialogHeader>

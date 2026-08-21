@@ -280,8 +280,11 @@ export function GlobalHeader({
       <Dialog open={mandalaOpen} onOpenChange={handleMandalaModalOpenChange}>
         {/* ⚠ 高さの主張はダイアログ側 1 箇所に集める——上限とキャンバスの高さを
             別々に指定すると、収まらないときにフレックスがキャンバスを縮め、
-            フィット済みの表示がそのぶんずれる */}
-        <DialogContent className="flex max-h-[90vh] min-h-[20rem] max-w-5xl flex-col">
+            フィット済みの表示がそのぶんずれる。
+            ⚠ **`h-*` で確定させること。`max-h-*` ＋ `min-h-*` では高さが確定せず**、
+            曼陀羅側の `height: 100%` が「auto に対する %」となって解決できず、
+            React Flow のルートが 0px になる（error #004・2026-08-21 に実機で発生）*/}
+        <DialogContent className="flex h-[min(88vh,860px)] max-w-5xl flex-col">
           <DialogHeader>
             <DialogTitle>DXトレーニング曼陀羅</DialogTitle>
           </DialogHeader>

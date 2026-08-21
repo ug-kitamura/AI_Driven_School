@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { promoteStagingToCanonical } from "@/lib/image-store";
+import { invalidateCanonicalCache } from "@/lib/image-storage/canonical-cache";
 import {
   parseImageStorageMode,
   resolveCanonicalBackend,
@@ -37,6 +38,8 @@ export async function POST(req: Request) {
       parsed.data.stagingPath,
       backend,
     );
+    // 一覧キャッシュの TTL 残に関わらず、promote 直後の一覧に必ず現れるようにする
+    invalidateCanonicalCache(storageMode);
     return Response.json({ file });
   } catch (error) {
     const storageResponse = storageErrorResponse(error);

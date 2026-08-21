@@ -10,6 +10,11 @@ import {
   toImageApiUrl,
 } from "@/lib/image-path";
 import { getImageStorageMode } from "@/lib/image-api-client";
+import {
+  IMAGE_ERROR_MESSAGE,
+  probeImageError,
+  type ImageErrorKind,
+} from "@/lib/image-error";
 
 type Props = {
   src?: string | Blob;
@@ -21,19 +26,22 @@ type Props = {
 function MissingImagePlaceholder({
   label,
   alt,
+  kind,
 }: {
   label: string;
   alt?: string;
+  kind: ImageErrorKind;
 }) {
+  const message = IMAGE_ERROR_MESSAGE[kind];
   return (
     <span
       role="img"
-      aria-label={alt ? `${alt}（画像が存在しません）` : "画像が存在しません"}
+      aria-label={alt ? `${alt}（${message}）` : message}
       className="my-4 flex items-center gap-2 rounded-md border border-destructive/40 bg-destructive/5 px-3 py-3 text-destructive"
     >
       <ImageOff className="h-5 w-5 shrink-0" />
       <span className="min-w-0 text-sm">
-        画像が存在しません
+        {message}
         <span className="mt-0.5 block truncate text-xs opacity-80">{label}</span>
       </span>
     </span>
@@ -47,6 +55,8 @@ export function LessonPreviewImage({
   cacheRevision = 0,
 }: Props) {
   const [failed, setFailed] = useState(false);
+  // 読み出し失敗の理由。判別が返るまでは従来表示（missing）を出す
+  const [failedKind, setFailedKind] = useState<ImageErrorKind>("missing");
 
   const logicalPath =
     src && typeof src === "string"
@@ -75,6 +85,7 @@ export function LessonPreviewImage({
 
   useEffect(() => {
     setFailed(false);
+    setFailedKind("missing");
   }, [resolved, isKnownMissing, cacheRevision]);
 
   if (!src || typeof src !== "string") return null;
@@ -91,7 +102,9 @@ export function LessonPreviewImage({
   }
 
   if (isKnownMissing || failed) {
-    return <MissingImagePlaceholder label={label} alt={alt} />;
+    // 一覧に無い＝本当に実体が無い。取得に失敗した場合だけ理由を分ける
+    const kind: ImageErrorKind = isKnownMissing ? "missing" : failedKind;
+    return <MissingImagePlaceholder label={label} alt={alt} kind={kind} />;
   }
 
   if (!resolved) return null;
@@ -103,7 +116,10 @@ export function LessonPreviewImage({
       src={resolved}
       alt={alt ?? ""}
       className="my-4 block h-auto max-w-full rounded-md"
-      onError={() => setFailed(true)}
+      onError={() => {
+        setFailed(true);
+        void probeImageError(resolved).then(setFailedKind);
+      }}
     />
   );
 }

@@ -1,11 +1,17 @@
 "use client";
 
+import { useState } from "react";
 import { ImageOff, Plus, Trash2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { MediaPlayOverlay } from "@/components/workspace/MediaPlayOverlay";
 import { IMAGE_GRID_CELL_MIN } from "@/components/workspace/pane-layout";
 import { isMp4Path, isCanonicalImagePath, toImageApiUrl } from "@/lib/image-path";
 import { getImageStorageMode } from "@/lib/image-api-client";
+import {
+  IMAGE_ERROR_MESSAGE,
+  probeImageError,
+  type ImageErrorKind,
+} from "@/lib/image-error";
 
 function mediaSrc(path: string): string {
   const storageMode = isCanonicalImagePath(path) ? getImageStorageMode() : undefined;
@@ -21,6 +27,71 @@ export type ImageGridItem = {
   showDelete?: boolean;
   highlighted?: boolean;
 };
+
+/** セル内のエラー表示（実体なし・ストレージ障害で共通の見た目、文言だけ変える） */
+function ThumbnailErrorCell({ kind }: { kind: ImageErrorKind }) {
+  return (
+    <div
+      className={cn(
+        "flex h-full flex-col items-center justify-center gap-1 p-2",
+        // 実体なしは destructive、ストレージ障害は「直せば戻る」ので warning 系
+        kind === "missing" ? "text-destructive" : "text-amber-600 dark:text-amber-400",
+      )}
+    >
+      <ImageOff className="h-5 w-5 shrink-0" />
+      <span className="text-center text-[9px] leading-tight">
+        {IMAGE_ERROR_MESSAGE[kind]}
+      </span>
+    </div>
+  );
+}
+
+/**
+ * サムネイル本体。読み出しに失敗したら理由を判別して文言を変える
+ * ——実在する画像を「存在しません」と表示しないため。
+ */
+function Thumbnail({
+  item,
+  isVideo,
+  fitClass,
+}: {
+  item: ImageGridItem;
+  isVideo: boolean;
+  fitClass: string;
+}) {
+  const [failedKind, setFailedKind] = useState<ImageErrorKind | null>(null);
+  const src = mediaSrc(item.path);
+
+  const onError = () => {
+    setFailedKind("missing");
+    void probeImageError(src).then(setFailedKind);
+  };
+
+  if (failedKind) return <ThumbnailErrorCell kind={failedKind} />;
+
+  if (isVideo) {
+    return (
+      <video
+        src={src}
+        preload="metadata"
+        muted
+        playsInline
+        className={cn("max-h-full max-w-full", fitClass)}
+        onError={onError}
+      />
+    );
+  }
+
+  return (
+    // eslint-disable-next-line @next/next/no-img-element
+    <img
+      src={src}
+      alt={item.name}
+      className={cn("max-h-full max-w-full", fitClass)}
+      onError={onError}
+    />
+  );
+}
 
 type Props = {
   items: ImageGridItem[];
@@ -88,25 +159,9 @@ export function ImageGrid({
               }
             >
               {item.missing ? (
-                <div className="flex h-full flex-col items-center justify-center gap-1 p-2 text-destructive">
-                  <ImageOff className="h-5 w-5 shrink-0" />
-                  <span className="text-[9px] leading-tight">画像が存在しません</span>
-                </div>
-              ) : isVideo ? (
-                <video
-                  src={mediaSrc(item.path)}
-                  preload="metadata"
-                  muted
-                  playsInline
-                  className={cn("max-h-full max-w-full", mediaFitClass)}
-                />
+                <ThumbnailErrorCell kind="missing" />
               ) : (
-                /* eslint-disable-next-line @next/next/no-img-element */
-                <img
-                  src={mediaSrc(item.path)}
-                  alt={item.name}
-                  className={cn("max-h-full max-w-full", mediaFitClass)}
-                />
+                <Thumbnail item={item} isVideo={isVideo} fitClass={mediaFitClass} />
               )}
               {isVideo ? <MediaPlayOverlay /> : null}
             </button>

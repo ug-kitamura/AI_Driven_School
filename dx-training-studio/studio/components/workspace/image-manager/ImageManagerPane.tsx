@@ -31,7 +31,8 @@ import {
 } from "@/lib/extract-image-refs";
 import { toImageMarkdown, isCanonicalImagePath } from "@/lib/image-path";
 import { canonicalFileApiParams } from "@/lib/image-api-client";
-import { STORAGE_CONNECTION_ERROR_MESSAGE } from "@/lib/image-storage/types";
+import type { StorageErrorKind } from "@/lib/image-storage/types";
+import { IMAGE_ERROR_MESSAGE } from "@/lib/image-error";
 import { AiImagesTab } from "@/components/workspace/image-manager/AiImagesTab";
 import { UploadImagesTab } from "@/components/workspace/image-manager/UploadImagesTab";
 import { UsedImagesTab } from "@/components/workspace/image-manager/UsedImagesTab";
@@ -51,11 +52,15 @@ import { useImageLists } from "@/components/workspace/image-manager/use-image-li
 import { usePromoteAndInsert } from "@/components/workspace/image-manager/use-promote-and-insert";
 
 function mergeTabNotice(
-  usedStorageConnectionError: boolean,
+  usedStorageErrorKind: StorageErrorKind | null,
   notice: TabNotice | undefined,
 ): TabNotice | undefined {
-  if (usedStorageConnectionError) {
-    return { message: STORAGE_CONNECTION_ERROR_MESSAGE, tone: "error" };
+  if (usedStorageErrorKind) {
+    return {
+      message: IMAGE_ERROR_MESSAGE[usedStorageErrorKind],
+      // 上限ブロックは「直せば戻る」状態なので error ではなく warning で出す
+      tone: usedStorageErrorKind === "blocked" ? "warning" : "error",
+    };
   }
   return notice;
 }
@@ -106,7 +111,7 @@ export function ImageManagerPane({
     webStagingFiles,
     promotedFiles,
     loading,
-    usedStorageConnectionError,
+    usedStorageErrorKind,
     refreshScope,
     refreshScopes,
   } = useImageLists({ pane4Open, activeTab });
@@ -475,7 +480,7 @@ export function ImageManagerPane({
             filterLessons={filterLessons}
             gridItems={usedGridItems}
             usedRows={usedRows}
-            notice={mergeTabNotice(usedStorageConnectionError, tabNotices.used)}
+            notice={mergeTabNotice(usedStorageErrorKind, tabNotices.used)}
             onResetFilter={resetUsedFilter}
             onPreview={openPreview}
             onInsert={handleInsertPromoted}

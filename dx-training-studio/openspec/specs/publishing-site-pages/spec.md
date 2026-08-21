@@ -223,3 +223,26 @@
 - **WHEN** サイドバーを手動トグルで畳む
 - **THEN** 畳み時の幅（アイコン幅）は従来のままである
 
+### Requirement: セグメントプリフェッチ用ファイルは平坦なファイル名で out/ に存在する
+
+静的 export の成果物 `out/` において、クライアントルーターが要求するセグメントプリフェッチ用 `.txt`（`__next` で始まりドットでセグメントパスを連結した名前。例: `__next.$oc$mdxPath.__PAGE__.txt`）は、**ビルドを実行した OS を問わず**平坦な単一ファイルとして存在しなければならない（SHALL）。
+
+Next.js 16.x は Windows 上でこれらを入れ子ディレクトリ（例: `__next.$oc$mdxPath/__PAGE__.txt`）として誤出力するため、`postbuild` は `out/` 配下の `__next.*` ディレクトリを検出し、内容物をドット連結の平坦なファイル名へ移動して当該ディレクトリを削除しなければならない（SHALL）。この修復は冪等でなければならず（SHALL）、対象が存在しないビルド（Linux 等）では成果物を変更してはならない（SHALL NOT）。
+
+#### Scenario: Windows ビルドの入れ子ディレクトリを平坦化する
+
+- **WHEN** `out/git/__next.$oc$mdxPath/__PAGE__.txt` が存在する状態で postbuild の修復を実行する
+- **THEN** `out/git/__next.$oc$mdxPath.__PAGE__.txt` が単一ファイルとして存在する
+- **AND** ディレクトリ `out/git/__next.$oc$mdxPath/` は存在しない
+
+#### Scenario: 対象が無いビルドでは何もしない
+
+- **WHEN** `out/` 配下に `__next.*` ディレクトリが存在しない状態で postbuild の修復を実行する
+- **THEN** `out/` の内容は変更されない
+- **AND** 修復は正常終了する
+
+#### Scenario: 平坦化後は本番プレビューでプリフェッチが 404 にならない
+
+- **WHEN** 平坦化済みの `out/` を静的サーバーで配信しページ遷移する
+- **THEN** `/__next.$oc$mdxPath.__PAGE__.txt` 等へのリクエストが 200 または 304 で応答される
+

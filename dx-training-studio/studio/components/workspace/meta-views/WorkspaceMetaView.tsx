@@ -11,6 +11,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { MetaViewShell } from "@/components/workspace/meta-views/MetaViewShell";
+import { WorkspaceChangelogSection } from "@/components/workspace/meta-views/WorkspaceChangelogSection";
 import {
   META_DIALOG_CONTROL,
   META_DIALOG_STACK,
@@ -215,7 +216,10 @@ export function WorkspaceMetaView({
             </SelectContent>
           </Select>
           <p className="text-xs text-muted-foreground">
-            正本 `images/` の画像から選びます。公開サイトは切り抜かずに表示するため、横長（3.75:1 前後）の画像を使ってください
+            正本 `images/` の画像から選びます。公開サイトは切り抜かずに表示するため、横長（3.75:1 前後）の画像を使ってください。
+          </p>
+          <p className="text-xs text-muted-foreground">
+            未設定の場合は同梱の既定画像（`mandala/app/hero.jpg`）を使用します。
           </p>
           {heroPreviewUrl ? (
             /* eslint-disable-next-line @next/next/no-img-element */
@@ -243,6 +247,9 @@ export function WorkspaceMetaView({
             <p className="text-xs text-destructive">URL 形式で入力してください</p>
           ) : null}
         </MetaDialogField>
+        {/* 変更履歴は独立セクション（正本が .meta.json ではなく contents/changelog.md
+            なので、上の保存ボタンとは切り離して専用の保存を持つ） */}
+        <WorkspaceChangelogSection />
       </div>
     </MetaViewShell>
   );

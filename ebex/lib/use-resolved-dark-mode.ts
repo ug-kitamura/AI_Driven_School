@@ -6,24 +6,30 @@ import {
   resolveThemeClass,
 } from "@/lib/workspace-settings";
 
-function readDarkFromDocument(): boolean {
-  if (typeof document === "undefined") return false;
-  return document.documentElement.classList.contains("dark");
+/** `<html>` に実際に載っているテーマ種別。`system` は解決済みの値になる */
+export type ThemeKind = "light" | "dark" | "pink";
+
+function readKindFromDocument(): ThemeKind {
+  if (typeof document === "undefined") return "light";
+  const classes = document.documentElement.classList;
+  if (classes.contains("dark")) return "dark";
+  if (classes.contains("pink")) return "pink";
+  return "light";
 }
 
-function readInitialDarkMode(): boolean {
-  if (typeof window === "undefined") return false;
-  return resolveThemeClass(loadWorkspaceSettings().theme) === "dark";
+function readInitialKind(): ThemeKind {
+  if (typeof window === "undefined") return "light";
+  return resolveThemeClass(loadWorkspaceSettings().theme);
 }
 
-/** 設定テーマ + html.dark クラスに追従する */
-export function useResolvedDarkMode(): boolean {
-  const [isDark, setIsDark] = useState(() =>
-    typeof window === "undefined" ? false : readInitialDarkMode(),
+/** 設定テーマ + html の class に追従してテーマ種別を返す */
+export function useThemeKind(): ThemeKind {
+  const [kind, setKind] = useState<ThemeKind>(() =>
+    typeof window === "undefined" ? "light" : readInitialKind(),
   );
 
   useEffect(() => {
-    const sync = () => setIsDark(readDarkFromDocument());
+    const sync = () => setKind(readKindFromDocument());
 
     sync();
     const obs = new MutationObserver(sync);
@@ -36,6 +42,11 @@ export function useResolvedDarkMode(): boolean {
     if (settings.theme !== "system") {
       return () => obs.disconnect();
     }
+    // OS 追従が要るのは `system` のときだけ。matchMedia が無い環境（jsdom・
+    // 一部の WebView）では class の監視だけで足りる
+    if (typeof window.matchMedia !== "function") {
+      return () => obs.disconnect();
+    }
 
     const mq = window.matchMedia("(prefers-color-scheme: dark)");
     const onMq = () => sync();
@@ -46,5 +57,10 @@ export function useResolvedDarkMode(): boolean {
     };
   }, []);
 
-  return isDark;
+  return kind;
+}
+
+/** 設定テーマ + html.dark クラスに追従する。ピンクはライト扱いで false */
+export function useResolvedDarkMode(): boolean {
+  return useThemeKind() === "dark";
 }

@@ -7,6 +7,8 @@ import rehypeSanitize from "rehype-sanitize";
 import rehypeHighlight from "rehype-highlight";
 import { rehypeGithubAlerts } from "rehype-github-alerts";
 import { LessonPreviewImage } from "@/components/workspace/LessonPreviewImage";
+import { rehypeSearchHighlight } from "@/lib/rehype-search-highlight";
+import { normalizeSearchHighlightQuery } from "@/lib/search-highlight-matches";
 
 /**
  * プレビューの remark プラグイン。
@@ -31,6 +33,23 @@ export const lessonPreviewRehypePlugins: PluggableList = [
   rehypeGithubAlerts,
   rehypeHighlight,
 ];
+
+/**
+ * ペイン1 の中身検索が生きているときの rehype プラグイン。
+ * 一致箇所を塗るプラグインを**末尾**に足す（sanitize より後段でないと剥がされる）。
+ * 検索語が無いときは既定の列をそのまま返す——無駄な木の走査をしないため。
+ */
+export function buildLessonPreviewRehypePlugins(
+  searchHighlightQuery?: string,
+): PluggableList {
+  if (!normalizeSearchHighlightQuery(searchHighlightQuery)) {
+    return lessonPreviewRehypePlugins;
+  }
+  return [
+    ...lessonPreviewRehypePlugins,
+    [rehypeSearchHighlight, { query: searchHighlightQuery }],
+  ];
+}
 
 export type PreviewImageContext = {
   availableImagePaths: ReadonlySet<string> | null;

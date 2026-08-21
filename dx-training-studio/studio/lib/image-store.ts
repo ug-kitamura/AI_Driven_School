@@ -22,6 +22,8 @@ export type ImageFileEntry = {
   name: string;
   source: ImageSource;
   uploadedAt: string;
+  /** バイト数。正本一覧では ETag の材料に使う（`lib/image-storage/canonical-cache.ts`） */
+  size?: number;
 };
 
 const MIME_BY_EXT: Record<string, string> = {
@@ -129,6 +131,7 @@ export async function listPromotedImages(
       name,
       source: "uploaded",
       uploadedAt: stat.mtime.toISOString(),
+      size: stat.size,
     });
   }
   return result.sort((a, b) => b.uploadedAt.localeCompare(a.uploadedAt));

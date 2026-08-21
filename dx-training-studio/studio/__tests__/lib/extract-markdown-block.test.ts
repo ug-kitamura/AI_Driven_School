@@ -59,24 +59,23 @@ describe("extractMarkdownBlock", () => {
   });
 
   it("extracts from real create-draft session message", () => {
-    const sessionPath = path.join(
-      "contents",
-      "Python基礎シリーズ",
-      "Python環境構築コース",
-      "Anaconda セットアップ",
-      "session.json",
+    // 実際の create-draft セッションから取り出した応答を fixture として同梱する。
+    // 以前は正本 `contents/` の session.json を直接読んでいたが、正本は移動・整理の
+    // 対象なので（実際に contents-old へ退避してテストが壊れた）ここでは固定する。
+    const fixturePath = path.join(
+      import.meta.dirname,
+      "..",
+      "fixtures",
+      "create-draft-session-message.json",
     );
-    const session = JSON.parse(readFileSync(sessionPath, "utf8")) as {
-      sessions: Array<{
-        messages: Array<{ id: string; role: string; content: string }>;
-      }>;
+    const message = JSON.parse(readFileSync(fixturePath, "utf8")) as {
+      id: string;
+      role: string;
+      content: string;
     };
-    const message = session.sessions
-      .flatMap((item) => item.messages)
-      .find((item) => item.id.endsWith("h72epe"));
 
-    expect(message).toBeDefined();
-    const result = extractMarkdownBlock(message!.content);
+    expect(message.id.endsWith("h72epe")).toBe(true);
+    const result = extractMarkdownBlock(message.content);
 
     expect(result.startsWith("---")).toBe(true);
     expect(result).toContain("# Anaconda セットアップ");

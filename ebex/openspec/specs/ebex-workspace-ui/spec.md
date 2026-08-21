@@ -3,9 +3,7 @@
 ## Purpose
 
 TBD - created by archiving change ebex-v1-workspace. Update Purpose after archive.
-
 ## Requirements
-
 ### Requirement: 3 ペイン構成
 
 ワークスペースは Pane 1（ファイルツリー）、Pane 2（編集+プレビュー）、Pane 3（Agent）の 3 ペインで構成されなければならない（SHALL）。Pane 1 ヘッダーには `images/logo_small.png` とツール名 **EBEX** が左から順に表示されなければならない（SHALL）。ロゴまたは「EBEX」はクリック可能であり、クリックで Purpose モーダルを開かなければならない（SHALL）。
@@ -71,12 +69,20 @@ Pane 1 と Pane 3 は固定幅、Pane 2（エディタ）は残り幅を吸収�
 
 ### Requirement: テーマ初期化
 
-`ThemeInitializer` により workspace-settings のテーマ設定（light / dark / system）が適用されなければならない（SHALL）。
+`ThemeInitializer` により workspace-settings のテーマ設定（light / dark / pink / system）が適用されなければならない（SHALL）。
+
+`pink` のとき `<html>` に `pink` class を付与し、`dark` class を付与してはならない（MUST NOT）。両者を同時に付与してはならない（MUST NOT）。`pink` は OS のカラースキーム設定を参照してはならない（MUST NOT）。
 
 #### Scenario: ダークテーマ適用
 
 - **WHEN** 設定でテーマが dark に設定されている
 - **THEN** ワークスペース全体がダークテーマで表示される
+
+#### Scenario: ピンクテーマ適用
+
+- **WHEN** 設定でテーマが pink に設定されている
+- **THEN** ワークスペース全体がピンクテーマで表示される
+- **AND** `<html>` に `dark` class は付与されない
 
 ### Requirement: GlobalHeader の簡略化
 
@@ -156,3 +162,4 @@ Agent チャット（ペイン 3）の空状態（会話が未開始のセッシ
 
 - **WHEN** ウィンドウ幅を変えてバナーを表示する
 - **THEN** バナーは常に全幅を占め、supergraphic の色帯の横方向の並びが保たれる
+

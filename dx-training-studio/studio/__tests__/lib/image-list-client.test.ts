@@ -33,6 +33,7 @@ describe("image-list-client", () => {
     await expect(fetchImageList("used")).resolves.toEqual({
       files,
       storageConnectionError: false,
+      storageErrorKind: null,
     });
     expect(fetch).toHaveBeenCalledWith("/api/images/list?scope=used&storageMode=storage");
   });
@@ -50,6 +51,7 @@ describe("image-list-client", () => {
     await expect(fetchImageList("used")).resolves.toEqual({
       files: [],
       storageConnectionError: true,
+      storageErrorKind: "not-connected",
     });
   });
 
@@ -65,6 +67,7 @@ describe("image-list-client", () => {
     await expect(fetchImageList("ai")).resolves.toEqual({
       files: [],
       storageConnectionError: false,
+      storageErrorKind: null,
     });
   });
 

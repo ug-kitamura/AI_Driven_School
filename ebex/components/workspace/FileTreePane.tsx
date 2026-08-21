@@ -13,14 +13,16 @@ import {
   FilePlus,
   FolderOpen,
   FolderPlus,
-  MessageSquarePlus,
   Pencil,
   Search,
-  Star,
-  StarOff,
   Trash2,
   X,
 } from "lucide-react";
+import {
+  AddToChatIcon,
+  FavoriteIcon,
+  FavoriteOffIcon,
+} from "@/components/workspace/ThemeIcons";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -115,6 +117,11 @@ type Props = {
   selectedFolderPath: string;
   selectedFileName: string;
   onSelectFile: (folderPath: string, fileName: string) => void;
+  /**
+   * 内容検索（`?` 始まり）の検索語。Pane 2 が一致箇所を塗るのに使う。
+   * 名前フィルタのときは空文字——ファイル名の一致は本文の一致ではない。
+   */
+  onContentQueryChange?: (query: string) => void;
   /** ファイルを Agent チャットの添付チップへ追加する */
   onAddFileToChat?: (folderPath: string, fileName: string) => void;
   /** Agent チャットの対象プロジェクトフォルダ ID（add to chat の可否判定） */
@@ -604,8 +611,8 @@ function TreeNode({
                         {file}
                       </button>
                       {interaction.isFavorite(node.path, file) ? (
-                        <Star
-                          className="size-3.5 shrink-0 fill-yellow-500 text-yellow-500"
+                        <FavoriteIcon
+                          className="size-3.5 shrink-0 fill-favorite text-favorite"
                           aria-hidden="true"
                         />
                       ) : null}
@@ -657,7 +664,7 @@ function TreeNode({
                     }
                     onClick={() => interaction.onAddFileToChat(node.path, file)}
                   >
-                    <MessageSquarePlus className="size-4" />
+                    <AddToChatIcon className="size-4" />
                     add to chat
                   </ContextMenuItem>
                   {interaction.isFavorite(node.path, file) ? (
@@ -667,7 +674,7 @@ function TreeNode({
                         interaction.onToggleFavorite(node.path, file)
                       }
                     >
-                      <StarOff className="size-4" />
+                      <FavoriteOffIcon className="size-4" />
                       remove favorite
                     </ContextMenuItem>
                   ) : (
@@ -677,7 +684,7 @@ function TreeNode({
                         interaction.onToggleFavorite(node.path, file)
                       }
                     >
-                      <Star className="size-4" />
+                      <FavoriteIcon className="size-4" />
                       add favorite
                     </ContextMenuItem>
                   )}
@@ -796,6 +803,7 @@ export function FileTreePane({
   selectedFolderPath,
   selectedFileName,
   onSelectFile,
+  onContentQueryChange,
   onAddFileToChat,
   chatProjectFolderId = "",
   onRefresh,
@@ -969,6 +977,12 @@ export function FileTreePane({
       cancelled = true;
     };
   }, [folders]);
+
+  // Pane 2 のハイライト用。解決済みのクエリだけを上げる——生の入力文字列や
+  // 一致結果はツリーの絞り込みという別の関心事で、SSoT へ上げる必要がない
+  useEffect(() => {
+    onContentQueryChange?.(isContentSearchMode ? contentQuery : "");
+  }, [contentQuery, isContentSearchMode, onContentQueryChange]);
 
   useEffect(() => {
     if (!isContentSearchMode || !contentQuery) {
@@ -2053,10 +2067,10 @@ export function FileTreePane({
                   setFavoritesOnly((prev) => !prev);
                 }}
               >
-                <Star
+                <FavoriteIcon
                   className={cn(
                     "size-4 text-muted-foreground",
-                    favoritesOnly && "fill-yellow-500 text-yellow-500",
+                    favoritesOnly && "fill-favorite text-favorite",
                   )}
                 />
               </Button>
@@ -2254,8 +2268,8 @@ export function FileTreePane({
                   key={favoriteKey(entry)}
                   className="flex items-center gap-1.5"
                 >
-                  <Star
-                    className="size-3.5 shrink-0 fill-yellow-500 text-yellow-500"
+                  <FavoriteIcon
+                    className="size-3.5 shrink-0 fill-favorite text-favorite"
                     aria-hidden="true"
                   />
                   <span className="truncate">{favoriteKey(entry)}</span>

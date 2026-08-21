@@ -16,7 +16,12 @@ import {
 
 export type { AiModelSlug };
 
-export type ThemeMode = "light" | "dark" | "system";
+/**
+ * `pink` は独立したモードで、`dark` とは排他。OS の明暗設定とは合成しない
+ * （ピンクのダークモードは無い）——`html:not(.dark)` 基準の hljs・CodeMirror が
+ * そのままライト配色で効くことが、この排他性の見返り。
+ */
+export type ThemeMode = "light" | "dark" | "system" | "pink";
 
 export type ImageStorageMode = "local" | "storage";
 
@@ -91,7 +96,8 @@ export function loadWorkspaceSettings(): WorkspaceSettings {
       theme:
         parsed.theme === "dark" ||
         parsed.theme === "system" ||
-        parsed.theme === "light"
+        parsed.theme === "light" ||
+        parsed.theme === "pink"
           ? parsed.theme
           : DEFAULT_WORKSPACE_SETTINGS.theme,
       paneDefaults: normalizePaneDefaults(parsed.paneDefaults),
@@ -184,9 +190,11 @@ export function applyEditorFontSizePx(px: number): number {
   return clamped;
 }
 
-export function resolveThemeClass(theme: ThemeMode): "light" | "dark" {
+export function resolveThemeClass(theme: ThemeMode): "light" | "dark" | "pink" {
   if (theme === "dark") return "dark";
   if (theme === "light") return "light";
+  // ピンクは OS の明暗設定を見ない。暗い環境で選んでも明るい画面になる
+  if (theme === "pink") return "pink";
   if (typeof window === "undefined") return "light";
   return window.matchMedia("(prefers-color-scheme: dark)").matches
     ? "dark"
@@ -197,4 +205,5 @@ export function applyThemeToDocument(theme: ThemeMode): void {
   if (typeof document === "undefined") return;
   const resolved = resolveThemeClass(theme);
   document.documentElement.classList.toggle("dark", resolved === "dark");
+  document.documentElement.classList.toggle("pink", resolved === "pink");
 }

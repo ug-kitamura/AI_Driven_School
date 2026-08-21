@@ -6,7 +6,11 @@ TBD - created by archiving change ebex-v1-workspace. Update Purpose after archiv
 ## Requirements
 ### Requirement: 設定項目
 
-設定ダイアログ（⚙）には以下の項目のみが含まれなければならない（SHALL）: テーマ（light / dark / system）、編集フォントサイズ、ペイン既定幅（pane1 / pane2 / pane3）、AI モデル、AI API キー、最大出力トークン（選択中の AI モデルに対応するプロファイル上限値の読み取り専用表示）。
+設定ダイアログ（⚙）には以下の項目のみが含まれなければならない（SHALL）: テーマ（light / dark / pink / system）、編集フォントサイズ、ペイン既定幅（pane1 / pane2 / pane3）、AI モデル、AI API キー、最大出力トークン（選択中の AI モデルに対応するプロファイル上限値の読み取り専用表示）。
+
+テーマの選択肢は「ライト」「ダーク」「ピンク」「システム」の 4 つをこの順で表示しなければならない（SHALL）。選択肢がダイアログ幅に収まらない場合は折り返さなければならない（SHALL）。横スクロールや選択肢の省略を用いてはならない（MUST NOT）。
+
+localStorage から設定を読み込むとき、`pink` を有効なテーマ値として正規化しなければならない（SHALL）。
 
 最大出力トークンはユーザーが選択・変更可能な入力であってはならない（MUST NOT）。表示値はモデルプロファイル（`resolveModelProfile(model).maxOutputTokens`）から都度取得しなければならない（SHALL）。AI モデルの選択を変更した場合、最大出力トークンの表示値も選択中モデルに応じて切り替わらなければならない（SHALL）。
 
@@ -29,6 +33,16 @@ TBD - created by archiving change ebex-v1-workspace. Update Purpose after archiv
 
 - **WHEN** ユーザーが AI モデルを claude-haiku-4-5 から claude-sonnet-5 へ切り替える
 - **THEN** 最大出力トークンの表示は 32,000 から 64,000 へ切り替わる
+
+#### Scenario: テーマ選択肢はダークとシステムの間にピンクを置く
+
+- **WHEN** ユーザーが設定ダイアログのテーマ選択肢を表示する
+- **THEN** 選択肢は「ライト」「ダーク」「ピンク」「システム」の順で並ぶ
+
+#### Scenario: 保存済みのピンクが復元される
+
+- **WHEN** 永続化されたテーマ値が `pink` の状態で起動する
+- **THEN** テーマは `pink` として復元され、既定値へ戻されない
 
 ### Requirement: localStorage 永続化
 

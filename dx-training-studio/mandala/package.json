@@ -7,7 +7,7 @@
     "build:content": "node --experimental-strip-types scripts/build-content.mts",
     "dev": "npm run build:content && next dev --webpack -p 3002",
     "build": "npm run build:content && next build --webpack",
-    "postbuild": "pagefind --site .next/server/app --output-path public/_pagefind && node -e \"require('fs').cpSync('public/_pagefind','out/_pagefind',{recursive:true})\"",
+    "postbuild": "pagefind --site .next/server/app --output-path public/_pagefind && node -e \"require('fs').cpSync('public/_pagefind','out/_pagefind',{recursive:true})\" && node --experimental-strip-types scripts/flatten-export-segments.mts",
     "start": "npx serve out -l 3002",
     "test": "vitest run",
     "lint": "next lint"

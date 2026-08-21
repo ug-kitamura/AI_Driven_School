@@ -30,18 +30,19 @@ export default async function RootLayout({
 }: {
   children: ReactNode;
 }) {
-  const { release } = resolveReleaseInfo();
+  const { line } = resolveReleaseInfo();
 
   return (
     <html lang="ja" dir="ltr" suppressHydrationWarning>
       <Head />
-      {/* リリース番号はサイドバー最上部に `::before` で描く（テーマに差し込み口が無いため）。
-          タグ由来でないビルドでは変数を置かない——`content` が無効になり、
+      {/* 更新日の行はサイドバー最上部に `::before` で描く（テーマに差し込み口が無いため）。
+          全ビルドで出す（Vercel=日付のみ / Pages=日付＋タグ番号）。日付もタグも
+          解決できなかったビルドでは変数を置かない——`content` が無効になり、
           擬似要素そのものが生成されないので、行も余白も残らない。 */}
       <body
         style={
-          release
-            ? ({ "--dxm-release": JSON.stringify(release) } as CSSProperties)
+          line
+            ? ({ "--dxm-release": JSON.stringify(line) } as CSSProperties)
             : undefined
         }
       >

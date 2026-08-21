@@ -88,6 +88,8 @@ export function Workspace({
   );
   const [pane4ManuallyClosed, setPane4ManuallyClosed] = useState(false);
   const [pane3Mode, setPane3Mode] = useState<Pane3Mode>("raw");
+  /** ペイン1 の中身検索の語。ペイン2 が一致箇所を塗るのに使う */
+  const [contentSearchQuery, setContentSearchQuery] = useState("");
   const [pane4View, setPane4View] = useState<Pane4View>("agent");
   const [settingsOpen, setSettingsOpen] = useState(false);
   // ミニ曼陀羅モーダルの開閉。CourseMetaView は key リマウントされるので、
@@ -131,6 +133,7 @@ export function Workspace({
     pane4UiInitialized.current = true;
     const migration = loadPane4ViewMigration();
     if (migration) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- localStorage からの初回復元。ref ガードでマウント時 1 回に限定している
       setPane4View(migration.pane4View);
       if (migration.openPane4) {
         setPane4ManuallyClosed(false);
@@ -325,12 +328,15 @@ export function Workspace({
 
   const insertImageMarkdown = useCallback(
     (markdown: string): boolean => {
+      // 可否の根拠は選択状態とモード。insertCallback はエディタのアンマウント後も
+      // 残るため、これだけを根拠にすると「成功を返すが本文に入らない」状態になる
+      if (!selectedLesson) return false;
       if (pane3Mode !== "raw") return false;
       if (!insertCallback) return false;
       insertCallback(markdown);
       return true;
     },
-    [pane3Mode, insertCallback],
+    [selectedLesson, pane3Mode, insertCallback],
   );
 
   const handleOverwriteEditor = useCallback(
@@ -444,6 +450,7 @@ export function Workspace({
           onSelectSeries={guardedSelectSeries}
           onSelectCourse={guardedSelectCourse}
           onSelectLesson={guardedSelectLesson}
+          onContentQueryChange={setContentSearchQuery}
           onReorderSeries={reorderSeries}
           onReorderCourses={reorderCourses}
           onReorderLessons={reorderLessons}
@@ -523,6 +530,7 @@ export function Workspace({
                 tagSuggestions={tagSuggestions}
                 availableImagePaths={availableImagePaths}
                 imageAssetsRevision={imageAssetsRevision}
+                searchHighlightQuery={contentSearchQuery}
               />
             ) : focusLevel === "course" && selectedCourse ? (
               <CourseMetaView

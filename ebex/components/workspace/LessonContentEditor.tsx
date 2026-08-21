@@ -18,6 +18,10 @@ import {
   lessonEditorThemeCompartment,
   resolveLessonLanguageExtension,
 } from "@/lib/lesson-content-editor-setup";
+import {
+  lessonSearchHighlight,
+  lessonSearchHighlightCompartment,
+} from "@/lib/lesson-search-highlight";
 import { getLessonBodyStartOffset } from "@/lib/lesson-frontmatter";
 import {
   getLessonEditorStateCache,
@@ -47,6 +51,8 @@ type Props = {
   enableFolding?: boolean;
   /** 言語解決用のファイル名 */
   fileName?: string;
+  /** Pane 1 の内容検索の語。一致箇所の地色を塗る */
+  searchHighlightQuery?: string;
   className?: string;
 };
 
@@ -60,6 +66,7 @@ export const LessonContentEditor = forwardRef<LessonContentEditorHandle, Props>(
       onCursorChange,
       enableFolding = true,
       fileName = "file.md",
+      searchHighlightQuery,
       className,
     },
     ref,
@@ -131,6 +138,9 @@ export const LessonContentEditor = forwardRef<LessonContentEditorHandle, Props>(
     const enableFoldingRef = useRef(enableFolding);
     enableFoldingRef.current = enableFolding;
 
+    const searchQueryRef = useRef(searchHighlightQuery);
+    searchQueryRef.current = searchHighlightQuery;
+
     const buildExtensions = useCallback(
       () =>
         buildLessonEditorStateExtensions(
@@ -141,6 +151,7 @@ export const LessonContentEditor = forwardRef<LessonContentEditorHandle, Props>(
             onFontSizeChange: handleFontSizeChange,
             enableFolding: enableFoldingRef.current,
             fileName: fileNameRef.current,
+            searchHighlightQuery: searchQueryRef.current,
           },
           [updateListenerExtension],
         ),
@@ -218,6 +229,14 @@ export const LessonContentEditor = forwardRef<LessonContentEditorHandle, Props>(
       const cached = getLessonEditorStateCache(lessonId);
       if (cached) {
         view.setState(cached);
+        // ⚠ 復元した state はキャッシュした時点の compartment 設定を丸ごと持つ。
+        // 現在の検索語を流し込まないと「たまにハイライトされない／古い語で
+        // 塗られる」という再現しにくい不具合になる
+        view.dispatch({
+          effects: lessonSearchHighlightCompartment.reconfigure(
+            lessonSearchHighlight(searchQueryRef.current),
+          ),
+        });
       } else {
         const nextState = EditorState.create({
           doc: value,
@@ -259,6 +278,17 @@ export const LessonContentEditor = forwardRef<LessonContentEditorHandle, Props>(
         ),
       });
     }, [isDark, fontSizePx, handleFontSizeChange, enableFolding]);
+
+    useEffect(() => {
+      const view = viewRef.current;
+      if (!view) return;
+
+      view.dispatch({
+        effects: lessonSearchHighlightCompartment.reconfigure(
+          lessonSearchHighlight(searchHighlightQuery),
+        ),
+      });
+    }, [searchHighlightQuery]);
 
     useEffect(() => {
       const view = viewRef.current;

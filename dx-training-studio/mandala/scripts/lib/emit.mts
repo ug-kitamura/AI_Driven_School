@@ -175,8 +175,18 @@ export function lessonTitle(lesson: SiteLesson, locale: Locale): string {
   return locale === "en" ? (lesson.titleEn ?? lesson.name) : lesson.name;
 }
 
-/** ロケール1つ分の `_meta.js` 一式（ルート・シリーズ・コース） */
-export function emitMetaFiles(data: SiteData, locale: Locale): EmittedFile[] {
+/**
+ * ロケール1つ分の `_meta.js` 一式（ルート・シリーズ・コース）。
+ *
+ * `hasChangelog` が true のとき、ルート `_meta` の最後尾（全シリーズの後）に
+ * 変更履歴の項目を足す。正本 `contents/changelog.md` が無ければ項目ごと出さない
+ * ——空リンクや「準備中」ページを作らないため。
+ */
+export function emitMetaFiles(
+  data: SiteData,
+  locale: Locale,
+  options: { hasChangelog?: boolean } = {},
+): EmittedFile[] {
   const prefix = localeContentPrefix(locale);
   const files: EmittedFile[] = [];
 
@@ -204,6 +214,16 @@ export function emitMetaFiles(data: SiteData, locale: Locale): EmittedFile[] {
           title: seriesTitle(series, locale),
           theme: { breadcrumb: false },
         })),
+        // 変更履歴は最後尾。1段だけのパンくずに意味が無いのはシリーズトップと同じ
+        ...(options.hasChangelog
+          ? [
+              {
+                slug: "changelog",
+                title: changelogTitle(locale),
+                theme: { breadcrumb: false },
+              },
+            ]
+          : []),
       ],
       [`import { House } from "lucide-react";`],
     ),
@@ -297,4 +317,49 @@ export function emitIndexPages(data: SiteData, locale: Locale): EmittedFile[] {
   }
 
   return files;
+}
+
+/** 変更履歴のページタイトル（サイドバー表示名と共通） */
+export function changelogTitle(locale: Locale): string {
+  return locale === "en" ? "Changelog" : "変更履歴";
+}
+
+/**
+ * 変更履歴ページ（`changelog.md` / `en/changelog.md`）。
+ *
+ * 本文は正本を**そのまま**使う——パース・並べ替え・整形はしない。
+ * frontmatter は表示用のヘッダで、本文には手を入れない。
+ *
+ * - `searchable: false`: Nextra が `<main>` の `data-pagefind-body` を外し、
+ *   Pagefind がページごと索引から除外する（サイトの他ページが
+ *   `data-pagefind-body` を持つため「持たないページは無視」モードになる）。
+ *   ⚠ `robots: "noindex"` は実測で Pagefind に**効かなかった**（2026-08-21。
+ *   meta タグは出るが索引される）——検索除外に使わないこと
+ * - 英語版は `changelog.en.md` があればそれを、無ければ日本語＋未翻訳バッジ
+ *   （レッスンの `contents.en.md` と同じ作法）
+ */
+export function emitChangelogPage(
+  changelog: { body: string; bodyEn?: string },
+  locale: Locale,
+): EmittedFile {
+  const prefix = localeContentPrefix(locale);
+  const untranslated = locale === "en" && changelog.bodyEn === undefined;
+  const body =
+    locale === "en" ? (changelog.bodyEn ?? changelog.body) : changelog.body;
+
+  const frontmatter = [
+    "---",
+    `title: ${yamlString(changelogTitle(locale))}`,
+    `sidebarTitle: ${yamlString(changelogTitle(locale))}`,
+    "searchable: false",
+    // LessonHeader が未翻訳バッジを描くための印。seriesHref を持たないページ
+    // なのでロケールも明示する（バッジは en のときだけ出る）
+    ...(untranslated ? ["untranslated: true", `locale: "en"`] : []),
+    "---",
+  ].join("\n");
+
+  return {
+    relativePath: `${prefix}changelog.md`,
+    contents: `${frontmatter}\n\n${body.replace(/^\n+/, "")}`,
+  };
 }

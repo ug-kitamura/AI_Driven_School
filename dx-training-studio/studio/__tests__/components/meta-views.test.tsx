@@ -11,7 +11,7 @@ import { SeriesMetaView } from "@/components/workspace/meta-views/SeriesMetaView
 import { CourseMetaView } from "@/components/workspace/meta-views/CourseMetaView";
 import type { Course, Series } from "@/lib/schema";
 
-// ミニ曼陀羅（mermaid）はこのテストの対象外。jsdom での描画副作用を避ける
+// ミニ曼陀羅（React Flow）はこのテストの対象外。jsdom での描画副作用を避ける
 vi.mock("@/components/workspace/MiniMandalaSection", () => ({
   MiniMandalaSection: () => <div data-testid="mini-mandala" />,
 }));
@@ -158,6 +158,27 @@ describe("WorkspaceMetaView", () => {
         "cherry.png",
       ]);
     });
+  });
+
+  it("未設定でも同梱の既定画像が使われることが分かる", async () => {
+    const fetchMock = vi.fn((input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url.startsWith("/api/content/workspace-meta")) {
+        // hero 未設定（公開サイトは同梱の app/hero.jpg にフォールバックする）
+        return Promise.resolve(new Response("{}", { status: 200 }));
+      }
+      return Promise.resolve(
+        new Response(JSON.stringify({ files: [] }), { status: 200 }),
+      );
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    render(<WorkspaceMetaView workspaceName="DX Training Studio" />);
+
+    // 「未設定」だけだと画像が出ていないと読み違えるので、補足文で既定画像に触れる
+    await screen.findByLabelText("ヒーロー画像");
+    await waitFor(() =>
+      expect(document.body.textContent).toContain("mandala/app/hero.jpg"),
+    );
   });
 
   it("保存済み画像が候補一覧に無くても選択肢に出る", async () => {

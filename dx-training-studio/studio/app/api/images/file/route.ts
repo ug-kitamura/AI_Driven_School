@@ -16,6 +16,10 @@ import {
   resolveCanonicalBackend,
   storageErrorResponse,
 } from "@/lib/image-storage/resolve";
+import {
+  getCanonicalEntry,
+  invalidateCanonicalCache,
+} from "@/lib/image-storage/canonical-cache";
 import { StorageConnectionError } from "@/lib/image-storage/types";
 import {
   isCanonicalImagePath,
@@ -84,23 +88,41 @@ export async function GET(req: Request) {
       return Response.json({ error: "ストレージに接続できません" }, { status: 503 });
     }
 
-    let blobMeta: Awaited<ReturnType<typeof head>>;
-    try {
-      blobMeta = await head(pathParam, { token });
-    } catch {
-      return Response.json({ error: "ファイルが見つかりません" }, { status: 404 });
+    const projectRoot = getProjectRoot();
+    const backend = resolveCanonicalBackend(projectRoot, storageMode);
+
+    // ETag の材料は一覧キャッシュから取る。ここで毎回 `head()` を撃つと
+    // 画像 1 枚ごとに Simple Operation を 1 消費し、304 で返す分まで課金される。
+    // キャッシュに無いパスのときだけ `head()` にフォールバックする。
+    const cached = await getCanonicalEntry(
+      projectRoot,
+      storageMode,
+      backend,
+      pathParam,
+    );
+
+    let uploadedAt: Date;
+    let size: number;
+    if (cached && cached.size !== undefined) {
+      uploadedAt = new Date(cached.uploadedAt);
+      size = cached.size;
+    } else {
+      let blobMeta: Awaited<ReturnType<typeof head>>;
+      try {
+        blobMeta = await head(pathParam, { token });
+      } catch {
+        return Response.json({ error: "ファイルが見つかりません" }, { status: 404 });
+      }
+      uploadedAt = blobMeta.uploadedAt;
+      size = blobMeta.size;
     }
 
-    const etag = formatImageFileEtag(
-      blobMeta.uploadedAt.getTime(),
-      blobMeta.size,
-    );
-    const lastModified = blobMeta.uploadedAt;
+    const etag = formatImageFileEtag(uploadedAt.getTime(), size);
+    const lastModified = uploadedAt;
     if (matchesIfNoneMatch(req, etag)) {
       return imageFileNotModifiedResponse(etag, lastModified);
     }
 
-    const backend = resolveCanonicalBackend(getProjectRoot(), storageMode);
     const data = await backend.readCanonical(pathParam);
     if (!data) {
       return Response.json({ error: "ファイルが見つかりません" }, { status: 404 });
@@ -159,6 +181,7 @@ export async function DELETE(req: Request) {
   try {
     const backend = resolveCanonicalBackend(getProjectRoot(), storageMode);
     await backend.deleteCanonical(pathParam);
+    invalidateCanonicalCache(storageMode);
     return Response.json({ ok: true });
   } catch (error) {
     const storageResponse = storageErrorResponse(error);

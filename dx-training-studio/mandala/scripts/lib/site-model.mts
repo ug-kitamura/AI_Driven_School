@@ -13,10 +13,13 @@ import type {
 /** `lib/schema.ts` の SLUG_PATTERN と同じ */
 export const SLUG_PATTERN = /^[a-z0-9]+(-[a-z0-9]+)*$/;
 
+/** ルート直下の固定ページが使う slug。シリーズには使えない */
+export const RESERVED_ROOT_SLUGS = new Set(["changelog"]);
+
 export type SlugIssue = {
   /** 正本上の位置（エラーメッセージ用） */
   path: string;
-  reason: "missing" | "invalid" | "duplicate";
+  reason: "missing" | "invalid" | "duplicate" | "reserved";
   slug?: string;
 };
 
@@ -187,6 +190,11 @@ export function validateSlugs(root: ContentsRoot): SlugIssue[] {
   for (const series of root.series) {
     checkSlug(series.slug, series.name, seriesSlugs);
 
+    // ルート直下の固定ページ（変更履歴 /changelog）と URL が衝突するため予約語
+    if (series.slug && RESERVED_ROOT_SLUGS.has(series.slug)) {
+      issues.push({ path: series.name, reason: "reserved", slug: series.slug });
+    }
+
     const courseSlugs = new Map<string, number>();
     for (const course of series.courses) {
       checkSlug(course.slug, `${series.name}/${course.name}`, courseSlugs);
@@ -214,6 +222,8 @@ export function formatSlugIssues(issues: SlugIssue[]): string {
         return `  - ${issue.path}: slug "${issue.slug}" は形式が不正です（小文字英数とハイフンのみ）`;
       case "duplicate":
         return `  - ${issue.path}: slug "${issue.slug}" が同じ階層で重複しています`;
+      case "reserved":
+        return `  - ${issue.path}: slug "${issue.slug}" はサイトの固定ページ用に予約されています`;
     }
   });
   return [

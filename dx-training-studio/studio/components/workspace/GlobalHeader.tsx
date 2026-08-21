@@ -19,14 +19,8 @@ import {
 import { Button } from "@/components/ui/button";
 import type { Series } from "@/lib/schema";
 import { findSeriesContainingCourse, isCrossSeriesLink } from "@/lib/course-flow";
-import {
-  getMermaidWorkspaceConfig,
-} from "@/lib/mermaid-workspace-theme";
-import { renderMermaidDiagram } from "@/lib/mermaid-render";
-import {
-  patchGlobalMandalaSelection,
-  resolveMandalaCourseId,
-} from "@/lib/global-mandala-selection";
+import { LazyMandala } from "@/components/workspace/mandala/LazyMandala";
+import { buildMandalaGraph } from "@/lib/mandala/build-graph";
 
 const safeLabel = (s: string) => s.replace(/"/g, "'");
 
@@ -54,111 +48,6 @@ function GitHubMark() {
   );
 }
 
-function buildFullMandalaGraph(
-  series: Series[],
-): { def: string; nodeMap: Record<string, string> } {
-  // コースノードは太字幅でレイアウトし、選択表示は DOM パッチで太字/通常を切り替える
-  // （後から太字にすると foreignObject 幅不足で末尾が欠ける）
-  const lines = [
-    "flowchart TD",
-    "  classDef mandalaSeriesTitle font-weight:bold",
-    "  classDef mandalaCourse font-weight:bold",
-    // Start / Goal は枠を持たない文字だけのノード
-    "  classDef mandalaTerminal fill:none,stroke:none,font-weight:bold",
-  ];
-  const nodeMap: Record<string, string> = {};
-
-  // Mermaid ノード ID は英数字のみ有効。日本語 ID を直接使えないため
-  // 全コース・シリーズを連番で割り当て、nodeMap で逆引きする
-  let idCounter = 0;
-  const courseIdToNid = new Map<string, string>(
-    series.flatMap((s) => s.courses.map((c) => [c.id, `C${idCounter++}`] as [string, string])),
-  );
-  const seriesIdToSgId = new Map<string, string>(
-    series.map((s) => [s.id, `SG${idCounter++}`] as [string, string]),
-  );
-  const toNid = (id: string) => courseIdToNid.get(id) ?? `C${id}`;
-  const toSgId = (id: string) => seriesIdToSgId.get(id) ?? `SG${id}`;
-
-  // シリーズごとにサブグラフとノード（丸みノード、方向は TB に統一）
-  series.forEach((s) => {
-    const sgId = toSgId(s.id);
-    lines.push(`  subgraph ${sgId}["${safeLabel(s.name)}"]`);
-    lines.push(`    direction TB`);
-    s.courses.forEach((c) => {
-      const nid = toNid(c.id);
-      nodeMap[nid] = c.id;
-      lines.push(`    ${nid}("${safeLabel(c.name)}"):::mandalaCourse`);
-    });
-    lines.push("  end");
-    lines.push(`  class ${sgId} mandalaSeriesTitle`);
-  });
-
-  // シリーズ内: 配列順の隣接鎖
-  series.forEach((s) => {
-    for (let i = 1; i < s.courses.length; i++) {
-      const prev = s.courses[i - 1];
-      const curr = s.courses[i];
-      lines.push(`  ${toNid(prev.id)} --> ${toNid(curr.id)}`);
-    }
-  });
-
-  // 別シリーズ: cross_series_prev と cross_series_next（同一 from→to は1本にまとめる）
-  const crossEdgeKeys = new Set<string>();
-  const addCrossEdge = (fromId: string, toId: string) => {
-    const key = `${fromId}-->${toId}`;
-    if (crossEdgeKeys.has(key)) return;
-    crossEdgeKeys.add(key);
-    lines.push(`  ${toNid(fromId)} ---> ${toNid(toId)}`);
-  };
-  series.forEach((s) => {
-    s.courses.forEach((c) => {
-      c.cross_series_prev.forEach((prevId) => {
-        if (
-          findSeriesContainingCourse(series, prevId) &&
-          isCrossSeriesLink(series, c.id, prevId)
-        ) {
-          addCrossEdge(prevId, c.id);
-        }
-      });
-      c.cross_series_next.forEach((nextId) => {
-        if (
-          findSeriesContainingCourse(series, nextId) &&
-          isCrossSeriesLink(series, c.id, nextId)
-        ) {
-          addCrossEdge(c.id, nextId);
-        }
-      });
-    });
-  });
-
-  // Start / Goal: 宣言したコースごとに1つずつ置く。
-  // 入口が複数あれば始まりの時点も複数あるので、1つに集約しない
-  let terminalCounter = 0;
-  series.forEach((s) => {
-    s.courses.forEach((c) => {
-      if (c.is_start) {
-        const tid = `T${terminalCounter++}`;
-        lines.push(`  ${tid}["Start"]:::mandalaTerminal`);
-        lines.push(`  ${tid} --> ${toNid(c.id)}`);
-      }
-      if (c.is_goal) {
-        const tid = `T${terminalCounter++}`;
-        lines.push(`  ${tid}["Goal"]:::mandalaTerminal`);
-        lines.push(`  ${toNid(c.id)} --> ${tid}`);
-      }
-    });
-  });
-
-  // click ディレクティブ（Start / Goal は遷移先を持たないので付けない）
-  series.forEach((s) => {
-    s.courses.forEach((c) => {
-      lines.push(`  click ${toNid(c.id)} call mandalaNav()`);
-    });
-  });
-
-  return { def: lines.join("\n"), nodeMap };
-}
 
 type GlobalHeaderProps = {
   seriesName: string;
@@ -269,34 +158,16 @@ export function GlobalHeader({
   );
 
   const [mandalaOpen, setMandalaOpen] = useState(false);
-  const [mandalaSvg, setMandalaSvg] = useState("");
-  const [mandalaDebug, setMandalaDebug] = useState("");
-  const [isDark, setIsDark] = useState(false);
-  const svgContainerRef = useRef<HTMLDivElement>(null);
-  const mandalaNodeMapRef = useRef<Record<string, string>>({});
-
-  useEffect(() => {
-    const update = () =>
-      setIsDark(document.documentElement.classList.contains("dark"));
-    update();
-    const obs = new MutationObserver(update);
-    obs.observe(document.documentElement, {
-      attributes: true,
-      attributeFilter: ["class"],
-    });
-    return () => obs.disconnect();
-  }, []);
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const bindFnsRef = useRef<((el: Element) => void) | null>(null);
   const suppressMandalaModalCloseRef = useRef(false);
 
+  const mandalaGraph = useMemo(() => buildMandalaGraph(series), [series]);
+
+  /**
+   * ノードクリックで遷移した直後にモーダルが閉じるのを抑える。
+   * 遷移でツリーの選択が変わり、その副作用で開閉が揺れるため。
+   */
   const handleMandalaModalOpenChange = useCallback(
-    (
-      open: boolean,
-      eventDetails?: {
-        cancel?: () => void;
-      },
-    ) => {
+    (open: boolean, eventDetails?: { cancel?: () => void }) => {
       if (!open && suppressMandalaModalCloseRef.current) {
         eventDetails?.cancel?.();
         return;
@@ -306,113 +177,28 @@ export function GlobalHeader({
     [],
   );
 
-  // グローバルコールバック登録（曼陀羅モーダル専用）
-  // Mermaid の click call は nodeId を第1引数として渡す → nodeId から courseId をルックアップ
-  const stableSelectCourse = useCallback(
+  const handleSelectFromMandala = useCallback(
     (courseId: string) => {
-      onSelectCourse?.(courseId);
-    },
-    [onSelectCourse],
-  );
-  const navigateFromMandala = useCallback(
-    (nodeId: string) => {
-      const courseId = resolveMandalaCourseId(mandalaNodeMapRef.current, nodeId);
-      if (!courseId) return;
       suppressMandalaModalCloseRef.current = true;
-      stableSelectCourse(courseId);
+      onSelectCourse?.(courseId);
       window.setTimeout(() => {
         suppressMandalaModalCloseRef.current = false;
       }, 300);
     },
-    [stableSelectCourse],
+    [onSelectCourse],
   );
-  useEffect(() => {
-    (window as unknown as Record<string, unknown>)["mandalaNav"] = navigateFromMandala;
-    return () => {
-      delete (window as unknown as Record<string, unknown>)["mandalaNav"];
-    };
-  }, [navigateFromMandala]);
 
-  const refreshMandalaSelection = useCallback(() => {
-    const container = svgContainerRef.current;
-    if (!container || !mandalaSvg) return;
-    patchGlobalMandalaSelection(
-      container,
-      series,
-      mandalaNodeMapRef.current,
-      selectedCourseId,
-    );
-    bindFnsRef.current?.(container);
-  }, [mandalaSvg, series, selectedCourseId]);
-
-  const handleMandalaGraphClick = useCallback(
-    (e: React.MouseEvent<HTMLDivElement>) => {
-      e.stopPropagation();
-      for (const el of e.nativeEvent.composedPath()) {
-        const svgG = el as Element;
-        if (svgG.tagName === "g" && (svgG as SVGGElement).id) {
-          const match = (svgG as SVGGElement).id.match(/flowchart-(C\d+)-/);
-          if (match) {
-            navigateFromMandala((svgG as SVGGElement).id);
-            return;
-          }
-        }
-      }
+  /** シリーズ枠のクリック。コースと同じく、遷移でモーダルを閉じない */
+  const handleSelectSeriesFromMandala = useCallback(
+    (seriesId: string) => {
+      suppressMandalaModalCloseRef.current = true;
+      onSelectSeries?.(seriesId);
+      window.setTimeout(() => {
+        suppressMandalaModalCloseRef.current = false;
+      }, 300);
     },
-    [navigateFromMandala],
+    [onSelectSeries],
   );
-
-  // モーダルを開いたとき（または series / テーマ変更時）に Mermaid レンダリング。
-  // 選択の枠線・ウェイト切替は DOM パッチ（選択変更で再描画しない）。
-  // 描画自体は renderMermaidDiagram で直列化し、他曼陀羅との config 競合を防ぐ。
-  useEffect(() => {
-    if (!mandalaOpen || series.length === 0) return;
-    const { def, nodeMap } = buildFullMandalaGraph(series);
-    mandalaNodeMapRef.current = nodeMap;
-    setMandalaDebug(def);
-    let cancelled = false;
-    void renderMermaidDiagram(
-      def,
-      getMermaidWorkspaceConfig(isDark, { global: true }),
-      "mandala-global",
-    )
-      .then(({ svg, bindFunctions }) => {
-        if (cancelled) return;
-        bindFnsRef.current = bindFunctions ?? null;
-        setMandalaSvg(svg);
-        setMandalaDebug("");
-      })
-      .catch((err) => {
-        if (!cancelled) setMandalaDebug(`ERROR: ${String(err)}\n\n---\n${def}`);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [mandalaOpen, series, isDark]);
-
-  // モーダルを閉じたら SVG をリセット（次回オープン時に古いキャッシュを表示しない）
-  useEffect(() => {
-    if (!mandalaOpen) {
-      setMandalaSvg("");
-      setMandalaDebug("");
-      if (svgContainerRef.current) {
-        svgContainerRef.current.innerHTML = "";
-      }
-    }
-  }, [mandalaOpen]);
-
-  // SVG 文字列が変わったときだけ DOM に反映（dangerouslySetInnerHTML は使わない）
-  useEffect(() => {
-    const container = svgContainerRef.current;
-    if (!container || !mandalaSvg) return;
-    container.innerHTML = mandalaSvg;
-  }, [mandalaSvg]);
-
-  // SVG 反映後およびコース選択変更時に枠線・太字を更新し、クリックハンドラを再紐付け
-  useEffect(() => {
-    if (!mandalaOpen || !mandalaSvg) return;
-    refreshMandalaSelection();
-  }, [mandalaOpen, mandalaSvg, refreshMandalaSelection]);
 
   return (
     <header className="flex h-12 shrink-0 items-center gap-2 border-b border-border bg-background px-3">
@@ -504,30 +290,33 @@ export function GlobalHeader({
 
       {/* 曼陀羅フルスクリーンモーダル */}
       <Dialog open={mandalaOpen} onOpenChange={handleMandalaModalOpenChange}>
-        <DialogContent className="max-w-5xl max-h-[90vh] flex flex-col">
+        {/* ⚠ 構成は公開サイトの曼陀羅モーダルと同じにする——**ダイアログは高さを
+            持たず中身なり・キャンバスだけがビューポート由来の絶対長・開閉
+            アニメーション無し（animated={false}）**。
+            ダイアログに高さを持たせてフレックスで配ると、React Flow がマウント時に
+            確定した座標とレイアウトの落ち着き後の寸法が食い違い、開き直すたびに
+            中心がずれる（2026-08-21 に実機で再現）。`fill`（% の連鎖）も同根。
+            キャンバスが絶対長ならマウントの時点で幾何が確定していて、時机に依らない */}
+        <DialogContent animated={false} className="max-w-5xl">
           <DialogHeader>
             <DialogTitle>DXトレーニング曼陀羅</DialogTitle>
           </DialogHeader>
-          <div className="workspace-scrollbar flex flex-1 justify-center overflow-auto rounded bg-card p-3 min-h-0">
-            {mandalaSvg ? (
-              <div
-                ref={svgContainerRef}
-                className="global-mandala-graph w-fit"
-                onClick={handleMandalaGraphClick}
+          <div className="rounded bg-card p-3">
+            {mandalaOpen ? (
+              <LazyMandala
+                graph={mandalaGraph}
+                scope={{ kind: "global" }}
+                variant="compact"
+                currentCourseId={selectedCourseId}
+                currentSeriesId={selectedSeriesId}
+                // ツールバー・ヘッダー等の約 155px を足しても画面に収まる上限
+                height="min(72vh, 680px)"
+                onSelectCourse={handleSelectFromMandala}
+                onSelectSeries={handleSelectSeriesFromMandala}
+                showChrome
               />
-            ) : mandalaDebug ? (
-              <pre className="text-xs text-muted-foreground whitespace-pre-wrap break-all">
-                {mandalaDebug}
-              </pre>
-            ) : (
-              <div className="flex h-40 items-center justify-center text-muted-foreground text-sm">
-                グラフを生成中...
-              </div>
-            )}
+            ) : null}
           </div>
-          <p className="text-[11px] text-muted-foreground text-left pt-1">
-            ノードをクリックするとそのコースに移動します
-          </p>
         </DialogContent>
       </Dialog>
     </header>

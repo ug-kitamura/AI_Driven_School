@@ -139,6 +139,11 @@ type Props = {
   onSelectSeries: (seriesId: string) => void;
   onSelectCourse: (courseId: string) => void;
   onSelectLesson: (lessonId: string) => void;
+  /**
+   * 中身検索（`?` 始まり）の検索語。ペイン2 が一致箇所を塗るのに使う。
+   * 名前フィルタのときは空文字——ファイル名の一致は本文の一致ではない。
+   */
+  onContentQueryChange?: (query: string) => void;
   onReorderSeries: (fromIndex: number, toIndex: number) => void;
   onReorderCourses: (seriesId: string, fromIndex: number, toIndex: number) => void;
   onReorderLessons: (courseId: string, fromIndex: number, toIndex: number) => void;
@@ -213,6 +218,7 @@ export function ContentTreePane({
   onSelectSeries,
   onSelectCourse,
   onSelectLesson,
+  onContentQueryChange,
   onReorderSeries,
   onReorderCourses,
   onReorderLessons,
@@ -397,6 +403,12 @@ export function ContentTreePane({
   // -------------------------------------------------------------------------
   // 検索: 名前フィルタはクライアント、`?` はコンテンツ検索 API
   // -------------------------------------------------------------------------
+
+  // ペイン2 のハイライト用。解決済みのクエリだけを上げる——生の入力文字列や
+  // 一致結果はツリーの絞り込みという別の関心事で、SSoT へ上げる必要がない
+  useEffect(() => {
+    onContentQueryChange?.(isContentSearchMode ? contentQuery : "");
+  }, [contentQuery, isContentSearchMode, onContentQueryChange]);
 
   useEffect(() => {
     if (!isContentSearchMode || !contentQuery) {

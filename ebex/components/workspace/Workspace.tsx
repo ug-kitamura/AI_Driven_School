@@ -66,6 +66,8 @@ export function Workspace({ initialFolders, hostName }: WorkspaceProps) {
     isEmptyFolderInTree(folders, selectedFolderPath);
   const [fileContent, setFileContent] = useState("");
   const [pendingSave, setPendingSave] = useState(false);
+  /** Pane 1 の内容検索の語。Pane 2 が一致箇所を塗るのに使う */
+  const [contentSearchQuery, setContentSearchQuery] = useState("");
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [purposeOpen, setPurposeOpen] = useState(false);
   const workspaceRootRef = useRef<HTMLDivElement>(null);
@@ -347,6 +349,7 @@ export function Workspace({ initialFolders, hostName }: WorkspaceProps) {
             selectedFolderPath={selectedFolderPath}
             selectedFileName={selectedFileName}
             onSelectFile={handleSelectFile}
+            onContentQueryChange={setContentSearchQuery}
             onAddFileToChat={(folderPath, fileName) =>
               agentChatControllerRef.current?.addFileAttachment({
                 path: `${ALLOWED_PREFIX}${folderPath}/${fileName}`,
@@ -382,6 +385,7 @@ export function Workspace({ initialFolders, hostName }: WorkspaceProps) {
               overwriteCallbackRef.current = cb;
             }}
             onOpenFile={handleSelectFile}
+            searchHighlightQuery={contentSearchQuery}
           />
         </div>
 

@@ -2,7 +2,8 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import dynamic from "next/dynamic";
-import { Loader2, Settings } from "lucide-react";
+import { Settings } from "lucide-react";
+import { BusySpinner } from "@/components/workspace/ThemeIcons";
 import { Button } from "@/components/ui/button";
 import { useAgentSessionChrome } from "@/components/workspace/use-agent-session-chrome";
 import type { WorkspaceTreeNode } from "@/lib/workspace-loader";
@@ -92,10 +93,7 @@ export function AgentPane({
       <div className="flex h-12 shrink-0 items-center justify-end gap-1 border-b px-3 py-0">
         <div className="mr-auto flex min-w-0 flex-1 items-center gap-2">
           {isStreaming ? (
-            <Loader2
-              className="size-4 shrink-0 animate-spin text-muted-foreground"
-              aria-hidden
-            />
+            <BusySpinner className="size-4 shrink-0 text-muted-foreground" />
           ) : null}
           <span
             className="min-w-0 flex-1 truncate text-sm font-medium"

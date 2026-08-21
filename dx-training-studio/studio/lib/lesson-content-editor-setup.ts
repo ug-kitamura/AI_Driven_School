@@ -6,6 +6,10 @@ import { keymap } from "@codemirror/view";
 import { languages } from "@codemirror/language-data";
 import { foldService } from "@codemirror/language";
 import { lessonFoldGutter } from "@/lib/lesson-fold-gutter";
+import {
+  lessonSearchHighlight,
+  lessonSearchHighlightCompartment,
+} from "@/lib/lesson-search-highlight";
 import { EditorView, lineNumbers } from "@codemirror/view";
 import type { EditorState } from "@codemirror/state";
 import { vscodeDarkInit, vscodeLightInit } from "@uiw/codemirror-theme-vscode";
@@ -191,7 +195,9 @@ function createLessonEditorLayout(
         opacity: "0",
         pointerEvents: "none",
       },
-      ".lesson-fold-gutter.lesson-fold-gutter-column-hovered span.lesson-fold-open": {
+      // 行番号列を含むガター全体をホバー領域にする（正本は globals.css の
+      // 同名ルール。こちらは !important 無しのフォールバック）
+      ".cm-gutters:hover span.lesson-fold-open": {
         opacity: "1",
         pointerEvents: "none",
       },
@@ -315,12 +321,17 @@ export function buildLessonEditorStateExtensions(
   options?: {
     getFontSize?: () => number;
     onFontSizeChange?: (next: number) => void;
+    /** ペイン1 の中身検索の語。一致箇所の地色を塗る */
+    searchHighlightQuery?: string;
   },
   extraExtensions: Extension[] = [],
 ): Extension[] {
   return [
     lessonEditorThemeCompartment.of(
       buildLessonEditorExtensions(isDark, fontSizePx, options),
+    ),
+    lessonSearchHighlightCompartment.of(
+      lessonSearchHighlight(options?.searchHighlightQuery),
     ),
     history(),
     search(),

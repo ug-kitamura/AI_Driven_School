@@ -25,8 +25,12 @@ Rules:
 - Each query should explore a slightly different angle of the author's brief
 `.trim();
 
+/**
+ * `lesson` はレッスン未選択（ホーム・シリーズ・コース選択中）でも Web タブを使えるよう
+ * 任意。無いときはレッスン文脈ブロックを組まず、著者の検索指示だけで計画を立てる。
+ */
 export function buildWebSearchPlanMessages(
-  lesson: Lesson,
+  lesson: Lesson | undefined,
   prompt: string,
 ): { system: string; user: string } {
 
@@ -36,14 +40,18 @@ export function buildWebSearchPlanMessages(
     "",
     "## Author search brief",
     prompt,
-    "",
-    "## Lesson metadata",
-    `lesson: ${lesson.lesson}`,
-    `description: ${lesson.description}`,
-    `tags: ${lesson.tags.join(", ")}`,
-    "",
-    "## Full lesson markdown body",
-    lesson.content,
+    ...(lesson
+      ? [
+          "",
+          "## Lesson metadata",
+          `lesson: ${lesson.lesson}`,
+          `description: ${lesson.description}`,
+          `tags: ${lesson.tags.join(", ")}`,
+          "",
+          "## Full lesson markdown body",
+          lesson.content,
+        ]
+      : []),
     "",
     "Output JSON only.",
   ].join("\n");

@@ -63,7 +63,15 @@ Pane 1 の検索行に下方向の区切り線（`border-b`）を表示しては
 
 ### Requirement: 右クリックコンテキストメニュー
 
-フォルダ行の右クリックメニュー項目は、表示順を **add folder → add file → rename → copy（該当時）→ paste（該当時）→ delete** とし、**delete は常に最後**でなければならない（SHALL）。プロジェクトフォルダ（`folderPath` に `/` を含まない）の場合は「add folder」「add file」「rename」「paste」「delete」としなければならない（SHALL）。サブフォルダ行の場合は「add folder」「add file」「rename」「copy」「paste」「delete」としなければならない（SHALL）。ファイル行のメニュー項目は「rename」「copy」「paste」、**add to chat**、**add favorite または remove favorite（状態に応じて排他）**、「delete」の順としなければならない（SHALL）。`(no file)` 行のメニュー項目は「add folder」「add file」「paste」としなければならない（SHALL）。メニュー項目の表示言語は英語でなければならない（SHALL）。「add folder」「add file」「rename」「copy」「paste」「add to chat」「add favorite」「remove favorite」の hover 背景色・文字色は、ツリー行の選択・強調時と同じグレー系トークンでなければならない（SHALL）。「delete」項目の hover 配色は destructive（赤系）のまま維持しなければならない（SHALL）。クリップボードが空のとき paste は無効（disabled）でなければならない（SHALL）。各メニュー項目はラベルテキストの前に、項目に対応する lucide アイコンを表示しなければならない（SHALL）：add folder は `FolderPlus`、add file は `FilePlus`、rename は `Pencil`、copy は `Copy`、paste は `ClipboardPaste`、delete は `Trash2`、add to chat は `MessageSquarePlus`、add favorite は `Star`（アウトライン）、remove favorite は `StarOff`。アイコンの色は個別指定してはならず（MUST NOT）、`ContextMenuItem` の `variant` に連動した既存の自動配色（muted はグレー系、destructive は赤系）に従わなければならない（SHALL）。
+フォルダ行の右クリックメニュー項目は、表示順を **add folder → add file → rename → copy（該当時）→ paste（該当時）→ delete** とし、**delete は常に最後**でなければならない（SHALL）。プロジェクトフォルダ（`folderPath` に `/` を含まない）の場合は「add folder」「add file」「rename」「paste」「delete」としなければならない（SHALL）。サブフォルダ行の場合は「add folder」「add file」「rename」「copy」「paste」「delete」としなければならない（SHALL）。ファイル行のメニュー項目は「rename」「copy」「paste」、**add to chat**、**add favorite または remove favorite（状態に応じて排他）**、「delete」の順としなければならない（SHALL）。`(no file)` 行のメニュー項目は「add folder」「add file」「paste」としなければならない（SHALL）。メニュー項目の表示言語は英語でなければならない（SHALL）。「add folder」「add file」「rename」「copy」「paste」「add to chat」「add favorite」「remove favorite」の hover 背景色・文字色は、ツリー行の選択・強調時と同じグレー系トークンでなければならない（SHALL）。「delete」項目の hover 配色は destructive（赤系）のまま維持しなければならない（SHALL）。クリップボードが空のとき paste は無効（disabled）でなければならない（SHALL）。
+
+各メニュー項目はラベルテキストの前に、項目に対応する lucide アイコンを表示しなければならない（SHALL）：add folder は `FolderPlus`、add file は `FilePlus`、rename は `Pencil`、copy は `Copy`、paste は `ClipboardPaste`、delete は `Trash2`。
+
+次の 3 項目は**テーマによって差し替えなければならない**（SHALL）：既定テーマでは add to chat が `MessageSquarePlus`、add favorite が `Star`（アウトライン）、remove favorite が `StarOff`。ピンクテーマではそれぞれ `HeartPlus`、`Heart`（アウトライン）、`HeartOff` とする。
+
+**delete の `Trash2` をハート系に差し替えてはならない（MUST NOT）**——削除操作の識別性を守るため。同様に、方向・動作を伝える `Pencil`・`Copy`・`ClipboardPaste`・`FolderPlus`・`FilePlus` も全テーマで同一でなければならない（SHALL）。
+
+アイコンの色は個別指定してはならず（MUST NOT）、`ContextMenuItem` の `variant` に連動した既存の自動配色（muted はグレー系、destructive は赤系）に従わなければならない（SHALL）。
 
 #### Scenario: サブフォルダ行の右クリックメニュー
 
@@ -80,42 +88,15 @@ Pane 1 の検索行に下方向の区切り線（`border-b`）を表示しては
 - **WHEN** ユーザーが `sub/deep.md` ファイル行を右クリックする
 - **THEN** rename、copy、paste、add to chat、add favorite または remove favorite、delete の順で、それぞれ対応するアイコン付きの英語メニューが表示される
 
-#### Scenario: add to chat の位置とアイコン
+#### Scenario: ピンクテーマでメニューのアイコンがハートになる
 
-- **WHEN** ユーザーがファイル行を右クリックする
-- **THEN** `MessageSquarePlus` アイコン付きの add to chat が paste と favorite 項目の間に表示される
+- **WHEN** ピンクテーマでファイル行を右クリックする
+- **THEN** add to chat は `HeartPlus`、add favorite は `Heart`、remove favorite は `HeartOff` で表示される
 
-#### Scenario: 別プロジェクトのファイルでは add to chat が無効
+#### Scenario: ピンクテーマでも削除アイコンは変わらない
 
-- **WHEN** Agent チャットの対象プロジェクトが `demo` の状態で、ユーザーが別プロジェクト `other` 内のファイル行を右クリックする
-- **THEN** add to chat は無効（disabled、グレー表示）であり、クリックしても添付は追加されない
-
-#### Scenario: フォルダ行に add to chat がない
-
-- **WHEN** ユーザーがプロジェクトフォルダまたはサブフォルダ行を右クリックする
-- **THEN** add to chat は表示されない
-
-#### Scenario: no file 行の右クリックメニュー
-
-- **WHEN** ユーザーが `no file` 行を右クリックする
-- **THEN** add folder、add file、paste の順で、それぞれ対応するアイコン付きの英語メニューが表示される
-
-#### Scenario: 通常項目の hover はグレー
-
-- **WHEN** ユーザーが右クリックメニューの rename 項目にマウスを重ねる
-- **THEN** アイコンを含む背景色・文字色は青系ではなくグレー系トークンで表示される
-
-#### Scenario: 削除項目の hover は赤系のまま
-
-- **WHEN** ユーザーが右クリックメニューの delete 項目にマウスを重ねる
-- **THEN** `Trash2` アイコンを含む背景色・文字色は destructive（赤系）で表示される
-
-#### Scenario: favorite 項目のアイコンが状態に応じて切り替わる
-
-- **WHEN** ユーザーがお気に入り未登録のファイル行を右クリックする
-- **THEN** `Star`（アウトライン）アイコン付きの add favorite が表示される
-- **WHEN** ユーザーがお気に入り登録済みのファイル行を右クリックする
-- **THEN** `StarOff` アイコン付きの remove favorite が表示される
+- **WHEN** ピンクテーマでファイル行を右クリックする
+- **THEN** delete のアイコンは `Trash2` のままである
 
 ### Requirement: ツリー行の視覚フィードバック
 
@@ -824,7 +805,13 @@ Pane 1 上でフォルダ・ファイルの追加、リネーム、削除、past
 
 ### Requirement: お気に入り
 
-Pane 1 はファイル行に対するお気に入り登録・解除を提供しなければならない（SHALL）。お気に入りの対象は**ファイルのみ**とし、フォルダ行および `no file` 行ではお気に入り操作を提供してはならない（MUST NOT）。ファイル行の右クリックメニューには、delete の直上に **add favorite** または **remove favorite** のいずれか 1 項目のみを表示しなければならない（SHALL）。お気に入り未登録のファイルでは **add favorite**、登録済みでは **remove favorite** を表示しなければならない（SHALL）。お気に入り登録済みのファイル行の右端には黄色の ☆ アイコン（lucide `Star`、fill あり）を表示しなければならない（SHALL）。未登録ファイルでは ☆ アイコンを表示してはならない（MUST NOT）。お気に入りデータは workspace ルートの `.ebex-favorites.json` に `{ folderPath, fileName }` の配列として永続化されなければならない（SHALL）。EBEX 内でのファイルリネーム・ファイル削除・フォルダ削除・フォルダリネーム成功時は、お気に入り内の該当キーを更新または除去しなければならない（SHALL）。次回読み込み時、実在しないファイルを指すお気に入りエントリは表示から除外しなければならない（SHALL）。
+Pane 1 はファイル行に対するお気に入り登録・解除を提供しなければならない（SHALL）。お気に入りの対象は**ファイルのみ**とし、フォルダ行および `no file` 行ではお気に入り操作を提供してはならない（MUST NOT）。ファイル行の右クリックメニューには、delete の直上に **add favorite** または **remove favorite** のいずれか 1 項目のみを表示しなければならない（SHALL）。お気に入り未登録のファイルでは **add favorite**、登録済みでは **remove favorite** を表示しなければならない（SHALL）。
+
+お気に入り登録済みのファイル行の右端にはマーカーアイコン（fill あり）を表示しなければならない（SHALL）。既定テーマ（light / dark / system）では lucide `Star`、ピンクテーマでは lucide `Heart` を表示しなければならない（SHALL）。未登録ファイルではマーカーアイコンを表示してはならない（MUST NOT）。
+
+マーカーの色は役割トークン `--favorite` を通じて指定しなければならない（SHALL）。`fill-yellow-500` のような色番号のユーティリティを直接指定してはならない（MUST NOT）。`--favorite` は light / dark / pink のすべてで定義しなければならない（SHALL）。light と dark の `--favorite` は従来の黄色と視覚的に同等でなければならない（SHALL）。pink では桜色の面から識別できるピンク系でなければならない（SHALL）。
+
+お気に入りデータは workspace ルートの `.ebex-favorites.json` に `{ folderPath, fileName }` の配列として永続化されなければならない（SHALL）。EBEX 内でのファイルリネーム・ファイル削除・フォルダ削除・フォルダリネーム成功時は、お気に入り内の該当キーを更新または除去しなければならない（SHALL）。次回読み込み時、実在しないファイルを指すお気に入りエントリは表示から除外しなければならない（SHALL）。
 
 #### Scenario: 未登録ファイルで add favorite を表示する
 
@@ -836,10 +823,20 @@ Pane 1 はファイル行に対するお気に入り登録・解除を提供し�
 - **WHEN** ユーザーがお気に入り登録済みの `demo/notes.md` ファイル行を右クリックする
 - **THEN** メニューに remove favorite が表示され、add favorite は表示されない
 
-#### Scenario: お気に入り登録で ☆ が表示される
+#### Scenario: お気に入り登録でマーカーが表示される
 
 - **WHEN** ユーザーが `demo/notes.md` を add favorite する
-- **THEN** `notes.md` 行の右端に黄色 ☆ アイコンが表示される
+- **THEN** `notes.md` 行の右端に fill ありのマーカーアイコンが表示される
+
+#### Scenario: 既定テーマでは星のまま
+
+- **WHEN** ライトまたはダークテーマでお気に入り登録済みのファイル行を表示する
+- **THEN** 右端のマーカーは従来と同じ黄色の `Star` である
+
+#### Scenario: ピンクテーマではハートになる
+
+- **WHEN** ピンクテーマでお気に入り登録済みのファイル行を表示する
+- **THEN** 右端のマーカーは `Heart` であり、色は黄色ではなく桜色の面から識別できるピンク系である
 
 #### Scenario: フォルダ行にお気に入りメニューがない
 
@@ -848,17 +845,19 @@ Pane 1 はファイル行に対するお気に入り登録・解除を提供し�
 
 ### Requirement: お気に入りのみ表示トグル
 
-Pane 1 の検索行右端（検索ボックスとヘッダーボタンの間）に、お気に入りのみ表示の ☆ トグルボタンを提供しなければならない（SHALL）。トグル ON 時は、お気に入り登録済みのファイルとその祖先フォルダのみを表示しなければならない（SHALL）。トグル OFF 時はお気に入りフィルタを適用してはならない（MUST NOT）。お気に入りフィルタと名前検索・内容検索は **AND 条件** で合成されなければならない（SHALL）。
+Pane 1 の検索行右端（検索ボックスとヘッダーボタンの間）に、お気に入りのみ表示のトグルボタンを提供しなければならない（SHALL）。トグルのアイコンは既定テーマでは `Star`、ピンクテーマでは `Heart` としなければならない（SHALL）。ON 状態の色は役割トークン `--favorite` に従わなければならない（SHALL）。
+
+トグル ON 時は、お気に入り登録済みのファイルとその祖先フォルダのみを表示しなければならない（SHALL）。トグル OFF 時はお気に入りフィルタを適用してはならない（MUST NOT）。お気に入りフィルタと名前検索・内容検索は **AND 条件** で合成されなければならない（SHALL）。
 
 #### Scenario: お気に入り ON で未登録ファイルが非表示
 
 - **WHEN** ユーザーが ☆ トグルを ON にする
 - **THEN** お気に入り未登録のファイル行はツリーから除外される
 
-#### Scenario: お気に入り ON と名前検索の AND
+#### Scenario: ピンクテーマでトグルがハートになる
 
-- **WHEN** ユーザーが ☆ トグルを ON にし、検索ボックスに `note` と入力する
-- **THEN** お気に入り登録済みかつ名前に `note` を含むファイルのみが表示される
+- **WHEN** ピンクテーマで検索行のお気に入りトグルを表示する
+- **THEN** トグルのアイコンは `Heart` である
 
 ### Requirement: ファイル内容検索
 

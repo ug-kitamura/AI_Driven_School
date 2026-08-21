@@ -4,6 +4,9 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import rehypeHighlight from "rehype-highlight";
+import type { PluggableList } from "unified";
+import { rehypeSearchHighlight } from "@/lib/rehype-search-highlight";
+import { normalizeSearchHighlightQuery } from "@/lib/search-highlight-matches";
 import { HtmlPreviewFrame } from "@/components/workspace/HtmlPreviewFrame";
 import {
   fileExtension,
@@ -26,6 +29,8 @@ type Props = {
   folderPath?: string;
   /** プロジェクト内リンクを Pane 2 で開く */
   onOpenFile?: (folderPath: string, fileName: string) => void;
+  /** Pane 1 の内容検索の語。一致箇所の地色を塗る */
+  searchHighlightQuery?: string;
 };
 
 const LINK_FEEDBACK_MS = 1500;
@@ -212,8 +217,24 @@ export function FilePreview({
   isResizing = false,
   folderPath = "",
   onOpenFile,
+  searchHighlightQuery,
 }: Props) {
   const ext = fileExtension(fileName);
+
+  /**
+   * 一致箇所を塗るプラグインは列の**末尾**に足す。
+   * 検索語が無いときは既定の列をそのまま使う——無駄な木の走査をしないため。
+   */
+  const previewRehypePlugins = useMemo<PluggableList>(
+    () =>
+      normalizeSearchHighlightQuery(searchHighlightQuery)
+        ? [
+            rehypeHighlight,
+            [rehypeSearchHighlight, { query: searchHighlightQuery }],
+          ]
+        : [rehypeHighlight],
+    [searchHighlightQuery],
+  );
 
   const structured = useMemo(
     () =>
@@ -228,7 +249,7 @@ export function FilePreview({
       <div className="lesson-preview max-w-none p-4">
         <ReactMarkdown
           remarkPlugins={[remarkGfm]}
-          rehypePlugins={[rehypeHighlight]}
+          rehypePlugins={previewRehypePlugins}
           components={{
             a: ({ href, children }) => (
               <PreviewLink

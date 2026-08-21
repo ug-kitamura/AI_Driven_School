@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { AlertTriangle, Loader2, Pencil, Plus, Sparkles, Trash2 } from "lucide-react";
+import { AlertTriangle, Pencil, Plus, Sparkles, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -12,6 +12,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { BusySpinner } from "@/components/workspace/BusySpinner";
 import { LessonTagsInput } from "@/components/workspace/LessonTagsInput";
 import {
   META_DIALOG_CONTROL,
@@ -109,9 +110,9 @@ export function CompanyContextDialog({ open, onOpenChange, onOpenSettings }: Pro
   useEffect(() => {
     if (open) {
       // 親 state から open だけ更新された場合も一覧を再取得する
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- 非同期取得の結果を state に入れる正当な用途
       void loadData();
     }
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- ダイアログ表示時のデータ取得
   }, [open, loadData]);
 
   const resetFormState = useCallback(() => {
@@ -325,7 +326,7 @@ export function CompanyContextDialog({ open, onOpenChange, onOpenSettings }: Pro
             <div className="workspace-scrollbar min-h-0 flex-1 overflow-y-auto rounded-md border border-border">
               {loading ? (
                 <div className="flex items-center justify-center gap-2 p-8 text-sm text-muted-foreground">
-                  <Loader2 className="size-4 animate-spin" />
+                  <BusySpinner className="size-4" />
                   読み込み中...
                 </div>
               ) : visibleItems.length === 0 ? (
@@ -437,7 +438,7 @@ export function CompanyContextDialog({ open, onOpenChange, onOpenSettings }: Pro
                       onClick={() => void handleFormat()}
                     >
                       {formatting ? (
-                        <Loader2 className="size-3.5 animate-spin" />
+                        <BusySpinner className="size-3.5" />
                       ) : (
                         <Sparkles className="size-3.5" />
                       )}
@@ -538,7 +539,7 @@ export function CompanyContextDialog({ open, onOpenChange, onOpenSettings }: Pro
                 一覧に戻る
               </Button>
               <Button type="button" disabled={saving} onClick={() => void handleSave()}>
-                {saving ? <Loader2 className="size-4 animate-spin" /> : null}
+                {saving ? <BusySpinner className="size-4" /> : null}
                 保存
               </Button>
             </>

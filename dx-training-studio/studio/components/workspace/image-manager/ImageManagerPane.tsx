@@ -31,7 +31,8 @@ import {
 } from "@/lib/extract-image-refs";
 import { toImageMarkdown, isCanonicalImagePath } from "@/lib/image-path";
 import { canonicalFileApiParams } from "@/lib/image-api-client";
-import { STORAGE_CONNECTION_ERROR_MESSAGE } from "@/lib/image-storage/types";
+import type { StorageErrorKind } from "@/lib/image-storage/types";
+import { IMAGE_ERROR_MESSAGE } from "@/lib/image-error";
 import { AiImagesTab } from "@/components/workspace/image-manager/AiImagesTab";
 import { UploadImagesTab } from "@/components/workspace/image-manager/UploadImagesTab";
 import { UsedImagesTab } from "@/components/workspace/image-manager/UsedImagesTab";
@@ -51,11 +52,15 @@ import { useImageLists } from "@/components/workspace/image-manager/use-image-li
 import { usePromoteAndInsert } from "@/components/workspace/image-manager/use-promote-and-insert";
 
 function mergeTabNotice(
-  usedStorageConnectionError: boolean,
+  usedStorageErrorKind: StorageErrorKind | null,
   notice: TabNotice | undefined,
 ): TabNotice | undefined {
-  if (usedStorageConnectionError) {
-    return { message: STORAGE_CONNECTION_ERROR_MESSAGE, tone: "error" };
+  if (usedStorageErrorKind) {
+    return {
+      message: IMAGE_ERROR_MESSAGE[usedStorageErrorKind],
+      // 上限ブロックは「直せば戻る」状態なので error ではなく warning で出す
+      tone: usedStorageErrorKind === "blocked" ? "warning" : "error",
+    };
   }
   return notice;
 }
@@ -106,7 +111,7 @@ export function ImageManagerPane({
     webStagingFiles,
     promotedFiles,
     loading,
-    usedStorageConnectionError,
+    usedStorageErrorKind,
     refreshScope,
     refreshScopes,
   } = useImageLists({ pane4Open, activeTab });
@@ -178,17 +183,20 @@ export function ImageManagerPane({
     });
   }, []);
 
+  /**
+   * 挿入操作が今この場で実行できるか。レッスン選択中かつ編集モードのときだけ有効で、
+   * ここ 1 箇所から全タブ・拡大プレビューへ配る。エディタ側が登録する挿入コールバックの
+   * 有無は根拠にしない——アンマウント後も残るため「成功を返すが本文に入らない」状態になる。
+   */
+  const canInsert = !!lesson && pane3Mode === "raw";
+
   const tryInsert = useCallback(
     (markdown: string, tab: ImageManagerTab) => {
       const ok = onInsertImage(markdown);
-      if (!ok) {
-        showNotice(tab, "編集モードに切り替えてから挿入してください", "error");
-      } else {
-        clearNotice(tab);
-      }
+      if (ok) clearNotice(tab);
       return ok;
     },
-    [onInsertImage, showNotice, clearNotice],
+    [onInsertImage, clearNotice],
   );
 
   const { promoteAndInsert } = usePromoteAndInsert({
@@ -445,12 +453,6 @@ export function ImageManagerPane({
       className="min-h-0 flex-1 bg-card"
       onPaste={handlePaste}
     >
-      {pane3Mode !== "raw" && activeTab !== "ai" && activeTab !== "web" ? (
-        <div className="border-b border-border bg-muted/40 px-3 py-1 text-[10px] text-muted-foreground">
-          画像の挿入は編集モードでのみ利用できます
-        </div>
-      ) : null}
-
       <div
         ref={tabScrollRef}
         className="workspace-scrollbar min-h-0 flex-1 overflow-y-auto overscroll-y-contain"
@@ -474,8 +476,9 @@ export function ImageManagerPane({
             filterCourses={filterCourses}
             filterLessons={filterLessons}
             gridItems={usedGridItems}
+            canInsert={canInsert}
             usedRows={usedRows}
-            notice={mergeTabNotice(usedStorageConnectionError, tabNotices.used)}
+            notice={mergeTabNotice(usedStorageErrorKind, tabNotices.used)}
             onResetFilter={resetUsedFilter}
             onPreview={openPreview}
             onInsert={handleInsertPromoted}
@@ -488,6 +491,7 @@ export function ImageManagerPane({
         <div className={cn(activeTab !== "upload" || loading ? "hidden" : undefined)}>
           <UploadImagesTab
             gridItems={stagingGridItems}
+            canInsert={canInsert}
             notice={tabNotices.upload}
             refreshScope={refreshScope}
             showNotice={showNotice}
@@ -511,6 +515,7 @@ export function ImageManagerPane({
             clearNotice={clearNotice}
             onHighlightPaths={highlightPaths}
             gridItems={aiStagingGridItems}
+            canInsert={canInsert}
             notice={tabNotices.ai}
             onResolveAltReady={onAiResolveAltReady}
             onPreview={openPreview}
@@ -529,6 +534,7 @@ export function ImageManagerPane({
             clearNotice={clearNotice}
             onHighlightPaths={highlightPaths}
             gridItems={webStagingGridItems}
+            canInsert={canInsert}
             notice={tabNotices.web}
             onResolveAltReady={onWebResolveAltReady}
             onPreview={openPreview}
@@ -550,6 +556,7 @@ export function ImageManagerPane({
           }}
           showInsert={currentPreviewItem.showInsert}
           showDelete={currentPreviewItem.showDelete}
+          canInsert={canInsert}
           onInsert={() => {
             if (!currentPreviewItem) return;
             closePreview();

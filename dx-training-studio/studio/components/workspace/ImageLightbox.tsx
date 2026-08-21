@@ -29,6 +29,8 @@ type Props = {
   onDelete?: () => void;
   showInsert?: boolean;
   showDelete?: boolean;
+  /** 今この場で挿入を実行できるか（`showInsert` は操作の有無、これは可否） */
+  canInsert?: boolean;
 };
 
 export function ImageLightbox({
@@ -41,6 +43,7 @@ export function ImageLightbox({
   onDelete,
   showInsert = false,
   showDelete = false,
+  canInsert = true,
 }: Props) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const [sizeLabel, setSizeLabel] = useState<string | null>(null);
@@ -194,6 +197,7 @@ export function ImageLightbox({
                   size="sm"
                   className="h-8 gap-1 text-xs"
                   onClick={onInsert}
+                  disabled={!canInsert}
                 >
                   <Plus className="h-3.5 w-3.5" />
                   挿入

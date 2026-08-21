@@ -57,22 +57,30 @@ ${GRAPHIC_VOCABULARY}
 
 ${FEW_SHOT_FLOW}`;
 
+/**
+ * `lesson` はレッスン未選択（ホーム・シリーズ・コース選択中）でも AI タブを使えるよう
+ * 任意。無いときはレッスン文脈ブロックを組まず、著者プロンプトだけを指示として渡す。
+ */
 export function buildImageGenerationMessages(
-  lesson: Lesson,
+  lesson: Lesson | undefined,
   prompt: string,
 ): { system: string; user: string } {
 
   const user = [
     "## Author prompt (primary instruction)",
     prompt.trim(),
-    "",
-    "## Lesson context (reference only — do not duplicate as outer prose in html)",
-    `lesson: ${lesson.lesson}`,
-    `description: ${lesson.description}`,
-    `tags: ${lesson.tags.join(", ")}`,
-    "",
-    "## Full lesson markdown body",
-    lesson.content,
+    ...(lesson
+      ? [
+          "",
+          "## Lesson context (reference only — do not duplicate as outer prose in html)",
+          `lesson: ${lesson.lesson}`,
+          `description: ${lesson.description}`,
+          `tags: ${lesson.tags.join(", ")}`,
+          "",
+          "## Full lesson markdown body",
+          lesson.content,
+        ]
+      : []),
     "",
     "Generate JSON with slug, alt, and html for the author prompt.",
   ].join("\n");

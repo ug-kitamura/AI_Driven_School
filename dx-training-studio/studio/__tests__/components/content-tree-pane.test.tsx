@@ -24,7 +24,7 @@ import { SidebarProvider } from "@/components/ui/sidebar";
 import { ContentTreePane } from "@/components/workspace/ContentTreePane";
 import type { Series } from "@/lib/schema";
 
-// ミニ曼陀羅（mermaid）はこのテストの対象外。jsdom での描画副作用を避ける
+// ミニ曼陀羅（React Flow）はこのテストの対象外。jsdom での描画副作用を避ける
 vi.mock("@/components/workspace/MiniMandalaSection", () => ({
   MiniMandalaSection: () => null,
 }));

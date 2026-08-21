@@ -2,7 +2,6 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import type { ImageSource } from "@/lib/image-path";
 import {
-  imageFileExists,
   listPromotedImages,
   moveImageToTrash,
   resolveAbsoluteImagePath,
@@ -34,13 +33,12 @@ export function createLocalCanonicalBackend(projectRoot: string): CanonicalBacke
         name: path.basename(logicalPath),
         source,
         uploadedAt: stat.mtime.toISOString(),
+        size: stat.size,
       };
     },
 
     async deleteCanonical(logicalPath) {
       await moveImageToTrash(projectRoot, logicalPath);
     },
-
-    existsCanonical: (logicalPath) => imageFileExists(projectRoot, logicalPath),
   };
 }

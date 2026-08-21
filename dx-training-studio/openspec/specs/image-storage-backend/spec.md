@@ -3,9 +3,7 @@
 ## Purpose
 
 正本画像（`images/<filename>`）の物理保存先をローカル fs または Vercel Blob（Private）で切り替えるバックエンド抽象化、API 契約、手動移行スクリプトを定義する。staging は常にローカル fs。
-
 ## Requirements
-
 ### Requirement: 正本ストレージバックエンドを抽象化する
 
 システムは正本画像（`images/<filename>` 論理パス）の読み書き・一覧・削除について、**ローカル fs** バックエンドと **Vercel Blob（Private）** バックエンドを実装しなければならない（SHALL）。Blob 上のオブジェクトキーは論理パスと同一（例: `images/foo.png`）としなければならない（SHALL）。staging（`images/{uploaded,ai,web}/`）およびローカル `images/trash/` の操作は常にローカル fs とし、バックエンド抽象化の対象外としなければならない（SHALL）。
@@ -35,13 +33,20 @@
 
 ### Requirement: ストレージ接続確認 API を提供する
 
-`GET /api/images/storage-check` は、ストレージモード用バックエンド（Vercel Blob）への接続可否を検証しなければならない（SHALL）。失敗時は「ストレージに接続できません」を返さなければならない（SHALL）。
+`GET /api/images/storage-check` は、ストレージモード用バックエンド（Vercel Blob）への接続可否を検証しなければならない（SHALL）。検証は正本一覧キャッシュの取得（キャッシュが有効ならバックエンド操作なし）で行い、失敗時は「ストレージに接続できません」を返さなければならない（SHALL）。
 
 #### Scenario: トークンありで接続確認成功
 
 - **WHEN** `BLOB_READ_WRITE_TOKEN` が有効である
 - **AND** `GET /api/images/storage-check` が呼ばれる
 - **THEN** レスポンスは成功する
+
+#### Scenario: キャッシュ有効時は追加操作を発行しない
+
+- **WHEN** 一覧キャッシュが TTL 内である
+- **AND** `GET /api/images/storage-check` が呼ばれる
+- **THEN** Blob への操作は発行されない
+- **AND** レスポンスは成功する
 
 ### Requirement: 正本 API は storageMode を受け取る
 
@@ -112,3 +117,81 @@ staging パス（`images/uploaded/` 等）に対する `GET` / `DELETE` は `sto
 - **WHEN** staging 画像が上書きまたは正本が promote で置換された
 - **AND** クライアントが古い `If-None-Match` で GET する
 - **THEN** レスポンスは 200 と新しいボディである
+
+### Requirement: 正本一覧はサーバー側でキャッシュする
+
+サーバーは正本一覧（`listCanonical` の結果）をプロセス内にキャッシュし、リクエストのたびにバックエンドへ一覧操作を発行してはならない（SHALL NOT）。キャッシュの鮮度検証はバックエンドごとに次とする（SHALL）:
+
+- **Blob バックエンド**: TTL 方式（30〜60秒）。加えて promote・正本削除の成功時にキャッシュを明示的に無効化しなければならない（SHALL）——正本の変更は必ず同一プロセスの API を通るため、TTL は外部変更に対する保険である
+- **ローカルバックエンド**: `images/` ディレクトリの mtime による検証。mtime が変わっていなければキャッシュを返し、変わっていれば読み直す（ユーザーが fs へ直接ファイルを置く運用があるため TTL より正確）
+
+#### Scenario: 連続する一覧要求で Blob の list は1回だけ発行される
+
+- **WHEN** `storageMode=storage` で `GET /api/images/list?scope=used` が TTL 内に複数回呼ばれる
+- **THEN** Blob への list 操作は1回だけ発行される
+- **AND** 2回目以降はキャッシュから同じ一覧が返る
+
+#### Scenario: promote がキャッシュを無効化する
+
+- **WHEN** `storageMode=storage` で promote が成功する
+- **AND** 直後に `GET /api/images/list?scope=used` が呼ばれる
+- **THEN** 一覧には promote された画像が含まれる（TTL の残り時間に関わらず）
+
+#### Scenario: ローカルは fs 直接変更を検知する
+
+- **WHEN** `storageMode=local` で一覧がキャッシュされた後、`images/` 直下にファイルが直接追加される
+- **AND** `GET /api/images/list?scope=used` が呼ばれる
+- **THEN** 一覧には追加されたファイルが含まれる
+
+### Requirement: 正本 file GET は毎リクエストのメタデータ取得を発行しない
+
+`GET /api/images/file`（正本パス・`storageMode=storage`）は、ETag / Last-Modified の材料を正本一覧キャッシュのメタデータ（`size`・`uploadedAt`）から得なければならず（SHALL）、リクエストごとにバックエンドへ `head()` 等のメタデータ操作を発行してはならない（SHALL NOT）。要求されたパスがキャッシュに無い場合に限り、メタデータ操作へのフォールバックを許す（MAY）。
+
+#### Scenario: 304 応答がバックエンド操作ゼロで返る
+
+- **WHEN** 一覧キャッシュが有効な状態で、クライアントが既知の ETag を `If-None-Match` に付けて正本画像を GET する
+- **AND** 画像が変更されていない
+- **THEN** レスポンスは 304 である
+- **AND** Blob への操作（head・ダウンロード）は発行されない
+
+#### Scenario: キャッシュに無いパスはフォールバックする
+
+- **WHEN** 一覧キャッシュに存在しない正本パスが GET される
+- **THEN** サーバーはメタデータ操作または本体取得で応答を試みる（挙動は従来どおり）
+
+### Requirement: ストレージエラーは3層に分類して伝える
+
+正本画像の読み出し・一覧に失敗したとき、サーバーとクライアントは失敗を次の3層に分類して扱わなければならない（SHALL）。読み出し失敗を「実体なし」として扱ってはならない（SHALL NOT）:
+
+1. **実体なし**: バックエンドが対象キーの不存在を明示した（404 等）。表示は「画像が存在しません」
+2. **利用上限ブロック**: ストレージがプランの利用上限でブロックされている（Vercel Blob ではデータプレーンの 403 応答本文 `Your store is blocked` で判別する）。表示は「ストレージが利用上限でブロックされています」
+3. **その他の読み出し失敗**: 認証エラー・ネットワーク断など上記以外。表示は「ストレージから読み込めません」
+
+バックエンド実装は失敗理由を例外の握り潰しで消してはならず（SHALL NOT）、API は分類を表すステータス・メッセージで応答しなければならない（SHALL）。
+
+#### Scenario: 実在する画像の読み出し失敗は「存在しない」と表示しない
+
+- **WHEN** Blob に `images/foo.png` が存在するがデータプレーンが 403 を返す
+- **AND** プレビューがこの画像を表示しようとする
+- **THEN** 表示は「画像が存在しません」ではなく、ストレージ側の失敗である旨（ブロック中または読み込み失敗）を示す
+
+#### Scenario: 上限ブロックを判別して伝える
+
+- **WHEN** Blob のデータプレーンが 403 と本文 `Your store is blocked` を返す
+- **THEN** `GET /api/images/file` は上限ブロックを表すエラー（503 とブロック中である旨のメッセージ）で応答する
+
+#### Scenario: 実体なしは従来どおり
+
+- **WHEN** どのバックエンドにも存在しない正本パスが GET される
+- **THEN** レスポンスは 404「ファイルが見つかりません」であり、UI は「画像が存在しません」と表示する
+
+### Requirement: storage-check はブロック状態を検知する
+
+`GET /api/images/storage-check` は、一覧が取得できることに加えて、ストレージが利用上限でブロックされていないことを検証しなければならない（SHALL）。ブロック中は接続 NG として、ブロック中である旨のメッセージを返さなければならない（SHALL）。
+
+#### Scenario: ブロック中の storage-check は失敗する
+
+- **WHEN** Blob ストアが利用上限でブロックされている（コントロールプレーンの list は成功するがデータプレーンは 403）
+- **AND** `GET /api/images/storage-check` が呼ばれる
+- **THEN** レスポンスは失敗し、メッセージはブロック中であることを示す
+

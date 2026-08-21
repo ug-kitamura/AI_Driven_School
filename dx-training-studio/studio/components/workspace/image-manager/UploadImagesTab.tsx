@@ -17,6 +17,8 @@ import { useUploadImagesTab } from "@/components/workspace/image-manager/use-upl
 
 type Props = {
   gridItems: ImageGridItem[];
+  /** 挿入操作が今この場で実行できるか（レッスン選択中かつ編集モード） */
+  canInsert: boolean;
   notice?: TabNotice;
   refreshScope: (
     scope: "uploaded",
@@ -34,6 +36,7 @@ type Props = {
 
 export function UploadImagesTab({
   gridItems,
+  canInsert,
   notice,
   refreshScope,
   showNotice,
@@ -70,6 +73,7 @@ export function UploadImagesTab({
         <ImageGrid
           items={gridItems}
           emptyMessage="UP staging に画像がありません"
+          canInsert={canInsert}
           onPreview={onPreview}
           onInsert={onInsert}
           onDelete={onDelete}

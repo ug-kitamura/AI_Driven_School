@@ -1,12 +1,17 @@
 "use client";
 
+import { useState } from "react";
 import { ImageOff, Plus, Trash2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { MediaPlayOverlay } from "@/components/workspace/MediaPlayOverlay";
 import { IMAGE_GRID_CELL_MIN } from "@/components/workspace/pane-layout";
 import { isMp4Path, isCanonicalImagePath, toImageApiUrl } from "@/lib/image-path";
 import { getImageStorageMode } from "@/lib/image-api-client";
-import { MANDALA_CURRENT_COURSE_STROKE } from "@/lib/mermaid-workspace-theme";
+import {
+  IMAGE_ERROR_MESSAGE,
+  probeImageError,
+  type ImageErrorKind,
+} from "@/lib/image-error";
 
 function mediaSrc(path: string): string {
   const storageMode = isCanonicalImagePath(path) ? getImageStorageMode() : undefined;
@@ -23,6 +28,71 @@ export type ImageGridItem = {
   highlighted?: boolean;
 };
 
+/** セル内のエラー表示（実体なし・ストレージ障害で共通の見た目、文言だけ変える） */
+function ThumbnailErrorCell({ kind }: { kind: ImageErrorKind }) {
+  return (
+    <div
+      className={cn(
+        "flex h-full flex-col items-center justify-center gap-1 p-2",
+        // 実体なしは destructive、ストレージ障害は「直せば戻る」ので warning 系
+        kind === "missing" ? "text-destructive" : "text-amber-600 dark:text-amber-400",
+      )}
+    >
+      <ImageOff className="h-5 w-5 shrink-0" />
+      <span className="text-center text-[9px] leading-tight">
+        {IMAGE_ERROR_MESSAGE[kind]}
+      </span>
+    </div>
+  );
+}
+
+/**
+ * サムネイル本体。読み出しに失敗したら理由を判別して文言を変える
+ * ——実在する画像を「存在しません」と表示しないため。
+ */
+function Thumbnail({
+  item,
+  isVideo,
+  fitClass,
+}: {
+  item: ImageGridItem;
+  isVideo: boolean;
+  fitClass: string;
+}) {
+  const [failedKind, setFailedKind] = useState<ImageErrorKind | null>(null);
+  const src = mediaSrc(item.path);
+
+  const onError = () => {
+    setFailedKind("missing");
+    void probeImageError(src).then(setFailedKind);
+  };
+
+  if (failedKind) return <ThumbnailErrorCell kind={failedKind} />;
+
+  if (isVideo) {
+    return (
+      <video
+        src={src}
+        preload="metadata"
+        muted
+        playsInline
+        className={cn("max-h-full max-w-full", fitClass)}
+        onError={onError}
+      />
+    );
+  }
+
+  return (
+    // eslint-disable-next-line @next/next/no-img-element
+    <img
+      src={src}
+      alt={item.name}
+      className={cn("max-h-full max-w-full", fitClass)}
+      onError={onError}
+    />
+  );
+}
+
 type Props = {
   items: ImageGridItem[];
   emptyMessage: string;
@@ -31,6 +101,11 @@ type Props = {
   onDelete?: (item: ImageGridItem) => void;
   className?: string;
   thumbnailFit?: "cover" | "contain";
+  /**
+   * 今この場で挿入を実行できるか。`item.showInsert`（そのタブに挿入という操作が
+   * 存在するか）とは別概念——存在するが押せない状態を disabled で表す。
+   */
+  canInsert?: boolean;
 };
 
 export function ImageGrid({
@@ -41,6 +116,7 @@ export function ImageGrid({
   onDelete,
   className,
   thumbnailFit = "contain",
+  canInsert = true,
 }: Props) {
   if (items.length === 0) {
     return (
@@ -66,14 +142,11 @@ export function ImageGrid({
             key={item.path}
             className={cn(
               "flex flex-col overflow-hidden rounded border bg-card",
-              item.highlighted ? "border-2" : "border border-border",
+              item.highlighted
+                ? "border-2 border-primary"
+                : "border border-border",
               item.missing && "border-destructive/40 bg-destructive/5",
             )}
-            style={
-              item.highlighted && !item.missing
-                ? { borderColor: MANDALA_CURRENT_COURSE_STROKE }
-                : undefined
-            }
           >
             <button
               type="button"
@@ -92,25 +165,9 @@ export function ImageGrid({
               }
             >
               {item.missing ? (
-                <div className="flex h-full flex-col items-center justify-center gap-1 p-2 text-destructive">
-                  <ImageOff className="h-5 w-5 shrink-0" />
-                  <span className="text-[9px] leading-tight">画像が存在しません</span>
-                </div>
-              ) : isVideo ? (
-                <video
-                  src={mediaSrc(item.path)}
-                  preload="metadata"
-                  muted
-                  playsInline
-                  className={cn("max-h-full max-w-full", mediaFitClass)}
-                />
+                <ThumbnailErrorCell kind="missing" />
               ) : (
-                /* eslint-disable-next-line @next/next/no-img-element */
-                <img
-                  src={mediaSrc(item.path)}
-                  alt={item.name}
-                  className={cn("max-h-full max-w-full", mediaFitClass)}
-                />
+                <Thumbnail item={item} isVideo={isVideo} fitClass={mediaFitClass} />
               )}
               {isVideo ? <MediaPlayOverlay /> : null}
             </button>
@@ -140,7 +197,13 @@ export function ImageGrid({
                   <button
                     type="button"
                     onClick={() => onInsert(item)}
-                    className="flex flex-1 items-center justify-center gap-0.5 rounded border border-border py-0.5 text-[9px] hover:border-primary hover:text-primary"
+                    disabled={!canInsert}
+                    className={cn(
+                      "flex flex-1 items-center justify-center gap-0.5 rounded border border-border py-0.5 text-[9px]",
+                      canInsert
+                        ? "hover:border-primary hover:text-primary"
+                        : "cursor-not-allowed text-muted-foreground opacity-50",
+                    )}
                     aria-label="エディタに挿入"
                   >
                     <Plus className="h-3 w-3" />

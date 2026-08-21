@@ -1,4 +1,5 @@
 import { listStagingImages } from "@/lib/image-store";
+import { getCanonicalList } from "@/lib/image-storage/canonical-cache";
 import {
   parseImageStorageMode,
   resolveCanonicalBackend,
@@ -23,8 +24,9 @@ export async function GET(req: Request) {
     }
 
     if (scope === "used") {
-      const backend = resolveCanonicalBackend(getProjectRoot(), storageMode);
-      const files = await backend.listCanonical();
+      const projectRoot = getProjectRoot();
+      const backend = resolveCanonicalBackend(projectRoot, storageMode);
+      const files = await getCanonicalList(projectRoot, storageMode, backend);
       return Response.json({ files });
     }
 

@@ -41,15 +41,27 @@ function DialogOverlay({
 function DialogContent({
   className,
   children,
+  animated = true,
   ...props
-}: DialogPrimitive.Popup.Props) {
+}: DialogPrimitive.Popup.Props & {
+  /**
+   * false でポップアップの開閉トランジション（scale / opacity）を持たない。
+   * 中身が**マウント時に自分の寸法を測って座標を確定するもの**（React Flow の
+   * 曼陀羅など）を載せるダイアログで使う——アニメーションの最中にマウントすると
+   * 計測が不安定な幾何の上で走り、確定した座標がずれたまま残るため。
+   * オーバーレイのフェードは別要素なので残る。
+   */
+  animated?: boolean
+}) {
   return (
     <DialogPortal>
       <DialogOverlay />
       <DialogPrimitive.Popup
         data-slot="dialog-content"
         className={cn(
-          "fixed top-1/2 left-1/2 z-50 grid w-[calc(100%-2rem)] max-w-lg -translate-x-1/2 -translate-y-1/2 gap-4 rounded-lg border border-border bg-card p-6 shadow-lg outline-none duration-200 data-starting-style:scale-95 data-starting-style:opacity-0 data-ending-style:scale-95 data-ending-style:opacity-0 transition-[transform,opacity]",
+          "fixed top-1/2 left-1/2 z-50 grid w-[calc(100%-2rem)] max-w-lg -translate-x-1/2 -translate-y-1/2 gap-4 rounded-lg border border-border bg-card p-6 shadow-lg outline-none",
+          animated &&
+            "duration-200 data-starting-style:scale-95 data-starting-style:opacity-0 data-ending-style:scale-95 data-ending-style:opacity-0 transition-[transform,opacity]",
           className
         )}
         {...props}

@@ -51,7 +51,7 @@ export function useWebImageTab(options: {
   );
 
   const handleSearch = useCallback(async () => {
-    if (!lesson) return;
+    // lesson は任意。無ければ文脈ブロック無しで著者の検索指示だけを送る
     const trimmed = prompt.trim();
     if (!trimmed) {
       showNotice("web", "プロンプトを入力してください", "error");

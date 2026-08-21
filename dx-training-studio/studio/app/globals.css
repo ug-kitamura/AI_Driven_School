@@ -206,6 +206,11 @@
     var(--muted) 50%,
     var(--background)
   );
+  /* ペイン1 の中身検索でヒットした語の地色。値の出どころは @codemirror/search の
+     baseTheme——Ctrl+F の一致色と同一にしないと、同じ「検索の一致」なのに
+     2 種類の色が混在してどちらが何なのか分からなくなる。
+     下の文字が透けるようアルファ付きのまま使う（塗りつぶすと文字が読めない） */
+  --search-highlight: #ffff0054;
   color-scheme: light;
 }
 
@@ -294,6 +299,67 @@
   --alert-warning: oklch(0.8 0.14 85);
   --alert-caution: oklch(0.72 0.16 25);
   --alert-tint: 16%;
+  /* ダークは黄ではなくシアン。@codemirror/search のダーク既定と同値 */
+  --search-highlight: #00ffff8a;
+}
+
+/*
+ * ピンクテーマ。`.dark` とは排他で、OS の明暗設定とは合成しない。
+ *
+ * 配分は「面は桜色・差し色はショッキングピンク」——高彩度のピンクは塗り役
+ * （--primary / --ring）だけに閉じ込め、広い面は低彩度の桜色にする。逆にすると
+ * UI 全体が眠くなり本文のコントラストが落ちる。--card を純白のまま残すのも
+ * 同じ理由で、桜色の面が額縁として働く。
+ *
+ * ⚠ 導出トークン（--primary-hover / --button-outline-hover /
+ * --workspace-tree-row / --workspace-scrollbar-*）はここに書かない。:root 側の
+ * color-mix() が var() 経由でこのブロックの値へ解決されるため自動で追従する。
+ * .dark がそれらを書き直しているのは暗地向けに比率そのものを変えているからで、
+ * ライト扱いのピンクにその必要はない。
+ *
+ * ⚠ --destructive / --status-* / --alert-* もここに書かない。「赤＝危険」
+ * 「緑＝完了」はテーマをまたいで一定であるべきなので :root の値を継承する。
+ * destructive（彩度 0.096 のくすんだ煉瓦色）と --primary（彩度 0.2 台の
+ * ショッキングピンク）は、色相と同じくらい彩度で隔たっていて識別できる。
+ */
+.pink {
+  color-scheme: light;
+  --background: #fdf2f5; /* 桜（極低彩度）: ページ背景 */
+  --foreground: #2a1a20; /* 暖かい黒: テキスト（メイン） */
+  --card: #ffffff;
+  --card-foreground: #2a1a20;
+  --canvas: #ffffff;
+  --popover: #ffffff;
+  --popover-foreground: #2a1a20;
+  --primary: #d6006e; /* ショッキングピンク: 塗り */
+  --primary-foreground: #ffffff;
+  --secondary: #fad4e0; /* 桜: 淡いアクセント */
+  --secondary-foreground: #a8003f; /* 深いローズ */
+  --muted: #fbe9ef;
+  /* 面のうち最も明るい --muted の上でも AA（4.5:1）を満たす暖かいグレー。
+     候補だった #8A7078 は --muted 上で 3.86 しか出ず落選した */
+  --muted-foreground: #7d646c;
+  /* ヘッダー右上ボタン群。ライト側と同じく、サブテキストより一段濃い「操作の色」 */
+  --header-action: #6e4e5a;
+  --accent: #fad4e0;
+  --accent-foreground: #a8003f;
+  --border: #f0d0dc;
+  --input: #f0d0dc;
+  --ring: #d6006e;
+  /* 系列の判別性を保つため、単一のピンクへ寄せずローズ〜サーモン〜藤色に散らす */
+  --chart-1: #d6006e;
+  --chart-2: #f2789a;
+  --chart-3: #9b4dca;
+  --chart-4: #c97b94;
+  --chart-5: #fad4e0;
+  --sidebar: #ffffff;
+  --sidebar-foreground: #2a1a20;
+  --sidebar-primary: #d6006e;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #fad4e0;
+  --sidebar-accent-foreground: #a8003f;
+  --sidebar-border: #f0d0dc;
+  --sidebar-ring: #d6006e;
 }
 
 @layer base {
@@ -771,15 +837,344 @@ html.dark .lesson-content-editor .cm-foldGutter.lesson-fold-gutter span.lesson-f
   transition: opacity 0.12s ease;
 }
 
-.lesson-content-editor
-  .lesson-fold-gutter.lesson-fold-gutter-column-hovered
-  span.lesson-fold-open {
+/* 展開中の ▼ は「ガターのどこかにマウスがある間」出す。行番号列と折りたたみ列の
+   共通の親が .cm-gutters なので、これ 1 本で両方を覆える——手はまず行番号の上を
+   通るため、折りたたみ列だけを条件にすると畳めること自体が見えない。
+   ⚠ 見えるのはガター全体だが、畳めるのは折りたたみ列の上だけ（▼ は
+   pointer-events: none で、クリックは gutter() 側のハンドラが受ける）。
+   行番号列のクリックには別の意味があるため、この非対称は意図的 */
+.lesson-content-editor .cm-gutters:hover span.lesson-fold-open {
   opacity: 1 !important;
-  pointer-events: none;
 }
 
 .lesson-content-editor .lesson-fold-gutter span.lesson-fold-closed {
   opacity: 1 !important;
+}
+
+/* ===== 曼陀羅（React Flow）=====
+   公開サイト `mandala/app/globals.css` の `.dxm-*` を移植したもの。
+   サイトは `--dxm-*` 独自トークンを使うが、Studio は役割トークンで書く。
+   ⚠ 相互依存禁止の規約によりコピーで持つ。見た目を変えるときは両方直す */
+
+.dxm-mandala {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  min-height: 0;
+}
+
+/* 親の高さいっぱいに広げるモード（`Mandala` の `fill`）。
+   ⚠ `.dxm-mandala` 自体に `height: 100%` を書かないこと——キャンバスが絶対長の
+   ままの面（ツールバー付きの全体曼陀羅）で、ツールバーのぶん親を溢れる。
+   「親いっぱい」を選んだときだけキャンバスを残りの高さへ切り替える */
+.dxm-mandala-fill {
+  height: 100%;
+  min-height: 0;
+}
+
+.dxm-mandala-fill .dxm-mandala-canvas {
+  flex: 1;
+  /* flex アイテムの既定は `min-height: auto`（中身の実寸が下限になる）。
+     実数で置き換えることで、①中身の実寸に引きずられない ②ビューポートが低い
+     環境でキャンバスが潰れない、の両方を満たす。下限に当たったぶんのはみ出しは
+     親（ダイアログ・セル）側が処理する */
+  min-height: 8rem;
+  /* 直下の React Flow を絶対配置で埋めるための基準（下の規則を参照） */
+  position: relative;
+}
+
+/* ⚠ React Flow のルートは既定で `height: 100%` を持つ。キャンバスの高さが
+   `min-height` や `flex` の伸長だけで立っている（`height` は auto の）とき、
+   このパーセントは解決できず**ルートが 0px になり error #004 が出る**
+   （2026-08-21 に実機で発生）。絶対配置で埋めればパーセントに依存しない。
+   ⚠ 親の高さが確定しているかどうかは呼び出し側の都合で変わるので、
+   ここを外して「呼び出し側が必ず確定させる」に頼らないこと。 */
+.dxm-mandala-fill .dxm-mandala-canvas > .react-flow {
+  position: absolute;
+  inset: 0;
+  width: auto;
+  height: auto;
+}
+
+.dxm-mandala-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.dxm-mandala-toggle {
+  padding: 0.15rem 0.6rem;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  font-size: 0.78rem;
+  cursor: pointer;
+}
+
+.dxm-mandala-toggle[aria-pressed="true"] {
+  background: var(--muted);
+  opacity: 0.75;
+}
+
+/* 地はほぼ透明にする——曼陀羅を「特別な箱」に見せず、置かれた面と地続きにする
+   （公開サイトの `.dxm-mandala-canvas` と同じ意図・同じ割合）。
+   ⚠ `--muted` のような不透明色を使わないこと。Studio では `--muted` が
+   `--background` と同値なので、白い `bg-card` のモーダルの中でグレーの箱として浮く。
+   ⚠ 完全な透明にはしない: クリック後はパン・ズームが働きノードは領域の縁で
+   切り落とされるので、輪郭がまったく無いと「何もない所で切れる」ように見える */
+.dxm-mandala-canvas {
+  background: color-mix(in srgb, var(--foreground) 3%, transparent);
+  border-radius: 0.6rem;
+  overflow: hidden;
+}
+
+/* ミニマップと Controls の配色。React Flow の CSS 変数で与える——
+   props で渡すとインラインになりテーマ側から上書きできない */
+.dxm-mandala-canvas .react-flow {
+  --xy-minimap-background-color: var(--card);
+  --xy-minimap-mask-background-color: color-mix(in oklab, var(--muted) 60%, transparent);
+  --xy-minimap-node-background-color: color-mix(in oklab, var(--muted-foreground) 40%, var(--card));
+  --xy-minimap-node-stroke-color: var(--muted-foreground);
+  --xy-minimap-node-stroke-width: 2;
+  --xy-controls-button-background-color: var(--card);
+  --xy-controls-button-background-color-hover: var(--muted);
+  --xy-controls-button-color: var(--muted-foreground);
+  --xy-controls-button-color-hover: var(--foreground);
+  --xy-controls-button-border-color: var(--border);
+
+  /* 接続点の丸ポチ。辺・矢印と同じ色にそろえる。
+     ⚠ 辺側は `Mandala.tsx` の `EDGE_COLOR` にあるので、変えるときは両方直す
+     ——SVG マーカーが CSS 変数を引けず 1 箇所にまとめられない */
+  --xy-handle-background-color: #7a8189;
+  --xy-handle-border-color: transparent;
+}
+
+/* 見える円は 4px。箱（6×6）は React Flow が辺の接続点の計測に使うので触らない */
+.dxm-mandala-canvas .react-flow__handle {
+  background-clip: padding-box;
+}
+
+/* 丸ポチは「辺が出ていく側」にだけ残す。
+   ⚠ `display: none` にはしないこと——React Flow はハンドルの矩形から辺の
+   接続点を測るので、箱は残したまま色だけ透明にする */
+.dxm-mandala-canvas .react-flow__handle.target,
+.dxm-mandala-canvas .react-flow__handle.dxm-handle-idle {
+  background-color: transparent;
+  border-color: transparent;
+}
+
+.dxm-node {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  padding: 0.5rem 0.7rem;
+  /* サイトの `.dxm-node` と同じ割合。⚠ `--border` を使わないこと——地を薄くした
+     ぶんノードの輪郭が弱くなり、白地に白いカードが浮かぶ絵になる。曼陀羅は完結した
+     1 枚の地図なので、Studio の他のフォーム部品と枠の濃さを揃える動機はない */
+  border: 1px solid color-mix(in srgb, var(--card-foreground) 45%, transparent);
+  border-radius: 0.5rem;
+  background: var(--card);
+  color: var(--card-foreground);
+  cursor: pointer;
+  transition: border-color 0.15s ease;
+}
+
+.dxm-node-compact {
+  flex-direction: row;
+  align-items: center;
+  gap: 0.4rem;
+  width: 200px;
+  height: 52px;
+}
+
+/* シリーズ名・コース名・レッスン数の 3 行＋右端ラベル。
+   ⚠ 寸法は `Mandala.tsx` の SIZES.card と一致させること——dagre は固定寸法を
+   前提に座標を出すので、CSS 側だけ変えると辺の接続位置がずれる */
+.dxm-node-card {
+  width: 230px;
+  height: 88px;
+}
+
+/* 折りたたんだシリーズ 1 つ分。展開時のシリーズ枠がそのまま縮んだように見せる。
+   破線を使わないのは、曼陀羅では破線が「確定でないもの」を指す語彙だから */
+.dxm-node-collapsed {
+  width: 210px;
+  height: 72px;
+  border-color: color-mix(in oklab, var(--primary) 45%, transparent);
+  background: color-mix(in oklab, var(--primary) 4%, var(--card));
+}
+
+.dxm-node-title {
+  font-size: 0.85rem;
+  font-weight: 700;
+  line-height: 1.35;
+}
+
+/* ミニ曼陀羅サムネイル。受講形態を載せないぶん compact より狭くし、コース名を
+   中央にそろえる（1 つしか中身が無いので `justify-content` で決まる）。
+   ⚠ 寸法は `Mandala.tsx` の SIZES.thumbnail と一致させること——dagre は固定寸法を
+   前提に座標を出すので、片方だけ変えると辺の接続位置がノードの縁からずれる */
+.dxm-node-thumbnail {
+  flex-direction: row;
+  align-items: center;
+  justify-content: center;
+  width: 160px;
+  height: 52px;
+}
+
+/* compact / thumbnail とも 1 行。長いコース名は省略し、
+   compact では受講形態ラベルの居場所を残す */
+.dxm-node-thumbnail .dxm-node-title {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-align: center;
+}
+
+.dxm-node-compact .dxm-node-title {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dxm-node-series {
+  font-size: 0.68rem;
+  color: var(--muted-foreground);
+}
+
+.dxm-node-meta {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.7rem;
+  color: var(--muted-foreground);
+  margin-top: auto;
+}
+
+/* 受講形態。compact は右端へ寄せ、card は右端・高さ中央に絶対配置する。
+   地はブランド色の薄い敷き（サイトの `--dxm-brand-soft` と同じ 12%）。
+   ⚠ サイトのように `#007bc0` を直値で書き写さないこと——サイトの `--dxm-brand` は
+   テーマ非依存の固定値で、暗い地では字が沈む（約 2.3:1）。Studio の `--primary` は
+   ダークで明るい青へ振れるので、役割トークンで書くほうが安全。ライトでは同値 */
+.dxm-node-style {
+  margin-left: auto;
+  padding: 0.02rem 0.4rem;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--primary) 12%, transparent);
+  color: var(--primary);
+  font-size: 0.68rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.dxm-node-card .dxm-node-style {
+  position: absolute;
+  top: 50%;
+  right: 0.7rem;
+  translate: 0 -50%;
+  margin-left: 0;
+}
+
+.dxm-node-card {
+  position: relative;
+  /* 右端のラベルと本文が重ならないだけの逃げ。
+     ラベルは「独習 / 講義」の 2 文字＋左右の余白で約 35px、右端から 0.7rem 浮くので
+     必要なのは約 46px。4rem（64px）はその上での余裕 */
+  padding-right: 4rem;
+}
+
+/* いま選んでいるコース。枠を青くしてノードの左外にピンを重ねる。
+   ⚠ 状態の指定なので変種（`-compact` / `-collapsed` 等）より後に置く
+   ——同じ詳細度なら後勝ちで、集約ノードの枠色をここが上書きする */
+.dxm-node-here {
+  position: relative;
+  border-color: var(--primary);
+  /* 太さは inset の影で出す。border-width を上げるとノードは固定寸法なので
+     内側が 1px 削れ、コース名の位置が他のノードとずれる */
+  box-shadow: inset 0 0 0 1px var(--primary);
+}
+
+/* ピンはノードの左外・高さ中央。絶対配置なのでノードの寸法にも文字位置にも
+   影響しない。`right: 100%` なのは lucide の MapPin が箱の 2/3 しか使わず
+   左右に size/6 の余白を持つため、箱の右辺をノード左辺に合わせるだけで
+   絵の中心が -size/2 に決まるから——実数のオフセットだと寸法変更で黙ってずれる */
+.dxm-node-here-pin {
+  position: absolute;
+  top: 50%;
+  right: 100%;
+  translate: 0 -50%;
+  margin-right: 1px;
+  color: var(--primary);
+  fill: color-mix(in oklab, var(--primary) 18%, var(--card));
+}
+
+/* 別シリーズの相手コース。区別は透明度と、カードならシリーズ名の行が担う。
+   ⚠ 枠を破線にしないこと——曼陀羅では辺とシリーズ枠がすでに破線なので、
+   3 種類目の破線を足すと 1 枚の絵の読み取りが重くなる。
+   ゴーストが立つのは `courseView` だけなので、効くのはミニ曼陀羅の 2 面のみ */
+.dxm-node-ghost {
+  opacity: 0.85;
+}
+
+.dxm-terminal {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 90px;
+  height: 30px;
+  font-size: 0.9rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  /* ⚠ サイトの `opacity: .75` を式ごと移さないこと。あちらは Nextra の本文色
+     （スレート系）に掛けているので実効値は約 #6e757f になる。Studio の
+     `--foreground` はほぼ黒なので同じ式だと #565859 まで濃くなり、かえってずれる。
+     `--muted-foreground`（#71767C）がサイトの実効値と一致する（両テーマで実測） */
+  color: var(--muted-foreground);
+}
+
+.dxm-series-frame {
+  position: relative;
+  border: 1.5px dashed color-mix(in oklab, var(--primary) 45%, transparent);
+  border-radius: 0.8rem;
+  background: color-mix(in oklab, var(--primary) 4%, transparent);
+  /* 背景として敷くものは自分では何も拾わない */
+  pointer-events: none;
+}
+
+/* 枠はクリックでそのシリーズを選ぶ。手がかりはカーソルだけにする
+   ——枠は大きく、この面積が hover で色を変えると目障り。
+   当たり判定は React Flow の wrapper が持つ（`onNodeClick` を渡した時点で
+   `pointer-events: all` になる）。枠の中でもコースノードが優先されるのは
+   z-index で決まっている（コース 0 / 枠 -1） */
+.dxm-mandala-canvas .react-flow__node-seriesFrame {
+  cursor: pointer;
+}
+
+/* そのシリーズ自身を選んでいるときは枠が現在地になる。実線にして太さは影で出す
+   ——`.dxm-node-here` と同じ流儀（「現在地の太さはいつも影」を 1 つの規則にする）。
+   ⚠ 枠のピンは基底の `.dxm-node-here-pin` をそのまま使うので専用の指定は要らない */
+.dxm-series-frame-here {
+  border-style: solid;
+  border-color: var(--primary);
+  box-shadow: inset 0 0 0 1px var(--primary);
+}
+
+.dxm-series-frame-label {
+  display: inline-block;
+  margin: 0.3rem 0 0 0.7rem;
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: var(--primary);
+}
+
+/* ペイン1 の中身検索の一致箇所。編集ビュー（CodeMirror の装飾）とプレビュー
+   （rehype が挿す <mark>）の両方がこの 1 本を見る */
+.lesson-content-editor .lesson-search-highlight,
+.lesson-preview mark.lesson-search-highlight {
+  background-color: var(--search-highlight);
+  color: inherit;
+  border-radius: 2px;
 }
 
 /* 折りたたみプレースホルダー: 「…」テキストのみ背景付き・クリック可能 */

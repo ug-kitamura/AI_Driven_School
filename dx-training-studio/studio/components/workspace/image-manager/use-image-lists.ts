@@ -9,6 +9,7 @@ import {
 import type { ImageAsset } from "@/lib/schema";
 import { tabToScope } from "@/components/workspace/image-manager/image-manager-utils";
 import type { ImageManagerTab } from "@/components/workspace/image-manager/types";
+import type { StorageErrorKind } from "@/lib/image-storage/types";
 
 type RefreshOptions = { silent?: boolean };
 
@@ -24,7 +25,9 @@ export function useImageLists(options: {
   const [promotedFiles, setPromotedFiles] = useState<ImageAsset[]>([]);
   const [loading, setLoading] = useState(false);
   /** Used タブの正本一覧取得時のみ（UP/AI/Web はローカル staging のため対象外） */
-  const [usedStorageConnectionError, setUsedStorageConnectionError] = useState(false);
+  const [usedStorageErrorKind, setUsedStorageErrorKind] =
+    useState<StorageErrorKind | null>(null);
+  const usedStorageConnectionError = usedStorageErrorKind !== null;
 
   const applyScopeFiles = useCallback((scope: ImageListScope, files: ImageAsset[]) => {
     switch (scope) {
@@ -49,8 +52,8 @@ export function useImageLists(options: {
       try {
         const result = await fetchImageList(scope);
         if (scope === "used") {
-          setUsedStorageConnectionError(result.storageConnectionError);
-          applyScopeFiles(scope, result.storageConnectionError ? [] : result.files);
+          setUsedStorageErrorKind(result.storageErrorKind);
+          applyScopeFiles(scope, result.storageErrorKind ? [] : result.files);
         } else {
           applyScopeFiles(scope, result.files);
         }
@@ -70,8 +73,8 @@ export function useImageLists(options: {
         );
         for (const [scope, result] of results) {
           if (scope === "used") {
-            setUsedStorageConnectionError(result.storageConnectionError);
-            applyScopeFiles(scope, result.storageConnectionError ? [] : result.files);
+            setUsedStorageErrorKind(result.storageErrorKind);
+            applyScopeFiles(scope, result.storageErrorKind ? [] : result.files);
           } else {
             applyScopeFiles(scope, result.files);
           }
@@ -85,6 +88,7 @@ export function useImageLists(options: {
 
   useEffect(() => {
     if (pane4Open) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- list API の非同期取得。結果を state に入れるのが目的で、派生 state の複製ではない
       void refreshScope(tabToScope(activeTab));
     }
   }, [pane4Open, activeTab, refreshScope]);
@@ -108,6 +112,7 @@ export function useImageLists(options: {
     promotedFiles,
     loading,
     usedStorageConnectionError,
+    usedStorageErrorKind,
     refreshScope,
     refreshScopes,
   };

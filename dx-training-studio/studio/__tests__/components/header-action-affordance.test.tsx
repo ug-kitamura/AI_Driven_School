@@ -21,9 +21,9 @@ import { GlobalHeader } from "@/components/workspace/GlobalHeader";
 import { ContentTreePane } from "@/components/workspace/ContentTreePane";
 import type { Series } from "@/lib/schema";
 
-// 曼陀羅（mermaid）はこのテストの対象外。import 時点の副作用を避ける
-vi.mock("@/lib/mermaid-render", () => ({
-  renderMermaidDiagram: vi.fn(async () => ({ svg: "", bindFunctions: null })),
+// 曼陀羅（React Flow）はこのテストの対象外。import 時点の副作用を避ける
+vi.mock("@/components/workspace/mandala/LazyMandala", () => ({
+  LazyMandala: () => null,
 }));
 vi.mock("@/components/workspace/MiniMandalaSection", () => ({
   MiniMandalaSection: () => null,

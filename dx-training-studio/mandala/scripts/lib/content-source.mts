@@ -272,3 +272,33 @@ export function loadContents(contentsDir: string): ContentsRoot {
     series: seriesNames.map((name) => readSeries(contentsDir, name)),
   };
 }
+
+export type ChangelogSource = {
+  /** `contents/changelog.md` の全文（日本語） */
+  body: string;
+  /** `contents/changelog.en.md` の全文。無ければ undefined（日本語へフォールバック） */
+  bodyEn?: string;
+};
+
+const CHANGELOG_FILENAME = "changelog.md";
+const CHANGELOG_EN_FILENAME = "changelog.en.md";
+
+/**
+ * 変更履歴の正本（`contents/changelog.md`）を読む。無ければ null——
+ * 履歴はオプションであり、欠落でビルドを止めない。
+ *
+ * ⚠ 内容はパースしない。「新しいものを上に書く」は人の作法で、機械は関与しない
+ * （書式が崩れていてもそのまま配信される。これは仕様）。
+ * ディレクトリ走査（`loadContents`）はファイルを見ないため、このファイルが
+ * シリーズとして解釈されることはない——読み取りはこの関数だけが担う。
+ */
+export function loadChangelog(contentsDir: string): ChangelogSource | null {
+  const jaPath = path.join(contentsDir, CHANGELOG_FILENAME);
+  if (!fs.existsSync(jaPath)) return null;
+  const body = fs.readFileSync(jaPath, "utf-8");
+  const enPath = path.join(contentsDir, CHANGELOG_EN_FILENAME);
+  const bodyEn = fs.existsSync(enPath)
+    ? fs.readFileSync(enPath, "utf-8")
+    : undefined;
+  return { body, ...(bodyEn !== undefined ? { bodyEn } : {}) };
+}

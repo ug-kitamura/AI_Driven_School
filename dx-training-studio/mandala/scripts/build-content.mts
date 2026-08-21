@@ -6,7 +6,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { loadContents } from "./lib/content-source.mts";
+import { loadChangelog, loadContents } from "./lib/content-source.mts";
 import {
   buildSiteData,
   formatSlugIssues,
@@ -20,6 +20,7 @@ import {
   type ImageSource,
 } from "./lib/images.mts";
 import {
+  emitChangelogPage,
   emitIndexPages,
   emitLessonMarkdown,
   emitMetaFiles,
@@ -134,11 +135,17 @@ function main(): void {
   // `cover` は読者向けページに出さないのでコピーも実体チェックもしない
   // （表示しない画像の欠落でビルドが落ちるのを避ける）。フィールド自体は正本に残る。
 
+  // 変更履歴（contents/changelog.md）。無ければページも _meta 項目も出さない
+  const changelog = loadChangelog(contentsDir);
+
   for (const locale of LOCALES) {
     for (const file of emitIndexPages(data, locale))
       writeFile(outputContentDir, file);
-    for (const file of emitMetaFiles(data, locale))
+    for (const file of emitMetaFiles(data, locale, {
+      hasChangelog: changelog !== null,
+    }))
       writeFile(outputContentDir, file);
+    if (changelog) writeFile(outputContentDir, emitChangelogPage(changelog, locale));
   }
 
   // 全体メタのヒーロー画像は表示に使うので、実体が無ければビルドを止める

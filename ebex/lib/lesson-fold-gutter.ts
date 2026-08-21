@@ -141,14 +141,6 @@ function createFoldPlaceholderDOM(
   return span;
 }
 
-/** 折りたたみ列にマウスがある間、全 ▼（見出し + FM）を表示 */
-const FOLD_GUTTER_COLUMN_HOVER_CLASS = "lesson-fold-gutter-column-hovered";
-
-function setFoldGutterColumnHover(view: EditorView, hovered: boolean) {
-  const gutterEl = view.dom.querySelector<HTMLElement>(".lesson-fold-gutter");
-  if (!gutterEl) return;
-  gutterEl.classList.toggle(FOLD_GUTTER_COLUMN_HOVER_CLASS, hovered);
-}
 
 function isFoldHeaderLine(state: EditorState, lineFrom: number): boolean {
   const lineIndex = state.doc.lineAt(lineFrom).number - 1;
@@ -210,15 +202,9 @@ export function lessonFoldGutter(options?: { enableFolding?: boolean }) {
       class: "cm-foldGutter lesson-fold-gutter",
       markers: (view) =>
         view.plugin(foldMarkerPlugin)?.markers ?? RangeSet.empty,
+      // ▼ の表示条件は CSS（.cm-gutters:hover）が持つ。gutter() の
+      // domEventHandlers はこの列の上でしか発火せず、行番号列を覆えない
       domEventHandlers: {
-        mousemove: (view) => {
-          setFoldGutterColumnHover(view, true);
-          return false;
-        },
-        mouseleave: (view) => {
-          setFoldGutterColumnHover(view, false);
-          return false;
-        },
         click: (view, line) => {
           if (!enableFolding) return false;
           const folded = findFoldAtHeader(view.state, line.from);

@@ -1009,7 +1009,28 @@ html.dark .lesson-content-editor .cm-foldGutter.lesson-fold-gutter span.lesson-f
   line-height: 1.35;
 }
 
-/* compact は 1 行。長いコース名は省略し、受講形態ラベルの居場所を残す */
+/* ミニ曼陀羅サムネイル。受講形態を載せないぶん compact より狭くし、コース名を
+   中央にそろえる（1 つしか中身が無いので `justify-content` で決まる）。
+   ⚠ 寸法は `Mandala.tsx` の SIZES.thumbnail と一致させること——dagre は固定寸法を
+   前提に座標を出すので、片方だけ変えると辺の接続位置がノードの縁からずれる */
+.dxm-node-thumbnail {
+  flex-direction: row;
+  align-items: center;
+  justify-content: center;
+  width: 160px;
+  height: 52px;
+}
+
+/* compact / thumbnail とも 1 行。長いコース名は省略し、
+   compact では受講形態ラベルの居場所を残す */
+.dxm-node-thumbnail .dxm-node-title {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-align: center;
+}
+
 .dxm-node-compact .dxm-node-title {
   min-width: 0;
   overflow: hidden;
@@ -1119,6 +1140,24 @@ html.dark .lesson-content-editor .cm-foldGutter.lesson-fold-gutter span.lesson-f
   background: color-mix(in oklab, var(--primary) 4%, transparent);
   /* 背景として敷くものは自分では何も拾わない */
   pointer-events: none;
+}
+
+/* 枠はクリックでそのシリーズを選ぶ。手がかりはカーソルだけにする
+   ——枠は大きく、この面積が hover で色を変えると目障り。
+   当たり判定は React Flow の wrapper が持つ（`onNodeClick` を渡した時点で
+   `pointer-events: all` になる）。枠の中でもコースノードが優先されるのは
+   z-index で決まっている（コース 0 / 枠 -1） */
+.dxm-mandala-canvas .react-flow__node-seriesFrame {
+  cursor: pointer;
+}
+
+/* そのシリーズ自身を選んでいるときは枠が現在地になる。実線にして太さは影で出す
+   ——`.dxm-node-here` と同じ流儀（「現在地の太さはいつも影」を 1 つの規則にする）。
+   ⚠ 枠のピンは基底の `.dxm-node-here-pin` をそのまま使うので専用の指定は要らない */
+.dxm-series-frame-here {
+  border-style: solid;
+  border-color: var(--primary);
+  box-shadow: inset 0 0 0 1px var(--primary);
 }
 
 .dxm-series-frame-label {

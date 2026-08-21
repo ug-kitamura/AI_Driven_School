@@ -29,6 +29,8 @@ export type SeriesFrameData = {
   seriesName: string;
   width: number;
   height: number;
+  /** そのシリーズ自身を選んでいる。コースノードと同じ枠色＋ピンで示す */
+  here: boolean;
 };
 
 function classNames(...values: Array<string | false | undefined>): string {
@@ -81,12 +83,19 @@ function StyleLabel({ style }: { style?: CourseStyle }) {
   return <span className="dxm-node-style">{COURSE_STYLE_LABELS[style]}</span>;
 }
 
-/** 全体曼陀羅・ミニ曼陀羅サムネイル用。コース名と受講形態だけ——小さくても読める */
-export function CompactNode({ data }: NodeProps) {
+/**
+ * 全体曼陀羅（`compact`）とミニ曼陀羅サムネイル（`thumbnail`）で共有する 1 行ノード。
+ *
+ * 違いは密度だけなので描画は 1 つにまとめ、幅と中身は CSS とデータが持つ。
+ * サムネイルは受講形態を載せず（`style` が渡ってこない）、コース名を中央にそろえる
+ * ——セルが小さく、ラベルがコース名の幅を奪って省略が早く始まるため。
+ */
+export function CompactNode({ data, type }: NodeProps) {
   const d = data as MandalaNodeData;
+  const variant = type === "thumbnail" ? "thumbnail" : "compact";
   return (
     <div
-      className={nodeClass(d, "compact")}
+      className={nodeClass(d, variant)}
       title={`${d.seriesName} / ${d.label}`}
     >
       <Handle type="target" position={Position.Top} isConnectable={false} />
@@ -144,7 +153,17 @@ export function CollapsedSeriesNode({ data }: NodeProps) {
 export function SeriesFrameNode({ data }: NodeProps) {
   const d = data as unknown as SeriesFrameData;
   return (
-    <div className="dxm-series-frame" style={{ width: d.width, height: d.height }}>
+    <div
+      className={classNames(
+        "dxm-series-frame",
+        d.here && "dxm-series-frame-here",
+      )}
+      style={{ width: d.width, height: d.height }}
+    >
+      {/* 枠のピンは基底の `.dxm-node-here-pin` をそのまま使う——`right: 100%` が
+          「箱の右辺を枠の左辺に合わせる」意味になり、コースのピンがノードの
+          左外に付くのとまったく同じ関係で枠の左外に付く */}
+      <HerePin here={d.here} />
       <span className="dxm-series-frame-label">{d.seriesName}</span>
     </div>
   );
@@ -166,6 +185,8 @@ export function TerminalNode({ data }: NodeProps) {
 
 export const mandalaNodeTypes = {
   compact: CompactNode,
+  // 同じ描画を密度違いで使う。寸法は `Mandala.tsx` の SIZES が持つ
+  thumbnail: CompactNode,
   card: CardNode,
   collapsedSeries: CollapsedSeriesNode,
   seriesFrame: SeriesFrameNode,

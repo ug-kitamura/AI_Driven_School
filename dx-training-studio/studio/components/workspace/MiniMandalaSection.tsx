@@ -67,27 +67,24 @@ export function MiniMandalaSection({
   const modal = (
     <Dialog open={modalOpen} onOpenChange={handleOpenChange}>
       {/* 跨ぎ先が 3 つ以上あるコースでも横に収まる幅。カード自体は広げない。
-          ⚠ 高さの主張はここ 1 箇所に集める——ダイアログの上限とキャンバスの高さを
-          別々に指定すると、収まらないときにフレックスがキャンバスを縮め、
-          フィット済みの表示がそのぶんずれる。
-          ⚠ **`h-*` で確定させること。`max-h-*` ＋ `min-h-*` では高さが確定せず**、
-          曼陀羅側の `height: 100%` が「auto に対する %」となって解決できず、
-          React Flow のルートが 0px になる（error #004・2026-08-21 に実機で発生）*/}
-      <DialogContent className="flex h-[min(72vh,640px)] max-w-5xl flex-col">
+          ⚠ 構成は公開サイトの曼陀羅モーダルと同じにする——**ダイアログは高さを
+          持たず中身なり・キャンバスだけが絶対長・開閉アニメーション無し**。
+          ダイアログに高さを持たせてフレックスで配ると、React Flow がマウント時に
+          確定した座標と落ち着き後の寸法が食い違い、開き直すたびに中心がずれる
+          （2026-08-21 に実機で再現）。詳細は GlobalHeader の同じコメントを参照 */}
+      <DialogContent animated={false} className="max-w-5xl">
         <DialogHeader>
           <DialogTitle>ミニ曼陀羅</DialogTitle>
         </DialogHeader>
         {course ? (
-          <div className="flex min-h-0 flex-1 flex-col">
-            <LazyMandala
-              graph={graph}
-              scope={{ kind: "course", courseId: course.id }}
-              variant="card"
-              currentCourseId={course.id}
-              fill
-              onSelectCourse={handleSelectFromModal}
-            />
-          </div>
+          <LazyMandala
+            graph={graph}
+            scope={{ kind: "course", courseId: course.id }}
+            variant="card"
+            currentCourseId={course.id}
+            height="min(64vh, 520px)"
+            onSelectCourse={handleSelectFromModal}
+          />
         ) : null}
       </DialogContent>
     </Dialog>
@@ -108,8 +105,11 @@ export function MiniMandalaSection({
           // ⚠ 平常時に地を敷かないこと——キャンバス側がほぼ透明な地を持つので、
           // 二重になって意図した薄さにならない。地はキャンバスの 1 枚に任せ、
           // 3 つの面（サムネイル・拡大モーダル・全体曼陀羅）で同じ絵に見せる。
-          // ホバーの地は残す——押せることの手がかりで、平常時の見た目は変えない
-          className="block h-full w-full min-w-0 cursor-zoom-in overflow-hidden rounded border border-border/50 p-1 text-left transition-colors hover:bg-muted/40"
+          // ホバーの地は残す——押せることの手がかりで、平常時の見た目は変えない。
+          // ⚠ 内側に余白を持たせないこと。キャンバスは自前の角丸と地を持つので、
+          // 余白があるとその隙間に親の地が見えて**枠が 2 重に見える**。
+          // 角丸はキャンバス側（0.6rem）に合わせて枠と縁を一致させる
+          className="block h-full w-full min-w-0 cursor-zoom-in overflow-hidden rounded-[0.6rem] border border-border/50 text-left transition-colors hover:bg-muted/40"
           onClick={() => onModalOpenChange(true)}
           aria-label="ミニ曼陀羅を拡大表示"
         >

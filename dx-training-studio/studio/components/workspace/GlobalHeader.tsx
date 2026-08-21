@@ -188,6 +188,18 @@ export function GlobalHeader({
     [onSelectCourse],
   );
 
+  /** シリーズ枠のクリック。コースと同じく、遷移でモーダルを閉じない */
+  const handleSelectSeriesFromMandala = useCallback(
+    (seriesId: string) => {
+      suppressMandalaModalCloseRef.current = true;
+      onSelectSeries?.(seriesId);
+      window.setTimeout(() => {
+        suppressMandalaModalCloseRef.current = false;
+      }, 300);
+    },
+    [onSelectSeries],
+  );
+
   return (
     <header className="flex h-12 shrink-0 items-center gap-2 border-b border-border bg-background px-3">
       {crumbs.length > 0 ? (
@@ -278,25 +290,29 @@ export function GlobalHeader({
 
       {/* 曼陀羅フルスクリーンモーダル */}
       <Dialog open={mandalaOpen} onOpenChange={handleMandalaModalOpenChange}>
-        {/* ⚠ 高さの主張はダイアログ側 1 箇所に集める——上限とキャンバスの高さを
-            別々に指定すると、収まらないときにフレックスがキャンバスを縮め、
-            フィット済みの表示がそのぶんずれる。
-            ⚠ **`h-*` で確定させること。`max-h-*` ＋ `min-h-*` では高さが確定せず**、
-            曼陀羅側の `height: 100%` が「auto に対する %」となって解決できず、
-            React Flow のルートが 0px になる（error #004・2026-08-21 に実機で発生）*/}
-        <DialogContent className="flex h-[min(88vh,860px)] max-w-5xl flex-col">
+        {/* ⚠ 構成は公開サイトの曼陀羅モーダルと同じにする——**ダイアログは高さを
+            持たず中身なり・キャンバスだけがビューポート由来の絶対長・開閉
+            アニメーション無し（animated={false}）**。
+            ダイアログに高さを持たせてフレックスで配ると、React Flow がマウント時に
+            確定した座標とレイアウトの落ち着き後の寸法が食い違い、開き直すたびに
+            中心がずれる（2026-08-21 に実機で再現）。`fill`（% の連鎖）も同根。
+            キャンバスが絶対長ならマウントの時点で幾何が確定していて、時机に依らない */}
+        <DialogContent animated={false} className="max-w-5xl">
           <DialogHeader>
             <DialogTitle>DXトレーニング曼陀羅</DialogTitle>
           </DialogHeader>
-          <div className="flex min-h-0 flex-1 flex-col rounded bg-card p-3">
+          <div className="rounded bg-card p-3">
             {mandalaOpen ? (
               <LazyMandala
                 graph={mandalaGraph}
                 scope={{ kind: "global" }}
                 variant="compact"
                 currentCourseId={selectedCourseId}
-                fill
+                currentSeriesId={selectedSeriesId}
+                // ツールバー・ヘッダー等の約 155px を足しても画面に収まる上限
+                height="min(72vh, 680px)"
                 onSelectCourse={handleSelectFromMandala}
+                onSelectSeries={handleSelectSeriesFromMandala}
                 showChrome
               />
             ) : null}

@@ -7,6 +7,8 @@ import {
   MiniMap,
   MiniMapNode,
   ReactFlow,
+  useNodesInitialized,
+  useReactFlow,
   type Edge,
   type Node,
   type ReactFlowInstance,
@@ -14,6 +16,7 @@ import {
 import "@xyflow/react/dist/style.css";
 import {
   collapseSeries,
+  COLLAPSED_PREFIX,
   courseView,
   globalView,
   resolveHereNodeId,
@@ -30,6 +33,11 @@ import {
 
 const SIZES = {
   compact: { width: 200, height: 52 },
+  // ミニ曼陀羅サムネイル。受講形態を載せないぶん compact より狭くできる。
+  // ⚠ 狭いほうがよいのは、fitView が狭いグラフを大きい倍率で描くため
+  // ——ノードを実寸で広く取ると、そのぶん縮小されてコース名が小さくなる。
+  // ⚠ `globals.css` の `.dxm-node-thumbnail` と必ず同時に直すこと
+  thumbnail: { width: 160, height: 52 },
   // シリーズ名・コース名・「N レッスン・約 M 分」の 3 行＋右端ラベルが収まる
   // 必要十分な寸法。キャッチを載せないぶんサイトのカード（280×140）より小さい。
   // ⚠ `globals.css` の `.dxm-node-card` と必ず同時に直すこと——dagre は固定寸法を
@@ -56,6 +64,34 @@ const FIT_VIEW_OPTIONS = { maxZoom: 1 } as const;
 const EDGE_COLOR = "#7a8189";
 
 /**
+ * ノードの実測が揃った時点で 1 度だけ中心へ合わせ直す。
+ *
+ * ⚠ `fitView` の boolean prop は「初期化時」に走るが、**その時点ではノードの
+ * 実測（`measured`）が揃っていないことがある**。揃う前の寸法で計算した位置は
+ * そのまま残るため、**モーダルを開いた最初の 1 回だけ中心がずれる**という形で出る
+ * （2026-08-21 に実機で報告された）。ノード数・寸法が変わらない再描画では
+ * 再フィットされないので、コンテナのリサイズ監視だけでは埋まらない。
+ *
+ * ⚠ `<ReactFlow>` の子として置くこと——React Flow が内部で張るコンテキストの
+ * 内側でないと `useReactFlow` / `useNodesInitialized` が使えない。
+ */
+function FitWhenNodesInitialized({ enabled }: { enabled: boolean }) {
+  const initialized = useNodesInitialized();
+  const { fitView } = useReactFlow();
+
+  useEffect(() => {
+    if (!initialized || !enabled) return;
+    // 観測と同一フレームで viewport を変えない
+    const frame = requestAnimationFrame(() => {
+      void fitView(FIT_VIEW_OPTIONS);
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [initialized, enabled, fitView]);
+
+  return null;
+}
+
+/**
  * ミニマップは枠を描かない——枠はコース群と重なる大きな矩形なので、
  * そのまま出すと全面が塗り潰されてコースの配置が読めなくなる。
  */
@@ -78,6 +114,11 @@ export type MandalaProps = {
   /** いま選んでいるコース。青枠＋ピンで示す */
   currentCourseId?: string | null;
   /**
+   * いま選んでいるシリーズ。コース未選択のときだけ意味を持ち、
+   * そのシリーズ枠が現在地になる（コースの選択が優先）。
+   */
+  currentSeriesId?: string | null;
+  /**
    * キャンバスの高さ。**CSS の絶対長だけ**を渡すこと（`720` / `"min(74vh, 720px)"`）。
    * ⚠ `"100%"` のようなパーセントを渡してはならない——ラッパの高さが確定して
    * いないので解決できず、キャンバスが 0px に潰れる。親いっぱいに広げたいときは `fill`
@@ -90,6 +131,8 @@ export type MandalaProps = {
    */
   fill?: boolean;
   onSelectCourse?: (courseId: string) => void;
+  /** シリーズ枠のクリック。全体曼陀羅のみ（ミニ曼陀羅に枠は無い） */
+  onSelectSeries?: (seriesId: string) => void;
   /** サムネイル用: パン・ズーム・ノードクリックを一切受けない */
   staticView?: boolean;
   /** 全体曼陀羅のみ: シリーズ折りたたみとミニマップを出す */
@@ -101,9 +144,11 @@ export function Mandala({
   scope,
   variant,
   currentCourseId = null,
+  currentSeriesId = null,
   height = 560,
   fill = false,
   onSelectCourse,
+  onSelectSeries,
   staticView = false,
   showChrome = false,
 }: MandalaProps) {
@@ -165,6 +210,23 @@ export function Mandala({
       [...collapsible.edges, ...terminalEdges].map((edge) => edge.source),
     );
 
+    // シリーズ自身を選んでいるときは、そのシリーズ枠が現在地になる。
+    // ⚠ コースの選択が優先——コースを選ぶと所属シリーズも選択状態になるので、
+    // 両方に印が付くと「いまここ」が 2 つあるように見える。
+    // 折りたたみ中は枠が無いので、印は下の集約ノードが引き取る
+    const hereSeriesId = hereNodeId ? null : (currentSeriesId ?? null);
+
+    // ⚠ `variant === "compact"` は全体曼陀羅と共通なので、scope と組で判定すること。
+    // サムネイルは密度が違う（幅が狭い・受講形態を載せない・コース名を中央ぞろえ）
+    // ので、ノード種別そのものを分ける
+    const nodeVariant: keyof typeof SIZES =
+      scope.kind === "course" && variant === "compact" ? "thumbnail" : variant;
+
+    // 受講形態のラベルはサムネイルには載せない——セルが小さく、ラベルがコース名の
+    // 幅を奪って省略が早く始まる。周辺の並びだけ分かればよい面なので、
+    // 受講形態は拡大モーダル（card）と全体曼陀羅（compact）に任せる
+    const showStyle = nodeVariant !== "thumbnail";
+
     const entries: Array<{
       id: string;
       type: keyof typeof SIZES;
@@ -173,14 +235,14 @@ export function Mandala({
     }> = [
       ...collapsible.nodes.map((node) => ({
         id: node.id,
-        type: variant as keyof typeof SIZES,
+        type: nodeVariant,
         seriesId: node.seriesId,
         data: {
           label: node.label,
           seriesName: node.seriesName,
           lessonCount: node.lessonCount,
           totalMinutes: node.totalMinutes,
-          style: node.style,
+          style: showStyle ? node.style : undefined,
           ghost: node.ghost,
           current: node.current,
           here: node.id === hereNodeId,
@@ -198,7 +260,8 @@ export function Mandala({
           totalMinutes: series.totalMinutes,
           ghost: false,
           current: false,
-          here: series.id === hereNodeId,
+          // 畳まれたシリーズは枠を持たないので、シリーズ自身の現在地も引き取る
+          here: series.id === hereNodeId || series.seriesId === hereSeriesId,
           hasOutgoing: outgoing.has(series.id),
           collapsed: { courseCount: series.courseCount },
         } satisfies MandalaNodeData,
@@ -210,12 +273,12 @@ export function Mandala({
       ...terminals.map((t) => [t.id, "terminal"] as const),
     ]);
     const sizeOf = (id: string): LayoutSize =>
-      SIZES[typeById.get(id) ?? variant];
+      SIZES[typeById.get(id) ?? nodeVariant];
 
     const positions = layoutFlow(
       [...entries.map((e) => e.id), ...terminals.map((t) => t.id)],
       [...collapsible.edges, ...terminalEdges],
-      { size: SIZES[variant], sizeOf },
+      { size: SIZES[nodeVariant], sizeOf },
     );
     const positionById = new Map(positions.map((p) => [p.id, p]));
 
@@ -282,6 +345,7 @@ export function Mandala({
             seriesName: members[0]!.data.seriesName,
             width,
             height: frameHeight,
+            here: seriesId === hereSeriesId,
           } satisfies SeriesFrameData as unknown as Record<string, unknown>,
           draggable: false,
           connectable: false,
@@ -327,6 +391,7 @@ export function Mandala({
     isGlobal,
     collapsedIds,
     currentCourseId,
+    currentSeriesId,
   ]);
 
   const courseIds = useMemo(
@@ -337,9 +402,24 @@ export function Mandala({
   const onNodeClick = useCallback(
     (_event: React.MouseEvent, node: Node) => {
       if (staticView) return;
-      if (courseIds.has(node.id)) onSelectCourse?.(node.id);
+      if (courseIds.has(node.id)) {
+        onSelectCourse?.(node.id);
+        return;
+      }
+      // シリーズ枠はそのシリーズを選ぶ。枠の中でもコースノードの上ではコースが
+      // 優先される——z-index で決まっており（コース 0 / 枠 -1）、上の分岐に入る
+      if (node.id.startsWith(FRAME_PREFIX)) {
+        onSelectSeries?.(node.id.slice(FRAME_PREFIX.length));
+        return;
+      }
+      // 折りたたんだシリーズの集約ノードも同じくシリーズを選ぶ
+      // ——展開時の枠と畳んだときの集約は同じシリーズの 2 つの姿なので、
+      // クリックの意味も揃える
+      if (node.id.startsWith(COLLAPSED_PREFIX)) {
+        onSelectSeries?.(node.id.slice(COLLAPSED_PREFIX.length));
+      }
     },
-    [courseIds, onSelectCourse, staticView],
+    [courseIds, onSelectCourse, onSelectSeries, staticView],
   );
 
   const seriesList = useMemo(
@@ -450,6 +530,9 @@ export function Mandala({
           proOptions={{ hideAttribution: true }}
           onNodeClick={onNodeClick}
         >
+          {/* パン・ズームを始めたあとは合わせ直さない（操作を巻き戻さない）。
+              サムネイルは操作を受けないので常に合わせてよい */}
+          <FitWhenNodesInitialized enabled={staticView || !interactive} />
           {/* 背景の格子は敷かない。ミニマップ・Controls の配色は globals.css の
               `--xy-*` が持つ（props で渡すとインラインになり上書きできない） */}
           {showChrome && (

@@ -102,6 +102,9 @@ export type CollapsibleView = {
   edges: MandalaEdge[];
 };
 
+/** 集約ノードの id 接頭辞。クリックでシリーズを解決するときの判別に使う */
+export const COLLAPSED_PREFIX = "series:";
+
 /**
  * 指定シリーズを 1 ノードへ畳む。
  * 畳んだシリーズに繋がる辺は集約ノードへ張り替え、内部の辺は落とす。
@@ -114,7 +117,7 @@ export function collapseSeries(
     return { nodes: view.nodes, collapsed: [], edges: view.edges };
   }
 
-  const collapsedIdOf = (seriesId: string) => `series:${seriesId}`;
+  const collapsedIdOf = (seriesId: string) => `${COLLAPSED_PREFIX}${seriesId}`;
   const nodeSeries = new Map(view.nodes.map((n) => [n.id, n.seriesId]));
 
   const collapsed: CollapsedSeries[] = [];

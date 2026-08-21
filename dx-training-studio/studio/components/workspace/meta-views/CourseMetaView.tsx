@@ -28,6 +28,12 @@ import {
   listCrossSeriesCourseCandidates,
   wouldCourseMetaEditCreateCycle,
 } from "@/lib/course-flow";
+import { EnMetaSection } from "@/components/workspace/translation/EnMetaSection";
+import {
+  TranslationHeaderControls,
+  type EditLanguage,
+} from "@/components/workspace/translation/TranslationHeaderControls";
+import type { TranslationFreshness } from "@/lib/translation/client";
 
 /** Select は空文字を値に使えないため、未設定を表すセンチネル */
 const COURSE_STYLE_UNSET = "__unset__";
@@ -81,6 +87,13 @@ type Props = {
    */
   mandalaModalOpen: boolean;
   onMandalaModalOpenChange: (open: boolean) => void;
+  editLanguage: EditLanguage;
+  onEditLanguageChange: (language: EditLanguage) => void;
+  translationStatus: TranslationFreshness | undefined;
+  onMarkFresh?: () => void;
+  onTranslationChanged?: () => void;
+  /** シリーズ名（英語ビューの対象解決に使う） */
+  seriesName: string;
 };
 
 /** コース選択時のペイン2: コースメタの編集ビュー＋ミニ曼陀羅 */
@@ -91,6 +104,12 @@ export function CourseMetaView({
   onSelectCourse,
   mandalaModalOpen,
   onMandalaModalOpenChange,
+  editLanguage,
+  onEditLanguageChange,
+  translationStatus,
+  onMarkFresh,
+  onTranslationChanged,
+  seriesName,
 }: Props) {
   const [cycleWarning, setCycleWarning] = useState(false);
   const [slugError, setSlugError] = useState(false);
@@ -169,7 +188,28 @@ export function CourseMetaView({
   };
 
   return (
-    <MetaViewShell title={course.name} kindLabel="コース" onSave={handleSave}>
+    <MetaViewShell
+      title={course.name}
+      kindLabel="コース"
+      onSave={handleSave}
+      hideSave={editLanguage === "en"}
+      headerExtra={
+        <TranslationHeaderControls
+          language={editLanguage}
+          onLanguageChange={onEditLanguageChange}
+          status={translationStatus}
+          onMarkFresh={onMarkFresh}
+        />
+      }
+    >
+      {editLanguage === "en" ? (
+        <EnMetaSection
+          level="course"
+          names={{ series: seriesName, course: course.name }}
+          onTranslationChanged={onTranslationChanged}
+        />
+      ) : (
+        <>
       {/* ⚠ 左列は行を明示指定する（`col-start-1 row-start-N`）。ミニ曼陀羅が右列の
           3行目から4行分を占めるので、auto 配置だと左列の項目がその手前で
           右列へ回り込む。行を固定して左列4行と曼陀羅を確実に噛み合わせる。 */}
@@ -347,6 +387,8 @@ export function CourseMetaView({
             曼陀羅全体に循環する経路が生じます。別シリーズの前/次コースの設定を見直してください。
           </p>
         </div>
+      )}
+        </>
       )}
     </MetaViewShell>
   );

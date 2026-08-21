@@ -15,13 +15,22 @@ import { getContentsDir, isContentFolderName } from "@/lib/contents-loader";
 import { LESSON_CONTENTS_FILENAME } from "@/lib/lesson-paths";
 
 export const CHANGELOG_FILENAME = "changelog.md";
+export const CHANGELOG_EN_FILENAME = "changelog.en.md";
+
+export type ChangelogLanguage = "ja" | "en";
 
 /** 材料の上限。超過分は新しい順に切り、truncated で人に伝える */
 export const DRAFT_MAX_LESSONS = 20;
 export const DRAFT_LESSON_BODY_LIMIT = 6_000;
 
-export function getChangelogPath(projectRoot: string): string {
-  return path.join(getContentsDir(projectRoot), CHANGELOG_FILENAME);
+export function getChangelogPath(
+  projectRoot: string,
+  language: ChangelogLanguage = "ja",
+): string {
+  return path.join(
+    getContentsDir(projectRoot),
+    language === "en" ? CHANGELOG_EN_FILENAME : CHANGELOG_FILENAME,
+  );
 }
 
 export type ChangelogFile = {
@@ -31,8 +40,11 @@ export type ChangelogFile = {
   mtimeMs: number | null;
 };
 
-export function readChangelogFile(projectRoot: string): ChangelogFile {
-  const filePath = getChangelogPath(projectRoot);
+export function readChangelogFile(
+  projectRoot: string,
+  language: ChangelogLanguage = "ja",
+): ChangelogFile {
+  const filePath = getChangelogPath(projectRoot, language);
   if (!fs.existsSync(filePath)) {
     return { exists: false, content: "", mtimeMs: null };
   }

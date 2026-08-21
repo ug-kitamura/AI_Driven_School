@@ -17,6 +17,12 @@ import {
   META_DIALOG_STACK,
   MetaDialogField,
 } from "@/components/workspace/metaDialogLayout";
+import { HomeEnSection } from "@/components/workspace/translation/HomeEnSection";
+import {
+  TranslationHeaderControls,
+  type EditLanguage,
+} from "@/components/workspace/translation/TranslationHeaderControls";
+import type { TranslationFreshness } from "@/lib/translation/client";
 import { fetchImageList } from "@/lib/image-list-client";
 import { getImageStorageMode } from "@/lib/image-api-client";
 import { isCanonicalImagePath, isMp4Path, toImageApiUrl } from "@/lib/image-path";
@@ -38,6 +44,11 @@ type Props = {
   onSaveError?: (message: string) => void;
   /** 保存成功時に GitHub リンクを通知する（ヘッダーのアイコン表示が追随する） */
   onGithubUrlSaved?: (url: string) => void;
+  editLanguage: EditLanguage;
+  onEditLanguageChange: (language: EditLanguage) => void;
+  translationStatus: TranslationFreshness | undefined;
+  onMarkFresh?: () => void;
+  onTranslationChanged?: () => void;
 };
 
 /** ホーム選択時のペイン2: 全体メタ（contents/.meta.json）の編集ビュー */
@@ -45,6 +56,11 @@ export function WorkspaceMetaView({
   workspaceName,
   onSaveError,
   onGithubUrlSaved,
+  editLanguage,
+  onEditLanguageChange,
+  translationStatus,
+  onMarkFresh,
+  onTranslationChanged,
 }: Props) {
   const [values, setValues] = useState<WorkspaceMetaValues>({
     name: "",
@@ -152,12 +168,37 @@ export function WorkspaceMetaView({
       });
   };
 
+  const headerControls = (
+    <TranslationHeaderControls
+      language={editLanguage}
+      onLanguageChange={onEditLanguageChange}
+      status={translationStatus}
+      onMarkFresh={onMarkFresh}
+    />
+  );
+
+  if (editLanguage === "en") {
+    return (
+      <MetaViewShell
+        title={values.name.trim() || workspaceName}
+        kindLabel="全体"
+        onSave={() => {}}
+        hideSave
+        headerExtra={headerControls}
+      >
+        {/* 英語ビューはメタと changelog（英語版）が連動して切り替わる */}
+        <HomeEnSection onTranslationChanged={onTranslationChanged} />
+      </MetaViewShell>
+    );
+  }
+
   return (
     <MetaViewShell
       title={values.name.trim() || workspaceName}
       kindLabel="全体"
       onSave={handleSave}
       saveDisabled={loading}
+      headerExtra={headerControls}
     >
       <div className={META_DIALOG_STACK}>
         <MetaDialogField>

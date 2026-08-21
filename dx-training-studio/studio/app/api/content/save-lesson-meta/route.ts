@@ -9,6 +9,10 @@ import {
 import { getProjectRoot } from "@/lib/project-root";
 import { lessonStatusSchema, slugSchema } from "@/lib/schema";
 import { normalizeTags } from "@/lib/lesson-meta";
+import {
+  applyOptionalMetaFields,
+  EN_SOURCE_HASH_PATTERN,
+} from "@/lib/translation/units";
 
 /**
  * レッスン `.meta.json` の保存。
@@ -27,6 +31,13 @@ const schema = z.object({
     estimated_minutes: z.number().int().min(0).max(180).optional(),
     author: z.string().optional(),
     author_en: z.string().optional(),
+    name_en: z.string().optional(),
+    description_en: z.string().optional(),
+    en_source_hash: z
+      .string()
+      .regex(EN_SOURCE_HASH_PATTERN)
+      .or(z.literal(""))
+      .optional(),
     slug: z.union([slugSchema, z.literal("")]).optional(),
   }),
 });
@@ -75,6 +86,11 @@ export async function POST(req: Request) {
       if (meta.slug) next.slug = meta.slug;
       else delete next.slug;
     }
+    applyOptionalMetaFields(next, {
+      name_en: meta.name_en,
+      description_en: meta.description_en,
+      en_source_hash: meta.en_source_hash,
+    });
 
     writeMetaJson(lessonDir, next);
     return Response.json({ ok: true });

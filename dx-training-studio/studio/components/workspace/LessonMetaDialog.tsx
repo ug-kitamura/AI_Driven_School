@@ -18,6 +18,7 @@ import {
 } from "@/components/workspace/LessonMetaPanel";
 import type { LessonMetaFields } from "@/lib/lesson-meta";
 import type { Lesson } from "@/lib/schema";
+import { EnMetaSection } from "@/components/workspace/translation/EnMetaSection";
 
 type Props = {
   open: boolean;
@@ -25,6 +26,13 @@ type Props = {
   lesson: Lesson | undefined;
   onSave: (lessonId: string, meta: Partial<LessonMetaFields>) => void;
   tagSuggestions?: readonly string[];
+  /**
+   * レッスンの編集言語（ペイン2 ヘッダーの切替に連動）。
+   * en では英語フィールドの編集になる（studio-translation spec）
+   */
+  language?: "ja" | "en";
+  /** 英語ビューでの保存・翻訳適用の後に呼ぶ（鮮度チップの再取得） */
+  onTranslationChanged?: () => void;
 };
 
 export function LessonMetaDialog({
@@ -33,6 +41,8 @@ export function LessonMetaDialog({
   lesson,
   onSave,
   tagSuggestions = [],
+  language = "ja",
+  onTranslationChanged,
 }: Props) {
   const [draft, setDraft] = useState<LessonMetaDraft | null>(null);
   const [tagError, setTagError] = useState<string | null>(null);
@@ -64,6 +74,36 @@ export function LessonMetaDialog({
   };
 
   if (!lesson || !draft) return null;
+
+  if (language === "en") {
+    return (
+      <Dialog open={open} onOpenChange={onOpenChange}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader className="sr-only">
+            <DialogTitle>レッスンメタ（英語）を編集</DialogTitle>
+          </DialogHeader>
+          <EnMetaSection
+            level="lesson"
+            names={{
+              series: lesson.series,
+              course: lesson.course,
+              lesson: lesson.lesson,
+            }}
+            authorEnEditable
+            onSaveAuthorEn={(authorEn) =>
+              onSave(lesson.id, { author_en: authorEn })
+            }
+            onTranslationChanged={onTranslationChanged}
+          />
+          <DialogFooter>
+            <Button variant="outline" onClick={() => onOpenChange(false)}>
+              閉じる
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    );
+  }
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>

@@ -45,6 +45,12 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
+const translationProps = {
+  editLanguage: "ja" as const,
+  onEditLanguageChange: () => {},
+  translationStatus: undefined,
+};
+
 describe("WorkspaceMetaView", () => {
   function stubFetch() {
     const fetchMock = vi.fn((input: RequestInfo | URL, _init?: RequestInit) => {
@@ -87,7 +93,7 @@ describe("WorkspaceMetaView", () => {
 
   it("全体メタを読み込んでフォームに表示し、保存で PUT する", async () => {
     const fetchMock = stubFetch();
-    render(<WorkspaceMetaView workspaceName="DX Training Studio" />);
+    render(<WorkspaceMetaView workspaceName="DX Training Studio" {...translationProps} />);
 
     const nameInput = await screen.findByLabelText<HTMLInputElement>(
       "名前（サイト名）",
@@ -140,7 +146,7 @@ describe("WorkspaceMetaView", () => {
       return Promise.resolve(new Response("{}", { status: 200 }));
     });
     vi.stubGlobal("fetch", fetchMock);
-    render(<WorkspaceMetaView workspaceName="DX Training Studio" />);
+    render(<WorkspaceMetaView workspaceName="DX Training Studio" {...translationProps} />);
 
     const trigger = await screen.findByLabelText("ヒーロー画像");
     await waitFor(() => expect(trigger.textContent).toContain("zebra.png"));
@@ -172,7 +178,7 @@ describe("WorkspaceMetaView", () => {
       );
     });
     vi.stubGlobal("fetch", fetchMock);
-    render(<WorkspaceMetaView workspaceName="DX Training Studio" />);
+    render(<WorkspaceMetaView workspaceName="DX Training Studio" {...translationProps} />);
 
     // 「未設定」だけだと画像が出ていないと読み違えるので、補足文で既定画像に触れる
     await screen.findByLabelText("ヒーロー画像");
@@ -209,7 +215,7 @@ describe("WorkspaceMetaView", () => {
       return Promise.resolve(new Response("{}", { status: 200 }));
     });
     vi.stubGlobal("fetch", fetchMock);
-    render(<WorkspaceMetaView workspaceName="DX Training Studio" />);
+    render(<WorkspaceMetaView workspaceName="DX Training Studio" {...translationProps} />);
 
     // 実体が消えていてもトリガーに保存済みの値が出る（空表示にならない）
     const trigger = await screen.findByLabelText("ヒーロー画像");
@@ -218,7 +224,7 @@ describe("WorkspaceMetaView", () => {
 
   it("不正な GitHub URL では保存せずエラーを出す", async () => {
     const fetchMock = stubFetch();
-    render(<WorkspaceMetaView workspaceName="DX Training Studio" />);
+    render(<WorkspaceMetaView workspaceName="DX Training Studio" {...translationProps} />);
     const urlInput = await screen.findByLabelText<HTMLInputElement>(
       "GitHub リンク",
     );
@@ -240,6 +246,7 @@ describe("SeriesMetaView", () => {
   it("フォームは シリーズ名 → 説明 → キャッチ → スラッグ の順に並ぶ", () => {
     render(
       <SeriesMetaView
+        {...translationProps}
         seriesItem={sampleSeries[0]}
         onRenameSeries={vi.fn()}
         onSaveMeta={vi.fn()}
@@ -263,6 +270,7 @@ describe("SeriesMetaView", () => {
     const onSaveMeta = vi.fn();
     render(
       <SeriesMetaView
+        {...translationProps}
         seriesItem={sampleSeries[0]}
         onRenameSeries={onRenameSeries}
         onSaveMeta={onSaveMeta}
@@ -293,6 +301,7 @@ describe("SeriesMetaView", () => {
     const onSaveMeta = vi.fn();
     render(
       <SeriesMetaView
+        {...translationProps}
         seriesItem={sampleSeries[0]}
         onRenameSeries={vi.fn()}
         onSaveMeta={onSaveMeta}
@@ -314,6 +323,8 @@ describe("CourseMetaView", () => {
     const onSave = vi.fn();
     render(
       <CourseMetaView
+        {...translationProps}
+        seriesName={sampleSeries[0].name}
         series={sampleSeries}
         course={sampleSeries[0].courses[0]}
         onSave={onSave}
@@ -346,6 +357,8 @@ describe("CourseMetaView", () => {
   it("フォームは コース名 → 説明 → 左列4項目 → コースフロー の順に並ぶ", () => {
     render(
       <CourseMetaView
+        {...translationProps}
+        seriesName={sampleSeries[0].name}
         series={sampleSeries}
         course={sampleSeries[0].courses[0]}
         onSave={vi.fn()}
@@ -376,6 +389,8 @@ describe("CourseMetaView", () => {
   it("説明はコース名と同じ全幅で表示する", () => {
     render(
       <CourseMetaView
+        {...translationProps}
+        seriesName={sampleSeries[0].name}
         series={sampleSeries}
         course={sampleSeries[0].courses[0]}
         onSave={vi.fn()}
@@ -394,6 +409,8 @@ describe("CourseMetaView", () => {
   it("ミニ曼陀羅は右列に配置され、外側に追加の枠を持たない", () => {
     render(
       <CourseMetaView
+        {...translationProps}
+        seriesName={sampleSeries[0].name}
         series={sampleSeries}
         course={sampleSeries[0].courses[0]}
         onSave={vi.fn()}

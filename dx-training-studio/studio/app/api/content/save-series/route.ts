@@ -7,6 +7,10 @@ import {
 } from "@/lib/contents-loader";
 import { slugSchema } from "@/lib/schema";
 import { getProjectRoot } from "@/lib/project-root";
+import {
+  applyOptionalMetaFields,
+  EN_SOURCE_HASH_PATTERN,
+} from "@/lib/translation/units";
 
 const schema = z.object({
   series: z.string().min(1),
@@ -14,6 +18,10 @@ const schema = z.object({
   slug: slugSchema.or(z.literal("")).optional(),
   catch: z.string().optional(),
   description: z.string().optional(),
+  name_en: z.string().optional(),
+  catch_en: z.string().optional(),
+  description_en: z.string().optional(),
+  en_source_hash: z.string().regex(EN_SOURCE_HASH_PATTERN).or(z.literal("")).optional(),
 });
 
 /** シリーズ `.meta.json` の公開サイト向けフィールド（slug / catch / description）を保存する */
@@ -59,6 +67,12 @@ export async function POST(req: Request) {
       delete next.description;
       if (description.trim()) next.description = description.trim();
     }
+    applyOptionalMetaFields(next, {
+      name_en: parsed.data.name_en,
+      catch_en: parsed.data.catch_en,
+      description_en: parsed.data.description_en,
+      en_source_hash: parsed.data.en_source_hash,
+    });
     writeMetaJson(seriesDir, next);
     return Response.json({ ok: true });
   } catch (err) {

@@ -11,6 +11,10 @@ type Props = {
   kindLabel: string;
   onSave: () => void;
   saveDisabled?: boolean;
+  /** 保存ボタンの左に置く追加コントロール（言語切替＋鮮度チップ） */
+  headerExtra?: ReactNode;
+  /** 英語ビューでは保存を隠す（英語フォームが専用の保存を持つ） */
+  hideSave?: boolean;
   children: ReactNode;
 };
 
@@ -23,6 +27,8 @@ export function MetaViewShell({
   kindLabel,
   onSave,
   saveDisabled = false,
+  headerExtra,
+  hideSave = false,
   children,
 }: Props) {
   return (
@@ -32,10 +38,13 @@ export function MetaViewShell({
         <h2 className="min-w-0 truncate text-sm font-semibold text-foreground">
           {title}
         </h2>
-        <div className="ml-auto">
-          <Button size="sm" onClick={onSave} disabled={saveDisabled}>
-            保存
-          </Button>
+        <div className="ml-auto flex items-center gap-2">
+          {headerExtra}
+          {hideSave ? null : (
+            <Button size="sm" onClick={onSave} disabled={saveDisabled}>
+              保存
+            </Button>
+          )}
         </div>
       </div>
       <div className="workspace-scrollbar min-h-0 flex-1 overflow-y-auto overscroll-y-contain px-6 py-5">

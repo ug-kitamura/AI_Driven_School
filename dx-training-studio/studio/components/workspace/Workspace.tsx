@@ -25,6 +25,12 @@ import { useSeriesMutations } from "@/components/workspace/hooks/use-series-muta
 import { useWorkspaceImageAssets } from "@/components/workspace/hooks/use-workspace-image-assets";
 import { useWorkspaceSelection } from "@/components/workspace/hooks/use-workspace-selection";
 import { useContentSync } from "@/components/workspace/hooks/use-content-sync";
+import { useTranslationStatus } from "@/components/workspace/hooks/use-translation-status";
+import type { EditLanguage } from "@/components/workspace/translation/TranslationHeaderControls";
+import {
+  markTranslationFresh,
+  worstFreshness,
+} from "@/lib/translation/client";
 import type { Series } from "@/lib/schema";
 import { normalizeSeriesCourseMeta } from "@/lib/course-flow";
 import type { LessonMetaFields } from "@/lib/lesson-meta";
@@ -96,6 +102,12 @@ export function Workspace({
   // ここで持たないと「モーダルからコース遷移 → モーダルが消える」になる
   const [courseMandalaModalOpen, setCourseMandalaModalOpen] = useState(false);
   const [companyContextOpen, setCompanyContextOpen] = useState(false);
+  /**
+   * 編集言語（studio-translation spec）。ワークスペースの単一 state で、
+   * レッスンの本文エディタとメタダイアログはこれに連動する。
+   * 選択階層が変わるときは ja に戻す（requestSelectionChange が担う）
+   */
+  const [editLanguage, setEditLanguage] = useState<EditLanguage>("ja");
   const [saveErrorMsg, setSaveErrorMsg] = useState<string | null>(null);
   const saveErrorTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pane4UiInitialized = useRef(false);
@@ -203,12 +215,17 @@ export function Workspace({
   );
 
   const requestSelectionChange = useCallback((action: () => void) => {
+    // 選択階層が変わるときは編集言語を ja に戻す（英語ビューの持ち越し防止）
+    const wrapped = () => {
+      setEditLanguage("ja");
+      action();
+    };
     if (agentChatControllerRef.current?.isStreaming()) {
-      pendingSwitchRef.current = action;
+      pendingSwitchRef.current = wrapped;
       setStreamingSwitchOpen(true);
       return;
     }
-    action();
+    wrapped();
   }, []);
 
   const guardedSelectLesson = useCallback(
@@ -408,6 +425,62 @@ export function Workspace({
     selectedLesson?.lesson,
   ]);
 
+  // 翻訳の鮮度（チップ用）。契機: 選択変更・保存/翻訳/最新化（refresh）・
+  // 日本語本文の編集（contentSignal 経由の遅延再取得）
+  const { data: translationData, refresh: refreshTranslationStatus } =
+    useTranslationStatus({
+      seriesName: selectedSeriesName || undefined,
+      courseName: selectedCourse?.name,
+      lessonName: selectedLesson?.lesson,
+      contentSignal: selectedLesson?.content,
+    });
+
+  const lessonTranslationStatus = worstFreshness(
+    translationData?.statuses.lesson?.body,
+    translationData?.statuses.lesson?.meta,
+  );
+  const homeTranslationStatus = worstFreshness(
+    translationData?.statuses.root?.meta,
+    translationData?.changelog ?? undefined,
+  );
+
+  /** 「最新として扱う」。stale な側（本文/メタ）だけをハッシュ更新する */
+  const handleMarkFresh = useCallback(
+    (level: "root" | "series" | "course" | "lesson") => {
+      const names = {
+        ...(selectedSeriesName ? { series: selectedSeriesName } : {}),
+        ...(selectedCourse ? { course: selectedCourse.name } : {}),
+        ...(selectedLesson ? { lesson: selectedLesson.lesson } : {}),
+      };
+      const status = translationData?.statuses[level];
+      void (async () => {
+        try {
+          if (level === "lesson" && status?.body === "stale") {
+            await markTranslationFresh({ level, target: "body", names });
+          }
+          if (status?.meta === "stale") {
+            await markTranslationFresh({
+              level,
+              ...(level === "lesson" ? { target: "meta" as const } : {}),
+              names,
+            });
+          }
+          refreshTranslationStatus();
+        } catch (err) {
+          handleSaveError(`最新化エラー: ${String(err)}`);
+        }
+      })();
+    },
+    [
+      selectedSeriesName,
+      selectedCourse,
+      selectedLesson,
+      translationData,
+      refreshTranslationStatus,
+      handleSaveError,
+    ],
+  );
+
   const handlePane4ViewChange = useCallback((view: Pane4View) => {
     setPane4View(view);
     savePane4View(view);
@@ -531,6 +604,12 @@ export function Workspace({
                 availableImagePaths={availableImagePaths}
                 imageAssetsRevision={imageAssetsRevision}
                 searchHighlightQuery={contentSearchQuery}
+                editLanguage={editLanguage}
+                onEditLanguageChange={setEditLanguage}
+                translationStatus={lessonTranslationStatus}
+                onMarkFresh={() => handleMarkFresh("lesson")}
+                onTranslationChanged={refreshTranslationStatus}
+                onSaveError={handleSaveError}
               />
             ) : focusLevel === "course" && selectedCourse ? (
               <CourseMetaView
@@ -541,6 +620,12 @@ export function Workspace({
                 onSelectCourse={guardedSelectCourse}
                 mandalaModalOpen={courseMandalaModalOpen}
                 onMandalaModalOpenChange={setCourseMandalaModalOpen}
+                editLanguage={editLanguage}
+                onEditLanguageChange={setEditLanguage}
+                translationStatus={translationData?.statuses.course?.meta}
+                onMarkFresh={() => handleMarkFresh("course")}
+                onTranslationChanged={refreshTranslationStatus}
+                seriesName={selectedSeriesName}
               />
             ) : focusLevel === "series" && selectedSeriesItem ? (
               <SeriesMetaView
@@ -548,12 +633,26 @@ export function Workspace({
                 seriesItem={selectedSeriesItem}
                 onRenameSeries={updateSeriesName}
                 onSaveMeta={updateSeriesMeta}
+                editLanguage={editLanguage}
+                onEditLanguageChange={setEditLanguage}
+                translationStatus={translationData?.statuses.series?.meta}
+                onMarkFresh={() => handleMarkFresh("series")}
+                onTranslationChanged={refreshTranslationStatus}
               />
             ) : (
               <WorkspaceMetaView
                 workspaceName={workspace.name}
                 onSaveError={handleSaveError}
                 onGithubUrlSaved={setGithubUrl}
+                editLanguage={editLanguage}
+                onEditLanguageChange={setEditLanguage}
+                translationStatus={homeTranslationStatus}
+                onMarkFresh={
+                  translationData?.statuses.root?.meta === "stale"
+                    ? () => handleMarkFresh("root")
+                    : undefined
+                }
+                onTranslationChanged={refreshTranslationStatus}
               />
             )}
           </div>

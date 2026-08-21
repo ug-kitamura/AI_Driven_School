@@ -11,6 +11,12 @@ import {
 } from "@/components/workspace/metaDialogLayout";
 import { SLUG_PATTERN } from "@/lib/schema";
 import type { Series } from "@/lib/schema";
+import { EnMetaSection } from "@/components/workspace/translation/EnMetaSection";
+import {
+  TranslationHeaderControls,
+  type EditLanguage,
+} from "@/components/workspace/translation/TranslationHeaderControls";
+import type { TranslationFreshness } from "@/lib/translation/client";
 
 type Props = {
   seriesItem: Series;
@@ -19,10 +25,24 @@ type Props = {
     seriesId: string,
     meta: { slug?: string; catch?: string; description?: string },
   ) => void;
+  editLanguage: EditLanguage;
+  onEditLanguageChange: (language: EditLanguage) => void;
+  translationStatus: TranslationFreshness | undefined;
+  onMarkFresh?: () => void;
+  onTranslationChanged?: () => void;
 };
 
 /** シリーズ選択時のペイン2: シリーズメタの編集ビュー */
-export function SeriesMetaView({ seriesItem, onRenameSeries, onSaveMeta }: Props) {
+export function SeriesMetaView({
+  seriesItem,
+  onRenameSeries,
+  onSaveMeta,
+  editLanguage,
+  onEditLanguageChange,
+  translationStatus,
+  onMarkFresh,
+  onTranslationChanged,
+}: Props) {
   const [name, setName] = useState(seriesItem.name);
   const [slug, setSlug] = useState(seriesItem.slug ?? "");
   const [catchCopy, setCatchCopy] = useState(seriesItem.catch ?? "");
@@ -48,11 +68,44 @@ export function SeriesMetaView({ seriesItem, onRenameSeries, onSaveMeta }: Props
     }
   };
 
+  if (editLanguage === "en") {
+    return (
+      <MetaViewShell
+        title={seriesItem.name}
+        kindLabel="シリーズ"
+        onSave={() => {}}
+        hideSave
+        headerExtra={
+          <TranslationHeaderControls
+            language={editLanguage}
+            onLanguageChange={onEditLanguageChange}
+            status={translationStatus}
+            onMarkFresh={onMarkFresh}
+          />
+        }
+      >
+        <EnMetaSection
+          level="series"
+          names={{ series: seriesItem.name }}
+          onTranslationChanged={onTranslationChanged}
+        />
+      </MetaViewShell>
+    );
+  }
+
   return (
     <MetaViewShell
       title={seriesItem.name}
       kindLabel="シリーズ"
       onSave={handleSave}
+      headerExtra={
+        <TranslationHeaderControls
+          language={editLanguage}
+          onLanguageChange={onEditLanguageChange}
+          status={translationStatus}
+          onMarkFresh={onMarkFresh}
+        />
+      }
     >
       <div className={META_DIALOG_STACK}>
         <MetaDialogField>

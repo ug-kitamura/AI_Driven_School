@@ -3,8 +3,14 @@
 import { useEffect, useRef, useState, useCallback, useMemo } from "react";
 import dynamic from "next/dynamic";
 import ReactMarkdown from "react-markdown";
-import { GitCompare, Code, Eye, Edit3 } from "lucide-react";
+import { GitCompare, Code, Eye, Edit3, Loader2, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { useLessonEnBody } from "@/components/workspace/hooks/use-lesson-en-body";
+import {
+  TranslationHeaderControls,
+  type EditLanguage,
+} from "@/components/workspace/translation/TranslationHeaderControls";
+import type { TranslationFreshness } from "@/lib/translation/client";
 import { cn } from "@/lib/utils";
 import type { LessonMetaFields } from "@/lib/lesson-meta";
 import { stripHtmlComments } from "@/lib/html-comment-at-cursor";
@@ -60,6 +66,15 @@ type Props = {
   imageAssetsRevision?: number;
   /** ペイン1 の中身検索の語。編集ビューとプレビューの一致箇所を塗る */
   searchHighlightQuery?: string;
+  /** レッスンの編集言語（本文とメタダイアログが連動する1スイッチ） */
+  editLanguage: EditLanguage;
+  onEditLanguageChange: (language: EditLanguage) => void;
+  /** 鮮度チップ（本文とメタの悪いほう）。未取得は undefined */
+  translationStatus: TranslationFreshness | undefined;
+  onMarkFresh?: () => void;
+  /** 英語側の保存・翻訳適用の後に呼ぶ（鮮度チップの再取得） */
+  onTranslationChanged?: () => void;
+  onSaveError?: (message: string) => void;
 };
 
 const MODE_TABS: ReadonlyArray<PaneSegmentOption<Pane3Mode>> = [
@@ -93,12 +108,28 @@ export function MarkdownEditorPane({
   availableImagePaths = null,
   imageAssetsRevision = 0,
   searchHighlightQuery,
+  editLanguage,
+  onEditLanguageChange,
+  translationStatus,
+  onMarkFresh,
+  onTranslationChanged,
+  onSaveError,
 }: Props) {
   const editorRef = useRef<LessonContentEditorHandle>(null);
   const paneScrollRef = useRef<HTMLElement | null>(null);
   const lastCursorOffsetRef = useRef(0);
   const [diffState, setDiffState] = useState<DiffState>({ status: "idle" });
   const [metaDialogOpen, setMetaDialogOpen] = useState(false);
+
+  const isEnglish = editLanguage === "en";
+  const enBody = useLessonEnBody({
+    enabled: isEnglish,
+    series: lesson?.series,
+    course: lesson?.course,
+    lesson: lesson?.lesson,
+    onSaveError,
+    onSaved: onTranslationChanged,
+  });
 
   const previewBody = useMemo(
     () => (lesson ? stripHtmlComments(lesson.content) : ""),
@@ -228,6 +259,30 @@ export function MarkdownEditorPane({
           {lesson.lesson}
         </h2>
         <div className="ml-auto flex items-center gap-2">
+          <TranslationHeaderControls
+            language={editLanguage}
+            onLanguageChange={onEditLanguageChange}
+            status={translationStatus}
+            onMarkFresh={onMarkFresh}
+          />
+          {/* 本文翻訳は英語モードのヘッダーにだけ出す（エディタ本体には置かない） */}
+          {isEnglish ? (
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="h-6 shrink-0 px-2 text-xs"
+              onClick={enBody.translate}
+              disabled={enBody.translating || enBody.state.status !== "ready"}
+            >
+              {enBody.translating ? (
+                <Loader2 className="size-3 animate-spin" aria-hidden />
+              ) : (
+                <Sparkles className="size-3" aria-hidden />
+              )}
+              本文を翻訳
+            </Button>
+          ) : null}
           <Button
             type="button"
             variant="ghost"
@@ -238,13 +293,46 @@ export function MarkdownEditorPane({
           >
             <Edit3 className="h-3 w-3" />
           </Button>
-          <PaneSegmentControl
-            value={mode}
-            options={MODE_TABS}
-            onChange={onModeChange}
-          />
+          {/* 英語モードは編集ビュー固定（プレビュー/差分は日本語本文の機能） */}
+          {isEnglish ? null : (
+            <PaneSegmentControl
+              value={mode}
+              options={MODE_TABS}
+              onChange={onModeChange}
+            />
+          )}
         </div>
       </div>
+
+      {isEnglish ? (
+        <div className="relative min-h-0 flex-1 overflow-hidden">
+          {enBody.translateError ? (
+            <div className="border-b border-border bg-destructive/10 px-4 py-1.5 text-xs text-destructive">
+              {enBody.translateError}
+            </div>
+          ) : null}
+          {enBody.state.status === "ready" ? (
+            <div className="absolute inset-0 flex min-h-0 min-w-0 bg-background">
+              <LessonContentEditor
+                ref={editorRef}
+                lessonId={`${lesson.id}:en`}
+                value={enBody.state.body}
+                onChange={enBody.updateBody}
+                onScrollElementReady={handleScrollElementReady}
+                searchHighlightQuery={searchHighlightQuery}
+              />
+            </div>
+          ) : enBody.state.status === "error" ? (
+            <div className="flex h-full items-center justify-center px-4 text-sm text-destructive">
+              {enBody.state.message}
+            </div>
+          ) : (
+            <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
+              英語版を読み込み中...
+            </div>
+          )}
+        </div>
+      ) : (
 
       <div className="relative min-h-0 flex-1 overflow-hidden">
         <div
@@ -306,6 +394,7 @@ export function MarkdownEditorPane({
           </div>
         ) : null}
       </div>
+      )}
 
       <LessonMetaDialog
         open={metaDialogOpen}
@@ -313,6 +402,8 @@ export function MarkdownEditorPane({
         lesson={lesson}
         onSave={onUpdateLessonMeta}
         tagSuggestions={tagSuggestions}
+        language={editLanguage}
+        onTranslationChanged={onTranslationChanged}
       />
     </PaneWheelRoot>
   );

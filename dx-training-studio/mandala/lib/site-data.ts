@@ -13,7 +13,8 @@ export type SiteLesson = {
   status: LessonStatus;
   description: string;
   estimatedMinutes: number;
-  untranslated: boolean;
+  /** 翻訳バッジ（fresh はキー無し）。`untranslated`=日本語フォールバック / `stale`=古い翻訳 */
+  translation?: "untranslated" | "stale";
   href: string;
   titleEn?: string;
 };
@@ -28,6 +29,7 @@ export type SiteCourse = {
   catch?: string;
   catchEn?: string;
   target?: string;
+  targetEn?: string;
   crossSeriesPrev: string[];
   crossSeriesNext: string[];
   isStart?: boolean;

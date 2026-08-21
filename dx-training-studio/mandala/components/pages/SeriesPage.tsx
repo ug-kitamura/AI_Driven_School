@@ -66,7 +66,7 @@ export function SeriesPage({
               {course.lessons.length} {locale === "en" ? "lessons" : "レッスン"}
               ・{formatMinutes(course.totalMinutes, locale)}
               {course.target &&
-                ` ・${locale === "en" ? "For" : "対象"}: ${course.target}`}
+                ` ・${locale === "en" ? "For" : "対象"}: ${localizedOptional(course.target, course.targetEn, locale)}`}
             </span>
           </Link>
         ))}

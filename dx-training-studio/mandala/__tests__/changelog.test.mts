@@ -67,25 +67,36 @@ describe("emitChangelogPage", () => {
     expect(file.contents.endsWith(`---\n\n${JA_BODY}`)).toBe(true);
     expect(file.contents).toContain('searchable: false');
     expect(file.contents).toContain('title: "変更履歴"');
-    expect(file.contents).not.toContain("untranslated");
+    expect(file.contents).not.toContain("translation:");
   });
 
   it("英語: en 無しでは日本語へフォールバックし未翻訳バッジ情報を持つ", () => {
     const file = emitChangelogPage({ body: JA_BODY }, "en");
     expect(file.relativePath).toBe("en/changelog.md");
-    expect(file.contents).toContain("untranslated: true");
+    expect(file.contents).toContain('translation: "untranslated"');
     expect(file.contents).toContain('locale: "en"');
     expect(file.contents).toContain("主な更新のみ。");
     expect(file.contents).toContain('title: "Changelog"');
   });
 
-  it("英語: changelog.en.md があればそれを使いバッジは出ない", () => {
+  it("英語: 先頭エントリまで揃った changelog.en.md ならバッジは出ない", () => {
     const file = emitChangelogPage(
-      { body: JA_BODY, bodyEn: "# Changelog\n\n- added\n" },
+      { body: JA_BODY, bodyEn: "# Changelog\n\n## 2026-08-21\n\n- added\n" },
       "en",
     );
     expect(file.contents).toContain("- added");
-    expect(file.contents).not.toContain("untranslated");
+    expect(file.contents).not.toContain("translation:");
+  });
+
+  it("英語: 先頭エントリが日本語側より古ければ stale バッジを出す", () => {
+    const file = emitChangelogPage(
+      { body: JA_BODY, bodyEn: "# Changelog\n\n## 2026-08-15\n\n- old\n" },
+      "en",
+    );
+    expect(file.contents).toContain('translation: "stale"');
+    expect(file.contents).toContain('locale: "en"');
+    // 本文は英語版のまま（日本語へは差し替えない）
+    expect(file.contents).toContain("- old");
   });
 });
 

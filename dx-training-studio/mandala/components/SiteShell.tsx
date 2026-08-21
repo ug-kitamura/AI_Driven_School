@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, type ReactNode } from "react";
+import { useEffect, useMemo, type ReactNode } from "react";
 import { usePathname } from "next/navigation";
 import { Layout, Navbar } from "nextra-theme-docs";
 import { GitHubIcon } from "nextra/icons";
@@ -79,6 +79,16 @@ export function SiteShell({
     () => localePageMap(pageMap, pathname),
     [pageMap, pathname],
   );
+
+  // `<html lang>` を現在地の言語へ同期する。静的 HTML は postbuild
+  // （scripts/set-en-lang.mts）が正しくするので、これはクライアント遷移
+  // （ja ⇄ en の SPA 遷移）と dev サーバーのための補完。
+  // ⚠ Pagefind の索引言語は「検索を最初に開いた時点」の lang で決まる——
+  // 遷移前に一度検索していると、次のフルロードまで前言語の索引が残る（既知の限界）
+  const locale = localeOf(pathname);
+  useEffect(() => {
+    document.documentElement.lang = locale;
+  }, [locale]);
 
   return (
     <Layout

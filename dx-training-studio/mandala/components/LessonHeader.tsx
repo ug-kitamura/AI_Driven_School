@@ -1,4 +1,9 @@
-import { Label, StatusLabel, UntranslatedLabel } from "@/components/Label";
+import {
+  Label,
+  StatusLabel,
+  TranslationLabel,
+  type TranslationBadge,
+} from "@/components/Label";
 import {
   formatCourseStyle,
   formatMinutes,
@@ -17,7 +22,8 @@ export type LessonMetadata = {
   estimatedMinutes?: number;
   courseStyle?: CourseStyle;
   author?: string;
-  untranslated?: boolean;
+  /** 翻訳バッジ（en のみ）。`untranslated`=日本語フォールバック / `stale`=古い翻訳 */
+  translation?: TranslationBadge;
   /** seriesHref を持たないページ（変更履歴）が明示するロケール */
   locale?: string;
 };
@@ -30,10 +36,10 @@ export type LessonMetadata = {
 export function LessonHeader({ metadata }: { metadata: LessonMetadata }) {
   const { seriesHref, lessonStatus, estimatedMinutes, courseStyle, author } =
     metadata;
-  // seriesHref を持たないページ（トップ3階層・変更履歴）では、未翻訳バッジが
+  // seriesHref を持たないページ（トップ3階層・変更履歴）では、翻訳バッジが
   // 要るときだけ描く。ロケールは frontmatter の `locale` を使う（変更履歴の
   // 英語フォールバックが `locale: "en"` を明示する）
-  if (!seriesHref && !metadata.untranslated) return null;
+  if (!seriesHref && !metadata.translation) return null;
 
   const locale = seriesHref
     ? localeOf(seriesHref)
@@ -43,7 +49,7 @@ export function LessonHeader({ metadata }: { metadata: LessonMetadata }) {
   const styleLabel = formatCourseStyle(courseStyle, locale);
   const hasLabels = Boolean(lessonStatus || estimatedMinutes || styleLabel);
 
-  if (!hasLabels && !author && !metadata.untranslated) return null;
+  if (!hasLabels && !author && !metadata.translation) return null;
 
   return (
     <div className="dxm-lesson-header">
@@ -53,7 +59,9 @@ export function LessonHeader({ metadata }: { metadata: LessonMetadata }) {
           <Label kind="minutes">{formatMinutes(estimatedMinutes, locale)}</Label>
         ) : null}
         {styleLabel && <Label kind="style">{styleLabel}</Label>}
-        {metadata.untranslated && <UntranslatedLabel locale="en" />}
+        {metadata.translation && (
+          <TranslationLabel state={metadata.translation} locale="en" />
+        )}
       </div>
       {author && (
         <span className="dxm-lesson-author">

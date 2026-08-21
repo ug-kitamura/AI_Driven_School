@@ -31,7 +31,26 @@ export function StatusLabel({
   return <Label kind="status">{label}</Label>;
 }
 
-export function UntranslatedLabel({ locale }: { locale: Locale }) {
+/** 翻訳バッジの状態（translation-freshness spec。fresh はバッジ自体を出さない） */
+export type TranslationBadge = "untranslated" | "stale";
+
+/**
+ * 翻訳の状態バッジ。en ページ専用。
+ * `untranslated`=英語版が無く日本語を表示 / `stale`=英語版が原文より古い
+ */
+export function TranslationLabel({
+  state,
+  locale,
+}: {
+  state: TranslationBadge;
+  locale: Locale;
+}) {
   if (locale !== "en") return null;
-  return <Label kind="note">Not translated yet — showing Japanese</Label>;
+  return (
+    <Label kind="note">
+      {state === "untranslated"
+        ? "Not translated yet — showing Japanese"
+        : "Translation may be outdated"}
+    </Label>
+  );
 }

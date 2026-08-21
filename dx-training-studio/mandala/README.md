@@ -203,10 +203,12 @@ if [ "$VERCEL_GIT_COMMIT_REF" = "main" ]; then exit 1; else exit 0; fi
 | 全体     | `contents/.meta.json`                  | —      | `description` / `description_en`                      |
 | シリーズ | `contents/<series>/.meta.json`         | `slug` | `description` / `catch` / `cover` / `*_en`            |
 | コース   | `.../<course>/.meta.json`              | `slug` | `description` / `catch` / `target` / `*_en`           |
-| レッスン | `.../<lesson>/.meta.json` | `slug` | `id` / `status` / `description` / `estimated_minutes` / `author` / `author_en` |
+| レッスン | `.../<lesson>/.meta.json` | `slug` | `id` / `status` / `description` / `estimated_minutes` / `author` / `author_en` / `name_en` / `description_en` |
+
+各階層の `.meta.json` は、メタ翻訳の鮮度ハッシュ `en_source_hash` を持てる（書くのは翻訳の実行主体。サイトは読むだけ）。コースの受講対象者は `target_en` で英語版を持てる。
 
 - **画像**: 本文の `images/<file>` とシリーズの `cover` は、**正本 `../images/<file>` に実体が必要**。無いとビルドが失敗する（参照切れの検出を兼ねる）
-- **英語版**: レッスンは同フォルダの `contents.en.md`、メタは同じ `.meta.json` の `*_en` フィールド。無ければ日本語へフォールバックし、未翻訳バッジが出る
+- **英語版**: レッスンは同フォルダの `contents.en.md`、メタは同じ `.meta.json` の `*_en` フィールド。無ければ日本語へフォールバックし、未翻訳バッジが出る。`contents.en.md` の1行目には翻訳時の原文ハッシュ（`<!-- source: sha256:… -->`）を持ち、現在の `contents.md` と一致しなければ「翻訳が古い」バッジが出る（ハッシュ行は本文には表示されない）。変更履歴は日英の先頭エントリ日付の比較で同じ判定をする
 - **変更履歴**: `contents/changelog.md`（任意）。詳細は「生成物 → 変更履歴」を参照
 
 ## 既知の制約
@@ -221,6 +223,8 @@ if [ "$VERCEL_GIT_COMMIT_REF" = "main" ]; then exit 1; else exit 0; fi
 - **supergraphic 帯は `position: fixed` でフローから外し、その 6px の居場所を `--nextra-navbar-height` を 64px → 70px にして確保している**（ナビバーの中身の行には `padding-top: 6px`）。⚠ `sticky` に戻すと帯が本文フローの先頭 6px を占め、同じく `sticky top:0` のナビバーがスクロール開始直後に 6px ずり上がってから固定される（サイドバーと目次も追随する）。⚠ 変数を戻して帯を覆いかぶせる形にすると、ヘッダーも本文も 6px 上へ詰まって見える。**6px は帯の `height` と変数の加算分の 2 箇所にあるので、片方だけ変えないこと**。サイドバー・目次・モバイルナビの位置と高さはこの変数を見ているので自動で追随する
 - **ナビバーのアイコン3種は「見た目の幅」で揃えている**（箱の数字では揃わない）。`GitHubIcon` は `viewBox="3 3 18 18"` で余白を持たず被覆 100%、lucide は `0 0 24 24` で被覆 75〜83%。基準は左上のロゴ（`1.1rem` ＝ 見た目 17.6px）で、GitHub は `18`（被覆 100% なのでそのまま 18px）、lucide `Map` は `21`（見た目 15.75px）。**Map だけ意図的に1割強ちいさい**——丸い絵と矩形の絵を並べると、外接箱を揃えても矩形のほうが大きく見えるため。**サイズを触るときは被覆率ごと計算し直すこと**
 - **曼陀羅のホバートレース**は、現在のコンテンツでは見た目に変化が出ない。全コースが1本の鎖で繋がっており、どのノードから辿っても全ノードが経路に入るため（シリーズが増えて枝分かれすると効く）
+- **`/en` の `<html lang>` は postbuild（`scripts/set-en-lang.mts`）が生成物を書き換えて `en` にする**。ルートレイアウトが1つ（`lang="ja"` 固定）のため、静的 HTML はビルド後の書き換えでしか直せない。Pagefind はこの lang で日英の索引を分離するので、**このステップは Pagefind 実行より前に走ること**（`package.json` の postbuild の順序）。dev サーバーの HTML は書き換え対象外だが、`SiteShell` の effect が `/en` で lang を同期する
+- **検索の索引言語は「検索 UI を最初に開いた時点」の `<html lang>` で決まる**。ja ⇄ en を SPA 遷移で行き来しても effect が lang を追随させるが、遷移前に一度検索を開いていた場合は次のフルロードまで前言語の索引が残る（既知の限界）
 
 ## 構成
 

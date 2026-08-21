@@ -5,14 +5,21 @@ TBD - created by archiving change lesson-meta-json. Update Purpose after archive
 ## Requirements
 ### Requirement: レッスンメタの正本はレッスンフォルダの `.meta.json` である
 
-各レッスンのメタ情報は、レッスンフォルダ直下の `.meta.json`（`contents/<シリーズ>/<コース>/<レッスン>/.meta.json`）に保存しなければならない（SHALL）。持てるフィールドは `id` / `slug` / `status` / `description` / `tags` / `estimated_minutes` / `author` / `author_en`（および将来の `name_en` / `description_en`）とする（SHALL）。`series` / `course` / `lesson` の名前フィールドを持ってはならない（SHALL NOT）——名前の正本はフォルダ名であり、コース・シリーズの `.meta.json` が名前を持たない流儀と一致させる。未設定の任意フィールドはキー自体を書いてはならない（SHALL NOT）。
+各レッスンのメタ情報は、レッスンフォルダ直下の `.meta.json`（`contents/<シリーズ>/<コース>/<レッスン>/.meta.json`）に保存しなければならない（SHALL）。持てるフィールドは `id` / `slug` / `status` / `description` / `tags` / `estimated_minutes` / `author` / `author_en` / `name_en` / `description_en` / `en_source_hash` とする（SHALL）。`series` / `course` / `lesson` の名前フィールドを持ってはならない（SHALL NOT）——名前の正本はフォルダ名であり、コース・シリーズの `.meta.json` が名前を持たない流儀と一致させる。未設定の任意フィールドはキー自体を書いてはならない（SHALL NOT）。
 
 `status` の語彙は `open` / `in_progress` / `done` とし、旧値 `draft` は読込時に `open` へ読み替えなければならない（SHALL）。語彙外・未設定は `open` として扱う（SHALL）。
+
+`en_source_hash` はメタ翻訳の鮮度ハッシュであり、計算規則は `translation-freshness` capability が正本である。
 
 #### Scenario: レッスンメタを `.meta.json` から読み込む
 
 - **WHEN** レッスンフォルダの `.meta.json` に `slug` / `status` / `tags` / `estimated_minutes` / `author` が記述されている
 - **THEN** ロード結果のレッスンオブジェクトにそれらの値が設定される
+
+#### Scenario: en_source_hash を持つメタがスキーマに適合する
+
+- **WHEN** レッスン `.meta.json` に `"en_source_hash": "sha256:ab12..."` が記述されている
+- **THEN** strict スキーマの検証を通過し、未知キーとして拒否されない
 
 #### Scenario: 名前フィールドは持たない
 

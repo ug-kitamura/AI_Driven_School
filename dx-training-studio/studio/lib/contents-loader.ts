@@ -424,6 +424,10 @@ export function loadContentsFolder(projectRoot: string): Series[] {
         id: courseId,
         name: courseName,
         target: courseMeta.target,
+        ...(typeof courseMetaRaw.target_en === "string" &&
+        courseMetaRaw.target_en
+          ? { target_en: courseMetaRaw.target_en }
+          : {}),
         ...(courseMeta.style ? { style: courseMeta.style } : {}),
         cross_series_prev: courseMeta.cross_series_prev,
         cross_series_next: courseMeta.cross_series_next,

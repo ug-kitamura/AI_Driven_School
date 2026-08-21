@@ -51,6 +51,8 @@ export type CourseMeta = {
   description?: string;
   catch?: string;
   target?: string;
+  /** 受講対象者の英語版（`.meta.json` の `target_en`）。コース専用 */
+  targetEn?: string;
   style?: CourseStyle;
   nameEn?: string;
   descriptionEn?: string;
@@ -215,6 +217,7 @@ function readCourse(seriesDir: string, courseName: string): CourseMeta {
     description: str(meta.description),
     catch: str(meta.catch),
     target: str(meta.target) ?? str(meta.target_audience),
+    targetEn: str(meta.target_en),
     style: courseStyle(meta.style),
     nameEn: str(meta.name_en),
     descriptionEn: str(meta.description_en),

@@ -23,7 +23,7 @@
 
 ### Requirement: 変換は changelog をそのままコピーする
 
-変換スクリプトは `contents/changelog.md` の内容を変更せず `mandala/content/changelog.md` へ出力しなければならない（SHALL）。英語ツリーには `contents/changelog.en.md` があればその内容を、無ければ日本語の内容を `mandala/content/en/changelog.md` へ出力しなければならない（SHALL）。日本語フォールバック時は、レッスンと同じ未翻訳バッジを表示しなければならない（SHALL）。
+変換スクリプトは `contents/changelog.md` の内容を変更せず `mandala/content/changelog.md` へ出力しなければならない（SHALL）。英語ツリーには `contents/changelog.en.md` があればその内容を、無ければ日本語の内容を `mandala/content/en/changelog.md` へ出力しなければならない（SHALL）。日本語フォールバック時は、レッスンと同じ未翻訳バッジを表示しなければならない（SHALL）。`changelog.en.md` が存在する場合は、日英それぞれの先頭エントリの日付（`translation-freshness` capability の判定規則）を比較し、英語側が古ければレッスンと同じ「翻訳が古い」バッジを表示しなければならない（SHALL）。最新ならばバッジを表示しない（SHALL NOT）。
 
 #### Scenario: 内容が一致する
 
@@ -37,8 +37,13 @@
 
 #### Scenario: 英語版を置けば差し替わる
 
-- **WHEN** `contents/changelog.en.md` を置いて変換を実行する
-- **THEN** `/en/changelog` は英語版の内容になり、未翻訳バッジが消える
+- **WHEN** 最新エントリまで揃った `contents/changelog.en.md` を置いて変換を実行する
+- **THEN** `/en/changelog` は英語版の内容になり、どちらのバッジも表示されない
+
+#### Scenario: 追記が英語版に未反映なら古いバッジが出る
+
+- **WHEN** `changelog.md` の先頭エントリより古い先頭エントリしか持たない `changelog.en.md` がある状態で `/en/changelog` を開く
+- **THEN** 英語版の内容が表示され、翻訳が古いことを示すバッジが出る
 
 ### Requirement: 履歴ページはサイドバーの最後に並ぶ
 

@@ -53,7 +53,7 @@ const lesson: SiteLesson = {
   estimatedMinutes: 15,
   author: "Kitamura",
   body: "# 本文\n",
-  untranslated: true,
+  translation: "untranslated" as const,
   href: "/git/concepts/what-is-version-control",
   dir: "/tmp/lesson",
 };
@@ -74,21 +74,27 @@ describe("emitLessonMarkdown", () => {
     expect(md).toContain('description: "説明: コロンを含む文"');
   });
 
-  it("英語版では未翻訳フラグとロケール付き href を出す", () => {
+  it("英語版では未翻訳バッジとロケール付き href を出す", () => {
     const md = emitLessonMarkdown(lesson, series, course, "en", "# 本文\n");
-    expect(md).toContain("untranslated: true");
+    expect(md).toContain('translation: "untranslated"');
     expect(md).toContain('seriesHref: "/en/git"');
     expect(md).toContain('seriesName: "Git Basics"');
   });
 
-  it("英語版が翻訳済みなら未翻訳フラグを出さない", () => {
+  it("古い翻訳では stale バッジを出す", () => {
+    const stale = { ...lesson, translation: "stale" as const };
+    const md = emitLessonMarkdown(stale, series, course, "en", "# Body\n");
+    expect(md).toContain('translation: "stale"');
+  });
+
+  it("英語版が最新なら翻訳バッジを出さない", () => {
     const translated = {
       ...lesson,
-      untranslated: false,
+      translation: undefined,
       titleEn: "What is version control?",
     };
     const md = emitLessonMarkdown(translated, series, course, "en", "# Body\n");
-    expect(md).not.toContain("untranslated");
+    expect(md).not.toContain("translation:");
     expect(md).toContain('title: "What is version control?"');
   });
 

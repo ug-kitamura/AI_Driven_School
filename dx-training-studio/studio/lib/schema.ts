@@ -33,6 +33,14 @@ const localizedTextFields = {
 };
 
 /**
+ * メタ翻訳の鮮度ハッシュ（`sha256:<hex>`）。翻訳対象の日本語フィールドから
+ * 計算する。計算規則の正本は `lib/translation/freshness.ts`（translation-freshness spec）
+ */
+const enSourceHashField = {
+  en_source_hash: z.string().optional(),
+};
+
+/**
  * コースの受講形態。表示ラベルは表示側が locale ごとに持つ
  * （日本語: 独習 / 講義 / ハンズオン、英語: 値そのまま小文字）
  */
@@ -100,6 +108,7 @@ export const lessonMetaFileSchema = z
     author_en: z.string().optional(),
     name_en: z.string().optional(),
     description_en: z.string().optional(),
+    ...enSourceHashField,
   })
   .strict();
 export type LessonMetaFile = z.infer<typeof lessonMetaFileSchema>;
@@ -110,6 +119,8 @@ export const courseSchema = z.object({
   id: z.string(),
   name: z.string(),
   target: z.string().optional(),
+  /** 受講対象者の英語版。コース専用（target がコース専用のため） */
+  target_en: z.string().optional(),
   /** 受講形態。語彙外の値は読み込み時に未設定へ落とす */
   style: courseStyleSchema.optional().catch(undefined),
   /** 別シリーズの前コース ID のみ。同シリーズ内の前後は series.courses[] の順序で表す */
@@ -147,6 +158,7 @@ export const contentsMetaSchema = z.object({
   name_en: z.string().optional(),
   description: z.string().optional(),
   description_en: z.string().optional(),
+  ...enSourceHashField,
   /** トップのヒーロー画像。正本 `images/<file>` のファイル名 */
   hero: z.string().optional(),
   /** リポジトリへのリンク URL */
@@ -159,6 +171,7 @@ export const seriesMetaSchema = z.object({
   id: z.string().optional(),
   order: z.array(z.string()).default([]),
   ...publishingMetaFields,
+  ...enSourceHashField,
   cover: z.string().optional(),
 });
 export type SeriesMeta = z.infer<typeof seriesMetaSchema>;
@@ -168,12 +181,14 @@ export const courseMetaSchema = z.object({
   id: z.string().optional(),
   order: z.array(z.string()).default([]),
   target: z.string().optional(),
+  target_en: z.string().optional(),
   style: courseStyleSchema.optional().catch(undefined),
   cross_series_prev: z.array(z.string()).default([]),
   cross_series_next: z.array(z.string()).default([]),
   is_start: z.boolean().optional(),
   is_goal: z.boolean().optional(),
   ...publishingMetaFields,
+  ...enSourceHashField,
 });
 export type CourseMeta = z.infer<typeof courseMetaSchema>;
 

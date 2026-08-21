@@ -8,6 +8,7 @@ import type {
   SiteLesson,
   SiteSeries,
 } from "./site-model.mts";
+import { changelogFreshness } from "./translation-freshness.mts";
 
 export type Locale = "ja" | "en";
 
@@ -31,7 +32,8 @@ export function emitLessonMarkdown(
   body: string,
 ): string {
   const title = locale === "en" ? (lesson.titleEn ?? lesson.name) : lesson.name;
-  const untranslated = locale === "en" && lesson.untranslated;
+  // 翻訳バッジは en ページだけ。`untranslated`=日本語フォールバック / `stale`=古い翻訳
+  const translation = locale === "en" ? lesson.translation : undefined;
   // 著者は双方向フォールバック: ja = author → author_en / en = author_en → author
   const author =
     locale === "en"
@@ -51,7 +53,7 @@ export function emitLessonMarkdown(
     `seriesHref: ${yamlString(localizedHref(series.href, locale))}`,
     `courseName: ${yamlString(locale === "en" ? (course.nameEn ?? course.name) : course.name)}`,
     `courseHref: ${yamlString(localizedHref(course.href, locale))}`,
-    ...(untranslated ? ["untranslated: true"] : []),
+    ...(translation ? [`translation: ${yamlString(translation)}`] : []),
     ...(lesson.stableId ? [`lessonId: ${yamlString(lesson.stableId)}`] : []),
     "---",
   ].join("\n");
@@ -336,14 +338,19 @@ export function changelogTitle(locale: Locale): string {
  *   ⚠ `robots: "noindex"` は実測で Pagefind に**効かなかった**（2026-08-21。
  *   meta タグは出るが索引される）——検索除外に使わないこと
  * - 英語版は `changelog.en.md` があればそれを、無ければ日本語＋未翻訳バッジ
- *   （レッスンの `contents.en.md` と同じ作法）
+ *   （レッスンの `contents.en.md` と同じ作法）。英語版があっても先頭エントリの
+ *   日付が日本語側より古ければ「翻訳が古い」バッジ（translation-freshness spec）
  */
 export function emitChangelogPage(
   changelog: { body: string; bodyEn?: string },
   locale: Locale,
 ): EmittedFile {
   const prefix = localeContentPrefix(locale);
-  const untranslated = locale === "en" && changelog.bodyEn === undefined;
+  const freshness =
+    locale === "en"
+      ? changelogFreshness(changelog.body, changelog.bodyEn ?? null)
+      : "fresh";
+  const translation = freshness === "fresh" ? undefined : freshness;
   const body =
     locale === "en" ? (changelog.bodyEn ?? changelog.body) : changelog.body;
 
@@ -352,9 +359,11 @@ export function emitChangelogPage(
     `title: ${yamlString(changelogTitle(locale))}`,
     `sidebarTitle: ${yamlString(changelogTitle(locale))}`,
     "searchable: false",
-    // LessonHeader が未翻訳バッジを描くための印。seriesHref を持たないページ
+    // LessonHeader が翻訳バッジを描くための印。seriesHref を持たないページ
     // なのでロケールも明示する（バッジは en のときだけ出る）
-    ...(untranslated ? ["untranslated: true", `locale: "en"`] : []),
+    ...(translation
+      ? [`translation: ${yamlString(translation)}`, `locale: "en"`]
+      : []),
     "---",
   ].join("\n");
 

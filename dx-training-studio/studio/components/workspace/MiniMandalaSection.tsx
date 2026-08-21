@@ -114,7 +114,12 @@ export function MiniMandalaSection({
           aria-label="ミニ曼陀羅を拡大表示"
         >
           {/* サムネイルは compact ノード——カードのまま縮めると縮小率が上がって
-              文字が潰れる。操作は無効で、クリックは拡大モーダルを開く 1 動作だけ */}
+              文字が潰れる。パン・ズームは無効（staticView）。
+              ⚠ onSelectCourse は必ず渡すこと——コースノードだけは Mandala 側が
+              staticView でもクリックを処理し、隣接コースへ直接遷移させる
+              （中心コース自身のクリックは Mandala 側で無視される）。
+              それ以外（余白・端子・辺）のクリックはこの div を素通りして
+              親の button まで届き、そちらが拡大モーダルを開く */}
           <div className="pointer-events-none h-full w-full min-w-0">
             <LazyMandala
               graph={graph}
@@ -123,6 +128,7 @@ export function MiniMandalaSection({
               currentCourseId={course.id}
               fill
               staticView
+              onSelectCourse={onSelectCourse}
             />
           </div>
         </button>

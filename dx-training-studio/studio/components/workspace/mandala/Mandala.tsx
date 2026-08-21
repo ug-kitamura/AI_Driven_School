@@ -400,12 +400,21 @@ export function Mandala({
   );
 
   const onNodeClick = useCallback(
-    (_event: React.MouseEvent, node: Node) => {
-      if (staticView) return;
+    (event: React.MouseEvent, node: Node) => {
+      // ⚠ コースノードだけは staticView（サムネイル）でも処理する——React Flow の
+      // ノードは `pointer-events: all` で祖先の pointer-events-none を上書きして
+      // 独立にクリックを検知できるので、サムネイル上のコースブロックだけ直接
+      // 遷移させられる。DOM 上ではこのクリックがそのまま親のボタン（拡大モーダルを
+      // 開く）までバブリングするため、ここで止めないと遷移とモーダルが同時に起きる
       if (courseIds.has(node.id)) {
-        onSelectCourse?.(node.id);
+        if (node.id !== currentCourseId) {
+          onSelectCourse?.(node.id);
+        }
+        // 中心（現在選択中）のコース自身は遷移先が無いので何もしない
+        event.stopPropagation();
         return;
       }
+      if (staticView) return;
       // シリーズ枠はそのシリーズを選ぶ。枠の中でもコースノードの上ではコースが
       // 優先される——z-index で決まっており（コース 0 / 枠 -1）、上の分岐に入る
       if (node.id.startsWith(FRAME_PREFIX)) {
@@ -419,7 +428,7 @@ export function Mandala({
         onSelectSeries?.(node.id.slice(COLLAPSED_PREFIX.length));
       }
     },
-    [courseIds, onSelectCourse, onSelectSeries, staticView],
+    [courseIds, currentCourseId, onSelectCourse, onSelectSeries, staticView],
   );
 
   const seriesList = useMemo(

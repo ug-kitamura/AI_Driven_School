@@ -66,20 +66,25 @@ export function MiniMandalaSection({
 
   const modal = (
     <Dialog open={modalOpen} onOpenChange={handleOpenChange}>
-      {/* 跨ぎ先が 3 つ以上あるコースでも横に収まる幅。カード自体は広げない */}
-      <DialogContent className="max-w-5xl">
+      {/* 跨ぎ先が 3 つ以上あるコースでも横に収まる幅。カード自体は広げない。
+          ⚠ 高さの主張はここ 1 箇所に集める——ダイアログの上限とキャンバスの高さを
+          別々に指定すると、収まらないときにフレックスがキャンバスを縮め、
+          フィット済みの表示がそのぶんずれる */}
+      <DialogContent className="flex max-h-[85vh] min-h-[20rem] max-w-5xl flex-col">
         <DialogHeader>
           <DialogTitle>ミニ曼陀羅</DialogTitle>
         </DialogHeader>
         {course ? (
-          <LazyMandala
-            graph={graph}
-            scope={{ kind: "course", courseId: course.id }}
-            variant="card"
-            currentCourseId={course.id}
-            height="min(60vh, 560px)"
-            onSelectCourse={handleSelectFromModal}
-          />
+          <div className="flex min-h-0 flex-1 flex-col">
+            <LazyMandala
+              graph={graph}
+              scope={{ kind: "course", courseId: course.id }}
+              variant="card"
+              currentCourseId={course.id}
+              fill
+              onSelectCourse={handleSelectFromModal}
+            />
+          </div>
         ) : null}
       </DialogContent>
     </Dialog>
@@ -97,7 +102,11 @@ export function MiniMandalaSection({
       <div className="h-full min-w-0">
         <button
           type="button"
-          className="block h-full w-full min-w-0 cursor-zoom-in overflow-hidden rounded border border-border/50 bg-muted/30 p-1 text-left transition-colors hover:bg-muted/50"
+          // ⚠ 平常時に地を敷かないこと——キャンバス側がほぼ透明な地を持つので、
+          // 二重になって意図した薄さにならない。地はキャンバスの 1 枚に任せ、
+          // 3 つの面（サムネイル・拡大モーダル・全体曼陀羅）で同じ絵に見せる。
+          // ホバーの地は残す——押せることの手がかりで、平常時の見た目は変えない
+          className="block h-full w-full min-w-0 cursor-zoom-in overflow-hidden rounded border border-border/50 p-1 text-left transition-colors hover:bg-muted/40"
           onClick={() => onModalOpenChange(true)}
           aria-label="ミニ曼陀羅を拡大表示"
         >
@@ -109,7 +118,7 @@ export function MiniMandalaSection({
               scope={{ kind: "course", courseId: course.id }}
               variant="compact"
               currentCourseId={course.id}
-              height="100%"
+              fill
               staticView
             />
           </div>

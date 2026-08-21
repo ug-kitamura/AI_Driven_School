@@ -194,4 +194,33 @@ describe("terminalNodes", () => {
     const { terminals } = terminalNodes(view.nodes, () => "series:git");
     expect(terminals.every((t) => t.courseId === "series:git")).toBe(true);
   });
+
+  /**
+   * ミニ曼陀羅は中心コース自身の宣言だけを拾う——映しているのは中心とその隣接
+   * 1 段なので、隣のコースの宣言まで拾うと「2 段先」の情報が混じる。
+   * `Mandala` が `courseView` の結果を中心コースだけに絞って渡す規則をここで固定する。
+   */
+  const centerOnly = (graph: ReturnType<typeof buildMandalaGraph>, id: string) =>
+    terminalNodes(courseView(graph, id).nodes.filter((n) => n.id === id));
+
+  it("puts Start on the center course when it declares one", () => {
+    const graph = buildMandalaGraph(fixture);
+    const { terminals, edges } = centerOnly(graph, "a");
+    expect(terminals.map((t) => t.kind)).toEqual(["start"]);
+    expect(edges.map((e) => e.id)).toEqual(["terminal:start:a__a"]);
+  });
+
+  it("does not pick up a neighbour's Start declaration", () => {
+    const graph = buildMandalaGraph(fixture);
+    // b の 1 個前は a（is_start）だが、その手前の Start までは出さない
+    expect(courseView(graph, "b").nodes.map((n) => n.id)).toContain("a");
+    expect(centerOnly(graph, "b").terminals).toEqual([]);
+  });
+
+  it("puts Goal on the center course when it declares one", () => {
+    const graph = buildMandalaGraph(fixture);
+    const { terminals, edges } = centerOnly(graph, "c");
+    expect(terminals.map((t) => t.kind)).toEqual(["goal"]);
+    expect(edges.map((e) => e.id)).toEqual(["c__terminal:goal:c"]);
+  });
 });

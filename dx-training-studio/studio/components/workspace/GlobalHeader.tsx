@@ -278,7 +278,10 @@ export function GlobalHeader({
 
       {/* 曼陀羅フルスクリーンモーダル */}
       <Dialog open={mandalaOpen} onOpenChange={handleMandalaModalOpenChange}>
-        <DialogContent className="max-w-5xl max-h-[90vh] flex flex-col">
+        {/* ⚠ 高さの主張はダイアログ側 1 箇所に集める——上限とキャンバスの高さを
+            別々に指定すると、収まらないときにフレックスがキャンバスを縮め、
+            フィット済みの表示がそのぶんずれる */}
+        <DialogContent className="flex max-h-[90vh] min-h-[20rem] max-w-5xl flex-col">
           <DialogHeader>
             <DialogTitle>DXトレーニング曼陀羅</DialogTitle>
           </DialogHeader>
@@ -289,7 +292,7 @@ export function GlobalHeader({
                 scope={{ kind: "global" }}
                 variant="compact"
                 currentCourseId={selectedCourseId}
-                height="min(74vh, 720px)"
+                fill
                 onSelectCourse={handleSelectFromMandala}
                 showChrome
               />

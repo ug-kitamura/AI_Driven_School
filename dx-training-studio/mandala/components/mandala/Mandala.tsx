@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   Controls,
@@ -10,6 +10,7 @@ import {
   ReactFlow,
   type Edge,
   type Node,
+  type ReactFlowInstance,
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 import {
@@ -339,6 +340,44 @@ export function Mandala({
     [],
   );
 
+  /**
+   * コンテナの寸法が確定したとき・変わったときに曼陀羅を中心へ収め直す。
+   *
+   * ⚠ `fitView` の boolean prop は**初期化時の一度きり**で、options では変えられない。
+   * ウィンドウのリサイズやレイアウトの落ち着きでキャンバスの寸法が後から変わると、
+   * 初回フィット時の寸法との差がそのままずれとして残る。
+   * ⚠ Studio 側（`studio/components/workspace/mandala/Mandala.tsx`）に同じ手当がある。
+   * 相互依存禁止の規約によりコピーで持つので、直すときは両方直す。
+   */
+  const canvasRef = useRef<HTMLDivElement | null>(null);
+  const instanceRef = useRef<ReactFlowInstance | null>(null);
+  // 監視を張り替えずにコールバックから読むためのミラー
+  const interactiveRef = useRef(interactive);
+  interactiveRef.current = interactive;
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+
+    let frame = 0;
+    const observer = new ResizeObserver(() => {
+      // ⚠ 寸法の観測と同一フレームで viewport を変えない
+      // （"ResizeObserver loop completed with undelivered notifications" が出る）
+      cancelAnimationFrame(frame);
+      frame = requestAnimationFrame(() => {
+        // パン・ズームを始めたあとに合わせ直すと閲覧者の操作を巻き戻すことになる
+        if (interactiveRef.current) return;
+        instanceRef.current?.fitView(FIT_VIEW_OPTIONS);
+      });
+    });
+    observer.observe(canvas);
+
+    return () => {
+      cancelAnimationFrame(frame);
+      observer.disconnect();
+    };
+  }, []);
+
   const toggleSeries = (slug: string) => {
     setCollapsedSlugs((prev) => {
       const next = new Set(prev);
@@ -372,6 +411,7 @@ export function Mandala({
           })}
       </div>
       <div
+        ref={canvasRef}
         className="dxm-mandala-canvas"
         style={{ height: canvasHeight }}
         // クリックするまではページスクロールを優先する
@@ -381,8 +421,13 @@ export function Mandala({
           nodes={nodes}
           edges={edges}
           nodeTypes={mandalaNodeTypes}
+          // 初回のフィット。以降の追随は上の ResizeObserver が担う
+          // （経路を二重化しないよう、初回はこちらに任せたままにする）
           fitView
           fitViewOptions={FIT_VIEW_OPTIONS}
+          onInit={(instance) => {
+            instanceRef.current = instance;
+          }}
           nodesDraggable={false}
           nodesConnectable={false}
           elementsSelectable={false}

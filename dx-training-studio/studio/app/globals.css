@@ -863,6 +863,24 @@ html.dark .lesson-content-editor .cm-foldGutter.lesson-fold-gutter span.lesson-f
   min-height: 0;
 }
 
+/* 親の高さいっぱいに広げるモード（`Mandala` の `fill`）。
+   ⚠ `.dxm-mandala` 自体に `height: 100%` を書かないこと——キャンバスが絶対長の
+   ままの面（ツールバー付きの全体曼陀羅）で、ツールバーのぶん親を溢れる。
+   「親いっぱい」を選んだときだけキャンバスを残りの高さへ切り替える */
+.dxm-mandala-fill {
+  height: 100%;
+  min-height: 0;
+}
+
+.dxm-mandala-fill .dxm-mandala-canvas {
+  flex: 1;
+  /* flex アイテムの既定は `min-height: auto`（中身の実寸が下限になる）。
+     実数で置き換えることで、①中身の実寸に引きずられない ②ビューポートが低い
+     環境でキャンバスが潰れない、の両方を満たす。下限に当たったぶんのはみ出しは
+     親（ダイアログ・セル）側が処理する */
+  min-height: 8rem;
+}
+
 .dxm-mandala-toolbar {
   display: flex;
   flex-wrap: wrap;
@@ -882,8 +900,14 @@ html.dark .lesson-content-editor .cm-foldGutter.lesson-fold-gutter span.lesson-f
   opacity: 0.75;
 }
 
+/* 地はほぼ透明にする——曼陀羅を「特別な箱」に見せず、置かれた面と地続きにする
+   （公開サイトの `.dxm-mandala-canvas` と同じ意図・同じ割合）。
+   ⚠ `--muted` のような不透明色を使わないこと。Studio では `--muted` が
+   `--background` と同値なので、白い `bg-card` のモーダルの中でグレーの箱として浮く。
+   ⚠ 完全な透明にはしない: クリック後はパン・ズームが働きノードは領域の縁で
+   切り落とされるので、輪郭がまったく無いと「何もない所で切れる」ように見える */
 .dxm-mandala-canvas {
-  background: var(--muted);
+  background: color-mix(in srgb, var(--foreground) 3%, transparent);
   border-radius: 0.6rem;
   overflow: hidden;
 }
@@ -928,7 +952,10 @@ html.dark .lesson-content-editor .cm-foldGutter.lesson-fold-gutter span.lesson-f
   flex-direction: column;
   gap: 0.2rem;
   padding: 0.5rem 0.7rem;
-  border: 1px solid var(--border);
+  /* サイトの `.dxm-node` と同じ割合。⚠ `--border` を使わないこと——地を薄くした
+     ぶんノードの輪郭が弱くなり、白地に白いカードが浮かぶ絵になる。曼陀羅は完結した
+     1 枚の地図なので、Studio の他のフォーム部品と枠の濃さを揃える動機はない */
+  border: 1px solid color-mix(in srgb, var(--card-foreground) 45%, transparent);
   border-radius: 0.5rem;
   background: var(--card);
   color: var(--card-foreground);
@@ -948,8 +975,8 @@ html.dark .lesson-content-editor .cm-foldGutter.lesson-fold-gutter span.lesson-f
    ⚠ 寸法は `Mandala.tsx` の SIZES.card と一致させること——dagre は固定寸法を
    前提に座標を出すので、CSS 側だけ変えると辺の接続位置がずれる */
 .dxm-node-card {
-  width: 260px;
-  height: 96px;
+  width: 230px;
+  height: 88px;
 }
 
 /* 折りたたんだシリーズ 1 つ分。展開時のシリーズ枠がそのまま縮んだように見せる。
@@ -989,13 +1016,17 @@ html.dark .lesson-content-editor .cm-foldGutter.lesson-fold-gutter span.lesson-f
   margin-top: auto;
 }
 
-/* 受講形態。compact は右端へ寄せ、card は右端・高さ中央に絶対配置する */
+/* 受講形態。compact は右端へ寄せ、card は右端・高さ中央に絶対配置する。
+   地はブランド色の薄い敷き（サイトの `--dxm-brand-soft` と同じ 12%）。
+   ⚠ サイトのように `#007bc0` を直値で書き写さないこと——サイトの `--dxm-brand` は
+   テーマ非依存の固定値で、暗い地では字が沈む（約 2.3:1）。Studio の `--primary` は
+   ダークで明るい青へ振れるので、役割トークンで書くほうが安全。ライトでは同値 */
 .dxm-node-style {
   margin-left: auto;
   padding: 0.02rem 0.4rem;
   border-radius: 999px;
-  background: var(--secondary);
-  color: var(--secondary-foreground);
+  background: color-mix(in srgb, var(--primary) 12%, transparent);
+  color: var(--primary);
   font-size: 0.68rem;
   font-weight: 700;
   white-space: nowrap;
@@ -1011,8 +1042,10 @@ html.dark .lesson-content-editor .cm-foldGutter.lesson-fold-gutter span.lesson-f
 
 .dxm-node-card {
   position: relative;
-  /* 右端のラベルと本文が重ならないだけの逃げ */
-  padding-right: 5.5rem;
+  /* 右端のラベルと本文が重ならないだけの逃げ。
+     ラベルは「独習 / 講義」の 2 文字＋左右の余白で約 35px、右端から 0.7rem 浮くので
+     必要なのは約 46px。4rem（64px）はその上での余裕 */
+  padding-right: 4rem;
 }
 
 /* いま選んでいるコース。枠を青くしてノードの左外にピンを重ねる。
@@ -1040,11 +1073,12 @@ html.dark .lesson-content-editor .cm-foldGutter.lesson-fold-gutter span.lesson-f
   fill: color-mix(in oklab, var(--primary) 18%, var(--card));
 }
 
-/* 別シリーズの相手コース。透明度を下げすぎると読めないので、
-   区別は破線の枠とシリーズ名ラベルに寄せる */
+/* 別シリーズの相手コース。区別は透明度と、カードならシリーズ名の行が担う。
+   ⚠ 枠を破線にしないこと——曼陀羅では辺とシリーズ枠がすでに破線なので、
+   3 種類目の破線を足すと 1 枚の絵の読み取りが重くなる。
+   ゴーストが立つのは `courseView` だけなので、効くのはミニ曼陀羅の 2 面のみ */
 .dxm-node-ghost {
   opacity: 0.85;
-  border-style: dashed;
 }
 
 .dxm-terminal {
@@ -1056,6 +1090,10 @@ html.dark .lesson-content-editor .cm-foldGutter.lesson-fold-gutter span.lesson-f
   font-size: 0.9rem;
   font-weight: 800;
   letter-spacing: 0.04em;
+  /* ⚠ サイトの `opacity: .75` を式ごと移さないこと。あちらは Nextra の本文色
+     （スレート系）に掛けているので実効値は約 #6e757f になる。Studio の
+     `--foreground` はほぼ黒なので同じ式だと #565859 まで濃くなり、かえってずれる。
+     `--muted-foreground`（#71767C）がサイトの実効値と一致する（両テーマで実測） */
   color: var(--muted-foreground);
 }
 

@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Controls,
   MarkerType,
@@ -9,6 +9,7 @@ import {
   ReactFlow,
   type Edge,
   type Node,
+  type ReactFlowInstance,
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 import {
@@ -30,8 +31,10 @@ import {
 const SIZES = {
   compact: { width: 200, height: 52 },
   // シリーズ名・コース名・「N レッスン・約 M 分」の 3 行＋右端ラベルが収まる
-  // 必要十分な寸法。キャッチを載せないぶんサイトのカード（280×140）より小さい
-  card: { width: 260, height: 96 },
+  // 必要十分な寸法。キャッチを載せないぶんサイトのカード（280×140）より小さい。
+  // ⚠ `globals.css` の `.dxm-node-card` と必ず同時に直すこと——dagre は固定寸法を
+  // 前提に座標を出すので、片方だけ変えると辺の接続位置がノードの縁からずれる
+  card: { width: 230, height: 88 },
   collapsedSeries: { width: 210, height: 72 },
   terminal: { width: 90, height: 30 },
 } as const;
@@ -74,7 +77,18 @@ export type MandalaProps = {
   variant: "compact" | "card";
   /** いま選んでいるコース。青枠＋ピンで示す */
   currentCourseId?: string | null;
+  /**
+   * キャンバスの高さ。**CSS の絶対長だけ**を渡すこと（`720` / `"min(74vh, 720px)"`）。
+   * ⚠ `"100%"` のようなパーセントを渡してはならない——ラッパの高さが確定して
+   * いないので解決できず、キャンバスが 0px に潰れる。親いっぱいに広げたいときは `fill`
+   */
   height?: number | string;
+  /**
+   * 親の高さいっぱいに広げる。`height` は無視される。
+   * ツールバーを持つ面でも溢れないよう、キャンバス側が残りの高さを取る
+   * （規則は `globals.css` の `.dxm-mandala-fill`）
+   */
+  fill?: boolean;
   onSelectCourse?: (courseId: string) => void;
   /** サムネイル用: パン・ズーム・ノードクリックを一切受けない */
   staticView?: boolean;
@@ -88,6 +102,7 @@ export function Mandala({
   variant,
   currentCourseId = null,
   height = 560,
+  fill = false,
   onSelectCourse,
   staticView = false,
   showChrome = false,
@@ -123,17 +138,27 @@ export function Mandala({
       currentCourseId,
     );
 
-    // Start / Goal は全体曼陀羅だけに置く。畳まれたシリーズのコースが宣言して
-    // いるときは、辺を集約ノードへ繋ぎ替える
+    // 全体曼陀羅は宣言している全てのコースに Start / Goal を置く。畳まれた
+    // シリーズのコースが宣言しているときは、辺を集約ノードへ繋ぎ替える。
+    //
+    // ミニ曼陀羅は**中心コース自身の宣言だけ**を拾う——映しているのは中心と
+    // その隣接 1 段なので、隣のコースの宣言まで拾うと「2 段先」の情報が混じる。
+    // 例: 入口のコースを開けば 1 個前として Start が出るが、その次のコースを
+    // 開いたときは 1 個前のコースだけが出て、その手前の Start は出ない。
     const collapsedIdBySeries = new Map(
       collapsible.collapsed.map((c) => [c.seriesId, c.id]),
     );
-    const { terminals, edges: terminalEdges } = isGlobal
-      ? terminalNodes(view.nodes, (courseId) => {
-          const node = view.nodes.find((n) => n.id === courseId);
-          return (node && collapsedIdBySeries.get(node.seriesId)) ?? courseId;
-        })
-      : { terminals: [], edges: [] };
+    const terminalSources =
+      scope.kind === "global"
+        ? view.nodes
+        : view.nodes.filter((n) => n.id === scope.courseId);
+    const { terminals, edges: terminalEdges } = terminalNodes(
+      terminalSources,
+      (courseId) => {
+        const node = view.nodes.find((n) => n.id === courseId);
+        return (node && collapsedIdBySeries.get(node.seriesId)) ?? courseId;
+      },
+    );
 
     // 接続点の丸ポチは「辺が出ていく側」にだけ出す
     const outgoing = new Set(
@@ -298,6 +323,7 @@ export function Mandala({
     view,
     collapsible,
     variant,
+    scope,
     isGlobal,
     collapsedIds,
     currentCourseId,
@@ -322,6 +348,43 @@ export function Mandala({
     [graph],
   );
 
+  /**
+   * コンテナの寸法が確定したとき・変わったときに曼陀羅を中心へ収め直す。
+   *
+   * ⚠ `fitView` の boolean prop は**初期化時の一度きり**で、options では変えられない。
+   * モーダルは開いた直後にフレックスがキャンバスを縮めることがあり、初回フィット時の
+   * 寸法と最終的な寸法が食い違ったぶんがそのままずれとして残っていた。
+   */
+  const canvasRef = useRef<HTMLDivElement | null>(null);
+  const instanceRef = useRef<ReactFlowInstance | null>(null);
+  // 監視を張り替えずにコールバックから読むためのミラー
+  const interactiveRef = useRef(interactive);
+  interactiveRef.current = interactive;
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+
+    let frame = 0;
+    const observer = new ResizeObserver(() => {
+      // ⚠ 寸法の観測と同一フレームで viewport を変えない
+      // （"ResizeObserver loop completed with undelivered notifications" が出る）
+      cancelAnimationFrame(frame);
+      frame = requestAnimationFrame(() => {
+        // パン・ズームを始めたあとに合わせ直すと操作を巻き戻すことになる。
+        // サムネイル（staticView）は操作を受けないので常に合わせ直してよい
+        if (!staticView && interactiveRef.current) return;
+        instanceRef.current?.fitView(FIT_VIEW_OPTIONS);
+      });
+    });
+    observer.observe(canvas);
+
+    return () => {
+      cancelAnimationFrame(frame);
+      observer.disconnect();
+    };
+  }, [staticView]);
+
   const toggleSeries = (seriesId: string) => {
     setCollapsedIds((prev) => {
       const next = new Set(prev);
@@ -336,7 +399,7 @@ export function Mandala({
   const canPan = !staticView && interactive;
 
   return (
-    <div className="dxm-mandala">
+    <div className={fill ? "dxm-mandala dxm-mandala-fill" : "dxm-mandala"}>
       {showChrome && (
         <div className="dxm-mandala-toolbar">
           {seriesList.map(([seriesId, seriesName]) => {
@@ -356,8 +419,10 @@ export function Mandala({
         </div>
       )}
       <div
+        ref={canvasRef}
         className="dxm-mandala-canvas"
-        style={{ height }}
+        // fill のときは高さを CSS（`.dxm-mandala-fill`）が決める
+        style={fill ? undefined : { height }}
         // クリックするまではスクロールを優先する
         onClick={() => {
           if (!staticView) setInteractive(true);
@@ -367,8 +432,13 @@ export function Mandala({
           nodes={nodes}
           edges={edges}
           nodeTypes={mandalaNodeTypes}
+          // 初回のフィット。以降の追随は上の ResizeObserver が担う
+          // （経路を二重化しないよう、初回はこちらに任せたままにする）
           fitView
           fitViewOptions={FIT_VIEW_OPTIONS}
+          onInit={(instance) => {
+            instanceRef.current = instance;
+          }}
           nodesDraggable={false}
           nodesConnectable={false}
           elementsSelectable={false}

@@ -1,6 +1,8 @@
 # 引き継ぎ: dx-training-studio
 
-**次のセッションの入口は「モーダル構成をサイト同型に変えた追随修正の実機確認」**。ラウンド10 のあと実機フィードバックで 3 巡の追随修正を行い、最後に**モーダルの曼陀羅を公開サイトと同じ構成（ダイアログは高さを持たない・キャンバスだけ絶対長・開閉アニメーション無し）へ作り替えた**（2026-08-21・→ 1章）。⚠ **「開き直しても中心が合うか」はペインでは原理的に判定できず、この最終形はまだ実機で確認されていない**。確認してほしい項目は 1章に列挙してある。
+**次のセッションの入口は「英語翻訳対応」**（ユーザー宣言・2026-08-21）。4大課題ロードマップの最後の1つ（④）で、**器はすべて実装済み・中身が全部未記入**という状態から始める。決定済み事項・器の現状・explore で決めることは **1.5 節にまとめた**。標準サイクル（explore → propose → apply）で入ること。
+
+積み残しの実機確認が1件ある: **曼陀羅モーダルを閉じて開き直したとき中心が合うか**（→ 1章。ペインでは原理的に判定できない）。英語対応の探索を始める前か合間に、ユーザーへひと言確認すると片付く。
 
 ⚠ **ラウンド9・10 はユーザーの明示指示でコミット・プッシュまで済ませた**（ブランチ `dx-ebex-pink-search-mandala`）。**これは例外**で、既定は「コミットしない」のまま（→ 6.3）。PR とマージは人がやる。
 
@@ -17,7 +19,10 @@
 ## 1. 残っている仕事
 
 ```
-[次] モーダル構成変更の実機確認                 ← 次セッションの入口。⚠ 最優先
+[次] 英語翻訳対応（4大課題の④・最後の1つ）      ← 次セッションの入口
+       決定済み・器の現状・未決事項は 1.5 節。explore から入る
+
+[次] モーダル構成変更の実機確認（ユーザーに聞くだけ）
        ラウンド10 → 実機フィードバック 3 巡で以下まで到達（2026-08-21・push 済み）:
          ✅ 実機確認済み: サムネイル表示・初回の中心・ライトの色・
             シリーズ枠クリック（今ここ追従つき）
@@ -57,6 +62,13 @@
        ラウンド10 の change（dx 側2本。サイト `mandala/` にも及ぶ）:
          ・mandala-sizing-and-fit     サムネイルの高さ伝播＋再フィット
          ・mandala-appearance-polish  色・カード寸法・Start/Goal・ゴースト
+       2026-08-21 追加（同ブランチに積み増し・push 済み）:
+         ・pane4-insert-gating           画像挿入の可否を「レッスン選択中かつ
+                                         編集モード」に正規化・注意書き/通知廃止
+         ・pane4-ai-web-without-lesson   レッスン外でも AI/Web タブを表示・
+                                         生成/検索可（lesson 任意化）
+         ・mini-mandala-node-navigate    ミニ曼陀羅サムネイルのノードクリック遷移
+         ・ほか extract-markdown-block のフィクスチャ化・lint 4件の正当化
        ⚠ **EBEX 側の実機確認はまだ聞いていない**（dx 側の報告のみ）
 
 [次] レビュー指摘の採否                            ← 内容の主線。3章
@@ -78,13 +90,45 @@
 
 [後] 模範解答の2本目（→ 5章。1本目は昇格済み）
      空欄埋め（社内側の埋め作業フロー。別系統）
-     英訳スキル dx-training-translate（2.7）・画像ピッカー（2.7）
+     画像ピッカー（2.7）
 ```
+
+### 1.5 英語翻訳対応に必要な知識（次セッションの主戦）
+
+**位置づけ**: 4大課題ロードマップ（2026-08-16 プラン承認・正本は memory `project-dx-4tasks-roadmap`）の④。①リストラクチャ・②③ペイン統合+meta.json は完了済みで、これが最後。
+
+**決定済み（覆すなら explore で明示的に）**:
+
+- **事前一括英訳はしない**。日本語で一通り書く → 必要になったレッスンから英訳する運用
+- 流れ: **英訳の実行 → `dx-training-translate` スキル → `contents.en.md` 生成 ＋ `.meta.json` の `*_en` 記入**
+- **create スキルには載せない**（翻訳は独立工程。原稿作成と混ぜない）
+- **用語集は `references/` 案**（模範解答の置き場として既存のディレクトリ）
+- ⚠ **翻訳スキルは `author` / `author_en` に触らない**——人名のローマ字表記は本人の流儀。表示は双方向フォールバック（ja: author→author_en / en: author_en→author）なので、埋めなくても表示は破綻しない
+
+**器の現状（すべて実装済み・値が未記入なだけ）**:
+
+- サイト: `/en` ツリーがビルドされる。`contents.en.md` が無ければ**日本語フォールバック＋未翻訳バッジ**。言語別サイドバーは `usePathname()` で解決（→ 2章）。正本は spec `publishing-site-build`
+- メタ: `*_en`（`name_en` / `description_en` / `catch_en`、レッスンは `author_en` も）は**同一 `.meta.json` 内**。spec `publishing-meta-fields` が「値の記入（翻訳）と記入用 UI は範囲外」と明言しており、**今回がまさにその範囲外を埋める仕事**
+- ⚠ **レッスンの英語タイトルの正本は `.meta.json` の `name_en`**。2026-08-14 の「contents.en.md の frontmatter に置く」という決定は、frontmatter 廃止（2026-08-20 `lesson-meta-json`）で**転換済み**。サイトも `name_en` を読む実装になっている（`mandala/scripts/lib/content-source.mts` の `titleEn`）——古い記録を見て frontmatter を復活させないこと
+- レッスン `.meta.json` のスキーマ正本は `studio/lib/schema.ts` の `lessonMetaFileSchema`（`name_en` / `description_en` / `author_en` あり・**未知キー拒否**）
+- 両アプリのローダーのファイル・ホワイトリストに `contents.en.md` は最初から入っている（`isContentFolderName` の走査規則。→ 10章の `.meta.json` 改名見送りの項）
+- `changelog.en.md` も同じフォールバック作法が実装済み（`content-source.mts` / `emit.mts`）
+
+**explore で決めること（未決）**:
+
+- **スキルの入口**: Claude Code のスキルとして人が回すのか、Studio に「英訳ボタン」を付けてペイン4 agent 経由で回すのか（2026-08-14 の将来構想は「4階層メタ編集 UI ＋ AI 英訳ボタン」だった）。ペイン4 agent は**レッスン階層の `.meta.json` だけ検査つきで書ける**ので、agent 経路なら書込ガードをそのまま使える
+- **`.meta.json` への書込経路**: スキルが直接書くか、検査つき書込を通すか。直接書くなら `lessonMetaFileSchema` 適合と id 保護を自前で守る必要がある
+- **対象範囲と順序**: 実コンテンツは37ページぶん。どのシリーズから埋めるか、全部やるのか
+- **用語集の形式**: references 案の具体化（訳語の一貫性をどう担保するか）
+- **翻訳モデル**: 原稿は Fable 5 を使う流儀がある（memory `project-dx-training-improvement-round3`: 原稿=Fable5/画像=Sonnet5）。翻訳をどちらに寄せるか
+- **検証方法**: `mandala/` をビルドして `/en` で未翻訳バッジが消えることの実確認まで含めるか
+
+**参照すべき正本**: spec `publishing-site-build`（フォールバック＋バッジ）・`publishing-meta-fields`（`*_en` の置き場）・`lesson-meta-file`（レッスンメタ）・`agent-write-contract` / `agent-generated-write`（agent の書込ガード）。サイト側の読み取り実装は `mandala/scripts/lib/content-source.mts` と `emit.mts`。
 
 
 ### リポジトリの状態
 
-ブランチは作業の区切りで変わる（⚠ **`git branch --show-current` を信じること**）。2026-08-21 時点は **`dx-ebex-pink-search-mandala`**（ラウンド9・10 を push 済み・PR は未作成）。⚠ **コミットするならブランチを切ってから**。コミットの作法は 6.3、横から入るコミットの話は7章。
+ブランチは作業の区切りで変わる（⚠ **`git branch --show-current` を信じること**）。2026-08-21 時点は **`dx-ebex-pink-search-mandala`**（ラウンド9・10 に加え、2026-08-21 の画像ビュー2本・ミニ曼陀羅遷移・テスト/lint 修正まで push 済み・PR は未作成）。⚠ **コミットするならブランチを切ってから**。コミットの作法は 6.3、横から入るコミットの話は7章。
 
 **フォルダ構成は 2026-08-16 に兄弟構成へ移行した**（change `restructure-studio-mandala`）。`dx-training-studio/` は入れ物になり、アプリは `studio/`（旧直下）と `mandala/`（旧 `site/`）、正本（`contents/` `images/` `contents-work/` `local-db/`）と共通（`.claude/` `openspec/` `docs/` `contracts/`）は入れ物直下のまま。構造の要件は spec `project-layout` が正本。起動は入れ物直下の `start-studio(-dev).bat` / `start-mandala(-dev).bat`。
 
@@ -218,7 +262,7 @@ npm run start   # out/ をローカル配信
 
 | 項目 | 状況 |
 |---|---|
-| **英語は器だけ** | `/en` はビルドされるが中身は全部日本語フォールバック。`contents.en.md` と `.meta.json` の `*_en` は未記入 |
+| **英語は器だけ** | `/en` はビルドされるが中身は全部日本語フォールバック。`contents.en.md` と `.meta.json` の `*_en` は未記入。**次セッションで埋めに行く（→ 1.5 節）** |
 | **`zod` を 4.3.6 に固定している** | Nextra 4.6.x が zod 4.4.x と衝突し全ページのプリレンダが落ちる（[nextra#5008](https://github.com/shuding/nextra/issues/5008)）。**上流修正後に `package.json` の `overrides` を外す** |
 | **ビルドを webpack に固定している** | Turbopack はローダー options に関数を渡せず、rehype プラグイン（GitHub アラート）が乗らない。**Nextra か unified が文字列でのプラグイン指定に対応したら `--webpack` を外せる** |
 | **テーマ内部の class 名に依存している** | リリース番号は `.nextra-sidebar::before`、**サイドバー幅は `.nextra-sidebar.x\:w-64`**（展開状態だけを狙う。平坦に書くと手動トグルの `x:w-20` まで潰れて畳めなくなる）、Studio の帯は `[data-slot="sidebar-*"]`。テーマ・shadcn の更新で変わりうる。壊れ方は「番号が出ない」「幅が広がらない」「帯が覆われる」で機能影響は無い |
@@ -276,7 +320,7 @@ npm run start   # out/ をローカル配信
 
 **残る将来構想**（次 change 以降）:
 
-- **英訳スキル dx-training-translate 構想**（日本語で一通り書く → スキル実行で `contents.en.md` 生成＋`.meta.json` の `*_en` 記入、という流れを想定。2026-08-20 の explore で記録）。⚠ **翻訳スキルは `author` / `author_en` に触らない**——人名のローマ字表記は本人の流儀。表示は双方向フォールバック（ja: author→author_en / en: author_en→author）なので、名前を埋めなくても表示は破綻しない
+- **英訳スキル dx-training-translate** → **次セッションの主戦になった。必要な知識は 1.5 節に集約**
 - 画像ピッカー（`ImageGrid` 再利用）、セマンティックズーム、進捗リング付きノード（ゲーミフィケーション）
 
 ### 2.8 兄弟構成への移行（✅ 完了・2026-08-16）
@@ -598,16 +642,16 @@ Vercel 上の Studio は**社内に見せるための読み取り専用デモ**�
 
 ### 掃除の候補（急がない・実害なし）
 
-**Studio の既知の失敗**（これ以外は green。2026-08-20 時点で **967 passed / 6 skipped**（974 中）/ mandala は別途 **108 passed**）:
+**Studio のテスト**（2026-08-21 時点で **1093 passed / 6 skipped・失敗ゼロ** / mandala は別途 **108 passed**）:
 
-- `extract-markdown-block` — 全廃済みの `session.json` を読むため復活しない。**フィクスチャ化が要る**
+- ✅ `extract-markdown-block` — フィクスチャ化して解消（2026-08-21）。正本 `contents/` への依存を切り、当該メッセージを `__tests__/fixtures/create-draft-session-message.json` に同梱した。**contents-old を削除しても壊れない**
 - `compileCss` — 全体実行で5秒タイムアウトになることがある（**dev を止めても落ちる**。単体なら 411ms ＝純粋にマシン負荷）。**同じ日の実行でも通ったり落ちたりする**（2026-08-19 に両方観測）——負荷次第
 
 **型・設定**:
 
 - ✅ **`tsc --noEmit` が site を巻き込む問題は構造ごと解消**（兄弟構成化で `exclude: ["site"]` 自体を削除。→ 2.3）
 - テスト側の型エラー8件（`estimatedMinutes` の綴り違い等）——**すべて古くから**。site 側は0件（クリーンを保つこと）
-- ⚠ **`npm run lint`（Studio）は全体で 19 errors 出るが、すべて既存分**。大半は React の新ルール `react-hooks/set-state-in-effect`（effect 内の同期 setState）で、`CourseMetaDialog` 等を触っていないファイルから出る。**自分の変更が増やしていないかは「変更したファイルだけに `npx eslint` をかける」で確かめる**——全体の件数で判断すると既存分に埋もれる
+- ⚠ **`npm run lint`（Studio）は全体で 9 errors 出るが、すべて既存分**（2026-08-21 に13件のうち「effect が正解」の4件を理由付き抑制で閉じた）。残りは `react-hooks/set-state-in-effect`（派生 state を effect で複製している形）8件と `Mandala.tsx` のレンダー中 ref 代入1件。**内訳と直し方の見立ては memory `project-dx-studio-lint-debt`**——state の持ち方を変えるリファクタが要り、対象がエディタ・Workspace という壊れると痛い層なので、やるなら explore から。**自分の変更が増やしていないかは「変更したファイルだけに `npx eslint` をかける」で確かめる**——全体の件数で判断すると既存分に埋もれる。⚠ 抑制コメントは**エラー行の直前**に置く（依存配列の直前だと外れて Unused directive 警告が同時に出る）
 
 **死んだコード・古い記述**:
 
@@ -621,6 +665,7 @@ Vercel 上の Studio は**社内に見せるための読み取り専用デモ**�
 **その他**:
 
 - 退避機能が `contents-work/` を保護していない — `toProjectRelative` がフォーカス中の `contents/` 配下しか見ないため、額縁テンプレートが実際に置かれる `contents-work/runs/` では発火しない
+- ホームのヒーロー画像候補が promote 直後に更新されない — `WorkspaceMetaView` の `fetchImageList("used")` が依存配列空でマウント時1回きり。ホームを離れて戻れば出る。直すなら `imageAssetsRevision` の配線を1本通す（2026-08-21 に把握・ユーザー判断で見送り）
 - run ディレクトリの日付ずれ — 初回は `20260816-start`（実行日は 08-13）。**再生成では正しくなったが、日付を渡す手当ては入っていないので再発しうる**
 
 ---

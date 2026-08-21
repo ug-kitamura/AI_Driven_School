@@ -50,12 +50,27 @@ AI タブは UP タブと同型のレイアウトとし、上部に **実線枠*
 
 ### Requirement: 画像生成はプロンプトとレッスン全文を Claude に渡す
 
-`POST /api/images/generate` は、リクエスト body の **prompt**（AI タブ入力）と **lesson**（未保存 `content` 全文）を受け取らなければならない（SHALL）。`canonicalPath` やスロット ID を要求してはならない（MUST NOT）。生成のみでは Markdown を変更してはならない（MUST NOT）。
+`POST /api/images/generate` は、リクエスト body の **prompt**（AI タブ入力）を受け取らなければならない（SHALL）。**lesson**（未保存 `content` 全文）は **任意** とし、含まれるときは受け取らなければならない（SHALL）。`canonicalPath` やスロット ID を要求してはならない（MUST NOT）。生成のみでは Markdown を変更してはならない（MUST NOT）。
+
+`lesson` が含まれるとき、Claude 呼び出しには著者プロンプトに加えてレッスン文脈（レッスン名・説明・タグ）と `content` 全文を含めなければならない（SHALL）。`lesson` が含まれないとき、これらの文脈ブロックを含めてはならない（MUST NOT）。このとき生成は **著者プロンプトのみ** を指示として実行しなければならない（SHALL）。`lesson` の有無によって出力形式（`slug` / `alt` / `html` の JSON）を変えてはならない（MUST NOT）。
 
 #### Scenario: プロンプトと全文が API に含まれる
 
-- **WHEN** ユーザーがプロンプトを入力して生成する
+- **WHEN** ユーザーがレッスンを選択した状態でプロンプトを入力して生成する
 - **THEN** Claude 呼び出しにプロンプト文字列とレッスン `content` 全文が含まれる
+
+#### Scenario: レッスンなしで生成する
+
+- **WHEN** レッスンを選択していない状態でプロンプトを入力して生成する
+- **THEN** リクエスト body に `lesson` が含まれない
+- **AND** API は 400 で拒否せず生成を実行する
+- **AND** Claude 呼び出しにレッスン文脈ブロックと本文全文は含まれない
+
+#### Scenario: レッスンなしでも保存形式は同じ
+
+- **WHEN** レッスンなしの生成が成功する
+- **THEN** `images/ai/<filename>` に PNG が保存される
+- **AND** レスポンスは `file` と `alt` を含む
 
 ### Requirement: visual-explainers グラフィックで PNG 化する
 

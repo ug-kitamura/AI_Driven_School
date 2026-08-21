@@ -54,7 +54,7 @@ export function useAiImageTab(options: {
   );
 
   const handleGenerate = useCallback(async () => {
-    if (!lesson) return;
+    // lesson は任意。無ければ文脈ブロック無しで著者プロンプトだけを送る
     const trimmed = prompt.trim();
     if (!trimmed) {
       showNotice("ai", "プロンプトを入力してください", "error");

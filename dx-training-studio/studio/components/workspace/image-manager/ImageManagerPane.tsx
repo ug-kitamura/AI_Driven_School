@@ -183,17 +183,20 @@ export function ImageManagerPane({
     });
   }, []);
 
+  /**
+   * 挿入操作が今この場で実行できるか。レッスン選択中かつ編集モードのときだけ有効で、
+   * ここ 1 箇所から全タブ・拡大プレビューへ配る。エディタ側が登録する挿入コールバックの
+   * 有無は根拠にしない——アンマウント後も残るため「成功を返すが本文に入らない」状態になる。
+   */
+  const canInsert = !!lesson && pane3Mode === "raw";
+
   const tryInsert = useCallback(
     (markdown: string, tab: ImageManagerTab) => {
       const ok = onInsertImage(markdown);
-      if (!ok) {
-        showNotice(tab, "編集モードに切り替えてから挿入してください", "error");
-      } else {
-        clearNotice(tab);
-      }
+      if (ok) clearNotice(tab);
       return ok;
     },
-    [onInsertImage, showNotice, clearNotice],
+    [onInsertImage, clearNotice],
   );
 
   const { promoteAndInsert } = usePromoteAndInsert({
@@ -450,12 +453,6 @@ export function ImageManagerPane({
       className="min-h-0 flex-1 bg-card"
       onPaste={handlePaste}
     >
-      {pane3Mode !== "raw" && activeTab !== "ai" && activeTab !== "web" ? (
-        <div className="border-b border-border bg-muted/40 px-3 py-1 text-[10px] text-muted-foreground">
-          画像の挿入は編集モードでのみ利用できます
-        </div>
-      ) : null}
-
       <div
         ref={tabScrollRef}
         className="workspace-scrollbar min-h-0 flex-1 overflow-y-auto overscroll-y-contain"
@@ -479,6 +476,7 @@ export function ImageManagerPane({
             filterCourses={filterCourses}
             filterLessons={filterLessons}
             gridItems={usedGridItems}
+            canInsert={canInsert}
             usedRows={usedRows}
             notice={mergeTabNotice(usedStorageErrorKind, tabNotices.used)}
             onResetFilter={resetUsedFilter}
@@ -493,6 +491,7 @@ export function ImageManagerPane({
         <div className={cn(activeTab !== "upload" || loading ? "hidden" : undefined)}>
           <UploadImagesTab
             gridItems={stagingGridItems}
+            canInsert={canInsert}
             notice={tabNotices.upload}
             refreshScope={refreshScope}
             showNotice={showNotice}
@@ -516,6 +515,7 @@ export function ImageManagerPane({
             clearNotice={clearNotice}
             onHighlightPaths={highlightPaths}
             gridItems={aiStagingGridItems}
+            canInsert={canInsert}
             notice={tabNotices.ai}
             onResolveAltReady={onAiResolveAltReady}
             onPreview={openPreview}
@@ -534,6 +534,7 @@ export function ImageManagerPane({
             clearNotice={clearNotice}
             onHighlightPaths={highlightPaths}
             gridItems={webStagingGridItems}
+            canInsert={canInsert}
             notice={tabNotices.web}
             onResolveAltReady={onWebResolveAltReady}
             onPreview={openPreview}
@@ -555,6 +556,7 @@ export function ImageManagerPane({
           }}
           showInsert={currentPreviewItem.showInsert}
           showDelete={currentPreviewItem.showDelete}
+          canInsert={canInsert}
           onInsert={() => {
             if (!currentPreviewItem) return;
             closePreview();

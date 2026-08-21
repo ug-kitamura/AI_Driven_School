@@ -15,7 +15,8 @@ import { lessonSchema } from "@/lib/schema";
 import { getProjectRoot } from "@/lib/project-root";
 
 const bodySchema = z.object({
-  lesson: lessonSchema,
+  // レッスン未選択でも生成できるよう任意。無ければ文脈ブロックを添えない
+  lesson: lessonSchema.optional(),
   prompt: z.string().min(1),
 });
 

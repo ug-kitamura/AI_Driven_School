@@ -36,6 +36,8 @@ type Props = {
   filterCourses: Series["courses"];
   filterLessons: Series["courses"][number]["lessons"];
   gridItems: ImageGridItem[];
+  /** 挿入操作が今この場で実行できるか（レッスン選択中かつ編集モード） */
+  canInsert: boolean;
   usedRows: Array<{ path: string; referenceCount: number }>;
   notice?: TabNotice;
   onResetFilter: () => void;
@@ -56,6 +58,7 @@ export function UsedImagesTab({
   filterCourses,
   filterLessons,
   gridItems,
+  canInsert,
   usedRows,
   notice,
   onResetFilter,
@@ -170,6 +173,7 @@ export function UsedImagesTab({
         <ImageGrid
           items={gridItems}
           emptyMessage="promote 済みの画像がありません"
+          canInsert={canInsert}
           onPreview={onPreview}
           onInsert={onInsert}
           onDelete={(item) => {

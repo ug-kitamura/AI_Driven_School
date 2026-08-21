@@ -5,9 +5,9 @@ TBD - created by archiving change pane4-web-image-search. Update Purpose after a
 ## Requirements
 ### Requirement: Web タブは Pixabay から最大 3 枚を staging 保存する
 
-`POST /api/images/search` は、リクエスト body の **prompt**（Web タブの説明文）と **lesson**（未保存 `content` 全文）を受け取らなければならない（SHALL）。**AI API キー**および **Pixabay API キー**（各解決優先順位は workspace-settings に従う）のいずれかが未設定のときは、不足しているキーに応じて 401 等で失敗しなければならない（SHALL）。
+`POST /api/images/search` は、リクエスト body の **prompt**（Web タブの説明文）を受け取らなければならない（SHALL）。**lesson**（未保存 `content` 全文）は **任意** とし、含まれるときは受け取らなければならない（SHALL）。**AI API キー**および **Pixabay API キー**（各解決優先順位は workspace-settings に従う）のいずれかが未設定のときは、不足しているキーに応じて 401 等で失敗しなければならない（SHALL）。
 
-サーバーは Claude により Pixabay 向けの検索計画（1〜3 件のクエリ、各 `photo` または `illustration`）を生成し、Pixabay API を呼び出して候補を取得しなければならない（SHALL）。同一検索実行で **新規に staging へ保存する画像は最大 3 枚** とし、3 枚未満の取得でも成功として返してよい（MAY）。Markdown 本文は変更してはならない（MUST NOT）。
+サーバーは Claude により Pixabay 向けの検索計画（1〜3 件のクエリ、各 `photo` または `illustration`）を生成し、Pixabay API を呼び出して候補を取得しなければならない（SHALL）。検索計画の作成において、`lesson` が含まれるときはレッスン文脈（レッスン名・説明・タグ）と `content` 全文をプランナー入力に含めなければならない（SHALL）。`lesson` が含まれないときはこれらを含めてはならず（MUST NOT）、著者が入力した説明文のみから計画を立てなければならない（SHALL）。同一検索実行で **新規に staging へ保存する画像は最大 3 枚** とし、3 枚未満の取得でも成功として返してよい（MAY）。Markdown 本文は変更してはならない（MUST NOT）。
 
 写実的な日常・ビジネスシーンを優先し、抽象・非現実・SF・過度な 3D 表現は避けるようプランナー指示に含めなければならない（SHALL）。イラストが明らかに適切な場合のみ `image_type=illustration` を用い、それ以外は `photo` を用いなければならない（SHALL）。
 
@@ -17,6 +17,13 @@ TBD - created by archiving change pane4-web-image-search. Update Purpose after a
 - **AND** Claude プランナーと Pixabay API が成功する
 - **THEN** `images/web/` に 1 件以上 3 件以下の画像ファイルが保存される
 - **AND** レスポンスに保存した `ImageAsset` 一覧が含まれる
+
+#### Scenario: レッスンなしで検索する
+
+- **WHEN** レッスンを選択していない状態で説明文を入力し検索を実行する
+- **THEN** リクエスト body に `lesson` が含まれない
+- **AND** API は 400 で拒否せず検索を実行する
+- **AND** プランナー入力にレッスン文脈ブロックと本文全文は含まれない
 
 #### Scenario: 3 枚上限
 

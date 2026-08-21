@@ -327,12 +327,15 @@ export function Workspace({
 
   const insertImageMarkdown = useCallback(
     (markdown: string): boolean => {
+      // 可否の根拠は選択状態とモード。insertCallback はエディタのアンマウント後も
+      // 残るため、これだけを根拠にすると「成功を返すが本文に入らない」状態になる
+      if (!selectedLesson) return false;
       if (pane3Mode !== "raw") return false;
       if (!insertCallback) return false;
       insertCallback(markdown);
       return true;
     },
-    [pane3Mode, insertCallback],
+    [selectedLesson, pane3Mode, insertCallback],
   );
 
   const handleOverwriteEditor = useCallback(

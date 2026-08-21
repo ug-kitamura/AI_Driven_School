@@ -101,6 +101,11 @@ type Props = {
   onDelete?: (item: ImageGridItem) => void;
   className?: string;
   thumbnailFit?: "cover" | "contain";
+  /**
+   * 今この場で挿入を実行できるか。`item.showInsert`（そのタブに挿入という操作が
+   * 存在するか）とは別概念——存在するが押せない状態を disabled で表す。
+   */
+  canInsert?: boolean;
 };
 
 export function ImageGrid({
@@ -111,6 +116,7 @@ export function ImageGrid({
   onDelete,
   className,
   thumbnailFit = "contain",
+  canInsert = true,
 }: Props) {
   if (items.length === 0) {
     return (
@@ -191,7 +197,13 @@ export function ImageGrid({
                   <button
                     type="button"
                     onClick={() => onInsert(item)}
-                    className="flex flex-1 items-center justify-center gap-0.5 rounded border border-border py-0.5 text-[9px] hover:border-primary hover:text-primary"
+                    disabled={!canInsert}
+                    className={cn(
+                      "flex flex-1 items-center justify-center gap-0.5 rounded border border-border py-0.5 text-[9px]",
+                      canInsert
+                        ? "hover:border-primary hover:text-primary"
+                        : "cursor-not-allowed text-muted-foreground opacity-50",
+                    )}
                     aria-label="エディタに挿入"
                   >
                     <Plus className="h-3 w-3" />

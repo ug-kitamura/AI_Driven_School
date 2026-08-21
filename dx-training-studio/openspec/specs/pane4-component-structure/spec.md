@@ -29,11 +29,13 @@ Pane4 の画像リスト state（`promotedFiles`・`stagingFiles`・`aiStagingFi
 
 staging 画像からの promote → Markdown 挿入フロー（UP・AI・Web の 3 パターン）は `usePromoteAndInsert` hook に 1 箇所で実装しなければならない（SHALL）。hook は staging ソース（`uploaded` / `ai` / `web`）と任意の alt 解決関数を受け取り、成功時に `scopesAfterPromote` で定義されたスコープを silent refresh しなければならない（SHALL）。
 
+挿入可否（レッスン選択中かつ編集モード）は **hook の呼び出し前** に判定しなければならない（SHALL）。挿入できない状態で promote を実行してはならない（MUST NOT）。hook 内に挿入失敗時の通知を持ってはならない（MUST NOT）。
+
 #### Scenario: AI staging から promote 挿入
 
 - **WHEN** ユーザーが AI タブの staging 画像で挿入する
 - **THEN** `POST /api/images/promote` が呼び出される
-- **AND** 成功かつ編集モードの場合 Markdown が挿入される
+- **AND** Markdown が挿入される
 - **AND** `ai` と `used` スコープが refresh される
 
 #### Scenario: promote 失敗時にタブ内通知
@@ -42,11 +44,30 @@ staging 画像からの promote → Markdown 挿入フロー（UP・AI・Web の
 - **THEN** 対象タブの `TabNoticeBanner` にエラーが表示される
 - **AND** Markdown 挿入は行われない
 
-#### Scenario: 編集モード外では挿入不可通知
+#### Scenario: 挿入できない状態では promote も走らない
 
-- **WHEN** Pane3 が編集モード（raw）以外である
-- **AND** ユーザーが staging 画像で挿入を試みる
-- **THEN** 対象タブに「編集モードに切り替えてから挿入してください」が表示される
+- **WHEN** Pane 2 が編集モード以外である、またはレッスンが選択されていない
+- **THEN** 挿入操作は無効状態で表示される
+- **AND** `POST /api/images/promote` は呼び出されない
+- **AND** 正本 `images/` に孤児ファイルは作られない
+
+### Requirement: 挿入可否は 1 箇所で導出する
+
+Pane4 の挿入可否は、**レッスンの有無** と **Pane 2 のモード** から 1 箇所で導出し、グリッド・拡大プレビューの双方へ同じ値を渡さなければならない（SHALL）。エディタ側が登録する挿入コールバックの有無だけを可否の根拠にしてはならない（MUST NOT）——当該コールバックはエディタのアンマウント後も残るため、可否の判定に使うと「成功を返すが本文には反映されない」状態が生じる。
+
+Pane 2 の挿入受け口（`insertImageMarkdown` 相当）も、モードに加えてレッスンの有無を検査しなければならない（SHALL）。
+
+#### Scenario: エディタ離脱後に挿入が成功扱いにならない
+
+- **WHEN** ユーザーがレッスンを編集モードで開いた後、ホームを選択する
+- **AND** 何らかの経路で挿入が要求される
+- **THEN** 挿入は成功として扱われない
+- **AND** promote 済みファイルだけが残る状態にならない
+
+#### Scenario: 可否がグリッドと拡大プレビューで一致する
+
+- **WHEN** 挿入が無効な状態である
+- **THEN** グリッド行と拡大プレビューの挿入操作はいずれも無効状態で表示される
 
 ### Requirement: タブ UI は専用コンポーネントに分割する
 

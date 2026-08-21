@@ -26,11 +26,8 @@ import { useWorkspaceImageAssets } from "@/components/workspace/hooks/use-worksp
 import { useWorkspaceSelection } from "@/components/workspace/hooks/use-workspace-selection";
 import { useContentSync } from "@/components/workspace/hooks/use-content-sync";
 import { useTranslationStatus } from "@/components/workspace/hooks/use-translation-status";
-import type { EditLanguage } from "@/components/workspace/translation/TranslationHeaderControls";
-import {
-  markTranslationFresh,
-  worstFreshness,
-} from "@/lib/translation/client";
+import type { EditLanguage } from "@/components/workspace/translation/LanguageToggleControl";
+import { worstFreshness } from "@/lib/translation/client";
 import type { Series } from "@/lib/schema";
 import { normalizeSeriesCourseMeta } from "@/lib/course-flow";
 import type { LessonMetaFields } from "@/lib/lesson-meta";
@@ -444,43 +441,6 @@ export function Workspace({
     translationData?.changelog ?? undefined,
   );
 
-  /** 「最新として扱う」。stale な側（本文/メタ）だけをハッシュ更新する */
-  const handleMarkFresh = useCallback(
-    (level: "root" | "series" | "course" | "lesson") => {
-      const names = {
-        ...(selectedSeriesName ? { series: selectedSeriesName } : {}),
-        ...(selectedCourse ? { course: selectedCourse.name } : {}),
-        ...(selectedLesson ? { lesson: selectedLesson.lesson } : {}),
-      };
-      const status = translationData?.statuses[level];
-      void (async () => {
-        try {
-          if (level === "lesson" && status?.body === "stale") {
-            await markTranslationFresh({ level, target: "body", names });
-          }
-          if (status?.meta === "stale") {
-            await markTranslationFresh({
-              level,
-              ...(level === "lesson" ? { target: "meta" as const } : {}),
-              names,
-            });
-          }
-          refreshTranslationStatus();
-        } catch (err) {
-          handleSaveError(`最新化エラー: ${String(err)}`);
-        }
-      })();
-    },
-    [
-      selectedSeriesName,
-      selectedCourse,
-      selectedLesson,
-      translationData,
-      refreshTranslationStatus,
-      handleSaveError,
-    ],
-  );
-
   const handlePane4ViewChange = useCallback((view: Pane4View) => {
     setPane4View(view);
     savePane4View(view);
@@ -607,7 +567,6 @@ export function Workspace({
                 editLanguage={editLanguage}
                 onEditLanguageChange={setEditLanguage}
                 translationStatus={lessonTranslationStatus}
-                onMarkFresh={() => handleMarkFresh("lesson")}
                 onTranslationChanged={refreshTranslationStatus}
                 onSaveError={handleSaveError}
               />
@@ -623,7 +582,6 @@ export function Workspace({
                 editLanguage={editLanguage}
                 onEditLanguageChange={setEditLanguage}
                 translationStatus={translationData?.statuses.course?.meta}
-                onMarkFresh={() => handleMarkFresh("course")}
                 onTranslationChanged={refreshTranslationStatus}
                 seriesName={selectedSeriesName}
               />
@@ -636,7 +594,6 @@ export function Workspace({
                 editLanguage={editLanguage}
                 onEditLanguageChange={setEditLanguage}
                 translationStatus={translationData?.statuses.series?.meta}
-                onMarkFresh={() => handleMarkFresh("series")}
                 onTranslationChanged={refreshTranslationStatus}
               />
             ) : (
@@ -647,11 +604,6 @@ export function Workspace({
                 editLanguage={editLanguage}
                 onEditLanguageChange={setEditLanguage}
                 translationStatus={homeTranslationStatus}
-                onMarkFresh={
-                  translationData?.statuses.root?.meta === "stale"
-                    ? () => handleMarkFresh("root")
-                    : undefined
-                }
                 onTranslationChanged={refreshTranslationStatus}
               />
             )}

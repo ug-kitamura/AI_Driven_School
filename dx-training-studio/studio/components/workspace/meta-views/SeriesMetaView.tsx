@@ -13,9 +13,11 @@ import { SLUG_PATTERN } from "@/lib/schema";
 import type { Series } from "@/lib/schema";
 import { EnMetaSection } from "@/components/workspace/translation/EnMetaSection";
 import {
-  TranslationHeaderControls,
+  LanguageToggleControl,
   type EditLanguage,
-} from "@/components/workspace/translation/TranslationHeaderControls";
+} from "@/components/workspace/translation/LanguageToggleControl";
+import { PaneActionBar } from "@/components/workspace/PaneActionBar";
+import { SaveButton } from "@/components/workspace/SaveButton";
 import type { TranslationFreshness } from "@/lib/translation/client";
 
 type Props = {
@@ -28,7 +30,6 @@ type Props = {
   editLanguage: EditLanguage;
   onEditLanguageChange: (language: EditLanguage) => void;
   translationStatus: TranslationFreshness | undefined;
-  onMarkFresh?: () => void;
   onTranslationChanged?: () => void;
 };
 
@@ -40,7 +41,6 @@ export function SeriesMetaView({
   editLanguage,
   onEditLanguageChange,
   translationStatus,
-  onMarkFresh,
   onTranslationChanged,
 }: Props) {
   const [name, setName] = useState(seriesItem.name);
@@ -68,25 +68,25 @@ export function SeriesMetaView({
     }
   };
 
+  const headerControls = (
+    <LanguageToggleControl
+      language={editLanguage}
+      onLanguageChange={onEditLanguageChange}
+    />
+  );
+
   if (editLanguage === "en") {
     return (
       <MetaViewShell
         title={seriesItem.name}
         kindLabel="シリーズ"
-        onSave={() => {}}
-        hideSave
-        headerExtra={
-          <TranslationHeaderControls
-            language={editLanguage}
-            onLanguageChange={onEditLanguageChange}
-            status={translationStatus}
-            onMarkFresh={onMarkFresh}
-          />
-        }
+        headerExtra={headerControls}
       >
+        {/* ボタン列と赤字は EnMetaSection 側が持つ */}
         <EnMetaSection
           level="series"
           names={{ series: seriesItem.name }}
+          translationStatus={translationStatus}
           onTranslationChanged={onTranslationChanged}
         />
       </MetaViewShell>
@@ -97,15 +97,8 @@ export function SeriesMetaView({
     <MetaViewShell
       title={seriesItem.name}
       kindLabel="シリーズ"
-      onSave={handleSave}
-      headerExtra={
-        <TranslationHeaderControls
-          language={editLanguage}
-          onLanguageChange={onEditLanguageChange}
-          status={translationStatus}
-          onMarkFresh={onMarkFresh}
-        />
-      }
+      headerExtra={headerControls}
+      actionBar={<PaneActionBar saveSlot={<SaveButton onSave={handleSave} />} />}
     >
       <div className={META_DIALOG_STACK}>
         <MetaDialogField>

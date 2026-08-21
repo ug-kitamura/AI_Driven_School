@@ -5,7 +5,6 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { GET as getLessonEn } from "@/app/api/content/lesson-en/route";
 import { POST as saveLesson } from "@/app/api/content/save-lesson/route";
 import { GET as getStatus } from "@/app/api/content/translation-status/route";
-import { POST as markFresh } from "@/app/api/content/translation-mark-fresh/route";
 import { POST as saveCourse } from "@/app/api/content/save-course/route";
 import {
   computeBodySourceHash,
@@ -205,82 +204,6 @@ describe("翻訳まわりのコンテンツ API", () => {
       new Request(`http://localhost/api/content/translation-status?${lessonQuery}`),
     );
     expect((await res2.json()).statuses.lesson.body).toBe("stale");
-  });
-
-  it("mark-fresh(body): ハッシュ行だけ更新し本文は変えない", async () => {
-    const { lessonDir } = setup();
-    fs.writeFileSync(
-      path.join(lessonDir, "contents.en.md"),
-      "# Hand-written translation\n",
-      "utf-8",
-    );
-    const res = await markFresh(
-      jsonRequest("/api/content/translation-mark-fresh", "POST", {
-        level: "lesson",
-        target: "body",
-        series: "S",
-        course: "C",
-        lesson: "L",
-      }),
-    );
-    expect(res.status).toBe(200);
-    const expectedHash = computeBodySourceHash("# 見出し\n");
-    expect(
-      fs.readFileSync(path.join(lessonDir, "contents.en.md"), "utf-8"),
-    ).toBe(`${formatSourceHashComment(expectedHash)}\n\n# Hand-written translation\n`);
-  });
-
-  it("mark-fresh(body): en 不在は 409", async () => {
-    setup();
-    const res = await markFresh(
-      jsonRequest("/api/content/translation-mark-fresh", "POST", {
-        level: "lesson",
-        target: "body",
-        series: "S",
-        course: "C",
-        lesson: "L",
-      }),
-    );
-    expect(res.status).toBe(409);
-  });
-
-  it("mark-fresh(meta): en_source_hash を再計算・未翻訳は 409", async () => {
-    const { root } = setup();
-    const courseMetaPath = path.join(root, "contents", "S", "C", ".meta.json");
-    // 未翻訳（_en 全て空）は 409
-    const res1 = await markFresh(
-      jsonRequest("/api/content/translation-mark-fresh", "POST", {
-        level: "course",
-        series: "S",
-        course: "C",
-      }),
-    );
-    expect(res1.status).toBe(409);
-
-    fs.writeFileSync(
-      courseMetaPath,
-      JSON.stringify({ target: "初心者", name_en: "Course C" }),
-      "utf-8",
-    );
-    const res2 = await markFresh(
-      jsonRequest("/api/content/translation-mark-fresh", "POST", {
-        level: "course",
-        series: "S",
-        course: "C",
-      }),
-    );
-    expect(res2.status).toBe(200);
-    const meta = JSON.parse(fs.readFileSync(courseMetaPath, "utf-8"));
-    expect(meta.en_source_hash).toBe(
-      computeMetaSourceHash({
-        level: "course",
-        name: "C",
-        catch: "",
-        description: "",
-        target: "初心者",
-      }),
-    );
-    expect(meta.name_en).toBe("Course C");
   });
 
   it("save-course: _en フィールドと en_source_hash が保存・削除できる", async () => {

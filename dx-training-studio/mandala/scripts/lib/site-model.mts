@@ -40,9 +40,13 @@ export type SiteLesson = {
   bodyEn?: string;
   titleEn?: string;
   /**
-   * 本文翻訳の状態バッジ（translation-freshness spec）。
-   * `untranslated`=英語版が無く日本語へフォールバック / `stale`=英語版が原文より古い。
-   * 最新ならキーを持たない
+   * 本文翻訳の鮮度（translation-freshness spec）。最新ならキーを持たない。
+   *
+   * ⚠ サイトが表示に使うのは「英語版があるか」だけ（無ければ本文を Coming soon に
+   * 差し替える）。**`stale` はサイトでは使わない**——翻訳の古さは受講者が対処
+   * できないので、合図は Studio 側に寄せた（publishing-site-build spec）。
+   * 判定ロジックは Studio 正本のミラーで parity テストの対象なので、
+   * `stale` が未使用でも判定ごと消さないこと
    */
   translation?: "untranslated" | "stale";
   /** `/git/concepts/what-is-version-control` */

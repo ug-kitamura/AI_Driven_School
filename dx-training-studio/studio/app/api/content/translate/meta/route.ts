@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { resolveAiApiKey } from "@/lib/api-keys";
+import { resolveAiModel } from "@/lib/resolve-ai-model";
 import { AI_KEY_ERROR } from "@/lib/agent/llm/anthropic";
 import { getProjectRoot } from "@/lib/project-root";
 import { computeMetaSourceHash } from "@/lib/translation/freshness";
@@ -53,6 +54,12 @@ export async function POST(req: Request) {
     return Response.json({ error: AI_KEY_ERROR }, { status: 401 });
   }
 
+  // モデルはギアメニューの選択に従う（未対応モデルは他の AI 機能と同じエラー）
+  const model = resolveAiModel(req);
+  if (!model.ok) {
+    return Response.json({ error: model.error }, { status: 400 });
+  }
+
   const projectRoot = getProjectRoot();
   const contract = readTranslationContract(projectRoot);
   if (!contract) {
@@ -88,6 +95,7 @@ export async function POST(req: Request) {
 
   const result = await runTranslationTurn({
     apiKey,
+    model: model.model,
     system: buildMetaSystemPrompt(contract),
     userPrompt: buildMetaUserPrompt({
       level,

@@ -31,26 +31,9 @@ export function StatusLabel({
   return <Label kind="status">{label}</Label>;
 }
 
-/** 翻訳バッジの状態（translation-freshness spec。fresh はバッジ自体を出さない） */
-export type TranslationBadge = "untranslated" | "stale";
-
-/**
- * 翻訳の状態バッジ。en ページ専用。
- * `untranslated`=英語版が無く日本語を表示 / `stale`=英語版が原文より古い
+/*
+ * ⚠ 翻訳の状態バッジ（`Not translated yet` / `Translation may be outdated`）は
+ * 廃止した（publishing-site-build spec）。未翻訳ページは本文が `Coming soon` に
+ * なるので重複であり、翻訳の古さは受講者が対処できない——鮮度の合図は
+ * Studio（編集者）側の赤字1行だけが持つ。ここに戻さないこと。
  */
-export function TranslationLabel({
-  state,
-  locale,
-}: {
-  state: TranslationBadge;
-  locale: Locale;
-}) {
-  if (locale !== "en") return null;
-  return (
-    <Label kind="note">
-      {state === "untranslated"
-        ? "Not translated yet — showing Japanese"
-        : "Translation may be outdated"}
-    </Label>
-  );
-}

@@ -13,8 +13,6 @@ export type SiteLesson = {
   status: LessonStatus;
   description: string;
   estimatedMinutes: number;
-  /** 翻訳バッジ（fresh はキー無し）。`untranslated`=日本語フォールバック / `stale`=古い翻訳 */
-  translation?: "untranslated" | "stale";
   href: string;
   titleEn?: string;
 };

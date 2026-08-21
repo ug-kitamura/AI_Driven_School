@@ -23,7 +23,7 @@ const schema = z.object({
   /** 保存先の言語。省略は ja（contents.md） */
   language: z.enum(["ja", "en"]).optional(),
   /**
-   * en のみ: 原文ハッシュ（`sha256:<hex>`）。翻訳の適用・「最新として扱う」だけが渡す。
+   * en のみ: 原文ハッシュ（`sha256:<hex>`）。翻訳の適用だけが渡す。
    * 省略時は既存ファイルのハッシュ行を保持する——手動保存はハッシュに触らない
    */
   sourceHash: z

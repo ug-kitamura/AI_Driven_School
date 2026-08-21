@@ -10,6 +10,7 @@ import {
   computeBodySourceHash,
   computeMetaSourceHash,
 } from "@/lib/translation/freshness";
+import { DEFAULT_AI_MODEL, UNSUPPORTED_MODEL_ERROR } from "@/lib/ai-models";
 
 vi.mock("@/lib/agent/llm/anthropic", () => ({
   AI_KEY_ERROR: "AI API キーが未設定です",
@@ -95,7 +96,7 @@ describe("/api/content/translate/*", () => {
     expect(runTurn).not.toHaveBeenCalled();
   });
 
-  it("meta: フィールドとサーバー計算の en_source_hash を返し、Sonnet 5 固定・契約注入", async () => {
+  it("meta: フィールドとサーバー計算の en_source_hash を返し、既定モデル・契約注入", async () => {
     setup();
     runTurn.mockResolvedValue({
       text: JSON.stringify({
@@ -126,7 +127,8 @@ describe("/api/content/translate/*", () => {
       system: string;
       messages: Array<{ content: string }>;
     };
-    expect(call.model).toBe("claude-sonnet-5");
+    // ヘッダー未指定なので既定モデル（ギアメニュー準拠の解決経路を通っている）
+    expect(call.model).toBe(DEFAULT_AI_MODEL);
     expect(call.system).toContain("<<CONTRACT-MARK>>");
     expect(call.messages[0]!.content).toContain("初心者");
   });
@@ -229,5 +231,71 @@ describe("/api/content/translate/*", () => {
     );
     expect(res.status).toBe(502);
     expect(runTurn).toHaveBeenCalledTimes(2);
+  });
+
+  // モデルはギアメニューの選択に従う（かつて Sonnet 5 固定だった経路の回帰）
+  describe("モデルはワークスペースの設定に従う", () => {
+    function requestWithModel(url: string, body: unknown, model: string): Request {
+      return new Request(`http://localhost${url}`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-ai-api-key": "test-key",
+          "x-ai-model": model,
+        },
+        body: JSON.stringify(body),
+      });
+    }
+
+    const metaBody = { level: "course", series: "シリーズA", course: "コースB" };
+
+    it("meta: ヘッダーで指定したモデルで実行する", async () => {
+      setup();
+      runTurn.mockResolvedValue({
+        text: JSON.stringify({ fields: { name_en: "Course B" } }),
+      } as never);
+      const res = await postMeta(
+        requestWithModel("/api/content/translate/meta", metaBody, "claude-fable-5"),
+      );
+      expect(res.status).toBe(200);
+      const call = runTurn.mock.calls[0]![0] as { model: string };
+      expect(call.model).toBe("claude-fable-5");
+    });
+
+    it("lesson-body: ヘッダーで指定したモデルで実行する", async () => {
+      setup();
+      runTurn.mockResolvedValue({
+        text: JSON.stringify({ body: "# Heading\n\nBody\n" }),
+      } as never);
+      const res = await postBody(
+        requestWithModel(
+          "/api/content/translate/lesson-body",
+          { series: "シリーズA", course: "コースB", lesson: "レッスンC" },
+          "claude-opus-5",
+        ),
+      );
+      expect(res.status).toBe(200);
+      const call = runTurn.mock.calls[0]![0] as { model: string };
+      expect(call.model).toBe("claude-opus-5");
+    });
+
+    it("未対応モデルは翻訳せず 400 で拒否する", async () => {
+      setup();
+      const res = await postMeta(
+        requestWithModel("/api/content/translate/meta", metaBody, "gpt-5-nano"),
+      );
+      expect(res.status).toBe(400);
+      expect((await res.json()).error).toBe(UNSUPPORTED_MODEL_ERROR);
+      expect(runTurn).not.toHaveBeenCalled();
+    });
+
+    it("changelog: 未対応モデルは翻訳せず 400 で拒否する", async () => {
+      setup();
+      const res = await postChangelog(
+        requestWithModel("/api/content/translate/changelog", {}, "gpt-5-nano"),
+      );
+      expect(res.status).toBe(400);
+      expect(runTurn).not.toHaveBeenCalled();
+    });
   });
 });

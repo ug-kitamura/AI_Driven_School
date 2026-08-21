@@ -10,36 +10,45 @@ import {
   META_DIALOG_STACK,
   MetaDialogField,
 } from "@/components/workspace/metaDialogLayout";
+import { PaneActionBar } from "@/components/workspace/PaneActionBar";
+import { SaveButton } from "@/components/workspace/SaveButton";
+import { StaleTranslationNotice } from "@/components/workspace/translation/StaleTranslationNotice";
+import { TRANSLATE_LABEL } from "@/components/workspace/translation/translationLabels";
 import {
   fetchMetaEn,
   saveMetaEn,
   translateMeta,
+  type TranslationFreshness,
   type UnitLevel,
   type UnitNames,
 } from "@/lib/translation/client";
 
-/** 階層ごとの英語ビュー項目（表示順・ラベル・原文キー）。author_en は別扱い（手編集のみ） */
+/**
+ * 階層ごとの英語ビュー項目（表示順・ラベル・原文キー）。
+ * ⚠ 並びは日本語ビューに揃える（名前 → 説明 → キャッチ → 対象）。
+ * author_en は別扱い（手編集のみ・翻訳の対象外）。
+ */
 const EN_FIELD_DEFS: Record<
   UnitLevel,
   Array<{ enKey: string; label: string; jaKey: string; multiline?: boolean }>
 > = {
   root: [
-    { enKey: "name_en", label: "Name（サイト名）", jaKey: "name" },
+    { enKey: "name_en", label: "Name", jaKey: "name" },
     { enKey: "description_en", label: "Description", jaKey: "description", multiline: true },
   ],
   series: [
-    { enKey: "name_en", label: "Name（シリーズ名）", jaKey: "name" },
-    { enKey: "catch_en", label: "Catch", jaKey: "catch" },
+    { enKey: "name_en", label: "Series name", jaKey: "name" },
     { enKey: "description_en", label: "Description", jaKey: "description", multiline: true },
+    { enKey: "catch_en", label: "Catch", jaKey: "catch" },
   ],
   course: [
-    { enKey: "name_en", label: "Name（コース名）", jaKey: "name" },
-    { enKey: "catch_en", label: "Catch", jaKey: "catch" },
+    { enKey: "name_en", label: "Course name", jaKey: "name" },
     { enKey: "description_en", label: "Description", jaKey: "description", multiline: true },
-    { enKey: "target_en", label: "Intended audience（受講対象者）", jaKey: "target" },
+    { enKey: "catch_en", label: "Catch", jaKey: "catch" },
+    { enKey: "target_en", label: "Target", jaKey: "target" },
   ],
   lesson: [
-    { enKey: "name_en", label: "Name（レッスン名）", jaKey: "name" },
+    { enKey: "name_en", label: "Lesson name", jaKey: "name" },
     { enKey: "description_en", label: "Description", jaKey: "description", multiline: true },
   ],
 };
@@ -47,13 +56,34 @@ const EN_FIELD_DEFS: Record<
 const TEXTAREA_CLASS =
   "w-full rounded-md border border-input bg-white px-3 py-2 text-sm shadow-xs outline-none focus-visible:ring-2 focus-visible:ring-ring/50 disabled:opacity-50 dark:bg-input/30";
 
+/** 原文の併記。⚠ 全フィールドで同じ形式に揃える（Author も含む） */
+function SourceText({ value }: { value: string | undefined }) {
+  return (
+    <p className="text-xs text-muted-foreground">
+      原文: {value?.trim() ? value : "（未設定）"}
+    </p>
+  );
+}
+
+/** 親（レッスンメタモーダル）が保存・翻訳を外から起動するための口 */
+export type EnMetaControls = {
+  save: () => Promise<void>;
+  translate: () => void;
+  translating: boolean;
+  loading: boolean;
+};
+
 type Props = {
   level: UnitLevel;
   names: UnitNames;
+  /** 未取得は undefined。`stale` のとき本文上部に赤字1行を出す */
+  translationStatus?: TranslationFreshness;
   /** レッスンのみ: author_en の手編集欄を出す。保存は onSaveAuthorEn が担う */
   authorEnEditable?: boolean;
+  /** レッスンのみ: Author の原文（日本語の `author`）。API ではなく親が渡す */
+  authorSourceText?: string;
   onSaveAuthorEn?: (authorEn: string) => void;
-  /** 保存・翻訳適用の後に呼ぶ（Workspace が鮮度チップを再取得する） */
+  /** 保存・翻訳適用の後に呼ぶ（Workspace が鮮度を再取得する） */
   onTranslationChanged?: () => void;
   /** ホーム統合用: フィールドとボタン行の間に差し込む追加セクション（changelog） */
   extraSection?: React.ReactNode;
@@ -62,27 +92,43 @@ type Props = {
    * 戻り値は結果メッセージ。失敗はメタ側の結果を巻き込まず、個別のエラーとして出す
    */
   afterTranslate?: () => Promise<string | null>;
-  /** 翻訳ボタンのラベル（ホームは「メタと変更履歴を翻訳」等に変える） */
-  translateLabel?: string;
+  /**
+   * ホーム統合用: 保存に合流させる追加保存（changelog.en.md）。
+   * ⚠ 呼ぶかどうかは実装側が dirty で決める——触っていない対象へ書かない。
+   * メタ側の失敗で巻き込まないよう、両方投げてから結果を集める
+   */
+  afterSave?: () => Promise<void> | null;
+  /**
+   * モーダル用: 保存・翻訳のボタンを自前で描かず、操作だけ親へ渡す。
+   * ⚠ 保存の入口が2つにならないよう、渡したら必ず親がボタンを出すこと
+   */
+  onControlsReady?: (controls: EnMetaControls) => void;
+  /** モーダル用: ボタン列と赤字を描かない（親が配置を持つ） */
+  hideActionBar?: boolean;
 };
 
 /**
  * 英語ビューの共通フォーム（studio-translation spec）。
  *
  * - 翻訳対象フィールドだけを、日本語原文の併記つきで編集する
- * - 「原文から翻訳し直す」はフィールドを埋めるだけ（正本に書かない）
+ * - 「原文から翻訳」はフィールドを埋めるだけ（正本に書かない）
  * - 保存は専用経路（PUT /api/content/meta-en）——`_en` と `en_source_hash` 以外に触れない
  * - `en_source_hash` は翻訳ボタン経由の値だけを保存に添える（手入力の訳は鮮度不明のまま）
+ * - 操作は本文右上の `PaneActionBar`（左=翻訳 / 右=保存）。モーダルでは親が持つ
  */
 export function EnMetaSection({
   level,
   names,
+  translationStatus,
   authorEnEditable = false,
+  authorSourceText,
   onSaveAuthorEn,
   onTranslationChanged,
   extraSection,
   afterTranslate,
-  translateLabel = "原文から翻訳し直す",
+  afterSave,
+  onControlsReady,
+  hideActionBar = false,
 }: Props) {
   const defs = EN_FIELD_DEFS[level];
   const [loading, setLoading] = useState(true);
@@ -92,7 +138,6 @@ export function EnMetaSection({
   /** 翻訳ボタン経由で得たハッシュ。手入力だけの保存では添えない */
   const [pendingHash, setPendingHash] = useState<string | undefined>(undefined);
   const [translating, setTranslating] = useState(false);
-  const [saving, setSaving] = useState(false);
   const [statusText, setStatusText] = useState<string | null>(null);
   const [errorText, setErrorText] = useState<string | null>(null);
 
@@ -152,34 +197,79 @@ export function EnMetaSection({
     })();
   };
 
-  const handleSave = () => {
-    setSaving(true);
+  /**
+   * 保存。⚠ `author_en` は別経路（save-lesson-meta）なので、
+   * `_en` の保存が成功してからでないと呼ばない——片方だけ書かれた状態を作らない。
+   *
+   * ホームでは `afterSave`（changelog.en.md）が合流する。こちらは別ファイルなので
+   * 順序依存が無く、メタの失敗で止めない——両方投げてから結果を集める。
+   */
+  const handleSave = async (): Promise<void> => {
     setErrorText(null);
     setStatusText(null);
     const fields: Record<string, string> = {};
     for (const def of defs) fields[def.enKey] = values[def.enKey] ?? "";
-    void saveMetaEn({ level, names, fields, enSourceHash: pendingHash })
+    const metaJob = saveMetaEn({ level, names, fields, enSourceHash: pendingHash })
       .then(() => {
-        setStatusText("保存しました");
         setPendingHash(undefined);
         if (authorEnEditable) onSaveAuthorEn?.(authorEn);
-        onTranslationChanged?.();
       })
       .catch((err: unknown) => {
         setErrorText(`保存エラー: ${String(err)}`);
-      })
-      .finally(() => setSaving(false));
+        throw err;
+      });
+    // afterSave が null を返したら「書くものが無い」＝呼ばない（dirty 判定は実装側）
+    const extraJob = afterSave?.() ?? null;
+    const results = await Promise.allSettled(
+      extraJob ? [metaJob, extraJob] : [metaJob],
+    );
+    onTranslationChanged?.();
+    if (results.some((r) => r.status === "rejected")) {
+      throw new Error("save failed");
+    }
   };
+
+  useEffect(() => {
+    onControlsReady?.({
+      save: handleSave,
+      translate: handleTranslate,
+      translating,
+      loading,
+    });
+    // 親へ渡す口は状態が変わるたびに更新する（ボタンの disabled を追従させる）
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [translating, loading, values, authorEn, pendingHash]);
+
+  const translateButton = (
+    <Button
+      size="sm"
+      variant="outline"
+      onClick={handleTranslate}
+      disabled={loading || translating}
+    >
+      {translating ? (
+        <Loader2 className="size-4 animate-spin" aria-hidden />
+      ) : (
+        <Sparkles className="size-4" aria-hidden />
+      )}
+      {TRANSLATE_LABEL}
+    </Button>
+  );
 
   return (
     <div className={META_DIALOG_STACK}>
+      {hideActionBar ? null : (
+        <PaneActionBar
+          aiSlot={translateButton}
+          saveSlot={<SaveButton onSave={handleSave} disabled={loading} />}
+        />
+      )}
+      {hideActionBar ? null : <StaleTranslationNotice status={translationStatus} />}
       {defs.map((def) => (
         <MetaDialogField key={def.enKey}>
           <Label htmlFor={`en-meta-${def.enKey}`}>{def.label}</Label>
           {/* 日本語原文の併記（読取専用）。後編集の拠り所 */}
-          <p className="text-xs text-muted-foreground">
-            原文: {ja[def.jaKey]?.trim() ? ja[def.jaKey] : "（未設定）"}
-          </p>
+          <SourceText value={ja[def.jaKey]} />
           {def.multiline ? (
             <textarea
               id={`en-meta-${def.enKey}`}
@@ -206,10 +296,10 @@ export function EnMetaSection({
       ))}
       {authorEnEditable ? (
         <MetaDialogField>
-          <Label htmlFor="en-meta-author-en">Author（英語表記・手編集のみ）</Label>
-          <p className="text-xs text-muted-foreground">
-            人名のローマ字表記は本人の流儀のため、翻訳ボタンは触りません
-          </p>
+          <Label htmlFor="en-meta-author-en">Author</Label>
+          {/* ⚠ 翻訳ボタンは author を触らない（人名のローマ字は本人の流儀）。
+              併記の形式は他フィールドと揃える */}
+          <SourceText value={authorSourceText} />
           <Input
             id="en-meta-author-en"
             value={authorEn}
@@ -220,24 +310,6 @@ export function EnMetaSection({
         </MetaDialogField>
       ) : null}
       {extraSection}
-      <div className="flex flex-wrap items-center gap-2">
-        <Button
-          size="sm"
-          variant="outline"
-          onClick={handleTranslate}
-          disabled={loading || translating}
-        >
-          {translating ? (
-            <Loader2 className="size-4 animate-spin" aria-hidden />
-          ) : (
-            <Sparkles className="size-4" aria-hidden />
-          )}
-          {translateLabel}
-        </Button>
-        <Button size="sm" onClick={handleSave} disabled={loading || saving}>
-          保存
-        </Button>
-      </div>
       {statusText ? (
         <p className="text-xs text-muted-foreground">{statusText}</p>
       ) : null}

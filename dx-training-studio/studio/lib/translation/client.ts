@@ -140,24 +140,7 @@ export async function saveLessonEnBody(args: {
   await readJson(res);
 }
 
-export async function markTranslationFresh(args: {
-  level: UnitLevel;
-  target?: "body" | "meta";
-  names: UnitNames;
-}): Promise<void> {
-  const res = await fetch("/api/content/translation-mark-fresh", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      level: args.level,
-      ...(args.target ? { target: args.target } : {}),
-      ...args.names,
-    }),
-  });
-  await readJson(res);
-}
-
-/** レッスンのチップは本文とメタの悪いほうを出す（spec） */
+/** レッスンの鮮度は本文とメタの悪いほうを採る（spec） */
 export function worstFreshness(
   a: TranslationFreshness | undefined,
   b: TranslationFreshness | undefined,

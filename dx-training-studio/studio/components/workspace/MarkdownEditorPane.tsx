@@ -7,9 +7,11 @@ import { GitCompare, Code, Eye, Edit3, Loader2, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useLessonEnBody } from "@/components/workspace/hooks/use-lesson-en-body";
 import {
-  TranslationHeaderControls,
+  LanguageToggleControl,
   type EditLanguage,
-} from "@/components/workspace/translation/TranslationHeaderControls";
+} from "@/components/workspace/translation/LanguageToggleControl";
+import { StaleTranslationNotice } from "@/components/workspace/translation/StaleTranslationNotice";
+import { TRANSLATE_LABEL } from "@/components/workspace/translation/translationLabels";
 import type { TranslationFreshness } from "@/lib/translation/client";
 import { cn } from "@/lib/utils";
 import type { LessonMetaFields } from "@/lib/lesson-meta";
@@ -19,6 +21,7 @@ import { LessonPreviewMetaRow } from "@/components/workspace/LessonPreviewMetaRo
 import { LessonDiffView } from "@/components/workspace/LessonDiffView";
 import { PaneWheelRoot } from "@/components/workspace/PaneWheelRoot";
 import { PaneKindBadge } from "@/components/workspace/metaDialogLayout";
+import { PaneActionBar } from "@/components/workspace/PaneActionBar";
 import {
   PaneSegmentControl,
   type PaneSegmentOption,
@@ -69,10 +72,9 @@ type Props = {
   /** レッスンの編集言語（本文とメタダイアログが連動する1スイッチ） */
   editLanguage: EditLanguage;
   onEditLanguageChange: (language: EditLanguage) => void;
-  /** 鮮度チップ（本文とメタの悪いほう）。未取得は undefined */
+  /** 鮮度（本文とメタの悪いほう）。未取得は undefined。英語ビューの赤字1行に使う */
   translationStatus: TranslationFreshness | undefined;
-  onMarkFresh?: () => void;
-  /** 英語側の保存・翻訳適用の後に呼ぶ（鮮度チップの再取得） */
+  /** 英語側の保存・翻訳適用の後に呼ぶ（鮮度の再取得） */
   onTranslationChanged?: () => void;
   onSaveError?: (message: string) => void;
 };
@@ -111,7 +113,6 @@ export function MarkdownEditorPane({
   editLanguage,
   onEditLanguageChange,
   translationStatus,
-  onMarkFresh,
   onTranslationChanged,
   onSaveError,
 }: Props) {
@@ -259,30 +260,12 @@ export function MarkdownEditorPane({
           {lesson.lesson}
         </h2>
         <div className="ml-auto flex items-center gap-2">
-          <TranslationHeaderControls
+          {/* ⚠ ヘッダーは [言語切替][メタ編集][3ビュー] に限る。
+              本文翻訳は本文右上（スクロール追従）へ移した */}
+          <LanguageToggleControl
             language={editLanguage}
             onLanguageChange={onEditLanguageChange}
-            status={translationStatus}
-            onMarkFresh={onMarkFresh}
           />
-          {/* 本文翻訳は英語モードのヘッダーにだけ出す（エディタ本体には置かない） */}
-          {isEnglish ? (
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              className="h-6 shrink-0 px-2 text-xs"
-              onClick={enBody.translate}
-              disabled={enBody.translating || enBody.state.status !== "ready"}
-            >
-              {enBody.translating ? (
-                <Loader2 className="size-3 animate-spin" aria-hidden />
-              ) : (
-                <Sparkles className="size-3" aria-hidden />
-              )}
-              本文を翻訳
-            </Button>
-          ) : null}
           <Button
             type="button"
             variant="ghost"
@@ -305,12 +288,40 @@ export function MarkdownEditorPane({
       </div>
 
       {isEnglish ? (
-        <div className="relative min-h-0 flex-1 overflow-hidden">
+        <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+          {/* 翻訳が古いことを伝える赤字1行（本文の上部）。stale のときだけ出る */}
+          {translationStatus === "stale" ? (
+            <div className="shrink-0 border-b border-border px-4 py-1.5">
+              <StaleTranslationNotice status={translationStatus} />
+            </div>
+          ) : null}
           {enBody.translateError ? (
             <div className="border-b border-border bg-destructive/10 px-4 py-1.5 text-xs text-destructive">
               {enBody.translateError}
             </div>
           ) : null}
+          <div className="relative min-h-0 flex-1 overflow-hidden">
+          {/* ⚠ CodeMirror が内部で独自のスクロールコンテナを持つので sticky は
+              効かない。本文の上に重ねて追従させる */}
+          <PaneActionBar
+            variant="overlay"
+            aiSlot={
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={enBody.translate}
+                disabled={enBody.translating || enBody.state.status !== "ready"}
+              >
+                {enBody.translating ? (
+                  <Loader2 className="size-3.5 animate-spin" aria-hidden />
+                ) : (
+                  <Sparkles className="size-3.5" aria-hidden />
+                )}
+                {TRANSLATE_LABEL}
+              </Button>
+            }
+          />
           {enBody.state.status === "ready" ? (
             <div className="absolute inset-0 flex min-h-0 min-w-0 bg-background">
               <LessonContentEditor
@@ -331,6 +342,7 @@ export function MarkdownEditorPane({
               英語版を読み込み中...
             </div>
           )}
+          </div>
         </div>
       ) : (
 
@@ -403,6 +415,7 @@ export function MarkdownEditorPane({
         onSave={onUpdateLessonMeta}
         tagSuggestions={tagSuggestions}
         language={editLanguage}
+        translationStatus={translationStatus}
         onTranslationChanged={onTranslationChanged}
       />
     </PaneWheelRoot>

@@ -1,17 +1,14 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { MetaViewShell } from "@/components/workspace/meta-views/MetaViewShell";
-import { WorkspaceChangelogSection } from "@/components/workspace/meta-views/WorkspaceChangelogSection";
+import {
+  ChangelogDraftButton,
+  WorkspaceChangelogSection,
+  type ChangelogControls,
+} from "@/components/workspace/meta-views/WorkspaceChangelogSection";
 import {
   META_DIALOG_CONTROL,
   META_DIALOG_STACK,
@@ -19,24 +16,23 @@ import {
 } from "@/components/workspace/metaDialogLayout";
 import { HomeEnSection } from "@/components/workspace/translation/HomeEnSection";
 import {
-  TranslationHeaderControls,
+  LanguageToggleControl,
   type EditLanguage,
-} from "@/components/workspace/translation/TranslationHeaderControls";
+} from "@/components/workspace/translation/LanguageToggleControl";
+import { PaneActionBar } from "@/components/workspace/PaneActionBar";
+import { SaveButton } from "@/components/workspace/SaveButton";
 import type { TranslationFreshness } from "@/lib/translation/client";
-import { fetchImageList } from "@/lib/image-list-client";
-import { getImageStorageMode } from "@/lib/image-api-client";
-import { isCanonicalImagePath, isMp4Path, toImageApiUrl } from "@/lib/image-path";
-import { cn } from "@/lib/utils";
-import type { ImageAsset } from "@/lib/schema";
-
-/** Select は空文字を値に使えないため、未設定を表すセンチネル */
-const HERO_UNSET = "__unset__";
 
 type WorkspaceMetaValues = {
   name: string;
   description: string;
-  hero: string;
   github_url: string;
+};
+
+const EMPTY_VALUES: WorkspaceMetaValues = {
+  name: "",
+  description: "",
+  github_url: "",
 };
 
 type Props = {
@@ -47,11 +43,21 @@ type Props = {
   editLanguage: EditLanguage;
   onEditLanguageChange: (language: EditLanguage) => void;
   translationStatus: TranslationFreshness | undefined;
-  onMarkFresh?: () => void;
   onTranslationChanged?: () => void;
 };
 
-/** ホーム選択時のペイン2: 全体メタ（contents/.meta.json）の編集ビュー */
+/**
+ * ホーム選択時のペイン2: 全体メタ（contents/.meta.json）の編集ビュー。
+ *
+ * ⚠ 保存は**この画面に1つだけ**（workspace-meta-views spec）。全体メタと
+ * 変更履歴（contents/changelog.md）の両方を1回の操作で確定する。ただし
+ * **dirty なものだけ書く**——触っていない changelog へ PUT を投げると、
+ * 楽観ロックのせいで「名前を直しただけなのに履歴の競合で失敗する」という
+ * 筋の通らない挙動になる。
+ *
+ * ⚠ ヒーロー画像の編集 UI は置かない。`hero` フィールド自体は PUT の
+ * 「省略＝保全」規約で保たれる（フォームが送らない＝消えない）。
+ */
 export function WorkspaceMetaView({
   workspaceName,
   onSaveError,
@@ -59,18 +65,15 @@ export function WorkspaceMetaView({
   editLanguage,
   onEditLanguageChange,
   translationStatus,
-  onMarkFresh,
   onTranslationChanged,
 }: Props) {
-  const [values, setValues] = useState<WorkspaceMetaValues>({
-    name: "",
-    description: "",
-    hero: "",
-    github_url: "",
-  });
+  const [values, setValues] = useState<WorkspaceMetaValues>(EMPTY_VALUES);
   const [loading, setLoading] = useState(true);
-  const [heroCandidates, setHeroCandidates] = useState<ImageAsset[]>([]);
   const [urlError, setUrlError] = useState(false);
+  /** 保存済みの値。これとの差で全体メタの dirty を導出する */
+  const savedRef = useRef<WorkspaceMetaValues>(EMPTY_VALUES);
+  const [changelogControls, setChangelogControls] =
+    useState<ChangelogControls | null>(null);
 
   useEffect(() => {
     // loading は初期値 true。ここで再セットしない（マウント時に1回だけ読む）
@@ -79,12 +82,13 @@ export function WorkspaceMetaView({
       .then((res) => res.json())
       .then((data: Partial<WorkspaceMetaValues>) => {
         if (cancelled) return;
-        setValues({
+        const loaded = {
           name: data.name ?? "",
           description: data.description ?? "",
-          hero: data.hero ?? "",
           github_url: data.github_url ?? "",
-        });
+        };
+        savedRef.current = loaded;
+        setValues(loaded);
       })
       .catch(() => {
         // 読み込めなくても空フォームで編集は続けられる
@@ -97,47 +101,6 @@ export function WorkspaceMetaView({
     };
   }, []);
 
-  useEffect(() => {
-    let cancelled = false;
-    void fetchImageList("used").then((result) => {
-      if (cancelled) return;
-      setHeroCandidates(result.files.filter((f) => !isMp4Path(f.path)));
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-
-  /**
-   * 「未設定 → 選択中 → 残りをファイル名順」の並び。
-   * API の返却順（mtime の新しい順）は画像マネージャが使うので変えず、ここで組み替える。
-   * ⚠ 選択中は候補一覧に無くても項目に入れる——shadcn base の Select は
-   * トリガーのラベルを Root の `items` から解決するため、項目が無いと
-   * 保存済みの値がトリガー上で空表示になる（実体を消した画像で起きる）。
-   */
-  const heroItems = useMemo(() => {
-    const selected = values.hero;
-    const rest = heroCandidates
-      .map((f) => f.name)
-      .filter((name) => name !== selected)
-      .sort((a, b) => a.localeCompare(b));
-    return [
-      { value: HERO_UNSET, label: "未設定" },
-      ...(selected ? [{ value: selected, label: selected }] : []),
-      ...rest.map((name) => ({ value: name, label: name })),
-    ];
-  }, [heroCandidates, values.hero]);
-
-  const heroPreviewUrl = useMemo(() => {
-    if (!values.hero) return null;
-    const asset = heroCandidates.find((f) => f.name === values.hero);
-    const path = asset?.path ?? `images/${values.hero}`;
-    const storageMode = isCanonicalImagePath(path)
-      ? getImageStorageMode()
-      : undefined;
-    return toImageApiUrl(path, storageMode ? { storageMode } : undefined);
-  }, [values.hero, heroCandidates]);
-
   const isValidUrl = (value: string) => {
     if (!value.trim()) return true;
     try {
@@ -148,32 +111,53 @@ export function WorkspaceMetaView({
     }
   };
 
-  const handleSave = () => {
-    if (!isValidUrl(values.github_url)) {
-      setUrlError(true);
-      return;
-    }
-    setUrlError(false);
-    void fetch("/api/content/workspace-meta", {
+  /** ⚠ 保存時にだけ読む（描画には要らない値なので ref のままイベント内で参照する） */
+  const isMetaDirty = () =>
+    values.name !== savedRef.current.name ||
+    values.description !== savedRef.current.description ||
+    values.github_url !== savedRef.current.github_url;
+
+  const saveMeta = (): Promise<void> =>
+    fetch("/api/content/workspace-meta", {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(values),
     })
       .then((res) => {
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        savedRef.current = values;
         onGithubUrlSaved?.(values.github_url.trim());
       })
       .catch((err: unknown) => {
         onSaveError?.(`全体メタ保存エラー: ${String(err)}`);
+        throw err;
       });
+
+  /**
+   * ホームの唯一の保存。dirty な対象にだけ書く。
+   * ⚠ 片方の失敗でもう片方を止めない——両方投げてから結果を集める。
+   * 変更履歴のエラーはセクション自身が表示するので、ここでは握って落とす。
+   */
+  const handleSave = async (): Promise<void> => {
+    if (!isValidUrl(values.github_url)) {
+      setUrlError(true);
+      throw new Error("invalid url");
+    }
+    setUrlError(false);
+    const jobs: Promise<unknown>[] = [];
+    if (isMetaDirty()) jobs.push(saveMeta());
+    if (changelogControls?.dirty) jobs.push(changelogControls.save());
+    if (jobs.length === 0) return;
+    const results = await Promise.allSettled(jobs);
+    if (results.some((r) => r.status === "rejected")) {
+      throw new Error("save failed");
+    }
   };
 
   const headerControls = (
-    <TranslationHeaderControls
+    <LanguageToggleControl
       language={editLanguage}
       onLanguageChange={onEditLanguageChange}
-      status={translationStatus}
-      onMarkFresh={onMarkFresh}
     />
   );
 
@@ -182,12 +166,14 @@ export function WorkspaceMetaView({
       <MetaViewShell
         title={values.name.trim() || workspaceName}
         kindLabel="全体"
-        onSave={() => {}}
-        hideSave
         headerExtra={headerControls}
       >
-        {/* 英語ビューはメタと changelog（英語版）が連動して切り替わる */}
-        <HomeEnSection onTranslationChanged={onTranslationChanged} />
+        {/* 英語ビューはメタと changelog（英語版）が連動して切り替わる。
+            ボタン列・赤字・保存の統合は HomeEnSection（EnMetaSection）側が持つ */}
+        <HomeEnSection
+          translationStatus={translationStatus}
+          onTranslationChanged={onTranslationChanged}
+        />
       </MetaViewShell>
     );
   }
@@ -196,13 +182,17 @@ export function WorkspaceMetaView({
     <MetaViewShell
       title={values.name.trim() || workspaceName}
       kindLabel="全体"
-      onSave={handleSave}
-      saveDisabled={loading}
       headerExtra={headerControls}
+      actionBar={
+        <PaneActionBar
+          aiSlot={<ChangelogDraftButton controls={changelogControls} />}
+          saveSlot={<SaveButton onSave={handleSave} disabled={loading} />}
+        />
+      }
     >
       <div className={META_DIALOG_STACK}>
         <MetaDialogField>
-          <Label htmlFor="workspace-meta-name">名前（サイト名）</Label>
+          <Label htmlFor="workspace-meta-name">名前</Label>
           <Input
             id="workspace-meta-name"
             value={values.name}
@@ -229,49 +219,6 @@ export function WorkspaceMetaView({
           />
         </MetaDialogField>
         <MetaDialogField>
-          <Label htmlFor="workspace-meta-hero">ヒーロー画像</Label>
-          <Select
-            items={heroItems}
-            value={values.hero || HERO_UNSET}
-            onValueChange={(v) => {
-              if (!v) return;
-              setValues((prev) => ({
-                ...prev,
-                hero: v === HERO_UNSET ? "" : v,
-              }));
-            }}
-          >
-            <SelectTrigger
-              id="workspace-meta-hero"
-              className={cn(META_DIALOG_CONTROL, "w-full")}
-              disabled={loading}
-            >
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {heroItems.map((opt) => (
-                <SelectItem key={opt.value} value={opt.value}>
-                  {opt.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <p className="text-xs text-muted-foreground">
-            正本 `images/` の画像から選びます。公開サイトは切り抜かずに表示するため、横長（3.75:1 前後）の画像を使ってください。
-          </p>
-          <p className="text-xs text-muted-foreground">
-            未設定の場合は同梱の既定画像（`mandala/app/hero.jpg`）を使用します。
-          </p>
-          {heroPreviewUrl ? (
-            /* eslint-disable-next-line @next/next/no-img-element */
-            <img
-              src={heroPreviewUrl}
-              alt={values.hero}
-              className="max-h-40 w-full rounded border border-border object-contain"
-            />
-          ) : null}
-        </MetaDialogField>
-        <MetaDialogField>
           <Label htmlFor="workspace-meta-github">GitHub リンク</Label>
           <Input
             id="workspace-meta-github"
@@ -288,9 +235,8 @@ export function WorkspaceMetaView({
             <p className="text-xs text-destructive">URL 形式で入力してください</p>
           ) : null}
         </MetaDialogField>
-        {/* 変更履歴は独立セクション（正本が .meta.json ではなく contents/changelog.md
-            なので、上の保存ボタンとは切り離して専用の保存を持つ） */}
-        <WorkspaceChangelogSection />
+        {/* 正本は .meta.json ではなく contents/changelog.md。保存は上の1つに合流する */}
+        <WorkspaceChangelogSection onControlsReady={setChangelogControls} />
       </div>
     </MetaViewShell>
   );

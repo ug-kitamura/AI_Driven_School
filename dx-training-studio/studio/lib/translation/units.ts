@@ -1,5 +1,5 @@
 /**
- * 翻訳 API 群（translate / translation-status / translation-mark-fresh）が共有する
+ * 翻訳 API 群（translate / translation-status）が共有する
  * ユニット解決とメタ読み取り。
  *
  * 階層ごとの翻訳対象フィールドの定義は freshness.ts（ハッシュ）と

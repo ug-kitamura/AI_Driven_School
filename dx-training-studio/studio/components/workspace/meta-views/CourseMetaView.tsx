@@ -30,9 +30,11 @@ import {
 } from "@/lib/course-flow";
 import { EnMetaSection } from "@/components/workspace/translation/EnMetaSection";
 import {
-  TranslationHeaderControls,
+  LanguageToggleControl,
   type EditLanguage,
-} from "@/components/workspace/translation/TranslationHeaderControls";
+} from "@/components/workspace/translation/LanguageToggleControl";
+import { PaneActionBar } from "@/components/workspace/PaneActionBar";
+import { SaveButton } from "@/components/workspace/SaveButton";
 import type { TranslationFreshness } from "@/lib/translation/client";
 
 /** Select は空文字を値に使えないため、未設定を表すセンチネル */
@@ -90,7 +92,6 @@ type Props = {
   editLanguage: EditLanguage;
   onEditLanguageChange: (language: EditLanguage) => void;
   translationStatus: TranslationFreshness | undefined;
-  onMarkFresh?: () => void;
   onTranslationChanged?: () => void;
   /** シリーズ名（英語ビューの対象解決に使う） */
   seriesName: string;
@@ -107,7 +108,6 @@ export function CourseMetaView({
   editLanguage,
   onEditLanguageChange,
   translationStatus,
-  onMarkFresh,
   onTranslationChanged,
   seriesName,
 }: Props) {
@@ -191,21 +191,24 @@ export function CourseMetaView({
     <MetaViewShell
       title={course.name}
       kindLabel="コース"
-      onSave={handleSave}
-      hideSave={editLanguage === "en"}
       headerExtra={
-        <TranslationHeaderControls
+        <LanguageToggleControl
           language={editLanguage}
           onLanguageChange={onEditLanguageChange}
-          status={translationStatus}
-          onMarkFresh={onMarkFresh}
         />
+      }
+      actionBar={
+        // 英語ビューのボタン列と赤字は EnMetaSection 側が持つ
+        editLanguage === "en" ? undefined : (
+          <PaneActionBar saveSlot={<SaveButton onSave={handleSave} />} />
+        )
       }
     >
       {editLanguage === "en" ? (
         <EnMetaSection
           level="course"
           names={{ series: seriesName, course: course.name }}
+          translationStatus={translationStatus}
           onTranslationChanged={onTranslationChanged}
         />
       ) : (

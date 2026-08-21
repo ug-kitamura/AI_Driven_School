@@ -1,7 +1,6 @@
 "use client";
 
 import type { ReactNode } from "react";
-import { Button } from "@/components/ui/button";
 import { PaneKindBadge } from "@/components/workspace/metaDialogLayout";
 
 type Props = {
@@ -9,26 +8,32 @@ type Props = {
   title: string;
   /** タイトル横の階層種別ラベル（例: 全体 / シリーズ / コース） */
   kindLabel: string;
-  onSave: () => void;
-  saveDisabled?: boolean;
-  /** 保存ボタンの左に置く追加コントロール（言語切替＋鮮度チップ） */
+  /** ヘッダー右端に置くコントロール（言語切替）。⚠ 保存ボタンは置かない */
   headerExtra?: ReactNode;
-  /** 英語ビューでは保存を隠す（英語フォームが専用の保存を持つ） */
-  hideSave?: boolean;
+  /**
+   * 本文の先頭に差し込む sticky な操作ボタン列（`PaneActionBar`）。
+   * ⚠ ヘッダーではなく本文スクロールコンテナの内側に置く——sticky を効かせるため
+   */
+  actionBar?: ReactNode;
   children: ReactNode;
 };
 
 /**
  * ペイン2 のメタビュー共通シェル。
  * MarkdownEditorPane と同じ h-12 ヘッダー＋スクロール本文の構成。
+ *
+ * 配置の規則（studio-translation spec）:
+ * - ヘッダー = 見る場所を切り替える（言語切替だけ・右端）
+ * - 本文右上 = 何かを起こす（`actionBar`。左＝AI が下書き / 右＝人が確定）
+ *
+ * ⚠ 保存ボタンをヘッダーに戻さないこと。日英で位置が変わるのを避けるため、
+ * 言語による分岐もここには置かない。
  */
 export function MetaViewShell({
   title,
   kindLabel,
-  onSave,
-  saveDisabled = false,
   headerExtra,
-  hideSave = false,
+  actionBar,
   children,
 }: Props) {
   return (
@@ -38,17 +43,13 @@ export function MetaViewShell({
         <h2 className="min-w-0 truncate text-sm font-semibold text-foreground">
           {title}
         </h2>
-        <div className="ml-auto flex items-center gap-2">
-          {headerExtra}
-          {hideSave ? null : (
-            <Button size="sm" onClick={onSave} disabled={saveDisabled}>
-              保存
-            </Button>
-          )}
-        </div>
+        <div className="ml-auto flex items-center gap-2">{headerExtra}</div>
       </div>
       <div className="workspace-scrollbar min-h-0 flex-1 overflow-y-auto overscroll-y-contain px-6 py-5">
-        <div className="mx-auto flex max-w-2xl flex-col gap-4">{children}</div>
+        <div className="mx-auto flex max-w-2xl flex-col gap-4">
+          {actionBar}
+          {children}
+        </div>
       </div>
     </div>
   );

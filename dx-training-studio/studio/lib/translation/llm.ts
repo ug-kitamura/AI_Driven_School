@@ -1,15 +1,18 @@
 /**
  * 翻訳 API 共通の LLM 実行。
  *
- * ⚠ モデルは常に `claude-sonnet-5` に固定する（studio-translation spec）。
- * ワークスペースのモデル設定（`x-ai-model` ヘッダー・AI_MODEL env）を見ない——
- * Studio ボタンの翻訳は費用のため Sonnet 5、品質勝負の一括はスキル（Claude Code）
- * という使い分けの決定による。`resolveLlmProvider` を通さないのは意図的。
+ * モデルはワークスペースのモデル設定に従う（studio-translation spec）——
+ * 呼び出し側のルートが `resolveAiModel(req)` で解決した値を渡すこと。
+ * ⚠ ここで既定値へフォールバックしない。翻訳だけ固定モデルにしていた頃の
+ * 名残（`TRANSLATION_MODEL`）を復活させないこと——他の AI 機能と同じ
+ * 解決経路に載せる、というのが今の決定。
+ *
+ * `resolveLlmProvider` を通さず `anthropicProvider` を直に叩いているのは、
+ * 選べるモデルのうち非 Anthropic は `gpt-5-nano` だけで、それは
+ * `resolveAiModel` が未対応として弾くため。
  */
 import { anthropicProvider } from "@/lib/agent/llm/anthropic";
 import { TRANSLATION_RETRY_PROMPT } from "@/lib/translation/prompts";
-
-export const TRANSLATION_MODEL = "claude-sonnet-5";
 
 export type TranslationTurnResult<T> =
   | { ok: true; value: T }
@@ -22,6 +25,8 @@ export type TranslationTurnResult<T> =
  */
 export async function runTranslationTurn<T>(args: {
   apiKey: string;
+  /** `resolveAiModel(req)` が返したモデル。ギアメニューの選択に従う */
+  model: string;
   system: string;
   userPrompt: string;
   parse: (text: string) => T | null;
@@ -33,7 +38,7 @@ export async function runTranslationTurn<T>(args: {
   for (let attempt = 0; attempt < 2; attempt += 1) {
     const turn = await anthropicProvider.runTurn({
       apiKey: args.apiKey,
-      model: TRANSLATION_MODEL,
+      model: args.model,
       system: args.system,
       messages,
       tools: [],

@@ -96,7 +96,7 @@ describe("WorkspaceMetaView", () => {
     render(<WorkspaceMetaView workspaceName="DX Training Studio" {...translationProps} />);
 
     const nameInput = await screen.findByLabelText<HTMLInputElement>(
-      "名前（サイト名）",
+      "名前",
     );
     await waitFor(() => expect(nameInput.value).toBe("DX Training Mandala"));
 
@@ -110,116 +110,13 @@ describe("WorkspaceMetaView", () => {
       expect(putCall).toBeDefined();
       const body = JSON.parse((putCall![1] as RequestInit).body as string) as {
         name: string;
-        hero: string;
+        hero?: string;
       };
       expect(body.name).toBe("新しいサイト名");
-      expect(body.hero).toBe("hero-1.png");
+      // ⚠ hero はフォームが持たない。送らないことで PUT の「省略＝保全」規約に乗り、
+      //    .meta.json の既存値が保たれる
+      expect(body.hero).toBeUndefined();
     });
-  });
-
-  it("ヒーロー画像は 未設定 → 選択中 → 残りをアルファベット順で並べる", async () => {
-    const fetchMock = vi.fn((input: RequestInfo | URL) => {
-      const url = String(input);
-      if (url.startsWith("/api/content/workspace-meta")) {
-        return Promise.resolve(
-          new Response(JSON.stringify({ hero: "zebra.png" }), { status: 200 }),
-        );
-      }
-      if (url.startsWith("/api/images/list")) {
-        // 返却順は mtime 降順（アルファベット順ではない）
-        return Promise.resolve(
-          new Response(
-            JSON.stringify({
-              files: ["cherry.png", "apple.png", "zebra.png", "banana.png"].map(
-                (name) => ({
-                  path: `images/${name}`,
-                  name,
-                  source: "uploaded",
-                  uploadedAt: "",
-                }),
-              ),
-            }),
-            { status: 200 },
-          ),
-        );
-      }
-      return Promise.resolve(new Response("{}", { status: 200 }));
-    });
-    vi.stubGlobal("fetch", fetchMock);
-    render(<WorkspaceMetaView workspaceName="DX Training Studio" {...translationProps} />);
-
-    const trigger = await screen.findByLabelText("ヒーロー画像");
-    await waitFor(() => expect(trigger.textContent).toContain("zebra.png"));
-    fireEvent.click(trigger);
-
-    await waitFor(() => {
-      const options = screen
-        .getAllByRole("option")
-        .map((o) => o.textContent?.trim());
-      expect(options).toEqual([
-        "未設定",
-        "zebra.png",
-        "apple.png",
-        "banana.png",
-        "cherry.png",
-      ]);
-    });
-  });
-
-  it("未設定でも同梱の既定画像が使われることが分かる", async () => {
-    const fetchMock = vi.fn((input: RequestInfo | URL) => {
-      const url = String(input);
-      if (url.startsWith("/api/content/workspace-meta")) {
-        // hero 未設定（公開サイトは同梱の app/hero.jpg にフォールバックする）
-        return Promise.resolve(new Response("{}", { status: 200 }));
-      }
-      return Promise.resolve(
-        new Response(JSON.stringify({ files: [] }), { status: 200 }),
-      );
-    });
-    vi.stubGlobal("fetch", fetchMock);
-    render(<WorkspaceMetaView workspaceName="DX Training Studio" {...translationProps} />);
-
-    // 「未設定」だけだと画像が出ていないと読み違えるので、補足文で既定画像に触れる
-    await screen.findByLabelText("ヒーロー画像");
-    await waitFor(() =>
-      expect(document.body.textContent).toContain("mandala/app/hero.jpg"),
-    );
-  });
-
-  it("保存済み画像が候補一覧に無くても選択肢に出る", async () => {
-    const fetchMock = vi.fn((input: RequestInfo | URL) => {
-      const url = String(input);
-      if (url.startsWith("/api/content/workspace-meta")) {
-        return Promise.resolve(
-          new Response(JSON.stringify({ hero: "deleted.png" }), { status: 200 }),
-        );
-      }
-      if (url.startsWith("/api/images/list")) {
-        return Promise.resolve(
-          new Response(
-            JSON.stringify({
-              files: [
-                {
-                  path: "images/apple.png",
-                  name: "apple.png",
-                  source: "uploaded",
-                  uploadedAt: "",
-                },
-              ],
-            }),
-            { status: 200 },
-          ),
-        );
-      }
-      return Promise.resolve(new Response("{}", { status: 200 }));
-    });
-    vi.stubGlobal("fetch", fetchMock);
-    render(<WorkspaceMetaView workspaceName="DX Training Studio" {...translationProps} />);
-
-    // 実体が消えていてもトリガーに保存済みの値が出る（空表示にならない）
-    const trigger = await screen.findByLabelText("ヒーロー画像");
-    await waitFor(() => expect(trigger.textContent).toContain("deleted.png"));
   });
 
   it("不正な GitHub URL では保存せずエラーを出す", async () => {

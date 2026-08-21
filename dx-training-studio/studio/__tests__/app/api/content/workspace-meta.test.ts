@@ -58,6 +58,9 @@ describe("workspace-meta API", () => {
       description: "",
       hero: "web-1.jpg",
       github_url: "https://github.com/x/y",
+      // 英語ビューの読み取りにも同じ GET を使うため _en も返る（未設定は空文字）
+      name_en: "",
+      description_en: "",
     });
   });
 

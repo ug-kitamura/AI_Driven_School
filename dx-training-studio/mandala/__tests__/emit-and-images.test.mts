@@ -74,27 +74,47 @@ describe("emitLessonMarkdown", () => {
     expect(md).toContain('description: "説明: コロンを含む文"');
   });
 
-  it("英語版では未翻訳バッジとロケール付き href を出す", () => {
+  it("英語版で未翻訳なら本文を Coming soon に差し替える", () => {
     const md = emitLessonMarkdown(lesson, series, course, "en", "# 本文\n");
-    expect(md).toContain('translation: "untranslated"');
+    // ⚠ 日本語本文を書かない（書くと Pagefind の英語索引が日本語で汚染される）
+    expect(md).not.toContain("# 本文");
+    expect(md).toContain("Coming soon");
+    // 内容へ辿り着く手段として日本語版へのリンクを残す
+    expect(md).toContain("](/git/concepts/what-is-version-control)");
     expect(md).toContain('seriesHref: "/en/git"');
     expect(md).toContain('seriesName: "Git Basics"');
   });
 
-  it("古い翻訳では stale バッジを出す", () => {
-    const stale = { ...lesson, translation: "stale" as const };
-    const md = emitLessonMarkdown(stale, series, course, "en", "# Body\n");
-    expect(md).toContain('translation: "stale"');
+  it("Coming soon は見出しを含まない（TOC に出さない）", () => {
+    const md = emitLessonMarkdown(lesson, series, course, "en", "# 本文\n");
+    const body = md.split("---").slice(2).join("---");
+    expect(body).not.toMatch(/^#/m);
   });
 
-  it("英語版が最新なら翻訳バッジを出さない", () => {
+  it("古い翻訳でも翻訳バッジを出さない", () => {
+    const stale = {
+      ...lesson,
+      bodyEn: "# Body\n",
+      translation: "stale" as const,
+    };
+    const md = emitLessonMarkdown(stale, series, course, "en", "# Body\n");
+    expect(md).not.toContain("translation:");
+    expect(md).toContain("# Body");
+    // 執筆状況のラベルは翻訳とは別の軸なので残る
+    expect(md).toContain("lessonStatus: done");
+  });
+
+  it("英語版があればその本文を出す（バッジは無し）", () => {
     const translated = {
       ...lesson,
+      bodyEn: "# Body\n",
       translation: undefined,
       titleEn: "What is version control?",
     };
     const md = emitLessonMarkdown(translated, series, course, "en", "# Body\n");
     expect(md).not.toContain("translation:");
+    expect(md).not.toContain("Coming soon");
+    expect(md).toContain("# Body");
     expect(md).toContain('title: "What is version control?"');
   });
 

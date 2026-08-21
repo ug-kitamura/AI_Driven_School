@@ -1,10 +1,10 @@
 # 引き継ぎ: dx-training-studio
 
-**次のセッションの入口は「翻訳機能の UX と曼陀羅表示の問題」**（ユーザー宣言・2026-08-21）。⚠ **症状はまだ記録されていない**——ユーザーが実機で重大な問題を確認しており、**セッション冒頭で内容を聞くところから始めること**。実装を急がず explore で症状を分解し、UX の問題か表示の問題かを切り分けてから change に落とす。
+**次のセッションの入口は「英訳パイロット」**（→ 1.5 節）。**翻訳 UX の課題は 2026-08-22 に全て片付いた**ので、器は整っている。
 
-**英語翻訳対応（4大課題④）の実装自体は 2026-08-21 に完了している**——change 3本（`en-translation-foundation` / `studio-translation-ui` / `translate-skill`）を propose → apply → archive まで通し、ブランチ `dx-english-translation` にコミット・プッシュ済み（ユーザーの明示指示による。PR とマージは人）。**ただし上記の問題があるため、英訳パイロット（`/dx-training-translate` で「Gitの三大エリア」→ mandala ビルドで `/en` 実確認）は問題の解消後に回す**（→ 1.5 節）。
+**英語翻訳対応（4大課題④）**は 2026-08-21 に実装（change 3本）、**2026-08-22 に UX ラウンドで作り直した**（change 3本: `studio-translation-ux` / `studio-home-simplify` / `site-untranslated-page`）。すべて archive 済み・ブランチ `dx-english-translation` にコミット・プッシュ済み（ユーザーの明示指示による。PR とマージは人）。⚠ **曼陀羅の表示崩れは立ち上げ直しで解消したため対象外**（ユーザー判断）。
 
-積み残しの実機確認が1件ある: **曼陀羅モーダルを閉じて開き直したとき中心が合うか**（→ 1章。ペインでは原理的に判定できない）。**次セッションの曼陀羅表示の問題と同じ領域なので、まとめて聞くのが早い。**
+積み残しの実機確認が1件ある: **曼陀羅モーダルを閉じて開き直したとき中心が合うか**（→ 1章。ペインでは原理的に判定できない）。**ユーザーに聞くだけ。**
 
 ⚠ **ラウンド9・10 はユーザーの明示指示でコミット・プッシュまで済ませた**（ブランチ `dx-ebex-pink-search-mandala`）。**これは例外**で、既定は「コミットしない」のまま（→ 6.3）。PR とマージは人がやる。
 
@@ -21,20 +21,16 @@
 ## 1. 残っている仕事
 
 ```
-[次] 翻訳機能の UX と曼陀羅表示の問題         ← 次セッションの入口
-       ⚠ 症状は未記録。ユーザーが実機で重大な問題を確認している。
-       セッション冒頭で「どう困ったか」を聞き、explore で分解する。
-       実装（何がどう作られているか）は 1.5 節と archive の design.md
-
-[後] 英訳パイロット（英語翻訳対応④の仕上げ）    ← 上の問題を片付けてから
+[次] 英訳パイロット（英語翻訳対応④の仕上げ）    ← 次セッションの入口
        /dx-training-translate で「Gitの三大エリア」（レッスン指定か
        Git概念コースごと・人の判断）を翻訳 → mandala をビルドして /en を
-       実確認（バッジ消滅・曼陀羅の name_en・検索の言語分離）。
+       実確認（Coming soon が英文に変わる・曼陀羅の name_en・検索の言語分離）。
        実装済みの器と作法は 1.5 節
+       ⚠ いま /en は 9レッスン中 8件が Coming soon。訳を入れると減っていく
 
 [次] dx-english-translation ブランチの PR → マージ    ⚠ 人がやる
-       英語翻訳対応の change 3本（器/Studio UI/スキル）＋spec 同期＋
-       翻訳契約＋dx-training-translate スキル一式（push 済み）
+       英語翻訳対応の change 6本（器/Studio UI/スキル ＋ UX ラウンド3本）＋
+       spec 同期＋翻訳契約＋dx-training-translate スキル一式（push 済み）
 
 [次] モーダル構成変更の実機確認（ユーザーに聞くだけ）
        ラウンド10 → 実機フィードバック 3 巡で以下まで到達（2026-08-21・push 済み）:
@@ -107,39 +103,47 @@
      画像ピッカー（2.7）
 ```
 
-### 1.5 英語翻訳対応（✅ 実装完了・2026-08-21）——パイロットに必要な知識
+### 1.5 英語翻訳対応（✅ 実装完了・2026-08-22 に UX を作り直し）——パイロットに必要な知識
 
-**位置づけ**: 4大課題ロードマップ④。explore で全決定（正本は memory `project-dx-english-translation`）→ change 3本を同日に propose → apply → archive まで完了:
+**位置づけ**: 4大課題ロードマップ④。器は 2026-08-21 に3本、**UX は 2026-08-22 に3本**の change で作った。すべて archive 済み。
 
 | change | 中身 |
 |---|---|
-| `en-translation-foundation` | `target_en`・`en_source_hash`・鮮度判定 lib（`studio/lib/translation/freshness.ts` が正本・mandala は parity 検証つきミラー）・`/en` の2種バッジ（未翻訳/翻訳が古い）・Pagefind の言語分離 |
-| `studio-translation-ui` | 4ヘッダーの言語切替＋鮮度チップ・英語ビュー（原文併記・翻訳ボタン）・en 本文編集（自動保存）・ホーム統合翻訳（メタ＋changelog）・翻訳 API（Sonnet 5 固定）・「最新として扱う」 |
+| `en-translation-foundation` | `target_en`・`en_source_hash`・鮮度判定 lib（`studio/lib/translation/freshness.ts` が正本・mandala は parity 検証つきミラー）・Pagefind の言語分離 |
+| `studio-translation-ui` | 言語ビュー切替・英語ビュー（原文併記・翻訳ボタン）・en 本文編集（自動保存）・ホーム統合翻訳・翻訳 API |
 | `translate-skill` | `/dx-training-translate` スキル（範囲指定・鮮度レポート→未翻訳/古いだけ差分翻訳・`references/scan-freshness.mts` が正本 lib を import） |
+| `studio-translation-ux` | 配置と表記の統一（本文右上 sticky ボタン列・表記統一・保存のチェックマーク）／鮮度チップと「最新として扱う」の廃止／赤字1行／モデルのギアメニュー準拠 |
+| `studio-home-simplify` | ホームの保存1本化（dirty 駆動）／AI 下書きは正本に書かない／基準日・折りたたみ・区切り線・ヒーロー UI の削除 |
+| `site-untranslated-page` | `/en` の未翻訳ページを日本語フォールバックから `Coming soon` ＋日本語版リンクへ／翻訳バッジ2種の削除 |
 
 **パイロットの手順**（次セッション or 人）:
 
 1. `/dx-training-translate` を起動し「Gitの三大エリア」を指定（レッスン単位で小さく始めるか、Git概念コースごとかは人の判断）
 2. 生成された差分（`contents.en.md`・`.meta.json` の `*_en`/`en_source_hash`）を人がレビュー
-3. `start-mandala-dev.bat` でビルド → `/en` で: 当該ページのバッジ消滅・曼陀羅/サイドバーの `name_en` 表示・検索が英語索引を引くこと
-4. Studio でも: 当該ユニットのチップが消える・英語ビューに訳が入っていること
+3. `start-mandala-dev.bat` でビルド → `/en` で: 当該ページが `Coming soon` から英文に変わる・曼陀羅/サイドバーの `name_en` 表示・検索が英語索引を引くこと
+4. Studio でも: 英語ビューに訳が入っていること
 
 **作法の要点（触るときに知っておくこと）**:
 
-- **鮮度はハッシュ方式**（spec `translation-freshness` が正本）: 本文は `contents.en.md` 1行目の `<!-- source: sha256:… -->`、メタは `.meta.json` の `en_source_hash`、changelog は日英の先頭エントリ日付比較。**ハッシュを書くのは翻訳の実行主体だけ**（手動保存は触らない。手直し後は Studio チップの「最新として扱う」で解消）
+- **配置の規則（4面共通）**: ヘッダー右端＝**言語切替だけ**（保存も鮮度チップも置かない）／本文右上に **sticky なボタン列**（`PaneActionBar`）で**左＝AI が下書きを作る・右＝人が正本に書く**。⚠ この順を面の都合で入れ替えないこと——「AI は正本に書かない」規則を配置で見せている。例外は2つだけ: レッスンメタ**モーダル**（右下 `[キャンセル][保存]`・右上 `[原文から翻訳]`）と、レッスン本文ヘッダーの `[言語切替][メタ編集][3ビュー]`
+- **翻訳ボタンの表記は全箇所「原文から翻訳」**（`translationLabels.ts` の `TRANSLATE_LABEL` が正本）。**保存の完了は `SaveButton` のチェックマーク**で、文言は対象によらず同一
+- **鮮度はハッシュ方式**（spec `translation-freshness` が正本）: 本文は `contents.en.md` 1行目の `<!-- source: sha256:… -->`、メタは `.meta.json` の `en_source_hash`、changelog は日英の先頭エントリ日付比較。⚠ **ハッシュを書くのは翻訳の実行だけ**——手編集の保存は既存ハッシュを維持する（触らない）。**「最新として扱う」は廃止した**ので、手直し後に警告を消したければ「原文から翻訳」を実行し直す
+- **翻訳が古いことの伝え方は1か所だけ**: **Studio ペイン2 英語ビュー本文上部の赤字1行**（`StaleTranslationNotice`）。日本語ビューには出さない。**公開サイトには一切出さない**——受講者は対処できないから（鮮度維持はトレーナーの責務）。⚠ サイトの鮮度判定ミラーと parity テストは**残してある**（`stale` が未使用でも消さないこと。ハッシュ形式のズレを検知する安全網）
+- **未翻訳ページは `Coming soon` ＋日本語版リンク**（`emit.mts` の `untranslatedPlaceholder`）。⚠ **日本語本文へフォールバックしない**——Pagefind が索引するのは生成 HTML なので、ファイルに日本語を書いた時点で英語索引が汚染される（実行時のコンポーネント分岐では直せない）。⚠ **名前・説明・キャッチ・受講対象者は日本語フォールバックを維持**（止めると曼陀羅とサイドバーが同じ文字列だらけになりナビが死ぬ）
 - **翻訳規則の SSoT は `contracts/translation-contract.md`**（英訳する/変えない・訳注 `<!-- 訳注: … -->`・用語集）。Studio の翻訳 API とスキルの両方が読む——**規則をどちらかに複製しないこと**
 - ⚠ **`author` / `author_en` は翻訳が触らない**（英語ビューで手編集のみ）。構造キー（id/order/slug/cross_series/is_start/is_goal）も不可侵。agent 書込ガードは `en_source_hash` を `id` と同じ既存値保護にしてある（鮮度偽装防止）
-- **モデルの使い分け**: Studio ボタン＝常に Sonnet 5（`lib/translation/llm.ts` で固定。ワークスペース設定を見ない）／一括・品質勝負＝スキル（Claude Code）
+- **モデルはギアメニューの選択に従う**（`x-ai-model` → `AI_MODEL` env → 既定）。⚠ **Sonnet 5 固定は撤回した**——`lib/translation/llm.ts` に固定値を戻さないこと。未対応モデル（`gpt-5-nano`）は他の AI 機能と同じ `resolveAiModel` が弾く
 - ⚠ **英語ビューの保存は専用経路 `PUT /api/content/meta-en`**。既存 save-course は target/cross 系を常時明示送信する規約なので流用すると日本語側を壊す（design 追記に経緯）
+- **ホームの保存は1つだけ**で、全体メタと changelog をまとめて確定する。⚠ **dirty なものだけ書く**——触っていない changelog へ PUT を投げると、楽観ロックのせいで「名前を直しただけなのに履歴の競合で失敗する」になる
 - ⚠ **`/en` の `<html lang>` は postbuild（`mandala/scripts/set-en-lang.mts`）が書き換える**。Pagefind はこれで言語別索引を分離するので、**postbuild の順序（lang 書き換え → Pagefind）を崩さないこと**。検索 UI の索引言語は「最初に検索を開いた時点の lang」で決まる既知の限界あり（README）
-- **状態は日英共有**（status に `_en` は無い）——未完成レッスンの英語版は自動で「作成中」表示。未完成も翻訳対象（スキルは status で絞らない）
+- **状態は日英共有**（status に `_en` は無い）——未完成レッスンの英語版は自動で「作成中 / in progress」表示。未完成も翻訳対象（スキルは status で絞らない）
+- **ヒーロー画像の編集 UI は消したが `hero` フィールドは生きている**——`.meta.json` に手で書けば公開サイトに効く（PUT の「省略＝保全」規約で消えない）
 
-**参照すべき正本**: spec `translation-freshness` / `studio-translation` / `training-translate-skill`・`publishing-site-build`（バッジ2種・検索言語分離）・`publishing-meta-fields`（`target_en` / `en_source_hash`）。実装の経緯は archive の `2026-08-21-en-translation-foundation` / `-studio-translation-ui` / `-translate-skill` の design.md。
-
+**参照すべき正本**: spec `translation-freshness` / `studio-translation` / `studio-changelog-editor` / `training-translate-skill`・`publishing-site-build`（未翻訳ページ・検索言語分離）・`publishing-meta-fields`（`target_en` / `en_source_hash`）・`workspace-meta-views`（ボタン列の配置）。実装の経緯は archive の `2026-08-21-en-translation-foundation` / `-studio-translation-ui` / `-translate-skill` / `-studio-translation-ux` / `-studio-home-simplify` / `-site-untranslated-page` の design.md。
 
 ### リポジトリの状態
 
-ブランチは作業の区切りで変わる（⚠ **`git branch --show-current` を信じること**）。2026-08-21 時点は **`dx-english-translation`**（main から分岐。英語翻訳対応の change 3本一式を push 済み・PR は人）。前ブランチ `dx-ebex-pink-search-mandala` は PR #156 で main へマージ済み。⚠ **コミットするならブランチを切ってから**。コミットの作法は 6.3、横から入るコミットの話は7章。
+ブランチは作業の区切りで変わる（⚠ **`git branch --show-current` を信じること**）。2026-08-22 時点は **`dx-english-translation`**（main から分岐。英語翻訳対応の change 6本一式を push 済み・PR は人）。前ブランチ `dx-ebex-pink-search-mandala` は PR #156 で main へマージ済み。⚠ **コミットするならブランチを切ってから**。コミットの作法は 6.3、横から入るコミットの話は7章。
 
 **フォルダ構成は 2026-08-16 に兄弟構成へ移行した**（change `restructure-studio-mandala`）。`dx-training-studio/` は入れ物になり、アプリは `studio/`（旧直下）と `mandala/`（旧 `site/`）、正本（`contents/` `images/` `contents-work/` `local-db/`）と共通（`.claude/` `openspec/` `docs/` `contracts/`）は入れ物直下のまま。構造の要件は spec `project-layout` が正本。起動は入れ物直下の `start-studio(-dev).bat` / `start-mandala(-dev).bat`。
 
@@ -171,7 +175,7 @@ npm run start   # out/ をローカル配信
 
 **ポート**: EBEX=3000 / Studio=3001 / site=3002。
 
-**実装済みの機能**: トップ3階層の自動生成（見出しは「{名前}　～{catch}～」）、レッスンページ（ラベル行＝状態 / 所要時間 / 受講形態、右端に「著者: …」）、Nextra 内蔵パンくず（全体トップとシリーズトップには出さない）、GitHub アラート（`> [!TIP]` 等）、Pagefind 全文検索、**全体曼陀羅**（シリーズ枠・折りたたみ・ゴーストノード・ノードクリック遷移・Start / Goal の文字ノード）、**ナビバーの network アイコンから開く全体曼陀羅モーダル**（現在地を青枠＋ピンで強調。**シリーズを畳んでも集約ノードへ、シリーズトップを開けば枠へ印が移る**）、**シリーズ枠のクリックでシリーズトップへ遷移**、コーストップの「前に受けるコース / 次に受けるコース」、選択言語だけのサイドバー、`/en` ツリー（未翻訳は日本語フォールバック＋バッジ）、supergraphic 帯、サイドバー最上部のリリース番号。**フッターは無い。**
+**実装済みの機能**: トップ3階層の自動生成（見出しは「{名前}　～{catch}～」）、レッスンページ（ラベル行＝状態 / 所要時間 / 受講形態、右端に「著者: …」）、Nextra 内蔵パンくず（全体トップとシリーズトップには出さない）、GitHub アラート（`> [!TIP]` 等）、Pagefind 全文検索、**全体曼陀羅**（シリーズ枠・折りたたみ・ゴーストノード・ノードクリック遷移・Start / Goal の文字ノード）、**ナビバーの network アイコンから開く全体曼陀羅モーダル**（現在地を青枠＋ピンで強調。**シリーズを畳んでも集約ノードへ、シリーズトップを開けば枠へ印が移る**）、**シリーズ枠のクリックでシリーズトップへ遷移**、コーストップの「前に受けるコース / 次に受けるコース」、選択言語だけのサイドバー、`/en` ツリー（未翻訳は `Coming soon` ＋日本語版リンク。⚠ 日本語へフォールバックしない）、supergraphic 帯、サイドバー最上部のリリース番号。**フッターは無い。**
 
 ⚠ **サイトが描く曼陀羅は全体曼陀羅だけになった**（2026-08-21・ラウンド9 で方針転換）。2026-08-15 には「シリーズ曼陀羅・ミニ曼陀羅は機能を保持して非表示」としていたが、**`seriesView` / `courseView` と scope 分岐・テストは削除した**。理由は Studio がミニ曼陀羅の役目を React Flow で引き取ったため、サイト側に同じ概念の複製を残す動機が消えたこと。`publishing-site-mandala` spec の「未使用でも消さない」要件も同時に外してある。**復活させるなら Studio 側の `courseView`（`studio/lib/mandala/graph.ts`）が参考実装**。`courseNeighbors` はコーストップの前後リンクが使うので残っている。
 
@@ -273,7 +277,7 @@ npm run start   # out/ をローカル配信
 
 | 項目 | 状況 |
 |---|---|
-| **英語は器＋道具まで完成・値が未記入** | `/en` のバッジは2種（未翻訳/翻訳が古い）に拡張済み。翻訳の道具（Studio 英語ビュー・翻訳 API・translate スキル）は揃ったが `contents.en.md` は 0 件。**パイロットから埋める（→ 1.5 節）** |
+| **英語は器＋道具まで完成・値がほぼ未記入** | 翻訳の道具（Studio 英語ビュー・翻訳 API・translate スキル）は揃い、UX も 2026-08-22 に整えた。`contents.en.md` は 1 件だけで、`/en` は 9レッスン中 8件が `Coming soon`。**パイロットから埋める（→ 1.5 節）** |
 | **`zod` を 4.3.6 に固定している** | Nextra 4.6.x が zod 4.4.x と衝突し全ページのプリレンダが落ちる（[nextra#5008](https://github.com/shuding/nextra/issues/5008)）。**上流修正後に `package.json` の `overrides` を外す** |
 | **ビルドを webpack に固定している** | Turbopack はローダー options に関数を渡せず、rehype プラグイン（GitHub アラート）が乗らない。**Nextra か unified が文字列でのプラグイン指定に対応したら `--webpack` を外せる** |
 | **テーマ内部の class 名に依存している** | リリース番号は `.nextra-sidebar::before`、**サイドバー幅は `.nextra-sidebar.x\:w-64`**（展開状態だけを狙う。平坦に書くと手動トグルの `x:w-20` まで潰れて畳めなくなる）、Studio の帯は `[data-slot="sidebar-*"]`。テーマ・shadcn の更新で変わりうる。壊れ方は「番号が出ない」「幅が広がらない」「帯が覆われる」で機能影響は無い |
@@ -319,7 +323,7 @@ npm run start   # out/ をローカル配信
 - ⚠ **右列セルの高さは左列4項目だけで決まる。** グラフの実寸を行の高さ計算に参加させると左列の行間が引き伸ばされる。React Flow 化後はサムネイルを操作無効（`staticView`）＋ `fitView` でセルに収めている（表示が小さくなるのは仕様）
 - ⚠ **ミニ曼陀羅モーダルの開閉 state は `Workspace` が持つ。** `CourseMetaView` は `key={course.id}` でコース遷移のたび再マウントされるので、下位に置くと「モーダルからノードをクリックして遷移 → モーダルが消える」になる
 - **ペイン2 ヘッダー左端の階層種別バッジは `PaneKindBadge`（`metaDialogLayout.tsx`）を共有**。全体／シリーズ／コースは `MetaViewShell` 経由、レッスンは `MarkdownEditorPane` が直接使う。**クラスを書き写さないこと**——4階層で見た目を揃えるのが要件
-- ⚠ **shadcn base の `Select` はトリガーのラベルを Root の `items` から解決する。** ヒーロー画像は「未設定 → 選択中 → 残りをファイル名順」で、**選択中は候補一覧に無くても項目に入れる**——入れないと実体を消した画像でトリガーが空表示になる
+- ⚠ **shadcn base の `Select` はトリガーのラベルを Root の `items` から解決する。** 保存済みの値は候補一覧に無くても項目に入れること——入れないと実体を消した資産でトリガーが空表示になる（ヒーロー画像の Select で踏んだ。⚠ その UI 自体は 2026-08-22 に廃止済み）
 
 ✅ **レッスンの frontmatter 廃止 → レッスン用 `.meta.json` 化は完了した**（2026-08-20・change `lesson-meta-json`）。`contents.md` は本文のみ、メタは全階層 `.meta.json` に統一。触るときに知っておくこと:
 
@@ -676,7 +680,6 @@ Vercel 上の Studio は**社内に見せるための読み取り専用デモ**�
 **その他**:
 
 - 退避機能が `contents-work/` を保護していない — `toProjectRelative` がフォーカス中の `contents/` 配下しか見ないため、額縁テンプレートが実際に置かれる `contents-work/runs/` では発火しない
-- ホームのヒーロー画像候補が promote 直後に更新されない — `WorkspaceMetaView` の `fetchImageList("used")` が依存配列空でマウント時1回きり。ホームを離れて戻れば出る。直すなら `imageAssetsRevision` の配線を1本通す（2026-08-21 に把握・ユーザー判断で見送り）
 - run ディレクトリの日付ずれ — 初回は `20260816-start`（実行日は 08-13）。**再生成では正しくなったが、日付を渡す手当ては入っていないので再発しうる**
 
 ---

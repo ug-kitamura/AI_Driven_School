@@ -27,6 +27,20 @@ export const META_DIALOG_FORM = "py-2";
 /** 入力・セレクトの共通見た目（モーダル内はライトで白背景） */
 export const META_DIALOG_CONTROL = "bg-white dark:bg-input/30";
 
+/**
+ * メタ編集の見出しの体裁（workspace-meta-views spec）。
+ *
+ * メタ編集の入口は2種類ある——ホーム・シリーズ・コースはペイン2 のビュー
+ * （`MetaViewShell` の `h3`）、レッスンだけはモーダル（`LessonMetaDialog` の
+ * `DialogTitle`）。**入口がどちらかで見出しの大きさが変わってはいけない**ので、
+ * クラスを両方に書き写さずここで共有する。
+ *
+ * ⚠ ペイン2 **ヘッダー**のタイトル（選択中の階層名）はこれを使わない——
+ * `text-sm` のままにする。ヘッダー＝「いまどこにいるか」／見出し＝「何を編集して
+ * いるか」で役割が違い、**大きさの差がその区別を示している**。揃えないこと。
+ */
+export const META_HEADING_TEXT = "text-base font-semibold";
+
 type MetaDialogFieldProps = {
   children: ReactNode;
   className?: string;

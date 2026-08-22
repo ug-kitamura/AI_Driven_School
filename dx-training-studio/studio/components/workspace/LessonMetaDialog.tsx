@@ -10,7 +10,10 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { META_DIALOG_FORM } from "@/components/workspace/metaDialogLayout";
+import {
+  META_DIALOG_FORM,
+  META_HEADING_TEXT,
+} from "@/components/workspace/metaDialogLayout";
 import {
   LessonMetaPanel,
   draftToMetaPatch,
@@ -109,7 +112,7 @@ export function LessonMetaDialog({
           {/* ⚠ 右上の閉じる（×）は absolute top-3 right-3。翻訳ボタンは
               その左隣に来るよう pr-8 で席を空ける */}
           <DialogHeader className="flex-row items-center justify-between gap-2 pr-8">
-            <DialogTitle className="text-base">
+            <DialogTitle className={META_HEADING_TEXT}>
               レッスンメタを編集（英語）
             </DialogTitle>
             <Button
@@ -163,7 +166,11 @@ export function LessonMetaDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl">
         <DialogHeader className="pr-8">
-          <DialogTitle className="text-base">レッスンメタを編集</DialogTitle>
+          {/* 体裁はメタビューの見出しと共有する（META_HEADING_TEXT）。
+              ⚠ クラスをここに書き写さないこと——片方だけ動く事故になる */}
+          <DialogTitle className={META_HEADING_TEXT}>
+            レッスンメタを編集
+          </DialogTitle>
         </DialogHeader>
         <LessonMetaPanel
           draft={draft}

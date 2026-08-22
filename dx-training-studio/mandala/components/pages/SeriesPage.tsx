@@ -38,9 +38,7 @@ export function SeriesPage({
       <h2 className="dxm-section-title">
         {locale === "en" ? "Courses" : "コース"}
       </h2>
-      {/* 修飾クラスで「上から順に受ける」軸を出す。⚠ 全体トップのシリーズ一覧には
-          付けない——シリーズは順不同で、道のりは曼陀羅が示す */}
-      <div className="dxm-card-list dxm-card-list--sequence">
+      <div className="dxm-card-list">
         {series.courses.map((course) => (
           <Link
             key={course.slug}

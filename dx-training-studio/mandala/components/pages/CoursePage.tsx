@@ -91,8 +91,7 @@ export function CoursePage({
       <h2 className="dxm-section-title">
         {locale === "en" ? "Lessons" : "レッスン"}
       </h2>
-      {/* 修飾クラスで「上から順に受ける」軸を出す（→ SeriesPage の同じ箇所） */}
-      <div className="dxm-card-list dxm-card-list--sequence">
+      <div className="dxm-card-list">
         {course.lessons.map((lesson) => (
           <Link
             key={lesson.slug}

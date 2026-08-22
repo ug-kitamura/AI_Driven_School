@@ -96,6 +96,22 @@ import {
   seriesDisplayName,
   type EditLanguage,
 } from "@/lib/display-name";
+import { paneKindLabel } from "@/components/workspace/metaDialogLayout";
+
+/**
+ * ツリー最上部のホーム行のラベル（unified-content-tree spec）。
+ *
+ * 英語は `paneKindLabel("root", "en")` を引く——ペイン2 ヘッダーの階層種別バッジと
+ * **同じ語**を出すため。⚠ `Home` の文字列をここに書かないこと（片方だけ直る事故になる）。
+ *
+ * ⚠ 日本語は「ホーム」を維持し、階層種別ラベルの日本語（「全体」）へ寄せない。
+ * ツリーの日本語表示は変えないことが要件で、日英が非対称なのは意図的。
+ * ⚠ 全体メタの `name` / `name_en` も出さない——ホーム行はナビゲーションの原点であり、
+ * シリーズ・コース・レッスン行のようなコンテンツ名の表示行ではない。
+ */
+function homeRowLabel(language: EditLanguage): string {
+  return language === "en" ? paneKindLabel("root", "en") : "ホーム";
+}
 
 /** ステータス種別はラベルとアイコンの形で区別する（色は付けない・下のボタン側で指定） */
 const STATUS_ICON: Record<
@@ -1169,7 +1185,7 @@ export function ContentTreePane({
                           isHomeSelected && "font-semibold",
                         )}
                       >
-                        ホーム
+                        {homeRowLabel(editLanguage)}
                       </span>
                     </div>
                   }

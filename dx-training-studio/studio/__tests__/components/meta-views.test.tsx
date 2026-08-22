@@ -9,6 +9,7 @@ import {
 import { WorkspaceMetaView } from "@/components/workspace/meta-views/WorkspaceMetaView";
 import { SeriesMetaView } from "@/components/workspace/meta-views/SeriesMetaView";
 import { CourseMetaView } from "@/components/workspace/meta-views/CourseMetaView";
+import { META_HEADING_TEXT } from "@/components/workspace/metaDialogLayout";
 import type { Course, Series } from "@/lib/schema";
 
 // ミニ曼陀羅（React Flow）はこのテストの対象外。jsdom での描画副作用を避ける
@@ -160,6 +161,41 @@ describe("SeriesMetaView", () => {
       "キャッチ",
       "スラッグ（公開 URL 用）",
     ]);
+  });
+
+  it("見出しはレッスンメタ編集モーダルのタイトルと同じ体裁を使う", () => {
+    // workspace-meta-views spec: メタ編集の入口がビューかモーダルかで
+    // 見出しの大きさが変わってはいけない。体裁は META_HEADING_TEXT で共有する
+    render(
+      <SeriesMetaView
+        {...translationProps}
+        seriesItem={sampleSeries[0]}
+        onRenameSeries={vi.fn()}
+        onSaveMeta={vi.fn()}
+      />,
+    );
+
+    const heading = screen.getByRole("heading", { name: "シリーズメタを編集" });
+    for (const cls of META_HEADING_TEXT.split(" ")) {
+      expect(heading.className).toContain(cls);
+    }
+  });
+
+  it("ペイン2 ヘッダーのタイトルは見出しと同寸にしない", () => {
+    // ヘッダー＝いまどこにいるか / 見出し＝何を編集しているか。
+    // 大きさの差がその区別を示すので、揃えないことを固定する
+    render(
+      <SeriesMetaView
+        {...translationProps}
+        seriesItem={sampleSeries[0]}
+        onRenameSeries={vi.fn()}
+        onSaveMeta={vi.fn()}
+      />,
+    );
+
+    const header = screen.getByRole("heading", { level: 2 });
+    expect(header.className).toContain("text-sm");
+    expect(header.className).not.toContain("text-base");
   });
 
   it("メタを保存し、名前が変わっていればリネームも呼ぶ", () => {

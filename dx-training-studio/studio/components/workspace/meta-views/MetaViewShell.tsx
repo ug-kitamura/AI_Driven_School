@@ -1,7 +1,11 @@
 "use client";
 
 import type { ReactNode } from "react";
-import { PaneKindBadge } from "@/components/workspace/metaDialogLayout";
+import {
+  META_HEADING_TEXT,
+  PaneKindBadge,
+} from "@/components/workspace/metaDialogLayout";
+import { cn } from "@/lib/utils";
 
 type Props = {
   /** ヘッダーに出す階層名（例: シリーズ名）。英語モードでは name_en */
@@ -55,7 +59,14 @@ export function MetaViewShell({
         <div className="mx-auto flex max-w-2xl flex-col gap-4">
           {/* 見出し行。左＝何を編集しているか / 右＝操作。⚠ sticky にしない */}
           <div className="flex min-h-8 items-center justify-between gap-2">
-            <h3 className="min-w-0 truncate text-sm font-semibold text-foreground">
+            {/* 体裁は LessonMetaDialog の DialogTitle と共有する（META_HEADING_TEXT）。
+                ⚠ クラスをここに書き写さないこと——片方だけ動く事故になる */}
+            <h3
+              className={cn(
+                "min-w-0 truncate text-foreground",
+                META_HEADING_TEXT,
+              )}
+            >
               {heading}
             </h3>
             {actionBar}

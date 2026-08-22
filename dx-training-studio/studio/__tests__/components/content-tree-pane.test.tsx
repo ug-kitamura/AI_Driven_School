@@ -22,6 +22,7 @@ beforeAll(() => {
 });
 import { SidebarProvider } from "@/components/ui/sidebar";
 import { ContentTreePane } from "@/components/workspace/ContentTreePane";
+import { HOME_ROW_ID } from "@/lib/content-tree-flatten";
 import type { Series } from "@/lib/schema";
 
 // ミニ曼陀羅（React Flow）はこのテストの対象外。jsdom での描画副作用を避ける
@@ -146,6 +147,20 @@ describe("ContentTreePane", () => {
     const handlers = renderTree();
     fireEvent.click(screen.getByText("ホーム"));
     expect(handlers.onSelectHome).toHaveBeenCalled();
+  });
+
+  it("英語ビューではホーム行のラベルが Home になる", () => {
+    renderTree({ editLanguage: "en" });
+    expect(screen.getByText("Home")).toBeDefined();
+    expect(screen.queryByText("ホーム")).toBeNull();
+  });
+
+  it("英語ビューのホーム行はワークスペース名を出さない", () => {
+    // ホーム行はナビゲーションの原点であり、コンテンツ名の表示行ではない
+    // （unified-content-tree spec）。他ホストの表示名に引きずられないこと
+    renderTree({ editLanguage: "en", workspaceName: "DX Training Mandala" });
+    expect(rowById(HOME_ROW_ID).textContent).toContain("Home");
+    expect(rowById(HOME_ROW_ID).textContent).not.toContain("DX Training Mandala");
   });
 
   it("レッスン行クリックで onSelectLesson が呼ばれる", () => {

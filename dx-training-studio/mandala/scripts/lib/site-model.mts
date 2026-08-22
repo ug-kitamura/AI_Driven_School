@@ -9,6 +9,7 @@ import type {
   LessonStatus,
   SeriesMeta,
 } from "./content-source.mts";
+import { bodyFreshness, parseEnBody } from "./translation-freshness.mts";
 
 /** `lib/schema.ts` の SLUG_PATTERN と同じ */
 export const SLUG_PATTERN = /^[a-z0-9]+(-[a-z0-9]+)*$/;
@@ -35,10 +36,19 @@ export type SiteLesson = {
   /** 著者の英語表記（表記が2つあるときだけ）。表示は双方向フォールバック */
   authorEn?: string;
   body: string;
+  /** 英語版本文（原文ハッシュコメントは剥がし済み）。無ければ undefined */
   bodyEn?: string;
   titleEn?: string;
-  /** 英語版が無い（日本語へフォールバックする） */
-  untranslated: boolean;
+  /**
+   * 本文翻訳の鮮度（translation-freshness spec）。最新ならキーを持たない。
+   *
+   * ⚠ サイトが表示に使うのは「英語版があるか」だけ（無ければ本文を Coming soon に
+   * 差し替える）。**`stale` はサイトでは使わない**——翻訳の古さは受講者が対処
+   * できないので、合図は Studio 側に寄せた（publishing-site-build spec）。
+   * 判定ロジックは Studio 正本のミラーで parity テストの対象なので、
+   * `stale` が未使用でも判定ごと消さないこと
+   */
+  translation?: "untranslated" | "stale";
   /** `/git/concepts/what-is-version-control` */
   href: string;
   dir: string;
@@ -54,6 +64,7 @@ export type SiteCourse = {
   catch?: string;
   catchEn?: string;
   target?: string;
+  targetEn?: string;
   style?: CourseStyle;
   crossSeriesPrev: string[];
   crossSeriesNext: string[];
@@ -237,22 +248,29 @@ export function formatSlugIssues(issues: SlugIssue[]): string {
 function buildCourse(seriesSlug: string, course: CourseMeta): SiteCourse {
   const courseSlug = course.slug!;
   const href = `/${seriesSlug}/${courseSlug}`;
-  const lessons: SiteLesson[] = course.lessons.map((lesson) => ({
-    name: lesson.name,
-    slug: lesson.slug!,
-    stableId: lesson.id,
-    status: lesson.status,
-    description: lesson.description,
-    estimatedMinutes: lesson.estimatedMinutes,
-    author: lesson.author,
-    authorEn: lesson.authorEn,
-    body: lesson.body,
-    bodyEn: lesson.bodyEn,
-    titleEn: lesson.titleEn,
-    untranslated: lesson.bodyEn === undefined,
-    href: `${href}/${lesson.slug}`,
-    dir: lesson.dir,
-  }));
+  const lessons: SiteLesson[] = course.lessons.map((lesson) => {
+    // 鮮度は生の contents.en.md（ハッシュコメント込み）で判定し、
+    // ページに出す本文からはコメント行を剥がす
+    const freshness = bodyFreshness(lesson.body, lesson.bodyEn ?? null);
+    const bodyEn =
+      lesson.bodyEn === undefined ? undefined : parseEnBody(lesson.bodyEn).body;
+    return {
+      name: lesson.name,
+      slug: lesson.slug!,
+      stableId: lesson.id,
+      status: lesson.status,
+      description: lesson.description,
+      estimatedMinutes: lesson.estimatedMinutes,
+      author: lesson.author,
+      authorEn: lesson.authorEn,
+      body: lesson.body,
+      bodyEn,
+      titleEn: lesson.titleEn,
+      ...(freshness === "fresh" ? {} : { translation: freshness }),
+      href: `${href}/${lesson.slug}`,
+      dir: lesson.dir,
+    };
+  });
 
   return {
     name: course.name,
@@ -264,6 +282,7 @@ function buildCourse(seriesSlug: string, course: CourseMeta): SiteCourse {
     catch: course.catch,
     catchEn: course.catchEn,
     target: course.target,
+    targetEn: course.targetEn,
     style: course.style,
     crossSeriesPrev: course.crossSeriesPrev,
     crossSeriesNext: course.crossSeriesNext,

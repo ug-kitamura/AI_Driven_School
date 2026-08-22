@@ -36,12 +36,17 @@
 
 ### Requirement: 英語フィールドは `_en` サフィックスで同一ファイルに持つ
 
-表示テキストの英語版は、日本語フィールドに `_en` サフィックスを付けたフィールド（`name_en` / `description_en` / `catch_en`、レッスンでは `author_en` を含む）として**同一の `.meta.json` 内**に持たなければならない（SHALL）。レッスンの英語フィールドもレッスンフォルダの `.meta.json` に持つ（SHALL）——本文の英語版だけが `contents.en.md` に分かれる。別ファイル（`.meta.en.json` 等）に分離してはならない（SHALL NOT）。値の記入（翻訳）と記入用 UI は本要件の範囲外とする。
+表示テキストの英語版は、日本語フィールドに `_en` サフィックスを付けたフィールド（`name_en` / `description_en` / `catch_en`、コースでは `target_en`、レッスンでは `author_en` を含む）として**同一の `.meta.json` 内**に持たなければならない（SHALL）。レッスンの英語フィールドもレッスンフォルダの `.meta.json` に持つ（SHALL）——本文の英語版だけが `contents.en.md` に分かれる。別ファイル（`.meta.en.json` 等）に分離してはならない（SHALL NOT）。`target_en` はコース専用フィールドとする（SHALL）——`target` がコース専用のため。値の記入（翻訳）と記入用 UI は本要件の範囲外とする。
 
 #### Scenario: _en フィールドを読み込める
 
 - **WHEN** シリーズ `.meta.json` に `"name_en": "Git Basics"` が記述されている
 - **THEN** ローダーが返すシリーズ情報から `name_en` の値を取得できる
+
+#### Scenario: コースの target_en を読み込める
+
+- **WHEN** コース `.meta.json` に `"target_en": "Beginners who have never used Git"` が記述されている
+- **THEN** ローダーが返すコース情報から `target_en` の値を取得できる
 
 #### Scenario: レッスンの author_en を読み込める
 
@@ -83,3 +88,17 @@
 - **WHEN** `hero` を持つ全体 `.meta.json` に対して description だけを更新する
 - **THEN** 更新後も `hero` が残っている
 
+
+### Requirement: en_source_hash は全階層の .meta.json が持てる任意フィールドである
+
+メタ翻訳の鮮度ハッシュ `en_source_hash`（`sha256:<hex>` 形式の文字列）を、全階層（全体・シリーズ・コース・レッスン）の `.meta.json` の任意フィールドとして持てなければならない（SHALL）。無い既存正本はそのまま動き（SHALL）、他のフィールドの保存・ローダーの書き戻しで消えてはならない（SHALL NOT）。ハッシュの計算規則は `translation-freshness` capability が正本である。
+
+#### Scenario: en_source_hash が保存で消えない
+
+- **WHEN** `en_source_hash` を持つコース `.meta.json` に対して、コースメタの他フィールドを保存する
+- **THEN** 保存後も `en_source_hash` の値が維持される
+
+#### Scenario: 無くてもエラーにならない
+
+- **WHEN** `en_source_hash` を持たない `.meta.json` をロードする
+- **THEN** エラーにならず、未設定として扱われる

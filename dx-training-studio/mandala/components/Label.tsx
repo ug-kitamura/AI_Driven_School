@@ -31,7 +31,9 @@ export function StatusLabel({
   return <Label kind="status">{label}</Label>;
 }
 
-export function UntranslatedLabel({ locale }: { locale: Locale }) {
-  if (locale !== "en") return null;
-  return <Label kind="note">Not translated yet — showing Japanese</Label>;
-}
+/*
+ * ⚠ 翻訳の状態バッジ（`Not translated yet` / `Translation may be outdated`）は
+ * 廃止した（publishing-site-build spec）。未翻訳ページは本文が `Coming soon` に
+ * なるので重複であり、翻訳の古さは受講者が対処できない——鮮度の合図は
+ * Studio（編集者）側の赤字1行だけが持つ。ここに戻さないこと。
+ */

@@ -12,6 +12,8 @@ const baseProps = {
   seriesName: "はじめにシリーズ",
   courseName: "DX入門コース",
   lessonName: "L01",
+  editLanguage: "ja" as const,
+  onEditLanguageChange: () => {},
 };
 
 afterEach(cleanup);

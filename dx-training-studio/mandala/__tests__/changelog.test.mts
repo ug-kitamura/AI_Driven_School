@@ -2,7 +2,7 @@
  * 変更履歴（contents/changelog.md → content/changelog.md）の要件:
  * - 正本はパースせず丸ごとコピー（本文に手を入れない）
  * - 正本が無ければページも _meta 項目も出さない（ビルドは成功）
- * - /en は changelog.en.md → 日本語フォールバック＋未翻訳バッジ
+ * - /en は changelog.en.md → 無ければ Coming soon（日本語へフォールバックしない）
  * - ルート _meta の最後尾に「変更履歴」/"Changelog"
  * - シリーズ slug "changelog" は予約語として弾く
  */
@@ -67,25 +67,40 @@ describe("emitChangelogPage", () => {
     expect(file.contents.endsWith(`---\n\n${JA_BODY}`)).toBe(true);
     expect(file.contents).toContain('searchable: false');
     expect(file.contents).toContain('title: "変更履歴"');
-    expect(file.contents).not.toContain("untranslated");
+    expect(file.contents).not.toContain("translation:");
   });
 
-  it("英語: en 無しでは日本語へフォールバックし未翻訳バッジ情報を持つ", () => {
+  it("英語: en 無しでは日本語へフォールバックせず Coming soon にする", () => {
     const file = emitChangelogPage({ body: JA_BODY }, "en");
     expect(file.relativePath).toBe("en/changelog.md");
-    expect(file.contents).toContain("untranslated: true");
-    expect(file.contents).toContain('locale: "en"');
-    expect(file.contents).toContain("主な更新のみ。");
+    // ⚠ 日本語本文を書かない（レッスンと同じ規則）
+    expect(file.contents).not.toContain("主な更新のみ。");
+    expect(file.contents).toContain("Coming soon");
+    expect(file.contents).toContain("](/changelog)");
     expect(file.contents).toContain('title: "Changelog"');
+    expect(file.contents).not.toContain("translation:");
   });
 
-  it("英語: changelog.en.md があればそれを使いバッジは出ない", () => {
+  it("英語: changelog.en.md があればその本文を出す", () => {
     const file = emitChangelogPage(
-      { body: JA_BODY, bodyEn: "# Changelog\n\n- added\n" },
+      { body: JA_BODY, bodyEn: "# Changelog\n\n## 2026-08-21\n\n- added\n" },
       "en",
     );
     expect(file.contents).toContain("- added");
-    expect(file.contents).not.toContain("untranslated");
+    expect(file.contents).not.toContain("Coming soon");
+    expect(file.contents).not.toContain("translation:");
+  });
+
+  it("英語: 先頭エントリが日本語側より古くてもバッジを出さない", () => {
+    const file = emitChangelogPage(
+      { body: JA_BODY, bodyEn: "# Changelog\n\n## 2026-08-15\n\n- old\n" },
+      "en",
+    );
+    // 鮮度の合図は Studio 側だけが持つ（受講者は対処できない）
+    expect(file.contents).not.toContain("translation:");
+    expect(file.contents).not.toContain("locale:");
+    // 本文は英語版のまま（日本語へは差し替えない）
+    expect(file.contents).toContain("- old");
   });
 });
 

@@ -43,3 +43,19 @@
 - **WHEN** `CLAUDE.md` を読む
 - **THEN** 画像契約へのリンクが `contracts/image-slot-contract.md` を指す
 
+
+### Requirement: 翻訳契約
+
+`contracts/translation-contract.md` に、日本語正本 → 英語派生の翻訳規則を自己完結の Markdown で置かなければならない（SHALL）。最低限含める内容: **英訳するもの**（本文・画像プロンプトコメント・GitHub アラートの中身・コード内のコメント文）、**変えないもの**（URL・画像などのパス・ファイル名・コード本体・コマンド名・Markdown 構造）、**迷ったときの作法**（訳さず `<!-- 訳注: … -->` で執筆者向けコメントを残す）、**`author` / `author_en` に触れないこと**、**トーン**（教材らしい平易な英語）、**用語集**（固有名詞・訳語の統一。運用で育てる）。
+
+この契約は Studio の翻訳 API（`studio-translation` capability）と翻訳スキルの両方が読む SSoT でなければならない（SHALL）——スキル側に規則の複製を持たせてはならない（SHALL NOT）。
+
+#### Scenario: 契約が存在し規則を含む
+
+- **WHEN** `contracts/translation-contract.md` を開く
+- **THEN** 英訳する/変えないの規則・訳注の作法・用語集の節が含まれている
+
+#### Scenario: 翻訳 API が契約を注入する
+
+- **WHEN** Studio の翻訳 API を実行する
+- **THEN** プロンプトに契約の全文が含まれている

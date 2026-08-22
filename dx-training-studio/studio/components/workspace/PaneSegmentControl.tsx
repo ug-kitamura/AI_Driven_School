@@ -1,6 +1,8 @@
 "use client";
 
+import { Fragment } from "react";
 import { cn } from "@/lib/utils";
+import { WorkspaceTooltip } from "@/components/workspace/WorkspaceTooltip";
 
 export type PaneSegmentOption<T extends string> = {
   value: T;
@@ -36,12 +38,10 @@ export function PaneSegmentControl<T extends string>({
       {options.map((option) => {
         const showIconOnly = compact && option.compactIcon != null;
         const icon = showIconOnly ? option.compactIcon : option.icon;
-        return (
+        const button = (
           <button
-            key={option.value}
             type="button"
             aria-label={showIconOnly ? (option.ariaLabel ?? option.label) : undefined}
-            title={showIconOnly ? option.label : undefined}
             onClick={() => onChange(option.value)}
             className={cn(
               "flex items-center gap-1 px-2 py-1 text-xs transition-colors",
@@ -53,6 +53,17 @@ export function PaneSegmentControl<T extends string>({
             {icon}
             {!showIconOnly ? option.label : null}
           </button>
+        );
+        // アイコンのみのときだけ説明が要る。表記があるボタンには付けない
+        // （Studio 既定のツールチップ規則。⚠ 生 title は使わない）
+        return showIconOnly ? (
+          <WorkspaceTooltip
+            key={option.value}
+            label={option.label}
+            render={button}
+          />
+        ) : (
+          <Fragment key={option.value}>{button}</Fragment>
         );
       })}
     </div>

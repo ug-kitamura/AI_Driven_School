@@ -31,7 +31,7 @@ TBD - created by archiving change port-ebex-agent-core. Update Purpose after arc
 - `.meta.json` のうち、レッスン階層（`contents/<シリーズ>/<コース>/<レッスン>/`）**以外**に置かれるもの — 全体・シリーズ・コースの `.meta.json` は安定 id と表示順（`order`）を持ち、agent が書くと壊れるため
 - `contents.md` のうち、レッスン階層**以外**に置かれるもの — 偽のレッスン本文になるため
 
-**レッスン階層の `.meta.json` への書込は検査つきで許可しなければならない（SHALL）。** 検査は次を満たす: (1) JSON としてパースできること (2) レッスンメタスキーマ（`lesson-meta-file` capability）に適合し、未知キーを含まないこと (3) `id` フィールドは agent の値を無視し、既存 `.meta.json` の `id` を保持すること（既存が無ければ `id` キーを書かない）。検査に落ちた書込はエラー結果を返し、ファイルを変更してはならない（SHALL NOT）。
+**レッスン階層の `.meta.json` への書込は検査つきで許可しなければならない（SHALL）。** 検査は次を満たす: (1) JSON としてパースできること (2) レッスンメタスキーマ（`lesson-meta-file` capability）に適合し、未知キーを含まないこと (3) `id` および `en_source_hash` フィールドは agent の値を無視し、既存 `.meta.json` の値を保持すること（既存が無ければ当該キーを書かない）——`en_source_hash` は翻訳鮮度の記録であり、agent が書けると古い翻訳を最新と偽装できてしまうため。検査に落ちた書込はエラー結果を返し、ファイルを変更してはならない（SHALL NOT）。
 
 **作業ファイルのルートでは、`contents-work/sessions/` 配下への書込を拒否しなければならない（SHALL）。** ここは agent 自身の会話履歴の保存先であり、agent が書くと実行中の会話が壊れる。判定は**ディレクトリ単位**で行わなければならない（SHALL）——ファイル名で判定すると、保存形式が変わったときに保護が漏れる。`contents-work/` のそれ以外の配下（`plans/` `runs/`）への書込は許可しなければならない（SHALL）。
 
@@ -79,6 +79,14 @@ TBD - created by archiving change port-ebex-agent-core. Update Purpose after arc
 #### Scenario: レッスン .meta.json の id は agent が変更できない
 - **WHEN** 既存の `.meta.json` に `"id": "lsn-abc-123456"` があるレッスンへ、agent が `"id": "lsn-evil-999999"` を含む JSON で `write_file` を実行する
 - **THEN** 書き込まれた `.meta.json` の `id` は `lsn-abc-123456` のままである
+
+#### Scenario: レッスン .meta.json の en_source_hash は agent が変更できない
+- **WHEN** 既存の `.meta.json` に `"en_source_hash": "sha256:abc..."` があるレッスンへ、agent が `"en_source_hash": "sha256:fff..."` を含む JSON で `write_file` を実行する
+- **THEN** 書き込まれた `.meta.json` の `en_source_hash` は `sha256:abc...` のままである
+
+#### Scenario: 既存に無い en_source_hash を agent は導入できない
+- **WHEN** `en_source_hash` を持たないレッスン `.meta.json` へ、agent が `en_source_hash` を含む JSON で `write_file` を実行する
+- **THEN** 書き込まれた `.meta.json` に `en_source_hash` キーは含まれない
 
 #### Scenario: レッスン .meta.json への不正な JSON は拒否される
 - **WHEN** `write_file` が レッスン階層の `.meta.json` を対象に、JSON としてパースできない内容または未知キーを含む内容で実行される

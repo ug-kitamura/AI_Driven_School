@@ -7,6 +7,10 @@ import {
   validateSlugs,
 } from "../scripts/lib/site-model.mts";
 import type { ContentsRoot } from "../scripts/lib/content-source.mts";
+import {
+  computeBodySourceHash,
+  formatSourceHashComment,
+} from "../scripts/lib/translation-freshness.mts";
 
 function lesson(name: string, slug: string | undefined, overrides = {}) {
   return {
@@ -160,14 +164,45 @@ describe("buildSiteData", () => {
 
   it("英語版が無いレッスンを未翻訳として印す", () => {
     const data = buildSiteData(root());
-    expect(data.series[0]!.courses[0]!.lessons[0]!.untranslated).toBe(true);
+    expect(data.series[0]!.courses[0]!.lessons[0]!.translation).toBe(
+      "untranslated",
+    );
   });
 
-  it("英語版があれば未翻訳にしない", () => {
+  it("ハッシュ一致の英語版はバッジ無し（キー自体を持たない）", () => {
     const r = root();
-    r.series[0]!.courses[0]!.lessons[0]!.bodyEn = "# What is version control\n";
+    const jaBody = r.series[0]!.courses[0]!.lessons[0]!.body;
+    r.series[0]!.courses[0]!.lessons[0]!.bodyEn =
+      `${formatSourceHashComment(computeBodySourceHash(jaBody))}\n\n# What is version control\n`;
     const data = buildSiteData(r);
-    expect(data.series[0]!.courses[0]!.lessons[0]!.untranslated).toBe(false);
+    const emitted = data.series[0]!.courses[0]!.lessons[0]!;
+    expect(emitted.translation).toBeUndefined();
+    // ハッシュコメント行はページ本文に出さない
+    expect(emitted.bodyEn).toBe("# What is version control\n");
+  });
+
+  it("ハッシュ不一致・未記録の英語版は stale として印す", () => {
+    const withStaleHash = root();
+    withStaleHash.series[0]!.courses[0]!.lessons[0]!.bodyEn =
+      `${formatSourceHashComment(computeBodySourceHash("古い原文"))}\n# Old translation\n`;
+    expect(
+      buildSiteData(withStaleHash).series[0]!.courses[0]!.lessons[0]!
+        .translation,
+    ).toBe("stale");
+
+    const withoutHash = root();
+    withoutHash.series[0]!.courses[0]!.lessons[0]!.bodyEn =
+      "# What is version control\n";
+    expect(
+      buildSiteData(withoutHash).series[0]!.courses[0]!.lessons[0]!.translation,
+    ).toBe("stale");
+  });
+
+  it("コースの target_en を伝える", () => {
+    const r = root();
+    r.series[0]!.courses[0]!.targetEn = "Beginners";
+    const data = buildSiteData(r);
+    expect(data.series[0]!.courses[0]!.targetEn).toBe("Beginners");
   });
 
   it("コースの style を伝える", () => {

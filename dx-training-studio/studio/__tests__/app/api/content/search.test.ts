@@ -53,10 +53,11 @@ function setup(): string {
   return root;
 }
 
-function get(q: string) {
+function get(q: string, lang?: "ja" | "en") {
+  const langParam = lang ? `&lang=${lang}` : "";
   return GET(
     new Request(
-      `http://localhost/api/content/search?q=${encodeURIComponent(q)}`,
+      `http://localhost/api/content/search?q=${encodeURIComponent(q)}${langParam}`,
     ),
   );
 }
@@ -101,5 +102,82 @@ describe("GET /api/content/search", () => {
     setup();
     const data = await json(await get("存在しない語"));
     expect(data.matches).toEqual([]);
+  });
+});
+
+/**
+ * 検索対象は編集言語に連動する（unified-content-tree spec）。
+ * 「画面に見えている文字列で検索してヒットしない」を作らないことが要。
+ */
+describe("GET /api/content/search（言語連動）", () => {
+  /** `三大エリア` にだけ英語名と英語本文を与える */
+  function setupTranslated(): string {
+    const root = setup();
+    const courseDir = path.join(root, "contents", "Git基礎", "Git概念");
+    fs.writeFileSync(
+      path.join(courseDir, "三大エリア", ".meta.json"),
+      JSON.stringify({ name_en: "Three areas" }, null, 2),
+      "utf-8",
+    );
+    fs.writeFileSync(
+      path.join(courseDir, "三大エリア", "contents.en.md"),
+      "<!-- source: sha256:x -->\n\nThe working tree and the staging area.\n",
+      "utf-8",
+    );
+    return root;
+  }
+
+  it("英語モードでは name_en でヒットする", async () => {
+    setupTranslated();
+    const data = await json(await get("Three areas", "en"));
+    expect(data.matches).toEqual([
+      { series: "Git基礎", course: "Git概念", lesson: "三大エリア" },
+    ]);
+  });
+
+  it("英語モードでも未訳は日本語名でヒットする", async () => {
+    // ⚠ ツリーは未訳を日本語名で表示している。見えている文字列で引けないと破綻する
+    setupTranslated();
+    const data = await json(await get("コミット入門", "en"));
+    expect(data.matches).toEqual([
+      { series: "Git基礎", course: "Git概念", lesson: "コミット入門" },
+    ]);
+  });
+
+  it("英語モードの本文検索は contents.en.md を引く", async () => {
+    setupTranslated();
+    const data = await json(await get("staging area", "en"));
+    expect(data.matches).toEqual([
+      { series: "Git基礎", course: "Git概念", lesson: "三大エリア" },
+    ]);
+  });
+
+  it("英語モードで日本語本文へフォールバックしない", async () => {
+    // 「セーブポイント」は日本語本文にしか無い。英語ビューに一致が無いので出さない
+    setupTranslated();
+    const data = await json(await get("セーブポイント", "en"));
+    expect(data.matches).toEqual([]);
+  });
+
+  it("日本語モードは英語本文を引かない", async () => {
+    setupTranslated();
+    const data = await json(await get("staging area", "ja"));
+    expect(data.matches).toEqual([]);
+  });
+
+  it("日本語モードは name_en を引かない", async () => {
+    setupTranslated();
+    const data = await json(await get("Three areas", "ja"));
+    expect(data.matches).toEqual([]);
+  });
+
+  it("lang 省略時は従来（日本語）と同じ結果", async () => {
+    setupTranslated();
+    const omitted = await json(await get("セーブポイント"));
+    const explicit = await json(await get("セーブポイント", "ja"));
+    expect(omitted.matches).toEqual(explicit.matches);
+    expect(omitted.matches).toEqual([
+      { series: "Git基礎", course: "Git概念", lesson: "コミット入門" },
+    ]);
   });
 });

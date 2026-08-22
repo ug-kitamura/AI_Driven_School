@@ -25,6 +25,14 @@ import { useSeriesMutations } from "@/components/workspace/hooks/use-series-muta
 import { useWorkspaceImageAssets } from "@/components/workspace/hooks/use-workspace-image-assets";
 import { useWorkspaceSelection } from "@/components/workspace/hooks/use-workspace-selection";
 import { useContentSync } from "@/components/workspace/hooks/use-content-sync";
+import { useTranslationStatus } from "@/components/workspace/hooks/use-translation-status";
+import {
+  courseDisplayName,
+  lessonDisplayName,
+  seriesDisplayName,
+  type EditLanguage,
+} from "@/lib/display-name";
+import { worstFreshness } from "@/lib/translation/client";
 import type { Series } from "@/lib/schema";
 import { normalizeSeriesCourseMeta } from "@/lib/course-flow";
 import type { LessonMetaFields } from "@/lib/lesson-meta";
@@ -96,6 +104,15 @@ export function Workspace({
   // ここで持たないと「モーダルからコース遷移 → モーダルが消える」になる
   const [courseMandalaModalOpen, setCourseMandalaModalOpen] = useState(false);
   const [companyContextOpen, setCompanyContextOpen] = useState(false);
+  /**
+   * 編集言語（studio-translation spec）。ワークスペースの単一 state で、
+   * レッスンの本文エディタとメタダイアログはこれに連動する。
+   *
+   * ⚠ これは面ごとの設定ではなく**アプリのモード**。選択階層が変わっても
+   * リセットしない——モードは GlobalHeader の切替ボタンの表記
+   * （「日本語ビューに戻る」）で常時見えているので、持ち越しは意図として読める。
+   */
+  const [editLanguage, setEditLanguage] = useState<EditLanguage>("ja");
   const [saveErrorMsg, setSaveErrorMsg] = useState<string | null>(null);
   const saveErrorTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pane4UiInitialized = useRef(false);
@@ -203,12 +220,17 @@ export function Workspace({
   );
 
   const requestSelectionChange = useCallback((action: () => void) => {
+    // ⚠ ここで編集言語を ja に戻さないこと。言語はアプリのモードで、選択を
+    // またいで保たれる（studio-translation spec）
+    const wrapped = () => {
+      action();
+    };
     if (agentChatControllerRef.current?.isStreaming()) {
-      pendingSwitchRef.current = action;
+      pendingSwitchRef.current = wrapped;
       setStreamingSwitchOpen(true);
       return;
     }
-    action();
+    wrapped();
   }, []);
 
   const guardedSelectLesson = useCallback(
@@ -408,6 +430,25 @@ export function Workspace({
     selectedLesson?.lesson,
   ]);
 
+  // 翻訳の鮮度（チップ用）。契機: 選択変更・保存/翻訳/最新化（refresh）・
+  // 日本語本文の編集（contentSignal 経由の遅延再取得）
+  const { data: translationData, refresh: refreshTranslationStatus } =
+    useTranslationStatus({
+      seriesName: selectedSeriesName || undefined,
+      courseName: selectedCourse?.name,
+      lessonName: selectedLesson?.lesson,
+      contentSignal: selectedLesson?.content,
+    });
+
+  const lessonTranslationStatus = worstFreshness(
+    translationData?.statuses.lesson?.body,
+    translationData?.statuses.lesson?.meta,
+  );
+  const homeTranslationStatus = worstFreshness(
+    translationData?.statuses.root?.meta,
+    translationData?.changelog ?? undefined,
+  );
+
   const handlePane4ViewChange = useCallback((view: Pane4View) => {
     setPane4View(view);
     savePane4View(view);
@@ -443,6 +484,7 @@ export function Workspace({
         <ContentTreePane
           workspaceName={workspace.name}
           series={series}
+          editLanguage={editLanguage}
           selectedSeriesId={selectedSeriesId}
           selectedCourseId={selectedCourseId}
           selectedLessonId={selectedLessonId}
@@ -473,14 +515,26 @@ export function Workspace({
         />
       </div>
       <SidebarInset className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-background">
+        {/* ⚠ パンくずへ渡すのは表示名（英語モードでは name_en・未訳は日本語名）。
+            API のパス解決に使う名前は日本語のフォルダ名のままで別物 */}
         <GlobalHeader
-          seriesName={selectedSeriesName}
-          courseName={selectedCourse?.name ?? ""}
-          lessonName={selectedLesson?.lesson ?? ""}
+          seriesName={
+            selectedSeriesItem
+              ? seriesDisplayName(selectedSeriesItem, editLanguage)
+              : selectedSeriesName
+          }
+          courseName={
+            selectedCourse ? courseDisplayName(selectedCourse, editLanguage) : ""
+          }
+          lessonName={
+            selectedLesson ? lessonDisplayName(selectedLesson, editLanguage) : ""
+          }
           series={series}
           selectedSeriesId={selectedSeriesId}
           selectedCourseId={selectedCourseId}
           githubUrl={githubUrl}
+          editLanguage={editLanguage}
+          onEditLanguageChange={setEditLanguage}
           onSelectSeries={guardedSelectSeries}
           onSelectCourse={guardedSelectCourse}
           onOpenSettings={() => setSettingsOpen(true)}
@@ -531,6 +585,11 @@ export function Workspace({
                 availableImagePaths={availableImagePaths}
                 imageAssetsRevision={imageAssetsRevision}
                 searchHighlightQuery={contentSearchQuery}
+                editLanguage={editLanguage}
+                onEditLanguageChange={setEditLanguage}
+                translationStatus={lessonTranslationStatus}
+                onTranslationChanged={refreshTranslationStatus}
+                onSaveError={handleSaveError}
               />
             ) : focusLevel === "course" && selectedCourse ? (
               <CourseMetaView
@@ -541,6 +600,11 @@ export function Workspace({
                 onSelectCourse={guardedSelectCourse}
                 mandalaModalOpen={courseMandalaModalOpen}
                 onMandalaModalOpenChange={setCourseMandalaModalOpen}
+                editLanguage={editLanguage}
+                onEditLanguageChange={setEditLanguage}
+                translationStatus={translationData?.statuses.course?.meta}
+                onTranslationChanged={refreshTranslationStatus}
+                seriesName={selectedSeriesName}
               />
             ) : focusLevel === "series" && selectedSeriesItem ? (
               <SeriesMetaView
@@ -548,12 +612,20 @@ export function Workspace({
                 seriesItem={selectedSeriesItem}
                 onRenameSeries={updateSeriesName}
                 onSaveMeta={updateSeriesMeta}
+                editLanguage={editLanguage}
+                onEditLanguageChange={setEditLanguage}
+                translationStatus={translationData?.statuses.series?.meta}
+                onTranslationChanged={refreshTranslationStatus}
               />
             ) : (
               <WorkspaceMetaView
                 workspaceName={workspace.name}
                 onSaveError={handleSaveError}
                 onGithubUrlSaved={setGithubUrl}
+                editLanguage={editLanguage}
+                onEditLanguageChange={setEditLanguage}
+                translationStatus={homeTranslationStatus}
+                onTranslationChanged={refreshTranslationStatus}
               />
             )}
           </div>

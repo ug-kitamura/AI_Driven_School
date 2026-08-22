@@ -14,7 +14,12 @@ const names = {
   lessonName: "トレーニングの進め方",
 };
 
-const ids = { selectedSeriesId: "srs-1", selectedCourseId: "crs-1" };
+const ids = {
+  selectedSeriesId: "srs-1",
+  selectedCourseId: "crs-1",
+  editLanguage: "ja" as const,
+  onEditLanguageChange: () => {},
+};
 
 function crumbNav(): HTMLElement | null {
   return screen.queryByLabelText("パンくず");

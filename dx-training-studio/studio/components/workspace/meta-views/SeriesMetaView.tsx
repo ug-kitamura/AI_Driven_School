@@ -8,9 +8,21 @@ import {
   META_DIALOG_CONTROL,
   META_DIALOG_STACK,
   MetaDialogField,
+  metaViewHeading,
+  paneKindLabel,
 } from "@/components/workspace/metaDialogLayout";
 import { SLUG_PATTERN } from "@/lib/schema";
 import type { Series } from "@/lib/schema";
+import {
+  EnMetaSection,
+  type EnMetaControls,
+} from "@/components/workspace/translation/EnMetaSection";
+import { EnMetaActionBar } from "@/components/workspace/translation/EnMetaActionBar";
+import { StaleTranslationNotice } from "@/components/workspace/translation/StaleTranslationNotice";
+import { seriesDisplayName, type EditLanguage } from "@/lib/display-name";
+import { PaneActionBar } from "@/components/workspace/PaneActionBar";
+import { SaveButton } from "@/components/workspace/SaveButton";
+import type { TranslationFreshness } from "@/lib/translation/client";
 
 type Props = {
   seriesItem: Series;
@@ -19,15 +31,29 @@ type Props = {
     seriesId: string,
     meta: { slug?: string; catch?: string; description?: string },
   ) => void;
+  editLanguage: EditLanguage;
+  onEditLanguageChange: (language: EditLanguage) => void;
+  translationStatus: TranslationFreshness | undefined;
+  onTranslationChanged?: () => void;
 };
 
 /** シリーズ選択時のペイン2: シリーズメタの編集ビュー */
-export function SeriesMetaView({ seriesItem, onRenameSeries, onSaveMeta }: Props) {
+export function SeriesMetaView({
+  seriesItem,
+  onRenameSeries,
+  onSaveMeta,
+  editLanguage,
+  onEditLanguageChange,
+  translationStatus,
+  onTranslationChanged,
+}: Props) {
   const [name, setName] = useState(seriesItem.name);
   const [slug, setSlug] = useState(seriesItem.slug ?? "");
   const [catchCopy, setCatchCopy] = useState(seriesItem.catch ?? "");
   const [description, setDescription] = useState(seriesItem.description ?? "");
   const [slugError, setSlugError] = useState(false);
+  /** 英語ビューのボタン列を見出し行へ持ち上げるための操作口 */
+  const [enControls, setEnControls] = useState<EnMetaControls | null>(null);
 
   const handleSave = () => {
     const trimmedSlug = slug.trim();
@@ -48,11 +74,34 @@ export function SeriesMetaView({ seriesItem, onRenameSeries, onSaveMeta }: Props
     }
   };
 
+  if (editLanguage === "en") {
+    return (
+      <MetaViewShell
+        title={seriesDisplayName(seriesItem, editLanguage)}
+        kindLabel={paneKindLabel("series", editLanguage)}
+        heading={metaViewHeading("series", editLanguage)}
+        actionBar={<EnMetaActionBar controls={enControls} />}
+      >
+        {/* ボタン列は見出し行（親）が持つ。赤字1行もここで出す */}
+        <StaleTranslationNotice status={translationStatus} />
+        <EnMetaSection
+          level="series"
+          names={{ series: seriesItem.name }}
+          translationStatus={translationStatus}
+          onTranslationChanged={onTranslationChanged}
+          onControlsReady={setEnControls}
+          hideActionBar
+        />
+      </MetaViewShell>
+    );
+  }
+
   return (
     <MetaViewShell
-      title={seriesItem.name}
-      kindLabel="シリーズ"
-      onSave={handleSave}
+      title={seriesDisplayName(seriesItem, editLanguage)}
+      kindLabel={paneKindLabel("series", editLanguage)}
+      heading={metaViewHeading("series", editLanguage)}
+      actionBar={<PaneActionBar saveSlot={<SaveButton onSave={handleSave} />} />}
     >
       <div className={META_DIALOG_STACK}>
         <MetaDialogField>

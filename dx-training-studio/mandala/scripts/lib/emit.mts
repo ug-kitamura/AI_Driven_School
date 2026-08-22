@@ -9,6 +9,7 @@ import type {
   SiteSeries,
 } from "./site-model.mts";
 
+
 export type Locale = "ja" | "en";
 
 export type EmittedFile = {
@@ -22,6 +23,27 @@ function yamlString(value: string): string {
   return JSON.stringify(value);
 }
 
+/**
+ * 英語版がまだ無いページの本文（publishing-site-build spec）。
+ *
+ * ⚠ ここで日本語本文へフォールバックしない。英語サイトが日本語を配信することに
+ * なるうえ、**Pagefind が索引するのは生成された HTML** なので、ファイルに日本語を
+ * 書いた時点で英語索引が汚染される。実行時のコンポーネント分岐では直せない。
+ *
+ * ⚠ 見出し（`#`）を使わないこと——Nextra の TOC に「Coming soon」だけの
+ * 目次項目が出る。
+ *
+ * 日本語版へのリンクは、内容へ辿り着く手段を残すために必須（spec）。
+ */
+export function untranslatedPlaceholder(jaHref: string): string {
+  return [
+    "Coming soon — the English version of this page is not ready yet.",
+    "",
+    `[Read the Japanese version（日本語版を読む）](${jaHref})`,
+    "",
+  ].join("\n");
+}
+
 /** レッスン 1 本の `.md`（Nextra 用 frontmatter ＋ 本文） */
 export function emitLessonMarkdown(
   lesson: SiteLesson,
@@ -31,7 +53,13 @@ export function emitLessonMarkdown(
   body: string,
 ): string {
   const title = locale === "en" ? (lesson.titleEn ?? lesson.name) : lesson.name;
-  const untranslated = locale === "en" && lesson.untranslated;
+  // 英語版が無ければ日本語本文を書かず、プレースホルダに差し替える（spec）。
+  // ⚠ 翻訳の状態バッジは出さない——未翻訳はこの本文が示し、古い翻訳は
+  //    受講者が対処できない情報なので編集者（Studio）側に寄せた
+  const isUntranslated = locale === "en" && lesson.bodyEn === undefined;
+  const pageBody = isUntranslated
+    ? untranslatedPlaceholder(localizedHref(lesson.href, "ja"))
+    : body;
   // 著者は双方向フォールバック: ja = author → author_en / en = author_en → author
   const author =
     locale === "en"
@@ -51,12 +79,11 @@ export function emitLessonMarkdown(
     `seriesHref: ${yamlString(localizedHref(series.href, locale))}`,
     `courseName: ${yamlString(locale === "en" ? (course.nameEn ?? course.name) : course.name)}`,
     `courseHref: ${yamlString(localizedHref(course.href, locale))}`,
-    ...(untranslated ? ["untranslated: true"] : []),
     ...(lesson.stableId ? [`lessonId: ${yamlString(lesson.stableId)}`] : []),
     "---",
   ].join("\n");
 
-  return `${frontmatter}\n\n${body.replace(/^\n+/, "")}`;
+  return `${frontmatter}\n\n${pageBody.replace(/^\n+/, "")}`;
 }
 
 /**
@@ -335,26 +362,25 @@ export function changelogTitle(locale: Locale): string {
  *   `data-pagefind-body` を持つため「持たないページは無視」モードになる）。
  *   ⚠ `robots: "noindex"` は実測で Pagefind に**効かなかった**（2026-08-21。
  *   meta タグは出るが索引される）——検索除外に使わないこと
- * - 英語版は `changelog.en.md` があればそれを、無ければ日本語＋未翻訳バッジ
- *   （レッスンの `contents.en.md` と同じ作法）
+ * - 英語版は `changelog.en.md` があればそれを、無ければプレースホルダ＋日本語版
+ *   へのリンク（レッスンの `contents.en.md` と同じ作法）。⚠ 日本語へフォール
+ *   バックしないこと・翻訳の状態バッジを出さないことも同じ（spec）
  */
 export function emitChangelogPage(
   changelog: { body: string; bodyEn?: string },
   locale: Locale,
 ): EmittedFile {
   const prefix = localeContentPrefix(locale);
-  const untranslated = locale === "en" && changelog.bodyEn === undefined;
   const body =
-    locale === "en" ? (changelog.bodyEn ?? changelog.body) : changelog.body;
+    locale === "en"
+      ? (changelog.bodyEn ?? untranslatedPlaceholder("/changelog"))
+      : changelog.body;
 
   const frontmatter = [
     "---",
     `title: ${yamlString(changelogTitle(locale))}`,
     `sidebarTitle: ${yamlString(changelogTitle(locale))}`,
     "searchable: false",
-    // LessonHeader が未翻訳バッジを描くための印。seriesHref を持たないページ
-    // なのでロケールも明示する（バッジは en のときだけ出る）
-    ...(untranslated ? ["untranslated: true", `locale: "en"`] : []),
     "---",
   ].join("\n");
 

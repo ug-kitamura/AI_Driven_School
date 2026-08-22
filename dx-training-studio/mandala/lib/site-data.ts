@@ -13,7 +13,6 @@ export type SiteLesson = {
   status: LessonStatus;
   description: string;
   estimatedMinutes: number;
-  untranslated: boolean;
   href: string;
   titleEn?: string;
 };
@@ -28,6 +27,7 @@ export type SiteCourse = {
   catch?: string;
   catchEn?: string;
   target?: string;
+  targetEn?: string;
   crossSeriesPrev: string[];
   crossSeriesNext: string[];
   isStart?: boolean;

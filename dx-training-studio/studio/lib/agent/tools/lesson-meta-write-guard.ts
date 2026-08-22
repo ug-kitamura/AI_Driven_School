@@ -11,8 +11,9 @@ export type LessonMetaWriteResult =
  * 門を開ける代わりに、保護の本来の目的（id と表示順を壊さない）を検査として残す:
  * 1. JSON としてパースできること
  * 2. レッスンメタスキーマに適合すること（未知キー拒否。`order` もここで弾かれる）
- * 3. `id` は agent の値を無視し、既存 `.meta.json` の `id` を保持する
- *    （既存が無ければ `id` キーを書かない——採番はローダーの責務）
+ * 3. `id` / `en_source_hash` は agent の値を無視し、既存 `.meta.json` の値を保持する
+ *    （既存が無ければキーを書かない——id の採番はローダー、鮮度ハッシュは翻訳の
+ *    実行主体の責務。agent が書けると古い翻訳を最新と偽装できてしまう）
  *
  * 検査を通った内容は整形（2スペースインデント）して返す。
  */
@@ -47,25 +48,38 @@ export function prepareLessonMetaWrite(
     };
   }
 
-  // id は既存値を保護する（進捗データのキー。agent の値は無視する）
+  // id と en_source_hash は既存値を保護する（agent の値は無視する）
   const data: Record<string, unknown> = { ...validated.data };
   delete data.id;
-  const existingId = readExistingId(absolutePath);
-  const result = existingId ? { id: existingId, ...data } : data;
+  delete data.en_source_hash;
+  const existing = readProtectedFields(absolutePath);
+  const result: Record<string, unknown> = {
+    ...(existing.id ? { id: existing.id } : {}),
+    ...data,
+    ...(existing.enSourceHash ? { en_source_hash: existing.enSourceHash } : {}),
+  };
 
   return { ok: true, content: JSON.stringify(result, null, 2) };
 }
 
-function readExistingId(absolutePath: string): string | undefined {
-  if (!fs.existsSync(absolutePath)) return undefined;
+function readProtectedFields(absolutePath: string): {
+  id?: string;
+  enSourceHash?: string;
+} {
+  if (!fs.existsSync(absolutePath)) return {};
   try {
     const raw = JSON.parse(fs.readFileSync(absolutePath, "utf-8")) as Record<
       string,
       unknown
     >;
-    return typeof raw.id === "string" && raw.id ? raw.id : undefined;
+    return {
+      ...(typeof raw.id === "string" && raw.id ? { id: raw.id } : {}),
+      ...(typeof raw.en_source_hash === "string" && raw.en_source_hash
+        ? { enSourceHash: raw.en_source_hash }
+        : {}),
+    };
   } catch {
-    // 既存が壊れている場合は id を復元できない。上書きで修復される
-    return undefined;
+    // 既存が壊れている場合は保護値を復元できない。上書きで修復される
+    return {};
   }
 }

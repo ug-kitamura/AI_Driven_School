@@ -9,6 +9,7 @@ import {
 import { WorkspaceMetaView } from "@/components/workspace/meta-views/WorkspaceMetaView";
 import { SeriesMetaView } from "@/components/workspace/meta-views/SeriesMetaView";
 import { CourseMetaView } from "@/components/workspace/meta-views/CourseMetaView";
+import { META_HEADING_TEXT } from "@/components/workspace/metaDialogLayout";
 import type { Course, Series } from "@/lib/schema";
 
 // ミニ曼陀羅（React Flow）はこのテストの対象外。jsdom での描画副作用を避ける
@@ -44,6 +45,12 @@ afterEach(() => {
   vi.unstubAllGlobals();
   vi.restoreAllMocks();
 });
+
+const translationProps = {
+  editLanguage: "ja" as const,
+  onEditLanguageChange: () => {},
+  translationStatus: undefined,
+};
 
 describe("WorkspaceMetaView", () => {
   function stubFetch() {
@@ -87,10 +94,10 @@ describe("WorkspaceMetaView", () => {
 
   it("全体メタを読み込んでフォームに表示し、保存で PUT する", async () => {
     const fetchMock = stubFetch();
-    render(<WorkspaceMetaView workspaceName="DX Training Studio" />);
+    render(<WorkspaceMetaView workspaceName="DX Training Studio" {...translationProps} />);
 
     const nameInput = await screen.findByLabelText<HTMLInputElement>(
-      "名前（サイト名）",
+      "名前",
     );
     await waitFor(() => expect(nameInput.value).toBe("DX Training Mandala"));
 
@@ -104,121 +111,18 @@ describe("WorkspaceMetaView", () => {
       expect(putCall).toBeDefined();
       const body = JSON.parse((putCall![1] as RequestInit).body as string) as {
         name: string;
-        hero: string;
+        hero?: string;
       };
       expect(body.name).toBe("新しいサイト名");
-      expect(body.hero).toBe("hero-1.png");
+      // ⚠ hero はフォームが持たない。送らないことで PUT の「省略＝保全」規約に乗り、
+      //    .meta.json の既存値が保たれる
+      expect(body.hero).toBeUndefined();
     });
-  });
-
-  it("ヒーロー画像は 未設定 → 選択中 → 残りをアルファベット順で並べる", async () => {
-    const fetchMock = vi.fn((input: RequestInfo | URL) => {
-      const url = String(input);
-      if (url.startsWith("/api/content/workspace-meta")) {
-        return Promise.resolve(
-          new Response(JSON.stringify({ hero: "zebra.png" }), { status: 200 }),
-        );
-      }
-      if (url.startsWith("/api/images/list")) {
-        // 返却順は mtime 降順（アルファベット順ではない）
-        return Promise.resolve(
-          new Response(
-            JSON.stringify({
-              files: ["cherry.png", "apple.png", "zebra.png", "banana.png"].map(
-                (name) => ({
-                  path: `images/${name}`,
-                  name,
-                  source: "uploaded",
-                  uploadedAt: "",
-                }),
-              ),
-            }),
-            { status: 200 },
-          ),
-        );
-      }
-      return Promise.resolve(new Response("{}", { status: 200 }));
-    });
-    vi.stubGlobal("fetch", fetchMock);
-    render(<WorkspaceMetaView workspaceName="DX Training Studio" />);
-
-    const trigger = await screen.findByLabelText("ヒーロー画像");
-    await waitFor(() => expect(trigger.textContent).toContain("zebra.png"));
-    fireEvent.click(trigger);
-
-    await waitFor(() => {
-      const options = screen
-        .getAllByRole("option")
-        .map((o) => o.textContent?.trim());
-      expect(options).toEqual([
-        "未設定",
-        "zebra.png",
-        "apple.png",
-        "banana.png",
-        "cherry.png",
-      ]);
-    });
-  });
-
-  it("未設定でも同梱の既定画像が使われることが分かる", async () => {
-    const fetchMock = vi.fn((input: RequestInfo | URL) => {
-      const url = String(input);
-      if (url.startsWith("/api/content/workspace-meta")) {
-        // hero 未設定（公開サイトは同梱の app/hero.jpg にフォールバックする）
-        return Promise.resolve(new Response("{}", { status: 200 }));
-      }
-      return Promise.resolve(
-        new Response(JSON.stringify({ files: [] }), { status: 200 }),
-      );
-    });
-    vi.stubGlobal("fetch", fetchMock);
-    render(<WorkspaceMetaView workspaceName="DX Training Studio" />);
-
-    // 「未設定」だけだと画像が出ていないと読み違えるので、補足文で既定画像に触れる
-    await screen.findByLabelText("ヒーロー画像");
-    await waitFor(() =>
-      expect(document.body.textContent).toContain("mandala/app/hero.jpg"),
-    );
-  });
-
-  it("保存済み画像が候補一覧に無くても選択肢に出る", async () => {
-    const fetchMock = vi.fn((input: RequestInfo | URL) => {
-      const url = String(input);
-      if (url.startsWith("/api/content/workspace-meta")) {
-        return Promise.resolve(
-          new Response(JSON.stringify({ hero: "deleted.png" }), { status: 200 }),
-        );
-      }
-      if (url.startsWith("/api/images/list")) {
-        return Promise.resolve(
-          new Response(
-            JSON.stringify({
-              files: [
-                {
-                  path: "images/apple.png",
-                  name: "apple.png",
-                  source: "uploaded",
-                  uploadedAt: "",
-                },
-              ],
-            }),
-            { status: 200 },
-          ),
-        );
-      }
-      return Promise.resolve(new Response("{}", { status: 200 }));
-    });
-    vi.stubGlobal("fetch", fetchMock);
-    render(<WorkspaceMetaView workspaceName="DX Training Studio" />);
-
-    // 実体が消えていてもトリガーに保存済みの値が出る（空表示にならない）
-    const trigger = await screen.findByLabelText("ヒーロー画像");
-    await waitFor(() => expect(trigger.textContent).toContain("deleted.png"));
   });
 
   it("不正な GitHub URL では保存せずエラーを出す", async () => {
     const fetchMock = stubFetch();
-    render(<WorkspaceMetaView workspaceName="DX Training Studio" />);
+    render(<WorkspaceMetaView workspaceName="DX Training Studio" {...translationProps} />);
     const urlInput = await screen.findByLabelText<HTMLInputElement>(
       "GitHub リンク",
     );
@@ -240,6 +144,7 @@ describe("SeriesMetaView", () => {
   it("フォームは シリーズ名 → 説明 → キャッチ → スラッグ の順に並ぶ", () => {
     render(
       <SeriesMetaView
+        {...translationProps}
         seriesItem={sampleSeries[0]}
         onRenameSeries={vi.fn()}
         onSaveMeta={vi.fn()}
@@ -258,11 +163,47 @@ describe("SeriesMetaView", () => {
     ]);
   });
 
+  it("見出しはレッスンメタ編集モーダルのタイトルと同じ体裁を使う", () => {
+    // workspace-meta-views spec: メタ編集の入口がビューかモーダルかで
+    // 見出しの大きさが変わってはいけない。体裁は META_HEADING_TEXT で共有する
+    render(
+      <SeriesMetaView
+        {...translationProps}
+        seriesItem={sampleSeries[0]}
+        onRenameSeries={vi.fn()}
+        onSaveMeta={vi.fn()}
+      />,
+    );
+
+    const heading = screen.getByRole("heading", { name: "シリーズメタを編集" });
+    for (const cls of META_HEADING_TEXT.split(" ")) {
+      expect(heading.className).toContain(cls);
+    }
+  });
+
+  it("ペイン2 ヘッダーのタイトルは見出しと同寸にしない", () => {
+    // ヘッダー＝いまどこにいるか / 見出し＝何を編集しているか。
+    // 大きさの差がその区別を示すので、揃えないことを固定する
+    render(
+      <SeriesMetaView
+        {...translationProps}
+        seriesItem={sampleSeries[0]}
+        onRenameSeries={vi.fn()}
+        onSaveMeta={vi.fn()}
+      />,
+    );
+
+    const header = screen.getByRole("heading", { level: 2 });
+    expect(header.className).toContain("text-sm");
+    expect(header.className).not.toContain("text-base");
+  });
+
   it("メタを保存し、名前が変わっていればリネームも呼ぶ", () => {
     const onRenameSeries = vi.fn();
     const onSaveMeta = vi.fn();
     render(
       <SeriesMetaView
+        {...translationProps}
         seriesItem={sampleSeries[0]}
         onRenameSeries={onRenameSeries}
         onSaveMeta={onSaveMeta}
@@ -293,6 +234,7 @@ describe("SeriesMetaView", () => {
     const onSaveMeta = vi.fn();
     render(
       <SeriesMetaView
+        {...translationProps}
         seriesItem={sampleSeries[0]}
         onRenameSeries={vi.fn()}
         onSaveMeta={onSaveMeta}
@@ -314,6 +256,8 @@ describe("CourseMetaView", () => {
     const onSave = vi.fn();
     render(
       <CourseMetaView
+        {...translationProps}
+        seriesName={sampleSeries[0].name}
         series={sampleSeries}
         course={sampleSeries[0].courses[0]}
         onSave={onSave}
@@ -346,6 +290,8 @@ describe("CourseMetaView", () => {
   it("フォームは コース名 → 説明 → 左列4項目 → コースフロー の順に並ぶ", () => {
     render(
       <CourseMetaView
+        {...translationProps}
+        seriesName={sampleSeries[0].name}
         series={sampleSeries}
         course={sampleSeries[0].courses[0]}
         onSave={vi.fn()}
@@ -376,6 +322,8 @@ describe("CourseMetaView", () => {
   it("説明はコース名と同じ全幅で表示する", () => {
     render(
       <CourseMetaView
+        {...translationProps}
+        seriesName={sampleSeries[0].name}
         series={sampleSeries}
         course={sampleSeries[0].courses[0]}
         onSave={vi.fn()}
@@ -394,6 +342,8 @@ describe("CourseMetaView", () => {
   it("ミニ曼陀羅は右列に配置され、外側に追加の枠を持たない", () => {
     render(
       <CourseMetaView
+        {...translationProps}
+        seriesName={sampleSeries[0].name}
         series={sampleSeries}
         course={sampleSeries[0].courses[0]}
         onSave={vi.fn()}

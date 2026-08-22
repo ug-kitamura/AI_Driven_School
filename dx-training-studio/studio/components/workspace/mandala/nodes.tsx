@@ -3,6 +3,7 @@
 import { Handle, Position, type NodeProps } from "@xyflow/react";
 import { MapPin } from "lucide-react";
 import { COURSE_STYLE_LABELS, type CourseStyle } from "@/lib/schema";
+import { WorkspaceTooltip } from "@/components/workspace/WorkspaceTooltip";
 
 export type MandalaNodeData = {
   label: string;
@@ -94,16 +95,21 @@ export function CompactNode({ data, type }: NodeProps) {
   const d = data as MandalaNodeData;
   const variant = type === "thumbnail" ? "thumbnail" : "compact";
   return (
-    <div
-      className={nodeClass(d, variant)}
-      title={`${d.seriesName} / ${d.label}`}
-    >
-      <Handle type="target" position={Position.Top} isConnectable={false} />
-      <HerePin here={d.here} />
-      <span className="dxm-node-title">{d.label}</span>
-      <StyleLabel style={d.style} />
-      <SourceHandle connected={d.hasOutgoing} />
-    </div>
+    // ⚠ 生 title は使わない（Studio 既定のツールチップ規則）。トリガーは
+    // `render` 合成でノードのルート要素そのものに乗せる——DOM 階層を増やすと
+    // React Flow のノード計測（寸法・辺の接続位置）に影響しうる
+    <WorkspaceTooltip
+      label={`${d.seriesName} / ${d.label}`}
+      render={
+        <div className={nodeClass(d, variant)}>
+          <Handle type="target" position={Position.Top} isConnectable={false} />
+          <HerePin here={d.here} />
+          <span className="dxm-node-title">{d.label}</span>
+          <StyleLabel style={d.style} />
+          <SourceHandle connected={d.hasOutgoing} />
+        </div>
+      }
+    />
   );
 }
 

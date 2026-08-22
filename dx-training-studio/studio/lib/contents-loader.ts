@@ -416,6 +416,10 @@ export function loadContentsFolder(projectRoot: string): Series[] {
           course: courseName,
           ...metaToLessonFields(normalized),
           lesson: lessonName,
+          // 英語モードの表示名。⚠ 名前の正本はフォルダ名のままで、これは別名
+          ...(typeof lessonMetaRaw.name_en === "string" && lessonMetaRaw.name_en
+            ? { name_en: lessonMetaRaw.name_en }
+            : {}),
           content: migrateQuizBlocksInBody(content),
         });
       }
@@ -424,6 +428,10 @@ export function loadContentsFolder(projectRoot: string): Series[] {
         id: courseId,
         name: courseName,
         target: courseMeta.target,
+        ...(typeof courseMetaRaw.target_en === "string" &&
+        courseMetaRaw.target_en
+          ? { target_en: courseMetaRaw.target_en }
+          : {}),
         ...(courseMeta.style ? { style: courseMeta.style } : {}),
         cross_series_prev: courseMeta.cross_series_prev,
         cross_series_next: courseMeta.cross_series_next,

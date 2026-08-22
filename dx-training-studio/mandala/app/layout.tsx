@@ -30,7 +30,7 @@ export default async function RootLayout({
 }: {
   children: ReactNode;
 }) {
-  const { line } = resolveReleaseInfo();
+  const { lineJa, lineEn } = resolveReleaseInfo();
 
   return (
     <html lang="ja" dir="ltr" suppressHydrationWarning>
@@ -38,11 +38,20 @@ export default async function RootLayout({
       {/* 更新日の行はサイドバー最上部に `::before` で描く（テーマに差し込み口が無いため）。
           全ビルドで出す（Vercel=日付のみ / Pages=日付＋タグ番号）。日付もタグも
           解決できなかったビルドでは変数を置かない——`content` が無効になり、
-          擬似要素そのものが生成されないので、行も余白も残らない。 */}
+          擬似要素そのものが生成されないので、行も余白も残らない。
+          ⚠ 表記は言語で変わる（`… 更新` / `Updated on …`）が、このレイアウトは
+          サーバ側で**現在の言語を知らない**（言語はパスで決まる）。そこで日英2本を
+          両方注いでおき、選ぶのは CSS 側（`html[lang="en"]` セレクタ）に任せる。
+          `<html lang>` は静的 HTML では postbuild、SPA 遷移では SiteShell が
+          正しくしているので、この方式なら JS を1行も足さずに両方へ追随する。
+          日英は同じ入力から作るので片方だけ欠けることはない（→ release-info.ts）。 */}
       <body
         style={
-          line
-            ? ({ "--dxm-release": JSON.stringify(line) } as CSSProperties)
+          lineJa && lineEn
+            ? ({
+                "--dxm-release-ja": JSON.stringify(lineJa),
+                "--dxm-release-en": JSON.stringify(lineEn),
+              } as CSSProperties)
             : undefined
         }
       >

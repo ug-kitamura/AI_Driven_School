@@ -99,6 +99,30 @@ describe("buildMandalaGraph", () => {
     expect(nodes.find((n) => n.id === "x")?.style).toBe("hands-on");
     expect(nodes.find((n) => n.id === "a")?.style).toBeUndefined();
   });
+
+  it("英語モードではノードのラベルに name_en を使う", () => {
+    const translated: Series[] = [
+      series("git", [course("a", { name_en: "Git Concepts" })]),
+    ];
+    translated[0]!.name_en = "Git Basics";
+    const { nodes } = buildMandalaGraph(translated, "en");
+    expect(nodes[0]?.label).toBe("Git Concepts");
+    expect(nodes[0]?.seriesName).toBe("Git Basics");
+  });
+
+  it("英語モードでも name_en が無ければ日本語名にフォールバックする", () => {
+    // ⚠ ここが空になると曼陀羅のノードが名無しになりナビが死ぬ
+    const { nodes } = buildMandalaGraph(fixture, "en");
+    expect(nodes.find((n) => n.id === "a")?.label).toBe("コース a");
+    expect(nodes.find((n) => n.id === "a")?.seriesName).toBe("シリーズ git");
+  });
+
+  it("言語を変えてもグラフの形（ID と辺）は変わらない", () => {
+    const ja = buildMandalaGraph(fixture, "ja");
+    const en = buildMandalaGraph(fixture, "en");
+    expect(en.nodes.map((n) => n.id)).toEqual(ja.nodes.map((n) => n.id));
+    expect(en.edges.map((e) => e.id)).toEqual(ja.edges.map((e) => e.id));
+  });
 });
 
 describe("globalView", () => {

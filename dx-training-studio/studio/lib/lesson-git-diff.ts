@@ -87,8 +87,9 @@ export function resolveLessonGitDiff(
   series: string,
   course: string,
   lesson: string,
+  language: "ja" | "en" = "ja",
 ): LessonGitDiffResult | LessonGitDiffError {
-  const mdPath = resolveLessonMdPath(series, course, lesson);
+  const mdPath = resolveLessonMdPath(series, course, lesson, language);
   const repoRoot = getGitRepoRoot(projectRoot);
 
   if (!repoRoot) {

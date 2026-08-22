@@ -33,6 +33,8 @@ const headerProps = {
   seriesName: "はじめにシリーズ",
   courseName: "DX入門コース",
   lessonName: "L01",
+  editLanguage: "ja" as const,
+  onEditLanguageChange: () => {},
 };
 
 const series: Series[] = [
@@ -51,6 +53,7 @@ function renderTree() {
       <ContentTreePane
         workspaceName="DX Training Studio"
         series={series}
+        editLanguage="ja"
         selectedSeriesId=""
         selectedCourseId=""
         selectedLessonId=""

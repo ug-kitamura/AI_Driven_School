@@ -77,6 +77,33 @@ describe("prepareLessonMetaWrite", () => {
     expect(JSON.parse(result.content)).not.toHaveProperty("id");
   });
 
+  it("en_source_hash は agent の値を無視して既存値を保持する", () => {
+    const metaPath = tmpMetaPath(
+      JSON.stringify({ id: "lsn-keep-123456", en_source_hash: "sha256:abc" }),
+    );
+    const result = prepareLessonMetaWrite(
+      metaPath,
+      REL,
+      JSON.stringify({ en_source_hash: "sha256:fff", status: "done" }),
+    );
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    const parsed = JSON.parse(result.content) as Record<string, unknown>;
+    expect(parsed.en_source_hash).toBe("sha256:abc");
+    expect(parsed.id).toBe("lsn-keep-123456");
+  });
+
+  it("既存に無い en_source_hash を agent は導入できない", () => {
+    const result = prepareLessonMetaWrite(
+      tmpMetaPath(JSON.stringify({ status: "open" })),
+      REL,
+      JSON.stringify({ en_source_hash: "sha256:fff", status: "done" }),
+    );
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(JSON.parse(result.content)).not.toHaveProperty("en_source_hash");
+  });
+
   it("不正な slug を拒否する", () => {
     const result = prepareLessonMetaWrite(
       tmpMetaPath(),

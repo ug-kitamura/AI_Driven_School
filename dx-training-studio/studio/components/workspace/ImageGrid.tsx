@@ -4,6 +4,7 @@ import { useState } from "react";
 import { ImageOff, Plus, Trash2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { MediaPlayOverlay } from "@/components/workspace/MediaPlayOverlay";
+import { WorkspaceTooltip } from "@/components/workspace/WorkspaceTooltip";
 import { IMAGE_GRID_CELL_MIN } from "@/components/workspace/pane-layout";
 import { isMp4Path, isCanonicalImagePath, toImageApiUrl } from "@/lib/image-path";
 import { getImageStorageMode } from "@/lib/image-api-client";
@@ -172,12 +173,15 @@ export function ImageGrid({
               {isVideo ? <MediaPlayOverlay /> : null}
             </button>
             <div className="flex min-h-0 flex-1 flex-col gap-1 p-1.5 dark:bg-muted">
-              <p
-                className="truncate text-[10px] font-medium text-foreground"
-                title={item.name}
-              >
-                {item.name}
-              </p>
+              {/* 省略表示の補完。⚠ 生 title は使わない（Studio 既定のツールチップ規則） */}
+              <WorkspaceTooltip
+                label={item.name}
+                render={
+                  <p className="truncate text-[10px] font-medium text-foreground">
+                    {item.name}
+                  </p>
+                }
+              />
               {item.statusLabel ? (
                 <p
                   className={cn(

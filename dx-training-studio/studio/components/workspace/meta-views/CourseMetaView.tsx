@@ -16,6 +16,8 @@ import {
   META_DIALOG_CONTROL,
   META_DIALOG_GRID,
   MetaDialogField,
+  metaViewHeading,
+  paneKindLabel,
 } from "@/components/workspace/metaDialogLayout";
 import { CrossSeriesCourseTreePicker } from "@/components/workspace/CrossSeriesCourseTreePicker";
 import { MiniMandalaSection } from "@/components/workspace/MiniMandalaSection";
@@ -28,6 +30,16 @@ import {
   listCrossSeriesCourseCandidates,
   wouldCourseMetaEditCreateCycle,
 } from "@/lib/course-flow";
+import {
+  EnMetaSection,
+  type EnMetaControls,
+} from "@/components/workspace/translation/EnMetaSection";
+import { EnMetaActionBar } from "@/components/workspace/translation/EnMetaActionBar";
+import { StaleTranslationNotice } from "@/components/workspace/translation/StaleTranslationNotice";
+import { courseDisplayName, type EditLanguage } from "@/lib/display-name";
+import { PaneActionBar } from "@/components/workspace/PaneActionBar";
+import { SaveButton } from "@/components/workspace/SaveButton";
+import type { TranslationFreshness } from "@/lib/translation/client";
 
 /** Select は空文字を値に使えないため、未設定を表すセンチネル */
 const COURSE_STYLE_UNSET = "__unset__";
@@ -81,6 +93,12 @@ type Props = {
    */
   mandalaModalOpen: boolean;
   onMandalaModalOpenChange: (open: boolean) => void;
+  editLanguage: EditLanguage;
+  onEditLanguageChange: (language: EditLanguage) => void;
+  translationStatus: TranslationFreshness | undefined;
+  onTranslationChanged?: () => void;
+  /** シリーズ名（英語ビューの対象解決に使う） */
+  seriesName: string;
 };
 
 /** コース選択時のペイン2: コースメタの編集ビュー＋ミニ曼陀羅 */
@@ -91,9 +109,16 @@ export function CourseMetaView({
   onSelectCourse,
   mandalaModalOpen,
   onMandalaModalOpenChange,
+  editLanguage,
+  onEditLanguageChange,
+  translationStatus,
+  onTranslationChanged,
+  seriesName,
 }: Props) {
   const [cycleWarning, setCycleWarning] = useState(false);
   const [slugError, setSlugError] = useState(false);
+  /** 英語ビューのボタン列を見出し行へ持ち上げるための操作口 */
+  const [enControls, setEnControls] = useState<EnMetaControls | null>(null);
   const [editMeta, setEditMeta] = useState<EditMeta>(() => ({
     name: course.name,
     slug: course.slug ?? "",
@@ -169,7 +194,33 @@ export function CourseMetaView({
   };
 
   return (
-    <MetaViewShell title={course.name} kindLabel="コース" onSave={handleSave}>
+    <MetaViewShell
+      title={courseDisplayName(course, editLanguage)}
+      kindLabel={paneKindLabel("course", editLanguage)}
+      heading={metaViewHeading("course", editLanguage)}
+      actionBar={
+        editLanguage === "en" ? (
+          <EnMetaActionBar controls={enControls} />
+        ) : (
+          <PaneActionBar saveSlot={<SaveButton onSave={handleSave} />} />
+        )
+      }
+    >
+      {editLanguage === "en" ? (
+        <>
+          {/* ボタン列は見出し行（親）が持つ。赤字1行もここで出す */}
+          <StaleTranslationNotice status={translationStatus} />
+          <EnMetaSection
+            level="course"
+            names={{ series: seriesName, course: course.name }}
+            translationStatus={translationStatus}
+            onTranslationChanged={onTranslationChanged}
+            onControlsReady={setEnControls}
+            hideActionBar
+          />
+        </>
+      ) : (
+        <>
       {/* ⚠ 左列は行を明示指定する（`col-start-1 row-start-N`）。ミニ曼陀羅が右列の
           3行目から4行分を占めるので、auto 配置だと左列の項目がその手前で
           右列へ回り込む。行を固定して左列4行と曼陀羅を確実に噛み合わせる。 */}
@@ -281,6 +332,7 @@ export function CourseMetaView({
               <MiniMandalaSection
                 series={series}
                 course={course}
+                editLanguage={editLanguage}
                 onSelectCourse={onSelectCourse}
                 modalOpen={mandalaModalOpen}
                 onModalOpenChange={onMandalaModalOpenChange}
@@ -347,6 +399,8 @@ export function CourseMetaView({
             曼陀羅全体に循環する経路が生じます。別シリーズの前/次コースの設定を見直してください。
           </p>
         </div>
+      )}
+        </>
       )}
     </MetaViewShell>
   );

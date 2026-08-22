@@ -90,6 +90,28 @@ import {
 import { cn } from "@/lib/utils";
 import type { LessonMetaFields } from "@/lib/lesson-meta";
 import type { Series, Course, Lesson } from "@/lib/schema";
+import {
+  courseDisplayName,
+  lessonDisplayName,
+  seriesDisplayName,
+  type EditLanguage,
+} from "@/lib/display-name";
+import { paneKindLabel } from "@/components/workspace/metaDialogLayout";
+
+/**
+ * ツリー最上部のホーム行のラベル（unified-content-tree spec）。
+ *
+ * 英語は `paneKindLabel("root", "en")` を引く——ペイン2 ヘッダーの階層種別バッジと
+ * **同じ語**を出すため。⚠ `Home` の文字列をここに書かないこと（片方だけ直る事故になる）。
+ *
+ * ⚠ 日本語は「ホーム」を維持し、階層種別ラベルの日本語（「全体」）へ寄せない。
+ * ツリーの日本語表示は変えないことが要件で、日英が非対称なのは意図的。
+ * ⚠ 全体メタの `name` / `name_en` も出さない——ホーム行はナビゲーションの原点であり、
+ * シリーズ・コース・レッスン行のようなコンテンツ名の表示行ではない。
+ */
+function homeRowLabel(language: EditLanguage): string {
+  return language === "en" ? paneKindLabel("root", "en") : "ホーム";
+}
 
 /** ステータス種別はラベルとアイコンの形で区別する（色は付けない・下のボタン側で指定） */
 const STATUS_ICON: Record<
@@ -170,6 +192,8 @@ type Props = {
   onUpdateLessonMeta: (lessonId: string, meta: Partial<LessonMetaFields>) => void;
   onUpdateLessonStatus: (lessonId: string, status: Lesson["status"]) => void;
   onSaveError?: (message: string) => void;
+  /** 行に出す名前の言語。⚠ 表示だけ——選択・並べ替え・パス解決の名前は日本語のまま */
+  editLanguage: EditLanguage;
 };
 
 function courseRenamePatch(
@@ -233,6 +257,7 @@ export function ContentTreePane({
   onUpdateLessonMeta,
   onUpdateLessonStatus,
   onSaveError,
+  editLanguage,
 }: Props) {
   const { state: sidebarState } = useSidebar();
   const isCollapsed = sidebarState === "collapsed";
@@ -417,7 +442,11 @@ export function ContentTreePane({
     const timer = window.setTimeout(() => {
       void (async () => {
         try {
-          const params = new URLSearchParams({ q: contentQuery });
+          // 検索対象は編集言語に連動する（unified-content-tree spec）
+          const params = new URLSearchParams({
+            q: contentQuery,
+            lang: editLanguage,
+          });
           const res = await fetch(`/api/content/search?${params.toString()}`);
           if (!res.ok) {
             setContentMatches([]);
@@ -439,7 +468,9 @@ export function ContentTreePane({
       })();
     }, CONTENT_SEARCH_DEBOUNCE_MS);
     return () => window.clearTimeout(timer);
-  }, [contentQuery, isContentSearchMode]);
+    // ⚠ editLanguage も依存。言語を切り替えたら対象が変わるので引き直す
+    // （入力が残ったまま結果だけ前の言語、という状態を作らない）
+  }, [contentQuery, isContentSearchMode, editLanguage]);
 
   const clearSearchFilter = useCallback(() => {
     setFilter("");
@@ -464,8 +495,15 @@ export function ContentTreePane({
       if (!contentQuery) return series;
       return filterSeriesByContentMatches(series, contentMatches);
     }
-    return filterSeriesByName(series, nameFilter);
-  }, [series, isContentSearchMode, contentQuery, contentMatches, nameFilter]);
+    return filterSeriesByName(series, nameFilter, editLanguage);
+  }, [
+    series,
+    isContentSearchMode,
+    contentQuery,
+    contentMatches,
+    nameFilter,
+    editLanguage,
+  ]);
 
   const isFiltering = filter.trim().length > 0;
   const emptyCollapsed = useMemo(() => new Set<string>(), []);
@@ -1147,7 +1185,7 @@ export function ContentTreePane({
                           isHomeSelected && "font-semibold",
                         )}
                       >
-                        ホーム
+                        {homeRowLabel(editLanguage)}
                       </span>
                     </div>
                   }
@@ -1182,6 +1220,7 @@ export function ContentTreePane({
                           rowClass={rowClass}
                           onActivateRow={activateRow}
                           onContextMenuChange={handleContextMenuChange}
+                          editLanguage={editLanguage}
                           onReorderCourses={onReorderCourses}
                           onReorderLessons={onReorderLessons}
                           onUpdateLessonStatus={onUpdateLessonStatus}
@@ -1345,6 +1384,12 @@ type NodeSharedProps = {
   rowClass: (rowId: string) => string;
   onActivateRow: (row: ContentTreeRow) => void;
   onContextMenuChange: (rowId: string | null) => void;
+  /**
+   * 行に出す名前の言語（studio-translation spec）。
+   * ⚠ **表示だけ**に使う。並べ替え・選択・API のパス解決に使う名前は
+   * 日本語のフォルダ名のままで、そちらを言語で切り替えてはならない。
+   */
+  editLanguage: EditLanguage;
 };
 
 /**
@@ -1479,7 +1524,7 @@ function SeriesNode({
                 {...listeners}
                 className="min-w-0 flex-1 truncate text-left group-hover/tree-series:cursor-grab active:cursor-grabbing sidebar-label"
               >
-                {seriesItem.name}
+                {seriesDisplayName(seriesItem, shared.editLanguage)}
               </span>
               {/* シリーズ配下の完了レッスン数 / 総レッスン数（右寄せ・青系） */}
               <span className="ml-auto flex-shrink-0 pr-1 text-[10px] font-medium text-primary sidebar-label">
@@ -1702,7 +1747,7 @@ function CourseNode({
                 {...listeners}
                 className="min-w-0 flex-1 truncate text-left group-hover/tree-course:cursor-grab active:cursor-grabbing sidebar-label"
               >
-                {course.name}
+                {courseDisplayName(course, shared.editLanguage)}
               </span>
             </div>
           }
@@ -1892,7 +1937,7 @@ function LessonRow({
                 {...listeners}
                 className="min-w-0 flex-1 truncate text-left group-hover/tree-lesson:cursor-grab active:cursor-grabbing sidebar-label"
               >
-                {lesson.lesson}
+                {lessonDisplayName(lesson, shared.editLanguage)}
               </span>
               {/* ステータスボタン（右寄せ・クリックで循環。行選択は発生させない） */}
               <WorkspaceTooltip

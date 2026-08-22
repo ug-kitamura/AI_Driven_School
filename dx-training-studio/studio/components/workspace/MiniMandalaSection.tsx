@@ -10,6 +10,7 @@ import {
 import { LazyMandala } from "@/components/workspace/mandala/LazyMandala";
 import { buildMandalaGraph } from "@/lib/mandala/build-graph";
 import type { Series, Course } from "@/lib/schema";
+import type { EditLanguage } from "@/lib/display-name";
 
 type Props = {
   series: Series[];
@@ -24,6 +25,8 @@ type Props = {
    */
   modalOpen: boolean;
   onModalOpenChange: (open: boolean) => void;
+  /** ノードのラベルに使う言語 */
+  editLanguage: EditLanguage;
 };
 
 /** コースメタビュー右列のミニ曼陀羅（サムネイル＋拡大モーダル） */
@@ -33,8 +36,12 @@ export function MiniMandalaSection({
   onSelectCourse,
   modalOpen,
   onModalOpenChange,
+  editLanguage,
 }: Props) {
-  const graph = useMemo(() => buildMandalaGraph(series), [series]);
+  const graph = useMemo(
+    () => buildMandalaGraph(series, editLanguage),
+    [series, editLanguage],
+  );
 
   /**
    * ノードクリックで遷移した直後にモーダルが閉じるのを抑える。

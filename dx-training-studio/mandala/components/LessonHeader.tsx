@@ -1,4 +1,4 @@
-import { Label, StatusLabel, UntranslatedLabel } from "@/components/Label";
+import { Label, StatusLabel } from "@/components/Label";
 import {
   formatCourseStyle,
   formatMinutes,
@@ -17,33 +17,27 @@ export type LessonMetadata = {
   estimatedMinutes?: number;
   courseStyle?: CourseStyle;
   author?: string;
-  untranslated?: boolean;
-  /** seriesHref を持たないページ（変更履歴）が明示するロケール */
-  locale?: string;
 };
 
 /**
  * レッスン本文の上に置くラベル行。
  * 値は変換スクリプトが frontmatter に入れたものを使う（MDX 側に手を入れない）。
  * パンくずはテーマ内蔵のものを使うのでここでは描かない。
+ *
+ * ⚠ 翻訳の状態は**ここに出さない**（publishing-site-build spec）。未翻訳は本文が
+ * `Coming soon` になることで示し、翻訳の古さは Studio 側だけが伝える。
+ * そのため `seriesHref` を持たないページ（変更履歴）はラベル行を持たない。
  */
 export function LessonHeader({ metadata }: { metadata: LessonMetadata }) {
   const { seriesHref, lessonStatus, estimatedMinutes, courseStyle, author } =
     metadata;
-  // seriesHref を持たないページ（トップ3階層・変更履歴）では、未翻訳バッジが
-  // 要るときだけ描く。ロケールは frontmatter の `locale` を使う（変更履歴の
-  // 英語フォールバックが `locale: "en"` を明示する）
-  if (!seriesHref && !metadata.untranslated) return null;
+  if (!seriesHref) return null;
 
-  const locale = seriesHref
-    ? localeOf(seriesHref)
-    : metadata.locale === "en"
-      ? "en"
-      : "ja";
+  const locale = localeOf(seriesHref);
   const styleLabel = formatCourseStyle(courseStyle, locale);
   const hasLabels = Boolean(lessonStatus || estimatedMinutes || styleLabel);
 
-  if (!hasLabels && !author && !metadata.untranslated) return null;
+  if (!hasLabels && !author) return null;
 
   return (
     <div className="dxm-lesson-header">
@@ -53,7 +47,6 @@ export function LessonHeader({ metadata }: { metadata: LessonMetadata }) {
           <Label kind="minutes">{formatMinutes(estimatedMinutes, locale)}</Label>
         ) : null}
         {styleLabel && <Label kind="style">{styleLabel}</Label>}
-        {metadata.untranslated && <UntranslatedLabel locale="en" />}
       </div>
       {author && (
         <span className="dxm-lesson-author">

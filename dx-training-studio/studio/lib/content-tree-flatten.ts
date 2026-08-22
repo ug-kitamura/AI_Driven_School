@@ -1,4 +1,5 @@
 import type { Series } from "@/lib/schema";
+import type { EditLanguage } from "@/lib/display-name";
 
 /**
  * 統合コンテンツツリーの可視行（ホーム → シリーズ → コース → レッスン）。
@@ -228,23 +229,38 @@ function includesIgnoreCase(haystack: string, needle: string): boolean {
  * 名前フィルタ。一致したノードの祖先は残し、一致したシリーズ・コースの
  * 配下はすべて残す（EBEX `filterWorkspaceTree` と同じ考え方）。
  */
-export function filterSeriesByName(series: Series[], query: string): Series[] {
+/**
+ * 名前フィルタ。照合対象は編集言語に連動する（unified-content-tree spec）。
+ *
+ * ⚠ 英語モードは **`name_en` と日本語名の両方**に当てる。ツリーは未訳ユニットを
+ * 日本語名フォールバックで表示しているので、片方だけにすると
+ * **画面に見えているのに検索でヒットしない**状態ができる。
+ */
+export function filterSeriesByName(
+  series: Series[],
+  query: string,
+  language: EditLanguage = "ja",
+): Series[] {
   const q = query.trim();
   if (!q) return series;
 
+  const hit = (jaName: string, nameEn: string | undefined) =>
+    includesIgnoreCase(jaName, q) ||
+    (language === "en" && nameEn !== undefined && includesIgnoreCase(nameEn, q));
+
   const result: Series[] = [];
   for (const s of series) {
-    if (includesIgnoreCase(s.name, q)) {
+    if (hit(s.name, s.name_en)) {
       result.push(s);
       continue;
     }
     const courses = [];
     for (const c of s.courses) {
-      if (includesIgnoreCase(c.name, q)) {
+      if (hit(c.name, c.name_en)) {
         courses.push(c);
         continue;
       }
-      const lessons = c.lessons.filter((l) => includesIgnoreCase(l.lesson, q));
+      const lessons = c.lessons.filter((l) => hit(l.lesson, l.name_en));
       if (lessons.length > 0) {
         courses.push({ ...c, lessons });
       }

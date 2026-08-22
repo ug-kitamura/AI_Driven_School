@@ -8,6 +8,10 @@ import {
 } from "@/lib/contents-loader";
 import { courseStyleSchema, slugSchema } from "@/lib/schema";
 import { getProjectRoot } from "@/lib/project-root";
+import {
+  applyOptionalMetaFields,
+  EN_SOURCE_HASH_PATTERN,
+} from "@/lib/translation/units";
 
 const schema = z.object({
   series: z.string().min(1),
@@ -18,6 +22,11 @@ const schema = z.object({
   slug: slugSchema.or(z.literal("")).optional(),
   catch: z.string().optional(),
   description: z.string().optional(),
+  name_en: z.string().optional(),
+  catch_en: z.string().optional(),
+  description_en: z.string().optional(),
+  target_en: z.string().optional(),
+  en_source_hash: z.string().regex(EN_SOURCE_HASH_PATTERN).or(z.literal("")).optional(),
   cross_series_prev: z.array(z.string()).default([]),
   cross_series_next: z.array(z.string()).default([]),
   is_start: z.boolean().default(false),
@@ -101,6 +110,13 @@ export async function POST(req: Request) {
       delete next.description;
       if (description.trim()) next.description = description.trim();
     }
+    applyOptionalMetaFields(next, {
+      name_en: parsed.data.name_en,
+      catch_en: parsed.data.catch_en,
+      description_en: parsed.data.description_en,
+      target_en: parsed.data.target_en,
+      en_source_hash: parsed.data.en_source_hash,
+    });
     writeMetaJson(courseDir, next);
     return Response.json({ ok: true });
   } catch (err) {

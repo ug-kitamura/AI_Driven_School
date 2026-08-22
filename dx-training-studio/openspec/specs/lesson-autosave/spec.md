@@ -39,3 +39,17 @@ Pane 3 編集操作に連動したレッスン本文・コースメタ・シリ�
 - **WHEN** `/api/content/save-lesson` が 5xx エラーを返す
 - **THEN** UI にエラートーストが表示される
 
+
+### Requirement: 英語モードの自動保存は contents.en.md へ向かう
+
+編集言語が `en` のとき、レッスン本文の自動保存（800ms debounce）は同じ作法で `{lessonName}/contents.en.md` へ保存しなければならない（SHALL）。保存は原文ハッシュ行に触れてはならない（SHALL NOT）。ファイル不在時の生成規則（空なら作らない・非空ならハッシュ行なしで作成）は `studio-translation` capability に従う。
+
+#### Scenario: 英語モードで自動保存される
+
+- **WHEN** 英語モードで本文を編集し、800ms タイピングを止める
+- **THEN** `contents.en.md` が更新され、`contents.md` は変わらない
+
+#### Scenario: ハッシュ行が保たれる
+
+- **WHEN** ハッシュ行を持つ `contents.en.md` を英語モードで編集して自動保存が走る
+- **THEN** 1行目のハッシュ行は変わらない

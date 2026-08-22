@@ -3,8 +3,13 @@
 import { useEffect, useRef, useState, useCallback, useMemo } from "react";
 import dynamic from "next/dynamic";
 import ReactMarkdown from "react-markdown";
-import { GitCompare, Code, Eye, Edit3 } from "lucide-react";
+import { GitCompare, Code, Eye, Edit3, Loader2, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { useLessonEnBody } from "@/components/workspace/hooks/use-lesson-en-body";
+import { lessonDisplayName, type EditLanguage } from "@/lib/display-name";
+import { StaleTranslationNotice } from "@/components/workspace/translation/StaleTranslationNotice";
+import { TRANSLATE_LABEL } from "@/components/workspace/translation/translationLabels";
+import type { TranslationFreshness } from "@/lib/translation/client";
 import { cn } from "@/lib/utils";
 import type { LessonMetaFields } from "@/lib/lesson-meta";
 import { stripHtmlComments } from "@/lib/html-comment-at-cursor";
@@ -12,7 +17,9 @@ import { LessonMetaDialog } from "@/components/workspace/LessonMetaDialog";
 import { LessonPreviewMetaRow } from "@/components/workspace/LessonPreviewMetaRow";
 import { LessonDiffView } from "@/components/workspace/LessonDiffView";
 import { PaneWheelRoot } from "@/components/workspace/PaneWheelRoot";
-import { PaneKindBadge } from "@/components/workspace/metaDialogLayout";
+import { PaneKindBadge, paneKindLabel } from "@/components/workspace/metaDialogLayout";
+import { WorkspaceTooltip } from "@/components/workspace/WorkspaceTooltip";
+import { PaneActionBar } from "@/components/workspace/PaneActionBar";
 import {
   PaneSegmentControl,
   type PaneSegmentOption,
@@ -60,6 +67,14 @@ type Props = {
   imageAssetsRevision?: number;
   /** ペイン1 の中身検索の語。編集ビューとプレビューの一致箇所を塗る */
   searchHighlightQuery?: string;
+  /** レッスンの編集言語（本文とメタダイアログが連動する1スイッチ） */
+  editLanguage: EditLanguage;
+  onEditLanguageChange: (language: EditLanguage) => void;
+  /** 鮮度（本文とメタの悪いほう）。未取得は undefined。英語ビューの赤字1行に使う */
+  translationStatus: TranslationFreshness | undefined;
+  /** 英語側の保存・翻訳適用の後に呼ぶ（鮮度の再取得） */
+  onTranslationChanged?: () => void;
+  onSaveError?: (message: string) => void;
 };
 
 const MODE_TABS: ReadonlyArray<PaneSegmentOption<Pane3Mode>> = [
@@ -73,6 +88,29 @@ const MODE_TABS: ReadonlyArray<PaneSegmentOption<Pane3Mode>> = [
 ];
 
 const LESSON_PREVIEW_CLASS = "lesson-preview";
+
+/**
+ * 英語本文がまだ読めていないときの代替表示。編集・プレビューの両ビューで使う
+ * ——片方だけ空白になると「壊れた」ように見える。
+ */
+function EnBodyPlaceholder({
+  state,
+}: {
+  state: { status: string; message?: string };
+}) {
+  if (state.status === "error") {
+    return (
+      <div className="flex h-full items-center justify-center px-4 text-sm text-destructive">
+        {state.message}
+      </div>
+    );
+  }
+  return (
+    <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
+      英語版を読み込み中...
+    </div>
+  );
+}
 
 type DiffState =
   | { status: "idle" }
@@ -93,6 +131,11 @@ export function MarkdownEditorPane({
   availableImagePaths = null,
   imageAssetsRevision = 0,
   searchHighlightQuery,
+  editLanguage,
+  onEditLanguageChange,
+  translationStatus,
+  onTranslationChanged,
+  onSaveError,
 }: Props) {
   const editorRef = useRef<LessonContentEditorHandle>(null);
   const paneScrollRef = useRef<HTMLElement | null>(null);
@@ -100,10 +143,29 @@ export function MarkdownEditorPane({
   const [diffState, setDiffState] = useState<DiffState>({ status: "idle" });
   const [metaDialogOpen, setMetaDialogOpen] = useState(false);
 
-  const previewBody = useMemo(
-    () => (lesson ? stripHtmlComments(lesson.content) : ""),
-    [lesson],
-  );
+  const isEnglish = editLanguage === "en";
+  const enBody = useLessonEnBody({
+    enabled: isEnglish,
+    series: lesson?.series,
+    course: lesson?.course,
+    lesson: lesson?.lesson,
+    onSaveError,
+    onSaved: onTranslationChanged,
+  });
+
+  /**
+   * プレビューに流す本文。英語モードは `contents.en.md`（API 境界で原文ハッシュ行が
+   * 剥がれた状態）を使う。前処理は日本語と共通——訳文だけ別の描画規則にしない。
+   */
+  const previewBody = useMemo(() => {
+    if (!lesson) return "";
+    if (isEnglish) {
+      return enBody.state.status === "ready"
+        ? stripHtmlComments(enBody.state.body)
+        : "";
+    }
+    return stripHtmlComments(lesson.content);
+  }, [lesson, isEnglish, enBody.state]);
 
   const previewMarkdownComponents = useMemo(
     () =>
@@ -175,6 +237,8 @@ export function MarkdownEditorPane({
         series: lesson.series,
         course: lesson.course,
         lesson: lesson.lesson,
+        // 英語ビューでは訳文（contents.en.md）の差分を出す
+        language: editLanguage,
       }),
     })
       .then(async (response) => {
@@ -200,6 +264,8 @@ export function MarkdownEditorPane({
     return () => controller.abort();
   }, [
     mode,
+    // 言語を切り替えたら対象ファイルが変わるので取り直す
+    editLanguage,
     lesson?.id,
     lesson?.content,
     lesson?.series,
@@ -223,21 +289,30 @@ export function MarkdownEditorPane({
     <PaneWheelRoot scrollRef={paneScrollRef} className="min-w-0 flex-1 bg-card">
       <div className="flex h-12 shrink-0 items-center gap-2 border-b border-border px-3 py-0">
         {/* 階層種別ラベル。体裁はメタビューのヘッダーと共有部品で揃える */}
-        <PaneKindBadge>レッスン</PaneKindBadge>
+        <PaneKindBadge>{paneKindLabel("lesson", editLanguage)}</PaneKindBadge>
         <h2 className="min-w-0 truncate text-sm font-semibold text-foreground">
-          {lesson.lesson}
+          {lessonDisplayName(lesson, editLanguage)}
         </h2>
         <div className="ml-auto flex items-center gap-2">
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon"
-            className="mr-1 h-6 w-6 shrink-0"
-            aria-label="レッスンメタを編集"
-            onClick={() => setMetaDialogOpen(true)}
-          >
-            <Edit3 className="h-3 w-3" />
-          </Button>
+          {/* ⚠ ヘッダーは [メタ編集][3ビュー] に限る。言語切替は GlobalHeader に
+              1つだけ置く（studio-translation spec）。本文翻訳は本文右上（スクロール追従） */}
+          <WorkspaceTooltip
+            label="レッスンメタを編集"
+            render={
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                className="mr-1 h-6 w-6 shrink-0"
+                aria-label="レッスンメタを編集"
+                onClick={() => setMetaDialogOpen(true)}
+              >
+                <Edit3 className="h-3 w-3" />
+              </Button>
+            }
+          />
+          {/* ⚠ 英語モードでも3ビューを出す（studio-translation spec）。
+              ビューと言語は独立した軸なので、言語切替で mode をリセットしない */}
           <PaneSegmentControl
             value={mode}
             options={MODE_TABS}
@@ -246,44 +321,115 @@ export function MarkdownEditorPane({
         </div>
       </div>
 
-      <div className="relative min-h-0 flex-1 overflow-hidden">
-        <div
-          className={cn(
-            "absolute inset-0 flex min-h-0 min-w-0 bg-background",
-            mode !== "raw" && "hidden",
-          )}
-        >
-          <LessonContentEditor
-            ref={editorRef}
-            lessonId={lesson.id}
-            value={editContent}
-            onChange={(content) => onUpdateContent(lesson.id, content)}
-            onScrollElementReady={handleScrollElementReady}
-            onCursorChange={handleLocalCursorChange}
-            searchHighlightQuery={searchHighlightQuery}
-          />
-        </div>
-
-        {mode === "inline" ? (
-          <div
-            ref={(el) => {
-              paneScrollRef.current = el;
-            }}
-            className="absolute inset-0 workspace-scrollbar overflow-y-auto overscroll-y-contain px-6 py-5"
-          >
-            <LessonPreviewMetaRow lesson={lesson} course={course} />
-            <div className={LESSON_PREVIEW_CLASS}>
-              <ReactMarkdown
-                key={`${lesson.id}-${imageAssetsRevision}`}
-                remarkPlugins={lessonPreviewRemarkPlugins}
-                rehypePlugins={previewRehypePlugins}
-                components={previewMarkdownComponents}
-              >
-                {previewBody}
-              </ReactMarkdown>
-            </div>
-          </div>
+      {/* 言語で変わるのは「どの本文を出すか」だけ。ビュー（編集/プレビュー/差分）の
+          構成は日英で共通にする（studio-translation spec）——分けて書くと、
+          どちらかにだけ機能が付く状態が生まれる */}
+      <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+        {isEnglish ? (
+          <>
+            {/* 翻訳が古いことを伝える赤字1行（本文の上部）。stale のときだけ出る */}
+            {translationStatus === "stale" ? (
+              <div className="shrink-0 border-b border-border px-4 py-1.5">
+                <StaleTranslationNotice status={translationStatus} />
+              </div>
+            ) : null}
+            {enBody.translateError ? (
+              <div className="border-b border-border bg-destructive/10 px-4 py-1.5 text-xs text-destructive">
+                {enBody.translateError}
+              </div>
+            ) : null}
+          </>
         ) : null}
+
+        <div className="relative min-h-0 flex-1 overflow-hidden">
+          {/* ⚠ CodeMirror が内部で独自のスクロールコンテナを持つので、本文と一緒に
+              流すと画面外へ出る。ここだけは本文の上に重ねる（overlay） */}
+          {isEnglish && mode === "raw" ? (
+            <PaneActionBar
+              variant="overlay"
+              aiSlot={
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={enBody.translate}
+                  disabled={enBody.translating || enBody.state.status !== "ready"}
+                >
+                  {enBody.translating ? (
+                    <Loader2 className="size-3.5 animate-spin" aria-hidden />
+                  ) : (
+                    <Sparkles className="size-3.5" aria-hidden />
+                  )}
+                  {TRANSLATE_LABEL}
+                </Button>
+              }
+            />
+          ) : null}
+
+          {/* 編集ビュー。英語は別ファイル（自動保存）なのでエディタの実体を分ける
+              ——`lessonId` が違えば CodeMirror の state キャッシュも分かれる */}
+          <div
+            className={cn(
+              "absolute inset-0 flex min-h-0 min-w-0 bg-background",
+              mode !== "raw" && "hidden",
+            )}
+          >
+            {isEnglish ? (
+              enBody.state.status === "ready" ? (
+                <LessonContentEditor
+                  ref={editorRef}
+                  lessonId={`${lesson.id}:en`}
+                  value={enBody.state.body}
+                  onChange={enBody.updateBody}
+                  onScrollElementReady={handleScrollElementReady}
+                  searchHighlightQuery={searchHighlightQuery}
+                />
+              ) : (
+                <EnBodyPlaceholder state={enBody.state} />
+              )
+            ) : (
+              <LessonContentEditor
+                ref={editorRef}
+                lessonId={lesson.id}
+                value={editContent}
+                onChange={(content) => onUpdateContent(lesson.id, content)}
+                onScrollElementReady={handleScrollElementReady}
+                onCursorChange={handleLocalCursorChange}
+                searchHighlightQuery={searchHighlightQuery}
+              />
+            )}
+          </div>
+
+          {mode === "inline" ? (
+            <div
+              ref={(el) => {
+                paneScrollRef.current = el;
+              }}
+              className="absolute inset-0 workspace-scrollbar overflow-y-auto overscroll-y-contain px-6 py-5"
+            >
+              {isEnglish && enBody.state.status !== "ready" ? (
+                <EnBodyPlaceholder state={enBody.state} />
+              ) : (
+                <>
+                  <LessonPreviewMetaRow
+                    lesson={lesson}
+                    course={course}
+                    language={editLanguage}
+                  />
+                  <div className={LESSON_PREVIEW_CLASS}>
+                    <ReactMarkdown
+                      key={`${lesson.id}-${editLanguage}-${imageAssetsRevision}`}
+                      remarkPlugins={lessonPreviewRemarkPlugins}
+                      rehypePlugins={previewRehypePlugins}
+                      components={previewMarkdownComponents}
+                    >
+                      {previewBody}
+                    </ReactMarkdown>
+                  </div>
+                </>
+              )}
+            </div>
+          ) : null}
 
         {mode === "diff" ? (
           <div
@@ -303,8 +449,9 @@ export function MarkdownEditorPane({
             ) : diffState.status === "ready" ? (
               <LessonDiffView diff={diffState.diff} />
             ) : null}
-          </div>
-        ) : null}
+            </div>
+          ) : null}
+        </div>
       </div>
 
       <LessonMetaDialog
@@ -313,6 +460,9 @@ export function MarkdownEditorPane({
         lesson={lesson}
         onSave={onUpdateLessonMeta}
         tagSuggestions={tagSuggestions}
+        language={editLanguage}
+        translationStatus={translationStatus}
+        onTranslationChanged={onTranslationChanged}
       />
     </PaneWheelRoot>
   );

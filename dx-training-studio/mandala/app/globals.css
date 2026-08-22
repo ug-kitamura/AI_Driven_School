@@ -110,17 +110,26 @@ html:root {
 
 /* `aside.nextra-sidebar` は flex-col なので、`::before` がそのままメニューの上の1行になる。
    値（`2026.08.21 更新` ／ Pages は ` (v1.2.3)` 併記）はルートレイアウトが
-   `--dxm-release` として body に注入する。
+   `--dxm-release-ja` / `--dxm-release-en` として body に**両方**注入する。
    日付もタグも解決できないビルドでは変数が無く、`content` が無効になって擬似要素ごと
    生成されない——「出せる情報が無ければ行も余白も出さない」がこれで成立する。
    左端はメニュー文字の開始位置（inner の p-4 = 1rem ＋ リンクの px-2 = 0.5rem）に揃える。 */
 .nextra-sidebar::before {
-  content: var(--dxm-release);
+  content: var(--dxm-release-ja);
   padding: 1rem 1rem 0 1.5rem;
   font-size: 0.75rem;
   font-weight: 600;
   font-variant-numeric: tabular-nums;
   color: var(--dxm-release-color);
+}
+
+/* 英語ページ（`/en` 配下）は `Updated on 2026.08.21` 表記に差し替える。
+   ⚠ 判定は `<html lang>` だけに委ねること——更新日行が独自の言語判定
+   （パス解析など）を持ってはならない（spec: publishing-site-deployment）。
+   lang は静的 HTML では postbuild（scripts/set-en-lang.mts）が、クライアント遷移では
+   SiteShell が正しくするので、この1行で SSG と SPA 遷移の両方に追随する。 */
+html[lang="en"] .nextra-sidebar::before {
+  content: var(--dxm-release-en);
 }
 
 /* ===== GitHub アラート（rehype-github-alerts の出力） =====

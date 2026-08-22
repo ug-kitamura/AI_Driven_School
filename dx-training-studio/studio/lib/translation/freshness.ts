@@ -85,6 +85,24 @@ export type MetaSourceFields =
     }
   | { level: "lesson"; name: string; description: string };
 
+/**
+ * 階層別の翻訳対象キー（`_en` 側の名前）。**並びは `metaSourceArray` と同じ**——
+ * 原文と `_en` を添字で突き合わせるため、片方だけ順を変えないこと。
+ *
+ * ⚠ この対応表がこの capability の正本（translation-freshness spec）。走査スクリプトや
+ * Studio の英語ビューに書き写さず、ここから引くこと。`author_en` は翻訳の対象外
+ * （人名のローマ字は本人の流儀・手編集のみ）なので含めない。
+ */
+export const EN_META_KEYS: Record<
+  MetaSourceFields["level"],
+  readonly string[]
+> = {
+  root: ["name_en", "description_en"],
+  series: ["name_en", "catch_en", "description_en"],
+  course: ["name_en", "catch_en", "description_en", "target_en"],
+  lesson: ["name_en", "description_en"],
+};
+
 /** 翻訳対象フィールドの固定順配列（未設定は空文字列） */
 function metaSourceArray(fields: MetaSourceFields): string[] {
   switch (fields.level) {
@@ -121,6 +139,48 @@ export function metaFreshness(
   if (!hasEnValues) return "untranslated";
   if (storedHash === null) return "stale";
   return storedHash === computeMetaSourceHash(fields) ? "fresh" : "stale";
+}
+
+const isNonEmpty = (value: unknown): value is string =>
+  typeof value === "string" && value.trim() !== "";
+
+/**
+ * `_en` フィールドが1つでも埋まっているか（`metaFreshness` の `hasEnValues` 用）。
+ * 呼び出し側が階層ごとのキー一覧を自前で持たなくて済むよう、ここで提供する。
+ */
+export function hasAnyEnValue(
+  level: MetaSourceFields["level"],
+  enValues: Readonly<Record<string, unknown>>,
+): boolean {
+  return EN_META_KEYS[level].some((key) => isNonEmpty(enValues[key]));
+}
+
+/**
+ * 未記入の `_en` フィールドを列挙する（translation-freshness spec）。
+ *
+ * ⚠ **鮮度（3状態）とは独立した情報。** 鮮度は「原文に追随しているか」、欠落は
+ * 「フィールドが埋まっているか」を見ており、欠落があることを理由に鮮度を
+ * 変えてはならない——変えると既存の翻訳済みユニットが一斉に stale 化して
+ * Studio の赤字表示と差分翻訳の対象が膨れる。
+ *
+ * ⚠ 判定は**原文側が非空のフィールドに限る**。原文が空なら訳しようがなく、
+ * 数えると未完成の日本語メタを欠落として誤検出する。
+ *
+ * `metaFreshness` が `fresh` を返すユニットでも欠落は出うる——`hasEnValues` は
+ * 「1つでも埋まっていれば真」なので、部分的な記入は鮮度からは見えない。
+ */
+export function listMissingEnFields(
+  fields: MetaSourceFields,
+  enValues: Readonly<Record<string, unknown>>,
+): string[] {
+  const keys = EN_META_KEYS[fields.level];
+  const sources = metaSourceArray(fields);
+  const missing: string[] = [];
+  keys.forEach((key, index) => {
+    if (!isNonEmpty(sources[index])) return;
+    if (!isNonEmpty(enValues[key])) missing.push(key);
+  });
+  return missing;
 }
 
 // ===== changelog の鮮度 =====

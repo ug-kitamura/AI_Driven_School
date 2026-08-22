@@ -8,7 +8,12 @@
  *   node --experimental-strip-types .claude/skills/dx-training-translate/references/scan-freshness.mts [シリーズ] [コース] [レッスン]
  *   （dx-training-studio/ ディレクトリを起点にパス解決するので cwd はどこでもよい）
  *
- * 出力: ユニットごとの状態と、翻訳時に書くべきハッシュ値（JSON）。
+ * ⚠ **走査は常に contents/ 全体**。引数は「今回処理する対象」の印付け（`inScope`）で
+ * あって走査の絞り込みではない——絞ると「あと何件残っているか」の分母が範囲ごとに
+ * 変わり、進捗が読めなくなる（training-translate-skill spec）。
+ *
+ * 出力: 集計（全体 / 範囲内）・欠落フィールド・ユニットごとの状態と、翻訳時に
+ * 書くべきハッシュ値（JSON）。
  * 状態: untranslated（未翻訳）/ stale（翻訳が古い）/ fresh（最新）
  */
 import fs from "node:fs";
@@ -19,6 +24,8 @@ import {
   changelogFreshness,
   computeBodySourceHash,
   computeMetaSourceHash,
+  hasAnyEnValue,
+  listMissingEnFields,
   metaFreshness,
   type MetaSourceFields,
 } from "../../../../studio/lib/translation/freshness.ts";
@@ -59,9 +66,13 @@ function listDirs(dir: string): string[] {
 type UnitReport = {
   unit: string;
   level: "root" | "series" | "course" | "lesson";
+  /** 今回の処理対象か（引数で指定された範囲の内側か） */
+  inScope: boolean;
   meta: string;
   /** 翻訳時に .meta.json の en_source_hash へ書く値 */
   metaHashToWrite: string;
+  /** 未記入の `_en` フィールド（原文が非空のものだけ）。空配列なら省略 */
+  missingEnFields?: string[];
   body?: string;
   /** 翻訳時に contents.en.md の1行目コメントへ書く値 */
   bodyHashToWrite?: string;
@@ -70,86 +81,100 @@ type UnitReport = {
 
 const reports: UnitReport[] = [];
 
+/**
+ * ⚠ 階層→`_en` キーの対応と「1つでも埋まっていれば翻訳済み」の判定は
+ * **正本 lib の関数を使う**（`hasAnyEnValue` / `listMissingEnFields`）。
+ * ここに自前のキー一覧を持たないこと（translation-freshness spec）。
+ */
 function metaReport(
   unit: string,
   level: UnitReport["level"],
   fields: MetaSourceFields,
   meta: Record<string, unknown>,
-  enKeys: string[],
+  inScope: boolean,
 ): UnitReport {
-  const hasEn = enKeys.some((k) => str(meta[k]).length > 0);
   const stored = str(meta.en_source_hash) || null;
+  const missing = listMissingEnFields(fields, meta);
   return {
     unit,
     level,
-    meta: metaFreshness(fields, hasEn, stored),
+    inScope,
+    meta: metaFreshness(fields, hasAnyEnValue(level, meta), stored),
     metaHashToWrite: computeMetaSourceHash(fields),
+    ...(missing.length > 0 ? { missingEnFields: missing } : {}),
   };
 }
 
-// 全体
-if (!argSeries) {
-  const rootMeta = readMeta(contentsDir);
-  reports.push(
-    metaReport(
-      "(全体)",
-      "root",
-      {
-        level: "root",
-        name: str(rootMeta.name),
-        description: str(rootMeta.description),
-      },
-      rootMeta,
-      ["name_en", "description_en"],
-    ),
-  );
-}
+/**
+ * 範囲の判定。引数で指定された階層に**含まれる**ものが `inScope`。
+ * 上位階層（範囲がコースなら、その親シリーズや全体）は対象外——今回訳すのは
+ * 指定された階層とその配下だけ。
+ */
+const inScopeAt = (
+  seriesName?: string,
+  courseName?: string,
+  lessonName?: string,
+): boolean => {
+  if (argSeries && seriesName !== argSeries) return false;
+  if (argCourse && courseName !== argCourse) return false;
+  if (argLesson && lessonName !== argLesson) return false;
+  return true;
+};
+
+// 全体（範囲指定が無いときだけ処理対象）
+const rootMeta = readMeta(contentsDir);
+reports.push(
+  metaReport(
+    "(全体)",
+    "root",
+    {
+      level: "root",
+      name: str(rootMeta.name),
+      description: str(rootMeta.description),
+    },
+    rootMeta,
+    inScopeAt(),
+  ),
+);
 
 for (const seriesName of listDirs(contentsDir)) {
-  if (argSeries && seriesName !== argSeries) continue;
   const seriesDir = path.join(contentsDir, seriesName);
   const seriesMeta = readMeta(seriesDir);
-  if (!argCourse) {
-    reports.push(
-      metaReport(
-        seriesName,
-        "series",
-        {
-          level: "series",
-          name: seriesName,
-          catch: str(seriesMeta.catch),
-          description: str(seriesMeta.description),
-        },
-        seriesMeta,
-        ["name_en", "catch_en", "description_en"],
-      ),
-    );
-  }
+  reports.push(
+    metaReport(
+      seriesName,
+      "series",
+      {
+        level: "series",
+        name: seriesName,
+        catch: str(seriesMeta.catch),
+        description: str(seriesMeta.description),
+      },
+      seriesMeta,
+      !argCourse && inScopeAt(seriesName),
+    ),
+  );
 
   for (const courseName of listDirs(seriesDir)) {
-    if (argCourse && courseName !== argCourse) continue;
     const courseDir = path.join(seriesDir, courseName);
     const courseMeta = readMeta(courseDir);
-    if (!argLesson) {
-      reports.push(
-        metaReport(
-          `${seriesName}/${courseName}`,
-          "course",
-          {
-            level: "course",
-            name: courseName,
-            catch: str(courseMeta.catch),
-            description: str(courseMeta.description),
-            target: str(courseMeta.target),
-          },
-          courseMeta,
-          ["name_en", "catch_en", "description_en", "target_en"],
-        ),
-      );
-    }
+    reports.push(
+      metaReport(
+        `${seriesName}/${courseName}`,
+        "course",
+        {
+          level: "course",
+          name: courseName,
+          catch: str(courseMeta.catch),
+          description: str(courseMeta.description),
+          target: str(courseMeta.target),
+        },
+        courseMeta,
+        !argLesson && inScopeAt(seriesName, courseName),
+      ),
+    );
 
     for (const lessonName of listDirs(courseDir)) {
-      if (argLesson && lessonName !== argLesson) continue;
       const lessonDir = path.join(courseDir, lessonName);
       const jaPath = path.join(lessonDir, "contents.md");
       if (!fs.existsSync(jaPath)) continue;
@@ -168,7 +193,7 @@ for (const seriesName of listDirs(contentsDir)) {
           description: str(lessonMeta.description),
         },
         lessonMeta,
-        ["name_en", "description_en"],
+        inScopeAt(seriesName, courseName, lessonName),
       );
       report.body = bodyFreshness(jaBody, enRaw);
       report.bodyHashToWrite = computeBodySourceHash(jaBody);
@@ -189,17 +214,66 @@ const changelog = fs.existsSync(changelogJaPath)
     )
   : null;
 
-const states = reports.flatMap((r) => [r.meta, ...(r.body ? [r.body] : [])]);
-const count = (s: string) => states.filter((x) => x === s).length;
+/**
+ * 集計。⚠ **本文とメタを合算しない**——本文1本は数千字の翻訳、メタ1件は数フィールドで
+ * 作業量が桁違い。混ぜた数は見積もりに使えない（training-translate-skill spec）。
+ */
+type Tally = { untranslated: number; stale: number; fresh: number; total: number };
+
+function tally(states: string[]): Tally {
+  const count = (s: string) => states.filter((x) => x === s).length;
+  return {
+    untranslated: count("untranslated"),
+    stale: count("stale"),
+    fresh: count("fresh"),
+    total: states.length,
+  };
+}
+
+function summarize(units: UnitReport[]) {
+  return {
+    body: tally(units.flatMap((r) => (r.body ? [r.body] : []))),
+    meta: tally(units.map((r) => r.meta)),
+  };
+}
+
+const scoped = reports.filter((r) => r.inScope);
+/**
+ * ⚠ 未翻訳（`untranslated`）のユニットは除く——全フィールドが空なのは当たり前で、
+ * 件数は集計側に出ている。この一覧の値打ちは「**翻訳済みに見えるのに欠けている**」
+ * ものを暴くことにある（`hasEnValues` は1つでも埋まっていれば真なので、部分的な
+ * 記入は鮮度からは見えない）。
+ */
+const missingEnFields = reports
+  .filter((r) => r.missingEnFields && r.meta !== "untranslated")
+  .map((r) => ({ unit: r.unit, level: r.level, fields: r.missingEnFields }));
+
 console.log(
   JSON.stringify(
     {
-      summary: {
-        untranslated: count("untranslated"),
-        stale: count("stale"),
-        fresh: count("fresh"),
+      /** 引数で指定された範囲（未指定＝全体） */
+      scope: {
+        series: argSeries ?? null,
+        course: argCourse ?? null,
+        lesson: argLesson ?? null,
       },
+      /** contents/ 全体の集計。「あと何件残っているか」の分母 */
+      total: { ...summarize(reports), changelog },
+      /** 今回の処理対象（inScope）の集計 */
+      inScope: summarize(scoped),
+      /**
+       * 「翻訳済み」でも未記入の `_en` フィールド。
+       * ⚠ 鮮度が fresh でも出る——鮮度は原文への追随、こちらは記入の完全性で別軸
+       */
+      missingEnFields,
       changelog,
+      /** 未完成レッスンも分母に含まれる（status で絞らない）ことを示す内訳 */
+      lessonStatusCounts: reports.reduce<Record<string, number>>((acc, r) => {
+        if (r.level === "lesson" && r.status) {
+          acc[r.status] = (acc[r.status] ?? 0) + 1;
+        }
+        return acc;
+      }, {}),
       units: reports,
     },
     null,

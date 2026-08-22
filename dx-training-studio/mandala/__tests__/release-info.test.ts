@@ -78,24 +78,57 @@ describe("buildVersionLine", () => {
     expect(buildVersionLine(undefined, undefined)).toBeUndefined();
     expect(buildVersionLine("", "  ")).toBeUndefined();
   });
+
+  it("英語ページは Updated on 表記になる", () => {
+    expect(buildVersionLine("2026-08-21T03:34:00Z", undefined, "en")).toBe(
+      "Updated on 2026.08.21",
+    );
+  });
+
+  it("英語でもタグ番号の併記は同じ形式", () => {
+    expect(buildVersionLine("2026-08-21T03:34:00Z", "v1.2.3", "en")).toBe(
+      "Updated on 2026.08.21 (v1.2.3)",
+    );
+  });
+
+  it("日付の値と整形は日英で同一（語の並びだけが違う）", () => {
+    // ⚠ TZ 換算・区切りを言語で分岐させていないことの担保
+    const ja = buildVersionLine("2026-08-20T23:00:00Z", undefined, "ja");
+    const en = buildVersionLine("2026-08-20T23:00:00Z", undefined, "en");
+    expect(ja).toBe("2026.08.21 更新");
+    expect(en).toBe("Updated on 2026.08.21");
+  });
+
+  it("英語でも日時が無ければ行を出さない", () => {
+    expect(buildVersionLine(undefined, "v1.2.3", "en")).toBeUndefined();
+    expect(buildVersionLine("", undefined, "en")).toBeUndefined();
+  });
+
+  it("locale 省略時は日本語表記", () => {
+    expect(buildVersionLine("2026-08-21", undefined)).toBe("2026.08.21 更新");
+  });
 });
 
 describe("resolveReleaseInfo", () => {
-  it("line と release とリポジトリ URL を返す", () => {
+  it("日英の line と release とリポジトリ URL を返す", () => {
     const info = resolveReleaseInfo("v0.1.0", "2026-08-21T03:34:00Z");
-    expect(info.line).toBe("2026.08.21 更新 (v0.1.0)");
+    expect(info.lineJa).toBe("2026.08.21 更新 (v0.1.0)");
+    expect(info.lineEn).toBe("Updated on 2026.08.21 (v0.1.0)");
     expect(info.release).toBe("v0.1.0");
     expect(info.repositoryUrl).toMatch(/^https:\/\//);
   });
 
   it("タグ無しでは日時だけの行になる", () => {
     const info = resolveReleaseInfo(undefined, "2026-08-21T03:34:00Z");
-    expect(info.line).toBe("2026.08.21 更新");
+    expect(info.lineJa).toBe("2026.08.21 更新");
+    expect(info.lineEn).toBe("Updated on 2026.08.21");
     expect(info.release).toBeUndefined();
   });
 
-  it("何も無ければ line を持たない", () => {
+  it("何も無ければ日英とも line を持たない", () => {
+    // ⚠ 片方の言語だけ行が出る状態を作らない（spec: publishing-site-deployment）
     const info = resolveReleaseInfo("", "");
-    expect(info.line).toBeUndefined();
+    expect(info.lineJa).toBeUndefined();
+    expect(info.lineEn).toBeUndefined();
   });
 });

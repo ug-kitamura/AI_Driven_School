@@ -4,8 +4,11 @@ import {
   changelogFreshness,
   computeBodySourceHash,
   computeMetaSourceHash,
+  EN_META_KEYS,
   firstChangelogEntryDate,
   formatSourceHashComment,
+  hasAnyEnValue,
+  listMissingEnFields,
   metaFreshness,
   parseEnBody,
 } from "@/lib/translation/freshness";
@@ -166,5 +169,98 @@ describe("changelogFreshness", () => {
   it("先頭エントリ日付の抽出", () => {
     expect(firstChangelogEntryDate(ja)).toBe("2026-08-21");
     expect(firstChangelogEntryDate("本文だけ")).toBeNull();
+  });
+});
+
+describe("listMissingEnFields / hasAnyEnValue", () => {
+  const courseFields = {
+    level: "course",
+    name: "Git概念コース",
+    catch: "地図を手に入れる",
+    description: "Git の考え方を掴む",
+    target: "Git を入れたが打ったことがない人",
+  } as const;
+
+  it("部分的に埋まったメタの欠落を列挙する", () => {
+    expect(
+      listMissingEnFields(courseFields, {
+        name_en: "Git Concepts",
+        description_en: "Grasp how Git thinks",
+      }),
+    ).toEqual(["catch_en", "target_en"]);
+  });
+
+  it("全部埋まっていれば空", () => {
+    expect(
+      listMissingEnFields(courseFields, {
+        name_en: "Git Concepts",
+        catch_en: "Get the map",
+        description_en: "Grasp how Git thinks",
+        target_en: "People who installed Git",
+      }),
+    ).toEqual([]);
+  });
+
+  it("空白だけの値は未記入として扱う", () => {
+    expect(
+      listMissingEnFields(
+        { level: "lesson", name: "最初のコミット", description: "add と commit" },
+        { name_en: "   ", description_en: "add and commit" },
+      ),
+    ).toEqual(["name_en"]);
+  });
+
+  it("原文が空のフィールドは欠落に数えない", () => {
+    // ⚠ 訳しようがないものを欠落にすると、未完成の日本語メタを誤検出する
+    expect(
+      listMissingEnFields(
+        { level: "series", name: "Git基礎シリーズ", catch: "", description: "土台" },
+        { name_en: "Git Basics" },
+      ),
+    ).toEqual(["description_en"]);
+  });
+
+  it("author_en は対象外（翻訳が触らない）", () => {
+    expect(EN_META_KEYS.lesson).not.toContain("author_en");
+    expect(
+      listMissingEnFields(
+        { level: "lesson", name: "最初のコミット", description: "add と commit" },
+        { name_en: "First commit", description_en: "add and commit" },
+      ),
+    ).toEqual([]);
+  });
+
+  it("欠落があっても鮮度判定は変わらない（独立した軸）", () => {
+    const stored = computeMetaSourceHash(courseFields);
+    const partial = { name_en: "Git Concepts" };
+    expect(metaFreshness(courseFields, hasAnyEnValue("course", partial), stored)).toBe(
+      "fresh",
+    );
+    expect(listMissingEnFields(courseFields, partial)).toEqual([
+      "catch_en",
+      "description_en",
+      "target_en",
+    ]);
+  });
+
+  it("hasAnyEnValue は1つでも非空なら真", () => {
+    expect(hasAnyEnValue("course", { target_en: "x" })).toBe(true);
+    expect(hasAnyEnValue("course", { name_en: "  " })).toBe(false);
+    expect(hasAnyEnValue("course", {})).toBe(false);
+  });
+
+  it("EN_META_KEYS の並びは階層ごとの原文順と対応する", () => {
+    expect(EN_META_KEYS.root).toEqual(["name_en", "description_en"]);
+    expect(EN_META_KEYS.series).toEqual([
+      "name_en",
+      "catch_en",
+      "description_en",
+    ]);
+    expect(EN_META_KEYS.course).toEqual([
+      "name_en",
+      "catch_en",
+      "description_en",
+      "target_en",
+    ]);
   });
 });

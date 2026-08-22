@@ -1,8 +1,11 @@
 import { siteChrome } from "@/lib/site-data";
+import type { Locale } from "@/lib/locale-path";
 
 export type ReleaseInfo = {
-  /** サイドバー最上部に出す1行（例: `2026.08.21 更新 (v1.2.3)`）。出せなければ undefined */
-  line?: string;
+  /** 日本語ページ用の1行（例: `2026.08.21 更新 (v1.2.3)`）。出せなければ undefined */
+  lineJa?: string;
+  /** 英語ページ用の1行（例: `Updated on 2026.08.21 (v1.2.3)`）。出せなければ undefined */
+  lineEn?: string;
   /** リリース番号（タグ名）。タグ由来のビルドでなければ undefined */
   release?: string;
   repositoryUrl: string;
@@ -45,21 +48,26 @@ export function formatUpdateDate(raw: string): string | undefined {
 /**
  * サイドバー最上部の1行を組み立てる。
  *
- * - 全ビルドで出す: `YYYY.MM.DD 更新`
- * - タグ由来のビルド（Pages）は ` (vX.Y.Z)` を併記
+ * - 全ビルドで出す: 日本語 `YYYY.MM.DD 更新` ／ 英語 `Updated on YYYY.MM.DD`
+ * - タグ由来のビルド（Pages）は ` (vX.Y.Z)` を併記（形式は日英共通）
  * - 日時が無い（git も changelog フォールバックも取れなかった）ときは、
  *   タグ名があっても行ごと出さない——偽の日時をでっち上げず、
  *   出所の無い情報も出さない（spec: publishing-site-deployment）
+ *
+ * ⚠ 日付の整形（`YYYY.MM.DD`・`Asia/Tokyo`）は**日英で共通**。変わるのは
+ * 語の並びだけなので `formatUpdateDate` を言語で分岐させないこと。
  */
 export function buildVersionLine(
   rawDate: string | undefined,
   rawRelease: string | undefined,
+  locale: Locale = "ja",
 ): string | undefined {
   const release = rawRelease?.trim() || undefined;
   const formatted = rawDate ? formatUpdateDate(rawDate) : undefined;
 
   if (!formatted) return undefined;
-  return release ? `${formatted} 更新 (${release})` : `${formatted} 更新`;
+  const base = locale === "en" ? `Updated on ${formatted}` : `${formatted} 更新`;
+  return release ? `${base} (${release})` : base;
 }
 
 /**
@@ -75,7 +83,10 @@ export function resolveReleaseInfo(
 ): ReleaseInfo {
   const release = rawRelease?.trim() || undefined;
   return {
-    line: buildVersionLine(rawDate, rawRelease),
+    // ⚠ 日英は同じ入力から作るので、片方だけ出る状態は構造上ありえない
+    // （出せなければ両方 undefined）。呼び出し側もその前提で1回だけ判定する
+    lineJa: buildVersionLine(rawDate, rawRelease, "ja"),
+    lineEn: buildVersionLine(rawDate, rawRelease, "en"),
     release,
     repositoryUrl: siteChrome().githubUrl,
   };

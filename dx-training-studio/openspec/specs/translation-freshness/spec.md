@@ -3,9 +3,7 @@
 ## Purpose
 
 翻訳（日本語正本 → 英語派生）の鮮度判定の正本。ハッシュの形式・本文ハッシュコメントの書式・メタの翻訳対象フィールドと `en_source_hash`・changelog の日付比較・3状態の判定規則を定める。Studio（翻訳 UI）と翻訳スキルが共用する。
-
 ## Requirements
-
 ### Requirement: 翻訳の鮮度は3状態で判定する
 
 翻訳の鮮度は「未翻訳」「最新」「翻訳が古い」の3状態で判定しなければならない（SHALL）。判定はファイルの内容だけから行い、mtime・git 履歴に依存してはならない（SHALL NOT）。
@@ -96,3 +94,28 @@
 
 - **WHEN** mandala 側のハッシュ計算規則だけを変更する
 - **THEN** parity テストが失敗する
+
+### Requirement: フィールド単位の英訳欠落を鮮度とは別軸で列挙できる
+
+正本実装（`studio/lib/translation/freshness.ts`）は、階層ごとの翻訳対象キー（全体: `name_en`/`description_en`、シリーズ: `name_en`/`catch_en`/`description_en`、コース: `name_en`/`catch_en`/`description_en`/`target_en`、レッスン: `name_en`/`description_en`）に対し、未設定のフィールドを列挙する純関数を提供しなければならない（SHALL）。階層→対象キーの対応表はこの正本に一元化し、利用側（走査スクリプト等）に複製してはならない（SHALL NOT）。
+
+欠落の判定は**原文側の対応フィールドが非空のものに限る**（SHALL）——原文が空なら訳しようがなく、欠落に数えると未完成の日本語メタを誤検出する。`author_en` は翻訳の対象外（手編集のみ）なので欠落判定に含めてはならない（SHALL NOT）。
+
+欠落は鮮度の3状態（未翻訳/最新/古い）とは**独立した情報**であり、欠落があることを理由に鮮度判定を変えてはならない（SHALL NOT）——鮮度は「原文に追随しているか」、欠落は「フィールドが埋まっているか」で、混ぜると既存の翻訳済みユニットが一斉に古い扱いになり Studio の表示と差分翻訳の対象が壊れる。
+
+#### Scenario: 部分的に埋まったメタの欠落列挙
+
+- **WHEN** `name_en` と `description_en` は記入済みだが `catch_en` と `target_en` が空のコースメタを判定する
+- **THEN** 欠落として `catch_en` と `target_en` が列挙される
+- **AND** 鮮度判定はハッシュの一致に従い、欠落の有無で変わらない
+
+#### Scenario: 原文が空のフィールドは欠落に数えない
+
+- **WHEN** 日本語の `catch` が空のシリーズメタで `catch_en` が未設定である
+- **THEN** `catch_en` は欠落として列挙されない
+
+#### Scenario: author_en は対象外
+
+- **WHEN** `author_en` が未設定のレッスンメタを判定する
+- **THEN** `author_en` は欠落として列挙されない
+

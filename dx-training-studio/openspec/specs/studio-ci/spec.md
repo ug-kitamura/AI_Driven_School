@@ -25,15 +25,20 @@ Studio の変更は、main へ入る前に GitHub Actions で検証されなけ�
 
 ### Requirement: 検証は型・ビルド・テストの3段で行い、型検査を先に置く
 
-CI は次の 3 つをこの順で実行しなければならない（SHALL）。
+CI は次の 4 つをこの順で実行しなければならない（SHALL）。
 
-1. `npx tsc --noEmit`
-2. `npm run build`
-3. `npx vitest run`
+1. `npx next typegen`
+2. `npx tsc --noEmit`
+3. `npm run build`
+4. `npx vitest run`
 
 `tsc --noEmit` を `npm run build` より先に置かなければならない（SHALL）——`next build` の型検査は最初の 1 件しか報告せず、かつ `__tests__` の診断を捨てるため、失敗時に全体像が出る `tsc --noEmit` を先に走らせる。
 
-`npm run build` を省いてはならない（SHALL NOT）——Vercel の本番ビルドが落ちる条件を再現する唯一の段である。
+`tsc --noEmit` の前に **`npx next typegen` を走らせなければならない**（SHALL）。`next-env.d.ts` と `.next/types/` は Next が生成するもので `.gitignore` の対象であり、クリーンなチェックアウトには存在しない。画像 import の型（`*.png` 等）を宣言しているのは `next-env.d.ts` の `/// <reference types="next/image-types/global" />` なので、生成せずに `tsc` を走らせると解決不能な import として落ちる。`next typegen` は `next build` を走らせずにこれらを生成する。
+
+**gitignore された生成物の存在を暗黙の前提にしてはならない（SHALL NOT）。** 必要な生成物は CI の中で明示的に作ること——手元には過去の実行が残した生成物があるため、この種の依存はローカル検証では検出できない。
+
+`npm run build` を省いてはならない（SHALL NOT）——Vercel の本番ビルドが再現する唯一の段である。`next typegen` はその代替にならない（コンパイル・ルート収集・静的生成を行わない）。
 
 #### Scenario: 型エラーで落ちる
 
@@ -45,6 +50,11 @@ CI は次の 3 つをこの順で実行しなければならない（SHALL）。
 - **WHEN** 型エラーが複数ある状態で CI が失敗する
 - **THEN** ログに 1 件だけでなく全件が出力される
 
+#### Scenario: クリーンなチェックアウトで型検査が成立する
+
+- **WHEN** `next-env.d.ts` と `.next/` が存在しない状態から CI が走る
+- **THEN** `next typegen` がそれらを生成し、`tsc --noEmit` が画像 import を解決できる
+- **AND** `Cannot find module './supergraphic.png'` のような、生成物の欠落に起因するエラーが出ない
 ### Requirement: 境界を越えて読まれるファイルの変更でも発火する
 
 `paths` フィルタには、Studio 自身に加えて **Studio が境界を越えて読むもの**と **Studio がビルド時に取り込むもの**を含めなければならない（SHALL）。

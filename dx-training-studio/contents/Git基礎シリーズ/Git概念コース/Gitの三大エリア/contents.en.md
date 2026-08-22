@@ -25,7 +25,7 @@ So, from the moment you edit a file until it's saved (committed), where does the
 A simple left-to-right three-step flow diagram of Git's three areas. Left: "Working tree: the contents of the folder you are editing right now" → Center: "Staging area: where you pick and place the changes to include in the save" → Right: "Repository: the vault where save data (commits) accumulates". Label the arrow from left to center "git add" and the arrow from center to right "git commit". A clean layout of three cards side by side
 -->
 
-![git-three-areas-flow-3.png](images/git-three-areas-flow-3.png)
+![git-three-areas-flow-4.png](images/git-three-areas-flow-4.png)
 
 | Area             | What kind of place it is                                                                             | How to move to the next area |
 | ---------------- | ---------------------------------------------------------------------------------------------------- | ---------------------------- |

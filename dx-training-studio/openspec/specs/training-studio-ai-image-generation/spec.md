@@ -16,7 +16,22 @@ TBD - created by archiving change pane4-ai-generation-and-settings. Update Purpo
 
 ### Requirement: AI タブの挿入は UP タブと同等である
 
-AI タブ staging 画像の挿入操作は、UP タブと同様に `images/ai/<filename>` を `images/<filename>` へコピー（promote）し、staging 側を削除してはならない（MUST NOT）。続けて編集モードの CodeMirror において、選択範囲があればその範囲を、なければカーソル位置に `![{alt}](images/{filename})` を挿入しなければならない（SHALL）。`alt` は生成 API が返した短い説明を用いなければならない（SHALL）。HTML コメント `<!-- … -->` を挿入操作だけで削除してはならない（MUST NOT）。プレビュー・差分モードでは挿入してはならない（MUST NOT）。
+AI タブ staging 画像の挿入操作は、UP タブと同様に `images/ai/<filename>` を `images/<filename>` へコピー（promote）し、staging 側を削除してはならない（MUST NOT）。続けて編集モードの CodeMirror において、選択範囲があればその範囲を、なければカーソル位置に `![{alt}](images/{filename})` を挿入しなければならない（SHALL）。`alt` は生成 API が返した短い説明を用いなければならない（SHALL）——英語ビューで生成した画像の `alt` は英語である。HTML コメント `<!-- … -->` を挿入操作だけで削除してはならない（MUST NOT）。プレビュー・差分モードでは挿入してはならない（MUST NOT）。
+
+#### Scenario: 挿入で promote と Markdown が追加される
+
+- **WHEN** ユーザーが編集モードで AI タブから staging 画像を挿入する
+- **THEN** `images/<filename>` が作成される
+- **AND** カーソル位置または選択範囲に `![短い alt](images/<filename>)` が反映される
+- **AND** `images/ai/<filename>` は残る
+- **AND** 既存の `<!-- プロンプト -->` コメントはそのまま残る
+
+#### Scenario: 英語ビューで生成した画像の alt は英語
+
+- **WHEN** 英語ビューで画像を生成し、続けて挿入する
+- **THEN** 挿入文字列の alt は生成 API が返した英語の短い説明である
+
+
 
 #### Scenario: 挿入で promote と Markdown が追加される
 
@@ -50,7 +65,29 @@ AI タブは UP タブと同型のレイアウトとし、上部に **実線枠*
 
 ### Requirement: 画像生成はプロンプトとレッスン全文を Claude に渡す
 
-`POST /api/images/generate` は、リクエスト body の **prompt**（AI タブ入力）を受け取らなければならない（SHALL）。**lesson**（未保存 `content` 全文）は **任意** とし、含まれるときは受け取らなければならない（SHALL）。`canonicalPath` やスロット ID を要求してはならない（MUST NOT）。生成のみでは Markdown を変更してはならない（MUST NOT）。
+`POST /api/images/generate` は、リクエスト body の **prompt**（AI タブ入力）を受け取らなければならない（SHALL）。**lesson**（未保存 `content` 全文）は **任意** とし、含まれるときは受け取らなければならない（SHALL）。**language**（`ja` / `en`、省略時 `ja`）は任意とし、含まれるときは受け取らなければならない（SHALL）。`canonicalPath` やスロット ID を要求してはならない（MUST NOT）。生成のみでは Markdown を変更してはならない（MUST NOT）。
+
+`lesson` が含まれるとき、Claude 呼び出しには著者プロンプトに加えてレッスン文脈（レッスン名・説明・タグ）と `content` 全文を含めなければならない（SHALL）。`lesson` が含まれないとき、これらの文脈ブロックを含めてはならない（MUST NOT）。このとき生成は **著者プロンプトのみ** を指示として実行しなければならない（SHALL）。`lesson` の有無によって出力形式（`slug` / `alt` / `html` の JSON）を変えてはならない（MUST NOT）。
+
+`language` が `en` のとき、Claude への指示は**図中のテキストと `alt` を英語で書く**ものでなければならない（SHALL）。`ja`（省略時）では従来どおり日本語とする（SHALL）。`language` によって `slug` の規則（英語 kebab-case）と出力形式を変えてはならない（MUST NOT）。`lesson.content` は呼び出し側が**編集言語の本文**（en では `contents.en.md` の本文、原文ハッシュ行なし）を渡す（SHALL）——サーバーが言語に応じて正本ファイルを読みに行ってはならない（MUST NOT）。
+
+#### Scenario: プロンプトと全文が API に含まれる
+
+- **WHEN** ユーザーがレッスンを選択した状態でプロンプトを入力して生成する
+- **THEN** Claude 呼び出しにプロンプト文字列とレッスン `content` 全文が含まれる
+
+#### Scenario: 英語ビューでは英語テキストの図解を指示する
+
+- **WHEN** 英語ビューでプロンプトを入力して生成する
+- **THEN** 生成 API は `language: "en"` と英語本文を `content` に持つ `lesson` を受け取る
+- **AND** Claude への system prompt は図中テキストと alt を英語で書くよう指示している
+
+#### Scenario: language 省略時は従来どおり
+
+- **WHEN** `language` を含めずに生成 API を呼ぶ
+- **THEN** 日本語の指示（従来の system prompt）で生成される
+
+
 
 `lesson` が含まれるとき、Claude 呼び出しには著者プロンプトに加えてレッスン文脈（レッスン名・説明・タグ）と `content` 全文を含めなければならない（SHALL）。`lesson` が含まれないとき、これらの文脈ブロックを含めてはならない（MUST NOT）。このとき生成は **著者プロンプトのみ** を指示として実行しなければならない（SHALL）。`lesson` の有無によって出力形式（`slug` / `alt` / `html` の JSON）を変えてはならない（MUST NOT）。
 
@@ -187,7 +224,32 @@ AI タブのプロンプト入力エリア直下に、左から **生成**・**�
 
 ### Requirement: プロンプト提案 API を提供する
 
-`POST /api/images/suggest-prompt` は、リクエスト body の **lesson**（未保存 `content` 全文）と任意の **cursorOffset**（CodeMirror 文字 offset、省略時 0）を受け取らなければならない（SHALL）。Anthropic API キーが未設定のときは 401 等で失敗しなければならない（SHALL）。
+`POST /api/images/suggest-prompt` は、リクエスト body の **lesson**（未保存 `content` 全文）と任意の **cursorOffset**（CodeMirror 文字 offset、省略時 0）、任意の **language**（`ja` / `en`、省略時 `ja`）を受け取らなければならない（SHALL）。Anthropic API キーが未設定のときは 401 等で失敗しなければならない（SHALL）。
+
+成功時は `{ prompt: string }` を返さなければならない（SHALL）。`prompt` は AI タブの画像生成プロンプトとしてそのまま用いられる図解指示文（HTML コメント相当）でなければならない（SHALL）。`language` が `en` のとき `prompt` は英語で書かれなければならない（SHALL）。Markdown 本文は変更してはならない（MUST NOT）。
+
+Claude 呼び出しには、レッスン metadata・全文 body・カーソル付近のテキストスニペットを含めなければならない（SHALL）。`cursorOffset` は渡された `lesson.content`（編集言語の本文）に対するオフセットとして解釈しなければならない（SHALL）。
+
+#### Scenario: suggest-prompt 成功
+
+- **WHEN** API キーが設定されている
+- **AND** クライアントが lesson と cursorOffset を POST する
+- **THEN** 200 で `{ prompt }` が返る
+- **AND** prompt は非空の文字列である
+
+#### Scenario: 英語ビューの自動入力は英語のプロンプトを返す
+
+- **WHEN** 英語ビューでカーソルがコメント外にあり、自動入力を実行する
+- **THEN** suggest-prompt API は `language: "en"` と英語本文の `lesson` を受け取る
+- **AND** 返る `prompt` は英語である
+
+#### Scenario: キー未設定で suggest 拒否
+
+- **WHEN** API キーが未設定である
+- **AND** クライアントが suggest-prompt を POST する
+- **THEN** 401 等で失敗する
+
+
 
 成功時は `{ prompt: string }` を返さなければならない（SHALL）。`prompt` は AI タブの画像生成プロンプトとしてそのまま用いられる図解指示文（HTML コメント相当）でなければならない（SHALL）。Markdown 本文は変更してはならない（MUST NOT）。
 

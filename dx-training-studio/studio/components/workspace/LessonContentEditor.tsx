@@ -8,7 +8,12 @@ import {
   useState,
   useEffect,
 } from "react";
-import { EditorState, Transaction, ChangeSet } from "@codemirror/state";
+import {
+  EditorState,
+  StateEffect,
+  Transaction,
+  ChangeSet,
+} from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
 import { cn } from "@/lib/utils";
 import {
@@ -141,6 +146,30 @@ export const LessonContentEditor = forwardRef<
     [handleFontSizeChange, updateListenerExtension],
   );
 
+  /**
+   * キャッシュから復元した state を、**現行インスタンスの構成**へ差し替える effect 一式。
+   *
+   * ⚠ 全体 reconfigure だけでは足りない——CodeMirror は既存の compartment の中身を
+   * 引き継ぐ（`Compartment.of(...)` の新しい内容は無視される）ので、テーマと検索
+   * ハイライトは明示的に再設定する。同一 dispatch 内では配列順に処理され、
+   * compartment の再設定が全体 reconfigure の上に乗る。
+   */
+  const buildRestoreEffects = useCallback(
+    () => [
+      StateEffect.reconfigure.of(buildExtensions()),
+      lessonEditorThemeCompartment.reconfigure(
+        buildLessonEditorExtensions(isDarkRef.current, fontSizeRef.current, {
+          getFontSize: () => fontSizeRef.current,
+          onFontSizeChange: handleFontSizeChange,
+        }),
+      ),
+      lessonSearchHighlightCompartment.reconfigure(
+        lessonSearchHighlight(searchQueryRef.current),
+      ),
+    ],
+    [buildExtensions, handleFontSizeChange],
+  );
+
   useEffect(() => {
     const parent = containerRef.current;
     if (!parent) return;
@@ -158,23 +187,9 @@ export const LessonContentEditor = forwardRef<
     viewRef.current = view;
     onScrollElementReadyRef.current?.(view.scrollDOM);
 
-    // キャッシュ復元時も現在のテーマと検索語を即反映
-    // （ダークテーマや古い検索語が残るのを防ぐ）
-    view.dispatch({
-      effects: [
-        lessonEditorThemeCompartment.reconfigure(
-          buildLessonEditorExtensions(isDarkRef.current, fontSizeRef.current, {
-            getFontSize: () => fontSizeRef.current,
-            onFontSizeChange: handleFontSizeChange,
-          }),
-        ),
-        lessonSearchHighlightCompartment.reconfigure(
-          lessonSearchHighlight(searchQueryRef.current),
-        ),
-      ],
-    });
-
-    if (!cached) {
+    if (cached) {
+      view.dispatch({ effects: buildRestoreEffects() });
+    } else {
       setLessonEditorStateCache(lessonId, state);
     }
 
@@ -203,26 +218,16 @@ export const LessonContentEditor = forwardRef<
     const cached = getLessonEditorStateCache(lessonId);
     if (cached) {
       view.setState(cached);
-      // ⚠ 復元した state は**キャッシュした時点の compartment 設定を丸ごと持つ**。
-      // そのまま使うと (1) 当時のテーマ配色（ライト表示中にダークの本文が出る）
-      // (2) 当時のインスタンスを掴んだ Ctrl+ホイールのハンドラ（今の setState を
-      // 呼ばないのでズームが無反応）が生き残る。マウント時と同じ再構成をここでも
-      // 通して現行インスタンスへ差し替える——「たまに壊れる」の正体がこれ。
-      // (3) 検索ハイライトも同じ理由で差し替える。漏らすとキャッシュした時点の
-      // 検索語のまま塗られる／塗られないという再現しにくい不具合になる。
-      view.dispatch({
-        effects: [
-          lessonEditorThemeCompartment.reconfigure(
-            buildLessonEditorExtensions(isDarkRef.current, fontSizeRef.current, {
-              getFontSize: () => fontSizeRef.current,
-              onFontSizeChange: handleFontSizeChange,
-            }),
-          ),
-          lessonSearchHighlightCompartment.reconfigure(
-            lessonSearchHighlight(searchQueryRef.current),
-          ),
-        ],
-      });
+      // ⚠ 復元した state は**キャッシュした時点の extension 構成を丸ごと持つ**。
+      // その構成にはキャッシュを作ったインスタンスに束縛された extension——
+      // 当時のテーマ配色・当時の Ctrl+ホイールハンドラ・そして閉包で
+      // `onChangeRef` / `lessonIdRef` を掴んだ **updateListener**——が含まれる。
+      // 個別の compartment だけを差し替えると listener が生き残り、日英で
+      // エディタを付け替えたときに英語ビューの入力が日本語の保存経路へ流れる
+      // （＝`contents.md` が英文で上書きされる事故）。ここで構成**全体**を
+      // 現行インスタンスで作り直し、束縛の残骸を一括で断つ。
+      // doc・selection・undo 履歴は StateField として保持される。
+      view.dispatch({ effects: buildRestoreEffects() });
     } else {
       const nextState = EditorState.create({
         doc: value,
@@ -234,7 +239,7 @@ export const LessonContentEditor = forwardRef<
 
     lessonIdRef.current = lessonId;
     onCursorChangeRef.current?.(view.state.selection.main.head);
-  }, [lessonId, value, buildExtensions, handleFontSizeChange]);
+  }, [lessonId, value, buildExtensions, buildRestoreEffects]);
 
   useEffect(() => {
     const view = viewRef.current;

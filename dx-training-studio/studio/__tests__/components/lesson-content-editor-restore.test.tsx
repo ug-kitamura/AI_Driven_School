@@ -1,5 +1,7 @@
 import { describe, expect, it, afterEach, beforeEach, vi } from "vitest";
 import { render, cleanup } from "@testing-library/react";
+import { EditorView } from "@codemirror/view";
+import { undo } from "@codemirror/commands";
 import { LessonContentEditor } from "@/components/workspace/LessonContentEditor";
 import { clearLessonEditorStateCache } from "@/lib/lesson-editor-state-cache";
 import {
@@ -11,11 +13,13 @@ import {
 /**
  * レッスン切替でキャッシュ済み EditorState を復元したときの回帰テスト。
  *
- * 復元は「キャッシュした時点の compartment 設定」を丸ごと戻すため、再構成を挟まないと
+ * 復元は「キャッシュした時点の extension 構成」を丸ごと戻すため、再構成を挟まないと
+ * **キャッシュを作ったインスタンスに束縛された extension** が生き残る:
  *   - 当時のテーマ配色が残る（ライト表示中に本文だけダークのまま＝白っぽく見える）
  *   - 当時のインスタンスを掴んだ Ctrl+ホイールのハンドラが残る（ズームが無反応）
- * という2症状が出る。どちらも「A を開く → B へ移る → A に戻る」でしか踏まないため、
- * 実使用では「たまに壊れる」に見えていた。
+ *   - 当時の updateListener が残る（**英語ビューの入力が日本語の保存経路へ流れる**）
+ * どれも「A を開く → B へ移る → A に戻る」でしか踏まないため、実使用では
+ * 「たまに壊れる」に見えていた。3つ目は日本語正本を英文で上書きする事故になった。
  */
 
 const isDarkMock = vi.hoisted(() => ({ value: false }));
@@ -52,6 +56,28 @@ function persistedFontSize(): number {
 
 function setPersistedFontSize(px: number) {
   saveWorkspaceSettings({ ...loadWorkspaceSettings(), editorFontSizePx: px });
+}
+
+function editorView(container: HTMLElement): EditorView {
+  const view = EditorView.findFromDOM(container);
+  if (!view) throw new Error("EditorView not found");
+  return view;
+}
+
+/** ユーザー入力に相当する変更（remote 注釈なし＝updateListener が発火する） */
+function typeAtEnd(container: HTMLElement, text: string) {
+  const view = editorView(container);
+  const at = view.state.doc.length;
+  view.dispatch({
+    changes: { from: at, insert: text },
+    selection: { anchor: at + text.length },
+  });
+}
+
+function highlightedTexts(container: HTMLElement): string[] {
+  return Array.from(container.querySelectorAll(".lesson-search-highlight")).map(
+    (el) => el.textContent ?? "",
+  );
 }
 
 beforeEach(() => {
@@ -114,5 +140,112 @@ describe("LessonContentEditor のキャッシュ復元", () => {
       container.querySelector(".cm-editor") as HTMLElement,
     ).backgroundColor;
     expect(restoredBg).not.toBe(darkBg);
+  });
+
+  /**
+   * 事故の再現: ja → en → ja → en（2回目）で英語ビューの入力が日本語の
+   * 保存経路へ流れ、`contents.md` が英文で上書きされた。
+   */
+  it("復元した state で入力しても復元元インスタンスの onChange は呼ばれない", () => {
+    const jaChange = vi.fn();
+    const enChange = vi.fn();
+    const jaCursor = vi.fn();
+    const enCursor = vi.fn();
+
+    // インスタンス A で ja(x) → en(x:en) → ja(x) と往復し、
+    // cache["x:en"] に **A の listener を同梱した** state を残す
+    const first = render(
+      <LessonContentEditor
+        lessonId="x"
+        value="日本語本文"
+        onChange={jaChange}
+        onCursorChange={jaCursor}
+      />,
+    );
+    first.rerender(
+      <LessonContentEditor
+        lessonId="x:en"
+        value="English body"
+        onChange={enChange}
+        onCursorChange={enCursor}
+      />,
+    );
+    first.rerender(
+      <LessonContentEditor
+        lessonId="x"
+        value="日本語本文"
+        onChange={jaChange}
+        onCursorChange={jaCursor}
+      />,
+    );
+    first.unmount();
+
+    // インスタンス B（2回目の英語ビュー）が cache["x:en"] を復元する
+    const enChange2 = vi.fn();
+    const enCursor2 = vi.fn();
+    const { container } = render(
+      <LessonContentEditor
+        lessonId="x:en"
+        value="English body"
+        onChange={enChange2}
+        onCursorChange={enCursor2}
+      />,
+    );
+
+    jaChange.mockClear();
+    enChange.mockClear();
+    jaCursor.mockClear();
+    enCursor.mockClear();
+
+    typeAtEnd(container, "!");
+
+    expect(enChange2).toHaveBeenCalledWith("English body!");
+    expect(jaChange).not.toHaveBeenCalled();
+    expect(enChange).not.toHaveBeenCalled();
+    expect(enCursor2).toHaveBeenCalled();
+    expect(jaCursor).not.toHaveBeenCalled();
+  });
+
+  it("復元しても undo 履歴は保たれる", () => {
+    const first = render(
+      <LessonContentEditor lessonId="x:en" value="base" onChange={() => {}} />,
+    );
+    typeAtEnd(first.container, " edited");
+    expect(editorView(first.container).state.doc.toString()).toBe("base edited");
+    first.unmount();
+
+    // 別インスタンスが同じ state を復元する（value は保存済みの本文）
+    const { container } = render(
+      <LessonContentEditor
+        lessonId="x:en"
+        value="base edited"
+        onChange={() => {}}
+      />,
+    );
+    undo(editorView(container));
+    expect(editorView(container).state.doc.toString()).toBe("base");
+  });
+
+  it("復元時にキャッシュ当時ではなく現在の検索語で塗る", () => {
+    const first = render(
+      <LessonContentEditor
+        lessonId="x"
+        value="alpha beta"
+        onChange={() => {}}
+        searchHighlightQuery="alpha"
+      />,
+    );
+    expect(highlightedTexts(first.container)).toEqual(["alpha"]);
+    first.unmount();
+
+    const { container } = render(
+      <LessonContentEditor
+        lessonId="x"
+        value="alpha beta"
+        onChange={() => {}}
+        searchHighlightQuery="beta"
+      />,
+    );
+    expect(highlightedTexts(container)).toEqual(["beta"]);
   });
 });

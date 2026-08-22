@@ -5,7 +5,7 @@ import dynamic from "next/dynamic";
 import ReactMarkdown from "react-markdown";
 import { GitCompare, Code, Eye, Edit3, Loader2, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { useLessonEnBody } from "@/components/workspace/hooks/use-lesson-en-body";
+import type { useLessonEnBody } from "@/components/workspace/hooks/use-lesson-en-body";
 import { lessonDisplayName, type EditLanguage } from "@/lib/display-name";
 import { StaleTranslationNotice } from "@/components/workspace/translation/StaleTranslationNotice";
 import { TRANSLATE_LABEL } from "@/components/workspace/translation/translationLabels";
@@ -74,7 +74,11 @@ type Props = {
   translationStatus: TranslationFreshness | undefined;
   /** 英語側の保存・翻訳適用の後に呼ぶ（鮮度の再取得） */
   onTranslationChanged?: () => void;
-  onSaveError?: (message: string) => void;
+  /**
+   * 英語版本文の読み書き。状態の持ち主は `Workspace`——「いま編集している本文」は
+   * カーソル同期・Agent の反映でも要るため、ここでは受け取るだけにする
+   */
+  enBody: ReturnType<typeof useLessonEnBody>;
 };
 
 const MODE_TABS: ReadonlyArray<PaneSegmentOption<Pane3Mode>> = [
@@ -135,7 +139,7 @@ export function MarkdownEditorPane({
   onEditLanguageChange,
   translationStatus,
   onTranslationChanged,
-  onSaveError,
+  enBody,
 }: Props) {
   const editorRef = useRef<LessonContentEditorHandle>(null);
   const paneScrollRef = useRef<HTMLElement | null>(null);
@@ -144,14 +148,6 @@ export function MarkdownEditorPane({
   const [metaDialogOpen, setMetaDialogOpen] = useState(false);
 
   const isEnglish = editLanguage === "en";
-  const enBody = useLessonEnBody({
-    enabled: isEnglish,
-    series: lesson?.series,
-    course: lesson?.course,
-    lesson: lesson?.lesson,
-    onSaveError,
-    onSaved: onTranslationChanged,
-  });
 
   /**
    * プレビューに流す本文。英語モードは `contents.en.md`（API 境界で原文ハッシュ行が
@@ -293,6 +289,15 @@ export function MarkdownEditorPane({
         <h2 className="min-w-0 truncate text-sm font-semibold text-foreground">
           {lessonDisplayName(lesson, editLanguage)}
         </h2>
+        {/* 翻訳が古いことの赤字1行。レッスン本文だけは本文上部ではなくここへ置く
+            ——本文領域の高さが鮮度で変わらないようにするため（studio-translation
+            spec）。狭幅ではタイトル側が truncate され、この赤字が残る */}
+        {isEnglish ? (
+          <StaleTranslationNotice
+            status={translationStatus}
+            className="shrink-0"
+          />
+        ) : null}
         <div className="ml-auto flex items-center gap-2">
           {/* ⚠ ヘッダーは [メタ編集][3ビュー] に限る。言語切替は GlobalHeader に
               1つだけ置く（studio-translation spec）。本文翻訳は本文右上（スクロール追従） */}
@@ -325,20 +330,11 @@ export function MarkdownEditorPane({
           構成は日英で共通にする（studio-translation spec）——分けて書くと、
           どちらかにだけ機能が付く状態が生まれる */}
       <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
-        {isEnglish ? (
-          <>
-            {/* 翻訳が古いことを伝える赤字1行（本文の上部）。stale のときだけ出る */}
-            {translationStatus === "stale" ? (
-              <div className="shrink-0 border-b border-border px-4 py-1.5">
-                <StaleTranslationNotice status={translationStatus} />
-              </div>
-            ) : null}
-            {enBody.translateError ? (
-              <div className="border-b border-border bg-destructive/10 px-4 py-1.5 text-xs text-destructive">
-                {enBody.translateError}
-              </div>
-            ) : null}
-          </>
+        {/* 翻訳エラーは一時的な表示なので本文上部のまま（鮮度の赤字はヘッダーへ移した） */}
+        {isEnglish && enBody.translateError ? (
+          <div className="border-b border-border bg-destructive/10 px-4 py-1.5 text-xs text-destructive">
+            {enBody.translateError}
+          </div>
         ) : null}
 
         <div className="relative min-h-0 flex-1 overflow-hidden">
@@ -382,6 +378,7 @@ export function MarkdownEditorPane({
                   value={enBody.state.body}
                   onChange={enBody.updateBody}
                   onScrollElementReady={handleScrollElementReady}
+                  onCursorChange={handleLocalCursorChange}
                   searchHighlightQuery={searchHighlightQuery}
                 />
               ) : (

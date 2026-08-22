@@ -122,6 +122,8 @@ async function renderPane(lesson: Lesson | undefined, pane3Mode: Pane3Mode) {
       onInsertImage={() => true}
       editorCommentPrompt={null}
       editorCursorOffset={null}
+      editLanguage="ja"
+      contextLesson={lesson}
       pane4Open
     />,
   );

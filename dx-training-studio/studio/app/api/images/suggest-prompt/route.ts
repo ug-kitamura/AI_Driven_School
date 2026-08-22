@@ -9,8 +9,11 @@ import { lessonSchema } from "@/lib/schema";
 
 const bodySchema = z.object({
   lesson: lessonSchema,
+  /** `lesson.content`（＝編集言語の本文）に対する offset。省略は 0 */
   cursorOffset: z.number().int().min(0).optional(),
   seedPrompt: z.string().optional(),
+  /** 返すプロンプトの言語（編集言語）。省略は ja */
+  language: z.enum(["ja", "en"]).optional(),
 });
 
 async function callClaude(
@@ -86,6 +89,7 @@ export async function POST(req: Request) {
     parsed.lesson,
     cursorOffset,
     parsed.seedPrompt,
+    parsed.language ?? "ja",
   );
 
   try {

@@ -29,6 +29,7 @@ describe("AI タブ（レッスン未選択）", () => {
     render(
       <AiImagesTab
         lesson={undefined}
+        language="ja"
         refreshScope={async () => {}}
         {...common}
       />,

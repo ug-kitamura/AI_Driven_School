@@ -26,6 +26,7 @@ import { useWorkspaceImageAssets } from "@/components/workspace/hooks/use-worksp
 import { useWorkspaceSelection } from "@/components/workspace/hooks/use-workspace-selection";
 import { useContentSync } from "@/components/workspace/hooks/use-content-sync";
 import { useTranslationStatus } from "@/components/workspace/hooks/use-translation-status";
+import { useLessonEnBody } from "@/components/workspace/hooks/use-lesson-en-body";
 import {
   courseDisplayName,
   lessonDisplayName,
@@ -361,40 +362,6 @@ export function Workspace({
     [selectedLesson, pane3Mode, insertCallback],
   );
 
-  const handleOverwriteEditor = useCallback(
-    (markdown: string, metaPatch?: Partial<LessonMetaFields>) => {
-      if (!selectedLesson) return;
-      updateLessonContent(selectedLesson.id, markdown);
-      if (metaPatch && Object.keys(metaPatch).length > 0) {
-        updateLessonMeta(selectedLesson.id, metaPatch);
-      }
-      setPane3Mode("raw");
-    },
-    [selectedLesson, updateLessonContent, updateLessonMeta],
-  );
-
-  const handleEditorCursorChange = useCallback(
-    (offset: number) => {
-      if (pane3Mode !== "raw" || !selectedLesson) {
-        setEditorCommentPrompt(null);
-        setEditorCursorOffset(null);
-        return;
-      }
-      setEditorCursorOffset(offset);
-      setEditorCommentPrompt(
-        htmlCommentInnerTextAtOffset(selectedLesson.content, offset),
-      );
-    },
-    [pane3Mode, selectedLesson],
-  );
-
-  useEffect(() => {
-    if (pane3Mode !== "raw" || !selectedLesson) {
-      setEditorCommentPrompt(null);
-      setEditorCursorOffset(null);
-    }
-  }, [pane3Mode, selectedLesson?.id]);
-
   useEffect(() => {
     if (!pane4Open || pane4View !== "agent" || !selectedLesson) {
       if (!selectedLesson) setCurrentLessonPath(null);
@@ -448,6 +415,89 @@ export function Workspace({
     translationData?.statuses.root?.meta,
     translationData?.changelog ?? undefined,
   );
+
+  /**
+   * 英語版本文（`contents.en.md`）の読み書き。**ペイン2 ではなくここで持つ**——
+   * 「いま編集している本文」はペイン2 の表示だけでなく、カーソル同期・Agent の
+   * エディタ反映・（後続 change で）ペイン4 の画像文脈でも要る。ペイン2 に閉じ込めると
+   * 呼び出し側が日本語本文で代用してしまい、英語ビューで本文とオフセットの言語が
+   * 食い違う（studio-translation spec）。
+   */
+  const enBody = useLessonEnBody({
+    enabled: editLanguage === "en",
+    series: selectedLesson?.series,
+    course: selectedLesson?.course,
+    lesson: selectedLesson?.lesson,
+    onSaveError: handleSaveError,
+    onSaved: refreshTranslationStatus,
+  });
+
+  /**
+   * いま編集している本文。英語ビューは訳文、日本語ビューは正本。
+   * 英語版が未読込（読込中・エラー）のときは空文字（＝コメント解決は null）。
+   */
+  const activeBody =
+    editLanguage === "en"
+      ? enBody.state.status === "ready"
+        ? enBody.state.body
+        : ""
+      : (selectedLesson?.content ?? "");
+
+  /**
+   * ペイン4 の AI へ渡すレッスン文脈。本文は編集言語のもの（英語ビューでは訳文）。
+   * ⚠ 英語版が未読込のときは undefined——日本語本文を英語ビューの文脈にしない
+   * （image-pane-language spec）。レッスン未選択と同じ扱いになる。
+   */
+  const imageContextLesson = useMemo(() => {
+    if (!selectedLesson) return undefined;
+    if (editLanguage === "ja") return selectedLesson;
+    if (enBody.state.status !== "ready") return undefined;
+    return { ...selectedLesson, content: enBody.state.body };
+  }, [selectedLesson, editLanguage, enBody.state]);
+
+  const handleOverwriteEditor = useCallback(
+    (markdown: string, metaPatch?: Partial<LessonMetaFields>) => {
+      if (!selectedLesson) return;
+      // 反映先は編集言語に従う——英語ビューでの反映が日本語正本を書き換えない
+      if (editLanguage === "en") {
+        enBody.updateBody(markdown);
+      } else {
+        updateLessonContent(selectedLesson.id, markdown);
+      }
+      // メタ（tags / estimated_minutes）は日英共有なので言語によらず適用する
+      if (metaPatch && Object.keys(metaPatch).length > 0) {
+        updateLessonMeta(selectedLesson.id, metaPatch);
+      }
+      setPane3Mode("raw");
+    },
+    [
+      selectedLesson,
+      editLanguage,
+      enBody,
+      updateLessonContent,
+      updateLessonMeta,
+    ],
+  );
+
+  const handleEditorCursorChange = useCallback(
+    (offset: number) => {
+      if (pane3Mode !== "raw" || !selectedLesson) {
+        setEditorCommentPrompt(null);
+        setEditorCursorOffset(null);
+        return;
+      }
+      setEditorCursorOffset(offset);
+      setEditorCommentPrompt(htmlCommentInnerTextAtOffset(activeBody, offset));
+    },
+    [pane3Mode, selectedLesson, activeBody],
+  );
+
+  useEffect(() => {
+    if (pane3Mode !== "raw" || !selectedLesson) {
+      setEditorCommentPrompt(null);
+      setEditorCursorOffset(null);
+    }
+  }, [pane3Mode, selectedLesson?.id]);
 
   const handlePane4ViewChange = useCallback((view: Pane4View) => {
     setPane4View(view);
@@ -589,7 +639,7 @@ export function Workspace({
                 onEditLanguageChange={setEditLanguage}
                 translationStatus={lessonTranslationStatus}
                 onTranslationChanged={refreshTranslationStatus}
-                onSaveError={handleSaveError}
+                enBody={enBody}
               />
             ) : focusLevel === "course" && selectedCourse ? (
               <CourseMetaView
@@ -648,6 +698,8 @@ export function Workspace({
                   onInsertImage={insertImageMarkdown}
                   editorCommentPrompt={editorCommentPrompt}
                   editorCursorOffset={editorCursorOffset}
+                  editLanguage={editLanguage}
+                  contextLesson={imageContextLesson}
                   onOpenSettings={() => setSettingsOpen(true)}
                   currentLessonPath={currentLessonPath}
                   agentChatControllerRef={agentChatControllerRef}

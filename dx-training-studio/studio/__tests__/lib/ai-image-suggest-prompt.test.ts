@@ -42,4 +42,27 @@ describe("buildSuggestPromptMessages", () => {
     expect(user).toContain("Seed prompt");
     expect(user).toContain("seed text");
   });
+
+  it("既定は日本語の指示のまま", () => {
+    const { system } = buildSuggestPromptMessages(lesson, 0);
+    expect(system).toContain("a Japanese DX training lesson editor");
+    expect(system).toContain("Japanese is fine unless");
+  });
+
+  it("en では英語のプロンプトを書くよう指示する", () => {
+    const { system } = buildSuggestPromptMessages(lesson, 0, undefined, "en");
+    expect(system).toContain("an English DX training lesson editor");
+    expect(system).toContain("Write the prompt in English");
+    expect(system).not.toContain("Japanese is fine unless");
+  });
+
+  it("en ではレッスン名に name_en を使う", () => {
+    const { user } = buildSuggestPromptMessages(
+      { ...lesson, name_en: "Test lesson" },
+      0,
+      undefined,
+      "en",
+    );
+    expect(user).toContain("lesson: Test lesson");
+  });
 });

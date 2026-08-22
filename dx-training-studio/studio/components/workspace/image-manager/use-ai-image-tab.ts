@@ -7,6 +7,7 @@ import {
 } from "@/components/workspace/image-manager/image-manager-constants";
 import { aiRequestHeaders } from "@/components/workspace/image-manager/image-manager-utils";
 import { loadWorkspaceSettings } from "@/lib/workspace-settings";
+import type { EditLanguage } from "@/lib/display-name";
 import type { ImageAsset, Lesson } from "@/lib/schema";
 
 type RefreshScope = (
@@ -15,7 +16,10 @@ type RefreshScope = (
 ) => Promise<void>;
 
 export function useAiImageTab(options: {
+  /** AI へ渡す文脈。`content` は編集言語の本文（英語ビューでは訳文） */
   lesson: Lesson | undefined;
+  /** 生成する図解と alt の言語（編集言語） */
+  language: EditLanguage;
   editorCommentPrompt: string | null;
   editorCursorOffset: number | null;
   refreshScope: RefreshScope;
@@ -29,6 +33,7 @@ export function useAiImageTab(options: {
 }) {
   const {
     lesson,
+    language,
     editorCommentPrompt,
     editorCursorOffset,
     refreshScope,
@@ -68,7 +73,7 @@ export function useAiImageTab(options: {
       const res = await fetch("/api/images/generate", {
         method: "POST",
         headers,
-        body: JSON.stringify({ lesson, prompt: trimmed }),
+        body: JSON.stringify({ lesson, prompt: trimmed, language }),
       });
       let data: {
         file?: ImageAsset;
@@ -115,7 +120,15 @@ export function useAiImageTab(options: {
     } finally {
       setGenerating(false);
     }
-  }, [lesson, prompt, refreshScope, showNotice, clearNotice, onHighlightPaths]);
+  }, [
+    lesson,
+    language,
+    prompt,
+    refreshScope,
+    showNotice,
+    clearNotice,
+    onHighlightPaths,
+  ]);
 
   const handleAutoFill = useCallback(async () => {
     if (!lesson) return;
@@ -134,6 +147,7 @@ export function useAiImageTab(options: {
           lesson,
           cursorOffset: editorCursorOffset ?? 0,
           seedPrompt,
+          language,
         }),
       });
       let data: { prompt?: string; error?: string };
@@ -164,6 +178,7 @@ export function useAiImageTab(options: {
     }
   }, [
     lesson,
+    language,
     editorCommentPrompt,
     editorCursorOffset,
     clearNotice,

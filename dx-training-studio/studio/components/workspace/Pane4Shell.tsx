@@ -15,6 +15,7 @@ import { ImageManagerPane } from "@/components/workspace/ImageManagerPane";
 import { useAgentSessionChrome } from "@/components/workspace/use-agent-session-chrome";
 import type { ImageManagerTab } from "@/components/workspace/image-manager/types";
 import type { AgentChatController } from "@/lib/agent-chat-controller";
+import type { EditLanguage } from "@/lib/display-name";
 import type { LessonMetaFields } from "@/lib/lesson-meta";
 import type { SkillSummary } from "@/lib/agent/skill-loader";
 import type { Pane4View } from "@/lib/pane4-view-storage";
@@ -63,6 +64,10 @@ export type Pane4ShellProps = {
   onInsertImage: (markdown: string) => boolean;
   editorCommentPrompt: string | null;
   editorCursorOffset: number | null;
+  /** 編集言語。画像ビュー AI モードの出力言語を決める */
+  editLanguage: EditLanguage;
+  /** AI への文脈に渡すレッスン（`content` は編集言語の本文）。未読込は undefined */
+  contextLesson: Lesson | undefined;
   onOpenSettings: () => void;
   currentLessonPath: string | null;
   agentChatControllerRef: React.MutableRefObject<AgentChatController | null>;
@@ -85,6 +90,8 @@ export function Pane4Shell({
   onInsertImage,
   editorCommentPrompt,
   editorCursorOffset,
+  editLanguage,
+  contextLesson,
   onOpenSettings,
   currentLessonPath,
   agentChatControllerRef,
@@ -215,6 +222,8 @@ export function Pane4Shell({
             onInsertImage={onInsertImage}
             editorCommentPrompt={editorCommentPrompt}
             editorCursorOffset={editorCursorOffset}
+            editLanguage={editLanguage}
+            contextLesson={contextLesson}
             pane4Open
             onImageAssetsChanged={onImageAssetsChanged}
           />

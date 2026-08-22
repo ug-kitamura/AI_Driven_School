@@ -18,6 +18,12 @@ const bodySchema = z.object({
   // レッスン未選択でも生成できるよう任意。無ければ文脈ブロックを添えない
   lesson: lessonSchema.optional(),
   prompt: z.string().min(1),
+  /**
+   * 図中テキストと alt の言語（編集言語）。省略は ja。
+   * ⚠ `lesson.content` は呼び出し側が編集言語の本文を渡す——サーバーは
+   * 言語に応じて正本ファイルを読みに行かない（未保存の編集が文脈から漏れる）
+   */
+  language: z.enum(["ja", "en"]).optional(),
 });
 
 /** @see https://platform.claude.com/docs/en/about-claude/models/overview */
@@ -98,7 +104,11 @@ export async function POST(req: Request) {
     return Response.json({ error: "リクエストが不正です" }, { status: 400 });
   }
 
-  const { system, user } = buildImageGenerationMessages(parsed.lesson, parsed.prompt);
+  const { system, user } = buildImageGenerationMessages(
+    parsed.lesson,
+    parsed.prompt,
+    parsed.language ?? "ja",
+  );
 
   let generation: ReturnType<typeof parseAiGenerationResponse>;
   try {

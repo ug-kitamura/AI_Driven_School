@@ -15,10 +15,14 @@ import {
 import { TabNoticeBanner } from "@/components/workspace/image-manager/TabNoticeBanner";
 import type { TabNotice } from "@/components/workspace/image-manager/types";
 import { useAiImageTab } from "@/components/workspace/image-manager/use-ai-image-tab";
+import type { EditLanguage } from "@/lib/display-name";
 import type { Lesson } from "@/lib/schema";
 
 type Props = {
+  /** AI へ渡す文脈。`content` は編集言語の本文（英語ビューでは訳文） */
   lesson: Lesson | undefined;
+  /** 生成する図解と alt の言語 */
+  language: EditLanguage;
   editorCommentPrompt: string | null;
   editorCursorOffset: number | null;
   refreshScope: (
@@ -46,6 +50,7 @@ type Props = {
 
 export function AiImagesTab({
   lesson,
+  language,
   editorCommentPrompt,
   editorCursorOffset,
   refreshScope,
@@ -71,6 +76,7 @@ export function AiImagesTab({
     handleResetPrompt,
   } = useAiImageTab({
     lesson,
+    language,
     editorCommentPrompt,
     editorCursorOffset,
     refreshScope,

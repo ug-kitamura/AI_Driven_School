@@ -42,29 +42,72 @@ Example quality (single diagram block inside html field — structure and densit
 </div>
 `.trim();
 
-const SYSTEM_PROMPT = `You create training diagram HTML for Japanese DX courses.
+/**
+ * 図中テキストと `alt` の言語。編集言語（`ja` / `en`）に従う——英語ビューで
+ * 生成した図解に日本語ラベルが載ると、そのまま英語版本文へ挿入されてしまう。
+ * `slug` は言語によらず英語 kebab-case（ファイル名のため）。
+ */
+export type ImagePromptLanguage = "ja" | "en";
+
+const LANGUAGE_SPEC: Record<
+  ImagePromptLanguage,
+  { audience: string; altShape: string; extraRules: string[]; fewShotNote: string }
+> = {
+  ja: {
+    audience: "Japanese DX courses",
+    altShape: "短い日本語説明（1行）",
+    extraRules: [],
+    fewShotNote: "",
+  },
+  en: {
+    audience: "English DX courses",
+    altShape: "short English description (one line)",
+    extraRules: [
+      "- ALL text inside the diagram (titles, labels, hints, UI mock contents) MUST be written in English. The lesson context below is the English edition of the lesson.",
+    ],
+    fewShotNote:
+      "\n\n(The example above uses Japanese labels because it is the Japanese edition. Write every label in your output in English.)",
+  },
+};
+
+function buildSystemPrompt(language: ImagePromptLanguage): string {
+  const spec = LANGUAGE_SPEC[language];
+  const rules = [
+    "- ONE diagram block only (e.g. bg-custom-surface rounded-xl card). No page hero, no outer prose.",
+    "- Use custom.* Tailwind colors: custom-surface, custom-border, custom-muted, custom-dim, custom-accent, etc.",
+    '- Lucide icons: <i data-lucide="name" class="..."></i>',
+    "- No <script>, no <style>, no external images, no emoji.",
+    "- Target width roughly 640–960 CSS px (wider for UI mocks like editor/terminal, narrower for flow/card diagrams). Prefer vertical stacking over too many horizontal columns. Keep in-diagram text at text-xs (12px) or larger. Light background.",
+    ...spec.extraRules,
+  ].join("\n");
+
+  return `You create training diagram HTML for ${spec.audience}.
 Respond with ONLY valid JSON (no markdown fences) in this exact shape:
-{"slug":"english-kebab-case","alt":"短い日本語説明（1行）","html":"<div>...</div>"}
+{"slug":"english-kebab-case","alt":"${spec.altShape}","html":"<div>...</div>"}
 
 Rules for html:
-- ONE diagram block only (e.g. bg-custom-surface rounded-xl card). No page hero, no outer prose.
-- Use custom.* Tailwind colors: custom-surface, custom-border, custom-muted, custom-dim, custom-accent, etc.
-- Lucide icons: <i data-lucide="name" class="..."></i>
-- No <script>, no <style>, no external images, no emoji.
-- Target width roughly 640–960 CSS px (wider for UI mocks like editor/terminal, narrower for flow/card diagrams). Prefer vertical stacking over too many horizontal columns. Keep in-diagram text at text-xs (12px) or larger. Light background.
+${rules}
 
 ${GRAPHIC_VOCABULARY}
 
-${FEW_SHOT_FLOW}`;
+${FEW_SHOT_FLOW}${spec.fewShotNote}`;
+}
 
 /**
  * `lesson` はレッスン未選択（ホーム・シリーズ・コース選択中）でも AI タブを使えるよう
  * 任意。無いときはレッスン文脈ブロックを組まず、著者プロンプトだけを指示として渡す。
+ *
+ * `language` が `en` のとき、`lesson.content` は**英語本文**（`contents.en.md`）で
+ * あることを前提とする——どの本文を渡すかは呼び出し側の責務（サーバーは正本を
+ * 読みに行かない）。レッスン名は `name_en` があればそれを使う。
  */
 export function buildImageGenerationMessages(
   lesson: Lesson | undefined,
   prompt: string,
+  language: ImagePromptLanguage = "ja",
 ): { system: string; user: string } {
+  const lessonName =
+    language === "en" ? (lesson?.name_en?.trim() || lesson?.lesson) : lesson?.lesson;
 
   const user = [
     "## Author prompt (primary instruction)",
@@ -73,7 +116,7 @@ export function buildImageGenerationMessages(
       ? [
           "",
           "## Lesson context (reference only — do not duplicate as outer prose in html)",
-          `lesson: ${lesson.lesson}`,
+          `lesson: ${lessonName}`,
           `description: ${lesson.description}`,
           `tags: ${lesson.tags.join(", ")}`,
           "",
@@ -85,7 +128,7 @@ export function buildImageGenerationMessages(
     "Generate JSON with slug, alt, and html for the author prompt.",
   ].join("\n");
 
-  return { system: SYSTEM_PROMPT, user };
+  return { system: buildSystemPrompt(language), user };
 }
 
 function stripCodeFences(text: string): string {

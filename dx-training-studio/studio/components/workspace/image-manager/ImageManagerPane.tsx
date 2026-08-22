@@ -74,6 +74,8 @@ export function ImageManagerPane({
   onInsertImage,
   editorCommentPrompt,
   editorCursorOffset,
+  editLanguage,
+  contextLesson,
   pane4Open,
   onImageAssetsChanged,
 }: ImageManagerPaneProps) {
@@ -507,7 +509,8 @@ export function ImageManagerPane({
 
         <div className={cn(activeTab !== "ai" ? "hidden" : undefined)}>
           <AiImagesTab
-            lesson={lesson}
+            lesson={contextLesson}
+            language={editLanguage}
             editorCommentPrompt={editorCommentPrompt}
             editorCursorOffset={editorCursorOffset}
             refreshScope={refreshScope}

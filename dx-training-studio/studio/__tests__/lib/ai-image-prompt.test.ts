@@ -54,3 +54,53 @@ describe("buildImageGenerationMessages の lesson 任意化", () => {
     expect(user).not.toContain("## Full lesson markdown body");
   });
 });
+
+describe("buildImageGenerationMessages の言語", () => {
+  const lesson: Lesson = {
+    id: "l1",
+    series: "s",
+    course: "c",
+    lesson: "Git 入門",
+    name_en: "Getting started with Git",
+    status: "open",
+    description: "バージョン管理の基礎",
+    tags: ["git"],
+    estimated_minutes: 10,
+    author: "",
+    content: "English body sample",
+  };
+
+  it("既定（language 省略）は日本語の指示のまま", () => {
+    const { system } = buildImageGenerationMessages(lesson, "flow");
+    expect(system).toContain("Japanese DX courses");
+    expect(system).toContain("短い日本語説明（1行）");
+    expect(system).not.toContain("MUST be written in English");
+  });
+
+  it("ja を明示しても省略時と同じ指示になる", () => {
+    const a = buildImageGenerationMessages(lesson, "flow");
+    const b = buildImageGenerationMessages(lesson, "flow", "ja");
+    expect(b.system).toBe(a.system);
+  });
+
+  it("en では図中テキストと alt を英語で書くよう指示する", () => {
+    const { system, user } = buildImageGenerationMessages(lesson, "flow", "en");
+    expect(system).toContain("English DX courses");
+    expect(system).toContain("short English description (one line)");
+    expect(system).toContain("MUST be written in English");
+    // slug の規則は言語によらない（ファイル名のため）
+    expect(system).toContain('"slug":"english-kebab-case"');
+    // レッスン名は name_en を使う
+    expect(user).toContain("lesson: Getting started with Git");
+    expect(user).toContain("English body sample");
+  });
+
+  it("en で name_en が無ければ日本語のレッスン名へフォールバックする", () => {
+    const { user } = buildImageGenerationMessages(
+      { ...lesson, name_en: undefined },
+      "flow",
+      "en",
+    );
+    expect(user).toContain("lesson: Git 入門");
+  });
+});

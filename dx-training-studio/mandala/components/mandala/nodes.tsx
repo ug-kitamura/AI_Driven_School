@@ -97,11 +97,10 @@ function StyleLabel({ data }: { data: MandalaNodeData }) {
 /** 全体・シリーズ曼陀羅用。コース名と受講形態だけ——数が増えても一覧できるように */
 export function CompactNode({ data }: NodeProps) {
   const d = data as MandalaNodeData;
+  // 名前は2行に折り返して全体を見せるので、全体を見せるための `title` は置かない
+  // （曼陀羅の目的は一目で見渡せること。ホバーしないと読めない名前は目的に反する）
   return (
-    <div
-      className={nodeClass(d, "compact")}
-      title={`${d.seriesName} / ${d.label}`}
-    >
+    <div className={nodeClass(d, "compact")}>
       <Handle type="target" position={Position.Top} isConnectable={false} />
       <HerePin here={d.here} locale={d.locale} />
       <span className="dxm-node-title">{d.label}</span>

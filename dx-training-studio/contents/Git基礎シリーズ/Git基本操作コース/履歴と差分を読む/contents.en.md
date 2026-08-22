@@ -4,7 +4,7 @@
 
 ## Learning goals
 
-You've reached the halfway point of the basic operations course. In the previous lesson you worked through **making** save data. This lesson is about **reading** it. The goal: using `status`, `log`, and `diff` for what each one is good at, so you can **check "what's going on right now" yourself, without asking anyone**.
+You've reached the halfway point of the Git Basic Operations Course. In the previous lesson you worked through **making** save data. This lesson is about **reading** it. The goal: using `status`, `log`, and `diff` for what each one is good at, so you can **check "what's going on right now" yourself, without asking anyone**.
 
 You stop work, come back the next day, and freeze: "where did I get to yesterday?" Today's three commands are for exactly that moment. Being able to check your own situation when you're stuck is a foundation that keeps paying off for a long time.
 
@@ -36,9 +36,9 @@ Date:   Tue Aug 11 10:00:00 2026
     Add a memo
 ```
 
-The save data you made in the previous lesson is shown, newest first (two entries if you also committed `.gitignore`, one if you didn't — either is normal). This list of accumulated save data is what Git calls the **history** — the "history" in this lesson's title. You can see that each save records **who, when, and what they did**. Your own name should appear on the Author line — the player name you set in the Git setup course is what's being used here.
+The save data you made in the previous lesson is shown, newest first (two entries if you also committed `.gitignore`, one if you didn't — either is normal). This list of accumulated save data is what Git calls the **history** — the "history" in this lesson's title. You can see that each save records **who, when, and what they did**. Your own name should appear on the Author line — the player name you set in the Git Setup Course is what's being used here.
 
-Two things you can skip right over. The long string of letters and digits to the right of `commit` is something like a serial number for the save, and **you never need to read it** (the real one is much longer than the example, and the date format differs slightly by environment. All example output in this lesson shows only the key parts). The `main` in `(HEAD -> main)` is the name of a mechanism called a "branch," which **is covered in the GitHub Fundamentals series**. Ignore it for now.
+Two things you can skip right over. The long string of letters and digits to the right of `commit` is something like a serial number for the save, and **you never need to read it** (the real one is much longer than the example, and the date format differs slightly by environment. All example output in this lesson shows only the key parts). The `main` in `(HEAD -> main)` is the name of a mechanism called a "branch," which **is covered in the GitHub Fundamentals Series**. Ignore it for now.
 
 > [!TIP]
 > When the log gets long, the screen switches over and your input can look like it stopped working. **Press the `q` key to get back.** This is the number one panic point for first-timers, so learn it in advance.

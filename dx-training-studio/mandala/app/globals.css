@@ -488,12 +488,16 @@ html[lang="en"] .nextra-sidebar::before {
   color: inherit;
 }
 
+/* ⚠ 寸法は `Mandala.tsx` の SIZES.compact と一致させること——dagre は固定寸法を
+   前提に座標を出すので、片方だけ変えると辺の接続位置がノードの縁からずれる。
+   幅と高さは「名前を切らずに見せる」から逆算した実測値: 受講形態ラベルに約 61px を
+   取られるため、タイトルに残るのは約 150px。契約の上限（半角36字）はここで最大3行になる */
 .dxm-node-compact {
   flex-direction: row;
   align-items: center;
   gap: 0.4rem;
-  width: 200px;
-  height: 52px;
+  width: 240px;
+  height: 72px;
 }
 
 .dxm-node-card {
@@ -528,12 +532,25 @@ html[lang="en"] .nextra-sidebar::before {
   line-height: 1.35;
 }
 
-/* compact は1行。長いコース名は省略し、style ラベルの居場所を残す */
-.dxm-node-compact .dxm-node-title {
+/* 名前は折り返して全体を見せる（`…` で切らない）。曼陀羅は一目で見渡すための
+   図なので、名前の一部が隠れると目的が損なわれる。
+   ⚠ 行数の上限は「契約の上限（半角36字）がその幅で何行になるか」の実測値。
+   compact はラベルに幅を取られてタイトルが約 150px しかないので 3 行、
+   ラベルの無い折りたたみノードは約 188px 取れるので 2 行で収まる。
+   ⚠ 行数を変えるときはノードの height も一緒に見直すこと */
+.dxm-node-compact .dxm-node-title,
+.dxm-node-collapsed .dxm-node-title {
   min-width: 0;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
   overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+.dxm-node-compact .dxm-node-title {
+  -webkit-line-clamp: 3;
 }
 
 .dxm-node-catch {

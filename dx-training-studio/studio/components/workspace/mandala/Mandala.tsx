@@ -32,12 +32,12 @@ import {
 } from "@/components/workspace/mandala/nodes";
 
 const SIZES = {
-  compact: { width: 200, height: 52 },
+  compact: { width: 240, height: 72 },
   // ミニ曼陀羅サムネイル。受講形態を載せないぶん compact より狭くできる。
   // ⚠ 狭いほうがよいのは、fitView が狭いグラフを大きい倍率で描くため
   // ——ノードを実寸で広く取ると、そのぶん縮小されてコース名が小さくなる。
   // ⚠ `globals.css` の `.dxm-node-thumbnail` と必ず同時に直すこと
-  thumbnail: { width: 160, height: 52 },
+  thumbnail: { width: 220, height: 56 },
   // シリーズ名・コース名・「N レッスン・約 M 分」の 3 行＋右端ラベルが収まる
   // 必要十分な寸法。キャッチを載せないぶんサイトのカード（280×140）より小さい。
   // ⚠ `globals.css` の `.dxm-node-card` と必ず同時に直すこと——dagre は固定寸法を

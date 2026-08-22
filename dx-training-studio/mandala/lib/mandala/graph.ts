@@ -124,6 +124,8 @@ export type CollapsedSeries = {
   id: string;
   seriesSlug: string;
   seriesName: string;
+  /** シリーズ名の英語。未訳ではキーを持たない */
+  seriesNameEn?: string;
   href: string;
   courseCount: number;
   lessonCount: number;
@@ -159,6 +161,9 @@ export function collapseSeries(
       id: collapsedIdOf(slug),
       seriesSlug: slug,
       seriesName: members[0]!.seriesName,
+      ...(members[0]!.seriesNameEn
+        ? { seriesNameEn: members[0]!.seriesNameEn }
+        : {}),
       href: `/${slug}`,
       courseCount: members.length,
       lessonCount: members.reduce((sum, n) => sum + n.lessonCount, 0),

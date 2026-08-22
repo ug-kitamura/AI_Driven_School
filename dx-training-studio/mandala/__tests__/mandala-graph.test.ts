@@ -127,6 +127,24 @@ describe("collapseSeries", () => {
     expect(result.nodes).toHaveLength(4);
   });
 
+  it("集約ノードはシリーズの英語名を引き継ぐ", () => {
+    const withEn: MandalaGraph = {
+      ...graph,
+      nodes: graph.nodes.map((n) =>
+        n.seriesSlug === "start"
+          ? { ...n, seriesNameEn: "Getting Started Series" }
+          : n,
+      ),
+    };
+    const result = collapseSeries(globalView(withEn), new Set(["start"]));
+    expect(result.collapsed[0]!.seriesNameEn).toBe("Getting Started Series");
+  });
+
+  it("未訳のシリーズの集約ノードは英語名のキーを持たない", () => {
+    const result = collapseSeries(globalView(graph), new Set(["start"]));
+    expect(result.collapsed[0]!.seriesNameEn).toBeUndefined();
+  });
+
   it("畳んだシリーズを1ノードに集約する", () => {
     const result = collapseSeries(globalView(graph), new Set(["start"]));
     expect(result.nodes.map((n) => n.id)).toEqual([

@@ -33,6 +33,11 @@ import {
   lessonPreviewRemarkPlugins,
 } from "@/lib/lesson-preview-markdown";
 import "@/styles/hljs/lesson-preview-hljs.css";
+import {
+  pane2ScrollKey,
+  resolvePane2ScrollTop,
+  setPane2ScrollTop,
+} from "@/lib/pane2-scroll-memory";
 
 const LessonContentEditor = dynamic(
   () =>
@@ -203,17 +208,86 @@ export function MarkdownEditorPane({
     lastCursorOffsetRef.current = 0;
   }, [lesson?.id]);
 
-  const handleScrollElementReady = useCallback((element: HTMLElement | null) => {
+  // スクロール位置は (レッスン, 編集言語, ビュー) ごとに覚える。⚠ 日本語ビューで
+  // 位置が残るのは「本文が同期描画されてスクロール要素が生き残る」偶然に過ぎず、
+  // 本文を fetch する英語ビューでは 0 に潰れていた。両言語ともこの経路を通す。
+  const scrollKey = lesson
+    ? pane2ScrollKey(lesson.id, editLanguage, mode)
+    : null;
+  // 記録用。scroll イベントが飛ぶのは effect が走ったあとなので、ここは effect で同期する
+  const scrollKeyRef = useRef<string | null>(null);
+  useEffect(() => {
+    scrollKeyRef.current = scrollKey;
+  }, [scrollKey]);
+
+  // 要素の差し替え（ビュー切替・エディタの再マウント）ごとに listener を張り替える。
+  // 記録は現在のキーへ書くだけなので throttle は要らない
+  const detachScrollRef = useRef<(() => void) | null>(null);
+  const attachScrollTarget = useCallback((element: HTMLElement | null) => {
+    detachScrollRef.current?.();
+    detachScrollRef.current = null;
     paneScrollRef.current = element;
+    if (!element) return;
+    const onScroll = () => {
+      const key = scrollKeyRef.current;
+      if (key) setPane2ScrollTop(key, element.scrollTop);
+    };
+    element.addEventListener("scroll", onScroll, { passive: true });
+    detachScrollRef.current = () =>
+      element.removeEventListener("scroll", onScroll);
   }, []);
 
+  useEffect(() => () => detachScrollRef.current?.(), []);
+
+  /**
+   * 本文が描画されたあとに呼ぶ。⚠ rAF や `scrollIntoView` を使わない——
+   * ペインが非表示のとき rAF が発火せず、復元だけが静かに効かなくなる。
+   */
+  const restoreScroll = useCallback((key: string | null) => {
+    const element = paneScrollRef.current;
+    if (!element || !key) return;
+    element.scrollTop = resolvePane2ScrollTop(key);
+  }, []);
+
+  // CodeMirror のスクロール要素を受け取る口。⚠ **編集ビューのときだけ拾う**——
+  // エディタは他のビューでも `hidden` で残り続けるので、無条件に拾うと
+  // プレビュー・差分の対象を上書きしてしまう（実機で踏んだ）。
+  // ⚠ ref コールバックは effect より先に走るので、キーは ref からではなく
+  // このレンダーの値を渡す（ref はまだ前のキーのまま）
+  const handleScrollElementReady = useCallback(
+    (element: HTMLElement | null) => {
+      if (mode !== "raw") return;
+      attachScrollTarget(element);
+      if (element) restoreScroll(scrollKey);
+    },
+    [mode, attachScrollTarget, restoreScroll, scrollKey],
+  );
+
+  // 編集ビューのスクロール要素は CodeMirror の中にあり ref で受け取れないので、
+  // ここで拾う。⚠ `raw` 以外で null を入れないこと——プレビュー・差分の要素は
+  // ref コールバック（`attachScrollTarget`）が commit 中に入れており、
+  // その後に走るこの effect で null にすると毎回打ち消してしまう。
+  // それらの解除は要素のアンマウント時に ref コールバックが null で呼ばれて起きる
   useEffect(() => {
-    if (mode === "raw") {
-      paneScrollRef.current = editorRef.current?.getScrollElement() ?? null;
-    } else {
-      paneScrollRef.current = null;
-    }
-  }, [mode, lesson?.id]);
+    if (mode !== "raw") return;
+    const element = editorRef.current?.getScrollElement() ?? null;
+    attachScrollTarget(element);
+    if (element) restoreScroll(scrollKey);
+  }, [mode, scrollKey, attachScrollTarget, restoreScroll]);
+
+  // 本文が後から届くビュー（英語プレビュー・差分）と、レッスンを切り替えたときは、
+  // スクロール要素そのものは同じなので ref コールバックが再び呼ばれない。
+  // 中身が揃った時点で明示的に復元する
+  useEffect(() => {
+    if (mode !== "inline") return;
+    if (isEnglish && enBody.state.status !== "ready") return;
+    restoreScroll(scrollKey);
+  }, [mode, isEnglish, enBody.state.status, scrollKey, restoreScroll]);
+
+  useEffect(() => {
+    if (mode !== "diff" || diffState.status !== "ready") return;
+    restoreScroll(scrollKey);
+  }, [mode, diffState.status, scrollKey, restoreScroll]);
 
   useEffect(() => {
     if (mode !== "diff" || !lesson) {
@@ -399,9 +473,7 @@ export function MarkdownEditorPane({
 
           {mode === "inline" ? (
             <div
-              ref={(el) => {
-                paneScrollRef.current = el;
-              }}
+              ref={attachScrollTarget}
               className="absolute inset-0 workspace-scrollbar overflow-y-auto overscroll-y-contain px-6 py-5"
             >
               {isEnglish && enBody.state.status !== "ready" ? (
@@ -430,9 +502,7 @@ export function MarkdownEditorPane({
 
         {mode === "diff" ? (
           <div
-            ref={(el) => {
-              paneScrollRef.current = el;
-            }}
+            ref={attachScrollTarget}
             className="absolute inset-0 workspace-scrollbar overflow-y-auto overscroll-y-contain"
           >
             {diffState.status === "loading" ? (

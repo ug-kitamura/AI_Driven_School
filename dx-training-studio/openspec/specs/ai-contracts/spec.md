@@ -43,19 +43,29 @@
 - **WHEN** `CLAUDE.md` を読む
 - **THEN** 画像契約へのリンクが `contracts/image-slot-contract.md` を指す
 
-
 ### Requirement: 翻訳契約
 
-`contracts/translation-contract.md` に、日本語正本 → 英語派生の翻訳規則を自己完結の Markdown で置かなければならない（SHALL）。最低限含める内容: **英訳するもの**（本文・画像プロンプトコメント・GitHub アラートの中身・コード内のコメント文）、**変えないもの**（URL・画像などのパス・ファイル名・コード本体・コマンド名・Markdown 構造）、**迷ったときの作法**（訳さず `<!-- 訳注: … -->` で執筆者向けコメントを残す）、**`author` / `author_en` に触れないこと**、**トーン**（教材らしい平易な英語）、**用語集**（固有名詞・訳語の統一。運用で育てる）。
+`contracts/translation-contract.md` に、日本語正本 → 英語派生の翻訳規則を自己完結の Markdown で置かなければならない（SHALL）。最低限含める内容: **英訳するもの**（本文・画像プロンプトコメント・GitHub アラートの中身・コード内のコメント文）、**変えないもの**（URL・画像などのパス・ファイル名・コード本体・コマンド名・Markdown 構造）、**迷ったときの作法**（訳さず `<!-- 訳注: … -->` で執筆者向けコメントを残す）、**`author` / `author_en` に触れないこと**、**トーン**（教材らしい平易な英語）、**名前の規則**（シリーズ名・コース名は Title Case で階層語 Series / Course を含め、レッスン名は見出しと同じ Sentence case。いずれも半角 36 字以内で、超えるときは語の短縮で収め、短縮した名前は報告する）、**用語集**（固有名詞・訳語の統一。運用で育てる。追加は人が行う）。
 
-この契約は Studio の翻訳 API（`studio-translation` capability）と翻訳スキルの両方が読む SSoT でなければならない（SHALL）——スキル側に規則の複製を持たせてはならない（SHALL NOT）。
+この契約は Studio の翻訳 API（`studio-translation` capability）と翻訳スキルの両方が読む SSoT でなければならない（SHALL）——スキル側に規則の複製を持たせてはならない（SHALL NOT）。契約の更新は人が行い、実行スキルが書き換えてはならない（MUST NOT）。
 
 #### Scenario: 契約が存在し規則を含む
 
 - **WHEN** `contracts/translation-contract.md` を開く
-- **THEN** 英訳する/変えないの規則・訳注の作法・用語集の節が含まれている
+- **THEN** 英訳する/変えないの規則・訳注の作法・名前の規則（形式と 36 字の上限）・用語集の節が含まれている
 
 #### Scenario: 翻訳 API が契約を注入する
 
 - **WHEN** Studio の翻訳 API を実行する
 - **THEN** プロンプトに契約の全文が含まれている
+
+#### Scenario: 名前の規則が Studio の翻訳にも効く
+
+- **WHEN** Studio のメタビューから「原文から翻訳」でコース名を翻訳する
+- **THEN** 生成される `name_en` は Title Case で「… Course」の形式になり、36 字を超えない
+
+#### Scenario: レッスン名は見出しと同じ大文字小文字にする
+
+- **WHEN** レッスンの `name_en` を翻訳する
+- **THEN** 先頭のみ大文字の Sentence case になり、`Series` / `Course` の階層語は付かない
+

@@ -32,11 +32,11 @@ import {
   type MandalaNodeData,
   type SeriesFrameData,
 } from "./nodes";
-import { data as siteData } from "@/lib/site-data";
+import { data as siteData, localized } from "@/lib/site-data";
 import { localizedHref, type Locale } from "@/lib/locale-path";
 
 const SIZES = {
-  compact: { width: 200, height: 52 },
+  compact: { width: 240, height: 72 },
   card: { width: 280, height: 140 },
   collapsedSeries: { width: 210, height: 72 },
   terminal: { width: 90, height: 30 },
@@ -150,9 +150,11 @@ export function Mandala({
         type: variant as keyof typeof SIZES,
         seriesSlug: node.seriesSlug,
         data: {
-          label: node.label,
+          // 英語ロケールでは英語名。未訳は日本語名へフォールバックする
+          // （ページ側の名前表示と同じ規則。止めると名無しだらけになる）
+          label: localized(node.label, node.labelEn, locale),
           href: node.href,
-          seriesName: node.seriesName,
+          seriesName: localized(node.seriesName, node.seriesNameEn, locale),
           catch: node.catch,
           lessonCount: node.lessonCount,
           totalMinutes: node.totalMinutes,
@@ -169,9 +171,13 @@ export function Mandala({
         type: "collapsedSeries" as const,
         seriesSlug: series.seriesSlug,
         data: {
-          label: series.seriesName,
+          label: localized(series.seriesName, series.seriesNameEn, locale),
           href: series.href,
-          seriesName: series.seriesName,
+          seriesName: localized(
+            series.seriesName,
+            series.seriesNameEn,
+            locale,
+          ),
           lessonCount: series.lessonCount,
           totalMinutes: series.totalMinutes,
           locale,
@@ -394,9 +400,12 @@ export function Mandala({
       <div className="dxm-mandala-toolbar">
           {seriesSlugs.map((slug) => {
             const collapsed = collapsedSlugs.has(slug);
-            const name =
-              siteData.mandala.nodes.find((n) => n.seriesSlug === slug)
-                ?.seriesName ?? slug;
+            const node = siteData.mandala.nodes.find(
+              (n) => n.seriesSlug === slug,
+            );
+            const name = node
+              ? localized(node.seriesName, node.seriesNameEn, locale)
+              : slug;
             return (
               <button
                 key={slug}

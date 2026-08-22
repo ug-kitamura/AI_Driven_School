@@ -5,6 +5,7 @@ import type { Lesson, Series } from "@/lib/schema";
 import { buildLessonId } from "@/lib/content-ids";
 import { remapSelection } from "@/lib/content-rename";
 import { deleteLessonEditorStateCache } from "@/lib/lesson-editor-state-cache";
+import { deleteLessonScrollMemory } from "@/lib/pane2-scroll-memory";
 import { lessonFileTextEquals } from "@/lib/lesson-file-text";
 import {
   applyLessonMetaPatch,
@@ -146,6 +147,7 @@ export function useLessonMutations(options: {
       debounceTimers.current.delete(lessonId);
     }
     deleteLessonEditorStateCache(lessonId);
+    deleteLessonScrollMemory(lessonId);
   }, []);
 
   const cleanupLessonOnDisk = useCallback(

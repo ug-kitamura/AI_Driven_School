@@ -3,7 +3,6 @@
 import { Handle, Position, type NodeProps } from "@xyflow/react";
 import { MapPin } from "lucide-react";
 import { COURSE_STYLE_LABELS, type CourseStyle } from "@/lib/schema";
-import { WorkspaceTooltip } from "@/components/workspace/WorkspaceTooltip";
 
 export type MandalaNodeData = {
   label: string;
@@ -85,31 +84,27 @@ function StyleLabel({ style }: { style?: CourseStyle }) {
 }
 
 /**
- * 全体曼陀羅（`compact`）とミニ曼陀羅サムネイル（`thumbnail`）で共有する 1 行ノード。
+ * 全体曼陀羅（`compact`）とミニ曼陀羅サムネイル（`thumbnail`）で共有するノード。
  *
  * 違いは密度だけなので描画は 1 つにまとめ、幅と中身は CSS とデータが持つ。
- * サムネイルは受講形態を載せず（`style` が渡ってこない）、コース名を中央にそろえる
- * ——セルが小さく、ラベルがコース名の幅を奪って省略が早く始まるため。
+ * コース名は最大 2 行に折り返して全体を見せる（CSS 側）。サムネイルは受講形態を
+ * 載せず（`style` が渡ってこない）、コース名を中央にそろえる——セルが小さく、
+ * ラベルがコース名の幅を奪うため。
  */
 export function CompactNode({ data, type }: NodeProps) {
   const d = data as MandalaNodeData;
   const variant = type === "thumbnail" ? "thumbnail" : "compact";
+  // 名前は2行に折り返して全体を見せるので、全体を見せるためのツールチップは置かない
+  // （曼陀羅の目的は一目で見渡せること。ホバーしないと読めない名前は目的に反する）。
+  // ラッパが減るぶん React Flow のノード計測に介在する DOM も減る
   return (
-    // ⚠ 生 title は使わない（Studio 既定のツールチップ規則）。トリガーは
-    // `render` 合成でノードのルート要素そのものに乗せる——DOM 階層を増やすと
-    // React Flow のノード計測（寸法・辺の接続位置）に影響しうる
-    <WorkspaceTooltip
-      label={`${d.seriesName} / ${d.label}`}
-      render={
-        <div className={nodeClass(d, variant)}>
-          <Handle type="target" position={Position.Top} isConnectable={false} />
-          <HerePin here={d.here} />
-          <span className="dxm-node-title">{d.label}</span>
-          <StyleLabel style={d.style} />
-          <SourceHandle connected={d.hasOutgoing} />
-        </div>
-      }
-    />
+    <div className={nodeClass(d, variant)}>
+      <Handle type="target" position={Position.Top} isConnectable={false} />
+      <HerePin here={d.here} />
+      <span className="dxm-node-title">{d.label}</span>
+      <StyleLabel style={d.style} />
+      <SourceHandle connected={d.hasOutgoing} />
+    </div>
   );
 }
 

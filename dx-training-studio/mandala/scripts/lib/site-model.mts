@@ -98,8 +98,12 @@ export type MandalaNode = {
   /** コース ID（無ければ href を代用） */
   id: string;
   label: string;
+  /** コース名の英語。未訳ではキーを持たない（表示側が日本語へフォールバックする） */
+  labelEn?: string;
   seriesSlug: string;
   seriesName: string;
+  /** シリーズ名の英語。未訳ではキーを持たない */
+  seriesNameEn?: string;
   courseSlug: string;
   href: string;
   catch?: string;
@@ -327,8 +331,10 @@ export function buildMandalaGraph(series: SiteSeries[]): MandalaGraph {
       const node: MandalaNode = {
         id: course.id ?? course.href,
         label: course.name,
+        ...(course.nameEn ? { labelEn: course.nameEn } : {}),
         seriesSlug: s.slug,
         seriesName: s.name,
+        ...(s.nameEn ? { seriesNameEn: s.nameEn } : {}),
         courseSlug: course.slug,
         href: course.href,
         catch: course.catch,

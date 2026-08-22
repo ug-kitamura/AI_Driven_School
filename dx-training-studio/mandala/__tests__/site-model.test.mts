@@ -241,6 +241,23 @@ describe("buildMandalaGraph", () => {
     expect(graph.nodes[0]!.style).toBeUndefined();
   });
 
+  it("英語名をノードに載せ、未訳ではキーを持たない", () => {
+    const r = root();
+    r.series[0]!.nameEn = "Git Fundamentals Series";
+    r.series[0]!.courses[0]!.nameEn = "Git Concepts Course";
+    const graph = buildMandalaGraph(buildSiteData(r).series);
+
+    expect(graph.nodes[0]).toMatchObject({
+      label: "Git概念コース",
+      labelEn: "Git Concepts Course",
+      seriesName: "Git基礎シリーズ",
+      seriesNameEn: "Git Fundamentals Series",
+    });
+    // 未訳のコースは英語名のキーを持たない（表示側が日本語へフォールバックする）
+    expect(graph.nodes[1]!.labelEn).toBeUndefined();
+    expect(graph.nodes[1]!.seriesNameEn).toBe("Git Fundamentals Series");
+  });
+
   it("同一シリーズの並びを order 辺にする", () => {
     const graph = buildMandalaGraph(buildSiteData(root()).series);
     const orderEdges = graph.edges.filter((e) => e.kind === "order");

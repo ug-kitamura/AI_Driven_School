@@ -117,18 +117,18 @@
      画像ピッカー（2.7）
 ```
 
-### 1.5 英語翻訳対応（✅ 実装完了・2026-08-22 に UX を作り直し）——パイロットに必要な知識
+### 1.5 英語翻訳対応（✅ 実装完了・2026-08-22 に作法ごと更新）——触る前に読む
 
-**位置づけ**: 4大課題ロードマップ④。器は 2026-08-21 に3本、**UX は 2026-08-22 に3本**の change で作った。すべて archive 済み。
+**位置づけ**: 4大課題ロードマップ④。器は 2026-08-21（3本）、UX は 2026-08-22（3本）、**機能ラウンドが 2026-08-22（7本）**。すべて archive 済み。
 
-| change | 中身 |
+⚠ **2026-08-22 の機能ラウンドで撤回された規則がある。** 下の「撤回済み」に当たる書き方をしているコードや文書を見つけたら、それは古い。
+
+| 撤回した規則 | 現在の規則 |
 |---|---|
-| `en-translation-foundation` | `target_en`・`en_source_hash`・鮮度判定 lib（`studio/lib/translation/freshness.ts` が正本・mandala は parity 検証つきミラー）・Pagefind の言語分離 |
-| `studio-translation-ui` | 言語ビュー切替・英語ビュー（原文併記・翻訳ボタン）・en 本文編集（自動保存）・ホーム統合翻訳・翻訳 API |
-| `translate-skill` | `/dx-training-translate` スキル（範囲指定・鮮度レポート→未翻訳/古いだけ差分翻訳・`references/scan-freshness.mts` が正本 lib を import） |
-| `studio-translation-ux` | 配置と表記の統一（本文右上 sticky ボタン列・表記統一・保存のチェックマーク）／鮮度チップと「最新として扱う」の廃止／赤字1行／モデルのギアメニュー準拠 |
-| `studio-home-simplify` | ホームの保存1本化（dirty 駆動）／AI 下書きは正本に書かない／基準日・折りたたみ・区切り線・ヒーロー UI の削除 |
-| `site-untranslated-page` | `/en` の未翻訳ページを日本語フォールバックから `Coming soon` ＋日本語版リンクへ／翻訳バッジ2種の削除 |
+| 言語切替をペイン2 の4面ヘッダーに置く | **GlobalHeader に1つだけ** |
+| 操作ボタン列は本文右上で **sticky**（スクロール追従） | メタ編集面は**見出し行に固定**（追従しない） |
+| 英語モードは編集ビュー固定 | **3ビュー（編集/プレビュー/差分）が使える** |
+| レッスン本文ヘッダーは `[言語切替][メタ編集][3ビュー]` | `[メタ編集][3ビュー]` |
 
 **パイロットの手順**（次セッション or 人）:
 
@@ -137,27 +137,68 @@
 3. `start-mandala-dev.bat` でビルド → `/en` で: 当該ページが `Coming soon` から英文に変わる・曼陀羅/サイドバーの `name_en` 表示・検索が英語索引を引くこと
 4. Studio でも: 英語ビューに訳が入っていること
 
-**作法の要点（触るときに知っておくこと）**:
+#### 言語はアプリのモード（Studio）
 
-- **配置の規則（4面共通）**: ヘッダー右端＝**言語切替だけ**（保存も鮮度チップも置かない）／本文右上に **sticky なボタン列**（`PaneActionBar`）で**左＝AI が下書きを作る・右＝人が正本に書く**。⚠ この順を面の都合で入れ替えないこと——「AI は正本に書かない」規則を配置で見せている。例外は2つだけ: レッスンメタ**モーダル**（右下 `[キャンセル][保存]`・右上 `[原文から翻訳]`）と、レッスン本文ヘッダーの `[言語切替][メタ編集][3ビュー]`
-- **翻訳ボタンの表記は全箇所「原文から翻訳」**（`translationLabels.ts` の `TRANSLATE_LABEL` が正本）。**保存の完了は `SaveButton` のチェックマーク**で、文言は対象によらず同一
+- **切替の入口は GlobalHeader に1つだけ**（曼陀羅ボタンの左・テキスト表記「英語ビューに切り替える」/「日本語ビューに戻る」・**ツールチップ無し**）。⚠ **ペイン2 の面に戻さないこと**——常時見えていることが「選択を変えてもモードが保たれる」の説明になっている
+- ⚠ **選択階層が変わってもリセットしない。** 以前は `requestSelectionChange` が `ja` へ戻していたが撤廃した。戻すと「面ごとの設定」に逆戻りする
+- **英語モードの射程は「コンテンツの名前を出す場所は全部」**——ペイン1 ツリー・曼陀羅（モーダル/ミニ）・パンくず・ペイン2 タイトル。**未訳は日本語名フォールバック**（止めると名無しだらけでナビが死ぬ）
+- ⚠ **UI 文言（ボタン・見出し・ダイアログ・エラー）は常に日本語。** 作る人は日本語話者。英語になるのはコンテンツ由来の名前と、その隣の識別ラベルだけ
+- **表示名の解決は `studio/lib/display-name.ts` が正本**（`resolveDisplayName` と階層別ヘルパー）。⚠ フォールバック規則を呼び出し側に複製しない。⚠ **UI 文言をこの関数に通さない**——射程の線引きを「この関数を通るかどうか」で表している。⚠ **並べ替え・選択・API のパス解決には使わない**（名前の正本はフォルダ名のまま）
+- **ペイン2 バッジの英語は `Home` / `Series` / `Course` / `Lesson`**（`metaDialogLayout.tsx` の `paneKindLabel`）。`Home` は公開サイトの呼称（`mandala/scripts/lib/emit.mts` の `homeLabel`）に合わせた。⚠ `All` / `Top` / `Overview` のような**システムのどこにも無い語を持ち込まない**
+
+#### 配置と操作（Studio）
+
+- **メタ編集面（全体/シリーズ/コース）は本文冒頭の見出し行**——左にタイトル・右にボタン列。⚠ **スクロール追従させない**（実機で「ついてくるのが違和感」と判明して廃止。`PaneActionBar` の `sticky` variant は削除済み・戻さない）
+- **見出しのタイトルは6種**（`全体/シリーズ/コースメタを編集` ＋英語ビューは `（英語）`。`metaViewHeading`）。⚠ **UI 文言なので英語モードでも日本語**
+- **レッスン本文の英語ビューだけは `overlay`**（本文に重ねる）。CodeMirror が独自スクロールを持ち、一緒に流すと画面外へ出るため。この variant は残す
+- **ボタンの並びは左＝AI が下書き／右＝人が正本に書く**で全面固定。⚠ 面の都合で入れ替えない。例外はレッスンメタ**モーダル**（右下 `[キャンセル][保存]`・右上 `[原文から翻訳]`）だけ
+- **英語メタビューのボタン列は `EnMetaActionBar`**（3面共有）。`EnMetaSection` に `hideActionBar` ＋ `onControlsReady` を渡して親が描く——**赤字1行も親が出す**（モーダルと同じ「親が両方持つ」流儀）
+- **翻訳ボタンの表記は全箇所「原文から翻訳」**（`TRANSLATE_LABEL` が正本）。**保存ボタンは待機時 `Save` アイコン・完了で `Check`**（同じ席を切り替えるので幅は動かない）
+- **ツールチップは `WorkspaceTooltip`（黒）が Studio 既定。** ⚠ **生 `title` 属性を使わない**（遅延・見た目・タッチ挙動が環境任せになる）。⚠ **テキスト併記のボタンには付けない**（GlobalHeader のメニューは表記が説明を兼ねる）
+- **レッスン英語ビューは3ビューとも使える。** ⚠ **ビューと言語は独立した軸**なので、言語切替で `mode` をリセットしない。差分の対象は `contents.en.md`（初回翻訳は全文追加・未訳は「差分なし」でエラーにしない）
+- **プレビューのラベル語彙は `studio/lib/lesson-label-locale.ts` と mandala `lib/site-data.ts` の両方が正本。** ⚠ **parity テストが落ちたら片方だけ直さない。** 実行時依存は張らず（mandala を import しない）、突き合わせはテストだけ——生成 JSON は `vitest.config.ts` のテスト専用 alias でスタブに差し替えている。著者名は双方向フォールバック（en: `author_en`→`author` / ja: 逆）
+
+#### 検索（Studio）
+
+- **検索対象は編集言語に連動する**（`/api/content/search` の `lang`・省略時 `ja`）
+- 英語モードの名前照合は **`name_en` と日本語名の OR**。⚠ ツリーは未訳を日本語名で出しているので、**画面に見えている文字列で引けないと探し物として破綻する**
+- 英語モードの本文照合は `contents.en.md` **のみ**。⚠ **日本語本文へフォールバックしない**——英語ビューに存在しない一致で絞ると、開いた先でハイライトが空振りする
+- 名前フィルタ（クライアント側）も同じ土台（`filterSeriesByName` に言語を渡す）を通す——表示と検索がずれない構造にしてある
+
+#### 鮮度・進捗（不変の規則）
+
 - **鮮度はハッシュ方式**（spec `translation-freshness` が正本）: 本文は `contents.en.md` 1行目の `<!-- source: sha256:… -->`、メタは `.meta.json` の `en_source_hash`、changelog は日英の先頭エントリ日付比較。⚠ **ハッシュを書くのは翻訳の実行だけ**——手編集の保存は既存ハッシュを維持する（触らない）。**「最新として扱う」は廃止した**ので、手直し後に警告を消したければ「原文から翻訳」を実行し直す
+- ⚠ **欠落フィールド（`_en` の未記入）は鮮度とは別の軸。** 鮮度が `fresh` でも出る——`hasEnValues` は「1つでも埋まっていれば真」なので、部分的な記入は鮮度から見えない。判定の正本は `studio/lib/translation/freshness.ts` の `listMissingEnFields` / `EN_META_KEYS`（階層→`_en` キーの対応表もここ。⚠ 走査スクリプトや UI に書き写さない）。原文が空のフィールドは欠落に数えない（訳しようがない）
 - **翻訳が古いことの伝え方は1か所だけ**: **Studio ペイン2 英語ビュー本文上部の赤字1行**（`StaleTranslationNotice`）。日本語ビューには出さない。**公開サイトには一切出さない**——受講者は対処できないから（鮮度維持はトレーナーの責務）。⚠ サイトの鮮度判定ミラーと parity テストは**残してある**（`stale` が未使用でも消さないこと。ハッシュ形式のズレを検知する安全網）
 - **未翻訳ページは `Coming soon` ＋日本語版リンク**（`emit.mts` の `untranslatedPlaceholder`）。⚠ **日本語本文へフォールバックしない**——Pagefind が索引するのは生成 HTML なので、ファイルに日本語を書いた時点で英語索引が汚染される（実行時のコンポーネント分岐では直せない）。⚠ **名前・説明・キャッチ・受講対象者は日本語フォールバックを維持**（止めると曼陀羅とサイドバーが同じ文字列だらけになりナビが死ぬ）
+
+#### スキル（translate / review）
+
+- **走査（`scan-freshness.mts`）は引数によらず常に `contents/` 全体。** 範囲引数は「今回処理する対象」の印（各ユニットの `inScope`）で、⚠ **走査を絞らない**——絞ると「あと何件残っているか」の分母が範囲ごとに変わって進捗が読めない
+- **集計は本文とメタを分ける。** ⚠ 合算しない（本文1本と `name_en` 1個では作業量が桁違いで、混ぜた数は見積もりに使えない）
+- **完了報告は実行前後の進捗比較を出す**（フェーズ3 の走査出力を保持し、フェーズ5 の再走査と並べる。走査を追加実行しない）
+- ⚠ **受講者目線の通し読みには原文を渡さない。** `contents.en.md` **だけ**を渡す——原文・`translation-contract.md`・用語集を渡した瞬間、「原文がこうだからこの英語で正しい」と読めてしまい不自然さに気づけなくなる。**渡さないことが検査の設計そのもの**。translate フェーズ5（1レッスン内の読みづらさ）と review の U 検査（公開前）の両方に効く
+- **`dx-training-review` が英語版も検査する。** 言語は聞かず、英語版があれば自動で対象（深さの2択は不変）。⚠ **`name_en` の重複は blocking**（別々に訳した名前が英語で潰れる事故は訳文単体からは見えない）／長さ超過・未訳・欠落は **advisory**（サイトが `Coming soon` として設計どおり扱うため実害ではない）。**リリース可否は言語別**に出す——日本語は通過・英語は見送り、が正常な結果
+- ⚠ 鮮度・未訳・欠落の判定は review 側に書き写さず、**`scan-freshness.mts` を実行して得る**
 - **翻訳規則の SSoT は `contracts/translation-contract.md`**（英訳する/変えない・訳注 `<!-- 訳注: … -->`・用語集）。Studio の翻訳 API とスキルの両方が読む——**規則をどちらかに複製しないこと**
-- ⚠ **`author` / `author_en` は翻訳が触らない**（英語ビューで手編集のみ）。構造キー（id/order/slug/cross_series/is_start/is_goal）も不可侵。agent 書込ガードは `en_source_hash` を `id` と同じ既存値保護にしてある（鮮度偽装防止）
-- **モデルはギアメニューの選択に従う**（`x-ai-model` → `AI_MODEL` env → 既定）。⚠ **Sonnet 5 固定は撤回した**——`lib/translation/llm.ts` に固定値を戻さないこと。未対応モデル（`gpt-5-nano`）は他の AI 機能と同じ `resolveAiModel` が弾く
-- ⚠ **英語ビューの保存は専用経路 `PUT /api/content/meta-en`**。既存 save-course は target/cross 系を常時明示送信する規約なので流用すると日本語側を壊す（design 追記に経緯）
+
+#### そのほか（不変）
+
+- ⚠ **`author` / `author_en` は翻訳が触らない**（英語ビューで手編集のみ。フォームに「著者名は自動翻訳出来ません」の注記あり）。構造キー（id/order/slug/cross_series/is_start/is_goal）も不可侵。agent 書込ガードは `en_source_hash` を `id` と同じ既存値保護にしてある（鮮度偽装防止）
+- **モデルはギアメニューの選択に従う**（`x-ai-model` → `AI_MODEL` env → 既定）。⚠ **Sonnet 5 固定は撤回した**——`lib/translation/llm.ts` に固定値を戻さないこと
+- ⚠ **英語ビューの保存は専用経路 `PUT /api/content/meta-en`**。既存 save-course は target/cross 系を常時明示送信する規約なので流用すると日本語側を壊す
 - **ホームの保存は1つだけ**で、全体メタと changelog をまとめて確定する。⚠ **dirty なものだけ書く**——触っていない changelog へ PUT を投げると、楽観ロックのせいで「名前を直しただけなのに履歴の競合で失敗する」になる
-- ⚠ **`/en` の `<html lang>` は postbuild（`mandala/scripts/set-en-lang.mts`）が書き換える**。Pagefind はこれで言語別索引を分離するので、**postbuild の順序（lang 書き換え → Pagefind）を崩さないこと**。検索 UI の索引言語は「最初に検索を開いた時点の lang」で決まる既知の限界あり（README）
+- ⚠ **`/en` の `<html lang>` は postbuild（`mandala/scripts/set-en-lang.mts`）が書き換える**。Pagefind はこれで言語別索引を分離するので、**postbuild の順序（lang 書き換え → Pagefind）を崩さないこと**。検索 UI の索引言語は「最初に検索を開いた時点の lang」で決まる既知の限界あり（README）。**サイドバー最上部の更新日行も `<html lang>` で日英を切り替える**（CSS 変数2本を body に注入し `html[lang="en"]` で選ぶ。JS を足さない）
 - **状態は日英共有**（status に `_en` は無い）——未完成レッスンの英語版は自動で「作成中 / in progress」表示。未完成も翻訳対象（スキルは status で絞らない）
 - **ヒーロー画像の編集 UI は消したが `hero` フィールドは生きている**——`.meta.json` に手で書けば公開サイトに効く（PUT の「省略＝保全」規約で消えない）
 
-**参照すべき正本**: spec `translation-freshness` / `studio-translation` / `studio-changelog-editor` / `training-translate-skill`・`publishing-site-build`（未翻訳ページ・検索言語分離）・`publishing-meta-fields`（`target_en` / `en_source_hash`）・`workspace-meta-views`（ボタン列の配置）。実装の経緯は archive の `2026-08-21-en-translation-foundation` / `-studio-translation-ui` / `-translate-skill` / `-studio-translation-ux` / `-studio-home-simplify` / `-site-untranslated-page` の design.md。
+**参照すべき正本**: spec `translation-freshness` / `studio-translation` / `studio-changelog-editor` / `training-translate-skill` / `training-review-skill`・`unified-content-tree`（検索の言語連動）・`workspace-meta-views`（見出し行・バッジ・プレビューのラベル行）・`training-studio-workspace-ui`（GlobalHeader の並び・ツールチップ既定）・`publishing-site-build`（未翻訳ページ・検索言語分離）・`publishing-site-deployment`（更新日行の言語別表記）・`publishing-site-pages`（受講順ビジュアル）・`publishing-meta-fields`。実装の経緯は archive の `2026-08-21-*` と `2026-08-22-*` の design.md。
 
 ### リポジトリの状態
 
-ブランチは作業の区切りで変わる（⚠ **`git branch --show-current` を信じること**）。2026-08-22 時点は **`dx-english-translation`**（main から分岐。英語翻訳対応の change 6本一式を push 済み・PR は人）。前ブランチ `dx-ebex-pink-search-mandala` は PR #156 で main へマージ済み。⚠ **コミットするならブランチを切ってから**。コミットの作法は 6.3、横から入るコミットの話は7章。
+ブランチは作業の区切りで変わる（⚠ **`git branch --show-current` を信じること**）。2026-08-22 時点は **`dx-english-translation`**（main から分岐。英語翻訳対応の change 13本一式）。⚠ **コミット済みだが未 push（origin より4コミット先行）**——`git log origin/<branch>..HEAD --oneline` で確かめること。push と PR は人。前ブランチ `dx-ebex-pink-search-mandala` は PR #156 で main へマージ済み。⚠ **コミットするならブランチを切ってから**。コミットの作法は 6.3、横から入るコミットの話は7章。
+
+⚠ 未追跡の `.claude/worktrees/` が残っている（無害・追跡対象外）。`git status` で毎回出るが、消さなくてよい。
 
 **フォルダ構成は 2026-08-16 に兄弟構成へ移行した**（change `restructure-studio-mandala`）。`dx-training-studio/` は入れ物になり、アプリは `studio/`（旧直下）と `mandala/`（旧 `site/`）、正本（`contents/` `images/` `contents-work/` `local-db/`）と共通（`.claude/` `openspec/` `docs/` `contracts/`）は入れ物直下のまま。構造の要件は spec `project-layout` が正本。起動は入れ物直下の `start-studio(-dev).bat` / `start-mandala(-dev).bat`。
 
@@ -534,6 +575,8 @@ references/model-answer/
 - ⚠ **Studio 実行中は `contents/` 配下が横から書き換わる。** loader が `.meta.json` に `id` を採番し `order` を整理する。ペイン4 での画像挿入も同様。**編集前に外部変更を確認する**
 - ⚠ **テストの前に dev サーバーを止める。** ただし `compileCss`（`inline-html-assets.test.ts`）は**止めても全体実行では5秒タイムアウトで落ちる**（単体なら 411ms）。実装の異常ではなくマシン負荷
 - ⚠ **`npm run build` の前にも dev サーバーを止める。** 同じ `.next` を使うため、動かしたままだとロックで「A next build still in progress」と出て**古い `out/` のまま**になる。このとき**ビルドは失敗したのに測定だけ進むと誤った結論に至る**ので、ビルド出力の成功行（`✓ Generating static pages (37/37)`）を必ず確認する
+  - ⚠ **逆順（build のあとに dev を立てる）でも詰まる**（2026-08-22 実測）。`.next/dev/prerender-manifest.json` が EBUSY になり、全ページが 500。**`.next` を消して立て直しても解けないことがある**
+  - **そのときは静的 `out/` を別ポートで配信して検証するほうが速い**（`npx serve out -l <別ポート>` → `preview_start` に `url` を渡す）。postbuild 済みなので `<html lang>` も Pagefind も正しく、**検証対象としてはむしろ忠実**
 - ⚠ **dev サーバーは `content/site-data.json` をプロセス起動時に取り込む。** 正本を書き換えて `npm run build` し直しても、稼働中の dev サーバーには反映されないことがある（2026-08-15 に「Goal が出ない」と誤診しかけた）。**表示が合わないときはサーバーを立て直してから疑う**
 - ⚠ **`_meta` ファイルの追加・拡張子変更も dev サーバーの再起動が要る**（2026-08-15 実測）。ページマップは起動時に組まれるので、`_meta.js` → `_meta.tsx` の入れ替えは HMR で拾われず、**コンポーネントの変更だけが反映されて「一部だけ効いている」状態に見える**——実装の異常と誤診しやすい。`npm run build` の出力（`out/` の HTML）で確かめるほうが速い
 - ⚠ **ブラウザペインでは React Flow の辺が描画されない。** ノードの実測（ResizeObserver / rAF）が完了するまでノードは `visibility: hidden` で辺も描かれず、**ペイン非表示だと計測が完了しない**。辺が0件・fitView 未適用（`scale(1)` のまま）に見えても実装の異常ではない。同様に **Base UI の Select はポップアップが座標を持たず操作できない**。機構はメモリ `project-browser-pane-verification-limits`
@@ -548,6 +591,9 @@ references/model-answer/
     - **見分け方**: 同じ class を持つ要素を `createElement` で新しく作って同じ場所に挿し、値を比べる。**新規ノードは遷移を開始しないので最終値を返す**——食い違えば凍結、一致すれば本物のバグ。`cloneNode(true)` でも同じ
     - `transition-all` を持つ shadcn の `Button` は全部この影響下にある。**ヘッダー・ツールバーの色を測るときは必ず transition を切る**
   - ⚠ **HMR 後の DOM は信用しない。** ツリーペインが丸ごと消えた状態が観測されたが、`navigate` で再読込したら正常だった。**「要素が無い」と判断する前に一度リロードする**
+  - ⚠ **ペインのコンソールは編集途中のエラーを保持し続ける**（2026-08-22 に2回誤診しかけた）。import を足す前のコンパイル結果（`WorkspaceTooltip is not defined` / `Unexpected token` / 依存配列のサイズ変化）が、**ソースを直してリロードした後も残って見える**。`read_console_messages` は蓄積されたバッファを返すので、**いま壊れている証拠にならない**
+    - **見分け方**: ①エラーが指す**行番号が現在のファイルの行数と食い違っていたら古いバッファ**（437行のエラーに対し実ファイルは469行、など）②`console.error` をその場で差し替えて**その後に新規で出るかを見る**（フルロード後に0件なら過去分）
+    - **確証の取り方は3点一致**: `tsc --noEmit` が通る／テストが通る／実機で新しい挙動が観測できる。この3つが揃えば現在の実装は正しい。コンソールの赤だけで実装を疑わない
   - ⚠ **CSSOM を書き換えて `getComputedStyle` で確かめる検証は成立しない**（2026-08-21 に1時間溶かした）。`rule.selectorText` や `rule.style.setProperty()` を変えても**読み出しが古い値のまま返る**（ペインが再計算を走らせないため）。「hide ルールを `opacity: 1 !important` に書き換えたのに 0 のまま」という**辻褄の合わない結果**になり、CSS の詳細度を延々と疑うことになる。**`:hover` の効きを確かめたいときは、配信 CSS のテキストを `fetch` して読み、詳細度を手で数えるほうが速くて確実**
   - ✅ **「クラスを付け外して前後を比べる」は成立する**（2026-08-21 に有効性を確認）。CSSOM の書き換えと違い、**要素の `classList` 変更やインラインスタイルはレイアウトを再計算させる**ので `getComputedStyle` が新しい値を返す。ラウンド10 ではこれで**バグの再現と修正の両方を同時に証明**できた（`dxm-mandala-fill` を外して `height:100%` を直接与えると 0px、戻すと 226px）。**テーマの切り替えも `html.classList` の付け外しで測れる**（ライト／ダーク／ピンクを 1 回のスクリプトで比較できる）
   - ✅ **「相手のアプリを同時に立てて実測値を突き合わせる」が一番強い**（2026-08-21）。ラウンド10 の色合わせでは、期待値の算術ではなく**サイト（3002）と Studio（3001）を並べて `getComputedStyle` を読んだ**。その結果 **Start/Goal の色は「変更しない」が正解**だと分かって決定が覆った——サイトの `opacity: .75` は Nextra の本文色（スレート系）に掛かっており、同じ式を Studio の `--foreground`（ほぼ黒）に当てると濃くなりすぎる。**式を移すのではなく、実効値を突き合わせること**
@@ -560,7 +606,8 @@ references/model-answer/
   - ⚠ **React の dev 専用の警告・エラー全文は本番ビルドでは出ない。** `Element type is invalid` の詳細メッセージなどを追うときは **`npm run dev` で確認する**（`npm run start` の静的配信では出ない）
 - **dev サーバーは同一プロジェクトで1台まで**（Next 16）。検証用に立てたら必ず止める（放置 → EBUSY ロック → 起動不能の事故あり）
 - **`.gitignore` のパターンは必ず anchored**（`/images/` `/mandala/out/`）。非 anchored だと任意の深さにマッチし、**Tailwind のソース走査から `components/` 配下が丸ごと落ちて UI が崩れる**。変更したら **`.next` を削除する**。機構はメモリ `project-tailwind-gitignore-trap`
-- **CRLF + BOM のファイルがある**（`__tests__/hooks/*.test.ts` 等）。LF 前提の文字列置換が黙って空振りするので、複数行の編集は Edit ツールを使う
+- **CRLF + BOM のファイルがある**（`__tests__/hooks/*.test.ts`・`__tests__/components/*.test.tsx` 等）。LF 前提の文字列置換が**黙って空振りする**ので、複数行の編集は Edit ツールを使う。⚠ 2026-08-22 に `node -e` の `String.replace` で2回踏んだ——**エラーにならず「置換したつもり」で進む**のが厄介。node で一括置換したときは**必ず結果を grep で確かめる**（`replace` の戻りが元と同じなら失敗、を検知する）
+- ⚠ **vitest の alias は配列形式で順序を明示する**（`resolve.alias: [{find, replacement}, …]`）。オブジェクト形式や、広いプレフィックス（`@`）を先に置くと、**より限定的な別名（`@/content/site-data.json`）が食われて解決されない**。ラベル語彙の parity テストがこれに依存している（→ 1.5 節）
 
 ---
 
@@ -657,6 +704,7 @@ Vercel 上の Studio は**社内に見せるための読み取り専用デモ**�
 
 | 項目 | 状況 |
 |---|---|
+| **「細かい課題」の中身** | ⚠ **未記録**。2026-08-22 の機能ラウンド後にユーザーが見つけたもので、「次のセッションで聞く」と本人が決めた（書き忘れではない）。**セッション冒頭で聞く**（→ 1章） |
 | **Vercel の設定** | プロジェクト作成と git 連携解除 / Secrets 3本 / 登録後の手動実行で preview URL 確認。**コード側は完成、人の作業が未実施**（2.3）。⚠ 登録までは手動実行しても「スキップして緑」で未検証のまま |
 | **タグパターンを揃えるか** | ワークフロー `v*` / environment `v*.*.*` が不一致。`v6` 形式のタグでビルド後に deploy だけ拒否される。**揃えるならワークフロー側を `v*.*.*` に狭める**（2.3）。未判断 |
 | **main push での preview 配信（3段構成）を足すか** | feature=確認 / main=リリース確認 / タグ=本番、の3段は今回見送った。Vercel の運用が固まってから判断（2.3） |
@@ -671,16 +719,17 @@ Vercel 上の Studio は**社内に見せるための読み取り専用デモ**�
 
 ### 掃除の候補（急がない・実害なし）
 
-**Studio のテスト**（2026-08-21 時点で **1093 passed / 6 skipped・失敗ゼロ** / mandala は別途 **108 passed**）:
+**Studio のテスト**（2026-08-22 時点で **1204 passed / 6 skipped・失敗ゼロ** / mandala は別途 **141 passed**）:
 
 - ✅ `extract-markdown-block` — フィクスチャ化して解消（2026-08-21）。正本 `contents/` への依存を切り、当該メッセージを `__tests__/fixtures/create-draft-session-message.json` に同梱した。**contents-old を削除しても壊れない**
-- `compileCss` — 全体実行で5秒タイムアウトになることがある（**dev を止めても落ちる**。単体なら 411ms ＝純粋にマシン負荷）。**同じ日の実行でも通ったり落ちたりする**（2026-08-19 に両方観測）——負荷次第
+- `compileCss` — 全体実行で5秒タイムアウトになることがある（**dev を止めても落ちる**。単体なら 400ms 前後 ＝純粋にマシン負荷）。**同じ日の実行でも通ったり落ちたりする**（2026-08-19・2026-08-22 に両方観測）——負荷次第。⚠ **全体実行でこれ1件だけ落ちたら、単体で回して確かめてから騒ぐ**
 
 **型・設定**:
 
 - ✅ **`tsc --noEmit` が site を巻き込む問題は構造ごと解消**（兄弟構成化で `exclude: ["site"]` 自体を削除。→ 2.3）
 - テスト側の型エラー8件（`estimatedMinutes` の綴り違い等）——**すべて古くから**。site 側は0件（クリーンを保つこと）
-- ⚠ **`npm run lint`（Studio）は全体で 9 errors 出るが、すべて既存分**（2026-08-21 に13件のうち「effect が正解」の4件を理由付き抑制で閉じた）。残りは `react-hooks/set-state-in-effect`（派生 state を effect で複製している形）8件と `Mandala.tsx` のレンダー中 ref 代入1件。**内訳と直し方の見立ては memory `project-dx-studio-lint-debt`**——state の持ち方を変えるリファクタが要り、対象がエディタ・Workspace という壊れると痛い層なので、やるなら explore から。**自分の変更が増やしていないかは「変更したファイルだけに `npx eslint` をかける」で確かめる**——全体の件数で判断すると既存分に埋もれる。⚠ 抑制コメントは**エラー行の直前**に置く（依存配列の直前だと外れて Unused directive 警告が同時に出る）
+- ⚠ **`npm run lint`（Studio）は全体で 9 errors 出るが、すべて既存分**（2026-08-21 に13件のうち「effect が正解」の4件を理由付き抑制で閉じた。**2026-08-22 の機能ラウンド後も 9 errors のまま＝増やしていない**）。
+- **死んだ props が3件**（`onEditLanguageChange` が未使用・warning）: `WorkspaceMetaView` / `SeriesMetaView` / `CourseMetaView`。2026-08-22 に言語切替を GlobalHeader へ移した際、**props だけ残った**。⚠ 消すときは `Workspace.tsx` の呼び出し側も一緒に。機械的で安全だが、この3面は英語ビューの配線が集中しているので**ついでに他を触らないこと**残りは `react-hooks/set-state-in-effect`（派生 state を effect で複製している形）8件と `Mandala.tsx` のレンダー中 ref 代入1件。**内訳と直し方の見立ては memory `project-dx-studio-lint-debt`**——state の持ち方を変えるリファクタが要り、対象がエディタ・Workspace という壊れると痛い層なので、やるなら explore から。**自分の変更が増やしていないかは「変更したファイルだけに `npx eslint` をかける」で確かめる**——全体の件数で判断すると既存分に埋もれる。⚠ 抑制コメントは**エラー行の直前**に置く（依存配列の直前だと外れて Unused directive 警告が同時に出る）
 
 **死んだコード・古い記述**:
 

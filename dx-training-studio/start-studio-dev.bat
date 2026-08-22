@@ -1,22 +1,42 @@
 @echo off
 cd /d "%~dp0studio"
 
-if not exist node_modules (
-  echo [DX Training Studio] node_modules not found. Running npm install...
-  call npm install
+REM Guard on node_modules\.bin\next.cmd, NOT on the node_modules directory itself.
+REM A directory that exists but is broken (e.g. .bin wiped out) slips past a presence
+REM check, and the next npx call then falls through to PATH and reports something two
+REM steps away from the real cause -- that is how a missing .bin surfaced as
+REM "'playwright' is not recognized as an internal or external command".
+REM next.cmd is what dev/build actually invoke, so it is the right sentinel.
+REM NOTE: this checks a single file, so a partial break that keeps next.cmd is not caught.
+if not exist "node_modules\.bin\next.cmd" (
+  echo [DX Training Studio] Dependencies are missing or broken. Reinstalling with npm ci...
+  call npm ci
   if errorlevel 1 (
-    echo npm install failed. Please check Node.js installation.
-    pause
-    exit /b 1
+    echo [DX Training Studio] npm ci failed. package-lock.json may be out of sync with package.json.
+    echo [DX Training Studio] Falling back to npm install...
+    call npm install
+    if errorlevel 1 (
+      echo.
+      echo [DX Training Studio] Failed to install dependencies. Startup aborted.
+      echo   1. Check Node.js:  node -v
+      echo   2. Check your network connection
+      echo   3. Then run  npm ci  in dx-training-studio\studio
+      pause
+      exit /b 1
+    )
   )
 )
 
+REM Playwright is used only by diagram image rendering (lib/render-diagram-capture.mjs).
+REM The app does not need it to boot, so a failure here must NOT stop startup.
 echo [DX Training Studio] Checking Playwright Chromium...
 call npx playwright install chromium
 if errorlevel 1 (
-  echo Failed to install Playwright Chromium. Please check Node.js and network.
-  pause
-  exit /b 1
+  echo.
+  echo [DX Training Studio] WARNING: Playwright Chromium is not ready.
+  echo   Startup continues. Only diagram image rendering will be unavailable.
+  echo   To fix later, run  npx playwright install chromium  in dx-training-studio\studio
+  echo.
 )
 
 powershell -NoProfile -Command "try { exit ([int]-not((Invoke-WebRequest -Uri 'http://localhost:3001/' -UseBasicParsing -TimeoutSec 3).StatusCode -eq 200)) } catch { exit 1 }"

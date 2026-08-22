@@ -336,7 +336,9 @@ changelog セクションのラベルは `Changelog` としなければならな
 
 英語プレビューのメタラベル行は、公開サイトの英語ページと同じ語彙で表示しなければならない（SHALL）——状態は `open` / `in progress`（`done` は非表示）、所要時間は `N min`、受講形態は style 値そのまま（`self-study` 等）、著者ラベルは `author:`。著者の値は英語ビューでは `author_en` → `author`、日本語ビューでは `author` → `author_en` の双方向フォールバックとする（SHALL）。
 
-日英の語彙表は Studio 側に持ち、公開サイトの実装（`mandala/lib/site-data.ts`）と食い違わないことを **parity テストで検証しなければならない**（SHALL）——アプリ間の実行時依存を張ってはならず（SHALL NOT）、突き合わせはテストに限る（鮮度判定 lib と同じ作法）。
+日英の語彙表は Studio 側に持ち、公開サイトの実装と食い違わないことを **parity テストで検証しなければならない**（SHALL）——アプリ間の実行時依存を張ってはならず（SHALL NOT）、突き合わせはテストに限る（鮮度判定 lib と同じ作法）。
+
+突き合わせ先は `mandala/lib/site-labels.ts` としなければならない（SHALL）。公開サイトの語彙の正本はこのモジュールに置き、生成物 JSON（`mandala/content/site-data.json`）へ依存させてはならない（SHALL NOT）——テストが越境で読むファイルは Studio 側の `tsconfig.json` で単独に型検査が通る必要があるため（`project-layout` の越境要件）。`mandala/lib/site-data.ts` は公開サイト内の既存の呼び出し元のために、これらを再エクスポートしてよい（MAY）。
 
 #### Scenario: 英語プレビューのラベル行
 
@@ -348,3 +350,7 @@ changelog セクションのラベルは `Changelog` としなければならな
 - **WHEN** mandala 側の状態ラベルの英語だけを変更する
 - **THEN** Studio の parity テストが失敗する
 
+#### Scenario: parity テストが生成物を必要としない
+
+- **WHEN** `mandala/content/` が存在しない状態で Studio の parity テストを実行する
+- **THEN** テストが実行でき、生成物のスタブへの差し替えを必要としない

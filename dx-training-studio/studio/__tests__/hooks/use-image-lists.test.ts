@@ -49,10 +49,11 @@ describe("useImageLists", () => {
     }));
     vi.stubGlobal("fetch", fetchMock);
 
+    type Props = { activeTab: "used" | "ai" };
+    const initialProps: Props = { activeTab: "used" };
     const { rerender } = renderHook(
-      ({ activeTab }: { activeTab: "used" | "ai" }) =>
-        useImageLists({ pane4Open: true, activeTab }),
-      { initialProps: { activeTab: "used" as const } },
+      ({ activeTab }: Props) => useImageLists({ pane4Open: true, activeTab }),
+      { initialProps },
     );
 
     await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));

@@ -50,7 +50,10 @@ describe("file-attachments", () => {
       tmpDir,
       ".claude/skills/create-draft/SKILL.md",
     );
-    expect(resolved.error).toContain("許可されていないパス");
+    expect("error" in resolved).toBe(true);
+    if ("error" in resolved) {
+      expect(resolved.error).toContain("許可されていないパス");
+    }
   });
 
   it("reads allowed markdown files", () => {

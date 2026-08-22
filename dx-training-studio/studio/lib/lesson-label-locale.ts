@@ -4,7 +4,7 @@ import type { EditLanguage } from "@/lib/display-name";
 /**
  * プレビューのメタラベル行の語彙（studio-translation spec）。
  *
- * ⚠ **公開サイト（`mandala/lib/site-data.ts`）と一致していなければならない。**
+ * ⚠ **公開サイト（`mandala/lib/site-labels.ts`）と一致していなければならない。**
  * Studio のプレビューは「デザインは公開サイトのレッスンページのラベル行と同一」を
  * 宣言しており、語彙が割れるとその宣言が嘘になる。突き合わせは parity テストが
  * 担保する（`__tests__/lib/lesson-label-locale.parity.test.ts`）——

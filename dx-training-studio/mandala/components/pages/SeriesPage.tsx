@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { HeroTitle } from "@/components/pages/HeroTitle";
+import { TitleWithCatch } from "@/components/pages/TitleWithCatch";
 import {
   formatMinutes,
   localized,
@@ -46,13 +47,16 @@ export function SeriesPage({
             className="dxm-card"
           >
             <span className="dxm-card-title">
-              {localized(course.name, course.nameEn, locale)}
+              <TitleWithCatch
+                title={localized(course.name, course.nameEn, locale)}
+                catchCopy={localizedOptional(
+                  course.catch,
+                  course.catchEn,
+                  locale,
+                )}
+                catchClassName="dxm-card-catch"
+              />
             </span>
-            {course.catch && (
-              <span className="dxm-card-catch">
-                {localizedOptional(course.catch, course.catchEn, locale)}
-              </span>
-            )}
             {course.description && (
               <span>
                 {localizedOptional(

@@ -44,7 +44,7 @@ A UI mock of the initial VSCode screen. A vertical activity bar on the far left 
 Matching the real screen matters for this diagram. If the generated quality is poor, use a screenshot instead.
 -->
 
-![UI mock of the initial VSCode screen (activity bar, Explorer, editor)](images/vscode-initial-screen-ui-mock.png)
+![UI mock of the initial VSCode screen with activity bar, Explorer sidebar and editor marked 1, 2, 3](images/vscode-initial-screen-ui-mock-2.png)
 
 The numbers in the diagram match the numbers in the table below. Getting a feel for where things are is enough.
 

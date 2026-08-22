@@ -8,8 +8,9 @@
     "setup"
   ],
   "estimated_minutes": 15,
-  "author": "Kitamura",
+  "author": "北村",
   "name_en": "Installing and setting up Git",
   "description_en": "Request and install Git through the internal installation system, set your name and email, and get to the point where you can run commands",
-  "en_source_hash": "sha256:9cff6fb645fce62914b35d0123a592064830d511ccc8ddce2c804cf5659cdb87"
+  "en_source_hash": "sha256:9cff6fb645fce62914b35d0123a592064830d511ccc8ddce2c804cf5659cdb87",
+  "author_en": "Kitamura"
 }

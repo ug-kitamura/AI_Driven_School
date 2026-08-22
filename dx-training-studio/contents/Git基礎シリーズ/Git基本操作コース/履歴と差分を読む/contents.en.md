@@ -80,7 +80,7 @@ A UI mock of the VSCode diff comparison screen. In the activity bar on the far l
 Matching the real screen matters for this diagram. If the generated quality is poor, use a screenshot instead.
 -->
 
-![The VSCode diff comparison screen, with memo.txt opened from Source Control](images/vscode-diff-view-mock.png)
+![VSCode window showing the Source Control sidebar with memo.txt under Changes and a side-by-side diff of memo.txt with re](images/vscode-diff-view-mock-2.png)
 
 _Source: [Visual Studio Code documentation, "Source Control"](https://code.visualstudio.com/docs/sourcecontrol/overview) (retrieved August 2026)_
 

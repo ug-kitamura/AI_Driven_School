@@ -16,7 +16,7 @@ Not a single Git command shows up in this lesson. Before you learn to operate th
 A left-right comparison diagram. On the left, an Explorer-style file list UI mock showing "report_final.docx", "report_final2.docx", "report_final_revised.docx", and "report_final_revised(2).docx" lined up. On the right, a timeline stacked vertically under a single filename: "8/1 first draft", "8/4 replaced the chart", "8/8 revised the conclusion". A short label on the left reading "Which one is the latest?" and one on the right reading "One line of history"
 -->
 
-![Side-by-side diagram: a pile of files vs. a version control timeline](images/version-control-before-after.png)
+![Left: Explorer file list with four near-identical report copies labelled 'Which one is the latest?'. Right: one filename](images/version-control-before-after-2.png)
 
 The left side of the diagram above is what it looks like when you keep versions by copying files. You don't need to read the small text. Just look at the shape: **the same document keeps multiplying**.
 

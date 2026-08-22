@@ -87,7 +87,7 @@ A UI mock of the VSCode Source Control view. In the activity bar on the far left
 Matching the real screen matters for this diagram. If the generated quality is poor, use a screenshot instead.
 -->
 
-![UI mock showing that in the VSCode Source Control view the plus button maps to git add and the commit button maps to git commit](images/vscode-source-control-add-commit-4.png)
+![VSCode Source Control panel mock showing the plus button as git add and the Commit button as git commit](images/vscode-source-control-add-commit-5.png)
 
 Click the **branching icon** on the far left (Source Control) and you get a list of changed files. The **"+" next to a filename is `git add`**, and the **"Commit" button above is `git commit`**. Don't worry about where the buttons sit — remember this instead: **what runs underneath is the same add and commit you just used**. In real work you'll often use this screen, but the mechanism is exactly what you learned with commands.
 

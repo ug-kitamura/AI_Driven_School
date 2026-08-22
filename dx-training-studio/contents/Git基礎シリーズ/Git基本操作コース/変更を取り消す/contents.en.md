@@ -16,7 +16,7 @@ You're going to break a file on purpose and then bring it back. You may feel tha
 The two "I want to undo that" situations as two side-by-side comparison cards. Left card, "I want to wipe out my edits": an arrow going from a file that has been edited into a mess back to the state of the most recent save, with the command label git restore. Right card, "I want to undo an add": an arrow showing a file in the staging area simply dropping back to the working tree, with the edits left untouched, and the command label git restore --staged
 -->
 
-![Side-by-side comparison of the two uses of git restore](images/git-restore-two-cases.png)
+![Two comparison cards showing git restore reverting edits to the last save and git restore --staged moving a file back fr](images/git-restore-two-cases-2.png)
 
 | Situation                                       | What it does                                                | Command                |
 | ----------------------------------------------- | ----------------------------------------------------------- | ---------------------- |
@@ -67,7 +67,7 @@ A UI mock of the VSCode Source Control view. In the activity bar on the far left
 Matching the real screen matters for this diagram. If the generated quality is poor, use a screenshot instead.
 -->
 
-![UI mock of the VSCode Source Control view](images/vscode-source-control-view.png)
+![UI mock of the VSCode Source Control sidebar showing memo.txt under Staged Changes with a minus button and another file](images/vscode-source-control-view-2.png)
 
 _Source: [Visual Studio Code documentation, "Staging and committing changes"](https://code.visualstudio.com/docs/sourcecontrol/staging-commits) (retrieved August 2026)_
 

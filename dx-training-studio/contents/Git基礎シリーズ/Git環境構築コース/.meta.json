@@ -9,5 +9,10 @@
   "catch": "手を動かす準備を整える",
   "style": "self-study",
   "cross_series_prev": [],
-  "cross_series_next": []
+  "cross_series_next": [],
+  "name_en": "Git Setup Course",
+  "catch_en": "Get ready to work hands-on",
+  "description_en": "A course to request and install Git through the internal installation system, set your name and email, and get to the point where you can run commands. There is an approval wait, so starting early pays off.",
+  "target_en": "People who have not installed Git yet",
+  "en_source_hash": "sha256:89fe4f13a2afd52afe271c267e7c54a172e6e2f8a7d66df93de4b1bc072227ce"
 }

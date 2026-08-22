@@ -11,5 +11,6 @@
   "author": "Kitamura",
   "name_en": "The three areas of Git",
   "description_en": "Carry a map of the three places — working tree, staging area, and repository — and be able to explain where a change currently lives",
-  "en_source_hash": "sha256:efe2e43f3bc2e73482d3d05d588ddb9ba8e2a18150099f3620da418d48c963d6"
+  "en_source_hash": "sha256:efe2e43f3bc2e73482d3d05d588ddb9ba8e2a18150099f3620da418d48c963d6",
+  "author_en": "Kitamura"
 }

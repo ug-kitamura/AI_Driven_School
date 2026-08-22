@@ -8,5 +8,8 @@
     "concepts"
   ],
   "estimated_minutes": 15,
-  "author": "Kitamura"
+  "author": "Kitamura",
+  "name_en": "What is version control?",
+  "description_en": "Starting from a folder full of files named \"report_final2\", learn to name three reasons why version control is needed",
+  "en_source_hash": "sha256:92cf067f7ab6d0fe9e8dc96066ce3b0ff86dc10a401cd9333a6a25baaf2f64b4"
 }

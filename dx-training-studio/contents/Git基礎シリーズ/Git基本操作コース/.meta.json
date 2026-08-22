@@ -11,5 +11,10 @@
   "catch": "記録して、読んで、戻せる",
   "cross_series_prev": [],
   "cross_series_next": [],
-  "style": "self-study"
+  "style": "self-study",
+  "name_en": "Git Basic Operations Course",
+  "catch_en": "Record it, read it, revert it",
+  "description_en": "A course where you work through all three yourself: recording, reading, and reverting. You save your work with add and commit, check the current state with status, log, and diff, and safely go back with restore.",
+  "target_en": "People who have installed Git but have never run a command",
+  "en_source_hash": "sha256:e1baf2aa3d76df0e4329090254ad3eb376d8acae0a442cbe6ec787d36a4ed0ae"
 }

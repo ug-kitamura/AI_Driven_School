@@ -8,5 +8,8 @@
     "basics"
   ],
   "estimated_minutes": 15,
-  "author": "Kitamura"
+  "author": "Kitamura",
+  "name_en": "Reading history and diffs",
+  "description_en": "Use status, log, and diff for what each one is good at, so you can check what is going on right now by yourself",
+  "en_source_hash": "sha256:1f90dc14106bf13ba2b7aef849b6c1173d677ddfd9ac05f21b3fdfcf7397ad85"
 }

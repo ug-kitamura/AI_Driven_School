@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Check } from "lucide-react";
+import { Check, Save } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
@@ -19,11 +19,12 @@ type Props = {
 };
 
 /**
- * 保存の完了をボタン自身のチェックマークで示す保存ボタン（studio-translation spec）。
+ * 保存ボタン（studio-translation spec）。
  *
+ * - 待機時は `Save` アイコン、完了時は同じ席をチェックマークへ切り替える——
+ *   アイコンの席が普段は空白で意味が読めない状態を作らない
  * - 押した場所から視線を動かさずに完了が分かる
- * - 幅は表記で固定する（`justify-between` ではなくアイコンの席を常に確保）——
- *   sticky なボタン列で幅が動くと目に付くため
+ * - 幅はアイコンの席を常に確保して固定する（切り替えで幅が動かない）
  * - 失敗（reject）では完了表示を出さない。エラーの提示は呼び出し側が持つ
  */
 export function SaveButton({ onSave, disabled = false, className }: Props) {
@@ -82,11 +83,23 @@ export function SaveButton({ onSave, disabled = false, className }: Props) {
       disabled={disabled || saving}
       className={cn("relative", className)}
     >
-      {/* アイコンの席を常に確保して幅を固定する */}
-      <Check
-        className={cn("size-3.5 transition-opacity", saved ? "opacity-100" : "opacity-0")}
-        aria-hidden
-      />
+      {/* アイコンは1つの席を共有して切り替える（幅が動かない） */}
+      <span className="relative inline-flex size-3.5 shrink-0 items-center justify-center">
+        <Save
+          className={cn(
+            "absolute size-3.5 transition-opacity",
+            saved ? "opacity-0" : "opacity-100",
+          )}
+          aria-hidden
+        />
+        <Check
+          className={cn(
+            "absolute size-3.5 transition-opacity",
+            saved ? "opacity-100" : "opacity-0",
+          )}
+          aria-hidden
+        />
+      </span>
       {SAVE_LABEL}
       {saved ? <span className="sr-only">保存しました</span> : null}
     </Button>

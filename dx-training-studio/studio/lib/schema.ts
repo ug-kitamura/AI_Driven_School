@@ -86,6 +86,12 @@ export const lessonSchema = z.object({
   author: z.string().default(""),
   /** 著者名の英語表記（表記が2つあるときだけ）。表示は双方向フォールバック */
   author_en: z.string().optional(),
+  /**
+   * レッスン名の英語版（`.meta.json` の `name_en`）。英語モードの表示に使う。
+   * ⚠ 正本はフォルダ名（`lesson`）で、これは表示用の別名にすぎない——
+   * 並べ替え・選択・パス解決のキーには使わないこと（`lib/display-name.ts`）
+   */
+  name_en: z.string().optional(),
   /** Markdown 本文（frontmatter を含まない） */
   content: z.string().default(""),
 });

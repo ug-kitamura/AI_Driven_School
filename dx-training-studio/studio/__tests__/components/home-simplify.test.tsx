@@ -264,17 +264,28 @@ describe("ホームから削った仕掛け", () => {
     expect(document.body.textContent).not.toContain("基準日");
   });
 
-  it("AI で下書きは本文右上のボタン列に保存の左隣で並ぶ", async () => {
+  it("AI で下書きは見出し行のボタン列に保存の左隣で並ぶ", async () => {
+    stubFetch();
+    render(
+      <WorkspaceMetaView workspaceName="DX Training Studio" {...translationProps} />,
+    );
+    await screen.findByLabelText("名前");
+    // 見出し行 = 左にタイトル・右にボタン列（⚠ sticky ではない）
+    const heading = screen.getByRole("heading", { name: "全体メタを編集" });
+    const row = heading.parentElement!;
+    const labels = [...row.querySelectorAll("button")].map((b) =>
+      b.textContent?.trim(),
+    );
+    expect(labels).toEqual(["AI で下書き", "保存"]);
+  });
+
+  it("ボタン列はスクロールに追従しない（sticky を持たない）", async () => {
     stubFetch();
     const { container } = render(
       <WorkspaceMetaView workspaceName="DX Training Studio" {...translationProps} />,
     );
     await screen.findByLabelText("名前");
-    const bar = container.querySelector(".sticky.top-0");
-    expect(bar).toBeTruthy();
-    const labels = [...bar!.querySelectorAll("button")].map((b) =>
-      b.textContent?.trim(),
-    );
-    expect(labels).toEqual(["AI で下書き", "保存"]);
+    // ⚠ 実機で「ついてくるのが違和感」と判明して廃止した。戻さないこと
+    expect(container.querySelector(".sticky")).toBeNull();
   });
 });

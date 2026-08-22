@@ -6,6 +6,8 @@ const requestSchema = z.object({
   series: z.string().min(1),
   course: z.string().min(1),
   lesson: z.string().min(1),
+  /** 差分の対象。省略は日本語正本（後方互換） */
+  language: z.enum(["ja", "en"]).optional(),
 });
 
 export async function POST(req: Request) {
@@ -24,8 +26,14 @@ export async function POST(req: Request) {
     );
   }
 
-  const { series, course, lesson } = parsed.data;
-  const result = resolveLessonGitDiff(getProjectRoot(), series, course, lesson);
+  const { series, course, lesson, language } = parsed.data;
+  const result = resolveLessonGitDiff(
+    getProjectRoot(),
+    series,
+    course,
+    lesson,
+    language ?? "ja",
+  );
 
   if ("error" in result) {
     return Response.json(

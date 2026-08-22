@@ -26,7 +26,12 @@ import { useWorkspaceImageAssets } from "@/components/workspace/hooks/use-worksp
 import { useWorkspaceSelection } from "@/components/workspace/hooks/use-workspace-selection";
 import { useContentSync } from "@/components/workspace/hooks/use-content-sync";
 import { useTranslationStatus } from "@/components/workspace/hooks/use-translation-status";
-import type { EditLanguage } from "@/components/workspace/translation/LanguageToggleControl";
+import {
+  courseDisplayName,
+  lessonDisplayName,
+  seriesDisplayName,
+  type EditLanguage,
+} from "@/lib/display-name";
 import { worstFreshness } from "@/lib/translation/client";
 import type { Series } from "@/lib/schema";
 import { normalizeSeriesCourseMeta } from "@/lib/course-flow";
@@ -102,7 +107,10 @@ export function Workspace({
   /**
    * 編集言語（studio-translation spec）。ワークスペースの単一 state で、
    * レッスンの本文エディタとメタダイアログはこれに連動する。
-   * 選択階層が変わるときは ja に戻す（requestSelectionChange が担う）
+   *
+   * ⚠ これは面ごとの設定ではなく**アプリのモード**。選択階層が変わっても
+   * リセットしない——モードは GlobalHeader の切替ボタンの表記
+   * （「日本語ビューに戻る」）で常時見えているので、持ち越しは意図として読める。
    */
   const [editLanguage, setEditLanguage] = useState<EditLanguage>("ja");
   const [saveErrorMsg, setSaveErrorMsg] = useState<string | null>(null);
@@ -212,9 +220,9 @@ export function Workspace({
   );
 
   const requestSelectionChange = useCallback((action: () => void) => {
-    // 選択階層が変わるときは編集言語を ja に戻す（英語ビューの持ち越し防止）
+    // ⚠ ここで編集言語を ja に戻さないこと。言語はアプリのモードで、選択を
+    // またいで保たれる（studio-translation spec）
     const wrapped = () => {
-      setEditLanguage("ja");
       action();
     };
     if (agentChatControllerRef.current?.isStreaming()) {
@@ -476,6 +484,7 @@ export function Workspace({
         <ContentTreePane
           workspaceName={workspace.name}
           series={series}
+          editLanguage={editLanguage}
           selectedSeriesId={selectedSeriesId}
           selectedCourseId={selectedCourseId}
           selectedLessonId={selectedLessonId}
@@ -506,14 +515,26 @@ export function Workspace({
         />
       </div>
       <SidebarInset className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-background">
+        {/* ⚠ パンくずへ渡すのは表示名（英語モードでは name_en・未訳は日本語名）。
+            API のパス解決に使う名前は日本語のフォルダ名のままで別物 */}
         <GlobalHeader
-          seriesName={selectedSeriesName}
-          courseName={selectedCourse?.name ?? ""}
-          lessonName={selectedLesson?.lesson ?? ""}
+          seriesName={
+            selectedSeriesItem
+              ? seriesDisplayName(selectedSeriesItem, editLanguage)
+              : selectedSeriesName
+          }
+          courseName={
+            selectedCourse ? courseDisplayName(selectedCourse, editLanguage) : ""
+          }
+          lessonName={
+            selectedLesson ? lessonDisplayName(selectedLesson, editLanguage) : ""
+          }
           series={series}
           selectedSeriesId={selectedSeriesId}
           selectedCourseId={selectedCourseId}
           githubUrl={githubUrl}
+          editLanguage={editLanguage}
+          onEditLanguageChange={setEditLanguage}
           onSelectSeries={guardedSelectSeries}
           onSelectCourse={guardedSelectCourse}
           onOpenSettings={() => setSettingsOpen(true)}

@@ -85,6 +85,7 @@ function renderTree(overrides: Partial<Parameters<typeof ContentTreePane>[0]> = 
     <SidebarProvider defaultOpen>
       <ContentTreePane
         workspaceName="DX Training Studio"
+        editLanguage="ja"
         series={series}
         selectedSeriesId="srs-1"
         selectedCourseId=""
@@ -235,6 +236,7 @@ describe("ContentTreePane", () => {
       onUpdateCourseMeta: noop,
       onUpdateLessonMeta: noop,
       onUpdateLessonStatus: noop,
+      editLanguage: "ja" as const,
     };
     const { rerender } = render(
       <SidebarProvider defaultOpen>
@@ -442,6 +444,7 @@ describe("ContentTreePane", () => {
       <SidebarProvider defaultOpen>
         <ContentTreePane
           workspaceName="DX Training Studio"
+        editLanguage="ja"
           series={[]}
           selectedSeriesId=""
           selectedCourseId=""

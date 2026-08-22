@@ -13,8 +13,21 @@
  */
 import type { MandalaEdge, MandalaGraph, MandalaNode } from "@/lib/mandala/graph";
 import type { Series } from "@/lib/schema";
+import {
+  courseDisplayName,
+  seriesDisplayName,
+  type EditLanguage,
+} from "@/lib/display-name";
 
-export function buildMandalaGraph(series: readonly Series[]): MandalaGraph {
+/**
+ * ⚠ ノードのラベルは**表示名**（英語モードでは `name_en`・未訳は日本語名）。
+ * 描画側に言語分岐を持ち込まないよう、ここで解決してから渡す。
+ * ID と辺の導出は名前に依存しないので、言語を変えてもグラフの形は変わらない。
+ */
+export function buildMandalaGraph(
+  series: readonly Series[],
+  language: EditLanguage = "ja",
+): MandalaGraph {
   const nodes: MandalaNode[] = [];
   const knownCourseIds = new Set<string>();
 
@@ -23,9 +36,9 @@ export function buildMandalaGraph(series: readonly Series[]): MandalaGraph {
       knownCourseIds.add(course.id);
       nodes.push({
         id: course.id,
-        label: course.name,
+        label: courseDisplayName(course, language),
         seriesId: s.id,
-        seriesName: s.name,
+        seriesName: seriesDisplayName(s, language),
         lessonCount: course.lessons.length,
         totalMinutes: course.lessons.reduce(
           (sum, lesson) => sum + (lesson.estimated_minutes ?? 0),

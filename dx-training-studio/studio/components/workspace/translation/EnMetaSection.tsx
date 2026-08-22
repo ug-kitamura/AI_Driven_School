@@ -300,6 +300,11 @@ export function EnMetaSection({
           {/* ⚠ 翻訳ボタンは author を触らない（人名のローマ字は本人の流儀）。
               併記の形式は他フィールドと揃える */}
           <SourceText value={authorSourceText} />
+          {/* 挙動の明示。これが無いと「翻訳を押したのに Author が埋まらない」を
+              故障と誤読される（studio-translation spec） */}
+          <p className="text-xs text-muted-foreground">
+            著者名は自動翻訳出来ません
+          </p>
           <Input
             id="en-meta-author-en"
             value={authorEn}

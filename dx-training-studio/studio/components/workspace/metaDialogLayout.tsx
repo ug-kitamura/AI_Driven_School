@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import { cn } from "@/lib/utils";
+import type { EditLanguage } from "@/lib/display-name";
 
 /** 属性名 ↔ 属性値（同一グループ内・近い） */
 const LABEL_VALUE_GAP = "gap-1.5";
@@ -35,8 +36,54 @@ export function MetaDialogField({ children, className }: MetaDialogFieldProps) {
   return <div className={cn(META_DIALOG_FIELD, className)}>{children}</div>;
 }
 
+/** ペイン2 ヘッダーの階層種別 */
+export type PaneKind = "root" | "series" | "course" | "lesson";
+
 /**
- * ペイン2 ヘッダー左端の階層種別ラベル（全体 / シリーズ / コース / レッスン）。
+ * 階層種別ラベルの語彙（workspace-meta-views spec）。
+ *
+ * ⚠ 英語は公開サイトの呼称に揃える——サイトは英語ルートを `Home` と呼ぶ
+ * （`mandala/scripts/lib/emit.mts` の `homeLabel`）。`All` / `Top` / `Overview` の
+ * ような**システムのどこにも無い第4の語を持ち込まないこと**。
+ *
+ * ⚠ バッジが英語になるのは、隣に並ぶタイトル（コンテンツ名）が英語になるから
+ * ——**コンテンツの識別行の一部**であり、UI 文言の英語化ではない。
+ */
+const PANE_KIND_LABELS: Record<PaneKind, { ja: string; en: string }> = {
+  root: { ja: "全体", en: "Home" },
+  series: { ja: "シリーズ", en: "Series" },
+  course: { ja: "コース", en: "Course" },
+  lesson: { ja: "レッスン", en: "Lesson" },
+};
+
+export function paneKindLabel(kind: PaneKind, language: EditLanguage): string {
+  return PANE_KIND_LABELS[kind][language];
+}
+
+/**
+ * メタ編集面の見出し（workspace-meta-views spec）。
+ * 命名規則はレッスンメタ編集モーダルの `DialogTitle` と同じ
+ * （`<階層>メタを編集` ＋ 英語ビューは `（英語）` サフィックス）。
+ *
+ * ⚠ **UI 文言なので英語モードでも日本語**。表示名ヘルパーを通さない
+ * （英語になるのはコンテンツ由来の名前だけ、という射程の線引き）。
+ */
+const META_HEADING_BASE: Record<Exclude<PaneKind, "lesson">, string> = {
+  root: "全体メタを編集",
+  series: "シリーズメタを編集",
+  course: "コースメタを編集",
+};
+
+export function metaViewHeading(
+  kind: Exclude<PaneKind, "lesson">,
+  language: EditLanguage,
+): string {
+  const base = META_HEADING_BASE[kind];
+  return language === "en" ? `${base}（英語）` : base;
+}
+
+/**
+ * ペイン2 ヘッダー左端の階層種別ラベル。
  * メタビュー（MetaViewShell）とレッスンのエディタビューで**同じ見た目**にする
  * 要件があるので、クラスを書き写さずこの部品を共有する。
  */

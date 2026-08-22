@@ -16,6 +16,8 @@ import {
   META_DIALOG_CONTROL,
   META_DIALOG_GRID,
   MetaDialogField,
+  metaViewHeading,
+  paneKindLabel,
 } from "@/components/workspace/metaDialogLayout";
 import { CrossSeriesCourseTreePicker } from "@/components/workspace/CrossSeriesCourseTreePicker";
 import { MiniMandalaSection } from "@/components/workspace/MiniMandalaSection";
@@ -28,11 +30,13 @@ import {
   listCrossSeriesCourseCandidates,
   wouldCourseMetaEditCreateCycle,
 } from "@/lib/course-flow";
-import { EnMetaSection } from "@/components/workspace/translation/EnMetaSection";
 import {
-  LanguageToggleControl,
-  type EditLanguage,
-} from "@/components/workspace/translation/LanguageToggleControl";
+  EnMetaSection,
+  type EnMetaControls,
+} from "@/components/workspace/translation/EnMetaSection";
+import { EnMetaActionBar } from "@/components/workspace/translation/EnMetaActionBar";
+import { StaleTranslationNotice } from "@/components/workspace/translation/StaleTranslationNotice";
+import { courseDisplayName, type EditLanguage } from "@/lib/display-name";
 import { PaneActionBar } from "@/components/workspace/PaneActionBar";
 import { SaveButton } from "@/components/workspace/SaveButton";
 import type { TranslationFreshness } from "@/lib/translation/client";
@@ -113,6 +117,8 @@ export function CourseMetaView({
 }: Props) {
   const [cycleWarning, setCycleWarning] = useState(false);
   const [slugError, setSlugError] = useState(false);
+  /** 英語ビューのボタン列を見出し行へ持ち上げるための操作口 */
+  const [enControls, setEnControls] = useState<EnMetaControls | null>(null);
   const [editMeta, setEditMeta] = useState<EditMeta>(() => ({
     name: course.name,
     slug: course.slug ?? "",
@@ -189,28 +195,30 @@ export function CourseMetaView({
 
   return (
     <MetaViewShell
-      title={course.name}
-      kindLabel="コース"
-      headerExtra={
-        <LanguageToggleControl
-          language={editLanguage}
-          onLanguageChange={onEditLanguageChange}
-        />
-      }
+      title={courseDisplayName(course, editLanguage)}
+      kindLabel={paneKindLabel("course", editLanguage)}
+      heading={metaViewHeading("course", editLanguage)}
       actionBar={
-        // 英語ビューのボタン列と赤字は EnMetaSection 側が持つ
-        editLanguage === "en" ? undefined : (
+        editLanguage === "en" ? (
+          <EnMetaActionBar controls={enControls} />
+        ) : (
           <PaneActionBar saveSlot={<SaveButton onSave={handleSave} />} />
         )
       }
     >
       {editLanguage === "en" ? (
-        <EnMetaSection
-          level="course"
-          names={{ series: seriesName, course: course.name }}
-          translationStatus={translationStatus}
-          onTranslationChanged={onTranslationChanged}
-        />
+        <>
+          {/* ボタン列は見出し行（親）が持つ。赤字1行もここで出す */}
+          <StaleTranslationNotice status={translationStatus} />
+          <EnMetaSection
+            level="course"
+            names={{ series: seriesName, course: course.name }}
+            translationStatus={translationStatus}
+            onTranslationChanged={onTranslationChanged}
+            onControlsReady={setEnControls}
+            hideActionBar
+          />
+        </>
       ) : (
         <>
       {/* ⚠ 左列は行を明示指定する（`col-start-1 row-start-N`）。ミニ曼陀羅が右列の
@@ -324,6 +332,7 @@ export function CourseMetaView({
               <MiniMandalaSection
                 series={series}
                 course={course}
+                editLanguage={editLanguage}
                 onSelectCourse={onSelectCourse}
                 modalOpen={mandalaModalOpen}
                 onModalOpenChange={onMandalaModalOpenChange}

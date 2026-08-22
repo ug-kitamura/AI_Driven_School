@@ -1,7 +1,7 @@
 "use client";
 
 import { Fragment, useState, useEffect, useMemo, useRef, useCallback } from "react";
-import { BookOpen, Network, Settings } from "lucide-react";
+import { BookOpen, Languages, Network, Settings } from "lucide-react";
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -18,6 +18,7 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import type { Series } from "@/lib/schema";
+import type { EditLanguage } from "@/lib/display-name";
 import { findSeriesContainingCourse, isCrossSeriesLink } from "@/lib/course-flow";
 import { LazyMandala } from "@/components/workspace/mandala/LazyMandala";
 import { buildMandalaGraph } from "@/lib/mandala/build-graph";
@@ -58,6 +59,9 @@ type GlobalHeaderProps = {
   selectedCourseId?: string;
   /** 全体メタの github_url。未設定ならリンクを出さない */
   githubUrl?: string;
+  /** 編集言語（アプリのモード）。切替の入口はこのヘッダーに1つだけ置く */
+  editLanguage: EditLanguage;
+  onEditLanguageChange: (language: EditLanguage) => void;
   onSelectSeries?: (seriesId: string) => void;
   onSelectCourse?: (courseId: string) => void;
   onOpenSettings?: () => void;
@@ -130,6 +134,8 @@ export function GlobalHeader({
   selectedSeriesId = "",
   selectedCourseId = "",
   githubUrl = "",
+  editLanguage,
+  onEditLanguageChange,
   onSelectSeries,
   onSelectCourse,
   onOpenSettings,
@@ -160,7 +166,11 @@ export function GlobalHeader({
   const [mandalaOpen, setMandalaOpen] = useState(false);
   const suppressMandalaModalCloseRef = useRef(false);
 
-  const mandalaGraph = useMemo(() => buildMandalaGraph(series), [series]);
+  // 言語を変えたらラベルを作り直す（ID と辺は不変なのでレイアウトは動かない）
+  const mandalaGraph = useMemo(
+    () => buildMandalaGraph(series, editLanguage),
+    [series, editLanguage],
+  );
 
   /**
    * ノードクリックで遷移した直後にモーダルが閉じるのを抑える。
@@ -241,6 +251,30 @@ export function GlobalHeader({
         // パンくずが無いときも右側ボタンの位置を動かさないための余白
         <div className="min-w-0 flex-1" />
       )}
+
+      {/* 言語切替（studio-translation spec）。Studio 全体で**ここ1つだけ**。
+          ⚠ ペイン2 の各面のヘッダーに戻さないこと——言語は面ごとの設定ではなく
+          アプリのモードで、常時見えていることが「選択を変えてもモードが保たれる」
+          ことの説明になっている。
+          ⚠ ツールチップを付けないこと。隣のメニューが表記だけで説明していて、
+          ここだけ挙動が違うと浮く。状態はボタンの表記自身が示す（色で示さない）。 */}
+      <Button
+        variant="ghost"
+        size="sm"
+        className="flex-shrink-0 gap-1.5 text-xs text-header-action"
+        aria-pressed={editLanguage === "en"}
+        aria-label={
+          editLanguage === "ja" ? "英語ビューに切り替える" : "日本語ビューに戻る"
+        }
+        onClick={() =>
+          onEditLanguageChange(editLanguage === "ja" ? "en" : "ja")
+        }
+      >
+        <Languages className="h-4 w-4" />
+        <span className="hidden sm:inline">
+          {editLanguage === "ja" ? "英語ビューに切り替える" : "日本語ビューに戻る"}
+        </span>
+      </Button>
 
       <Button
         variant="ghost"

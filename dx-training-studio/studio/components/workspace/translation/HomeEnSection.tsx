@@ -2,7 +2,10 @@
 
 import { useEffect, useState } from "react";
 import { Label } from "@/components/ui/label";
-import { EnMetaSection } from "@/components/workspace/translation/EnMetaSection";
+import {
+  EnMetaSection,
+  type EnMetaControls,
+} from "@/components/workspace/translation/EnMetaSection";
 import { insertChangelogEntry } from "@/lib/changelog-entry";
 import {
   translateChangelog,
@@ -19,9 +22,13 @@ type ChangelogData = {
 };
 
 type Props = {
-  /** 未取得は undefined。`stale` のとき EnMetaSection が赤字1行を出す */
+  /** 未取得は undefined。`stale` のとき赤字1行を出す */
   translationStatus?: TranslationFreshness;
   onTranslationChanged?: () => void;
+  /** 見出し行のボタン列を親が描くための口（メタビュー用） */
+  onControlsReady?: (controls: EnMetaControls) => void;
+  /** ボタン列と赤字を描かない（親が配置を持つ） */
+  hideActionBar?: boolean;
 };
 
 /**
@@ -42,6 +49,8 @@ type Props = {
 export function HomeEnSection({
   translationStatus,
   onTranslationChanged,
+  onControlsReady,
+  hideActionBar,
 }: Props) {
   const [loading, setLoading] = useState(true);
   const [content, setContent] = useState("");
@@ -118,6 +127,8 @@ export function HomeEnSection({
       names={{}}
       translationStatus={translationStatus}
       onTranslationChanged={onTranslationChanged}
+      onControlsReady={onControlsReady}
+      hideActionBar={hideActionBar}
       afterTranslate={translateChangelogSide}
       afterSave={saveChangelog}
       extraSection={

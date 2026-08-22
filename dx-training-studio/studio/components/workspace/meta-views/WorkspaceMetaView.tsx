@@ -13,12 +13,14 @@ import {
   META_DIALOG_CONTROL,
   META_DIALOG_STACK,
   MetaDialogField,
+  metaViewHeading,
+  paneKindLabel,
 } from "@/components/workspace/metaDialogLayout";
 import { HomeEnSection } from "@/components/workspace/translation/HomeEnSection";
-import {
-  LanguageToggleControl,
-  type EditLanguage,
-} from "@/components/workspace/translation/LanguageToggleControl";
+import { EnMetaActionBar } from "@/components/workspace/translation/EnMetaActionBar";
+import type { EnMetaControls } from "@/components/workspace/translation/EnMetaSection";
+import { StaleTranslationNotice } from "@/components/workspace/translation/StaleTranslationNotice";
+import { workspaceDisplayName, type EditLanguage } from "@/lib/display-name";
 import { PaneActionBar } from "@/components/workspace/PaneActionBar";
 import { SaveButton } from "@/components/workspace/SaveButton";
 import type { TranslationFreshness } from "@/lib/translation/client";
@@ -72,15 +74,23 @@ export function WorkspaceMetaView({
   const [urlError, setUrlError] = useState(false);
   /** 保存済みの値。これとの差で全体メタの dirty を導出する */
   const savedRef = useRef<WorkspaceMetaValues>(EMPTY_VALUES);
+  /**
+   * 英語モードのタイトル表示にだけ使う `name_en`。
+   * ⚠ 保存ペイロード（`values`）へ入れないこと——日本語フォームからの保存が、
+   * 英語ビューで直した `name_en` を古い値で上書きしてしまう
+   */
+  const [nameEn, setNameEn] = useState<string | undefined>(undefined);
   const [changelogControls, setChangelogControls] =
     useState<ChangelogControls | null>(null);
+  /** 英語ビューのボタン列を見出し行へ持ち上げるための操作口 */
+  const [enControls, setEnControls] = useState<EnMetaControls | null>(null);
 
   useEffect(() => {
     // loading は初期値 true。ここで再セットしない（マウント時に1回だけ読む）
     let cancelled = false;
     void fetch("/api/content/workspace-meta")
       .then((res) => res.json())
-      .then((data: Partial<WorkspaceMetaValues>) => {
+      .then((data: Partial<WorkspaceMetaValues> & { name_en?: string }) => {
         if (cancelled) return;
         const loaded = {
           name: data.name ?? "",
@@ -89,6 +99,7 @@ export function WorkspaceMetaView({
         };
         savedRef.current = loaded;
         setValues(loaded);
+        setNameEn(data.name_en);
       })
       .catch(() => {
         // 読み込めなくても空フォームで編集は続けられる
@@ -154,25 +165,23 @@ export function WorkspaceMetaView({
     }
   };
 
-  const headerControls = (
-    <LanguageToggleControl
-      language={editLanguage}
-      onLanguageChange={onEditLanguageChange}
-    />
-  );
-
   if (editLanguage === "en") {
     return (
       <MetaViewShell
-        title={values.name.trim() || workspaceName}
-        kindLabel="全体"
-        headerExtra={headerControls}
+        title={workspaceDisplayName({ name: values.name, name_en: nameEn }, workspaceName, editLanguage)}
+        kindLabel={paneKindLabel("root", editLanguage)}
+        heading={metaViewHeading("root", editLanguage)}
+        actionBar={<EnMetaActionBar controls={enControls} />}
       >
         {/* 英語ビューはメタと changelog（英語版）が連動して切り替わる。
-            ボタン列・赤字・保存の統合は HomeEnSection（EnMetaSection）側が持つ */}
+            ボタン列は見出し行（親）が持つので hideActionBar を渡し、赤字1行も
+            ここで出す——レッスンメタモーダルと同じ「親が両方持つ」流儀 */}
+        <StaleTranslationNotice status={translationStatus} />
         <HomeEnSection
           translationStatus={translationStatus}
           onTranslationChanged={onTranslationChanged}
+          onControlsReady={setEnControls}
+          hideActionBar
         />
       </MetaViewShell>
     );
@@ -180,9 +189,9 @@ export function WorkspaceMetaView({
 
   return (
     <MetaViewShell
-      title={values.name.trim() || workspaceName}
-      kindLabel="全体"
-      headerExtra={headerControls}
+      title={workspaceDisplayName({ name: values.name, name_en: nameEn }, workspaceName, editLanguage)}
+      kindLabel={paneKindLabel("root", editLanguage)}
+      heading={metaViewHeading("root", editLanguage)}
       actionBar={
         <PaneActionBar
           aiSlot={<ChangelogDraftButton controls={changelogControls} />}

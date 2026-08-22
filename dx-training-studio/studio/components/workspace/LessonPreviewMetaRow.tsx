@@ -1,30 +1,39 @@
 "use client";
 
-import { COURSE_STYLE_LABELS, STATUS_LABELS } from "@/lib/schema";
 import type { Course, Lesson } from "@/lib/schema";
+import type { EditLanguage } from "@/lib/display-name";
+import {
+  authorLabel,
+  formatCourseStyleLabel,
+  formatLessonStatusLabel,
+  formatMinutesLabel,
+  resolveAuthorName,
+} from "@/lib/lesson-label-locale";
 
 /**
  * プレビュー本文の上に出すレッスンメタのラベル行。
  * デザインは公開サイト（mandala）のレッスンページのラベル行と同一
  * （状態=赤系 / 所要時間=緑系 / 受講形態=青系、右端に著者）。
  * 受講形態だけはコースメタ（style）から取る。
+ *
+ * ⚠ **語彙も公開サイトと同一**（`lib/lesson-label-locale.ts`）。配色・形状だけ
+ * 揃えて言葉が割れると、英語プレビューがサイトと違う英語を出す。
  */
 export function LessonPreviewMetaRow({
   lesson,
   course,
+  language = "ja",
 }: {
   lesson: Lesson;
   course: Course | undefined;
+  language?: EditLanguage;
 }) {
   // 公開サイトと同じく「完成」はラベルを出さない
-  const statusLabel =
-    lesson.status === "done" ? undefined : STATUS_LABELS[lesson.status];
-  const minutesLabel =
-    lesson.estimated_minutes > 0 ? `${lesson.estimated_minutes}分` : undefined;
-  const styleLabel = course?.style
-    ? COURSE_STYLE_LABELS[course.style]
-    : undefined;
-  const author = lesson.author.trim();
+  const statusLabel = formatLessonStatusLabel(lesson.status, language);
+  const minutesLabel = formatMinutesLabel(lesson.estimated_minutes, language);
+  const styleLabel = formatCourseStyleLabel(course?.style, language);
+  // 著者は双方向フォールバック——表記が1つしか無くても名前が消えない
+  const author = resolveAuthorName(lesson, language);
 
   if (!statusLabel && !minutesLabel && !styleLabel && !author) return null;
 
@@ -48,7 +57,9 @@ export function LessonPreviewMetaRow({
         ) : null}
       </div>
       {author ? (
-        <span className="lesson-preview-meta-author">著者: {author}</span>
+        <span className="lesson-preview-meta-author">
+          {authorLabel(language)}: {author}
+        </span>
       ) : null}
     </div>
   );

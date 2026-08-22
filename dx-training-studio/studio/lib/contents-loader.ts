@@ -416,6 +416,10 @@ export function loadContentsFolder(projectRoot: string): Series[] {
           course: courseName,
           ...metaToLessonFields(normalized),
           lesson: lessonName,
+          // 英語モードの表示名。⚠ 名前の正本はフォルダ名のままで、これは別名
+          ...(typeof lessonMetaRaw.name_en === "string" && lessonMetaRaw.name_en
+            ? { name_en: lessonMetaRaw.name_en }
+            : {}),
           content: migrateQuizBlocksInBody(content),
         });
       }

@@ -38,7 +38,11 @@ Studio の正本参照はプロジェクトルート解決の一点（`lib/proje
 
 ### Requirement: 入れ物直下の起動スクリプト4本
 
-入れ物直下に起動スクリプト4本を置かなければならない（SHALL）: `start-studio.bat` / `start-studio-dev.bat` / `start-mandala.bat` / `start-mandala-dev.bat`。各スクリプトは自身の位置（`%~dp0`）を基準に対象アプリのディレクトリへ移動してから実行しなければならない（SHALL）。いずれも `node_modules` が無ければ `npm install` を先に実行しなければならない（SHALL）。
+入れ物直下に起動スクリプト4本を置かなければならない（SHALL）: `start-studio.bat` / `start-studio-dev.bat` / `start-mandala.bat` / `start-mandala-dev.bat`。各スクリプトは自身の位置（`%~dp0`）を基準に対象アプリのディレクトリへ移動してから実行しなければならない（SHALL）。
+
+いずれも起動処理の前に**依存の整合性**を確認しなければならない（SHALL）。`node_modules` ディレクトリの有無だけを見てはならない（SHALL NOT）——「有るが壊れている」状態を素通りし、その先で真因と無関係なエラーを出すため。番人には `node_modules\.bin\next.cmd` を使う（SHALL）——両アプリの `dev` / `build` が実際に呼ぶ実行ファイルである。
+
+番人が見つからない場合は `npm ci` で依存を入れ直さなければならない（SHALL）。`npm ci` が失敗した場合は `npm install` を試みてよい（MAY）。どちらも失敗した場合は、何が起きたかと次に何をすべきかが分かるメッセージを出して停止しなければならない（SHALL）。
 
 - `start-studio-dev.bat`: Playwright Chromium の確認後、開発サーバー（port 3001）を起動する。既に稼働中ならブラウザを開くだけにする
 - `start-studio.bat`: ビルド後に本番サーバー（port 3001）を起動する
@@ -52,5 +56,53 @@ Studio の正本参照はプロジェクトルート解決の一点（`lib/proje
 #### Scenario: 依存が無ければ先にインストールする
 
 - **WHEN** `studio/node_modules` が無い状態で `start-studio-dev.bat` を実行する
-- **THEN** `npm install` が実行されてから起動処理が続行される
+- **THEN** 依存のインストールが実行されてから起動処理が続行される
 
+#### Scenario: 依存が壊れていても素通りしない
+
+- **WHEN** `studio/node_modules` は存在するが `node_modules\.bin` が失われた状態で `start-studio-dev.bat` を実行する
+- **THEN** 依存の入れ直しが実行されてから起動処理が続行される
+- **AND** `'playwright' は認識されていません` のような、真因と無関係なエラーで停止しない
+
+### Requirement: Playwright の準備は起動を止めない
+
+`start-studio-dev.bat` の Playwright Chromium の準備は、失敗しても起動処理を停止させてはならない（SHALL NOT）。失敗時は警告を出したうえで起動を続行しなければならない（SHALL）。
+
+警告には、**影響が図の画像化機能に限られること**を含めなければならない（SHALL）——Playwright はアプリの起動には不要で、`lib/render-diagram-capture.mjs` だけが使う。
+
+#### Scenario: Chromium の取得に失敗しても起動する
+
+- **WHEN** ネットワークが使えない状態で `start-studio-dev.bat` を実行する
+- **THEN** Playwright の準備は警告として報告される
+- **AND** 開発サーバーは port 3001 で起動する
+
+#### Scenario: 警告が影響範囲を伝える
+
+- **WHEN** Playwright の準備が失敗する
+- **THEN** メッセージに、使えなくなるのは図の画像化であることが書かれている
+### Requirement: テストがアプリ境界を越えて読むファイルは読む側の型検査を単独で通る
+
+一方のアプリのテストが他方のアプリのモジュールを import する場合、**引きずり込まれるファイル群は、読む側のアプリの `tsconfig.json` の設定だけで型検査が通らなければならない**（SHALL）。読む側で解決できない path alias（`@/*` 等）・拡張子付き import・生成物への依存を含むファイルを越境で読んではならない（SHALL NOT）。
+
+テストランナーの alias（`vitest.config.ts` の `resolve.alias` 等）で解決を差し替えることを、越境の成立条件にしてはならない（SHALL NOT）——`tsc` と `next build` はその alias を読まないため、テストが緑でも本番ビルドが落ちる。
+
+越境で読みたい実装が解決不能な依存を持つ場合は、**依存を持たない部分を独立したモジュールへ切り出し、そちらを読まなければならない**（SHALL）。
+
+この制約は型レベルの越境にのみ適用される。アプリの実行時コードが他方のアプリへ依存してはならない（SHALL NOT）という既存の制約は変わらない。
+
+#### Scenario: 越境先が生成物へ依存している
+
+- **WHEN** Studio のテストが mandala のモジュールを import し、そのモジュールが Studio 側で解決できない生成物 JSON を import している
+- **THEN** `studio/` で `npx tsc --noEmit` を実行すると、その解決不能な import が型エラーとして報告される
+- **AND** この状態を `vitest.config.ts` の alias だけで解消してはならない
+
+#### Scenario: 切り出したモジュールを越境で読む
+
+- **WHEN** 越境で必要な関数と型だけを、生成物に依存しないモジュールへ切り出し、テストがそちらを import する
+- **THEN** `studio/` で `npx tsc --noEmit` を実行しても、越境に起因する型エラーが出ない
+- **AND** `studio/` で `npm run build` の型検査が通る
+
+#### Scenario: 実行時依存は依然として禁止
+
+- **WHEN** Studio の `app/` `lib/` `components/` 配下から mandala のモジュールへの import を検索する
+- **THEN** 該当する import が 1 件も存在しない

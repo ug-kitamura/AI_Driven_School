@@ -323,8 +323,21 @@ html[lang="en"] .nextra-sidebar::before {
   opacity: 0.7;
 }
 
+/* タイトル＋キャッチの包み（`TitleWithCatch`）。`.dxm-card-title` の中では
+   flex アイテム1つ分にあたる。内部は通常のインラインフローなので、タイトルと
+   キャッチをまたいで自然に折り返す。`min-width: 0` が無いと flex アイテムの
+   自動最小サイズ（min-content）で下限が張られ、長い英単語が溢れる。
+   ヒーロー（`h1` 直下のインライン）では効かないので害はない */
+.dxm-title-line {
+  min-width: 0;
+}
+
+/* 一覧カードのキャッチ。タイトルと同じ行に並ぶので、`.dxm-card-title` の
+   `font-weight: 700` を継がないよう**明示**する——ヒーローが 800 に対して 600 を
+   取っているのと同じ関係。サイズ・色は下の行だった頃の値をそのまま使う */
 .dxm-card-catch {
   font-size: 0.85rem;
+  font-weight: 600;
   color: var(--dxm-brand);
 }
 

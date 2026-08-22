@@ -22,5 +22,13 @@
     "hidden": false,
     "mentionsSubagent": false,
     "mentionsImageIO": false
+  },
+  {
+    "id": "dx-training-translate",
+    "name": "dx-training-translate",
+    "description": "日本語の教材（レッスン本文・各階層メタ・変更履歴）を英訳するスキル。範囲を指定して鮮度を走査し、未翻訳と古い翻訳だけを差分翻訳する。日本語正本には触れない。\n「英訳して」「英語版を作って」「翻訳して」「translate」「英語版を最新にして」と依頼された際に使用する。",
+    "hidden": false,
+    "mentionsSubagent": true,
+    "mentionsImageIO": false
   }
 ]

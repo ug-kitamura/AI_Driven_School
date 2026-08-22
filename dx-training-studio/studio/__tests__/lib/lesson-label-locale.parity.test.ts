@@ -5,12 +5,18 @@
  * 宣言している。語彙が割れると、英語プレビューがサイトと違う英語を出して宣言が嘘になる。
  *
  * ⚠ **このテストが落ちたら、片方だけ直さないこと。** 語彙は日英とも
- * `studio/lib/lesson-label-locale.ts` と `mandala/lib/site-data.ts` の**両方**が
+ * `studio/lib/lesson-label-locale.ts` と `mandala/lib/site-labels.ts` の**両方**が
  * 正本で、変更は同時に入れる。
  *
  * ⚠ import はテストからだけ。アプリの実行時に studio が mandala へ依存しては
- * ならない（mandala の独立性は CI が検証する）。JSON の生成物は
- * `vitest.config.ts` のテスト専用 alias でスタブに差し替えている。
+ * ならない（mandala の独立性は CI が検証する）。
+ *
+ * ⚠ 読む先は `mandala/lib/site-labels.ts`（生成物に依存しない語彙モジュール）に
+ * 限ること。`site-data.ts` を読むと、それが import する `content/site-data.json`
+ * まで studio の型検査プログラムに入り、`@/*` が studio 側を指すため解決に失敗して
+ * **`next build` が落ちる**。Next はテスト自身のエラーは捨てるが、テストが
+ * 引きずり込んだ `__tests__` の外のファイルのエラーは捨てない。
+ * vitest の alias で塞いでも `tsc` には効かない（project-layout の越境要件）。
  */
 import { describe, expect, it } from "vitest";
 import {
@@ -19,7 +25,7 @@ import {
   formatMinutes,
   type CourseStyle as SiteCourseStyle,
   type LessonStatus as SiteLessonStatus,
-} from "../../../mandala/lib/site-data";
+} from "../../../mandala/lib/site-labels";
 import {
   formatCourseStyleLabel,
   formatLessonStatusLabel,

@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import type { AgentLoopEmit, RunAgentLoopResult } from "@/lib/agent/agent-loop";
 
 vi.mock("@/lib/api-keys", () => ({
   resolveAiApiKey: () => "test-key",
@@ -17,27 +18,31 @@ vi.mock("@/lib/agent/file-attachments", () => ({
 }));
 
 vi.mock("@/lib/agent/agent-loop", () => ({
-  createAgentLoopSseStream: vi.fn((run) => {
-    const encoder = new TextEncoder();
-    return new ReadableStream({
-      start(controller) {
-        void run((event, data) => {
-          controller.enqueue(
-            encoder.encode(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`),
-          );
-        }).then((result) => {
-          if (!result.ok) {
+  createAgentLoopSseStream: vi.fn(
+    (run: (emit: AgentLoopEmit) => Promise<RunAgentLoopResult>) => {
+      const encoder = new TextEncoder();
+      return new ReadableStream({
+        start(controller) {
+          void run((event, data) => {
             controller.enqueue(
               encoder.encode(
-                `event: error\ndata: ${JSON.stringify({ message: result.error })}\n\n`,
+                `event: ${event}\ndata: ${JSON.stringify(data)}\n\n`,
               ),
             );
-          }
-          controller.close();
-        });
-      },
-    });
-  }),
+          }).then((result) => {
+            if (!result.ok) {
+              controller.enqueue(
+                encoder.encode(
+                  `event: error\ndata: ${JSON.stringify({ message: result.error })}\n\n`,
+                ),
+              );
+            }
+            controller.close();
+          });
+        },
+      });
+    },
+  ),
   runAgentLoop: vi.fn(async (options) => {
     options.emit("text_delta", { text: "hello" });
     options.emit("tool_start", {

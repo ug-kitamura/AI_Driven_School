@@ -8,11 +8,13 @@ import type { Lesson } from "@/lib/schema";
 
 const lesson: Lesson = {
   id: "l1",
+  series: "Series",
+  course: "Course",
   lesson: "Test",
   status: "open",
   description: "desc",
   tags: ["tag"],
-  estimatedMinutes: 10,
+  estimated_minutes: 10,
   author: "author",
   content: "---\nlesson: Test\n---\n\nbody",
 };

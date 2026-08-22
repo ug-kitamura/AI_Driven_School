@@ -1,10 +1,15 @@
 import siteData from "@/content/site-data.json";
 import type { Locale } from "./locale-path";
+import type { CourseStyle, LessonStatus } from "./site-labels";
 
-export type LessonStatus = "open" | "in_progress" | "done";
-
-/** コースの受講形態。正本 `.meta.json` の `style` */
-export type CourseStyle = "self-study" | "lecture" | "hands-on";
+// 表示ラベルの語彙と、その引数型の正本は生成物に依存しない `./site-labels`。
+// 公開サイト内の既存の呼び出し元が `@/lib/site-data` から読めるよう再エクスポートする。
+export type { CourseStyle, LessonStatus };
+export {
+  formatCourseStyle,
+  formatLessonStatus,
+  formatMinutes,
+} from "./site-labels";
 
 export type SiteLesson = {
   name: string;
@@ -139,44 +144,4 @@ export function localizedOptional(
   locale: Locale,
 ): string | undefined {
   return locale === "en" ? (en ?? ja) : ja;
-}
-
-export function formatMinutes(minutes: number, locale: Locale): string {
-  return locale === "en" ? `${minutes} min` : `${minutes}分`;
-}
-
-const COURSE_STYLE_LABELS_JA: Record<CourseStyle, string> = {
-  "self-study": "独習",
-  lecture: "講義",
-  "hands-on": "ハンズオン",
-};
-
-/** 受講形態の表示ラベル。英語は値そのまま（小文字） */
-export function formatCourseStyle(
-  style: CourseStyle | undefined,
-  locale: Locale,
-): string | undefined {
-  if (!style) return undefined;
-  return locale === "en" ? style : COURSE_STYLE_LABELS_JA[style];
-}
-
-/**
- * 執筆状況の表示ラベル。語彙は Studio（`lib/schema.ts`）に揃える——
- * 目次でもレッスンページでも同じ言葉を出すため、対応はここ1箇所だけに置く。
- * `done` はどちらにも表示しない。
- */
-const LESSON_STATUS_LABELS: Record<
-  Exclude<LessonStatus, "done">,
-  { ja: string; en: string }
-> = {
-  open: { ja: "未着手", en: "open" },
-  in_progress: { ja: "作成中", en: "in progress" },
-};
-
-export function formatLessonStatus(
-  status: LessonStatus,
-  locale: Locale,
-): string | undefined {
-  if (status === "done") return undefined;
-  return LESSON_STATUS_LABELS[status][locale];
 }

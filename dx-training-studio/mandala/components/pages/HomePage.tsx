@@ -1,6 +1,7 @@
 import Link from "next/link";
 import Image from "next/image";
 import { LazyMandala } from "@/components/mandala/LazyMandala";
+import { TitleWithCatch } from "@/components/pages/TitleWithCatch";
 import heroImage from "@/app/hero.jpg";
 import {
   allSeries,
@@ -67,13 +68,16 @@ export function HomePage({ locale }: { locale: Locale }) {
             className="dxm-card"
           >
             <span className="dxm-card-title">
-              {localized(series.name, series.nameEn, locale)}
+              <TitleWithCatch
+                title={localized(series.name, series.nameEn, locale)}
+                catchCopy={localizedOptional(
+                  series.catch,
+                  series.catchEn,
+                  locale,
+                )}
+                catchClassName="dxm-card-catch"
+              />
             </span>
-            {series.catch && (
-              <span className="dxm-card-catch">
-                {localizedOptional(series.catch, series.catchEn, locale)}
-              </span>
-            )}
             {series.description && (
               <span>
                 {localizedOptional(

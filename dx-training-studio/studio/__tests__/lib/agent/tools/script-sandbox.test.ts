@@ -65,11 +65,11 @@ describe("script-sandbox", () => {
 
   it("fails when writing outside the project", async () => {
     const { base, projectDir, outsideDir } = makeSandboxDirs();
-    const escaped = path.join(outsideDir, "escape.txt").replace(/\\/g, "\\\\");
+    const escaped = JSON.stringify(path.join(outsideDir, "escape.txt"));
     const result = await runScriptInSandbox(
       {
         kind: "code",
-        code: `const fs = require("fs"); fs.writeFileSync("${escaped}", "x");`,
+        code: `const fs = require("fs"); fs.writeFileSync(${escaped}, "x");`,
       },
       { projectDirAbsolute: projectDir },
     );
@@ -88,11 +88,17 @@ describe("script-sandbox", () => {
       "<html>tpl</html>",
       "utf-8",
     );
-    const skillEscaped = skillDir.replace(/\\/g, "\\\\");
+    // ⚠ パスは path.join で組み、埋め込みは JSON.stringify に任せること。
+    //    path.join が区切り文字を、JSON.stringify が文字列リテラルの escape を
+    //    担う。手書きの replace(/\\/g, "\\\\") はバックスラッシュを含まない
+    //    パス（Linux）では空振りし、片方の OS でだけ壊れる——CI が ubuntu で
+    //    落ちた原因がこれだった。
+    const skillFile = JSON.stringify(path.join(skillDir, "base.html"));
+    const hackedFile = JSON.stringify(path.join(skillDir, "hacked.txt"));
     const readResult = await runScriptInSandbox(
       {
         kind: "code",
-        code: `const fs = require("fs"); const t = fs.readFileSync("${skillEscaped}\\\\base.html", "utf-8"); fs.writeFileSync("out.html", t); console.log("copied");`,
+        code: `const fs = require("fs"); const t = fs.readFileSync(${skillFile}, "utf-8"); fs.writeFileSync("out.html", t); console.log("copied");`,
       },
       { projectDirAbsolute: projectDir, skillDirAbsolute: skillDir },
     );
@@ -104,7 +110,7 @@ describe("script-sandbox", () => {
     const writeResult = await runScriptInSandbox(
       {
         kind: "code",
-        code: `const fs = require("fs"); fs.writeFileSync("${skillEscaped}\\\\hacked.txt", "x");`,
+        code: `const fs = require("fs"); fs.writeFileSync(${hackedFile}, "x");`,
       },
       { projectDirAbsolute: projectDir, skillDirAbsolute: skillDir },
     );
